@@ -2003,10 +2003,7 @@ describe('requestPermittedChainsPermissionIncremental', () => {
 
 describe('getCaip25PermissionFromLegacyPermissions', () => {
   it('returns valid CAIP-25 permissions', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions(
-      'test.com',
-      {},
-    );
+    const permissions = getCaip25PermissionFromLegacyPermissions({});
 
     expect(permissions).toStrictEqual(
       expect.objectContaining({
@@ -2031,8 +2028,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only eth_accounts is specified in params and origin is not snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('test.com', {
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only eth_accounts is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.eth_accounts]: {
         caveats: [
           {
@@ -2068,8 +2065,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only permittedChains is specified in params and origin is not snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('test.com', {
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only permittedChains is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.permittedChains]: {
         caveats: [
           {
@@ -2106,8 +2103,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsController for eth_accounts and permittedChains when both are specified in params and origin is not snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('test.com', {
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when both are specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.eth_accounts]: {
         caveats: [
           {
@@ -2156,8 +2153,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsController for only eth_accounts when only eth_accounts is specified in params and origin is snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('npm:snap', {
+  it('returns approval from the PermissionsController for only eth_accounts when only eth_accounts is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.eth_accounts]: {
         caveats: [
           {
@@ -2193,8 +2190,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsController for only eth_accounts when only permittedChains is specified in params and origin is snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('npm:snap', {
+  it('returns approval from the PermissionsController for only eth_accounts when only permittedChains is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.permittedChains]: {
         caveats: [
           {
@@ -2231,8 +2228,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns approval from the PermissionsController for eth_accounts and permittedChains when both eth_accounts and permittedChains are specified in params and origin is snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('npm:snap', {
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when both eth_accounts and permittedChains are specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.eth_accounts]: {
         caveats: [
           {
@@ -2281,8 +2278,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns CAIP-25 approval with accounts and chainIds specified from `eth_accounts` and `endowment:permittedChains` permissions caveats, and isMultichainOrigin: false if origin is not snapId', async () => {
-    const permissions = getCaip25PermissionFromLegacyPermissions('test.com', {
+  it('returns CAIP-25 approval with accounts and chainIds specified from `eth_accounts` and `endowment:permittedChains` permissions caveats', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.eth_accounts]: {
         caveats: [
           {
@@ -2330,10 +2327,8 @@ describe('getCaip25PermissionFromLegacyPermissions', () => {
     );
   });
 
-  it('returns CAIP-25 approval with approved accounts for the `wallet:eip155` scope with isMultichainOrigin: false if origin is snapId', async () => {
-    const origin = 'npm:snap';
-
-    const permissions = getCaip25PermissionFromLegacyPermissions(origin, {
+  it('returns CAIP-25 approval with approved accounts for the `wallet:eip155` scope', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
       [PermissionKeys.eth_accounts]: {
         caveats: [
           {

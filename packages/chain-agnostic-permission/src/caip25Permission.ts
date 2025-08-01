@@ -568,19 +568,17 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
 }
 
 /**
- * Requests user approval for the CAIP-25 permission for the specified origin
+ * Requests user approval for the CAIP-25 permission
  * and returns a granted permissions object.
  *
- * @param origin - The origin to request approval for.
  * @param requestedPermissions - The legacy permissions to request approval for.
  * @param requestedPermissions.caveats - The legacy caveats processed by the function.
  * - `restrictReturnedAccounts`: Restricts which Ethereum accounts can be accessed
  * - `restrictNetworkSwitching`: Restricts which blockchain networks can be used
  * @returns The converted CAIP-25 permission object.
  */
-export const getCaip25PermissionFromLegacyPermissions = (
-  origin: string,
-  requestedPermissions?: {
+export const getCaip25PermissionFromLegacyPermissions =
+  (requestedPermissions?: {
     [PermissionKeys.eth_accounts]?: {
       caveats?: {
         type: keyof typeof CaveatTypes;
@@ -593,63 +591,62 @@ export const getCaip25PermissionFromLegacyPermissions = (
         value: Hex[];
       }[];
     };
-  },
-) => {
-  const permissions = pick(requestedPermissions, [
-    PermissionKeys.eth_accounts,
-    PermissionKeys.permittedChains,
-  ]);
+  }) => {
+    const permissions = pick(requestedPermissions, [
+      PermissionKeys.eth_accounts,
+      PermissionKeys.permittedChains,
+    ]);
 
-  if (!permissions[PermissionKeys.eth_accounts]) {
-    permissions[PermissionKeys.eth_accounts] = {};
-  }
+    if (!permissions[PermissionKeys.eth_accounts]) {
+      permissions[PermissionKeys.eth_accounts] = {};
+    }
 
-  if (!permissions[PermissionKeys.permittedChains]) {
-    permissions[PermissionKeys.permittedChains] = {};
-  }
+    if (!permissions[PermissionKeys.permittedChains]) {
+      permissions[PermissionKeys.permittedChains] = {};
+    }
 
-  const requestedAccounts =
-    permissions[PermissionKeys.eth_accounts]?.caveats?.find(
-      (caveat) => caveat.type === CaveatTypes.restrictReturnedAccounts,
-    )?.value ?? [];
+    const requestedAccounts =
+      permissions[PermissionKeys.eth_accounts]?.caveats?.find(
+        (caveat) => caveat.type === CaveatTypes.restrictReturnedAccounts,
+      )?.value ?? [];
 
-  const requestedChains =
-    permissions[PermissionKeys.permittedChains]?.caveats?.find(
-      (caveat) => caveat.type === CaveatTypes.restrictNetworkSwitching,
-    )?.value ?? [];
+    const requestedChains =
+      permissions[PermissionKeys.permittedChains]?.caveats?.find(
+        (caveat) => caveat.type === CaveatTypes.restrictNetworkSwitching,
+      )?.value ?? [];
 
-  const newCaveatValue = {
-    requiredScopes: {},
-    optionalScopes: {
-      'wallet:eip155': {
-        accounts: [],
-      },
-    },
-    sessionProperties: {},
-    isMultichainOrigin: false,
-  };
-
-  const caveatValueWithChains = setPermittedEthChainIds(
-    newCaveatValue,
-    requestedChains,
-  );
-
-  const caveatValueWithAccountsAndChains = setEthAccounts(
-    caveatValueWithChains,
-    requestedAccounts,
-  );
-
-  return {
-    [Caip25EndowmentPermissionName]: {
-      caveats: [
-        {
-          type: Caip25CaveatType,
-          value: caveatValueWithAccountsAndChains,
+    const newCaveatValue = {
+      requiredScopes: {},
+      optionalScopes: {
+        'wallet:eip155': {
+          accounts: [],
         },
-      ],
-    },
+      },
+      sessionProperties: {},
+      isMultichainOrigin: false,
+    };
+
+    const caveatValueWithChains = setPermittedEthChainIds(
+      newCaveatValue,
+      requestedChains,
+    );
+
+    const caveatValueWithAccountsAndChains = setEthAccounts(
+      caveatValueWithChains,
+      requestedAccounts,
+    );
+
+    return {
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: caveatValueWithAccountsAndChains,
+          },
+        ],
+      },
+    };
   };
-};
 
 /**
  * Requests incremental permittedChains permission for the specified origin.
