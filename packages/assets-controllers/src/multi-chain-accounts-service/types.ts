@@ -16,6 +16,14 @@ export type GetBalancesQueryParams = {
   includeStakedAssets?: boolean;
 };
 
+export type GetBalancesQueryParamsV4 = {
+  /** Comma-separated network/chain IDs */
+  networks?: string;
+
+  /** Comma-separated account addresses */
+  accountAddresses?: string;
+};
+
 export type GetBalancesResponse = {
   count: number;
   balances: {
@@ -32,6 +40,8 @@ export type GetBalancesResponse = {
     chainId: number;
     /** string representation of the balance in decimal format (decimals adjusted). e.g. - 123.456789 */
     balance: string;
+    /** Account address for V4 API responses */
+    accountAddress?: string;
   }[];
   /** networks that failed to process, if no network is processed, returns HTTP 422  */
   unprocessedNetworks: number[];
