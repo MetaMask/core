@@ -572,14 +572,16 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
  * Requests user approval for the CAIP-25 permission for the specified origin
  * and returns a granted permissions object.
  *
+ * @param origin - The origin to request approval for.
  * @param requestedPermissions - The legacy permissions to request approval for.
  * @param requestedPermissions.caveats - The legacy caveats processed by the function.
  * - `restrictReturnedAccounts`: Restricts which Ethereum accounts can be accessed
  * - `restrictNetworkSwitching`: Restricts which blockchain networks can be used
  * @returns CAIP-25 permission object with unified caveat structure containing both account and chain restrictions
  */
-export const getCaip25PermissionFromLegacyPermissions =
-  (requestedPermissions?: {
+export const getCaip25PermissionFromLegacyPermissions = (
+  origin: string,
+  requestedPermissions?: {
     [PermissionKeys.eth_accounts]?: {
       caveats?: {
         type: keyof typeof CaveatTypes;
@@ -592,62 +594,70 @@ export const getCaip25PermissionFromLegacyPermissions =
         value: Hex[];
       }[];
     };
-  }) => {
-    const permissions = pick(requestedPermissions, [
-      PermissionKeys.eth_accounts,
-      PermissionKeys.permittedChains,
-    ]);
+  },
+) => {
+  const permissions = pick(requestedPermissions, [
+    PermissionKeys.eth_accounts,
+    PermissionKeys.permittedChains,
+  ]);
 
-    if (!permissions[PermissionKeys.eth_accounts]) {
-      permissions[PermissionKeys.eth_accounts] = {};
-    }
+  if (!permissions[PermissionKeys.eth_accounts]) {
+    permissions[PermissionKeys.eth_accounts] = {};
+  }
 
-    if (!permissions[PermissionKeys.permittedChains]) {
-      permissions[PermissionKeys.permittedChains] = {};
-    }
+  if (!permissions[PermissionKeys.permittedChains]) {
+    permissions[PermissionKeys.permittedChains] = {};
+  }
 
-    const requestedAccounts =
-      permissions[PermissionKeys.eth_accounts]?.caveats?.find(
-        (caveat) => caveat.type === CaveatTypes.restrictReturnedAccounts,
-      )?.value ?? [];
+  // TODO: [ffmcgee] get isSnapId from snap utils
+  // if (isSnapId(origin)) {
+  //   delete permissions[PermissionNames.permittedChains];
+  // }
 
-    const requestedChains =
-      permissions[PermissionKeys.permittedChains]?.caveats?.find(
-        (caveat) => caveat.type === CaveatTypes.restrictNetworkSwitching,
-      )?.value ?? [];
+  const requestedAccounts =
+    permissions[PermissionKeys.eth_accounts]?.caveats?.find(
+      (caveat) => caveat.type === CaveatTypes.restrictReturnedAccounts,
+    )?.value ?? [];
 
-    const newCaveatValue = {
-      requiredScopes: {},
-      optionalScopes: {
-        'wallet:eip155': {
-          accounts: [],
-        },
+  const requestedChains =
+    permissions[PermissionKeys.permittedChains]?.caveats?.find(
+      (caveat) => caveat.type === CaveatTypes.restrictNetworkSwitching,
+    )?.value ?? [];
+
+  const newCaveatValue = {
+    requiredScopes: {},
+    optionalScopes: {
+      'wallet:eip155': {
+        accounts: [],
       },
-      sessionProperties: {},
-      isMultichainOrigin: false,
-    };
-
-    const caveatValueWithChains = setPermittedEthChainIds(
-      newCaveatValue,
-      requestedChains,
-    );
-
-    const caveatValueWithAccountsAndChains = setEthAccounts(
-      caveatValueWithChains,
-      requestedAccounts,
-    );
-
-    return {
-      [Caip25EndowmentPermissionName]: {
-        caveats: [
-          {
-            type: Caip25CaveatType,
-            value: caveatValueWithAccountsAndChains,
-          },
-        ],
-      },
-    };
+    },
+    sessionProperties: {},
+    isMultichainOrigin: false,
   };
+
+  const caveatValueWithChains = setPermittedEthChainIds(
+    newCaveatValue,
+    // TODO: [ffmcgee] get isSnapId from snap utils
+    // isSnapId(origin) ? [] : requestedChains,
+    requestedChains,
+  );
+
+  const caveatValueWithAccountsAndChains = setEthAccounts(
+    caveatValueWithChains,
+    requestedAccounts,
+  );
+
+  return {
+    [Caip25EndowmentPermissionName]: {
+      caveats: [
+        {
+          type: Caip25CaveatType,
+          value: caveatValueWithAccountsAndChains,
+        },
+      ],
+    },
+  };
+};
 
 /**
  * Requests incremental permittedChains permission for the specified origin.
@@ -705,6 +715,12 @@ export const requestPermittedChainsPermissionIncremental = async ({
   };
   metadata?: { options: Record<string, Json> };
 }) => {
+  // TODO: [ffmcgee] get isSnapId from snap utils
+  // if (isSnapId(origin)) {
+  //     throw new Error(
+  //       `Cannot request permittedChains permission for Snaps with origin "${origin}"`,
+  //     );
+  //   }
   const caveatValueWithChains = setPermittedEthChainIds(
     {
       requiredScopes: {},
