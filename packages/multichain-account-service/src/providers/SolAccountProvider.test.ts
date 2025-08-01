@@ -216,7 +216,11 @@ describe('SolAccountProvider', () => {
     expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
   });
 
-  it('throws if the created account is not BIP-44 compatible', async () => {
+  // Skip this test for now, since we manually inject those options upon
+  // account creation, so it cannot fails (until the Solana Snap starts
+  // using the new typed options).
+  // eslint-disable-next-line jest/no-disabled-tests
+  it.skip('throws if the created account is not BIP-44 compatible', async () => {
     const accounts = [MOCK_SOL_ACCOUNT_1];
     const { provider, mocks } = setup({
       accounts,
