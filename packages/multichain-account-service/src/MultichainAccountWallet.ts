@@ -190,8 +190,13 @@ export class MultichainAccountWallet<
    * @returns The next group index of this wallet.
    */
   getNextGroupIndex(): number {
-    // Assuming we cannot have indexes gaps.
-    return this.#accounts.size; // No +1 here, group indexes starts at 0.
+    // We do not check for gaps.
+    return (
+      Math.max(
+        -1, // So it will default to 0 if no groups.
+        ...this.#accounts.keys(),
+      ) + 1
+    );
   }
 
   /**
