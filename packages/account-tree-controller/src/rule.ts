@@ -19,13 +19,13 @@ export type RuleResult<
   wallet: {
     type: WalletType;
     id: AccountWalletIdOf<WalletType>;
-    // Omit `name` since it will get computed after the tree is built.
+    // Base metadata (without computed name) - still using Omit until we have type-specific base metadata
     metadata: Omit<AccountWalletObjectOf<WalletType>['metadata'], 'name'>;
   };
   group: {
     type: GroupType;
     id: AccountGroupIdOf<WalletType>;
-    // Omit `name` since it will get computed after the tree is built.
+    // Base metadata (without computed name) - still using Omit until we have type-specific base metadata
     metadata: Omit<AccountGroupObjectOf<GroupType>['metadata'], 'name'>;
   };
 };

@@ -431,6 +431,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -440,6 +442,7 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
+                collapsed: false,
               },
             },
             [expectedWalletId2]: {
@@ -455,6 +458,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                 },
                 [expectedWalletId2Group2]: {
@@ -467,6 +472,8 @@ describe('AccountTreeController', () => {
                       groupIndex:
                         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -476,6 +483,7 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_2.metadata.id,
                   index: 1,
                 },
+                collapsed: false,
               },
             },
             [expectedSnapWalletId]: {
@@ -488,6 +496,8 @@ describe('AccountTreeController', () => {
                   accounts: [MOCK_SNAP_ACCOUNT_2.id],
                   metadata: {
                     name: MOCK_SNAP_ACCOUNT_2.metadata.name,
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -496,6 +506,7 @@ describe('AccountTreeController', () => {
                 snap: {
                   id: MOCK_SNAP_2.id,
                 },
+                collapsed: false,
               },
             },
             [expectedKeyringWalletId]: {
@@ -508,6 +519,8 @@ describe('AccountTreeController', () => {
                   accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
                   metadata: {
                     name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -518,6 +531,7 @@ describe('AccountTreeController', () => {
                 keyring: {
                   type: KeyringTypes.ledger,
                 },
+                collapsed: false,
               },
             },
           },
@@ -696,6 +710,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount2.id], // HD account 1 got removed.
                 },
@@ -706,6 +722,7 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
+                collapsed: false,
               },
             },
           },
@@ -776,6 +793,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
                 },
@@ -786,6 +805,7 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
+                collapsed: false,
               },
             },
           },
@@ -861,6 +881,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount1.id],
                 },
@@ -871,6 +893,7 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
+                collapsed: false,
               },
             },
             [walletId2]: {
@@ -886,6 +909,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount2.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -896,6 +921,7 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_2.metadata.id,
                   index: 1,
                 },
+                collapsed: false,
               },
             },
           },
@@ -1573,10 +1599,12 @@ describe('AccountTreeController', () => {
         accounts: [MOCK_HD_ACCOUNT_1.id],
         metadata: {
           name: MOCK_HD_ACCOUNT_1.metadata.name,
-          entropy: {
-            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-          },
-        },
+                              entropy: {
+                      groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+                    },
+                    pinned: false,
+                    hidden: false,
+                  },
       };
 
       expect(rule.getDefaultAccountGroupName(group)).toBe('');
@@ -1613,8 +1641,10 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountGroupsMetadata[expectedGroupId1],
       ).toStrictEqual({
-        name: customName,
-        lastUpdatedAt: expect.any(Number),
+        name: {
+          value: customName,
+          lastUpdatedAt: expect.any(Number),
+        },
       });
     });
 
@@ -1641,8 +1671,10 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountWalletsMetadata[expectedWalletId1],
       ).toStrictEqual({
-        name: customName,
-        lastUpdatedAt: expect.any(Number),
+        name: {
+          value: customName,
+          lastUpdatedAt: expect.any(Number),
+        },
       });
     });
 
@@ -1714,10 +1746,16 @@ describe('AccountTreeController', () => {
       const groupMetadata =
         controller.state.accountGroupsMetadata[expectedGroupId];
 
-      expect(walletMetadata?.lastUpdatedAt).toBeGreaterThanOrEqual(beforeTime);
-      expect(walletMetadata?.lastUpdatedAt).toBeLessThanOrEqual(afterTime);
-      expect(groupMetadata?.lastUpdatedAt).toBeGreaterThanOrEqual(beforeTime);
-      expect(groupMetadata?.lastUpdatedAt).toBeLessThanOrEqual(afterTime);
+      expect(walletMetadata?.name?.lastUpdatedAt).toBeGreaterThanOrEqual(
+        beforeTime,
+      );
+      expect(walletMetadata?.name?.lastUpdatedAt).toBeLessThanOrEqual(
+        afterTime,
+      );
+      expect(groupMetadata?.name?.lastUpdatedAt).toBeGreaterThanOrEqual(
+        beforeTime,
+      );
+      expect(groupMetadata?.name?.lastUpdatedAt).toBeLessThanOrEqual(afterTime);
     });
   });
 
@@ -1748,8 +1786,10 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountGroupsMetadata[expectedGroupId],
       ).toStrictEqual({
-        pinned: true,
-        lastUpdatedAt: expect.any(Number),
+        pinned: {
+          value: true,
+          lastUpdatedAt: expect.any(Number),
+        },
       });
     });
 
@@ -1779,8 +1819,10 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountGroupsMetadata[expectedGroupId],
       ).toStrictEqual({
-        hidden: true,
-        lastUpdatedAt: expect.any(Number),
+        hidden: {
+          value: true,
+          lastUpdatedAt: expect.any(Number),
+        },
       });
     });
 
@@ -1808,8 +1850,12 @@ describe('AccountTreeController', () => {
 
       const groupMetadata =
         controller.state.accountGroupsMetadata[expectedGroupId];
-      expect(groupMetadata?.lastUpdatedAt).toBeGreaterThanOrEqual(beforeTime);
-      expect(groupMetadata?.lastUpdatedAt).toBeLessThanOrEqual(afterTime);
+      expect(groupMetadata?.pinned?.lastUpdatedAt).toBeGreaterThanOrEqual(
+        beforeTime,
+      );
+      expect(groupMetadata?.pinned?.lastUpdatedAt).toBeLessThanOrEqual(
+        afterTime,
+      );
     });
   });
 
@@ -1827,15 +1873,22 @@ describe('AccountTreeController', () => {
     it('preserves existing metadata when initializing with partial state', () => {
       const existingGroupMetadata = {
         'test-group-id': {
-          name: 'Existing Group',
-          pinned: true,
-          lastUpdatedAt: 123456789,
+          name: {
+            value: 'Existing Group',
+            lastUpdatedAt: 123456789,
+          },
+          pinned: {
+            value: true,
+            lastUpdatedAt: 123456789,
+          },
         },
       };
       const existingWalletMetadata = {
         'test-wallet-id': {
-          name: 'Existing Wallet',
-          lastUpdatedAt: 123456789,
+          name: {
+            value: 'Existing Wallet',
+            lastUpdatedAt: 123456789,
+          },
         },
       };
 

@@ -144,12 +144,12 @@ export class AccountTreeController extends BaseController<
       this.#insert(wallets, account);
     }
 
-    // Once we have the account tree, we can compute the name.
+    // Once we have the account tree, we can apply persisted metadata (names + UI states).
     for (const wallet of Object.values(wallets)) {
-      this.#renameAccountWalletIfNeeded(wallet);
+      this.#applyAccountWalletMetadata(wallet);
 
       for (const group of Object.values(wallet.groups)) {
-        this.#renameAccountGroupIfNeeded(wallet, group);
+        this.#applyAccountGroupMetadata(wallet, group);
       }
     }
 
@@ -176,58 +176,67 @@ export class AccountTreeController extends BaseController<
     return this.#rules[2];
   }
 
-  #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
+  #applyAccountWalletMetadata(wallet: AccountWalletObject) {
     const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
-    if (persistedMetadata?.name) {
-      wallet.metadata.name = persistedMetadata.name;
-      return;
+
+    // Apply persisted name if available
+    if (persistedMetadata?.name?.value) {
+      wallet.metadata.name = persistedMetadata.name.value;
+    } else if (!wallet.metadata.name) {
+      // Generate default name if none exists
+      if (wallet.type === AccountWalletType.Entropy) {
+        wallet.metadata.name =
+          this.#getEntropyRule().getDefaultAccountWalletName(wallet);
+      } else if (wallet.type === AccountWalletType.Snap) {
+        wallet.metadata.name =
+          this.#getSnapRule().getDefaultAccountWalletName(wallet);
+      } else {
+        wallet.metadata.name =
+          this.#getKeyringRule().getDefaultAccountWalletName(wallet);
+      }
     }
 
-    if (wallet.metadata.name) {
-      return;
-    }
-
-    if (wallet.type === AccountWalletType.Entropy) {
-      wallet.metadata.name =
-        this.#getEntropyRule().getDefaultAccountWalletName(wallet);
-    } else if (wallet.type === AccountWalletType.Snap) {
-      wallet.metadata.name =
-        this.#getSnapRule().getDefaultAccountWalletName(wallet);
-    } else {
-      wallet.metadata.name =
-        this.#getKeyringRule().getDefaultAccountWalletName(wallet);
+    // Apply persisted UI states
+    if (persistedMetadata?.collapsed?.value !== undefined) {
+      wallet.metadata.collapsed = persistedMetadata.collapsed.value;
     }
   }
 
-  #renameAccountGroupIfNeeded(
+  #applyAccountGroupMetadata(
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ) {
     const persistedMetadata = this.state.accountGroupsMetadata[group.id];
-    if (persistedMetadata?.name) {
-      group.metadata.name = persistedMetadata.name;
-      return;
+
+    // Apply persisted name if available
+    if (persistedMetadata?.name?.value) {
+      group.metadata.name = persistedMetadata.name.value;
+    } else if (!group.metadata.name) {
+      // Generate default name if none exists
+      if (wallet.type === AccountWalletType.Entropy) {
+        group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
+          // Get the group from the wallet, to get the proper type inference.
+          wallet.groups[group.id],
+        );
+      } else if (wallet.type === AccountWalletType.Snap) {
+        group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
+          // Same here.
+          wallet.groups[group.id],
+        );
+      } else {
+        group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
+          // Same here.
+          wallet.groups[group.id],
+        );
+      }
     }
 
-    if (group.metadata.name) {
-      return;
+    // Apply persisted UI states
+    if (persistedMetadata?.pinned?.value !== undefined) {
+      group.metadata.pinned = persistedMetadata.pinned.value;
     }
-
-    if (wallet.type === AccountWalletType.Entropy) {
-      group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
-        // Get the group from the wallet, to get the proper type inference.
-        wallet.groups[group.id],
-      );
-    } else if (wallet.type === AccountWalletType.Snap) {
-      group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
-        // Same here.
-        wallet.groups[group.id],
-      );
-    } else {
-      group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
-        // Same here.
-        wallet.groups[group.id],
-      );
+    if (persistedMetadata?.hidden?.value !== undefined) {
+      group.metadata.hidden = persistedMetadata.hidden.value;
     }
   }
 
@@ -256,11 +265,11 @@ export class AccountTreeController extends BaseController<
 
         const wallet = state.accountTree.wallets[walletId];
         if (wallet) {
-          this.#renameAccountWalletIfNeeded(wallet);
+          this.#applyAccountWalletMetadata(wallet);
 
           const group = wallet.groups[groupId];
           if (group) {
-            this.#renameAccountGroupIfNeeded(wallet, group);
+            this.#applyAccountGroupMetadata(wallet, group);
           }
         }
       }
@@ -319,6 +328,7 @@ export class AccountTreeController extends BaseController<
         metadata: {
           name: '', // Will get updated later.
           ...result.wallet.metadata,
+          collapsed: false, // Default UI state
         },
         // We do need to type-cast since we're not narrowing `result` with
         // the union tag `result.wallet.type`.
@@ -336,6 +346,8 @@ export class AccountTreeController extends BaseController<
         metadata: {
           name: '',
           ...result.group.metadata,
+          pinned: false, // Default UI state
+          hidden: false, // Default UI state
         },
         // We do need to type-cast since we're not narrowing `result` with
         // the union tag `result.group.type`.
@@ -548,8 +560,10 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountGroupsMetadata[groupId] = {
         ...state.accountGroupsMetadata[groupId],
-        name,
-        lastUpdatedAt: Date.now(),
+        name: {
+          value: name,
+          lastUpdatedAt: Date.now(),
+        },
       };
     });
 
@@ -567,8 +581,10 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountWalletsMetadata[walletId] = {
         ...state.accountWalletsMetadata[walletId],
-        name,
-        lastUpdatedAt: Date.now(),
+        name: {
+          value: name,
+          lastUpdatedAt: Date.now(),
+        },
       };
     });
 
@@ -586,8 +602,10 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountGroupsMetadata[groupId] = {
         ...state.accountGroupsMetadata[groupId],
-        pinned,
-        lastUpdatedAt: Date.now(),
+        pinned: {
+          value: pinned,
+          lastUpdatedAt: Date.now(),
+        },
       };
     });
   }
@@ -602,8 +620,10 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountGroupsMetadata[groupId] = {
         ...state.accountGroupsMetadata[groupId],
-        hidden,
-        lastUpdatedAt: Date.now(),
+        hidden: {
+          value: hidden,
+          lastUpdatedAt: Date.now(),
+        },
       };
     });
   }
@@ -621,8 +641,10 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountWalletsMetadata[walletId] = {
         ...state.accountWalletsMetadata[walletId],
-        collapsed,
-        lastUpdatedAt: Date.now(),
+        collapsed: {
+          value: collapsed,
+          lastUpdatedAt: Date.now(),
+        },
       };
     });
   }
