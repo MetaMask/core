@@ -2443,13 +2443,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:@metamask-previews/account-api@0.6.0-9cb78a8":
-  version: 0.6.0-9cb78a8
-  resolution: "@metamask-previews/account-api@npm:0.6.0-9cb78a8"
+"@metamask/account-api@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "@metamask/account-api@npm:0.7.0"
   dependencies:
-    "@metamask/keyring-api": "npm:19.1.0"
+    "@metamask/keyring-api": "npm:^19.1.0"
     "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/da920f6a4a94e193c9465a46dcaec4e2eaa2188a72603dba47b186042f1a4375ed22629b834c924d2e65828878f16a2ee9742f56f559020246a261cc7dcd4937
+  checksum: 10/973286d46f33e1d74f0600ad29f50006f054e25340bd268d65b44b1d6b9f2faced28171725aae5d84ecac43b92074340d918b14fc732a131b61c13dda3a19e63
   languageName: node
   linkType: hard
 
@@ -2457,7 +2457,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
-    "@metamask/account-api": "npm:^0.6.0"
+    "@metamask/account-api": "npm:^0.7.0"
     "@metamask/accounts-controller": "npm:^32.0.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -2477,7 +2477,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/account-api": ^0.6.0
+    "@metamask/account-api": ^0.7.0
     "@metamask/accounts-controller": ^32.0.0
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/providers": ^22.0.0
@@ -3642,7 +3642,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:19.1.0, @metamask/keyring-api@npm:^19.0.0":
+"@metamask/keyring-api@npm:^19.0.0, @metamask/keyring-api@npm:^19.1.0":
   version: 19.1.0
   resolution: "@metamask/keyring-api@npm:19.1.0"
   dependencies:
@@ -3814,7 +3814,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
-    "@metamask/account-api": "npm:^0.6.0"
+    "@metamask/account-api": "npm:^0.7.0"
     "@metamask/accounts-controller": "npm:^32.0.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
@@ -3840,7 +3840,7 @@ __metadata:
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/account-api": ^0.6.0
+    "@metamask/account-api": ^0.7.0
     "@metamask/accounts-controller": ^32.0.0
     "@metamask/keyring-controller": ^22.0.0
     "@metamask/providers": ^22.0.0
