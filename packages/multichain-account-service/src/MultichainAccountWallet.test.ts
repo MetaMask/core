@@ -286,11 +286,13 @@ describe('MultichainAccountWallet', () => {
         new Error('Unable to create accounts'),
       );
 
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow(
         'Unable to create multichain account group for index: 1',
       );
+      expect(consoleSpy).toHaveBeenCalled();
     });
   });
 

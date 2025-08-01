@@ -248,9 +248,17 @@ export class MultichainAccountWallet<
     // just create the missing accounts, and previously created accounts will just be
     // re-used as is.
     if (results.some((result) => result.status === 'rejected')) {
-      throw new Error(
-        `Unable to create multichain account group for index: ${groupIndex}`,
-      );
+      const error = `Unable to create multichain account group for index: ${groupIndex}`;
+
+      let warn = `${error}:`;
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          warn += `\n- ${result.reason}`;
+        }
+      }
+      console.warn(warn);
+
+      throw new Error(error);
     }
 
     // Because of the :accountAdded automatic sync, we might already have created the
