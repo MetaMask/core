@@ -179,7 +179,7 @@ describe('determineTransactionType', () => {
     });
   });
 
-  it('returns a simple send type with a null getCodeResponse when "to" is truthy and there is data, but getCode returns an error', async () => {
+  it('returns a contract interaction type when getCode returns an error and data is unknown', async () => {
     const result = await determineTransactionType(
       {
         ...txParams,
@@ -188,7 +188,7 @@ describe('determineTransactionType', () => {
       createMockEthQuery(null, true),
     );
     expect(result).toMatchObject({
-      type: TransactionType.simpleSend,
+      type: TransactionType.contractInteraction,
       getCodeResponse: null,
     });
   });
@@ -246,6 +246,18 @@ describe('determineTransactionType', () => {
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,
       getCodeResponse: undefined,
+    });
+  });
+
+  it('returns transfer type when readAddressAsContract throws an error', async () => {
+    const result = await determineTransactionType(
+      txParams,
+      createMockEthQuery(null, true),
+    );
+
+    expect(result).toMatchObject({
+      type: TransactionType.tokenMethodTransfer,
+      getCodeResponse: null,
     });
   });
 });
