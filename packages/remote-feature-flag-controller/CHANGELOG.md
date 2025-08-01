@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `EnvironmentType` `Beta` and `Test`
+- Add `EnvironmentType` `Beta`, `Test`, and `Exp`
 
 ### Changed
 
