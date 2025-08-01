@@ -150,9 +150,11 @@ async function readAddressAsContract(
     };
   }
 
-  const isContractAddress =
-    contractCode !== '0x' &&
-    contractCode !== '0x0' &&
-    !contractCode.startsWith(DELEGATION_PREFIX);
+  const isContractAddress = Boolean(
+    contractCode &&
+      contractCode !== '0x' &&
+      contractCode !== '0x0' &&
+      !contractCode.startsWith(DELEGATION_PREFIX),
+  );
   return { contractCode, isContractAddress, error: null };
 }
