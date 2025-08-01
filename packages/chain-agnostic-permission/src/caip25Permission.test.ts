@@ -1955,8 +1955,7 @@ describe('requestPermittedChainsPermissionIncremental', () => {
       ),
     };
 
-    const options = { someOption: 'testValue' };
-    const metadata = { options };
+    const metadata = { options: { someOption: 'testValue' } };
 
     mockRequestPermissionsIncremental.mockResolvedValue([
       subjectPermissions,
@@ -1977,7 +1976,7 @@ describe('requestPermittedChainsPermissionIncremental', () => {
     expect(mockRequestPermissionsIncremental).toHaveBeenCalledWith(
       { origin: 'test.com' },
       expectedCaip25Permission,
-      options,
+      { metadata },
     );
   });
 });
