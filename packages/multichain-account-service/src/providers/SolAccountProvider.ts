@@ -6,10 +6,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
-import {
-  assertIsBip44Account,
-  BaseAccountProvider,
-} from './BaseAccountProvider';
+import { BaseAccountProvider } from './BaseAccountProvider';
 
 export class SolAccountProvider extends BaseAccountProvider {
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
@@ -49,7 +46,9 @@ export class SolAccountProvider extends BaseAccountProvider {
       },
     );
 
-    assertIsBip44Account(account);
+    // NOTE: We cannot assert account to be BIP-44 account for the moment, since
+    // Solana account do not use the new typed-options yet.
+    // assertIsBip44Account(account);
 
     return account;
   }
