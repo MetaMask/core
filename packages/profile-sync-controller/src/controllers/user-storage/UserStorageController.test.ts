@@ -1,5 +1,3 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type nock from 'nock';
 
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
@@ -730,52 +728,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 });
 
-describe('user-storage/user-storage-controller - saveInternalAccountToUserStorage() tests', () => {
-  const arrangeMocks = () => {
-    const messengerMocks = mockUserStorageMessengerForAccountSyncing();
-    const mockSaveInternalAccountToUserStorage = jest.spyOn(
-      AccountSyncControllerIntegrationModule,
-      'saveInternalAccountToUserStorage',
-    );
-    return {
-      messenger: messengerMocks.messenger,
-      mockSaveInternalAccountToUserStorage,
-    };
-  };
-
-  // NOTE the actual testing of the implementation is done in `controller-integration.ts` file.
-  // See relevant unit tests to see how this feature works and is tested
-  it('should invoke syncing from the integration module', async () => {
-    const { messenger, mockSaveInternalAccountToUserStorage } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger,
-      // We're only verifying that calling this controller method will call the integration module
-      // The actual implementation is tested in the integration tests
-      // This is done to prevent creating unnecessary nock instances in this test
-    });
-
-    mockSaveInternalAccountToUserStorage.mockImplementation(
-      async (
-        _internalAccount,
-        {
-          getMessenger = jest.fn(),
-          getUserStorageControllerInstance = jest.fn(),
-        },
-      ) => {
-        getMessenger();
-        getUserStorageControllerInstance();
-        return undefined;
-      },
-    );
-
-    await controller.saveInternalAccountToUserStorage({
-      id: '1',
-    } as InternalAccount);
-
-    expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalled();
-  });
-});
-
 describe('user-storage/user-storage-controller - error handling edge cases', () => {
   const arrangeMocks = () => {
     const messengerMocks = mockUserStorageMessenger();
@@ -849,38 +801,6 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
 
     expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
     expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
-  });
-
-  it('handles saveInternalAccountToUserStorage when disabled', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.accountSyncing,
-      false,
-    );
-
-    const mockSetStorage = jest.spyOn(controller, 'performSetStorage');
-
-    // Create mock account
-    const mockAccount = {
-      id: '123',
-      address: '0x123',
-      metadata: {
-        name: 'Test',
-        nameLastUpdatedAt: Date.now(),
-        keyring: {
-          type: KeyringTypes.hd,
-        },
-      },
-    } as InternalAccount;
-
-    await controller.saveInternalAccountToUserStorage(mockAccount);
-
-    expect(mockSetStorage).not.toHaveBeenCalled();
   });
 });
 

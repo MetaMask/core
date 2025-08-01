@@ -19,7 +19,10 @@ export function setupAccountSyncingSubscriptions(
       if (
         !canPerformAccountSyncing(options) ||
         !getUserStorageControllerInstance().state
-          .hasAccountSyncingSyncedAtLeastOnce
+          .hasAccountSyncingSyncedAtLeastOnce ||
+        // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+        // AccountTreeController handles proper multichain account syncing
+        getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
       ) {
         return;
       }
@@ -40,7 +43,10 @@ export function setupAccountSyncingSubscriptions(
       if (
         !canPerformAccountSyncing(options) ||
         !getUserStorageControllerInstance().state
-          .hasAccountSyncingSyncedAtLeastOnce
+          .hasAccountSyncingSyncedAtLeastOnce ||
+        // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+        // AccountTreeController handles proper multichain account syncing
+        getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
       ) {
         return;
       }
