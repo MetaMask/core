@@ -85,10 +85,16 @@ export const ChainConfigurationSchema = type({
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
 });
 
+export const PriceImpactThresholdSchema = type({
+  gasless: number(),
+  normal: number(),
+});
+
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
+  priceImpactThreshold: optional(PriceImpactThresholdSchema),
   minimumVersion: string(),
   refreshRate: number(),
   maxRefreshCount: number(),

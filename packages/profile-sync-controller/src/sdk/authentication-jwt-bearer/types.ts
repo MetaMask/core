@@ -85,7 +85,7 @@ export type Pair = {
   signMessage: (message: string) => Promise<string>;
 };
 
-export type UserProfileMetaMetrics = {
+export type UserProfileLineage = {
   profile_id: string;
   created_at: string;
   lineage: {

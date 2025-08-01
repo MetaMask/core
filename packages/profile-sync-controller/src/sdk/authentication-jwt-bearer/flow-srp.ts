@@ -4,7 +4,7 @@ import {
   authenticate,
   authorizeOIDC,
   getNonce,
-  getUserProfileMetaMetrics,
+  getUserProfileLineage,
 } from './services';
 import type {
   AuthConfig,
@@ -14,7 +14,7 @@ import type {
   IBaseAuth,
   LoginResponse,
   UserProfile,
-  UserProfileMetaMetrics,
+  UserProfileLineage,
 } from './types';
 import type { MetaMetricsAuth } from '../../shared/types/services';
 import { ValidationError } from '../errors';
@@ -118,9 +118,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await this.#options.signing.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
+  async getUserProfileLineage(): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken();
-    return await getUserProfileMetaMetrics(this.#config.env, accessToken);
+    return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
   async signMessage(
