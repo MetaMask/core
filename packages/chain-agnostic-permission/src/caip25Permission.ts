@@ -549,22 +549,22 @@ export const generateCaip25Caveat = (
 export function getCaip25CaveatFromPermission(caip25Permission?: {
   caveats: (
     | {
-      type: string;
-      value: unknown;
-    }
+        type: string;
+        value: unknown;
+      }
     | {
-      type: typeof Caip25CaveatType;
-      value: Caip25CaveatValue;
-    }
+        type: typeof Caip25CaveatType;
+        value: Caip25CaveatValue;
+      }
   )[];
 }) {
   return caip25Permission?.caveats.find(
     (caveat) => caveat.type === (Caip25CaveatType as string),
   ) as
     | {
-      type: typeof Caip25CaveatType;
-      value: Caip25CaveatValue;
-    }
+        type: typeof Caip25CaveatType;
+        value: Caip25CaveatValue;
+      }
     | undefined;
 }
 
@@ -573,8 +573,10 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
  * and returns a granted permissions object.
  *
  * @param requestedPermissions - The legacy permissions to request approval for.
- * @param requestedPermissions.caveats - //FIXME: update this
- * @returns the approved permissions object.
+ * @param requestedPermissions.caveats - The legacy caveats processed by the function.
+ * - `restrictReturnedAccounts`: Restricts which Ethereum accounts can be accessed
+ * - `restrictNetworkSwitching`: Restricts which blockchain networks can be used
+ * @returns CAIP-25 permission object with unified caveat structure containing both account and chain restrictions
  */
 export const getCaip25PermissionFromLegacyPermissions =
   (requestedPermissions?: {
@@ -660,10 +662,12 @@ export const getCaip25PermissionFromLegacyPermissions =
  * @param options.chainId - The chainId to add to the existing permittedChains.
  * @param options.autoApprove - If the chain should be granted without prompting for user approval.
  * @param options.metadata - Request data for the approval.
- * @param options.metadata.options - // FIXME: document
- * @param options.hooks - // FIXME: document
- * @param options.hooks.requestPermissionsIncremental - // FIXME: document
- * @param options.hooks.grantPermissionsIncremental - // FIXME: document
+ * @param options.metadata.options - Additional metadata about the permission request.
+ * @param options.hooks - Permission controller hooks for incremental operations.
+ * @param options.hooks.requestPermissionsIncremental - Initiates an incremental permission request that prompts for user approval.
+ * Incremental permission requests allow the caller to replace existing and/or add brand new permissions and caveats for the specified subject.
+ * @param options.hooks.grantPermissionsIncremental - Incrementally grants approved permissions to the specified subject without prompting for user approval.
+ * Every permission and caveat is stringently validated and an error is thrown if validation fails.
  */
 export const requestPermittedChainsPermissionIncremental = async ({
   origin,
@@ -676,8 +680,28 @@ export const requestPermittedChainsPermissionIncremental = async ({
   chainId: Hex;
   autoApprove: boolean;
   hooks: {
-    requestPermissionsIncremental: () => Promise<void>; // FIXME: type properly
-    grantPermissionsIncremental: () => void; // FIXME: type properly
+    requestPermissionsIncremental: (
+      subject: { origin: string },
+      requestedPermissions: Record<
+        string,
+        { caveats: { type: string; value: unknown }[] }
+      >,
+      options?: { metadata?: Record<string, Json> },
+    ) => Promise<
+      | [
+          Partial<Record<string, unknown>>,
+          { data?: Record<string, unknown>; id: string; origin: string },
+        ]
+      | []
+    >;
+    grantPermissionsIncremental: (params: {
+      subject: { origin: string };
+      approvedPermissions: Record<
+        string,
+        { caveats: { type: string; value: unknown }[] }
+      >;
+      requestData?: Record<string, unknown>;
+    }) => Partial<Record<string, unknown>>;
   };
   metadata?: { options: Record<string, Json> };
 }) => {
@@ -713,7 +737,7 @@ export const requestPermittedChainsPermissionIncremental = async ({
     return;
   }
 
-  await hooks.grantPermissionsIncremental({
+  hooks.grantPermissionsIncremental({
     subject: { origin },
     approvedPermissions: {
       [Caip25EndowmentPermissionName]: {
