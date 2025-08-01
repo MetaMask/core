@@ -580,7 +580,8 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
  * @returns CAIP-25 permission object with unified caveat structure containing both account and chain restrictions
  */
 export const getCaip25PermissionFromLegacyPermissions = (
-  // TODO: [ffmcgee] make sure snaps logic only triggered for extension ?
+  // TODO: [ffmcgee] make sure snaps logic only triggered for extension ? --> Maybe pass in the isSnapId as an optional hook, and if it's undefined, the logic won't trigger
+  // otherwise, it will trigger and actually validate if isSnapId(origin) if the logic should run or not
   _origin: string,
   requestedPermissions?: {
     [PermissionKeys.eth_accounts]?: {
