@@ -29,19 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
-
-### Fixed
-
-- Correct the polling rate for the DeFiPositionsController from 1 minute to 10 minutes. ([#6242](https://github.com/MetaMask/core/pull/6242))
-- Fix `AccountTrackerController` to force block number update to avoid stale cached native balances ([#6250](https://github.com/MetaMask/core/pull/6250))
-
-## [73.0.2]
+- **BREAKING**: Improved `TokenBalancesController` performance with two-tier balance fetching strategy ([#6232](https://github.com/MetaMask/core/pull/6232))
+  - Implements Accounts API as primary fetching method for supported networks (faster, more efficient)
+  - Falls back to RPC calls using Multicall3's `aggregate3` for unsupported networks or API failures
+  - Significantly reduces RPC calls from N individual requests to batched calls of up to 300 operations
+  - Provides comprehensive network coverage with graceful degradation when services are unavailable
 
 ### Fixed
 
 - Use a narrow selector when listening to `CurrencyRateController:stateChange` ([#6217](https://github.com/MetaMask/core/pull/6217))
-- Fixed an issue where attempting to fetch asset conversions for accounts without assets would crash the snap ([#6207](https://github.com/MetaMask/core/pull/6207))
 
 ## [73.0.1]
 
@@ -1840,9 +1836,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.1.0...HEAD
-[73.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.2...@metamask/assets-controllers@73.1.0
-[73.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.1...@metamask/assets-controllers@73.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.1...HEAD
 [73.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.0...@metamask/assets-controllers@73.0.1
 [73.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...@metamask/assets-controllers@73.0.0
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...@metamask/assets-controllers@72.0.0

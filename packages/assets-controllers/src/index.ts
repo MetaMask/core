@@ -6,6 +6,8 @@ export type {
   AccountTrackerControllerGetStateAction,
   AccountTrackerControllerStateChangeEvent,
   AccountTrackerControllerEvents,
+  AccountTrackerUpdateNativeBalancesAction,
+  AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
 export type {
@@ -72,10 +74,11 @@ export type {
 } from './NftDetectionController';
 export { NftDetectionController } from './NftDetectionController';
 export type {
-  TokenBalancesControllerMessenger,
   TokenBalancesControllerActions,
   TokenBalancesControllerGetStateAction,
   TokenBalancesControllerEvents,
+  TokenBalancesControllerMessenger,
+  TokenBalancesControllerOptions,
   TokenBalancesControllerStateChangeEvent,
   TokenBalancesControllerState,
 } from './TokenBalancesController';
