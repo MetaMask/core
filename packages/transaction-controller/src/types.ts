@@ -37,7 +37,7 @@ export type TransactionMeta = {
   /**
    * The fiat value of the transaction to be used to passed metrics.
    */
-  assetsFiatValues?: AssetFiatValues;
+  assetsFiatValues?: AssetsFiatValues;
 
   /**
    * Unique ID to prevent duplicate requests.
@@ -1576,7 +1576,7 @@ export type NestedTransactionMetadata = BatchTransactionParams & {
  */
 export type TransactionBatchSingleRequest = {
   /** The total fiat values of the transaction, to support client metrics. */
-  assetsFiatValues?: AssetFiatValues;
+  assetsFiatValues?: AssetsFiatValues;
 
   /** Data if the transaction already exists. */
   existingTransaction?: {
@@ -1594,7 +1594,7 @@ export type TransactionBatchSingleRequest = {
   };
 
   /** Parameters of the single transaction. */
-  params: NestedTransactionMetadata;
+  params: BatchTransactionParams;
 
   /** Type of the transaction. */
   type?: TransactionType;
@@ -1889,57 +1889,14 @@ export type BeforeSignHook = (request: {
 /**
  * The total fiat values of the transaction, to support client metrics.
  */
-export type AssetFiatValues = {
+export type AssetsFiatValues = {
   /**
-   * The fiat value of the receiving asset.
+   * The fiat value of the receiving assets.
    */
   receiving?: string;
 
   /**
-   * The fiat value of the sending asset.
+   * The fiat value of the sending assets.
    */
   sending?: string;
-};
-
-/**
- * Options for adding a transaction.
- */
-export type AddTransactionOptions = {
-  /** Unique ID to prevent duplicate requests. */
-  actionId?: string;
-  /** The fiat values of the assets in the transaction. */
-  assetsFiatValues?: AssetFiatValues;
-  /** A custom ID for the batch this transaction belongs to. */
-  batchId?: Hex;
-  /** An enum to indicate what device confirmed the transaction. */
-  deviceConfirmedOn?: WalletDevice;
-  /** Whether to disable the gas estimation buffer. */
-  disableGasBuffer?: boolean;
-  /** RPC method that requested the transaction. */
-  method?: string;
-  /** Params for any nested transactions encoded in the data. */
-  nestedTransactions?: NestedTransactionMetadata[];
-  /** The id of the network client for this transaction. */
-  networkClientId: NetworkClientId;
-  /** The origin of the transaction request, such as a dApp hostname. */
-  origin?: string;
-  /** Custom logic to publish the transaction. */
-  publishHook?: PublishHook;
-  /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
-  requireApproval?: boolean | undefined;
-  /** Response from security validator. */
-  securityAlertResponse?: SecurityAlertResponse;
-  /** The sendFlowHistory entries to add. */
-  sendFlowHistory?: SendFlowHistoryEntry[];
-  /** Options for swaps transactions. */
-  swaps?: {
-    /** Whether the transaction has an approval transaction. */
-    hasApproveTx?: boolean;
-    /** Metadata for swap transaction. */
-    meta?: Partial<TransactionMeta>;
-  };
-  /** The parent context for any new traces. */
-  traceContext?: unknown;
-  /** Type of transaction to add, such as 'cancel' or 'swap'. */
-  type?: TransactionType;
 };

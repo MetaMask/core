@@ -88,7 +88,7 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
-  AddTransactionOptions,
+  AssetsFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -97,6 +97,7 @@ import type {
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
+  WalletDevice,
   SecurityAlertResponse,
   GasFeeFlow,
   SimulationData,
@@ -120,6 +121,7 @@ import type {
   AfterSimulateHook,
   BeforeSignHook,
   TransactionContainerType,
+  NestedTransactionMetadata,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1105,11 +1107,49 @@ export class TransactionController extends BaseController<
    *
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
+   * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.assetsFiatValues - The fiat values of the assets being sent and received.
+   * @param options.batchId - A custom ID for the batch this transaction belongs to.
+   * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
+   * @param options.method - RPC method that requested the transaction.
+   * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
+   * @param options.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param options.publishHook - Custom logic to publish the transaction.
+   * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
+   * @param options.securityAlertResponse - Response from security validator.
+   * @param options.sendFlowHistory - The sendFlowHistory entries to add.
+   * @param options.type - Type of transaction to add, such as 'cancel' or 'swap'.
+   * @param options.swaps - Options for swaps transactions.
+   * @param options.swaps.hasApproveTx - Whether the transaction has an approval transaction.
+   * @param options.swaps.meta - Metadata for swap transaction.
+   * @param options.networkClientId - The id of the network client for this transaction.
+   * @param options.traceContext - The parent context for any new traces.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     txParams: TransactionParams,
-    options: AddTransactionOptions,
+    options: {
+      actionId?: string;
+      assetsFiatValues?: AssetsFiatValues;
+      batchId?: Hex;
+      deviceConfirmedOn?: WalletDevice;
+      disableGasBuffer?: boolean;
+      method?: string;
+      nestedTransactions?: NestedTransactionMetadata[];
+      networkClientId: NetworkClientId;
+      origin?: string;
+      publishHook?: PublishHook;
+      requireApproval?: boolean | undefined;
+      securityAlertResponse?: SecurityAlertResponse;
+      sendFlowHistory?: SendFlowHistoryEntry[];
+      swaps?: {
+        hasApproveTx?: boolean;
+        meta?: Partial<TransactionMeta>;
+      };
+      traceContext?: unknown;
+      type?: TransactionType;
+    },
   ): Promise<Result> {
     log('Adding transaction', txParams, options);
 
