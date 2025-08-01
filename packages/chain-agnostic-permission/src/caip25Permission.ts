@@ -6,7 +6,6 @@ import type {
   PermissionValidatorConstraint,
   PermissionConstraint,
   EndowmentCaveatSpecificationConstraint,
-  PermissionController,
 } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
