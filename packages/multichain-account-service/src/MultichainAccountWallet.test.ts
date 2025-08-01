@@ -229,7 +229,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(groupIndex)
         .get();
       // 1. Create the accounts for the new index and returns their IDs.
-      provider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount.id]);
+      provider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount]);
       // 2. When the wallet creates a new multichain account group, it will query
       // all accounts for this given index (so similar to the one we just created).
       provider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
