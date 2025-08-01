@@ -1,14 +1,14 @@
 import { BaseController, type StateMetadata } from '@metamask/base-controller';
 
 import { controllerName } from './constants';
-import { projectLogger, createModuleLogger } from './logger';
+// import { projectLogger, createModuleLogger } from './logger';
 import type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
 } from './types';
 
-const log = createModuleLogger(projectLogger, controllerName);
+// const log = createModuleLogger(projectLogger, controllerName);
 
 /**
  * Get the default state for the Subscription Controller.
