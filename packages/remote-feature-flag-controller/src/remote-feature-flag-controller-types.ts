@@ -22,6 +22,7 @@ export enum EnvironmentType {
   Development = 'dev',
   Beta = 'beta',
   Test = 'test',
+  Exp = 'exp',
 }
 
 /** Type representing the feature flags collection */
