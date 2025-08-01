@@ -3,12 +3,12 @@ import {
   type AccountProvider,
   type Bip44Account,
 } from '@metamask/account-api';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export abstract class BaseAccountProvider
-  implements AccountProvider<Bip44Account<InternalAccount>>
+  implements AccountProvider<Bip44Account<KeyringAccount>>
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
@@ -17,9 +17,9 @@ export abstract class BaseAccountProvider
   }
 
   #getAccounts(
-    filter: (account: InternalAccount) => boolean = () => true,
-  ): Bip44Account<InternalAccount>[] {
-    const accounts: Bip44Account<InternalAccount>[] = [];
+    filter: (account: KeyringAccount) => boolean = () => true,
+  ): Bip44Account<KeyringAccount>[] {
+    const accounts: Bip44Account<KeyringAccount>[] = [];
 
     for (const account of this.messenger.call(
       // NOTE: Even though the name is misleading, this only fetches all internal
@@ -39,11 +39,13 @@ export abstract class BaseAccountProvider
     return accounts;
   }
 
-  getAccounts(): Bip44Account<InternalAccount>[] {
+  getAccounts(): Bip44Account<KeyringAccount>[] {
     return this.#getAccounts();
   }
 
-  getAccount(id: InternalAccount['id']): Bip44Account<InternalAccount> {
+  getAccount(
+    id: Bip44Account<KeyringAccount>['id'],
+  ): Bip44Account<KeyringAccount> {
     // TODO: Maybe just use a proper find for faster lookup?
     const [found] = this.#getAccounts((account) => account.id === id);
 
@@ -54,5 +56,5 @@ export abstract class BaseAccountProvider
     return found;
   }
 
-  abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
+  abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 }
