@@ -195,11 +195,6 @@ export class AccountTreeController extends BaseController<
           this.#getKeyringRule().getDefaultAccountWalletName(wallet);
       }
     }
-
-    // Apply persisted UI states
-    if (persistedMetadata?.collapsed?.value !== undefined) {
-      wallet.metadata.collapsed = persistedMetadata.collapsed.value;
-    }
   }
 
   #applyAccountGroupMetadata(
@@ -328,7 +323,6 @@ export class AccountTreeController extends BaseController<
         metadata: {
           name: '', // Will get updated later.
           ...result.wallet.metadata,
-          collapsed: false, // Default UI state
         },
         // We do need to type-cast since we're not narrowing `result` with
         // the union tag `result.wallet.type`.
@@ -622,27 +616,6 @@ export class AccountTreeController extends BaseController<
         ...state.accountGroupsMetadata[groupId],
         hidden: {
           value: hidden,
-          lastUpdatedAt: Date.now(),
-        },
-      };
-    });
-  }
-
-  /**
-   * Toggles the collapsed state of an account wallet.
-   *
-   * @param walletId - The account wallet ID.
-   * @param collapsed - Whether the wallet should be collapsed.
-   */
-  setAccountWalletCollapsed(
-    walletId: AccountWalletId,
-    collapsed: boolean,
-  ): void {
-    this.update((state) => {
-      state.accountWalletsMetadata[walletId] = {
-        ...state.accountWalletsMetadata[walletId],
-        collapsed: {
-          value: collapsed,
           lastUpdatedAt: Date.now(),
         },
       };

@@ -31,55 +31,7 @@ export type UpdatableField<T> = {
 };
 
 /**
- * Base metadata for account groups (provided by rules, before name computation).
- */
-export type AccountGroupBaseMetadata = {
-  /** Entropy-specific metadata */
-  entropy?: {
-    groupIndex: number;
-  };
-};
-
-/**
- * Full metadata for account groups in tree objects (base + computed name).
- * UI states (pinned, hidden) are added dynamically during tree building.
- */
-export type AccountGroupTreeMetadata = AccountGroupBaseMetadata & {
-  /** Computed name (from rules or user customization) */
-  name: string;
-};
-
-/**
- * Base metadata for account wallets (provided by rules, before name computation).
- */
-export type AccountWalletBaseMetadata = {
-  /** Entropy-specific metadata */
-  entropy?: {
-    id: string;
-    index: number;
-  };
-  /** Snap-specific metadata */
-  snap?: {
-    id: string;
-  };
-  /** Keyring-specific metadata */
-  keyring?: {
-    type: string;
-  };
-};
-
-/**
- * Full metadata for account wallets in tree objects (base + computed name).
- * UI states (collapsed) are added dynamically during tree building.
- */
-export type AccountWalletTreeMetadata = AccountWalletBaseMetadata & {
-  /** Computed name (from rules or user customization) */
-  name: string;
-};
-
-/**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
- * Tree objects will extract the .value from UpdatableField during building.
  */
 export type AccountGroupMetadata = {
   /** Custom name set by user, overrides default naming logic */
@@ -92,13 +44,10 @@ export type AccountGroupMetadata = {
 
 /**
  * Persisted metadata for account wallets (stored in controller state for persistence/sync).
- * Tree objects will extract the .value from UpdatableField during building.
  */
 export type AccountWalletMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
-  /** Whether this wallet is collapsed in the UI */
-  collapsed?: UpdatableField<boolean>;
 };
 
 export type AccountTreeControllerState = {

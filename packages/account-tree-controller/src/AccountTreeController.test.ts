@@ -442,7 +442,6 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
-                collapsed: false,
               },
             },
             [expectedWalletId2]: {
@@ -483,7 +482,6 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_2.metadata.id,
                   index: 1,
                 },
-                collapsed: false,
               },
             },
             [expectedSnapWalletId]: {
@@ -506,7 +504,6 @@ describe('AccountTreeController', () => {
                 snap: {
                   id: MOCK_SNAP_2.id,
                 },
-                collapsed: false,
               },
             },
             [expectedKeyringWalletId]: {
@@ -531,7 +528,6 @@ describe('AccountTreeController', () => {
                 keyring: {
                   type: KeyringTypes.ledger,
                 },
-                collapsed: false,
               },
             },
           },
@@ -722,7 +718,6 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
-                collapsed: false,
               },
             },
           },
@@ -805,7 +800,6 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
-                collapsed: false,
               },
             },
           },
@@ -893,7 +887,6 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_1.metadata.id,
                   index: 0,
                 },
-                collapsed: false,
               },
             },
             [walletId2]: {
@@ -921,7 +914,6 @@ describe('AccountTreeController', () => {
                   id: MOCK_HD_KEYRING_2.metadata.id,
                   index: 1,
                 },
-                collapsed: false,
               },
             },
           },

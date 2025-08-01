@@ -6,10 +6,7 @@ import type { AccountGroup, AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type {
-  AccountTreeControllerMessenger,
-  AccountGroupTreeMetadata,
-} from './types';
+import type { AccountTreeControllerMessenger } from './types';
 import type { AccountTreeWallet } from './wallet';
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
@@ -24,7 +21,11 @@ type IsAccountGroupObject<
     type: AccountGroupType;
     id: AccountGroupId;
     accounts: AccountId[];
-    metadata: AccountGroupTreeMetadata;
+    metadata: {
+      name: string;
+      pinned: boolean;
+      hidden: boolean;
+    };
   },
 > = Type;
 
@@ -36,7 +37,8 @@ export type AccountGroupMultichainAccountObject = {
   id: MultichainAccountGroupId;
   // Blockchain Accounts (at least 1 account per multichain-accounts):
   accounts: [AccountId, ...AccountId[]];
-  metadata: AccountGroupTreeMetadata & {
+  metadata: {
+    name: string;
     entropy: {
       groupIndex: number;
     };
@@ -53,7 +55,8 @@ export type AccountGroupSingleAccountObject = {
   id: AccountGroupId;
   // Blockchain Accounts (1 account per group):
   accounts: [AccountId];
-  metadata: AccountGroupTreeMetadata & {
+  metadata: {
+    name: string;
     pinned: boolean;
     hidden: boolean;
   };
