@@ -572,7 +572,7 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
  * Requests user approval for the CAIP-25 permission for the specified origin
  * and returns a granted permissions object.
  *
- * @param origin - The origin to request approval for.
+ * @param _origin - The origin to request approval for.
  * @param requestedPermissions - The legacy permissions to request approval for.
  * @param requestedPermissions.caveats - The legacy caveats processed by the function.
  * - `restrictReturnedAccounts`: Restricts which Ethereum accounts can be accessed
@@ -580,7 +580,8 @@ export function getCaip25CaveatFromPermission(caip25Permission?: {
  * @returns CAIP-25 permission object with unified caveat structure containing both account and chain restrictions
  */
 export const getCaip25PermissionFromLegacyPermissions = (
-  origin: string,
+  // TODO: [ffmcgee] make sure snaps logic only triggered for extension ?
+  _origin: string,
   requestedPermissions?: {
     [PermissionKeys.eth_accounts]?: {
       caveats?: {

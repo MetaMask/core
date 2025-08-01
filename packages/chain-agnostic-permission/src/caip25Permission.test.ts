@@ -1919,6 +1919,67 @@ describe('requestPermittedChainsPermissionIncremental', () => {
       new Error('Invalid merged permissions for subject "test.com"'),
     );
   });
+
+  it('passes metadata to requestPermissionsIncremental when metadata is provided', async () => {
+    const subjectPermissions: Partial<
+      SubjectPermissions<
+        ExtractPermission<
+          PermissionSpecificationConstraint,
+          CaveatSpecificationConstraint
+        >
+      >
+    > = {
+      [Caip25EndowmentPermissionName]: {
+        id: 'id',
+        date: 1,
+        invoker: 'origin',
+        parentCapability: PermissionKeys.permittedChains,
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: {},
+              optionalScopes: { 'eip155:1': { accounts: [] } },
+              isMultichainOrigin: false,
+              sessionProperties: {},
+            },
+          },
+        ],
+      },
+    };
+
+    const expectedCaip25Permission = {
+      [Caip25EndowmentPermissionName]: pick(
+        subjectPermissions[Caip25EndowmentPermissionName],
+        'caveats',
+      ),
+    };
+
+    const options = { someOption: 'testValue' };
+    const metadata = { options };
+
+    mockRequestPermissionsIncremental.mockResolvedValue([
+      subjectPermissions,
+      { id: 'id', origin: 'origin' },
+    ]);
+
+    await requestPermittedChainsPermissionIncremental({
+      origin: 'test.com',
+      chainId: '0x1',
+      autoApprove: false,
+      metadata,
+      hooks: {
+        requestPermissionsIncremental: mockRequestPermissionsIncremental,
+        grantPermissionsIncremental: mockGrantPermissionsIncremental,
+      },
+    });
+
+    expect(mockRequestPermissionsIncremental).toHaveBeenCalledWith(
+      { origin: 'test.com' },
+      expectedCaip25Permission,
+      options,
+    );
+  });
 });
 
 describe('getCaip25PermissionFromLegacyPermissions', () => {
