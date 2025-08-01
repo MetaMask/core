@@ -73,6 +73,8 @@ export class EntropyRule
           entropy: {
             groupIndex: account.options.entropy.groupIndex,
           },
+          pinned: false,
+          hidden: false,
         },
       },
     };

@@ -80,7 +80,10 @@ export class KeyringRule
       group: {
         type: this.groupType,
         id: groupId,
-        metadata: {},
+        metadata: {
+          pinned: false,
+          hidden: false,
+        },
       },
     };
   }
