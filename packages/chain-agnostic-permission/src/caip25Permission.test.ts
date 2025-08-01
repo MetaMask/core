@@ -1,7 +1,12 @@
 import {
   CaveatMutatorOperation,
   PermissionType,
+  type SubjectPermissions,
+  type ExtractPermission,
+  type PermissionSpecificationConstraint,
+  type CaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
+import { pick } from 'lodash';
 
 import type { Caip25CaveatValue } from './caip25Permission';
 import {
@@ -17,9 +22,9 @@ import {
   getCaip25PermissionFromLegacyPermissions,
   requestPermittedChainsPermissionIncremental,
 } from './caip25Permission';
+import { CaveatTypes, PermissionKeys } from './constants';
 import { KnownSessionProperties } from './scope/constants';
 import * as ScopeSupported from './scope/supported';
-import { CaveatTypes, PermissionKeys } from './constants';
 
 jest.mock('./scope/supported', () => ({
   ...jest.requireActual('./scope/supported'),
@@ -29,6 +34,9 @@ jest.mock('./scope/supported', () => ({
 const MockScopeSupported = jest.mocked(ScopeSupported);
 
 const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
+
+const mockRequestPermissionsIncremental = jest.fn();
+const mockGrantPermissionsIncremental = jest.fn();
 
 describe('caip25EndowmentBuilder', () => {
   describe('specificationBuilder', () => {
@@ -1808,11 +1816,16 @@ describe('requestPermittedChainsPermissionIncremental', () => {
       origin: 'test.com',
       chainId: '0x1',
       autoApprove: false,
+      hooks: {
+        requestPermissionsIncremental: mockRequestPermissionsIncremental,
+        grantPermissionsIncremental: mockGrantPermissionsIncremental,
+      },
     });
 
     expect(mockRequestPermissionsIncremental).toHaveBeenCalledWith(
       { origin: 'test.com' },
       expectedCaip25Permission,
+      undefined, // undefined metadata
     );
   });
 
@@ -1826,6 +1839,10 @@ describe('requestPermittedChainsPermissionIncremental', () => {
         origin: 'test.com',
         chainId: '0x1',
         autoApprove: false,
+        hooks: {
+          requestPermissionsIncremental: mockRequestPermissionsIncremental,
+          grantPermissionsIncremental: mockGrantPermissionsIncremental,
+        },
       }),
     ).rejects.toThrow(new Error('approval rejected'));
   });
@@ -1871,6 +1888,10 @@ describe('requestPermittedChainsPermissionIncremental', () => {
       origin: 'test.com',
       chainId: '0x1',
       autoApprove: true,
+      hooks: {
+        requestPermissionsIncremental: mockRequestPermissionsIncremental,
+        grantPermissionsIncremental: mockGrantPermissionsIncremental,
+      },
     });
 
     expect(mockGrantPermissionsIncremental).toHaveBeenCalledWith({
@@ -1889,6 +1910,10 @@ describe('requestPermittedChainsPermissionIncremental', () => {
         origin: 'test.com',
         chainId: '0x1',
         autoApprove: true,
+        hooks: {
+          requestPermissionsIncremental: mockRequestPermissionsIncremental,
+          grantPermissionsIncremental: mockGrantPermissionsIncremental,
+        },
       }),
     ).rejects.toThrow(
       new Error('Invalid merged permissions for subject "test.com"'),
