@@ -133,7 +133,7 @@ function setup({
     async (_, operation) =>
       operation({
         // We type-cast here, since `withKeyring` defaults to `EthKeyring` and the
-        // Snap keyring does really implement this interface (this is expected).
+        // Snap keyring doesn't really implement this interface (this is expected).
         keyring: keyring as unknown as EthKeyring,
         metadata: keyring.metadata,
       }),
