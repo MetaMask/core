@@ -17,6 +17,7 @@ export const MOCK_ENCRYPTION_KEY = JSON.stringify({
   password: PASSWORD,
   salt: SALT,
 });
+export const MOCK_KEY = Buffer.alloc(32);
 
 export const DECRYPTION_ERROR = 'Decryption failed.';
 
@@ -29,7 +30,7 @@ function deriveKey(password: string, salt: string) {
 
 export default class MockEncryptor implements ExportableKeyEncryptor {
   async encrypt(password: string, dataObj: Json): Promise<string> {
-    const salt = generateSalt();
+    const salt = this.generateSalt();
     const key = deriveKey(password, salt);
     const result = await this.encryptWithKey(key, dataObj);
     return JSON.stringify({
@@ -49,7 +50,7 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     dataObj: Json,
     salt?: string,
   ): Promise<DetailedEncryptionResult> {
-    const _salt = salt ?? generateSalt();
+    const _salt = salt ?? this.generateSalt();
     const key = deriveKey(password, _salt);
     const result = await this.encryptWithKey(key, dataObj);
     return {
@@ -97,24 +98,29 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     return data.value;
   }
 
+  async keyFromPassword(_password: string, _salt: string) {
+    return JSON.parse(MOCK_ENCRYPTION_KEY);
+  }
+
   async importKey(key: string) {
     return JSON.parse(key);
+  }
+
+  async exportKey(key: unknown) {
+    return JSON.stringify(key);
   }
 
   async updateVault(_vault: string, _password: string) {
     return _vault;
   }
 
+  generateSalt() {
+    return SALT;
+  }
+
   isVaultUpdated(_vault: string) {
     return true;
   }
-}
-
-function generateSalt() {
-  // Generate random salt.
-
-  // return crypto.randomUUID();
-  return SALT; // TODO some tests rely on fixed salt, but wouldn't it be better to generate random value here?
 }
 
 function generateIV() {
