@@ -591,12 +591,10 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] = {
-        ...state.accountGroupsMetadata[groupId],
-        name: {
-          value: name,
-          lastUpdatedAt: Date.now(),
-        },
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].name = {
+        value: name,
+        lastUpdatedAt: Date.now(),
       };
 
       // Update tree node directly using efficient mapping
@@ -623,12 +621,10 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountWalletsMetadata[walletId] = {
-        ...state.accountWalletsMetadata[walletId],
-        name: {
-          value: name,
-          lastUpdatedAt: Date.now(),
-        },
+      state.accountWalletsMetadata[walletId] ??= {};
+      state.accountWalletsMetadata[walletId].name = {
+        value: name,
+        lastUpdatedAt: Date.now(),
       };
 
       // Update tree node directly
@@ -651,12 +647,10 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] = {
-        ...state.accountGroupsMetadata[groupId],
-        pinned: {
-          value: pinned,
-          lastUpdatedAt: Date.now(),
-        },
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].pinned = {
+        value: pinned,
+        lastUpdatedAt: Date.now(),
       };
 
       // Update tree node directly using efficient mapping
@@ -683,12 +677,10 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] = {
-        ...state.accountGroupsMetadata[groupId],
-        hidden: {
-          value: hidden,
-          lastUpdatedAt: Date.now(),
-        },
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].hidden = {
+        value: hidden,
+        lastUpdatedAt: Date.now(),
       };
 
       // Update tree node directly using efficient mapping
