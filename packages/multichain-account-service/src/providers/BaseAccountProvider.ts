@@ -61,7 +61,9 @@ export abstract class BaseAccountProvider
     return this.#getAccounts();
   }
 
-  getAccount(id: KeyringAccount['id']): Bip44Account<KeyringAccount> {
+  getAccount(
+    id: Bip44Account<KeyringAccount>['id'],
+  ): Bip44Account<KeyringAccount> {
     // TODO: Maybe just use a proper find for faster lookup?
     const [found] = this.#getAccounts((account) => account.id === id);
 
