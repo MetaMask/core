@@ -1591,12 +1591,12 @@ describe('AccountTreeController', () => {
         accounts: [MOCK_HD_ACCOUNT_1.id],
         metadata: {
           name: MOCK_HD_ACCOUNT_1.metadata.name,
-                              entropy: {
-                      groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-                    },
-                    pinned: false,
-                    hidden: false,
-                  },
+          entropy: {
+            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          },
+          pinned: false,
+          hidden: false,
+        },
       };
 
       expect(rule.getDefaultAccountGroupName(group)).toBe('');
@@ -1901,7 +1901,7 @@ describe('AccountTreeController', () => {
       );
     });
 
-    it('handles setting metadata for non-existent groups gracefully', () => {
+    it('throws error when setting metadata for non-existent groups/wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
@@ -1912,21 +1912,39 @@ describe('AccountTreeController', () => {
       const nonExistentGroupId = 'non-existent-group-id' as AccountGroupId;
       const nonExistentWalletId = 'non-existent-wallet-id' as AccountWalletId;
 
-      // Should not throw
+      // Should throw for non-existent group operations
       expect(() => {
         controller.setAccountGroupName(nonExistentGroupId, 'Test Name');
-        controller.setAccountGroupPinned(nonExistentGroupId, true);
-        controller.setAccountGroupHidden(nonExistentGroupId, true);
-        controller.setAccountWalletName(nonExistentWalletId, 'Test Wallet');
-      }).not.toThrow();
+      }).toThrow(
+        'Account group with ID "non-existent-group-id" not found in tree',
+      );
 
-      // Metadata should still be stored
+      expect(() => {
+        controller.setAccountGroupPinned(nonExistentGroupId, true);
+      }).toThrow(
+        'Account group with ID "non-existent-group-id" not found in tree',
+      );
+
+      expect(() => {
+        controller.setAccountGroupHidden(nonExistentGroupId, true);
+      }).toThrow(
+        'Account group with ID "non-existent-group-id" not found in tree',
+      );
+
+      // Should throw for non-existent wallet operations
+      expect(() => {
+        controller.setAccountWalletName(nonExistentWalletId, 'Test Wallet');
+      }).toThrow(
+        'Account wallet with ID "non-existent-wallet-id" not found in tree',
+      );
+
+      // Metadata should NOT be stored since the operations threw
       expect(
         controller.state.accountGroupsMetadata[nonExistentGroupId],
-      ).toBeDefined();
+      ).toBeUndefined();
       expect(
         controller.state.accountWalletsMetadata[nonExistentWalletId],
-      ).toBeDefined();
+      ).toBeUndefined();
     });
   });
 });

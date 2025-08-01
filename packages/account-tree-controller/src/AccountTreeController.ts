@@ -73,6 +73,9 @@ export class AccountTreeController extends BaseController<
 > {
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
+  // Mapping for direct tree node access
+  readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
+
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
   /**
@@ -101,6 +104,8 @@ export class AccountTreeController extends BaseController<
 
     // Reverse map to allow fast node access from an account ID.
     this.#accountIdToContext = new Map();
+
+    this.#groupIdToWalletId = new Map();
 
     // Rules to apply to construct the wallets tree.
     this.#rules = [
@@ -138,6 +143,10 @@ export class AccountTreeController extends BaseController<
 
   init() {
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
+
+    // Clear mappings for fresh rebuild
+    this.#accountIdToContext.clear();
+    this.#groupIdToWalletId.clear();
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
@@ -347,6 +356,9 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.group.type`.
       } as AccountGroupObject;
       group = wallet.groups[groupId];
+
+      // Map group ID to its containing wallet ID for efficient direct access
+      this.#groupIdToWalletId.set(groupId, walletId);
     } else {
       group.accounts.push(account.id);
     }
@@ -362,6 +374,26 @@ export class AccountTreeController extends BaseController<
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
     );
+  }
+
+  /**
+   * Validates that a group exists in the current account tree.
+   *
+   * @param groupId - The account group ID to validate.
+   * @returns True if the group exists, false otherwise.
+   */
+  #groupExistsInTree(groupId: AccountGroupId): boolean {
+    return this.#groupIdToWalletId.has(groupId);
+  }
+
+  /**
+   * Validates that a wallet exists in the current account tree.
+   *
+   * @param walletId - The account wallet ID to validate.
+   * @returns True if the wallet exists, false otherwise.
+   */
+  #walletExistsInTree(walletId: AccountWalletId): boolean {
+    return Boolean(this.state.accountTree.wallets[walletId]);
   }
 
   /**
@@ -549,9 +581,16 @@ export class AccountTreeController extends BaseController<
    *
    * @param groupId - The account group ID.
    * @param name - The custom name to set.
+   * @throws If the account group ID is not found in the current tree.
    */
   setAccountGroupName(groupId: AccountGroupId, name: string): void {
+    // Validate that the group exists in the current tree
+    if (!this.#groupExistsInTree(groupId)) {
+      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+    }
+
     this.update((state) => {
+      // Update persistent metadata
       state.accountGroupsMetadata[groupId] = {
         ...state.accountGroupsMetadata[groupId],
         name: {
@@ -559,10 +598,14 @@ export class AccountTreeController extends BaseController<
           lastUpdatedAt: Date.now(),
         },
       };
-    });
 
-    // Rebuild tree to apply the new name
-    this.init();
+      // Update tree node directly using efficient mapping
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+          name;
+      }
+    });
   }
 
   /**
@@ -570,9 +613,16 @@ export class AccountTreeController extends BaseController<
    *
    * @param walletId - The account wallet ID.
    * @param name - The custom name to set.
+   * @throws If the account wallet ID is not found in the current tree.
    */
   setAccountWalletName(walletId: AccountWalletId, name: string): void {
+    // Validate that the wallet exists in the current tree
+    if (!this.#walletExistsInTree(walletId)) {
+      throw new Error(`Account wallet with ID "${walletId}" not found in tree`);
+    }
+
     this.update((state) => {
+      // Update persistent metadata
       state.accountWalletsMetadata[walletId] = {
         ...state.accountWalletsMetadata[walletId],
         name: {
@@ -580,10 +630,10 @@ export class AccountTreeController extends BaseController<
           lastUpdatedAt: Date.now(),
         },
       };
-    });
 
-    // Rebuild tree to apply the new name
-    this.init();
+      // Update tree node directly
+      state.accountTree.wallets[walletId].metadata.name = name;
+    });
   }
 
   /**
@@ -591,9 +641,16 @@ export class AccountTreeController extends BaseController<
    *
    * @param groupId - The account group ID.
    * @param pinned - Whether the group should be pinned.
+   * @throws If the account group ID is not found in the current tree.
    */
   setAccountGroupPinned(groupId: AccountGroupId, pinned: boolean): void {
+    // Validate that the group exists in the current tree
+    if (!this.#groupExistsInTree(groupId)) {
+      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+    }
+
     this.update((state) => {
+      // Update persistent metadata
       state.accountGroupsMetadata[groupId] = {
         ...state.accountGroupsMetadata[groupId],
         pinned: {
@@ -601,6 +658,13 @@ export class AccountTreeController extends BaseController<
           lastUpdatedAt: Date.now(),
         },
       };
+
+      // Update tree node directly using efficient mapping
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[groupId].metadata.pinned =
+          pinned;
+      }
     });
   }
 
@@ -609,9 +673,16 @@ export class AccountTreeController extends BaseController<
    *
    * @param groupId - The account group ID.
    * @param hidden - Whether the group should be hidden.
+   * @throws If the account group ID is not found in the current tree.
    */
   setAccountGroupHidden(groupId: AccountGroupId, hidden: boolean): void {
+    // Validate that the group exists in the current tree
+    if (!this.#groupExistsInTree(groupId)) {
+      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+    }
+
     this.update((state) => {
+      // Update persistent metadata
       state.accountGroupsMetadata[groupId] = {
         ...state.accountGroupsMetadata[groupId],
         hidden: {
@@ -619,6 +690,13 @@ export class AccountTreeController extends BaseController<
           lastUpdatedAt: Date.now(),
         },
       };
+
+      // Update tree node directly using efficient mapping
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[groupId].metadata.hidden =
+          hidden;
+      }
     });
   }
 
