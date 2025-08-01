@@ -49,6 +49,8 @@ describe('@metamask/chain-agnostic-permission', () => {
         "Caip25CaveatMutators",
         "generateCaip25Caveat",
         "getCaip25CaveatFromPermission",
+        "getCaip25PermissionFromLegacyPermissions",
+        "requestPermittedChainsPermissionIncremental",
         "KnownSessionProperties",
         "Caip25Errors",
       ]

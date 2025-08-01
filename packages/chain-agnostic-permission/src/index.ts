@@ -71,6 +71,8 @@ export {
   Caip25CaveatMutators,
   generateCaip25Caveat,
   getCaip25CaveatFromPermission,
+  getCaip25PermissionFromLegacyPermissions,
+  requestPermittedChainsPermissionIncremental,
 } from './caip25Permission';
 export { KnownSessionProperties } from './scope/constants';
 export { Caip25Errors } from './scope/errors';
