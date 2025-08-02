@@ -331,7 +331,7 @@ describe('MultichainAccountWallet', () => {
         [solAccountProvider, mockNextSolAccount],
       ] as const) {
         mockAccountProvider.createAccounts.mockResolvedValueOnce([
-          mockNextAccount.id,
+          mockNextAccount,
         ]);
         mockAccountProvider.getAccounts.mockReturnValueOnce([mockNextAccount]);
         mockAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
