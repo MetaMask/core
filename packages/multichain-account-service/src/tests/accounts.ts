@@ -1,5 +1,6 @@
+import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
-import type { EntropySourceId } from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -14,6 +15,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { v4 as uuid } from 'uuid';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -59,7 +61,7 @@ export const MOCK_HD_KEYRING_2 = {
   accounts: ['0x456'],
 };
 
-export const MOCK_HD_ACCOUNT_1: InternalAccount = {
+export const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-id-1',
   address: '0x123',
   options: {
@@ -82,7 +84,7 @@ export const MOCK_HD_ACCOUNT_1: InternalAccount = {
   },
 };
 
-export const MOCK_HD_ACCOUNT_2: InternalAccount = {
+export const MOCK_HD_ACCOUNT_2: Bip44Account<InternalAccount> = {
   id: 'mock-id-2',
   address: '0x456',
   options: {
@@ -105,7 +107,7 @@ export const MOCK_HD_ACCOUNT_2: InternalAccount = {
   },
 };
 
-export const MOCK_SOL_ACCOUNT_1: InternalAccount = {
+export const MOCK_SOL_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-snap-id-1',
   address: 'aabbccdd',
   options: {
@@ -129,7 +131,7 @@ export const MOCK_SOL_ACCOUNT_1: InternalAccount = {
   },
 };
 
-export const MOCK_BTC_P2WPKH_ACCOUNT_1: InternalAccount = {
+export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
   type: BtcAccountType.P2wpkh,
   methods: [BtcMethod.SendBitcoin],
@@ -158,7 +160,7 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: InternalAccount = {
   },
 };
 
-export const MOCK_BTC_P2TR_ACCOUNT_1: InternalAccount = {
+export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'a20c2e1a-6ff6-40ba-b8e0-ccdb6f9933bb',
   type: BtcAccountType.P2tr,
   methods: [BtcMethod.SendBitcoin],
@@ -223,20 +225,32 @@ export const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
-export class MockAccountBuilder {
-  readonly #account: InternalAccount;
+export class MockAccountBuilder<Account extends KeyringAccount> {
+  readonly #account: Account;
 
-  constructor(account: InternalAccount) {
+  constructor(account: Account) {
     // Make a deep-copy to avoid mutating the same ref.
     this.#account = JSON.parse(JSON.stringify(account));
   }
 
-  static from(account: InternalAccount): MockAccountBuilder {
+  static from<Account extends KeyringAccount>(
+    account: Account,
+  ): MockAccountBuilder<Account> {
     return new MockAccountBuilder(account);
   }
 
   withId(id: InternalAccount['id']) {
     this.#account.id = id;
+    return this;
+  }
+
+  withUuid() {
+    this.#account.id = uuid();
+    return this;
+  }
+
+  withAddressSuffix(suffix: string) {
+    this.#account.address += suffix;
     return this;
   }
 

@@ -507,6 +507,24 @@ describe('MultichainAccountService', () => {
     });
   });
 
+  describe('createNextMultichainAccount', () => {
+    it('creates the next multichain account group', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service } = setup({ accounts: [mockEvmAccount] });
+
+      const nextGroup = await service.createNextMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      });
+      expect(nextGroup.index).toBe(1);
+      // NOTE: There won't be any account for this group, since we're not
+      // mocking the providers.
+    });
+  });
+
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -549,6 +567,19 @@ describe('MultichainAccountService', () => {
         'MultichainAccountService:getMultichainAccountWallets',
       );
       expect(wallets.length).toBeGreaterThan(0);
+    });
+
+    it('create the next multichain account group with MultichainAccountService:createNextMultichainAccountGroup', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const nextGroup = await messenger.call(
+        'MultichainAccountService:createNextMultichainAccountGroup',
+        { entropySource: MOCK_HD_KEYRING_1.metadata.id },
+      );
+      expect(nextGroup.index).toBe(1);
+      // NOTE: There won't be any account for this group, since we're not
+      // mocking the providers.
     });
   });
 });

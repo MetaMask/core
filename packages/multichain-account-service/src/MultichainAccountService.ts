@@ -1,12 +1,12 @@
-import type {
-  MultichainAccountWalletId,
-  AccountProvider,
-  Bip44Account,
-} from '@metamask/account-api';
 import {
   isBip44Account,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
+import type {
+  MultichainAccountWalletId,
+  Bip44Account,
+} from '@metamask/account-api';
+import type { AccountProvider } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
@@ -86,6 +86,10 @@ export class MultichainAccountService {
     this.#messenger.registerActionHandler(
       'MultichainAccountService:getMultichainAccountWallets',
       (...args) => this.getMultichainAccountWallets(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:createNextMultichainAccountGroup',
+      (...args) => this.createNextMultichainAccountGroup(...args),
     );
   }
 
@@ -294,5 +298,22 @@ export class MultichainAccountService {
     entropySource: EntropySourceId;
   }): MultichainAccountGroup<Bip44Account<KeyringAccount>>[] {
     return this.#getWallet(entropySource).getMultichainAccountGroups();
+  }
+
+  /**
+   * Creates the next multichain account group.
+   *
+   * @param options - Options.
+   * @param options.entropySource - The wallet's entropy source.
+   * @returns The next multichain account group.
+   */
+  async createNextMultichainAccountGroup({
+    entropySource,
+  }: {
+    entropySource: EntropySourceId;
+  }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
+    return await this.#getWallet(
+      entropySource,
+    ).createNextMultichainAccountGroup();
   }
 }

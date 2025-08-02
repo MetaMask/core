@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add multichain account group creation support ([#6222](https://github.com/MetaMask/core/pull/6222))
+  - This also includes the new action `MultichainAccountService:createNextMultichainAccount`.
 - Export `MultichainAccountWallet` and `MultichainAccountGroup` types ([#6220](https://github.com/MetaMask/core/pull/6220))
 
 ### Changed
 
 - **BREAKING:** Use `KeyringAccount` instead of `InternalAccount` ([#6227](https://github.com/MetaMask/core/pull/6227))
-- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.6.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216))
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.7.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6222](https://github.com/MetaMask/core/pull/6222))
 - **BREAKING:** Rename `MultichainAccount` to `MultichainAccountGroup` ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6219](https://github.com/MetaMask/core/pull/6219))
   - The naming was confusing and since a `MultichainAccount` is also an `AccountGroup` it makes sense to have the suffix there too.
 - **BREAKING:** Rename `getMultichainAccount*` to `getMultichainAccountGroup*` ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6219](https://github.com/MetaMask/core/pull/6219))
