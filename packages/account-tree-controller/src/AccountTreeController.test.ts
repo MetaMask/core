@@ -711,6 +711,95 @@ describe('AccountTreeController', () => {
         },
       } as AccountTreeControllerState);
     });
+
+    it('prunes an empty group if it holds no accounts', () => {
+      // 2 accounts that share the same entropy source (thus, same wallet).
+      const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
+      const mockHdAccount2 = {
+        ...MOCK_HD_ACCOUNT_2,
+        options: {
+          entropy: {
+            ...MOCK_HD_ACCOUNT_2.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 1,
+          },
+        },
+      };
+
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1, mockHdAccount2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
+      controller.init();
+
+      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const walletId1Group2 = toMultichainAccountGroupId(
+        walletId1,
+        mockHdAccount2.options.entropy.groupIndex,
+      );
+
+      expect(controller.state).toStrictEqual({
+        accountTree: {
+          wallets: {
+            [walletId1]: {
+              id: walletId1,
+              type: AccountWalletType.Entropy,
+              groups: {
+                // First group gets removed as a result of pruning.
+                [walletId1Group2]: {
+                  id: walletId1Group2,
+                  type: AccountGroupType.MultichainAccount,
+                  metadata: {
+                    name: mockHdAccount2.metadata.name,
+                    entropy: {
+                      groupIndex: mockHdAccount2.options.entropy.groupIndex,
+                    },
+                  },
+                  accounts: [mockHdAccount2.id],
+                },
+              },
+              metadata: {
+                name: 'Wallet 1',
+                entropy: {
+                  id: MOCK_HD_KEYRING_1.metadata.id,
+                  index: 0,
+                },
+              },
+            },
+          },
+          selectedAccountGroup: expect.any(String), // Will be set after init
+        },
+      } as AccountTreeControllerState);
+    });
+
+    it('prunes an empty wallet if it holds no groups', () => {
+      // 2 accounts that share the same entropy source (thus, same wallet).
+      const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
+
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
+      controller.init();
+
+      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+
+      expect(controller.state).toStrictEqual({
+        accountTree: {
+          wallets: {},
+          selectedAccountGroup: expect.any(String), // Will be set after init
+        },
+      } as AccountTreeControllerState);
+    });
   });
 
   describe('on AccountsController:accountAdded', () => {
