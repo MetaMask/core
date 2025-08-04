@@ -15,7 +15,8 @@
     { "path": "../phishing-controller" },
     { "path": "../polling-controller" },
     { "path": "../permission-controller" },
-    { "path": "../transaction-controller" }
+    { "path": "../transaction-controller" },
+    { "path": "../multichain-account-service" }
   ],
   "include": ["../../types", "./src", "../../tests"]
 }
