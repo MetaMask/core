@@ -19,7 +19,6 @@ export type {
   TransactionControllerTransactionNewSwapEvent,
   TransactionControllerTransactionPublishingSkipped,
   TransactionControllerTransactionRejectedEvent,
-  TransactionControllerTransactionSimulatedEvent,
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,

@@ -606,14 +606,6 @@ export type TransactionControllerTransactionRejectedEvent = {
 };
 
 /**
- * Represents the `TransactionController:transactionSimulated` event.
- */
-export type TransactionControllerTransactionSimulatedEvent = {
-  type: `${typeof controllerName}:transactionSimulated`;
-  payload: [transactionMeta: TransactionMeta];
-};
-
-/**
  * Represents the `TransactionController:transactionStatusUpdated` event.
  */
 export type TransactionControllerTransactionStatusUpdatedEvent = {
@@ -664,7 +656,6 @@ export type TransactionControllerEvents =
   | TransactionControllerTransactionNewSwapAndSendEvent
   | TransactionControllerTransactionPublishingSkipped
   | TransactionControllerTransactionRejectedEvent
-  | TransactionControllerTransactionSimulatedEvent
   | TransactionControllerTransactionStatusUpdatedEvent
   | TransactionControllerTransactionSubmittedEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
@@ -4464,28 +4455,22 @@ export class TransactionController extends BaseController<
       this.#skipSimulationTransactionIds.delete(transactionId);
     }
 
-    if (updateTransaction) {
-      const updatedTransactionMeta = this.#updateTransactionInternal(
-        {
-          transactionId,
-          skipResimulateCheck: true,
-          note: 'afterSimulate Hook',
-        },
-        (txMeta) => {
-          txMeta.txParamsOriginal = cloneDeep(txMeta.txParams);
-          updateTransaction(txMeta);
-        },
-      );
-
-      log(
-        'Updated transaction with afterSimulate data',
-        updatedTransactionMeta,
-      );
+    if (!updateTransaction) {
+      return;
     }
 
-    this.messagingSystem.publish(
-      `${controllerName}:transactionSimulated`,
-      transactionMeta,
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      {
+        transactionId,
+        skipResimulateCheck: true,
+        note: 'afterSimulate Hook',
+      },
+      (txMeta) => {
+        txMeta.txParamsOriginal = cloneDeep(txMeta.txParams);
+        updateTransaction(txMeta);
+      },
     );
+
+    log('Updated transaction with afterSimulate data', updatedTransactionMeta);
   }
 }
