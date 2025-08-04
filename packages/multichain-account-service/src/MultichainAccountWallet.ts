@@ -33,7 +33,7 @@ export class MultichainAccountWallet<
 
   readonly #entropySource: EntropySourceId;
 
-  readonly #accounts: Map<number, MultichainAccountGroup<Account>>;
+  readonly #accountGroups: Map<number, MultichainAccountGroup<Account>>;
 
   constructor({
     providers,
@@ -45,7 +45,7 @@ export class MultichainAccountWallet<
     this.#id = toMultichainAccountWalletId(entropySource);
     this.#providers = providers;
     this.#entropySource = entropySource;
-    this.#accounts = new Map();
+    this.#accountGroups = new Map();
 
     // Initial synchronization.
     this.sync();
@@ -68,7 +68,7 @@ export class MultichainAccountWallet<
         }
 
         // This multichain account might exists already.
-        let multichainAccount = this.#accounts.get(entropy.groupIndex);
+        let multichainAccount = this.#accountGroups.get(entropy.groupIndex);
         if (!multichainAccount) {
           multichainAccount = new MultichainAccountGroup<Account>({
             groupIndex: entropy.groupIndex,
@@ -86,18 +86,18 @@ export class MultichainAccountWallet<
           // after the first-sync.
           // TODO: Implement align mechanism to create "missing" accounts.
 
-          this.#accounts.set(entropy.groupIndex, multichainAccount);
+          this.#accountGroups.set(entropy.groupIndex, multichainAccount);
         }
       }
     }
 
     // Now force-sync all remaining multichain accounts.
-    for (const [groupIndex, multichainAccount] of this.#accounts.entries()) {
+    for (const [groupIndex, multichainAccount] of this.#accountGroups.entries()) {
       multichainAccount.sync();
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
-        this.#accounts.delete(groupIndex);
+        this.#accountGroups.delete(groupIndex);
       }
     }
   }
@@ -141,7 +141,7 @@ export class MultichainAccountWallet<
   ): MultichainAccountGroup<Account> | undefined {
     // We consider the "default case" to be mapped to index 0.
     if (id === toDefaultAccountGroupId(this.id)) {
-      return this.#accounts.get(0);
+      return this.#accountGroups.get(0);
     }
 
     // If it is not a valid ID, we cannot extract the group index
@@ -151,7 +151,7 @@ export class MultichainAccountWallet<
     }
 
     const groupIndex = getGroupIndexFromMultichainAccountGroupId(id);
-    return this.#accounts.get(groupIndex);
+    return this.#accountGroups.get(groupIndex);
   }
 
   /**
@@ -172,7 +172,7 @@ export class MultichainAccountWallet<
   getMultichainAccountGroup(
     groupIndex: number,
   ): MultichainAccountGroup<Account> | undefined {
-    return this.#accounts.get(groupIndex);
+    return this.#accountGroups.get(groupIndex);
   }
 
   /**
@@ -181,7 +181,7 @@ export class MultichainAccountWallet<
    * @returns The multichain accounts.
    */
   getMultichainAccountGroups(): MultichainAccountGroup<Account>[] {
-    return Array.from(this.#accounts.values()); // TODO: Prevent copy here.
+    return Array.from(this.#accountGroups.values()); // TODO: Prevent copy here.
   }
 
   /**
@@ -194,7 +194,7 @@ export class MultichainAccountWallet<
     return (
       Math.max(
         -1, // So it will default to 0 if no groups.
-        ...this.#accounts.keys(),
+        ...this.#accountGroups.keys(),
       ) + 1
     );
   }
@@ -279,7 +279,7 @@ export class MultichainAccountWallet<
     }
 
     // Register the account to our internal map.
-    this.#accounts.set(groupIndex, group); // `group` cannot be undefined here.
+    this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
 
     return group;
   }
