@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add persistence support for user customizations ([#6221](https://github.com/MetaMask/core/pull/6221))
-  - New `accountGroupsMetadata` (of new type `AccountGroupMetadata`) and `accountWalletsMetadata` (of new type `AccountWalletMetadata`) state properties to persist custom names, pinning, and hiding states
-  - Custom names and metadata survive controller initialization and tree rebuilds
-  - Support for `lastUpdatedAt` timestamps for Account Syncing V2 compatibility
+  - New `accountGroupsMetadata` (of new type `AccountGroupPersistedMetadata`) and `accountWalletsMetadata` (of new type `AccountWalletPersistedMetadata`) state properties to persist custom names, pinning, and hiding states.
+  - Custom names and metadata survive controller initialization and tree rebuilds.
+  - Support for `lastUpdatedAt` timestamps for Account Syncing V2 compatibility.
 - Add setter methods for setting custom account group names, wallet names and their pinning state and visibility ([#6221](https://github.com/MetaMask/core/pull/6221))
 - Add `group.type` tag ([#6214](https://github.com/MetaMask/core/pull/6214))
   - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountGroupObject`.
