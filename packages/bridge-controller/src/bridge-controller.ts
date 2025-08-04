@@ -326,7 +326,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   fetchQuotes = async (
     quoteRequests: GenericQuoteRequest[],
     abortSignal: AbortSignal | null = null,
-    shouldIgnoreErrors: boolean = true,
+    shouldIgnoreErrors: boolean = false,
   ): Promise<QuoteResponse[]> => {
     const quotes = await Promise.allSettled(
       quoteRequests.map(async (quoteRequest) => {
