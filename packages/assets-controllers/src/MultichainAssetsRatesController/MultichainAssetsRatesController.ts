@@ -236,10 +236,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      async (currencyRatesState: CurrencyRateState) => {
-        this.#currentCurrency = currencyRatesState.currentCurrency;
+      async (currentCurrency: string) => {
+        this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
       },
+      (currencyRateControllerState) =>
+        currencyRateControllerState.currentCurrency,
     );
 
     this.messagingSystem.subscribe(

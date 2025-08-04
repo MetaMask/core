@@ -18,14 +18,14 @@ import type {
   serviceName,
 } from './MultichainAccountService';
 
-export type MultichainAccountServiceGetMultichainAccountAction = {
-  type: `${typeof serviceName}:getMultichainAccount`;
-  handler: MultichainAccountService['getMultichainAccount'];
+export type MultichainAccountServiceGetMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:getMultichainAccountGroup`;
+  handler: MultichainAccountService['getMultichainAccountGroup'];
 };
 
-export type MultichainAccountServiceGetMultichainAccountsAction = {
-  type: `${typeof serviceName}:getMultichainAccounts`;
-  handler: MultichainAccountService['getMultichainAccounts'];
+export type MultichainAccountServiceGetMultichainAccountGroupsAction = {
+  type: `${typeof serviceName}:getMultichainAccountGroups`;
+  handler: MultichainAccountService['getMultichainAccountGroups'];
 };
 
 export type MultichainAccountServiceGetMultichainAccountWalletAction = {
@@ -43,8 +43,8 @@ export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
  * modules can call them.
  */
 export type MultichainAccountServiceActions =
-  | MultichainAccountServiceGetMultichainAccountAction
-  | MultichainAccountServiceGetMultichainAccountsAction
+  | MultichainAccountServiceGetMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountGroupsAction
   | MultichainAccountServiceGetMultichainAccountWalletAction
   | MultichainAccountServiceGetMultichainAccountWalletsAction;
 

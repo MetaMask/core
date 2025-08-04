@@ -5,14 +5,13 @@ import type {
 } from '@metamask/account-api';
 import {
   isBip44Account,
-  MultichainAccountWallet,
   toMultichainAccountWalletId,
-  type MultichainAccount,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { MultichainAccountGroup } from './MultichainAccountGroup';
+import { MultichainAccountWallet } from './MultichainAccountWallet';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -29,7 +28,7 @@ type MultichainAccountServiceOptions = {
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
 type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
   wallet: MultichainAccountWallet<Account>;
-  multichainAccount: MultichainAccount<Account>;
+  group: MultichainAccountGroup<Account>;
 };
 
 /**
@@ -38,16 +37,16 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: AccountProvider<Bip44Account<InternalAccount>>[];
+  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
-    MultichainAccountWallet<Bip44Account<InternalAccount>>
+    MultichainAccountWallet<Bip44Account<KeyringAccount>>
   >;
 
   readonly #accountIdToContext: Map<
-    Bip44Account<InternalAccount>['id'],
-    AccountContext<Bip44Account<InternalAccount>>
+    Bip44Account<KeyringAccount>['id'],
+    AccountContext<Bip44Account<KeyringAccount>>
   >;
 
   /**
@@ -73,12 +72,12 @@ export class MultichainAccountService {
     ];
 
     this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccount',
-      (...args) => this.getMultichainAccount(...args),
+      'MultichainAccountService:getMultichainAccountGroup',
+      (...args) => this.getMultichainAccountGroup(...args),
     );
     this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccounts',
-      (...args) => this.getMultichainAccounts(...args),
+      'MultichainAccountService:getMultichainAccountGroups',
+      (...args) => this.getMultichainAccountGroups(...args),
     );
     this.#messenger.registerActionHandler(
       'MultichainAccountService:getMultichainAccountWallet',
@@ -111,11 +110,11 @@ export class MultichainAccountService {
         this.#wallets.set(wallet.id, wallet);
 
         // Reverse mapping between account ID and their multichain wallet/account:
-        for (const multichainAccount of wallet.getMultichainAccounts()) {
-          for (const account of multichainAccount.getAccounts()) {
+        for (const group of wallet.getMultichainAccountGroups()) {
+          for (const account of group.getAccounts()) {
             this.#accountIdToContext.set(account.id, {
               wallet,
-              multichainAccount,
+              group,
             });
           }
         }
@@ -130,7 +129,7 @@ export class MultichainAccountService {
     );
   }
 
-  #handleOnAccountAdded(account: InternalAccount): void {
+  #handleOnAccountAdded(account: KeyringAccount): void {
     // We completely omit non-BIP-44 accounts!
     if (!isBip44Account(account)) {
       return;
@@ -153,17 +152,17 @@ export class MultichainAccountService {
       sync = false;
     }
 
-    let multichainAccount = wallet.getMultichainAccount(
+    let group = wallet.getMultichainAccountGroup(
       account.options.entropy.groupIndex,
     );
-    if (!multichainAccount) {
+    if (!group) {
       // This new account is a new multichain account, let the wallet know
       // it has to re-sync with its providers.
       if (sync) {
         wallet.sync();
       }
 
-      multichainAccount = wallet.getMultichainAccount(
+      group = wallet.getMultichainAccountGroup(
         account.options.entropy.groupIndex,
       );
 
@@ -173,21 +172,21 @@ export class MultichainAccountService {
 
     // We have to check against `undefined` in case `getMultichainAccount` is
     // not able to find this multichain account (which should not be possible...)
-    if (multichainAccount) {
+    if (group) {
       if (sync) {
-        multichainAccount.sync();
+        group.sync();
       }
 
       // Same here, this account should have been already grouped in that
       // multichain account.
       this.#accountIdToContext.set(account.id, {
         wallet,
-        multichainAccount,
+        group,
       });
     }
   }
 
-  #handleOnAccountRemoved(id: InternalAccount['id']): void {
+  #handleOnAccountRemoved(id: KeyringAccount['id']): void {
     // Force sync of the appropriate wallet if an account got removed.
     const found = this.#accountIdToContext.get(id);
     if (found) {
@@ -202,7 +201,7 @@ export class MultichainAccountService {
 
   #getWallet(
     entropySource: EntropySourceId,
-  ): MultichainAccountWallet<Bip44Account<InternalAccount>> {
+  ): MultichainAccountWallet<Bip44Account<KeyringAccount>> {
     const wallet = this.#wallets.get(
       toMultichainAccountWalletId(entropySource),
     );
@@ -215,15 +214,15 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets a reference to the wallet and multichain account for a given account ID.
+   * Gets the account's context which contains its multichain wallet and
+   * multichain account group references.
    *
    * @param id - Account ID.
-   * @returns An object with references to the wallet and multichain account associated for
-   * that account ID, or undefined if this account ID is not part of any.
+   * @returns The account context if any, undefined otherwise.
    */
-  getMultichainAccountAndWallet(
-    id: InternalAccount['id'],
-  ): AccountContext<Bip44Account<InternalAccount>> | undefined {
+  getAccountContext(
+    id: KeyringAccount['id'],
+  ): AccountContext<Bip44Account<KeyringAccount>> | undefined {
     return this.#accountIdToContext.get(id);
   }
 
@@ -239,7 +238,7 @@ export class MultichainAccountService {
     entropySource,
   }: {
     entropySource: EntropySourceId;
-  }): MultichainAccountWallet<Bip44Account<InternalAccount>> {
+  }): MultichainAccountWallet<Bip44Account<KeyringAccount>> {
     return this.#getWallet(entropySource);
   }
 
@@ -249,13 +248,14 @@ export class MultichainAccountService {
    * @returns An array of all multichain account wallets.
    */
   getMultichainAccountWallets(): MultichainAccountWallet<
-    Bip44Account<InternalAccount>
+    Bip44Account<KeyringAccount>
   >[] {
     return Array.from(this.#wallets.values());
   }
 
   /**
-   * Gets a reference to the multichain account matching this entropy source and group index.
+   * Gets a reference to the multichain account group matching this entropy source
+   * and a group index.
    *
    * @param options - Options.
    * @param options.entropySource - The entropy source of the multichain account.
@@ -263,15 +263,15 @@ export class MultichainAccountService {
    * @throws If none multichain account match this entropy source and group index.
    * @returns A reference to the multichain account.
    */
-  getMultichainAccount({
+  getMultichainAccountGroup({
     entropySource,
     groupIndex,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }): MultichainAccount<Bip44Account<InternalAccount>> {
+  }): MultichainAccountGroup<Bip44Account<KeyringAccount>> {
     const multichainAccount =
-      this.#getWallet(entropySource).getMultichainAccount(groupIndex);
+      this.#getWallet(entropySource).getMultichainAccountGroup(groupIndex);
 
     if (!multichainAccount) {
       throw new Error(`No multichain account for index: ${groupIndex}`);
@@ -281,18 +281,18 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets all multichain accounts for a given entropy source.
+   * Gets all multichain account groups for a given entropy source.
    *
    * @param options - Options.
    * @param options.entropySource - The entropy source to query.
    * @throws If no multichain accounts match this entropy source.
    * @returns A list of all multichain accounts.
    */
-  getMultichainAccounts({
+  getMultichainAccountGroups({
     entropySource,
   }: {
     entropySource: EntropySourceId;
-  }): MultichainAccount<Bip44Account<InternalAccount>>[] {
-    return this.#getWallet(entropySource).getMultichainAccounts();
+  }): MultichainAccountGroup<Bip44Account<KeyringAccount>>[] {
+    return this.#getWallet(entropySource).getMultichainAccountGroups();
   }
 }

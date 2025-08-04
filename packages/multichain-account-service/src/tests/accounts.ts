@@ -1,6 +1,9 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import {
+  BtcAccountType,
+  BtcMethod,
+  BtcScope,
   EthAccountType,
   EthMethod,
   EthScope,
@@ -102,7 +105,7 @@ export const MOCK_HD_ACCOUNT_2: InternalAccount = {
   },
 };
 
-export const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
+export const MOCK_SOL_ACCOUNT_1: InternalAccount = {
   id: 'mock-snap-id-1',
   address: 'aabbccdd',
   options: {
@@ -116,15 +119,75 @@ export const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   },
   methods: SOL_METHODS,
   type: SolAccountType.DataAccount,
-  scopes: [SolScope.Mainnet],
+  scopes: [SolScope.Mainnet, SolScope.Testnet, SolScope.Devnet],
   metadata: {
-    name: 'Snap Account 1',
+    name: 'Solana Account 1',
     keyring: { type: KeyringTypes.snap },
     snap: MOCK_SNAP_1,
     importTime: 0,
     lastSelected: 0,
   },
 };
+
+export const MOCK_BTC_P2WPKH_ACCOUNT_1: InternalAccount = {
+  id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
+  type: BtcAccountType.P2wpkh,
+  methods: [BtcMethod.SendBitcoin],
+  address: 'bc1qx8ls07cy8j8nrluy2u0xwn7gh8fxg0rg4s8zze',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  scopes: [BtcScope.Mainnet],
+  metadata: {
+    name: 'Bitcoin Native Segwit Account 1',
+    importTime: 0,
+    keyring: {
+      type: 'Snap keyring',
+    },
+    snap: {
+      id: 'mock-btc-snap-id',
+      enabled: true,
+      name: 'Mock Bitcoin Snap',
+    },
+  },
+};
+
+export const MOCK_BTC_P2TR_ACCOUNT_1: InternalAccount = {
+  id: 'a20c2e1a-6ff6-40ba-b8e0-ccdb6f9933bb',
+  type: BtcAccountType.P2tr,
+  methods: [BtcMethod.SendBitcoin],
+  address: 'tb1p5cyxnuxmeuwuvkwfem96lxx9wex9kkf4mt9ll6q60jfsnrzqg4sszkqjnh',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  scopes: [BtcScope.Testnet],
+  metadata: {
+    name: 'Bitcoin Taproot Account 1',
+    importTime: 0,
+    keyring: {
+      type: 'Snap keyring',
+    },
+    snap: {
+      id: 'mock-btc-snap-id',
+      enabled: true,
+      name: 'Mock Bitcoin Snap',
+    },
+  },
+};
+
+export const MOCK_SNAP_ACCOUNT_1 = MOCK_SOL_ACCOUNT_1;
 
 export const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
   id: 'mock-snap-id-2',
@@ -141,6 +204,9 @@ export const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
     lastSelected: 0,
   },
 };
+
+export const MOCK_SNAP_ACCOUNT_3 = MOCK_BTC_P2WPKH_ACCOUNT_1;
+export const MOCK_SNAP_ACCOUNT_4 = MOCK_BTC_P2TR_ACCOUNT_1;
 
 export const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   id: 'mock-hardware-id-1',
@@ -192,3 +258,30 @@ export class MockAccountBuilder {
     return this.#account;
   }
 }
+
+export const MOCK_WALLET_1_ENTROPY_SOURCE = MOCK_ENTROPY_SOURCE_1;
+
+export const MOCK_WALLET_1_EVM_ACCOUNT = MockAccountBuilder.from(
+  MOCK_HD_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_SOL_ACCOUNT = MockAccountBuilder.from(
+  MOCK_SOL_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT = MockAccountBuilder.from(
+  MOCK_BTC_P2WPKH_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_BTC_P2TR_ACCOUNT = MockAccountBuilder.from(
+  MOCK_BTC_P2TR_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
