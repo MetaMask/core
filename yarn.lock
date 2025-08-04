@@ -4227,6 +4227,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/profile-sync-controller@npm:^22.0.0":
+  version: 22.0.0
+  resolution: "@metamask/profile-sync-controller@npm:22.0.0"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.0.1"
+    "@metamask/snaps-sdk": "npm:^9.0.0"
+    "@metamask/snaps-utils": "npm:^11.0.0"
+    "@noble/ciphers": "npm:^0.5.2"
+    "@noble/hashes": "npm:^1.4.0"
+    immer: "npm:^9.0.6"
+    loglevel: "npm:^1.8.1"
+    siwe: "npm:^2.3.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^32.0.0
+    "@metamask/keyring-controller": ^22.0.0
+    "@metamask/providers": ^22.0.0
+    "@metamask/snaps-controllers": ^14.0.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
+  checksum: 10/77c33e45c22d50d2e170c910257fa131aa0d2f4ff3918e2e55cce6132ac18248e238bfac09ca03028276facc659ecfbcbc20334b8878511f05f0480b751f7839
+  languageName: node
+  linkType: hard
+
 "@metamask/profile-sync-controller@npm:^23.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
@@ -4828,6 +4850,13 @@ __metadata:
     jsbi: "npm:^3.1.5"
     sha.js: "npm:^2.4.11"
   checksum: 10/0d3301b673a0bd9a069dae1f017cfd03010fddf19c1449d1a9e986b9b879ee4611f5af690ace9f59b75707573d1d3d6a4983166207db743425974a736689c6a0
+  languageName: node
+  linkType: hard
+
+"@noble/ciphers@npm:^0.5.2":
+  version: 0.5.3
+  resolution: "@noble/ciphers@npm:0.5.3"
+  checksum: 10/af0ad96b5807feace93e63549e05de6f5e305b36e2e95f02d90532893fbc3af3f19b9621b6de4caa98303659e5df2e7aa082064e5d4a82e6f38c728d48dfae5d
   languageName: node
   linkType: hard
 
