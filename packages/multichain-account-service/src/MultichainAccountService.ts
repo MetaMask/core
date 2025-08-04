@@ -21,8 +21,11 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions = {
+type MultichainAccountServiceOptions<
+  Account extends Bip44Account<KeyringAccount>,
+> = {
   messenger: MultichainAccountServiceMessenger;
+  providers?: AccountProvider<Account>[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -60,8 +63,13 @@ export class MultichainAccountService {
    * @param options - The options.
    * @param options.messenger - The messenger suited to this
    * MultichainAccountService.
+   * @param options.providers - Optional list of account
+   * providers.
    */
-  constructor({ messenger }: MultichainAccountServiceOptions) {
+  constructor({
+    messenger,
+    providers = [],
+  }: MultichainAccountServiceOptions<Bip44Account<KeyringAccount>>) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
@@ -69,6 +77,8 @@ export class MultichainAccountService {
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
       new SolAccountProvider(this.#messenger),
+      // Custom account providers that can be provided by the MetaMask client.
+      ...providers,
     ];
 
     this.#messenger.registerActionHandler(
