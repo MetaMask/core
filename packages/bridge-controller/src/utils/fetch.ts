@@ -70,7 +70,7 @@ export async function fetchBridgeTokens(
  */
 export async function fetchBridgeQuotes(
   request: GenericQuoteRequest,
-  signal: AbortSignal,
+  signal: AbortSignal | null,
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,

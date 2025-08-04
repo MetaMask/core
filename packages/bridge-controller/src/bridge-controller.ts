@@ -314,6 +314,46 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
+  /**
+   * Fetches quotes for a list of quote requests without updating the controller state
+   * This method does not start polling for quotes and does not emit UnifiedSwapBridge events
+   *
+   * @param quoteRequests - The parameters for quote requests to fetch
+   * @param abortSignal - The abort signal to cancel all the requests
+   * @param shouldIgnoreErrors - Whether to ignore errors or throw them
+   * @returns A list of validated quotes
+   */
+  fetchQuotes = async (
+    quoteRequests: GenericQuoteRequest[],
+    abortSignal: AbortSignal | null = null,
+    shouldIgnoreErrors: boolean = true,
+  ): Promise<QuoteResponse[]> => {
+    const quotes = await Promise.allSettled(
+      quoteRequests.map(async (quoteRequest) => {
+        const baseQuotes = await fetchBridgeQuotes(
+          quoteRequest,
+          abortSignal,
+          this.#clientId,
+          this.#fetchFn,
+          this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+        );
+        const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
+        const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+        return quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+      }),
+    );
+
+    return quotes.reduce<QuoteResponse[]>((acc, res) => {
+      if (res.status === 'fulfilled') {
+        return [...acc, ...res.value];
+      }
+      if (shouldIgnoreErrors) {
+        return acc;
+      }
+      throw res.reason;
+    }, []);
+  };
+
   readonly #getExchangeRateSources = () => {
     return {
       ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
@@ -478,33 +518,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
-    const fetchQuotes = async () => {
-      // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#setMinimumBalanceForRentExemptionInLamports(
-        updatedQuoteRequest.srcChainId,
-      );
-      const quotes = await fetchBridgeQuotes(
-        updatedQuoteRequest,
-        // AbortController is always defined by this line, because we assign it a few lines above,
-        // not sure why Jest thinks it's not
-        // Linters accurately say that it's defined
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        this.#abortController!.signal as AbortSignal,
-        this.#clientId,
-        this.#fetchFn,
-        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-      );
-
-      const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
-      const quotesWithSolanaFees = await this.#appendSolanaFees(quotes);
-
-      this.update((state) => {
-        state.quotes = quotesWithL1GasFees ?? quotesWithSolanaFees ?? quotes;
-        state.quotesLoadingStatus = RequestStatus.FETCHED;
-      });
-    };
-
     try {
       await this.#trace(
         {
@@ -519,7 +532,27 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
           },
         },
-        fetchQuotes,
+        async () => {
+          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#setMinimumBalanceForRentExemptionInLamports(
+            updatedQuoteRequest.srcChainId,
+          );
+          const quotes = await this.fetchQuotes(
+            [updatedQuoteRequest],
+            // AbortController is always defined by this line, because we assign it a few lines above,
+            // not sure why Jest thinks it's not
+            // Linters accurately say that it's defined
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.#abortController!.signal as AbortSignal,
+            false,
+          );
+
+          this.update((state) => {
+            state.quotes = quotes;
+            state.quotesLoadingStatus = RequestStatus.FETCHED;
+          });
+        },
       );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
