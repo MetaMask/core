@@ -235,6 +235,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
       this.stopPollingForQuotes.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
+      this.fetchQuotes.bind(this),
+    );
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
