@@ -105,6 +105,7 @@ export class AccountTreeController extends BaseController<
     // Reverse map to allow fast node access from an account ID.
     this.#accountIdToContext = new Map();
 
+    // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
 
     // Rules to apply to construct the wallets tree.
