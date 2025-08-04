@@ -1,22 +1,21 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
-import { AccountWalletCategory } from '@metamask/account-api';
+import { AccountWalletType } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountTreeRule } from './AccountTreeRule';
-import { AccountTreeWallet } from './AccountTreeWallet';
+import type { AccountGroupObject } from './group';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
-  AccountGroupObject,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
-  AccountWalletObject,
 } from './types';
+import type { AccountWalletObject } from './wallet';
+import { AccountTreeWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -49,12 +48,12 @@ export type AccountContext = {
   /**
    * Wallet ID associated to that account.
    */
-  walletId: AccountWalletId;
+  walletId: AccountWalletObject['id'];
 
   /**
    * Account group ID associated to that account.
    */
-  groupId: AccountGroupId;
+  groupId: AccountGroupObject['id'];
 };
 
 export class AccountTreeController extends BaseController<
@@ -64,9 +63,7 @@ export class AccountTreeController extends BaseController<
 > {
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
-  readonly #rules: AccountTreeRule[];
-
-  readonly #categoryToRule: Record<AccountWalletCategory, AccountTreeRule>;
+  readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
   /**
    * Constructor for AccountTreeController.
@@ -96,18 +93,13 @@ export class AccountTreeController extends BaseController<
     this.#accountIdToContext = new Map();
 
     // Rules to apply to construct the wallets tree.
-    this.#categoryToRule = {
-      [AccountWalletCategory.Entropy]: new EntropyRule(this.messagingSystem),
-      [AccountWalletCategory.Snap]: new SnapRule(this.messagingSystem),
-      [AccountWalletCategory.Keyring]: new KeyringRule(this.messagingSystem),
-    } as const;
     this.#rules = [
       // 1. We group by entropy-source
-      this.#categoryToRule[AccountWalletCategory.Entropy],
+      new EntropyRule(this.messagingSystem),
       // 2. We group by Snap ID
-      this.#categoryToRule[AccountWalletCategory.Snap],
+      new SnapRule(this.messagingSystem),
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
-      this.#categoryToRule[AccountWalletCategory.Keyring],
+      new KeyringRule(this.messagingSystem),
     ];
 
     this.messagingSystem.subscribe(
@@ -162,29 +154,16 @@ export class AccountTreeController extends BaseController<
     });
   }
 
-  /**
-   * Initializes the selectedAccountGroup based on the currently selected account from AccountsController.
-   *
-   * @param wallets - Wallets object to use for fallback logic
-   * @returns The default selected account group ID or empty string if none selected.
-   */
-  #getDefaultSelectedAccountGroup(wallets: {
-    [walletId: AccountWalletId]: AccountWalletObject;
-  }): AccountGroupId | '' {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    );
-    if (selectedAccount && selectedAccount.id) {
-      const accountMapping = this.#accountIdToContext.get(selectedAccount.id);
-      if (accountMapping) {
-        const { groupId } = accountMapping;
+  #getEntropyRule(): EntropyRule {
+    return this.#rules[0];
+  }
 
-        return groupId;
-      }
-    }
+  #getSnapRule(): SnapRule {
+    return this.#rules[1];
+  }
 
-    // Default to the default group in case of errors.
-    return this.#getDefaultAccountGroupId(wallets);
+  #getKeyringRule(): KeyringRule {
+    return this.#rules[2];
   }
 
   #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
@@ -192,8 +171,16 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const rule = this.#categoryToRule[wallet.metadata.type];
-    wallet.metadata.name = rule.getDefaultAccountWalletName(wallet);
+    if (wallet.type === AccountWalletType.Entropy) {
+      wallet.metadata.name =
+        this.#getEntropyRule().getDefaultAccountWalletName(wallet);
+    } else if (wallet.type === AccountWalletType.Snap) {
+      wallet.metadata.name =
+        this.#getSnapRule().getDefaultAccountWalletName(wallet);
+    } else {
+      wallet.metadata.name =
+        this.#getKeyringRule().getDefaultAccountWalletName(wallet);
+    }
   }
 
   #renameAccountGroupIfNeeded(
@@ -204,8 +191,22 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const rule = this.#categoryToRule[wallet.metadata.type];
-    group.metadata.name = rule.getDefaultAccountGroupName(group);
+    if (wallet.type === AccountWalletType.Entropy) {
+      group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
+        // Get the group from the wallet, to get the proper type inference.
+        wallet.groups[group.id],
+      );
+    } else if (wallet.type === AccountWalletType.Snap) {
+      group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
+        // Same here.
+        wallet.groups[group.id],
+      );
+    } else {
+      group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
+        // Same here.
+        wallet.groups[group.id],
+      );
+    }
   }
 
   getAccountWallet(walletId: AccountWalletId): AccountTreeWallet | undefined {
@@ -281,52 +282,52 @@ export class AccountTreeController extends BaseController<
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
   ) {
-    for (const rule of this.#rules) {
-      const result = rule.match(account);
+    const result =
+      this.#getEntropyRule().match(account) ??
+      this.#getSnapRule().match(account) ??
+      this.#getKeyringRule().match(account); // This one cannot fail.
 
-      if (!result) {
-        // No match for that rule, we go to the next one.
-        continue;
-      }
-
-      // Update controller's state.
-      const walletId = result.wallet.id;
-      let wallet = wallets[walletId];
-      if (!wallet) {
-        wallets[walletId] = {
-          id: walletId,
-          groups: {},
-          metadata: {
-            name: '', // Will get updated later.
-            ...result.wallet.metadata,
-          },
-        };
-        wallet = wallets[walletId];
-      }
-
-      const groupId = result.group.id;
-      let group = wallet.groups[groupId];
-      if (!group) {
-        wallet.groups[groupId] = {
-          id: groupId,
-          accounts: [],
-          metadata: {
-            name: '', // Will get updated later.
-          },
-        };
-        group = wallet.groups[groupId];
-      }
-
-      group.accounts.push(account.id);
-
-      // Update the reverse mapping for this account.
-      this.#accountIdToContext.set(account.id, {
-        walletId: wallet.id,
-        groupId: group.id,
-      });
-
-      return;
+    // Update controller's state.
+    const walletId = result.wallet.id;
+    let wallet = wallets[walletId];
+    if (!wallet) {
+      wallets[walletId] = {
+        ...result.wallet,
+        groups: {},
+        metadata: {
+          name: '', // Will get updated later.
+          ...result.wallet.metadata,
+        },
+        // We do need to type-cast since we're not narrowing `result` with
+        // the union tag `result.wallet.type`.
+      } as AccountWalletObject;
+      wallet = wallets[walletId];
     }
+
+    const groupId = result.group.id;
+    let group = wallet.groups[groupId];
+    if (!group) {
+      wallet.groups[groupId] = {
+        ...result.group,
+        // Type-wise, we are guaranteed to always have at least 1 account.
+        accounts: [account.id],
+        metadata: {
+          name: '',
+          ...result.group.metadata,
+        },
+        // We do need to type-cast since we're not narrowing `result` with
+        // the union tag `result.group.type`.
+      } as AccountGroupObject;
+      group = wallet.groups[groupId];
+    } else {
+      group.accounts.push(account.id);
+    }
+
+    // Update the reverse mapping for this account.
+    this.#accountIdToContext.set(account.id, {
+      walletId: wallet.id,
+      groupId: group.id,
+    });
   }
 
   #listAccounts(): InternalAccount[] {
@@ -374,6 +375,31 @@ export class AccountTreeController extends BaseController<
       'AccountsController:setSelectedAccount',
       accountToSelect,
     );
+  }
+
+  /**
+   * Initializes the selectedAccountGroup based on the currently selected account from AccountsController.
+   *
+   * @param wallets - Wallets object to use for fallback logic
+   * @returns The default selected account group ID or empty string if none selected.
+   */
+  #getDefaultSelectedAccountGroup(wallets: {
+    [walletId: AccountWalletId]: AccountWalletObject;
+  }): AccountGroupId | '' {
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+    if (selectedAccount && selectedAccount.id) {
+      const accountMapping = this.#accountIdToContext.get(selectedAccount.id);
+      if (accountMapping) {
+        const { groupId } = accountMapping;
+
+        return groupId;
+      }
+    }
+
+    // Default to the default group in case of errors.
+    return this.#getDefaultAccountGroupId(wallets);
   }
 
   /**

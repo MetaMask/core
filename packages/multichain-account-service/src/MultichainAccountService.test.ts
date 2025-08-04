@@ -1,6 +1,5 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import type { Bip44Account } from '@metamask/account-api';
-import { isBip44Account } from '@metamask/account-api';
+
 import type { Messenger } from '@metamask/base-controller';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
@@ -10,9 +9,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
+import type { MockAccountProvider } from './tests';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  makeMockAccountProvider,
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
@@ -21,6 +22,7 @@ import {
   MOCK_SNAP_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
   MockAccountBuilder,
+  setupAccountProvider,
 } from './tests';
 import type {
   AllowedActions,
@@ -44,13 +46,6 @@ jest.mock('./providers/SolAccountProvider', () => {
   };
 });
 
-type MockAccountProvider = {
-  accounts: InternalAccount[];
-  getAccount: jest.Mock;
-  getAccounts: jest.Mock;
-  createAccounts: jest.Mock;
-  discoverAndCreateAccounts: jest.Mock;
-};
 type Mocks = {
   KeyringController: {
     keyrings: KeyringObject[];
@@ -73,21 +68,11 @@ function mockAccountProvider<Provider>(
     .mocked(providerClass)
     .mockImplementation(() => mocks as unknown as Provider);
 
-  // You can mock this and all other mocks will re-use that list
-  // of accounts.
-  mocks.accounts = accounts;
-
-  const getAccounts = () =>
-    mocks.accounts.filter(
-      (account) => isBip44Account(account) && account.type === type,
-    );
-
-  mocks.getAccounts.mockImplementation(getAccounts);
-  mocks.getAccount.mockImplementation(
-    (id: Bip44Account<InternalAccount>['id']) =>
-      // Assuming this never fails.
-      getAccounts().find((account) => account.id === id),
-  );
+  setupAccountProvider({
+    mocks,
+    accounts,
+    filter: (account) => account.type === type,
+  });
 }
 
 function setup({
@@ -117,20 +102,8 @@ function setup({
     AccountsController: {
       listMultichainAccounts: jest.fn(),
     },
-    EvmAccountProvider: {
-      accounts: [],
-      getAccount: jest.fn(),
-      getAccounts: jest.fn(),
-      createAccounts: jest.fn(),
-      discoverAndCreateAccounts: jest.fn(),
-    },
-    SolAccountProvider: {
-      accounts: [],
-      getAccount: jest.fn(),
-      getAccounts: jest.fn(),
-      createAccounts: jest.fn(),
-      discoverAndCreateAccounts: jest.fn(),
-    },
+    EvmAccountProvider: makeMockAccountProvider(),
+    SolAccountProvider: makeMockAccountProvider(),
   };
 
   mocks.KeyringController.getState.mockImplementation(() => ({
@@ -176,7 +149,7 @@ function setup({
 }
 
 describe('MultichainAccountService', () => {
-  describe('getMultichainAccounts', () => {
+  describe('getMultichainAccountGroups', () => {
     it('gets multichain accounts', () => {
       const { service } = setup({
         accounts: [
@@ -201,12 +174,12 @@ describe('MultichainAccountService', () => {
       });
 
       expect(
-        service.getMultichainAccounts({
+        service.getMultichainAccountGroups({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
         }),
       ).toHaveLength(1);
       expect(
-        service.getMultichainAccounts({
+        service.getMultichainAccountGroups({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toHaveLength(1);
@@ -227,16 +200,16 @@ describe('MultichainAccountService', () => {
         ],
       });
 
-      const multichainAccounts = service.getMultichainAccounts({
+      const groups = service.getMultichainAccountGroups({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
-      expect(multichainAccounts).toHaveLength(2); // Group index 0 + 1.
+      expect(groups).toHaveLength(2); // Group index 0 + 1.
 
-      const internalAccounts0 = multichainAccounts[0].getAccounts();
+      const internalAccounts0 = groups[0].getAccounts();
       expect(internalAccounts0).toHaveLength(1); // Just EVM.
       expect(internalAccounts0[0].type).toBe(EthAccountType.Eoa);
 
-      const internalAccounts1 = multichainAccounts[1].getAccounts();
+      const internalAccounts1 = groups[1].getAccounts();
       expect(internalAccounts1).toHaveLength(1); // Just SOL.
       expect(internalAccounts1[0].type).toBe(SolAccountType.DataAccount);
     });
@@ -255,15 +228,15 @@ describe('MultichainAccountService', () => {
 
       // Wallet 2 should not exist, thus, this should throw.
       expect(() =>
-        // NOTE: We use `getMultichainAccounts` which uses `#getWallet` under the hood.
-        service.getMultichainAccounts({
+        // NOTE: We use `getMultichainAccountGroups` which uses `#getWallet` under the hood.
+        service.getMultichainAccountGroups({
           entropySource: MOCK_HD_KEYRING_2.metadata.id,
         }),
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
   });
 
-  describe('getMultichainAccount', () => {
+  describe('getMultichainAccountGroup', () => {
     it('gets a specific multichain account', () => {
       const accounts = [
         // Wallet 1:
@@ -281,13 +254,13 @@ describe('MultichainAccountService', () => {
       });
 
       const groupIndex = 1;
-      const multichainAccount = service.getMultichainAccount({
+      const group = service.getMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex,
       });
-      expect(multichainAccount.index).toBe(groupIndex);
+      expect(group.index).toBe(groupIndex);
 
-      const internalAccounts = multichainAccount.getAccounts();
+      const internalAccounts = group.getAccounts();
       expect(internalAccounts).toHaveLength(1);
       expect(internalAccounts[0]).toStrictEqual(accounts[1]);
     });
@@ -305,7 +278,7 @@ describe('MultichainAccountService', () => {
 
       const groupIndex = 1;
       expect(() =>
-        service.getMultichainAccount({
+        service.getMultichainAccountGroup({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
           groupIndex,
         }),
@@ -313,7 +286,7 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('getMultichainAccountAndWallet', () => {
+  describe('getAccountContext', () => {
     const entropy1 = 'entropy-1';
     const entropy2 = 'entropy-2';
 
@@ -358,35 +331,29 @@ describe('MultichainAccountService', () => {
       });
 
       const [multichainAccount1, multichainAccount2] =
-        wallet1.getMultichainAccounts();
-      const [multichainAccount3] = wallet2.getMultichainAccounts();
+        wallet1.getMultichainAccountGroups();
+      const [multichainAccount3] = wallet2.getMultichainAccountGroups();
 
-      const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount1 = service.getAccountContext(
         account1.id,
       );
-      const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount2 = service.getAccountContext(
         account2.id,
       );
-      const walletAndMultichainAccount3 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount3 = service.getAccountContext(
         account3.id,
       );
 
       // NOTE: We use `toBe` here, cause we want to make sure we use the same
       // references with `get*` service's methods.
       expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount1?.multichainAccount).toBe(
-        multichainAccount1,
-      );
+      expect(walletAndMultichainAccount1?.group).toBe(multichainAccount1);
 
       expect(walletAndMultichainAccount2?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount2?.multichainAccount).toBe(
-        multichainAccount2,
-      );
+      expect(walletAndMultichainAccount2?.group).toBe(multichainAccount2);
 
       expect(walletAndMultichainAccount3?.wallet).toBe(wallet2);
-      expect(walletAndMultichainAccount3?.multichainAccount).toBe(
-        multichainAccount3,
-      );
+      expect(walletAndMultichainAccount3?.group).toBe(multichainAccount3);
     });
 
     it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountAdded', () => {
@@ -396,34 +363,30 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
       // Now we're adding `account2`.
       mocks.EvmAccountProvider.accounts = [account1, account2];
       messenger.publish('AccountsController:accountAdded', account2);
-      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
 
       const [multichainAccount1, multichainAccount2] =
-        wallet1.getMultichainAccounts();
+        wallet1.getMultichainAccountGroups();
 
-      const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount1 = service.getAccountContext(
         account1.id,
       );
-      const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount2 = service.getAccountContext(
         account2.id,
       );
 
       // NOTE: We use `toBe` here, cause we want to make sure we use the same
       // references with `get*` service's methods.
       expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount1?.multichainAccount).toBe(
-        multichainAccount1,
-      );
+      expect(walletAndMultichainAccount1?.group).toBe(multichainAccount1);
 
       expect(walletAndMultichainAccount2?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount2?.multichainAccount).toBe(
-        multichainAccount2,
-      );
+      expect(walletAndMultichainAccount2?.group).toBe(multichainAccount2);
     });
 
     it('syncs the appropriate multichain account and update reverse mapping on AccountsController:accountAdded', () => {
@@ -437,34 +400,31 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
       // Now we're adding `account2`.
       mocks.EvmAccountProvider.accounts = [account1, otherAccount1];
       messenger.publish('AccountsController:accountAdded', otherAccount1);
       // Still 1, that's the same multichain account, but a new "blockchain
       // account" got added.
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
-      const [multichainAccount1] = wallet1.getMultichainAccounts();
+      const [multichainAccount1] = wallet1.getMultichainAccountGroups();
 
-      const walletAndMultichainAccount1 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount1 = service.getAccountContext(
         account1.id,
       );
-      const walletAndMultichainOtherAccount1 =
-        service.getMultichainAccountAndWallet(otherAccount1.id);
+      const walletAndMultichainOtherAccount1 = service.getAccountContext(
+        otherAccount1.id,
+      );
 
       // NOTE: We use `toBe` here, cause we want to make sure we use the same
       // references with `get*` service's methods.
       expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount1?.multichainAccount).toBe(
-        multichainAccount1,
-      );
+      expect(walletAndMultichainAccount1?.group).toBe(multichainAccount1);
 
       expect(walletAndMultichainOtherAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainOtherAccount1?.multichainAccount).toBe(
-        multichainAccount1,
-      );
+      expect(walletAndMultichainOtherAccount1?.group).toBe(multichainAccount1);
     });
 
     it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', () => {
@@ -477,7 +437,7 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
 
       // No wallet 2 yet.
       expect(() =>
@@ -492,20 +452,18 @@ describe('MultichainAccountService', () => {
         entropySource: entropy2,
       });
       expect(wallet2).toBeDefined();
-      expect(wallet2.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet2.getMultichainAccountGroups()).toHaveLength(1);
 
-      const [multichainAccount3] = wallet2.getMultichainAccounts();
+      const [multichainAccount3] = wallet2.getMultichainAccountGroups();
 
-      const walletAndMultichainAccount3 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount3 = service.getAccountContext(
         account3.id,
       );
 
       // NOTE: We use `toBe` here, cause we want to make sure we use the same
       // references with `get*` service's methods.
       expect(walletAndMultichainAccount3?.wallet).toBe(wallet2);
-      expect(walletAndMultichainAccount3?.multichainAccount).toBe(
-        multichainAccount3,
-      );
+      expect(walletAndMultichainAccount3?.group).toBe(multichainAccount3);
     });
 
     it('ignores non-BIP-44 accounts on AccountsController:accountAdded', () => {
@@ -515,14 +473,14 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      const oldMultichainAccounts = wallet1.getMultichainAccounts();
+      const oldMultichainAccounts = wallet1.getMultichainAccountGroups();
       expect(oldMultichainAccounts).toHaveLength(1);
       expect(oldMultichainAccounts[0].getAccounts()).toHaveLength(1);
 
       // Now we're publishing a new account that is not BIP-44 compatible.
       messenger.publish('AccountsController:accountAdded', MOCK_SNAP_ACCOUNT_2);
 
-      const newMultichainAccounts = wallet1.getMultichainAccounts();
+      const newMultichainAccounts = wallet1.getMultichainAccountGroups();
       expect(newMultichainAccounts).toHaveLength(1);
       expect(newMultichainAccounts[0].getAccounts()).toHaveLength(1);
     });
@@ -534,18 +492,36 @@ describe('MultichainAccountService', () => {
       const wallet1 = service.getMultichainAccountWallet({
         entropySource: entropy1,
       });
-      expect(wallet1.getMultichainAccounts()).toHaveLength(2);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
 
       // Now we're removing `account2`.
       mocks.EvmAccountProvider.accounts = [account1];
       messenger.publish('AccountsController:accountRemoved', account2.id);
-      expect(wallet1.getMultichainAccounts()).toHaveLength(1);
+      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
 
-      const walletAndMultichainAccount2 = service.getMultichainAccountAndWallet(
+      const walletAndMultichainAccount2 = service.getAccountContext(
         account2.id,
       );
 
       expect(walletAndMultichainAccount2).toBeUndefined();
+    });
+  });
+
+  describe('createNextMultichainAccount', () => {
+    it('creates the next multichain account group', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service } = setup({ accounts: [mockEvmAccount] });
+
+      const nextGroup = await service.createNextMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      });
+      expect(nextGroup.index).toBe(1);
+      // NOTE: There won't be any account for this group, since we're not
+      // mocking the providers.
     });
   });
 
@@ -554,22 +530,22 @@ describe('MultichainAccountService', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
       const { messenger } = setup({ accounts });
 
-      const multichainAccount = messenger.call(
-        'MultichainAccountService:getMultichainAccount',
+      const group = messenger.call(
+        'MultichainAccountService:getMultichainAccountGroup',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id, groupIndex: 0 },
       );
-      expect(multichainAccount).toBeDefined();
+      expect(group).toBeDefined();
     });
 
     it('gets multichain accounts with MultichainAccountService:getMultichainAccounts', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
       const { messenger } = setup({ accounts });
 
-      const multichainAccounts = messenger.call(
-        'MultichainAccountService:getMultichainAccounts',
+      const groups = messenger.call(
+        'MultichainAccountService:getMultichainAccountGroups',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id },
       );
-      expect(multichainAccounts.length).toBeGreaterThan(0);
+      expect(groups.length).toBeGreaterThan(0);
     });
 
     it('gets multichain account wallet with MultichainAccountService:getMultichainAccountWallet', () => {
@@ -591,6 +567,19 @@ describe('MultichainAccountService', () => {
         'MultichainAccountService:getMultichainAccountWallets',
       );
       expect(wallets.length).toBeGreaterThan(0);
+    });
+
+    it('create the next multichain account group with MultichainAccountService:createNextMultichainAccountGroup', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const nextGroup = await messenger.call(
+        'MultichainAccountService:createNextMultichainAccountGroup',
+        { entropySource: MOCK_HD_KEYRING_1.metadata.id },
+      );
+      expect(nextGroup.index).toBe(1);
+      // NOTE: There won't be any account for this group, since we're not
+      // mocking the providers.
     });
   });
 });
