@@ -1920,26 +1920,26 @@ describe('AccountTreeController', () => {
       expect(() => {
         controller.setAccountGroupName(nonExistentGroupId, 'Test Name');
       }).toThrow(
-        'Account group with ID "non-existent-group-id" not found in tree',
+        `Account group with ID "${nonExistentGroupId}" not found in tree`,
       );
 
       expect(() => {
         controller.setAccountGroupPinned(nonExistentGroupId, true);
       }).toThrow(
-        'Account group with ID "non-existent-group-id" not found in tree',
+        `Account group with ID "${nonExistentGroupId}" not found in tree`,
       );
 
       expect(() => {
         controller.setAccountGroupHidden(nonExistentGroupId, true);
       }).toThrow(
-        'Account group with ID "non-existent-group-id" not found in tree',
+        `Account group with ID "${nonExistentGroupId}" not found in tree`,
       );
 
       // Should throw for non-existent wallet operations
       expect(() => {
         controller.setAccountWalletName(nonExistentWalletId, 'Test Wallet');
       }).toThrow(
-        'Account wallet with ID "non-existent-wallet-id" not found in tree',
+        `Account wallet with ID "${nonExistentWalletId}" not found in tree`,
       );
 
       // Metadata should NOT be stored since the operations threw
