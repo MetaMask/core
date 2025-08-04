@@ -188,8 +188,8 @@ export class AccountTreeController extends BaseController<
   #applyAccountWalletMetadata(wallet: AccountWalletObject) {
     const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
 
-    // Apply persisted name if available
-    if (persistedMetadata?.name?.value) {
+    // Apply persisted name if available (including empty strings)
+    if (persistedMetadata?.name !== undefined) {
       wallet.metadata.name = persistedMetadata.name.value;
     } else if (!wallet.metadata.name) {
       // Generate default name if none exists
@@ -212,8 +212,8 @@ export class AccountTreeController extends BaseController<
   ) {
     const persistedMetadata = this.state.accountGroupsMetadata[group.id];
 
-    // Apply persisted name if available
-    if (persistedMetadata?.name?.value) {
+    // Apply persisted name if available (including empty strings)
+    if (persistedMetadata?.name !== undefined) {
       group.metadata.name = persistedMetadata.name.value;
     } else if (!group.metadata.name) {
       // Generate default name if none exists
