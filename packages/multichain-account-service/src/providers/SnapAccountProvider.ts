@@ -24,6 +24,18 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
     this.snapId = snapId;
   }
 
+  /**
+   * Execute the operation to create accounts.
+   *
+   * All accounts have to be BIP-44 compatible, otherwise this method will throw.
+   *
+   * @param createAccounts - Callback to create all accounts for this provider. The first
+   * argument of this callback is a function that can be used to create Snap account on
+   * the associated Snap of this provider. It will automatically skips any account
+   * creation confirmations if possible.
+   * @throws If any of the created accounts are not BIP-44 compatible.
+   * @returns The list of created accounts.
+   */
   protected async withCreateAccount(
     createAccounts: (
       createAccount: RestrictedSnapKeyringCreateAccount,
