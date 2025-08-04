@@ -208,5 +208,13 @@ export type {
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
 
-export type { GroupAssets, Asset } from './token-selectors/token-selectors';
-export { selectAllAssets } from './token-selectors/token-selectors';
+export type {
+  AllAssets,
+  GroupAssets,
+  SelectorAsset,
+} from './token-selectors/token-selectors';
+export {
+  selectAccountsMap,
+  selectAllAssets,
+  selectAllAssetsByAccountId,
+} from './token-selectors/token-selectors';
