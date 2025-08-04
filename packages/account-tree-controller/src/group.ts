@@ -28,7 +28,7 @@ export type AccountGroupPersistedMetadata = {
 /**
  * Tree metadata for account groups (required plain values extracted from persisted metadata).
  */
-export type AccountGroupTreeMetadata =
+export type AccountTreeGroupMetadata =
   ExtractRequiredFieldValues<AccountGroupPersistedMetadata>;
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';

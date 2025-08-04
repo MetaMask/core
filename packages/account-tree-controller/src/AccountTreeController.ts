@@ -73,7 +73,6 @@ export class AccountTreeController extends BaseController<
 > {
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
-  // Mapping for direct tree node access
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];

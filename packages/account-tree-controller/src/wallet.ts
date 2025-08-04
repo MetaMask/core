@@ -32,7 +32,7 @@ export type AccountWalletPersistedMetadata = {
 /**
  * Tree metadata for account wallets (required plain values extracted from persisted metadata).
  */
-export type AccountWalletTreeMetadata =
+export type AccountTreeWalletMetadata =
   ExtractRequiredFieldValues<AccountWalletPersistedMetadata>;
 
 /**
