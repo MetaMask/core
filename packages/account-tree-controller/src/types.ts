@@ -20,6 +20,7 @@ import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
+import type { AccountGroupObject } from './group';
 import type { AccountWalletObject } from './wallet';
 
 /**
@@ -64,35 +65,27 @@ export type AccountWalletPersistedMetadata = {
 };
 
 /**
- * Tree metadata for account groups (plain values with required properties for tree objects).
+ * Tree metadata for account groups (plain values extracted from persisted metadata).
  */
-export type AccountGroupTreeMetadata = {
-  /** Group name (required in tree objects) */
-  name: string;
-  /** Whether this group is pinned in the UI */
-  pinned: boolean;
-  /** Whether this group is hidden in the UI */
-  hidden: boolean;
-};
+export type AccountGroupTreeMetadata =
+  ExtractValues<AccountGroupPersistedMetadata>;
 
 /**
- * Tree metadata for account wallets (plain values with required properties for tree objects).
+ * Tree metadata for account wallets (plain values extracted from persisted metadata).
  */
-export type AccountWalletTreeMetadata = {
-  /** Wallet name (required in tree objects) */
-  name: string;
-};
+export type AccountWalletTreeMetadata =
+  ExtractValues<AccountWalletPersistedMetadata>;
 
-// Backward compatibility aliases
+// Backward compatibility aliases using indexed access types
 /**
- * @deprecated Use AccountGroupPersistedMetadata instead
+ * @deprecated Use AccountGroupTreeMetadata for tree objects or AccountGroupPersistedMetadata for controller state
  */
-export type AccountGroupMetadata = AccountGroupPersistedMetadata;
+export type AccountGroupMetadata = AccountGroupObject['metadata'];
 
 /**
- * @deprecated Use AccountWalletPersistedMetadata instead
+ * @deprecated Use AccountWalletTreeMetadata for tree objects or AccountWalletPersistedMetadata for controller state
  */
-export type AccountWalletMetadata = AccountWalletPersistedMetadata;
+export type AccountWalletMetadata = AccountWalletObject['metadata'];
 
 export type AccountTreeControllerState = {
   accountTree: {
