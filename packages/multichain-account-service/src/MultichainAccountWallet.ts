@@ -234,25 +234,33 @@ export class MultichainAccountWallet<
       ),
     );
 
+    // --------------------------------------------------------------------------------
     // READ THIS CAREFULLY:
+    //
     // Since we're not "fully supporting multichain" for now, we still rely on single
     // :accountCreated events to sync multichain account groups and wallets. Which means
-    // that even if of the provider fails, some accouns (on the `AccountsController`
-    // might be showing up AND that some multichain account wallets/groups might have
-    // been automatically sync'd too.
+    // that even if of the provider fails, some accounts will still be created on some
+    // other providers and will become "available" on the `AccountsController`, like:
     //
-    // We will need to unsubscribe from :accountAdded once we "fully support multichain"
-    // (meaning, the entire codebase relies on this new service for multichain account
-    // creations).
+    // 1. Creating a multichain account group for index 1
+    // 2. EvmAccountProvider.createAccounts returns the EVM account for index 1
+    //   * AccountsController WILL fire :accountCreated for this account
+    //   * This account WILL BE "available" on the AccountsController state
+    // 3. SolAccountProvider.createAccounts fails to create a Solana account for index 1
+    //   * AccountsController WON't fire :accountCreated for this account
+    //   * This account WON'T be "available" on the Account
+    // 4. MultichainAccountService will receive a :accountCreated for the EVM account from
+    // step 2 and will create a new multichain account group for index 1, but it won't
+    // receive any event for the Solana account of this group. Thus, this group won't be
+    // "aligned" (missing "blockchain account" on this group).
+    //
     // --------------------------------------------------------------------------------
 
     // If any of the provider failed to create their accounts, then we consider the
     // multichain account group to have failed too.
-    // NOTE: Though, we don't rollback existing created accounts and that's totally fine
-    // because account creations is assumed to be imdepotent, thus, trying again should
-    // just create the missing accounts, and previously created accounts will just be
-    // re-used as is.
     if (results.some((result) => result.status === 'rejected')) {
+      // NOTE: Some accounts might still have been created on other account providers. We
+      // don't rollback them.
       const error = `Unable to create multichain account group for index: ${groupIndex}`;
 
       let warn = `${error}:`;
