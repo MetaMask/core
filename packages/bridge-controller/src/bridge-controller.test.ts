@@ -2045,15 +2045,14 @@ describe('BridgeController', function () {
   });
 
   describe('fetchQuotes', () => {
-    it('should fetch quotes for a single quote request', async () => {
+    it('should fetch quotes for multiple quote requests', async () => {
+      const [quote1, quote2] = mockBridgeQuotesSolErc20;
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
-        .mockImplementationOnce(async () => {
-          return await new Promise((resolve) => {
-            resolve(mockBridgeQuotesSolErc20 as never);
-          });
-        });
+        .mockResolvedValueOnce([quote1] as never)
+        .mockResolvedValueOnce([quote2] as never);
       const expectedControllerState = bridgeController.state;
+
       const quotes = await bridgeController.fetchQuotes([
         {
           srcChainId: SolScope.Mainnet,
@@ -2068,33 +2067,143 @@ describe('BridgeController', function () {
           gasIncluded: false,
           noFee: true,
         },
+        {
+          srcChainId: SolScope.Mainnet,
+          destChainId: '1',
+          srcTokenAddress: 'NATIVE',
+          destTokenAddress: '0x1234',
+          srcTokenAmount: '1000000',
+          walletAddress: '0x123',
+          slippage: 0.5,
+          aggIds: ['life'],
+          bridgeIds: ['debridge'],
+          gasIncluded: false,
+          noFee: true,
+        },
       ]);
-      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
-      expect(fetchBridgeQuotesSpy.mock.calls[0]).toMatchInlineSnapshot(`
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+      expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
         Array [
-          Object {
-            "aggIds": Array [
-              "test",
-            ],
-            "bridgeIds": Array [
-              "debridge",
-            ],
-            "destChainId": "1",
-            "destTokenAddress": "0x1234",
-            "gasIncluded": false,
-            "noFee": true,
-            "slippage": 0.5,
-            "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-            "srcTokenAddress": "NATIVE",
-            "srcTokenAmount": "1000000",
-            "walletAddress": "0x123",
-          },
-          null,
-          "extension",
-          [Function],
-          "https://bridge.api.cx.metamask.io",
+          Array [
+            Object {
+              "aggIds": Array [
+                "test",
+              ],
+              "bridgeIds": Array [
+                "debridge",
+              ],
+              "destChainId": "1",
+              "destTokenAddress": "0x1234",
+              "gasIncluded": false,
+              "noFee": true,
+              "slippage": 0.5,
+              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+              "srcTokenAddress": "NATIVE",
+              "srcTokenAmount": "1000000",
+              "walletAddress": "0x123",
+            },
+            null,
+            "extension",
+            [Function],
+            "https://bridge.api.cx.metamask.io",
+          ],
+          Array [
+            Object {
+              "aggIds": Array [
+                "life",
+              ],
+              "bridgeIds": Array [
+                "debridge",
+              ],
+              "destChainId": "1",
+              "destTokenAddress": "0x1234",
+              "gasIncluded": false,
+              "noFee": true,
+              "slippage": 0.5,
+              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+              "srcTokenAddress": "NATIVE",
+              "srcTokenAmount": "1000000",
+              "walletAddress": "0x123",
+            },
+            null,
+            "extension",
+            [Function],
+            "https://bridge.api.cx.metamask.io",
+          ],
         ]
       `);
+      expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should rethrow errors if shouldIgnoreErrors is false', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce(mockBridgeQuotesSolErc20 as never)
+        .mockRejectedValueOnce(new Error('test error'));
+      const expectedControllerState = bridgeController.state;
+
+      await expect(
+        bridgeController.fetchQuotes([
+          {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+            aggIds: ['test'],
+            bridgeIds: ['debridge'],
+            gasIncluded: false,
+            noFee: true,
+          },
+          {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+            aggIds: ['test'],
+            bridgeIds: ['debridge'],
+            gasIncluded: false,
+            noFee: true,
+          },
+        ]),
+      ).rejects.toThrow('test error');
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should ignore errors if shouldIgnoreErrors is true', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce(mockBridgeQuotesSolErc20 as never)
+        .mockRejectedValueOnce(new Error('test error'));
+      const expectedControllerState = bridgeController.state;
+
+      const quoteRequest = {
+        srcChainId: SolScope.Mainnet,
+        destChainId: '1',
+        srcTokenAddress: 'NATIVE',
+        destTokenAddress: '0x1234',
+        srcTokenAmount: '1000000',
+        walletAddress: '0x123',
+        slippage: 0.5,
+        aggIds: ['test'],
+        bridgeIds: ['debridge'],
+        gasIncluded: false,
+        noFee: true,
+      };
+      const quotes = await bridgeController.fetchQuotes(
+        [quoteRequest, quoteRequest],
+        null,
+        true,
+      );
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
