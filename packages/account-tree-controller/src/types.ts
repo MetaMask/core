@@ -45,6 +45,14 @@ export type ExtractValues<ObjectValue extends Record<string, unknown>> = {
 };
 
 /**
+ * Type utility to extract plain values and make all properties required (for tree objects).
+ */
+export type ExtractRequiredValues<ObjectValue extends Record<string, unknown>> =
+  {
+    [Key in keyof ObjectValue]-?: ToValue<ObjectValue[Key]>;
+  };
+
+/**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
  */
 export type AccountGroupPersistedMetadata = {
@@ -65,16 +73,16 @@ export type AccountWalletPersistedMetadata = {
 };
 
 /**
- * Tree metadata for account groups (plain values extracted from persisted metadata).
+ * Tree metadata for account groups (required plain values extracted from persisted metadata).
  */
 export type AccountGroupTreeMetadata =
-  ExtractValues<AccountGroupPersistedMetadata>;
+  ExtractRequiredValues<AccountGroupPersistedMetadata>;
 
 /**
- * Tree metadata for account wallets (plain values extracted from persisted metadata).
+ * Tree metadata for account wallets (required plain values extracted from persisted metadata).
  */
 export type AccountWalletTreeMetadata =
-  ExtractValues<AccountWalletPersistedMetadata>;
+  ExtractRequiredValues<AccountWalletPersistedMetadata>;
 
 // Backward compatibility aliases using indexed access types
 /**
