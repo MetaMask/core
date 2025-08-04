@@ -360,14 +360,6 @@ export class AccountTreeController extends BaseController<
       this.#groupIdToWalletId.set(groupId, walletId);
     } else {
       group.accounts.push(account.id);
-
-      // Assertion: mapping should always exist for existing groups
-      /* istanbul ignore if: This should never happen in normal operation */
-      if (!this.#groupIdToWalletId.has(groupId)) {
-        throw new Error(
-          `Internal inconsistency: mapping missing for group ${groupId}`,
-        );
-      }
     }
 
     // Update the reverse mapping for this account.
