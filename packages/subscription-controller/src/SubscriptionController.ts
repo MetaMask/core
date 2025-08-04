@@ -1,8 +1,15 @@
 import { BaseController, type StateMetadata } from '@metamask/base-controller';
 
-import { controllerName } from './constants';
+import {
+  controllerName,
+  Env,
+  SubscriptionControllerErrorMessage,
+} from './constants';
 // import { projectLogger, createModuleLogger } from './logger';
+import { SubscriptionService } from './SubscriptionService';
 import type {
+  ISubscriptionService,
+  SubscriptionControllerConfig,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
@@ -47,14 +54,27 @@ export class SubscriptionController extends BaseController<
   SubscriptionControllerState,
   SubscriptionControllerMessenger
 > {
+  readonly #subscriptionService: ISubscriptionService;
+
+  readonly #config: SubscriptionControllerConfig = {
+    env: Env.PRD,
+  };
+
   /**
    * Creates a new SubscriptionController instance.
    *
    * @param options - The options for the SubscriptionController.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
+   * @param options.config - Configuration for this controller.
+   * @param options.subscriptionService - The subscription service for communicating with subscription server.
    */
-  constructor({ messenger, state }: SubscriptionControllerOptions) {
+  constructor({
+    messenger,
+    state,
+    config,
+    subscriptionService,
+  }: SubscriptionControllerOptions) {
     super({
       name: controllerName,
       metadata: subscriptionControllerMetadata,
@@ -64,5 +84,50 @@ export class SubscriptionController extends BaseController<
       },
       messenger,
     });
+
+    this.#config = {
+      ...this.#config,
+      ...config,
+    };
+
+    this.#subscriptionService =
+      subscriptionService ??
+      new SubscriptionService({
+        env: this.#config.env,
+        auth: {
+          getAccessToken: () =>
+            this.messagingSystem.call(
+              'AuthenticationController:getBearerToken',
+            ),
+        },
+      });
+  }
+
+  async getSubscription() {
+    const subscription = await this.#subscriptionService.getSubscription();
+
+    this.update((state) => {
+      state.subscription = subscription ?? undefined;
+    });
+
+    return subscription;
+  }
+
+  async cancelSubscription(subscriptionId: string) {
+    this.#assertIsUserSubscribed();
+
+    await this.#subscriptionService.cancelSubscription({ subscriptionId });
+  }
+
+  // #assertIsUserNotSubscribed() {
+  //   if (this.state.subscription) {
+  //     throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+  //   }
+  // }
+
+  #assertIsUserSubscribed() {
+    if (!this.state.subscription) {
+      throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
+    }
   }
 }

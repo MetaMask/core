@@ -3,8 +3,9 @@ import type {
   ControllerGetStateAction,
   RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import type { controllerName } from './constants';
+import type { controllerName, Env } from './constants';
 
 // state
 export type Subscription = {
@@ -52,7 +53,8 @@ export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
 export type SubscriptionControllerActions =
   SubscriptionControllerGetStateAction;
 
-export type AllowedActions = never;
+export type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerToken;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -62,7 +64,8 @@ export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
 export type SubscriptionControllerEvents =
   SubscriptionControllerStateChangeEvent;
 
-export type AllowedEvents = never;
+export type AllowedEvents =
+  AuthenticationController.AuthenticationControllerStateChangeEvent;
 
 // Messenger
 export type SubscriptionControllerMessenger = RestrictedMessenger<
@@ -72,6 +75,10 @@ export type SubscriptionControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+export type SubscriptionControllerConfig = {
+  env: Env;
+};
 
 /**
  * Seedless Onboarding Controller Options.
@@ -87,4 +94,19 @@ export type SubscriptionControllerOptions = {
    * Initial state to set on this controller.
    */
   state?: Partial<SubscriptionControllerState>;
+
+  /**
+   * Configuration for this controller.
+   */
+  config?: Partial<SubscriptionControllerConfig>;
+
+  /**
+   * Subscription service to use for the subscription controller.
+   */
+  subscriptionService?: ISubscriptionService;
+};
+
+export type ISubscriptionService = {
+  getSubscription(): Promise<Subscription | null>;
+  cancelSubscription(params: { subscriptionId: string }): Promise<void>;
 };
