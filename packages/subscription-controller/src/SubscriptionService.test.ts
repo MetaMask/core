@@ -1,4 +1,4 @@
-import nock, { cleanAll } from 'nock';
+import nock, { cleanAll, isDone } from 'nock';
 
 import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
@@ -202,7 +202,7 @@ describe('SubscriptionService', () => {
       await service.getSubscription();
 
       // Verify the correct URL was used
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
 
     it('should include correct headers', async () => {
@@ -215,7 +215,7 @@ describe('SubscriptionService', () => {
       await service.getSubscription();
 
       // Verify the correct headers were sent
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
   });
 
@@ -317,7 +317,7 @@ describe('SubscriptionService', () => {
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
       // Verify the correct URL was used
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
 
     it('should include correct headers and method', async () => {
@@ -332,7 +332,7 @@ describe('SubscriptionService', () => {
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
       // Verify the correct headers and method were used
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
 
     it('should handle empty subscription ID', async () => {
@@ -344,7 +344,7 @@ describe('SubscriptionService', () => {
 
       await service.cancelSubscription({ subscriptionId: '' });
 
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
 
     it('should handle special characters in subscription ID', async () => {
@@ -358,7 +358,7 @@ describe('SubscriptionService', () => {
 
       await service.cancelSubscription({ subscriptionId: 'sub_123-456_789' });
 
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
   });
 
@@ -401,7 +401,7 @@ describe('SubscriptionService', () => {
       await service.getSubscription();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
-      expect(nock.isDone()).toBe(true);
+      expect(isDone()).toBe(true);
     });
   });
 });
