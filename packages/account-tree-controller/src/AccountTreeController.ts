@@ -348,9 +348,8 @@ export class AccountTreeController extends BaseController<
         accounts: [account.id],
         metadata: {
           name: '',
-          ...result.group.metadata,
-          pinned: false, // Default UI state
-          hidden: false, // Default UI state
+          ...{ pinned: false, hidden: false }, // Default UI states
+          ...result.group.metadata, // Allow rules to override defaults
         },
         // We do need to type-cast since we're not narrowing `result` with
         // the union tag `result.group.type`.
@@ -361,6 +360,11 @@ export class AccountTreeController extends BaseController<
       this.#groupIdToWalletId.set(groupId, walletId);
     } else {
       group.accounts.push(account.id);
+
+      // Defensive: Ensure mapping exists for existing groups
+      if (!this.#groupIdToWalletId.has(groupId)) {
+        this.#groupIdToWalletId.set(groupId, walletId);
+      }
     }
 
     // Update the reverse mapping for this account.
