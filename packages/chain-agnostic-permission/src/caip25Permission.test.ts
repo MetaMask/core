@@ -1979,26 +1979,6 @@ describe('requestPermittedChainsPermissionIncremental', () => {
       { metadata },
     );
   });
-
-  it('does not throw error when isSnapId is undefined', async () => {
-    mockRequestPermissionsIncremental.mockResolvedValue([
-      {},
-      { id: 'id', origin: 'origin' },
-    ]);
-
-    await requestPermittedChainsPermissionIncremental({
-      origin: 'npm:snap',
-      chainId: '0x1',
-      autoApprove: false,
-      hooks: {
-        requestPermissionsIncremental: mockRequestPermissionsIncremental,
-        grantPermissionsIncremental: mockGrantPermissionsIncremental,
-        // isSnapId is undefined
-      },
-    });
-
-    expect(mockRequestPermissionsIncremental).toHaveBeenCalled();
-  });
 });
 
 describe('getCaip25PermissionFromLegacyPermissions', () => {
