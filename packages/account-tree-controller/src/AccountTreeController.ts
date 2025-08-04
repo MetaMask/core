@@ -361,9 +361,12 @@ export class AccountTreeController extends BaseController<
     } else {
       group.accounts.push(account.id);
 
-      // Defensive: Ensure mapping exists for existing groups
+      // Assertion: mapping should always exist for existing groups
+      /* istanbul ignore if: This should never happen in normal operation */
       if (!this.#groupIdToWalletId.has(groupId)) {
-        this.#groupIdToWalletId.set(groupId, walletId);
+        throw new Error(
+          `Internal inconsistency: mapping missing for group ${groupId}`,
+        );
       }
     }
 
