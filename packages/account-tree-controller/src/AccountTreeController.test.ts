@@ -713,7 +713,6 @@ describe('AccountTreeController', () => {
     });
 
     it('prunes an empty group if it holds no accounts', () => {
-      // 2 accounts that share the same entropy source (thus, same wallet).
       const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
       const mockHdAccount2 = {
         ...MOCK_HD_ACCOUNT_2,
@@ -731,7 +730,6 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       controller.init();
 
       messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
@@ -780,7 +778,6 @@ describe('AccountTreeController', () => {
     });
 
     it('prunes an empty wallet if it holds no groups', () => {
-      // 2 accounts that share the same entropy source (thus, same wallet).
       const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
 
       const { controller, messenger } = setup({
@@ -788,13 +785,13 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       controller.init();
 
       messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
 
       expect(controller.state).toStrictEqual({
         accountTree: {
+          // No wallets should be present.
           wallets: {},
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
