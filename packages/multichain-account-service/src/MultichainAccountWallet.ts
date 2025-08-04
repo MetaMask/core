@@ -92,7 +92,10 @@ export class MultichainAccountWallet<
     }
 
     // Now force-sync all remaining multichain accounts.
-    for (const [groupIndex, multichainAccount] of this.#accountGroups.entries()) {
+    for (const [
+      groupIndex,
+      multichainAccount,
+    ] of this.#accountGroups.entries()) {
       multichainAccount.sync();
 
       // Clean up old multichain accounts.
