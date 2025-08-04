@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `fetchQuotes` method that returns a list of quotes directly rather than adding them to the controller state in order for clients to be able to retrieve quotes directly without the automatic polling and state mechanism
+
 ## [37.1.0]
 
 ### Added
