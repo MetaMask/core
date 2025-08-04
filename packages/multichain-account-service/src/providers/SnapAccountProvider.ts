@@ -6,7 +6,10 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Json, SnapId } from '@metamask/snaps-sdk';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { BaseAccountProvider } from './BaseAccountProvider';
+import {
+  assertAreBip44Accounts,
+  BaseAccountProvider,
+} from './BaseAccountProvider';
 
 export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
@@ -22,9 +25,9 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
   }
 
   protected async withCreateAccount(
-    operation: (
+    createAccounts: (
       createAccount: RestrictedSnapKeyringCreateAccount,
-    ) => Promise<Bip44Account<KeyringAccount>[]>,
+    ) => Promise<KeyringAccount[]>,
   ): Promise<Bip44Account<KeyringAccount>[]> {
     // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
     // we have to use the `SnapKeyring` instance to be able to create Solana account
@@ -39,13 +42,17 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
       keyring.createAccount.bind(keyring),
     );
 
-    return await operation((options) =>
+    const accounts = await createAccounts((options) =>
       createAccount(this.snapId, options, {
         displayAccountNameSuggestion: false,
         displayConfirmation: false,
         setSelectedAccount: false,
       }),
     );
+
+    assertAreBip44Accounts(accounts);
+
+    return accounts;
   }
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
