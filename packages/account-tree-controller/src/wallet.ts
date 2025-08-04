@@ -15,10 +15,25 @@ import type {
   AccountGroupSingleAccountObject,
 } from './group';
 import { AccountTreeGroup } from './group';
-import {
-  type AccountTreeControllerMessenger,
-  type AccountWalletTreeMetadata,
-} from './types';
+import type {
+  UpdatableField,
+  ExtractRequiredFieldValues,
+} from './type-utils.js';
+import { type AccountTreeControllerMessenger } from './types';
+
+/**
+ * Persisted metadata for account wallets (stored in controller state for persistence/sync).
+ */
+export type AccountWalletPersistedMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: UpdatableField<string>;
+};
+
+/**
+ * Tree metadata for account wallets (required plain values extracted from persisted metadata).
+ */
+export type AccountWalletTreeMetadata =
+  ExtractRequiredFieldValues<AccountWalletPersistedMetadata>;
 
 /**
  * Type constraint for a {@link AccountGroupObject}. If one of its union-members

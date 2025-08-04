@@ -20,69 +20,14 @@ import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
-import type { AccountGroupObject } from './group';
-import type { AccountWalletObject } from './wallet';
-
-/**
- * Updatable field with value and sync timestamp for Account Syncing V2.
- */
-export type UpdatableField<T> = {
-  value: T;
-  lastUpdatedAt: number;
-};
-
-/**
- * Type utility to extract value from UpdatableField or return field as-is.
- */
-export type ToValue<Field> =
-  Field extends UpdatableField<unknown> ? Field['value'] : Field;
-
-/**
- * Type utility to extract plain values from an object with UpdatableField properties.
- */
-export type ExtractValues<ObjectValue extends Record<string, unknown>> = {
-  [Key in keyof ObjectValue]: ToValue<ObjectValue[Key]>;
-};
-
-/**
- * Type utility to extract plain values and make all properties required (for tree objects).
- */
-export type ExtractRequiredValues<ObjectValue extends Record<string, unknown>> =
-  {
-    [Key in keyof ObjectValue]-?: ToValue<ObjectValue[Key]>;
-  };
-
-/**
- * Persisted metadata for account groups (stored in controller state for persistence/sync).
- */
-export type AccountGroupPersistedMetadata = {
-  /** Custom name set by user, overrides default naming logic */
-  name?: UpdatableField<string>;
-  /** Whether this group is pinned in the UI */
-  pinned?: UpdatableField<boolean>;
-  /** Whether this group is hidden in the UI */
-  hidden?: UpdatableField<boolean>;
-};
-
-/**
- * Persisted metadata for account wallets (stored in controller state for persistence/sync).
- */
-export type AccountWalletPersistedMetadata = {
-  /** Custom name set by user, overrides default naming logic */
-  name?: UpdatableField<string>;
-};
-
-/**
- * Tree metadata for account groups (required plain values extracted from persisted metadata).
- */
-export type AccountGroupTreeMetadata =
-  ExtractRequiredValues<AccountGroupPersistedMetadata>;
-
-/**
- * Tree metadata for account wallets (required plain values extracted from persisted metadata).
- */
-export type AccountWalletTreeMetadata =
-  ExtractRequiredValues<AccountWalletPersistedMetadata>;
+import type {
+  AccountGroupObject,
+  AccountGroupPersistedMetadata,
+} from './group';
+import type {
+  AccountWalletObject,
+  AccountWalletPersistedMetadata,
+} from './wallet';
 
 // Backward compatibility aliases using indexed access types
 /**

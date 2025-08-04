@@ -377,23 +377,29 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Validates that a group exists in the current account tree.
+   * Asserts that a group exists in the current account tree.
    *
    * @param groupId - The account group ID to validate.
-   * @returns True if the group exists, false otherwise.
+   * @throws Error if the group does not exist.
    */
-  #groupExistsInTree(groupId: AccountGroupId): boolean {
-    return this.#groupIdToWalletId.has(groupId);
+  #assertAccountGroupExists(groupId: AccountGroupId): void {
+    const exists = this.#groupIdToWalletId.has(groupId);
+    if (!exists) {
+      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+    }
   }
 
   /**
-   * Validates that a wallet exists in the current account tree.
+   * Asserts that a wallet exists in the current account tree.
    *
    * @param walletId - The account wallet ID to validate.
-   * @returns True if the wallet exists, false otherwise.
+   * @throws Error if the wallet does not exist.
    */
-  #walletExistsInTree(walletId: AccountWalletId): boolean {
-    return Boolean(this.state.accountTree.wallets[walletId]);
+  #assertAccountWalletExists(walletId: AccountWalletId): void {
+    const exists = Boolean(this.state.accountTree.wallets[walletId]);
+    if (!exists) {
+      throw new Error(`Account wallet with ID "${walletId}" not found in tree`);
+    }
   }
 
   /**
@@ -585,9 +591,7 @@ export class AccountTreeController extends BaseController<
    */
   setAccountGroupName(groupId: AccountGroupId, name: string): void {
     // Validate that the group exists in the current tree
-    if (!this.#groupExistsInTree(groupId)) {
-      throw new Error(`Account group with ID "${groupId}" not found in tree`);
-    }
+    this.#assertAccountGroupExists(groupId);
 
     this.update((state) => {
       // Update persistent metadata
@@ -615,9 +619,7 @@ export class AccountTreeController extends BaseController<
    */
   setAccountWalletName(walletId: AccountWalletId, name: string): void {
     // Validate that the wallet exists in the current tree
-    if (!this.#walletExistsInTree(walletId)) {
-      throw new Error(`Account wallet with ID "${walletId}" not found in tree`);
-    }
+    this.#assertAccountWalletExists(walletId);
 
     this.update((state) => {
       // Update persistent metadata
@@ -641,9 +643,7 @@ export class AccountTreeController extends BaseController<
    */
   setAccountGroupPinned(groupId: AccountGroupId, pinned: boolean): void {
     // Validate that the group exists in the current tree
-    if (!this.#groupExistsInTree(groupId)) {
-      throw new Error(`Account group with ID "${groupId}" not found in tree`);
-    }
+    this.#assertAccountGroupExists(groupId);
 
     this.update((state) => {
       // Update persistent metadata
@@ -671,9 +671,7 @@ export class AccountTreeController extends BaseController<
    */
   setAccountGroupHidden(groupId: AccountGroupId, hidden: boolean): void {
     // Validate that the group exists in the current tree
-    if (!this.#groupExistsInTree(groupId)) {
-      throw new Error(`Account group with ID "${groupId}" not found in tree`);
-    }
+    this.#assertAccountGroupExists(groupId);
 
     this.update((state) => {
       // Update persistent metadata

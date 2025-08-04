@@ -7,10 +7,29 @@ import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type {
-  AccountTreeControllerMessenger,
-  AccountGroupTreeMetadata,
-} from './types';
+  UpdatableField,
+  ExtractRequiredFieldValues,
+} from './type-utils.js';
+import type { AccountTreeControllerMessenger } from './types';
 import type { AccountTreeWallet } from './wallet';
+
+/**
+ * Persisted metadata for account groups (stored in controller state for persistence/sync).
+ */
+export type AccountGroupPersistedMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: UpdatableField<string>;
+  /** Whether this group is pinned in the UI */
+  pinned?: UpdatableField<boolean>;
+  /** Whether this group is hidden in the UI */
+  hidden?: UpdatableField<boolean>;
+};
+
+/**
+ * Tree metadata for account groups (required plain values extracted from persisted metadata).
+ */
+export type AccountGroupTreeMetadata =
+  ExtractRequiredFieldValues<AccountGroupPersistedMetadata>;
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
