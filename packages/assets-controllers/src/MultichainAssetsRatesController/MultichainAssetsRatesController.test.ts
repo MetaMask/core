@@ -503,65 +503,26 @@ describe('MultichainAssetsRatesController', () => {
     expect(controller.state.conversionRates).toStrictEqual({});
   });
 
-  it('does not make snap requests when accounts have no assets', async () => {
-    const messenger = new Messenger<AllowedActions, AllowedEvents>();
-
-    // Set up MultichainAssetsController to return accounts with no assets
-    messenger.registerActionHandler(
-      'MultichainAssetsController:getState',
-      () => ({
-        accountsAssets: {
-          account1: [], // Empty array - no assets for this account
-          account2: [], // Empty array - no assets for this account
-          account3: [], // Empty array - no assets for this account
-        },
-        assetsMetadata: {},
-      }),
-    );
-
-    messenger.registerActionHandler(
-      'AccountsController:listMultichainAccounts',
-      () => [fakeNonEvmAccount, fakeEvmAccount, fakeEvmAccount2],
-    );
-
-    messenger.registerActionHandler(
-      'AccountsController:getSelectedMultichainAccount',
-      () => fakeNonEvmAccount,
-    );
-
-    messenger.registerActionHandler('CurrencyRateController:getState', () => ({
-      currencyRates: {},
-      currentCurrency: 'USD',
-    }));
-
-    const multichainAssetsRatesControllerMessenger = messenger.getRestricted({
-      name: 'MultichainAssetsRatesController',
-      allowedActions: [
-        'AccountsController:listMultichainAccounts',
-        'SnapController:handleRequest',
-        'CurrencyRateController:getState',
-        'MultichainAssetsController:getState',
-        'AccountsController:getSelectedMultichainAccount',
-      ],
-      allowedEvents: [
-        'AccountsController:accountAdded',
-        'KeyringController:lock',
-        'KeyringController:unlock',
-        'CurrencyRateController:stateChange',
-        'MultichainAssetsController:accountAssetListUpdated',
-      ],
-    });
-
-    const controller = new MultichainAssetsRatesController({
-      messenger: multichainAssetsRatesControllerMessenger,
-    });
+  it('does not make snap requests when updateAssetsRatesForNewAssets is called with no new assets', async () => {
+    const { controller, messenger } = setupController();
 
     const snapSpy = jest.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
 
-    await controller.updateAssetsRates();
+    // Publish accountAssetListUpdated event with accounts that have no new assets (empty added arrays)
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [], // No new assets added
+          removed: [],
+        },
+      },
+    });
 
-    // Verify no snap requests were made since there are no assets
+    // Wait for the asynchronous subscriber to process the event
+    await Promise.resolve();
+
+    // Verify no snap requests were made since there are no new assets to process
     expect(snapSpy).not.toHaveBeenCalled();
     // Verify state remains empty
     expect(controller.state.conversionRates).toStrictEqual({});
