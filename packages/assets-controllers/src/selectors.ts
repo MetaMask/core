@@ -10,10 +10,10 @@ import type { MultichainBalancesControllerState } from './MultichainBalancesCont
 import type { TokenBalancesControllerState } from './TokenBalancesController';
 import type { TokenRatesControllerState } from './TokenRatesController';
 import type { TokensControllerState } from './TokensController';
-import type { AccountsController } from '../../accounts-controller/src/AccountsController';
-import type { MultichainAccountService } from '../../multichain-account-service/src/MultichainAccountService';
+import type { AccountTreeControllerState } from '../../account-tree-controller/src/types';
+import type { AccountsControllerState } from '../../accounts-controller/src/AccountsController';
 
-// Type for the root state that contains all controllers
+// Type for the root state that contains all controller states (no services)
 export type RootState = {
   TokenBalancesController: TokenBalancesControllerState;
   CurrencyRateController: CurrencyRateState;
@@ -21,8 +21,8 @@ export type RootState = {
   MultichainAssetsRatesController: MultichainAssetsRatesControllerState;
   MultichainBalancesController: MultichainBalancesControllerState;
   TokensController: TokensControllerState;
-  MultichainAccountService: MultichainAccountService;
-  AccountsController: AccountsController;
+  AccountsController: AccountsControllerState;
+  AccountTreeController: AccountTreeControllerState;
 };
 
 // Base selectors for accessing individual controller states
@@ -42,33 +42,49 @@ const selectMultichainBalancesState = (state: RootState) =>
 
 const selectTokensState = (state: RootState) => state.TokensController;
 
-const selectMultichainAccountService = (state: RootState) =>
-  state.MultichainAccountService;
+const selectAccountsState = (state: RootState) => state.AccountsController;
 
-const selectAccountsController = (state: RootState) => state.AccountsController;
+const selectAccountTreeState = (state: RootState) =>
+  state.AccountTreeController;
 
 /**
- * Helper function to get internal accounts for a specific account group using MultichainAccountService
+ * Helper function to get internal accounts for a specific account group using AccountTreeController state
  *
- * @param service - The MultichainAccountService instance
+ * @param accountTreeState - AccountTreeController state
+ * @param accountsState - AccountsController state
  * @param entropySource - The entropy source ID (wallet ID)
  * @param groupIndex - The group index within the wallet
  * @returns Array of internal accounts in the group
  */
 const getInternalAccountsForGroup = (
-  service: MultichainAccountService,
+  accountTreeState: AccountTreeControllerState,
+  accountsState: AccountsControllerState,
   entropySource: EntropySourceId,
   groupIndex: number,
 ) => {
   try {
-    // Get the multichain account group for this specific group
-    const multichainAccountGroup = service.getMultichainAccountGroup({
-      entropySource,
-      groupIndex,
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wallet = (accountTreeState.accountTree.wallets as any)[entropySource];
+    if (!wallet) {
+      return [];
+    }
 
-    // Extract all internal accounts from the multichain account group
-    return multichainAccountGroup.getAccounts();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const groups = Object.values(wallet.groups || {}) as any[];
+    const group = groups.find(
+      (g) => g.metadata?.entropy?.groupIndex === groupIndex,
+    );
+    if (!group) {
+      return [];
+    }
+
+    // Map account IDs to actual account objects
+    return (group.accounts || [])
+      .map(
+        (accountId: string) =>
+          accountsState.internalAccounts.accounts[accountId],
+      )
+      .filter(Boolean);
   } catch (error) {
     console.error(
       'Error getting accounts for group:',
@@ -118,10 +134,10 @@ const getEvmTokenDecimals = (
 
 /**
  * Creates a memoized selector that returns the fiat-denominated aggregated balance
- * for a given account group across EVM and Solana internal accounts using MultichainAccountService.
+ * for a given account group across EVM and Solana internal accounts using AccountTreeController state.
  *
  * The selector performs the following operations:
- * 1. Uses MultichainAccountService to get internal accounts for the specified group
+ * 1. Uses AccountTreeController state to get internal accounts for the specified group
  * 2. Extracts EVM addresses and Solana account IDs from accounts
  * 3. Matches accounts to controller balance states (TokenBalances for EVM, MultichainBalances for Solana)
  * 4. Converts EVM balances to ETH using TokenRateController, then to fiat using CurrencyRateController
@@ -165,7 +181,8 @@ export const selectBalancesByAccountGroup = (
 ) =>
   createSelector(
     [
-      selectMultichainAccountService,
+      selectAccountTreeState,
+      selectAccountsState,
       selectTokenBalancesState,
       selectTokenRatesState,
       selectMultichainAssetsRatesState,
@@ -174,7 +191,8 @@ export const selectBalancesByAccountGroup = (
       selectCurrencyRateState,
     ],
     (
-      multichainAccountService,
+      accountTreeState,
+      accountsState,
       tokenBalancesState,
       tokenRatesState,
       multichainRatesState,
@@ -187,7 +205,8 @@ export const selectBalancesByAccountGroup = (
 
       try {
         const groupAccounts = getInternalAccountsForGroup(
-          multichainAccountService,
+          accountTreeState,
+          accountsState,
           entropySource,
           groupIndex,
         );
@@ -331,7 +350,7 @@ export type WalletBalance = {
 /**
  * Creates a memoized selector that returns aggregated balances for all groups in a wallet
  *
- * Uses MultichainAccountService to get all multichain accounts (groups) for a wallet,
+ * Uses AccountTreeController state to get all groups for a wallet,
  * then calculates the balance for each group and aggregates them.
  *
  * @param entropySource - The entropy source ID (wallet identifier)
@@ -340,7 +359,8 @@ export type WalletBalance = {
 export const selectBalancesByWallet = (entropySource: EntropySourceId) =>
   createSelector(
     [
-      selectMultichainAccountService,
+      selectAccountTreeState,
+      selectAccountsState,
       selectTokenBalancesState,
       selectTokenRatesState,
       selectMultichainAssetsRatesState,
@@ -349,7 +369,8 @@ export const selectBalancesByWallet = (entropySource: EntropySourceId) =>
       selectCurrencyRateState,
     ],
     (
-      multichainAccountService,
+      accountTreeState,
+      accountsState,
       tokenBalancesState,
       tokenRatesState,
       multichainRatesState,
@@ -360,18 +381,28 @@ export const selectBalancesByWallet = (entropySource: EntropySourceId) =>
       const { currentCurrency } = currencyRateState;
 
       try {
-        // Get all multichain account groups for this wallet
-        const multichainAccountGroups =
-          multichainAccountService.getMultichainAccountGroups({
-            entropySource,
-          });
+        // Get all groups for this wallet from AccountTreeController state
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wallet = (accountTreeState.accountTree.wallets as any)[
+          entropySource
+        ];
+        if (!wallet) {
+          return {
+            walletId: entropySource,
+            groups: [],
+            totalBalance: 0,
+            currency: currentCurrency,
+          };
+        }
 
         const groups: AccountGroupBalance[] = [];
         let totalBalance = 0;
 
         // Calculate balance for each group using the existing group selector logic
-        for (const multichainAccountGroup of multichainAccountGroups) {
-          const groupIndex = multichainAccountGroup.index;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const walletGroups = Object.values(wallet.groups || {}) as any[];
+        for (const group of walletGroups) {
+          const groupIndex = group.metadata?.entropy?.groupIndex;
 
           // Use the existing selectBalancesByAccountGroup logic
           const groupSelector = selectBalancesByAccountGroup(
@@ -379,7 +410,8 @@ export const selectBalancesByWallet = (entropySource: EntropySourceId) =>
             groupIndex,
           );
           const groupBalance = groupSelector.resultFunc(
-            multichainAccountService,
+            accountTreeState,
+            accountsState,
             tokenBalancesState,
             tokenRatesState,
             multichainRatesState,
@@ -413,7 +445,7 @@ export const selectBalancesByWallet = (entropySource: EntropySourceId) =>
 /**
  * Creates a memoized selector that returns aggregated balances for all wallets
  *
- * Uses MultichainAccountService to get all wallets, then calculates balances for each wallet.
+ * Uses AccountTreeController state to get all wallets, then calculates balances for each wallet.
  * Useful for dashboard views showing all wallet balances.
  *
  * @returns A memoized selector that returns all wallet balances
@@ -421,7 +453,8 @@ export const selectBalancesByWallet = (entropySource: EntropySourceId) =>
 export const selectBalancesForAllWallets = () =>
   createSelector(
     [
-      selectMultichainAccountService,
+      selectAccountTreeState,
+      selectAccountsState,
       selectTokenBalancesState,
       selectTokenRatesState,
       selectMultichainAssetsRatesState,
@@ -430,7 +463,8 @@ export const selectBalancesForAllWallets = () =>
       selectCurrencyRateState,
     ],
     (
-      multichainAccountService,
+      accountTreeState,
+      accountsState,
       tokenBalancesState,
       tokenRatesState,
       multichainRatesState,
@@ -439,15 +473,16 @@ export const selectBalancesForAllWallets = () =>
       currencyRateState,
     ): WalletBalance[] => {
       try {
-        // Get all multichain account wallets
-        const wallets = multichainAccountService.getMultichainAccountWallets();
+        // Get all wallets from AccountTreeController state
+        const wallets = Object.keys(accountTreeState.accountTree.wallets);
 
         const walletBalances: WalletBalance[] = [];
 
-        for (const wallet of wallets) {
-          const walletSelector = selectBalancesByWallet(wallet.entropySource);
+        for (const entropySource of wallets) {
+          const walletSelector = selectBalancesByWallet(entropySource);
           const walletBalance = walletSelector.resultFunc(
-            multichainAccountService,
+            accountTreeState,
+            accountsState,
             tokenBalancesState,
             tokenRatesState,
             multichainRatesState,
@@ -478,8 +513,8 @@ export const selectBalancesForAllWallets = () =>
 export const selectBalancesByCurrentlySelectedGroup = () =>
   createSelector(
     [
-      selectMultichainAccountService,
-      selectAccountsController,
+      selectAccountTreeState,
+      selectAccountsState,
       selectTokenBalancesState,
       selectTokenRatesState,
       selectMultichainAssetsRatesState,
@@ -488,8 +523,8 @@ export const selectBalancesByCurrentlySelectedGroup = () =>
       selectCurrencyRateState,
     ],
     (
-      multichainAccountService,
-      accountsController,
+      accountTreeState,
+      accountsState,
       tokenBalancesState,
       tokenRatesState,
       multichainRatesState,
@@ -498,10 +533,15 @@ export const selectBalancesByCurrentlySelectedGroup = () =>
       currencyRateState,
     ): AccountGroupBalance | null => {
       try {
-        // Get the currently selected multichain account directly
-        const selectedAccount =
-          accountsController.getSelectedMultichainAccount();
+        // Get the currently selected account from AccountsController state
+        const selectedAccountId =
+          accountsState.internalAccounts.selectedAccount;
+        if (!selectedAccountId) {
+          return null;
+        }
 
+        const selectedAccount =
+          accountsState.internalAccounts.accounts[selectedAccountId];
         if (!selectedAccount?.options?.entropy) {
           return null;
         }
@@ -519,7 +559,8 @@ export const selectBalancesByCurrentlySelectedGroup = () =>
           groupIndex,
         );
         return groupSelector.resultFunc(
-          multichainAccountService,
+          accountTreeState,
+          accountsState,
           tokenBalancesState,
           tokenRatesState,
           multichainRatesState,

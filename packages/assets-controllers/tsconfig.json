@@ -5,6 +5,7 @@
     "rootDir": "../.."
   },
   "references": [
+    { "path": "../account-tree-controller" },
     { "path": "../accounts-controller" },
     { "path": "../approval-controller" },
     { "path": "../base-controller" },
@@ -15,8 +16,7 @@
     { "path": "../phishing-controller" },
     { "path": "../polling-controller" },
     { "path": "../permission-controller" },
-    { "path": "../transaction-controller" },
-    { "path": "../multichain-account-service" }
+    { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src", "../../tests"]
 }

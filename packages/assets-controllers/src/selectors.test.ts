@@ -1,1088 +1,1050 @@
+import { AccountGroupType, AccountWalletType } from '@metamask/account-api';
+import { SolAccountType } from '@metamask/keyring-api';
+
 import {
   selectBalancesByAccountGroup,
   selectBalancesByWallet,
   selectBalancesForAllWallets,
   selectBalancesByCurrentlySelectedGroup,
 } from './selectors';
-import type { AccountGroupBalance } from './selectors';
+import type { RootState } from './selectors';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-// Don't mock reselect - test the actual implementation
-
-describe('selectBalancesByAccountGroup', () => {
-  const mockEntropySource = '0x123...entropy-source-1';
-  const mockGroupIndex = 0;
-
-  let mockMultichainAccountService: any;
-  let mockAccountsController: any;
-  let mockState: any;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Mock MultichainAccountService with direct method calls
-    mockMultichainAccountService = {
-      getMultichainAccountGroup: jest.fn(),
-      getMultichainAccountGroups: jest.fn(),
-      getMultichainAccountWallets: jest.fn(),
-    };
-
-    // Mock AccountsController with direct method calls
-    mockAccountsController = {
-      getSelectedMultichainAccount: jest.fn(),
-    };
-
-    // Create comprehensive mock state with realistic balance and rate data
-    mockState = {
-      MultichainAccountService: mockMultichainAccountService,
-      AccountsController: mockAccountsController,
-      TokenBalancesController: {
-        tokenBalances: {
-          // Account 1: 0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5
-          '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5': {
-            // Ethereum Mainnet (0x1)
-            '0x1': {
-              // Token A: 1 token worth (18 decimals)
-              '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': '0xde0b6b3a7640000', // 1 * 10^18 = 1 token (hex string)
-              // USDT: 2000 USDT (6 decimals)
-              '0xdAC17F958D2ee523a2206206994597C13D831ec7': '0x77359400', // 2000 * 10^6 = 2000 USDT (hex string)
-            },
-            // Polygon (0x89)
-            '0x89': {
-              // MATIC: 5 MATIC (18 decimals)
-              '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270':
-                '0x4563918244f40000', // 5 * 10^18 = 5 MATIC (hex string)
-            },
-          },
-          // Account 2: 0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6
-          '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6': {
-            // Ethereum Mainnet (0x1)
-            '0x1': {
-              // Token A: 0.5 token worth (18 decimals)
-              '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': '0x6f05b59d3b20000', // 0.5 * 10^18 = 0.5 token (hex string)
-            },
-          },
-        },
-      },
-      CurrencyRateController: {
-        currentCurrency: 'USD',
-        currencyRates: {
-          ETH: {
-            conversionRate: 2000,
-            conversionDate: Date.now() / 1000,
-            usdConversionRate: 2000,
-          },
-          MATIC: {
-            conversionRate: 0.8,
-            conversionDate: Date.now() / 1000,
-            usdConversionRate: 0.8,
-          },
-        },
-      },
-      TokenRatesController: {
-        marketData: {
-          '0x1': {
-            '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': {
-              price: 1.5, // 1.5 ETH per token
-              marketCap: 1000000,
-              allTimeHigh: 2.0,
-              allTimeLow: 0.5,
-              totalSupply: 1000000,
-              dilutedMarketCap: 1500000,
-              currency: 'ETH',
-            },
-            '0xdAC17F958D2ee523a2206206994597C13D831ec7': {
-              price: 0.0005, // USDT price in ETH (0.0005 ETH per USDT)
-              marketCap: 50000000,
-              currency: 'ETH',
-            },
-          },
-          '0x89': {
-            '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270': {
-              price: 1.0, // MATIC price in ETH equivalent
-              currency: 'ETH',
-            },
-          },
-        },
-      },
-      MultichainAssetsRatesController: {
-        conversionRates: {
-          'bip122:000000000019d6689c085ae165831e93/slip44:501': {
-            rate: '150', // SOL to USD (string format like controller tests)
-          },
-          'bip122:000000000019d6689c085ae165831e93/slip44:501/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-            {
-              rate: '1.0', // USDC to USD (string format like controller tests)
-            },
-        },
-      },
-      MultichainBalancesController: {
-        balances: {
-          'solana-account-1': {
-            'bip122:000000000019d6689c085ae165831e93/slip44:501': {
-              amount: '2.00000000', // 2 SOL (decimal format like controller tests)
-              unit: 'SOL',
-            },
-            'bip122:000000000019d6689c085ae165831e93/slip44:501/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-              {
-                amount: '100.000000', // 100 USDC (decimal format like controller tests)
-                unit: 'USDC',
+// Helper function to create mock state - avoiding beforeEach as per Cursor rules
+const createMockState = (): RootState => ({
+  AccountTreeController: {
+    accountTree: {
+      selectedAccountGroup: 'entropy:entropy-source-1/0',
+      wallets: {
+        'entropy:entropy-source-1': {
+          type: AccountWalletType.Entropy,
+          id: 'entropy:entropy-source-1',
+          groups: {
+            'entropy:entropy-source-1/0': {
+              type: AccountGroupType.MultichainAccount,
+              id: 'entropy:entropy-source-1/0',
+              accounts: ['account-1', 'account-2'], // EVM accounts
+              metadata: {
+                name: 'Group 0',
+                entropy: {
+                  groupIndex: 0,
+                },
               },
+            },
+            'entropy:entropy-source-1/1': {
+              type: AccountGroupType.MultichainAccount,
+              id: 'entropy:entropy-source-1/1',
+              accounts: ['account-3'], // Solana account
+              metadata: {
+                name: 'Group 1',
+                entropy: {
+                  groupIndex: 1,
+                },
+              },
+            },
+          },
+          metadata: {
+            name: 'Wallet 1',
+            entropy: {
+              id: 'entropy-source-1',
+              index: 0,
+            },
+          },
+        },
+        'entropy:entropy-source-2': {
+          type: AccountWalletType.Entropy,
+          id: 'entropy:entropy-source-2',
+          groups: {
+            'entropy:entropy-source-2/0': {
+              type: AccountGroupType.MultichainAccount,
+              id: 'entropy:entropy-source-2/0',
+              accounts: ['account-4'], // Another EVM account
+              metadata: {
+                name: 'Group 0',
+                entropy: {
+                  groupIndex: 0,
+                },
+              },
+            },
+          },
+          metadata: {
+            name: 'Wallet 2',
+            entropy: {
+              id: 'entropy-source-2',
+              index: 0,
+            },
           },
         },
       },
-      TokensController: {
-        allTokens: {
-          '0x1': {
-            '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5': [
-              {
-                address: '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5',
-                symbol: 'TOKA',
-                decimals: 18,
-                name: 'Token A',
-              },
-              {
-                address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-                symbol: 'USDT',
-                decimals: 6,
-                name: 'Tether USD',
-              },
-            ],
-            '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6': [
-              {
-                address: '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5',
-                symbol: 'TOKA',
-                decimals: 18,
-                name: 'Token A',
-              },
-            ],
+    },
+  },
+  AccountsController: {
+    internalAccounts: {
+      selectedAccount: 'account-1',
+      accounts: {
+        'account-1': {
+          id: 'account-1',
+          address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
+          type: 'eip155:eoa',
+          options: {
+            entropy: {
+              type: 'mnemonic',
+              id: 'entropy:entropy-source-1',
+              derivationPath: "m/44'/60'/0'/0/0",
+              groupIndex: 0,
+            },
           },
-          '0x89': {
-            '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5': [
-              {
-                address: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
-                symbol: 'MATIC',
-                decimals: 18,
-                name: 'Polygon',
-              },
-            ],
+          metadata: {
+            name: 'Account 1',
+            lastSelected: Date.now(),
+            importTime: Date.now(),
+            keyring: { type: 'hd' },
           },
+          scopes: ['eip155:1'],
+          methods: [
+            'eth_sendTransaction',
+            'eth_signTransaction',
+            'eth_sign',
+            'personal_sign',
+            'eth_signTypedData',
+          ],
         },
-        allDetectedTokens: {},
-        allIgnoredTokens: {},
-        suggestedAssets: [],
+        'account-2': {
+          id: 'account-2',
+          address: '0x8e5f8c9a2b1e3d4f5a6b7c8d9e0f1a2b3c4d5e6f',
+          type: 'eip155:eoa',
+          options: {
+            entropy: {
+              type: 'mnemonic',
+              id: 'entropy:entropy-source-1',
+              derivationPath: "m/44'/60'/0'/0/1",
+              groupIndex: 0,
+            },
+          },
+          metadata: {
+            name: 'Account 2',
+            lastSelected: Date.now() - 1000,
+            importTime: Date.now(),
+            keyring: { type: 'hd' },
+          },
+          scopes: ['eip155:1'],
+          methods: [
+            'eth_sendTransaction',
+            'eth_signTransaction',
+            'eth_sign',
+            'personal_sign',
+            'eth_signTypedData',
+          ],
+        },
+        'account-3': {
+          id: 'account-3',
+          address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
+          type: SolAccountType.DataAccount,
+          options: {
+            entropy: {
+              type: 'mnemonic',
+              id: 'entropy:entropy-source-1',
+              derivationPath: "m/44'/501'/0'/0/0",
+              groupIndex: 1,
+            },
+          },
+          metadata: {
+            name: 'Solana Account',
+            lastSelected: Date.now() - 2000,
+            importTime: Date.now(),
+            keyring: { type: 'hd' },
+          },
+          scopes: ['bip122:000000000019d6689c085ae165831e93'],
+          methods: ['solana_signTransaction', 'solana_signMessage'],
+        },
+        'account-4': {
+          id: 'account-4',
+          address: '0x456...another-address',
+          type: 'eip155:eoa',
+          options: {
+            entropy: {
+              type: 'mnemonic',
+              id: 'entropy:entropy-source-2',
+              derivationPath: "m/44'/60'/0'/0/0",
+              groupIndex: 0,
+            },
+          },
+          metadata: {
+            name: 'Wallet 2 Account',
+            lastSelected: Date.now() - 3000,
+            importTime: Date.now(),
+            keyring: { type: 'hd' },
+          },
+          scopes: ['eip155:1'],
+          methods: [
+            'eth_sendTransaction',
+            'eth_signTransaction',
+            'eth_sign',
+            'personal_sign',
+            'eth_signTypedData',
+          ],
+        },
       },
-    };
-  });
-
-  describe('with mixed EVM and Solana accounts', () => {
-    beforeEach(() => {
-      // Arrange: Mock MultichainAccountService to return mixed account types
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
+    },
+  },
+  TokenBalancesController: {
+    tokenBalances: {
+      // Account 1: 1 TOKA + 2000 USDT
+      '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5': {
+        '0x1': {
+          '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': '0xde0b6b3a7640000', // 1 TOKA (18 decimals)
+          '0xdAC17F958D2ee523a2206206994597C13D831ec7': '0x77359400', // 2000 USDT (6 decimals)
+        },
+      },
+      // Account 2: 0.5 TOKA
+      '0x8e5f8c9a2b1e3d4f5a6b7c8d9e0f1a2b3c4d5e6f': {
+        '0x1': {
+          '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': '0x6f05b59d3b20000', // 0.5 TOKA (18 decimals)
+        },
+      },
+      // Account 4: 10 TOKA
+      '0x456...another-address': {
+        '0x1': {
+          '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': '0x8ac7230489e80000', // 10 TOKA (18 decimals)
+        },
+      },
+    },
+  },
+  TokenRatesController: {
+    marketData: {
+      '0x1': {
+        // TOKA: 1 TOKA = 2 ETH
+        '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5': {
+          tokenAddress: '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5',
+          price: 2,
+          currency: 'ETH',
+          pricePercentChange1d: 0,
+          priceChange1d: 0,
+          marketCap: 1000000,
+          allTimeHigh: 3,
+          allTimeLow: 1,
+          totalVolume: 50000,
+          high1d: 2.1,
+          low1d: 1.9,
+          circulatingSupply: 500000,
+          dilutedMarketCap: 1200000,
+          marketCapPercentChange1d: 0,
+          pricePercentChange1h: 0,
+          pricePercentChange1y: 0,
+          pricePercentChange7d: 0,
+          pricePercentChange14d: 0,
+          pricePercentChange30d: 0,
+          pricePercentChange200d: 0,
+        },
+        // USDT: 1 USDT = 0.0005 ETH
+        '0xdAC17F958D2ee523a2206206994597C13D831ec7': {
+          tokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          price: 0.0005,
+          currency: 'ETH',
+          pricePercentChange1d: 0,
+          priceChange1d: 0,
+          marketCap: 80000000000,
+          allTimeHigh: 0.0006,
+          allTimeLow: 0.0004,
+          totalVolume: 1000000000,
+          high1d: 0.00051,
+          low1d: 0.00049,
+          circulatingSupply: 80000000000,
+          dilutedMarketCap: 80000000000,
+          marketCapPercentChange1d: 0,
+          pricePercentChange1h: 0,
+          pricePercentChange1y: 0,
+          pricePercentChange7d: 0,
+          pricePercentChange14d: 0,
+          pricePercentChange30d: 0,
+          pricePercentChange200d: 0,
+        },
+      },
+    },
+  },
+  CurrencyRateController: {
+    currentCurrency: 'USD',
+    currencyRates: {
+      ETH: {
+        conversionDate: Date.now(),
+        conversionRate: 2000, // 1 ETH = $2000 USD
+        usdConversionRate: 2000,
+      },
+    },
+  },
+  MultichainAssetsRatesController: {
+    conversionRates: {
+      'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc':
+        {
+          rate: '150', // $150 per token
+          conversionTime: Date.now(),
+        },
+    },
+    historicalPrices: {},
+  },
+  MultichainBalancesController: {
+    balances: {
+      'account-3': {
+        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc':
           {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
+            amount: '10.0', // 10 tokens
+            unit: 'SOL',
+          },
+      },
+    },
+  },
+  TokensController: {
+    allTokens: {
+      '0x1': {
+        '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5': [
+          {
+            address: '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5',
+            symbol: 'TOKA',
+            decimals: 18,
+            name: 'Token A',
           },
           {
-            id: 'evm-account-2',
-            address: '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-          {
-            id: 'solana-account-1',
-            address: 'So11111111111111111111111111111111111111112',
-            type: 'bip122:000000000019d6689c085ae165831e93',
-            metadata: {
-              keyring: { type: 'Snap Keyring' },
-            },
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            symbol: 'USDT',
+            decimals: 6,
+            name: 'Tether USD',
           },
         ],
-      });
-    });
+        '0x8e5f8c9a2b1e3d4f5a6b7c8d9e0f1a2b3c4d5e6f': [
+          {
+            address: '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5',
+            symbol: 'TOKA',
+            decimals: 18,
+            name: 'Token A',
+          },
+        ],
+        '0x456...another-address': [
+          {
+            address: '0xA0b86a33E6842C2dBB8cD9264C1B6bA4E3fB8b5',
+            symbol: 'TOKA',
+            decimals: 18,
+            name: 'Token A',
+          },
+        ],
+      },
+    },
+    allDetectedTokens: {},
+    allIgnoredTokens: {},
+  },
+});
 
-    it('aggregates balances from mixed EVM and Solana accounts', () => {
+// Helper function to create minimal state for error testing
+const createEmptyState = (): RootState => ({
+  ...createMockState(),
+  AccountTreeController: {
+    accountTree: {
+      selectedAccountGroup: '',
+      wallets: {},
+    },
+  },
+});
+
+// Helper function to create state with missing data
+const createStateWithMissingData = (missingData: string): RootState => {
+  const state = createMockState();
+
+  switch (missingData) {
+    case 'balances':
+      return {
+        ...state,
+        TokenBalancesController: { tokenBalances: {} },
+        MultichainBalancesController: { balances: {} },
+      };
+    case 'rates':
+      return {
+        ...state,
+        TokenRatesController: { marketData: {} },
+        MultichainAssetsRatesController: {
+          conversionRates: {},
+          historicalPrices: {},
+        },
+      };
+    case 'tokens':
+      return {
+        ...state,
+        TokensController: {
+          allTokens: {},
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+        },
+      };
+    default:
+      return state;
+  }
+};
+
+describe('selectBalancesByAccountGroup', () => {
+  describe('when aggregating EVM and Solana balances', () => {
+    it('calculates correct balance for mixed account types', () => {
       // Arrange
+      const state = createMockState();
       const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
+        'entropy:entropy-source-1',
+        0,
       );
 
       // Act
-      const result: AccountGroupBalance = selector(mockState);
+      const result = selector(state);
+
+      // Assert
+      // Account 1: (1 TOKA * 2 ETH * $2000/ETH) + (2000 USDT * 0.0005 ETH * $2000/ETH) = $4000 + $2000 = $6000
+      // Account 2: (0.5 TOKA * 2 ETH * $2000/ETH) = $2000
+      // Total: $6000 + $2000 = $8000
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 8000,
+        currency: 'USD',
+      });
+    });
+
+    it('calculates correct balance for Solana-only group', () => {
+      // Arrange
+      const state = createMockState();
+      const selector = selectBalancesByAccountGroup(
+        'entropy:entropy-source-1',
+        1,
+      );
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      // Solana account: 10 tokens * $150 = $1500
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-1',
+        aggregatedBalance: 1500,
+        currency: 'USD',
+      });
+    });
+
+    it('converts balance to user selected currency', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        CurrencyRateController: {
+          currentCurrency: 'EUR',
+          currencyRates: {
+            ETH: {
+              conversionDate: Date.now(),
+              conversionRate: 1800, // 1 ETH = €1800
+              usdConversionRate: 2000, // 1 ETH = $2000
+            },
+          },
+        },
+      };
+      const selector = selectBalancesByAccountGroup(
+        'entropy:entropy-source-1',
+        0,
+      );
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      // USD balance: $8000, EUR conversion: $8000 * (€1800/$2000) = €7200
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 7200,
+        currency: 'EUR',
+      });
+    });
+  });
+
+  describe('when handling edge cases', () => {
+    it('returns zero balance for non-existent wallet', () => {
+      // Arrange
+      const state = createMockState();
+      const selector = selectBalancesByAccountGroup('non-existent', 0);
+
+      // Act
+      const result = selector(state);
 
       // Assert
       expect(result).toStrictEqual({
-        groupId: `${mockEntropySource}-${mockGroupIndex}`,
-        aggregatedBalance: expect.any(Number),
+        groupId: 'non-existent-0',
+        aggregatedBalance: 0,
         currency: 'USD',
       });
-
-      expect(
-        mockMultichainAccountService.getMultichainAccountGroup,
-      ).toHaveBeenCalledWith({
-        entropySource: mockEntropySource,
-        groupIndex: mockGroupIndex,
-      });
-
-      // Verify the balance is greater than 0 (should include EVM + Solana balances)
-      expect(result.aggregatedBalance).toBeGreaterThan(0);
     });
 
-    it('calculates accurate balance values for mixed account types', () => {
+    it('returns zero balance for non-existent group', () => {
+      // Arrange
+      const state = createMockState();
       const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
+        'entropy:entropy-source-1',
+        99,
       );
-      const result = selector(mockState);
 
-      // Expected calculation breakdown:
-      // Account 1 (0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5):
-      // - Token A: (0xde0b6b3a7640000 = 1000000000000000000 / 10^18) * 1.5 * 2000 = 1 * 1.5 * 2000 = 3000 USD
-      // - USDT: (0x77359400 = 2000000000 / 10^6) * 0.0005 * 2000 = 2000 * 0.0005 * 2000 = 2000 USD
-      // - MATIC: (0x4563918244f40000 = 5000000000000000000 / 10^18) * 1.0 * 2000 = 5 * 1.0 * 2000 = 10000 USD
-      // Account 2 (0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6):
-      // - Token A: (0x6f05b59d3b20000 = 500000000000000000 / 10^18) * 1.5 * 2000 = 0.5 * 1.5 * 2000 = 1500 USD
-      // Solana Account:
-      // - SOL: 2.00000000 * 150 = 2 * 150 = 300 USD (decimal format, no conversion needed)
-      // - USDC: 100.000000 * 1.0 = 100 * 1.0 = 100 USD (decimal format, no conversion needed)
-      // Total: 3000 + 2000 + 10000 + 1500 + 300 + 100 = 16900 USD
-      expect(result.aggregatedBalance).toBe(16900);
-      expect(typeof result.aggregatedBalance).toBe('number');
-    });
-  });
+      // Act
+      const result = selector(state);
 
-  describe('with only EVM accounts', () => {
-    beforeEach(() => {
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
+      // Assert
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-99',
+        aggregatedBalance: 0,
+        currency: 'USD',
       });
     });
 
-    it('aggregates balances from EVM accounts only', () => {
+    it('returns zero balance when no balance data exists', () => {
+      // Arrange
+      const state = createStateWithMissingData('balances');
       const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
+        'entropy:entropy-source-1',
+        0,
       );
-      const result = selector(mockState);
 
-      // Expected calculation for EVM accounts only:
-      // Account 1 (0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5):
-      // - Token A: (0xde0b6b3a7640000 = 1000000000000000000 / 10^18) * 1.5 * 2000 = 1 * 1.5 * 2000 = 3000 USD
-      // - USDT: (0x77359400 = 2000000000 / 10^6) * 0.0005 * 2000 = 2000 * 0.0005 * 2000 = 2000 USD
-      // - MATIC: (0x4563918244f40000 = 5000000000000000000 / 10^18) * 1.0 * 2000 = 5 * 1.0 * 2000 = 10000 USD
-      // Total: 3000 + 2000 + 10000 = 15000 USD
-      expect(result.aggregatedBalance).toBe(15000);
-      expect(typeof result.aggregatedBalance).toBe('number');
-      expect(result.currency).toBe('USD');
-    });
-  });
+      // Act
+      const result = selector(state);
 
-  describe('with only Solana accounts', () => {
-    beforeEach(() => {
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'solana-account-1',
-            address: 'So11111111111111111111111111111111111111112',
-            type: 'bip122:000000000019d6689c085ae165831e93',
-            metadata: {
-              keyring: { type: 'Snap Keyring' },
-            },
-          },
-        ],
+      // Assert
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 0,
+        currency: 'USD',
       });
     });
 
-    it('aggregates balances from Solana accounts only', () => {
+    it('returns zero balance when no rate data exists', () => {
+      // Arrange
+      const state = createStateWithMissingData('rates');
       const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
+        'entropy:entropy-source-1',
+        0,
       );
-      const result = selector(mockState);
 
-      // Expected calculation for Solana accounts only:
-      // Solana Account (solana-account-1):
-      // - SOL: 2.00000000 * 150 USD/SOL = 2 SOL * 150 = 300 USD (decimal format, no conversion needed)
-      // - USDC: 100.000000 * 1.0 USD/USDC = 100 USDC * 1.0 = 100 USD (decimal format, no conversion needed)
-      // Total: 300 + 100 = 400 USD
-      expect(result.aggregatedBalance).toBe(400);
-      expect(typeof result.aggregatedBalance).toBe('number');
-      expect(result.currency).toBe('USD');
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 0,
+        currency: 'USD',
+      });
     });
 
-    it('handles string rate formats from controller', () => {
-      // Test with rate format exactly like MultichainAssetsRatesController tests
-      const stringRateState = {
-        ...mockState,
-        MultichainAssetsRatesController: {
-          conversionRates: {
-            'bip122:000000000019d6689c085ae165831e93/slip44:501': {
-              rate: '202.11', // String format like controller tests
-            },
-            'bip122:000000000019d6689c085ae165831e93/slip44:501/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-              {
-                rate: '0.9995', // String format like controller tests
-              },
-          },
-        },
-        MultichainBalancesController: {
-          balances: {
-            'solana-account-1': {
-              'bip122:000000000019d6689c085ae165831e93/slip44:501': {
-                amount: '1.00000000', // 1 SOL
-                unit: 'SOL',
-              },
-              'bip122:000000000019d6689c085ae165831e93/slip44:501/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-                {
-                  amount: '50.000000', // 50 USDC
-                  unit: 'USDC',
-                },
+    it('returns zero balance when no token metadata exists', () => {
+      // Arrange
+      const state = {
+        ...createStateWithMissingData('tokens'),
+        // Also remove the balances since without token metadata, balances can't be processed
+        TokenBalancesController: { tokenBalances: {} },
+      };
+      const selector = selectBalancesByAccountGroup(
+        'entropy:entropy-source-1',
+        0,
+      );
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 0,
+        currency: 'USD',
+      });
+    });
+
+    it('handles malformed account tree gracefully', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountTreeController: {
+          accountTree: {
+            selectedAccountGroup: '' as const,
+            wallets: {
+              'malformed-wallet': null,
             },
           },
         },
       };
+      const selector = selectBalancesByAccountGroup('malformed-wallet', 0);
 
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(stringRateState);
+      // Act
+      const result = selector(state);
 
-      // Expected calculation:
-      // - SOL: 1.00000000 * 202.11 = 1 * 202.11 = 202.11 USD
-      // - USDC: 50.000000 * 0.9995 = 50 * 0.9995 = 49.975 USD
-      // Total: 202.11 + 49.975 = 252.085 USD
-      expect(result.aggregatedBalance).toBe(252.085);
-      expect(result.currency).toBe('USD');
-    });
-  });
-
-  describe('error handling', () => {
-    it('handles empty account groups gracefully', () => {
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [],
-      });
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
+      // Assert
       expect(result).toStrictEqual({
-        groupId: `${mockEntropySource}-${mockGroupIndex}`,
+        groupId: 'malformed-wallet-0',
         aggregatedBalance: 0,
         currency: 'USD',
       });
     });
-
-    it('handles MultichainAccountService errors gracefully', () => {
-      mockMultichainAccountService.getMultichainAccountGroups.mockImplementation(
-        () => {
-          throw new Error('Group not found');
-        },
-      );
-
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
-      expect(result).toStrictEqual({
-        groupId: `${mockEntropySource}-${mockGroupIndex}`,
-        aggregatedBalance: 0,
-        currency: 'USD',
-      });
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error getting accounts for group:',
-        { entropySource: mockEntropySource, groupIndex: mockGroupIndex },
-        expect.any(Error),
-      );
-
-      consoleSpy.mockRestore();
-    });
-
-    it('handles missing balance data gracefully', () => {
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-missing',
-            address: '0x999999999999999999999999999999999999999',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
-      });
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
-      expect(result.aggregatedBalance).toBe(0);
-      expect(result.currency).toBe('USD');
-    });
-
-    it('handles missing rate data gracefully', () => {
-      // Remove rate data
-      mockState.TokenRatesController.marketData = {};
-      mockState.MultichainAssetsRatesController.conversionRates = {};
-
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
-      });
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
-      expect(result.aggregatedBalance).toBe(0);
-      expect(result.currency).toBe('USD');
-    });
-
-    it('handles currency conversion errors gracefully', () => {
-      // Remove ETH rate data
-      mockState.CurrencyRateController.currencyRates = {};
-
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
-      });
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
-      expect(result.aggregatedBalance).toBe(0);
-      expect(result.currency).toBe('USD');
-    });
   });
 
-  describe('performance and memoization', () => {
-    it('returns the same reference when state has not changed', () => {
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
-      });
-
+  describe('when testing memoization', () => {
+    it('returns same reference for identical state', () => {
+      // Arrange
+      const state = createMockState();
       const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
+        'entropy:entropy-source-1',
+        0,
       );
-      const result1 = selector(mockState);
-      const result2 = selector(mockState);
 
-      // Due to createSelector memoization, results should be the same reference
+      // Act
+      const result1 = selector(state);
+      const result2 = selector(state);
+
+      // Assert
       expect(result1).toBe(result2);
     });
 
-    it('handles large numbers of accounts efficiently', () => {
-      // Create many accounts
-      const manyAccounts = Array.from({ length: 100 }, (_, i) => ({
-        id: `evm-account-${i}`,
-        address: `0x${i.toString(16).padStart(40, '0')}`,
-        type: 'eip155:eoa',
-        metadata: {
-          keyring: { type: 'HD Key Tree' },
-        },
-      }));
-
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => manyAccounts,
-      });
-
-      const startTime = Date.now();
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-      const endTime = Date.now();
-
-      // Should complete within reasonable time (less than 100ms)
-      expect(endTime - startTime).toBeLessThan(100);
-      expect(result).toBeDefined();
-      expect(result.currency).toBe('USD');
-    });
-  });
-
-  describe('currency support', () => {
-    it('respects user selected currency', () => {
-      mockState.CurrencyRateController.currentCurrency = 'EUR';
-
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
-      });
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
-      expect(result.currency).toBe('EUR');
-    });
-
-    it('converts balance to user selected currency (EUR)', () => {
-      // Create state with EUR currency and proper conversion rates
-      const eurState = {
-        ...mockState,
+    it('returns different reference when state changes', () => {
+      // Arrange
+      const state1 = createMockState();
+      const state2 = {
+        ...state1,
         CurrencyRateController: {
+          ...state1.CurrencyRateController,
           currentCurrency: 'EUR',
-          currencyRates: {
-            ETH: {
-              conversionRate: 1800, // 1 ETH = 1800 EUR
-              conversionDate: Date.now() / 1000,
-              usdConversionRate: 2000, // 1 ETH = 2000 USD
-            },
-            MATIC: {
-              conversionRate: 0.72, // 1 MATIC = 0.72 EUR
-              conversionDate: Date.now() / 1000,
-              usdConversionRate: 0.8, // 1 MATIC = 0.8 USD
-            },
-          },
         },
       };
-
-      // Use the same mock setup as the main test to get consistent results
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-          {
-            id: 'evm-account-2',
-            address: '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-          {
-            id: 'solana-account-1',
-            address: 'So11111111111111111111111111111111111111112',
-            type: 'bip122:000000000019d6689c085ae165831e93',
-            metadata: {
-              keyring: { type: 'Snap Keyring' },
-            },
-          },
-        ],
-      });
-
       const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
+        'entropy:entropy-source-1',
+        0,
       );
-      const result = selector(eurState);
 
-      // USD to EUR rate = 1800/2000 = 0.9
-      // Expected USD balance: 16900 (from previous test)
-      // Expected EUR balance: 16900 * 0.9 = 15210
-      expect(result.aggregatedBalance).toBe(15210);
-      expect(result.currency).toBe('EUR');
+      // Act
+      const result1 = selector(state1);
+      const result2 = selector(state2);
+
+      // Assert
+      expect(result1).not.toBe(result2);
+      expect(result1.currency).toBe('USD');
+      expect(result2.currency).toBe('EUR');
     });
+  });
+});
 
-    it('handles USD currency without conversion', () => {
-      // Use the same mock setup as the main test to get consistent results
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-          {
-            id: 'evm-account-2',
-            address: '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-          {
-            id: 'solana-account-1',
-            address: 'So11111111111111111111111111111111111111112',
-            type: 'bip122:000000000019d6689c085ae165831e93',
-            metadata: {
-              keyring: { type: 'Snap Keyring' },
-            },
-          },
-        ],
-      });
+describe('selectBalancesByWallet', () => {
+  describe('when aggregating all groups in wallet', () => {
+    it('returns correct balances for all groups', () => {
+      // Arrange
+      const state = createMockState();
+      const selector = selectBalancesByWallet('entropy:entropy-source-1');
 
-      const result = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      )(mockState);
+      // Act
+      const result = selector(state);
 
-      // Should be same as calculated balance since no conversion needed
-      expect(result.aggregatedBalance).toBe(16900);
+      // Assert
+      expect(result.walletId).toBe('entropy:entropy-source-1');
       expect(result.currency).toBe('USD');
-    });
-  });
-
-  describe('data shape validation', () => {
-    it('returns correct data shape and types', () => {
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: {
-              keyring: { type: 'HD Key Tree' },
-            },
-          },
-        ],
-      });
-
-      const selector = selectBalancesByAccountGroup(
-        mockEntropySource,
-        mockGroupIndex,
-      );
-      const result = selector(mockState);
-
-      expect(typeof result.groupId).toBe('string');
-      expect(typeof result.aggregatedBalance).toBe('number');
-      expect(typeof result.currency).toBe('string');
-
-      expect(result.groupId).toBe(`${mockEntropySource}-${mockGroupIndex}`);
-      expect(Number.isFinite(result.aggregatedBalance)).toBe(true);
-      expect(result.currency.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('selectBalancesByWallet', () => {
-    beforeEach(() => {
-      // Mock MultichainAccountService to return multiple groups for wallet
-      mockMultichainAccountService.getMultichainAccountGroups.mockReturnValue([
-        { index: 0 },
-        { index: 1 },
-      ]);
-
-      // Mock getMultichainAccountGroup to return accounts for group 0 only
-      mockMultichainAccountService.getMultichainAccountGroup.mockImplementation(
-        ({ groupIndex }: { groupIndex: number }) => {
-          if (groupIndex === 0) {
-            return {
-              getAccounts: () => [
-                {
-                  id: 'evm-account-1',
-                  address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-                  type: 'eip155:eoa',
-                  metadata: { keyring: { type: 'HD Key Tree' } },
-                },
-                {
-                  id: 'evm-account-2',
-                  address: '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6',
-                  type: 'eip155:eoa',
-                  metadata: { keyring: { type: 'HD Key Tree' } },
-                },
-                {
-                  id: 'solana-account-1',
-                  address: 'So11111111111111111111111111111111111111112',
-                  type: 'bip122:000000000019d6689c085ae165831e93',
-                  metadata: { keyring: { type: 'Snap Keyring' } },
-                },
-              ],
-            };
-          }
-          return { getAccounts: () => [] };
-        },
-      );
-    });
-
-    it('aggregates exact balances from all groups in a wallet', () => {
-      const selector = selectBalancesByWallet(mockEntropySource);
-      const result = selector(mockState);
-
-      expect(result.walletId).toBe(mockEntropySource);
       expect(result.groups).toHaveLength(2);
-      expect(result.currency).toBe('USD');
 
-      // Group 0: Should have the full balance (16900 USD from original test)
-      // This group has the mock account data we set up
-      expect(result.groups[0].groupId).toBe(`${mockEntropySource}-0`);
-      expect(result.groups[0].aggregatedBalance).toBe(16900);
-      expect(result.groups[0].currency).toBe('USD');
+      // Group 0: EVM accounts = $8000
+      expect(result.groups[0]).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 8000,
+        currency: 'USD',
+      });
 
-      // Group 1: Should have 0 balance (no accounts in mock for group 1)
-      // This group has no account data, so balance should be 0
-      expect(result.groups[1].groupId).toBe(`${mockEntropySource}-1`);
-      expect(result.groups[1].aggregatedBalance).toBe(0);
-      expect(result.groups[1].currency).toBe('USD');
+      // Group 1: Solana account = $1500
+      expect(result.groups[1]).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-1',
+        aggregatedBalance: 1500,
+        currency: 'USD',
+      });
 
-      // Total should be sum of all group balances
-      expect(result.totalBalance).toBe(16900);
+      // Total: $8000 + $1500 = $9500
+      expect(result.totalBalance).toBe(9500);
     });
 
-    it('handles wallet with no groups gracefully', () => {
-      const createEmptyWalletMock = () => (action: any) => {
-        /* eslint-disable jest/no-conditional-in-test */
-        if (action === 'MultichainAccountService:getMultichainAccountGroups') {
-          return [];
-        }
-        return { getAccounts: () => [] };
-        /* eslint-enable jest/no-conditional-in-test */
-      };
+    it('returns correct balance for single-group wallet', () => {
+      // Arrange
+      const state = createMockState();
+      const selector = selectBalancesByWallet('entropy:entropy-source-2');
 
-      mockMultichainAccountService.getMultichainAccountGroups.mockImplementation(
-        createEmptyWalletMock(),
-      );
+      // Act
+      const result = selector(state);
 
-      const selector = selectBalancesByWallet(mockEntropySource);
-      const result = selector(mockState);
+      // Assert
+      expect(result.walletId).toBe('entropy:entropy-source-2');
+      expect(result.groups).toHaveLength(1);
+      // Account 4: 10 TOKA * 2 ETH * $2000/ETH = $40000
+      expect(result.totalBalance).toBe(40000);
+    });
+  });
 
-      expect(result.walletId).toBe(mockEntropySource);
-      expect(result.groups).toHaveLength(0);
-      expect(result.totalBalance).toBe(0);
-      expect(result.currency).toBe('USD');
+  describe('when handling edge cases', () => {
+    it('returns empty wallet for non-existent wallet', () => {
+      // Arrange
+      const state = createMockState();
+      const selector = selectBalancesByWallet('non-existent');
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toStrictEqual({
+        walletId: 'non-existent',
+        groups: [],
+        totalBalance: 0,
+        currency: 'USD',
+      });
     });
 
-    it('converts total balance to user selected currency (EUR)', () => {
-      const eurState = {
-        ...mockState,
-        CurrencyRateController: {
-          currentCurrency: 'EUR',
-          currencyRates: {
-            ETH: {
-              conversionRate: 1800, // 1 ETH = 1800 EUR
-              conversionDate: Date.now() / 1000,
-              usdConversionRate: 2000, // 1 ETH = 2000 USD
+    it('handles wallet with no groups', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountTreeController: {
+          accountTree: {
+            selectedAccountGroup: '' as const,
+            wallets: {
+              'empty-wallet': {
+                type: AccountWalletType.Entropy,
+                id: 'empty-wallet',
+                groups: {},
+                metadata: {
+                  name: 'Empty Wallet',
+                  entropy: {
+                    id: 'empty-source',
+                    index: 0,
+                  },
+                },
+              },
             },
           },
         },
       };
+      const selector = selectBalancesByWallet('empty-wallet');
 
-      const selector = selectBalancesByWallet(mockEntropySource);
-      const result = selector(eurState);
+      // Act
+      const result = selector(state);
 
-      expect(result.currency).toBe('EUR');
-
-      // USD to EUR conversion: 16900 USD * (1800 EUR/ETH) / (2000 USD/ETH) = 16900 * 0.9 = 15210 EUR
-      expect(result.groups[0].aggregatedBalance).toBe(15210);
-      expect(result.groups[0].currency).toBe('EUR');
-      expect(result.totalBalance).toBe(15210);
+      // Assert
+      expect(result).toStrictEqual({
+        walletId: 'empty-wallet',
+        groups: [],
+        totalBalance: 0,
+        currency: 'USD',
+      });
     });
 
-    it('handles MultichainAccountService errors gracefully', () => {
-      mockMultichainAccountService.getMultichainAccountGroups.mockImplementation(
-        () => {
-          throw new Error('Service error');
+    it('handles wallet with malformed groups', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountTreeController: {
+          accountTree: {
+            selectedAccountGroup: '' as const,
+            wallets: {
+              'malformed-wallet': {
+                type: AccountWalletType.Entropy,
+                id: 'malformed-wallet',
+                groups: null,
+                metadata: {
+                  name: 'Malformed Wallet',
+                  entropy: {
+                    id: 'malformed-source',
+                    index: 0,
+                  },
+                },
+              },
+            },
+          },
         },
-      );
+      };
+      const selector = selectBalancesByWallet('malformed-wallet');
 
-      const selector = selectBalancesByWallet(mockEntropySource);
-      const result = selector(mockState);
+      // Act
+      const result = selector(state);
 
-      expect(result.walletId).toBe(mockEntropySource);
-      expect(result.groups).toHaveLength(0);
-      expect(result.totalBalance).toBe(0);
-      expect(result.currency).toBe('USD');
-    });
-
-    it('returns the same reference when state has not changed', () => {
-      const selector = selectBalancesByWallet(mockEntropySource);
-      const result1 = selector(mockState);
-      const result2 = selector(mockState);
-
-      expect(result1).toBe(result2);
+      // Assert
+      expect(result).toStrictEqual({
+        walletId: 'malformed-wallet',
+        groups: [],
+        totalBalance: 0,
+        currency: 'USD',
+      });
     });
   });
+});
 
-  describe('selectBalancesForAllWallets', () => {
-    beforeEach(() => {
-      // Mock getMultichainAccountWallets to return multiple wallets
-      mockMultichainAccountService.getMultichainAccountWallets.mockReturnValue([
-        { entropySource: mockEntropySource }, // wallet with balance data
-        { entropySource: 'empty-wallet' }, // wallet with no balance data
-      ]);
-
-      // Mock getMultichainAccountGroups based on entropy source
-      mockMultichainAccountService.getMultichainAccountGroups.mockImplementation(
-        ({ entropySource }: { entropySource: string }) => {
-          if (entropySource === mockEntropySource) {
-            return [{ index: 0 }];
-          }
-          if (entropySource === 'empty-wallet') {
-            return [{ index: 0 }];
-          }
-          return [];
-        },
-      );
-
-      // Mock getMultichainAccountGroup to return accounts only for mockEntropySource
-      mockMultichainAccountService.getMultichainAccountGroup.mockImplementation(
-        ({
-          entropySource,
-          groupIndex,
-        }: {
-          entropySource: string;
-          groupIndex: number;
-        }) => {
-          if (entropySource === mockEntropySource && groupIndex === 0) {
-            return {
-              getAccounts: () => [
-                {
-                  id: 'evm-account-1',
-                  address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-                  type: 'eip155:eoa',
-                  metadata: { keyring: { type: 'HD Key Tree' } },
-                },
-                {
-                  id: 'evm-account-2',
-                  address: '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6',
-                  type: 'eip155:eoa',
-                  metadata: { keyring: { type: 'HD Key Tree' } },
-                },
-                {
-                  id: 'solana-account-1',
-                  address: 'So11111111111111111111111111111111111111112',
-                  type: 'bip122:000000000019d6689c085ae165831e93',
-                  metadata: { keyring: { type: 'Snap Keyring' } },
-                },
-              ],
-            };
-          }
-          return { getAccounts: () => [] };
-        },
-      );
-    });
-
-    it('returns exact balances for all wallets', () => {
+describe('selectBalancesForAllWallets', () => {
+  describe('when aggregating all wallets', () => {
+    it('returns balances for all wallets', () => {
+      // Arrange
+      const state = createMockState();
       const selector = selectBalancesForAllWallets();
-      const result = selector(mockState);
 
+      // Act
+      const result = selector(state);
+
+      // Assert
       expect(result).toHaveLength(2);
 
-      // First wallet (has balance data)
-      expect(result[0].walletId).toBe(mockEntropySource);
-      expect(result[0].groups).toHaveLength(1);
-      expect(result[0].groups[0].aggregatedBalance).toBe(16900);
-      expect(result[0].totalBalance).toBe(16900);
-      expect(result[0].currency).toBe('USD');
-
-      // Second wallet (empty)
-      expect(result[1].walletId).toBe('empty-wallet');
-      expect(result[1].groups).toHaveLength(1);
-      expect(result[1].groups[0].aggregatedBalance).toBe(0);
-      expect(result[1].totalBalance).toBe(0);
-      expect(result[1].currency).toBe('USD');
-    });
-
-    it('handles no wallets gracefully', () => {
-      // Override the mock to return no wallets
-      mockMultichainAccountService.getMultichainAccountWallets.mockReturnValue(
-        [],
+      const wallet1 = result.find(
+        (w) => w.walletId === 'entropy:entropy-source-1',
+      );
+      expect(wallet1).toStrictEqual(
+        expect.objectContaining({
+          walletId: 'entropy:entropy-source-1',
+          totalBalance: 9500, // $8000 + $1500
+          currency: 'USD',
+        }),
       );
 
-      const selector = selectBalancesForAllWallets();
-      const result = selector(mockState);
-
-      expect(result).toHaveLength(0);
-    });
-
-    it('handles service errors gracefully', () => {
-      // Mock getMultichainAccountWallets to throw an error
-      mockMultichainAccountService.getMultichainAccountWallets.mockImplementation(
-        () => {
-          throw new Error('Service error');
-        },
+      const wallet2 = result.find(
+        (w) => w.walletId === 'entropy:entropy-source-2',
       );
-
-      const selector = selectBalancesForAllWallets();
-      const result = selector(mockState);
-
-      expect(result).toHaveLength(0);
+      expect(wallet2).toStrictEqual(
+        expect.objectContaining({
+          walletId: 'entropy:entropy-source-2',
+          totalBalance: 40000, // 10 TOKA * 2 ETH * $2000/ETH
+          currency: 'USD',
+        }),
+      );
     });
 
-    it('returns the same reference when state has not changed', () => {
+    it('sorts wallets consistently', () => {
+      // Arrange
+      const state = createMockState();
       const selector = selectBalancesForAllWallets();
-      const result1 = selector(mockState);
-      const result2 = selector(mockState);
 
-      expect(result1).toBe(result2);
+      // Act
+      const result1 = selector(state);
+      const result2 = selector(state);
+
+      // Assert
+      expect(result1.map((w) => w.walletId)).toStrictEqual(
+        result2.map((w) => w.walletId),
+      );
     });
   });
 
-  describe('selectBalancesByCurrentlySelectedGroup', () => {
-    beforeEach(() => {
-      // Mock AccountsController to return a selected account
-      mockAccountsController.getSelectedMultichainAccount.mockReturnValue({
-        id: 'account-2',
-        options: { entropy: { id: mockEntropySource, groupIndex: 0 } },
-      });
+  describe('when handling edge cases', () => {
+    it('returns empty array when no wallets exist', () => {
+      // Arrange
+      const state = createEmptyState();
+      const selector = selectBalancesForAllWallets();
 
-      // Mock MultichainAccountService for the selected group
-      mockMultichainAccountService.getMultichainAccountGroup.mockReturnValue({
-        getAccounts: () => [
-          {
-            id: 'evm-account-1',
-            address: '0x742c15c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e5',
-            type: 'eip155:eoa',
-            metadata: { keyring: { type: 'HD Key Tree' } },
-          },
-          {
-            id: 'evm-account-2',
-            address: '0x8ba1c32e3d1f7ab24b9d1b7e6d8c19e2c3d4e6',
-            type: 'eip155:eoa',
-            metadata: { keyring: { type: 'HD Key Tree' } },
-          },
-          {
-            id: 'solana-account-1',
-            address: 'So11111111111111111111111111111111111111112',
-            type: 'bip122:000000000019d6689c085ae165831e93',
-            metadata: { keyring: { type: 'Snap Keyring' } },
-          },
-        ],
-      });
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toStrictEqual([]);
     });
 
+    it('handles malformed wallet data', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountTreeController: {
+          accountTree: {
+            selectedAccountGroup: '' as const,
+            wallets: {
+              'valid-wallet':
+                createMockState().AccountTreeController.accountTree.wallets[
+                  'entropy:entropy-source-1'
+                ],
+              'malformed-wallet': null,
+            },
+          },
+        },
+      };
+      const selector = selectBalancesForAllWallets();
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toHaveLength(2);
+      expect(result.some((w) => w.walletId === 'valid-wallet')).toBe(true);
+      expect(result.some((w) => w.walletId === 'malformed-wallet')).toBe(true);
+    });
+  });
+});
+
+describe('selectBalancesByCurrentlySelectedGroup', () => {
+  describe('when getting currently selected group balance', () => {
     it('returns balance for currently selected account group', () => {
+      // Arrange
+      const state = createMockState(); // account-1 is selected by default
       const selector = selectBalancesByCurrentlySelectedGroup();
-      const result = selector(mockState);
 
-      expect(result).not.toBeNull();
-      expect(result?.groupId).toBe(`${mockEntropySource}-0`);
-      expect(typeof result?.aggregatedBalance).toBe('number');
-      expect(result?.currency).toBe('USD');
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-0',
+        aggregatedBalance: 8000, // Group 0 balance
+        currency: 'USD',
+      });
     });
 
-    it('returns null when no account is selected', () => {
-      // Override the mock to return null (no selected account)
-      mockAccountsController.getSelectedMultichainAccount.mockReturnValue(null);
-
+    it('returns balance for different selected account', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountsController: {
+          ...createMockState().AccountsController,
+          internalAccounts: {
+            ...createMockState().AccountsController.internalAccounts,
+            selectedAccount: 'account-3', // Solana account in group 1
+          },
+        },
+      };
       const selector = selectBalancesByCurrentlySelectedGroup();
-      const result = selector(mockState);
 
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toStrictEqual({
+        groupId: 'entropy:entropy-source-1-1',
+        aggregatedBalance: 1500, // Solana group balance
+        currency: 'USD',
+      });
+    });
+  });
+
+  describe('when handling edge cases', () => {
+    it('returns null when no account is selected', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountsController: {
+          ...createMockState().AccountsController,
+          internalAccounts: {
+            ...createMockState().AccountsController.internalAccounts,
+            selectedAccount: '',
+          },
+        },
+      };
+      const selector = selectBalancesByCurrentlySelectedGroup();
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns null when selected account does not exist', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountsController: {
+          ...createMockState().AccountsController,
+          internalAccounts: {
+            ...createMockState().AccountsController.internalAccounts,
+            selectedAccount: 'non-existent-account',
+          },
+        },
+      };
+      const selector = selectBalancesByCurrentlySelectedGroup();
+
+      // Act
+      const result = selector(state);
+
+      // Assert
       expect(result).toBeNull();
     });
 
     it('returns null when selected account has no entropy', () => {
-      // Override the mock to return an account without entropy
-      mockAccountsController.getSelectedMultichainAccount.mockReturnValue({
-        id: 'account-1',
-        options: {}, // No entropy
-      });
-
-      const selector = selectBalancesByCurrentlySelectedGroup();
-      const result = selector(mockState);
-
-      expect(result).toBeNull();
-    });
-
-    it('handles service errors gracefully', () => {
-      // Mock AccountsController to throw an error
-      mockAccountsController.getSelectedMultichainAccount.mockImplementation(
-        () => {
-          throw new Error('Service error');
-        },
-      );
-
-      const selector = selectBalancesByCurrentlySelectedGroup();
-      const result = selector(mockState);
-
-      expect(result).toBeNull();
-    });
-
-    it('returns the same reference when state has not changed', () => {
-      const selector = selectBalancesByCurrentlySelectedGroup();
-      const result1 = selector(mockState);
-      const result2 = selector(mockState);
-
-      expect(result1).toBe(result2);
-    });
-
-    it('respects user selected currency', () => {
-      const eurState = {
-        ...mockState,
-        CurrencyRateController: {
-          currentCurrency: 'EUR',
-          currencyRates: {
-            ETH: {
-              conversionRate: 1800,
-              conversionDate: Date.now() / 1000,
-              usdConversionRate: 2000,
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountsController: {
+          ...createMockState().AccountsController,
+          internalAccounts: {
+            ...createMockState().AccountsController.internalAccounts,
+            accounts: {
+              ...createMockState().AccountsController.internalAccounts.accounts,
+              'account-1': {
+                ...createMockState().AccountsController.internalAccounts
+                  .accounts['account-1'],
+                options: {}, // No entropy
+              },
             },
           },
         },
       };
-
       const selector = selectBalancesByCurrentlySelectedGroup();
-      const result = selector(eurState);
 
-      expect(result?.currency).toBe('EUR');
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns null when selected account has malformed entropy', () => {
+      // Arrange
+      const state = {
+        ...createMockState(),
+        AccountsController: {
+          ...createMockState().AccountsController,
+          internalAccounts: {
+            ...createMockState().AccountsController.internalAccounts,
+            accounts: {
+              ...createMockState().AccountsController.internalAccounts.accounts,
+              'account-1': {
+                ...createMockState().AccountsController.internalAccounts
+                  .accounts['account-1'],
+                options: {
+                  // Malformed entropy - missing entropy property
+                },
+              },
+            },
+          },
+        },
+      };
+      const selector = selectBalancesByCurrentlySelectedGroup();
+
+      // Act
+      const result = selector(state);
+
+      // Assert
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('when testing memoization behavior', () => {
+    it('returns same reference when selected account unchanged', () => {
+      // Arrange
+      const state = createMockState();
+      const selector = selectBalancesByCurrentlySelectedGroup();
+
+      // Act
+      const result1 = selector(state);
+      const result2 = selector(state);
+
+      // Assert
+      expect(result1).toBe(result2);
+    });
+
+    it('returns different reference when selected account changes', () => {
+      // Arrange
+      const state1 = createMockState();
+      const state2 = {
+        ...state1,
+        AccountsController: {
+          ...state1.AccountsController,
+          internalAccounts: {
+            ...state1.AccountsController.internalAccounts,
+            selectedAccount: 'account-3',
+          },
+        },
+      };
+      const selector = selectBalancesByCurrentlySelectedGroup();
+
+      // Act
+      const result1 = selector(state1);
+      const result2 = selector(state2);
+
+      // Assert
+      expect(result1).not.toBe(result2);
+      expect(result1?.groupId).toBe('entropy:entropy-source-1-0');
+      expect(result2?.groupId).toBe('entropy:entropy-source-1-1');
     });
   });
 });
