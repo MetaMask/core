@@ -216,5 +216,5 @@ export type {
 export {
   selectAccountsMap,
   selectAllAssets,
-  selectAllAssetsByAccountId,
+  selectAllAssetsForSelectedAccountGroup,
 } from './token-selectors/token-selectors';

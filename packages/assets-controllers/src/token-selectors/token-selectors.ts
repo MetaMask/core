@@ -193,7 +193,7 @@ export const selectAllAssets = createSelector(
   },
 );
 
-export const selectAllAssetsByAccountId = createSelector(
+export const selectAllAssetsForSelectedAccountGroup = createSelector(
   [selectAllAssets, selectAccountTree],
   (groupAssets, accountTree) => {
     const { selectedAccountGroup } = accountTree;
