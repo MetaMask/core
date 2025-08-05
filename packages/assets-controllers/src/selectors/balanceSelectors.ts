@@ -173,6 +173,12 @@ export const selectBalanceByAccountGroup = (groupId: string) =>
 
                 const decimals = token.decimals || 18;
                 const balanceInSmallestUnit = parseInt(balance as string, 16);
+
+                // Skip invalid balance values to prevent NaN propagation
+                if (Number.isNaN(balanceInSmallestUnit)) {
+                  continue;
+                }
+
                 const balanceInTokenUnits =
                   balanceInSmallestUnit / Math.pow(10, decimals);
 
@@ -203,12 +209,23 @@ export const selectBalanceByAccountGroup = (groupId: string) =>
             )) {
               const balanceAmount = parseFloat(balanceData.amount);
 
+              // Skip invalid balance values to prevent NaN propagation
+              if (Number.isNaN(balanceAmount)) {
+                continue;
+              }
+
               // Get conversion rate for this asset
               const conversionRate =
                 multichainRatesState.conversionRates[assetId as CaipAssetType];
               if (conversionRate) {
-                const balanceInUSD =
-                  balanceAmount * parseFloat(conversionRate.rate);
+                const conversionRateValue = parseFloat(conversionRate.rate);
+
+                // Skip invalid conversion rate values to prevent NaN propagation
+                if (Number.isNaN(conversionRateValue)) {
+                  continue;
+                }
+
+                const balanceInUSD = balanceAmount * conversionRateValue;
                 totalBalanceInUSD += balanceInUSD;
               }
             }

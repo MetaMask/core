@@ -731,6 +731,36 @@ describe('selectors', () => {
         userCurrency: 'EUR',
       });
     });
+
+    it('handles malformed balance values gracefully by skipping them', () => {
+      const state = createMockState('USD');
+
+      // Add malformed balance data that would result in NaN
+      state.TokenBalancesController.tokenBalances['0x1'][
+        '0x1234567890123456789012345678901234567890'
+      ]['0xA0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] =
+        'invalid_hex_string' as `0x${string}`;
+
+      // Add another malformed balance for non-EVM account
+      state.MultichainBalancesController.balances['account-1'] = {
+        'eip155:1/slip44:60': {
+          amount: 'invalid_number',
+          unit: 'ETH',
+        },
+      };
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      // Should still return a valid result, skipping the malformed values
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groupId: 'entropy:entropy-source-1/0',
+        totalBalanceInUserCurrency: 4493.8, // Should be the same as valid case
+        userCurrency: 'USD',
+      });
+    });
   });
 
   describe('selectBalanceByWallet', () => {
