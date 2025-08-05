@@ -79,12 +79,11 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/account-api": "^0.1.0",
+    "@metamask/account-api": "^0.7.0",
     "@metamask/account-tree-controller": "^0.7.0",
     "@metamask/accounts-controller": "^32.0.1",
     "@metamask/approval-controller": "^7.1.3",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/base-controller": "^8.0.1",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-controller": "^22.1.0",
     "@metamask/keyring-internal-api": "^8.0.0",
