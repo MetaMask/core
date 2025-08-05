@@ -32,13 +32,9 @@ import {
   type KeyringControllerUnlockEvent,
   type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
-import {
-  saveInternalAccountToUserStorage,
-  syncInternalAccountsWithUserStorage,
-} from './account-syncing/controller-integration';
+import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
@@ -148,6 +144,12 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 type ControllerConfig = {
   env: Env;
   accountSyncing?: {
+    /**
+     * Defines the strategy to use for account syncing.
+     * If true, it will prevent any new push updates from being sent to the user storage.
+     * Multichain account syncing will be handled by `@metamask/account-tree-controller`.
+     */
+    getIsMultichainAccountSyncingEnabled?: () => boolean;
     maxNumberOfAccountsToAdd?: number;
     /**
      * Callback that fires when account sync adds an account.
@@ -212,6 +214,7 @@ type ActionsObj = CreateActionsObj<
   | 'performBatchDeleteStorage'
   | 'getStorageKey'
   | 'syncInternalAccountsWithUserStorage'
+  | 'getIsMultichainAccountSyncingEnabled'
 >;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -235,6 +238,8 @@ export type UserStorageControllerPerformBatchDeleteStorage =
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
 export type UserStorageControllerSyncInternalAccountsWithUserStorage =
   ActionsObj['syncInternalAccountsWithUserStorage'];
+export type UserStorageControllerGetIsMultichainAccountSyncingEnabled =
+  ActionsObj['getIsMultichainAccountSyncingEnabled'];
 
 export type AllowedActions =
   // Keyring Requests
@@ -481,6 +486,11 @@ export default class UserStorageController extends BaseController<
       'UserStorageController:syncInternalAccountsWithUserStorage',
       this.syncInternalAccountsWithUserStorage.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:getIsMultichainAccountSyncingEnabled',
+      this.getIsMultichainAccountSyncingEnabled.bind(this),
+    );
   }
 
   /**
@@ -612,6 +622,13 @@ export default class UserStorageController extends BaseController<
       nativeScryptCrypto: this.#nativeScryptCrypto,
       entropySourceId,
     });
+  }
+
+  public getIsMultichainAccountSyncingEnabled(): boolean {
+    return (
+      this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
+      false
+    );
   }
 
   /**
@@ -822,21 +839,6 @@ export default class UserStorageController extends BaseController<
       // istanbul ignore next
       console.error(e);
     }
-  }
-
-  /**
-   * Saves an individual internal account to the user storage.
-   *
-   * @param internalAccount - The internal account to save
-   */
-  async saveInternalAccountToUserStorage(
-    internalAccount: InternalAccount,
-  ): Promise<void> {
-    await saveInternalAccountToUserStorage(internalAccount, {
-      getMessenger: () => this.messagingSystem,
-      getUserStorageControllerInstance: () => this,
-      trace: this.#trace,
-    });
   }
 
   /**
