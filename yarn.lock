@@ -2884,7 +2884,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chain-agnostic-permission@npm:^1.1.0, @metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission":
+"@metamask/chain-agnostic-permission@npm:^1.0.0, @metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission":
   version: 0.0.0-use.local
   resolution: "@metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission"
   dependencies:
@@ -3106,7 +3106,7 @@ __metadata:
   resolution: "@metamask/eip1193-permission-middleware@workspace:packages/eip1193-permission-middleware"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/chain-agnostic-permission": "npm:^1.1.0"
+    "@metamask/chain-agnostic-permission": "npm:^1.0.0"
     "@metamask/controller-utils": "npm:^11.11.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
     "@metamask/permission-controller": "npm:^11.0.6"
@@ -3855,7 +3855,7 @@ __metadata:
   dependencies:
     "@metamask/api-specs": "npm:^0.14.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/chain-agnostic-permission": "npm:^1.1.0"
+    "@metamask/chain-agnostic-permission": "npm:^1.0.0"
     "@metamask/controller-utils": "npm:^11.11.0"
     "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
