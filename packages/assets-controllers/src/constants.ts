@@ -4,6 +4,7 @@ export enum Source {
   Detected = 'detected',
 }
 
+// TODO: delete this once we have the v4 endpoint for supported networks
 export const SUPPORTED_NETWORKS_ACCOUNTS_API_V4 = [
   '0x1', // 1
   '0x89', // 137

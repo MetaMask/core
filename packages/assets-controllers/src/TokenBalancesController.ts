@@ -28,7 +28,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { produce } from 'immer';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'lodash';
 
 import type { AccountTrackerUpdateNativeBalanceAction } from './AccountTrackerController';
 import {
@@ -42,10 +42,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
-// endregion
 
-// ────────────────────────────────────────────────────────────────────────────
-// region: Type aliases & constants
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
 
@@ -204,7 +201,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  // ───────── private helpers ─────────
   get #chainIdsWithTokens(): ChainIdHex[] {
     return [
       ...new Set([
