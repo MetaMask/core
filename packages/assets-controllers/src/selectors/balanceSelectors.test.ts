@@ -34,6 +34,8 @@ const createMockState = (userCurrency = 'USD'): RootState => ({
               accounts: ['account-1', 'account-2'],
               metadata: {
                 name: 'Group 0',
+                pinned: false,
+                hidden: false,
                 entropy: { groupIndex: 0 },
               },
             },
@@ -43,6 +45,8 @@ const createMockState = (userCurrency = 'USD'): RootState => ({
               accounts: ['account-3'],
               metadata: {
                 name: 'Group 1',
+                pinned: false,
+                hidden: false,
                 entropy: { groupIndex: 1 },
               },
             },
@@ -51,6 +55,8 @@ const createMockState = (userCurrency = 'USD'): RootState => ({
       },
       selectedAccountGroup: 'entropy:entropy-source-1/0',
     },
+    accountGroupsMetadata: {},
+    accountWalletsMetadata: {},
   },
   AccountsController: {
     internalAccounts: {
@@ -504,6 +510,8 @@ describe('selectors', () => {
         accounts: ['account-5', 'account-6'],
         metadata: {
           name: 'Non-EVM Group',
+          pinned: false,
+          hidden: false,
           entropy: { groupIndex: 2 },
         },
       };
@@ -607,6 +615,8 @@ describe('selectors', () => {
         accounts: ['account-5', 'account-6'],
         metadata: {
           name: 'Non-EVM Group',
+          pinned: false,
+          hidden: false,
           entropy: { groupIndex: 2 },
         },
       };
