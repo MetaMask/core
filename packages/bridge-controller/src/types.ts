@@ -175,6 +175,7 @@ export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
 export type FeatureFlagResponse = Infer<typeof PlatformConfigSchema>;
 
+// TODO move definition to validators.ts
 /**
  * This is the interface for the quote request sent to the bridge-api
  * and should only be used by the fetchBridgeQuotes utility function
