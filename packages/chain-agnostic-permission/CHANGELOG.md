@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update accounts deps ([#6146](https://github.com/MetaMask/core/pull/6146))
+
 ### Added
 
 - Added `getCaip25PermissionFromLegacyPermissions` and `requestPermittedChainsPermissionIncremental` misc functions. ([#6225](https://github.com/MetaMask/core/pull/6225))
