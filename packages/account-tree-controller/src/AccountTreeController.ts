@@ -25,6 +25,14 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
+    accountGroupsMetadata: {
+      persist: true,
+      anonymous: false,
+    },
+    accountWalletsMetadata: {
+      persist: true,
+      anonymous: false,
+    },
   };
 
 /**
@@ -38,6 +46,8 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
+    accountGroupsMetadata: {},
+    accountWalletsMetadata: {},
   };
 }
 
@@ -62,6 +72,8 @@ export class AccountTreeController extends BaseController<
   AccountTreeControllerMessenger
 > {
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
+
+  readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
@@ -91,6 +103,9 @@ export class AccountTreeController extends BaseController<
 
     // Reverse map to allow fast node access from an account ID.
     this.#accountIdToContext = new Map();
+
+    // Reverse map to allow fast wallet node access from a group ID.
+    this.#groupIdToWalletId = new Map();
 
     // Rules to apply to construct the wallets tree.
     this.#rules = [
@@ -129,17 +144,21 @@ export class AccountTreeController extends BaseController<
   init() {
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
+    // Clear mappings for fresh rebuild
+    this.#accountIdToContext.clear();
+    this.#groupIdToWalletId.clear();
+
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
       this.#insert(wallets, account);
     }
 
-    // Once we have the account tree, we can compute the name.
+    // Once we have the account tree, we can apply persisted metadata (names + UI states).
     for (const wallet of Object.values(wallets)) {
-      this.#renameAccountWalletIfNeeded(wallet);
+      this.#applyAccountWalletMetadata(wallet);
 
       for (const group of Object.values(wallet.groups)) {
-        this.#renameAccountGroupIfNeeded(wallet, group);
+        this.#applyAccountGroupMetadata(wallet, group);
       }
     }
 
@@ -166,46 +185,62 @@ export class AccountTreeController extends BaseController<
     return this.#rules[2];
   }
 
-  #renameAccountWalletIfNeeded(wallet: AccountWalletObject) {
-    if (wallet.metadata.name) {
-      return;
-    }
+  #applyAccountWalletMetadata(wallet: AccountWalletObject) {
+    const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
 
-    if (wallet.type === AccountWalletType.Entropy) {
-      wallet.metadata.name =
-        this.#getEntropyRule().getDefaultAccountWalletName(wallet);
-    } else if (wallet.type === AccountWalletType.Snap) {
-      wallet.metadata.name =
-        this.#getSnapRule().getDefaultAccountWalletName(wallet);
-    } else {
-      wallet.metadata.name =
-        this.#getKeyringRule().getDefaultAccountWalletName(wallet);
+    // Apply persisted name if available (including empty strings)
+    if (persistedMetadata?.name !== undefined) {
+      wallet.metadata.name = persistedMetadata.name.value;
+    } else if (!wallet.metadata.name) {
+      // Generate default name if none exists
+      if (wallet.type === AccountWalletType.Entropy) {
+        wallet.metadata.name =
+          this.#getEntropyRule().getDefaultAccountWalletName(wallet);
+      } else if (wallet.type === AccountWalletType.Snap) {
+        wallet.metadata.name =
+          this.#getSnapRule().getDefaultAccountWalletName(wallet);
+      } else {
+        wallet.metadata.name =
+          this.#getKeyringRule().getDefaultAccountWalletName(wallet);
+      }
     }
   }
 
-  #renameAccountGroupIfNeeded(
+  #applyAccountGroupMetadata(
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ) {
-    if (group.metadata.name) {
-      return;
+    const persistedMetadata = this.state.accountGroupsMetadata[group.id];
+
+    // Apply persisted name if available (including empty strings)
+    if (persistedMetadata?.name !== undefined) {
+      group.metadata.name = persistedMetadata.name.value;
+    } else if (!group.metadata.name) {
+      // Generate default name if none exists
+      if (wallet.type === AccountWalletType.Entropy) {
+        group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
+          // Get the group from the wallet, to get the proper type inference.
+          wallet.groups[group.id],
+        );
+      } else if (wallet.type === AccountWalletType.Snap) {
+        group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
+          // Same here.
+          wallet.groups[group.id],
+        );
+      } else {
+        group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
+          // Same here.
+          wallet.groups[group.id],
+        );
+      }
     }
 
-    if (wallet.type === AccountWalletType.Entropy) {
-      group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
-        // Get the group from the wallet, to get the proper type inference.
-        wallet.groups[group.id],
-      );
-    } else if (wallet.type === AccountWalletType.Snap) {
-      group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
-        // Same here.
-        wallet.groups[group.id],
-      );
-    } else {
-      group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
-        // Same here.
-        wallet.groups[group.id],
-      );
+    // Apply persisted UI states
+    if (persistedMetadata?.pinned?.value !== undefined) {
+      group.metadata.pinned = persistedMetadata.pinned.value;
+    }
+    if (persistedMetadata?.hidden?.value !== undefined) {
+      group.metadata.hidden = persistedMetadata.hidden.value;
     }
   }
 
@@ -234,11 +269,11 @@ export class AccountTreeController extends BaseController<
 
         const wallet = state.accountTree.wallets[walletId];
         if (wallet) {
-          this.#renameAccountWalletIfNeeded(wallet);
+          this.#applyAccountWalletMetadata(wallet);
 
           const group = wallet.groups[groupId];
           if (group) {
-            this.#renameAccountGroupIfNeeded(wallet, group);
+            this.#applyAccountGroupMetadata(wallet, group);
           }
         }
       }
@@ -341,12 +376,16 @@ export class AccountTreeController extends BaseController<
         accounts: [account.id],
         metadata: {
           name: '',
-          ...result.group.metadata,
+          ...{ pinned: false, hidden: false }, // Default UI states
+          ...result.group.metadata, // Allow rules to override defaults
         },
         // We do need to type-cast since we're not narrowing `result` with
         // the union tag `result.group.type`.
       } as AccountGroupObject;
       group = wallet.groups[groupId];
+
+      // Map group ID to its containing wallet ID for efficient direct access
+      this.#groupIdToWalletId.set(groupId, walletId);
     } else {
       group.accounts.push(account.id);
     }
@@ -362,6 +401,32 @@ export class AccountTreeController extends BaseController<
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
     );
+  }
+
+  /**
+   * Asserts that a group exists in the current account tree.
+   *
+   * @param groupId - The account group ID to validate.
+   * @throws Error if the group does not exist.
+   */
+  #assertAccountGroupExists(groupId: AccountGroupId): void {
+    const exists = this.#groupIdToWalletId.has(groupId);
+    if (!exists) {
+      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+    }
+  }
+
+  /**
+   * Asserts that a wallet exists in the current account tree.
+   *
+   * @param walletId - The account wallet ID to validate.
+   * @throws Error if the wallet does not exist.
+   */
+  #assertAccountWalletExists(walletId: AccountWalletId): void {
+    const exists = Boolean(this.state.accountTree.wallets[walletId]);
+    if (!exists) {
+      throw new Error(`Account wallet with ID "${walletId}" not found in tree`);
+    }
   }
 
   /**
@@ -542,6 +607,114 @@ export class AccountTreeController extends BaseController<
       }
     }
     return candidate;
+  }
+
+  /**
+   * Sets a custom name for an account group.
+   *
+   * @param groupId - The account group ID.
+   * @param name - The custom name to set.
+   * @throws If the account group ID is not found in the current tree.
+   */
+  setAccountGroupName(groupId: AccountGroupId, name: string): void {
+    // Validate that the group exists in the current tree
+    this.#assertAccountGroupExists(groupId);
+
+    this.update((state) => {
+      // Update persistent metadata
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].name = {
+        value: name,
+        lastUpdatedAt: Date.now(),
+      };
+
+      // Update tree node directly using efficient mapping
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+          name;
+      }
+    });
+  }
+
+  /**
+   * Sets a custom name for an account wallet.
+   *
+   * @param walletId - The account wallet ID.
+   * @param name - The custom name to set.
+   * @throws If the account wallet ID is not found in the current tree.
+   */
+  setAccountWalletName(walletId: AccountWalletId, name: string): void {
+    // Validate that the wallet exists in the current tree
+    this.#assertAccountWalletExists(walletId);
+
+    this.update((state) => {
+      // Update persistent metadata
+      state.accountWalletsMetadata[walletId] ??= {};
+      state.accountWalletsMetadata[walletId].name = {
+        value: name,
+        lastUpdatedAt: Date.now(),
+      };
+
+      // Update tree node directly
+      state.accountTree.wallets[walletId].metadata.name = name;
+    });
+  }
+
+  /**
+   * Toggles the pinned state of an account group.
+   *
+   * @param groupId - The account group ID.
+   * @param pinned - Whether the group should be pinned.
+   * @throws If the account group ID is not found in the current tree.
+   */
+  setAccountGroupPinned(groupId: AccountGroupId, pinned: boolean): void {
+    // Validate that the group exists in the current tree
+    this.#assertAccountGroupExists(groupId);
+
+    this.update((state) => {
+      // Update persistent metadata
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].pinned = {
+        value: pinned,
+        lastUpdatedAt: Date.now(),
+      };
+
+      // Update tree node directly using efficient mapping
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[groupId].metadata.pinned =
+          pinned;
+      }
+    });
+  }
+
+  /**
+   * Toggles the hidden state of an account group.
+   *
+   * @param groupId - The account group ID.
+   * @param hidden - Whether the group should be hidden.
+   * @throws If the account group ID is not found in the current tree.
+   */
+  setAccountGroupHidden(groupId: AccountGroupId, hidden: boolean): void {
+    // Validate that the group exists in the current tree
+    this.#assertAccountGroupExists(groupId);
+
+    this.update((state) => {
+      // Update persistent metadata
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].hidden = {
+        value: hidden,
+        lastUpdatedAt: Date.now(),
+      };
+
+      // Update tree node directly using efficient mapping
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[groupId].metadata.hidden =
+          hidden;
+      }
+    });
   }
 
   /**

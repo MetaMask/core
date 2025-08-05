@@ -31,6 +31,14 @@ export async function saveInternalAccountToUserStorage(
     const { getUserStorageControllerInstance } = options;
 
     if (
+      getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+    ) {
+      // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+      // AccountTreeController handles proper multichain account syncing
+      return;
+    }
+
+    if (
       !canPerformAccountSyncing(options) ||
       internalAccount.metadata.keyring.type !== String(KeyringTypes.hd) // sync only EVM accounts until we support multichain accounts
     ) {
@@ -85,6 +93,13 @@ export async function saveInternalAccountsListToUserStorage(
   entropySourceId: string,
 ): Promise<void> {
   const { getUserStorageControllerInstance } = options;
+  if (
+    getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+  ) {
+    // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+    // AccountTreeController handles proper multichain account syncing
+    return;
+  }
 
   const internalAccountsList = await getInternalAccountsList(
     options,
@@ -324,14 +339,20 @@ export async function syncInternalAccountsWithUserStorage(
 
       // Save the internal accounts list to the user storage
       if (internalAccountsToBeSavedToUserStorage.length) {
-        await getUserStorageControllerInstance().performBatchSetStorage(
-          USER_STORAGE_FEATURE_NAMES.accounts,
-          internalAccountsToBeSavedToUserStorage.map((account) => [
-            account.address,
-            JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
-          ]),
-          entropySourceId,
-        );
+        if (
+          !getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+        ) {
+          // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+          // AccountTreeController handles proper multichain account syncing
+          await getUserStorageControllerInstance().performBatchSetStorage(
+            USER_STORAGE_FEATURE_NAMES.accounts,
+            internalAccountsToBeSavedToUserStorage.map((account) => [
+              account.address,
+              JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+            ]),
+            entropySourceId,
+          );
+        }
       }
 
       // In case we have corrupted user storage with accounts that don't exist in the internal accounts list
@@ -342,22 +363,28 @@ export async function syncInternalAccountsWithUserStorage(
       );
 
       if (userStorageAccountsToBeDeleted.length) {
-        await getUserStorageControllerInstance().performBatchDeleteStorage(
-          USER_STORAGE_FEATURE_NAMES.accounts,
-          userStorageAccountsToBeDeleted.map((account) => account.a),
-          entropySourceId,
-        );
-        erroneousSituationsFound = true;
-        onAccountSyncErroneousSituation?.(
-          'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
-          {
-            userStorageAccountsToBeDeleted,
-            internalAccountsList,
-            refreshedInternalAccountsList,
-            internalAccountsToBeSavedToUserStorage,
-            userStorageAccountsList,
-          },
-        );
+        if (
+          !getUserStorageControllerInstance().getIsMultichainAccountSyncingEnabled()
+        ) {
+          // If multichain account syncing is enabled, we do not push account syncing V1 data anymore.
+          // AccountTreeController handles proper multichain account syncing
+          await getUserStorageControllerInstance().performBatchDeleteStorage(
+            USER_STORAGE_FEATURE_NAMES.accounts,
+            userStorageAccountsToBeDeleted.map((account) => account.a),
+            entropySourceId,
+          );
+          erroneousSituationsFound = true;
+          onAccountSyncErroneousSituation?.(
+            'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
+            {
+              userStorageAccountsToBeDeleted,
+              internalAccountsList,
+              refreshedInternalAccountsList,
+              internalAccountsToBeSavedToUserStorage,
+              userStorageAccountsList,
+            },
+          );
+        }
       }
 
       if (erroneousSituationsFound) {
