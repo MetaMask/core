@@ -51,6 +51,7 @@
     { "path": "./packages/seedless-onboarding-controller/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
+    { "path": "./packages/subscription-controller/tsconfig.build.json" },
     {
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
