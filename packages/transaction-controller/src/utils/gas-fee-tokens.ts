@@ -17,6 +17,7 @@ import {
   type SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
+import type { GetSimulationConfig } from '../types';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 
@@ -28,6 +29,7 @@ export type GetGasFeeTokensRequest = {
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
   transactionMeta: TransactionMeta;
+  getSimulationConfig?: GetSimulationConfig;
 };
 
 /**
@@ -39,6 +41,7 @@ export type GetGasFeeTokensRequest = {
  * @param request.messenger - The messenger instance.
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
  * @param request.transactionMeta - The transaction metadata.
+ * @param request.getSimulationConfig - Optional transaction simulation parameters.
  * @returns An array of gas fee tokens.
  */
 export async function getGasFeeTokens({
@@ -47,6 +50,7 @@ export async function getGasFeeTokens({
   messenger,
   publicKeyEIP7702,
   transactionMeta,
+  getSimulationConfig,
 }: GetGasFeeTokensRequest) {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
@@ -95,6 +99,7 @@ export async function getGasFeeTokens({
         withFeeTransfer: true,
         with7702,
       },
+      getSimulationConfig,
     });
 
     log('Response', response);

@@ -122,6 +122,7 @@ import type {
   BeforeSignHook,
   TransactionContainerType,
   NestedTransactionMetadata,
+  GetSimulationConfig,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -450,6 +451,11 @@ export type TransactionControllerOptions = {
     ) => Promise<{ transactionHash: string }>;
     publishBatch?: PublishBatchHook;
   };
+
+  /**
+   * Optional parameters for the transaction simulation.
+   */
+  getSimulationConfig?: GetSimulationConfig;
 };
 
 /**
@@ -798,6 +804,8 @@ export class TransactionController extends BaseController<
 
   readonly #securityProviderRequest?: SecurityProviderRequest;
 
+  readonly #getSimulationConfig?: GetSimulationConfig;
+
   readonly #sign?: (
     transaction: TypedTransaction,
     from: string,
@@ -843,6 +851,7 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702,
       securityProviderRequest,
       sign,
+      getSimulationConfig,
       state,
       testGasFeeFlows,
       trace,
@@ -899,6 +908,7 @@ export class TransactionController extends BaseController<
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
     this.#publishBatchHook = hooks?.publishBatch;
     this.#securityProviderRequest = securityProviderRequest;
+    this.#getSimulationConfig = getSimulationConfig;
     this.#sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
@@ -4198,6 +4208,7 @@ export class TransactionController extends BaseController<
             ethQuery: this.#getEthQuery({ networkClientId }),
             nestedTransactions,
             txParams,
+            getSimulationConfig: this.#getSimulationConfig,
           }),
       );
 
@@ -4218,6 +4229,7 @@ export class TransactionController extends BaseController<
         messenger: this.messagingSystem,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
+        getSimulationConfig: this.#getSimulationConfig,
       });
       gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
       isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
