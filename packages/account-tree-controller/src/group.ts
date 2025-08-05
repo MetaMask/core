@@ -6,8 +6,28 @@ import type { AccountGroup, AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 import type { AccountTreeControllerMessenger } from './types';
 import type { AccountTreeWallet } from './wallet';
+
+/**
+ * Persisted metadata for account groups (stored in controller state for persistence/sync).
+ */
+export type AccountTreeGroupPersistedMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: UpdatableField<string>;
+  /** Whether this group is pinned in the UI */
+  pinned?: UpdatableField<boolean>;
+  /** Whether this group is hidden in the UI */
+  hidden?: UpdatableField<boolean>;
+};
+
+/**
+ * Tree metadata for account groups (required plain values extracted from persisted metadata).
+ */
+export type AccountTreeGroupMetadata = Required<
+  ExtractFieldValues<AccountTreeGroupPersistedMetadata>
+>;
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
@@ -21,9 +41,7 @@ type IsAccountGroupObject<
     type: AccountGroupType;
     id: AccountGroupId;
     accounts: AccountId[];
-    metadata: {
-      name: string;
-    };
+    metadata: AccountTreeGroupMetadata;
   },
 > = Type;
 
@@ -35,8 +53,7 @@ export type AccountGroupMultichainAccountObject = {
   id: MultichainAccountGroupId;
   // Blockchain Accounts (at least 1 account per multichain-accounts):
   accounts: [AccountId, ...AccountId[]];
-  metadata: {
-    name: string;
+  metadata: AccountTreeGroupMetadata & {
     entropy: {
       groupIndex: number;
     };
@@ -51,9 +68,7 @@ export type AccountGroupSingleAccountObject = {
   id: AccountGroupId;
   // Blockchain Accounts (1 account per group):
   accounts: [AccountId];
-  metadata: {
-    name: string;
-  };
+  metadata: AccountTreeGroupMetadata;
 };
 
 /**

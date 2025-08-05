@@ -507,6 +507,59 @@ describe('MultichainAccountService', () => {
     });
   });
 
+  describe('createNextMultichainAccount', () => {
+    it('creates the next multichain account group', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service } = setup({ accounts: [mockEvmAccount] });
+
+      const nextGroup = await service.createNextMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      });
+      expect(nextGroup.index).toBe(1);
+      // NOTE: There won't be any account for this group, since we're not
+      // mocking the providers.
+    });
+  });
+
+  describe('createMultichainAccountGroup', () => {
+    it('creates a multichain account group with the given group index', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+
+      const { service } = setup({
+        accounts: [mockEvmAccount, mockSolAccount],
+      });
+
+      const firstGroup = await service.createMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      const secondGroup = await service.createMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      });
+
+      expect(firstGroup.index).toBe(0);
+      expect(firstGroup.getAccounts()).toHaveLength(1);
+      expect(firstGroup.getAccounts()[0]).toStrictEqual(mockEvmAccount);
+
+      expect(secondGroup.index).toBe(1);
+      expect(secondGroup.getAccounts()).toHaveLength(1);
+      expect(secondGroup.getAccounts()[0]).toStrictEqual(mockSolAccount);
+    });
+  });
+
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -549,6 +602,36 @@ describe('MultichainAccountService', () => {
         'MultichainAccountService:getMultichainAccountWallets',
       );
       expect(wallets.length).toBeGreaterThan(0);
+    });
+
+    it('create the next multichain account group with MultichainAccountService:createNextMultichainAccountGroup', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const nextGroup = await messenger.call(
+        'MultichainAccountService:createNextMultichainAccountGroup',
+        { entropySource: MOCK_HD_KEYRING_1.metadata.id },
+      );
+      expect(nextGroup.index).toBe(1);
+      // NOTE: There won't be any account for this group, since we're not
+      // mocking the providers.
+    });
+
+    it('creates a multichain account group with MultichainAccountService:createMultichainAccountGroup', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1];
+      const { messenger } = setup({ accounts });
+
+      const firstGroup = await messenger.call(
+        'MultichainAccountService:createMultichainAccountGroup',
+        {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        },
+      );
+
+      expect(firstGroup.index).toBe(0);
+      expect(firstGroup.getAccounts()).toHaveLength(1);
+      expect(firstGroup.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
     });
   });
 });

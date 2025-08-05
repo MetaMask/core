@@ -71,7 +71,10 @@ export class SnapRule
       group: {
         type: this.groupType,
         id: groupId,
-        metadata: {},
+        metadata: {
+          pinned: false,
+          hidden: false,
+        },
       },
     };
   }

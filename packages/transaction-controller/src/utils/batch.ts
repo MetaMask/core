@@ -410,8 +410,9 @@ async function addTransactionBatchWithHook(
   const {
     from,
     networkClientId,
+    origin,
     requireApproval,
-    transactions: nestedTransactions,
+    transactions: requestedTransactions,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -455,6 +456,10 @@ async function addTransactionBatchWithHook(
 
   let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
+  const nestedTransactions = requestedTransactions.map((tx) => ({
+    ...tx,
+    origin,
+  }));
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
@@ -551,7 +556,8 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, params, type } = nestedTransaction;
+  const { assetsFiatValues, existingTransaction, params, type } =
+    nestedTransaction;
 
   const {
     addTransaction,
@@ -560,7 +566,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId } = userRequest;
+  const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish, signedTransaction } = existingTransaction;
@@ -602,9 +608,11 @@ async function processTransactionWithHook(
   const { transactionMeta } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
+      assetsFiatValues,
       batchId,
       disableGasBuffer: true,
       networkClientId,
+      origin,
       publishHook,
       requireApproval: false,
       type,
