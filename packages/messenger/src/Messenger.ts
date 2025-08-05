@@ -108,7 +108,7 @@ type DelegatedMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > = Pick<
-  Messenger<string, Action, Event>,
+  Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
   | '_internalPublishDelegated'
   | '_internalRegisterDelegatedActionHandler'
   | '_internalRegisterDelegatedInitialEventPayload'
@@ -735,7 +735,7 @@ export class Messenger<
    */
   _internalRegisterDelegatedActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-    handler: ActionHandler<Action, ActionType>,
+    handler: ActionHandler<ActionConstraint, ActionType>,
   ) {
     this.#registerActionHandler(actionType, handler);
   }
