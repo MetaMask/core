@@ -305,12 +305,43 @@ export class AccountTreeController extends BaseController<
                 this.#getDefaultAccountGroupId(state.accountTree.wallets);
             }
           }
+          if (accounts.length === 0) {
+            this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
+          }
         }
       });
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
     }
+  }
+
+  /**
+   * Helper method to prune a group if it holds no accounts and additionally
+   * prune the wallet if it holds no groups. This action should take place
+   * after a singular account removal.
+   *
+   * NOTE: This method should only be used for a group that we know to be empty.
+   *
+   * @param state - The AccountTreeController state to prune.
+   * @param walletId - The wallet ID to prune, the wallet should be the parent of the associated group that holds the removed account.
+   * @param groupId - The group ID to prune, the group should be the parent of the associated account that was removed.
+   * @returns The updated state.
+   */
+  #pruneEmptyGroupAndWallet(
+    state: AccountTreeControllerState,
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
+  ) {
+    const { wallets } = state.accountTree;
+
+    delete wallets[walletId].groups[groupId];
+    this.#groupIdToWalletId.delete(groupId);
+
+    if (Object.keys(wallets[walletId].groups).length === 0) {
+      delete wallets[walletId];
+    }
+    return state;
   }
 
   #insert(

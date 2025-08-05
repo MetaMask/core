@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountGroupObject`.
 - Add `group.metadata` metadata object ([#6214](https://github.com/MetaMask/core/pull/6214))
   - Given the `group.type` you will now have access to specific metadata information (e.g. `groupIndex` for multichain account groups)
+- Automatically prune empty groups and wallets upon account removal ([#6234](https://github.com/MetaMask/core/pull/6234))
+  - This ensures that there aren't any empty nodes in the `AccountTreeController` state.
 
 ### Changed
 
