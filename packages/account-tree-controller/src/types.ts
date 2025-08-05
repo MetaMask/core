@@ -31,12 +31,12 @@ import type {
 
 // Backward compatibility aliases using indexed access types
 /**
- * @deprecated Use AccountGroupTreeMetadata for tree objects or AccountGroupPersistedMetadata for controller state
+ * @deprecated Use AccountTreeGroupMetadata for tree objects or AccountGroupPersistedMetadata for controller state
  */
 export type AccountGroupMetadata = AccountGroupObject['metadata'];
 
 /**
- * @deprecated Use AccountWalletTreeMetadata for tree objects or AccountWalletPersistedMetadata for controller state
+ * @deprecated Use AccountTreeWalletMetadata for tree objects or AccountWalletPersistedMetadata for controller state
  */
 export type AccountWalletMetadata = AccountWalletObject['metadata'];
 

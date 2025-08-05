@@ -47,7 +47,7 @@ type IsAccountWalletObject<
     groups: {
       [groupId: AccountGroupId]: AccountGroupObject;
     };
-    metadata: AccountWalletTreeMetadata;
+    metadata: AccountTreeWalletMetadata;
   },
 > = Type;
 
@@ -64,7 +64,7 @@ export type AccountWalletEntropyObject = {
     // unsafe... So we keep it as a `AccountGroupId` for now.
     [groupId: AccountGroupId]: AccountGroupMultichainAccountObject;
   };
-  metadata: AccountWalletTreeMetadata & {
+  metadata: AccountTreeWalletMetadata & {
     entropy: {
       id: EntropySourceId;
       index: number;
@@ -81,7 +81,7 @@ export type AccountWalletSnapObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: AccountWalletTreeMetadata & {
+  metadata: AccountTreeWalletMetadata & {
     snap: {
       id: SnapId;
     };
@@ -97,7 +97,7 @@ export type AccountWalletKeyringObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: AccountWalletTreeMetadata & {
+  metadata: AccountTreeWalletMetadata & {
     keyring: {
       type: KeyringTypes;
     };

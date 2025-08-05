@@ -43,7 +43,7 @@ type IsAccountGroupObject<
     type: AccountGroupType;
     id: AccountGroupId;
     accounts: AccountId[];
-    metadata: AccountGroupTreeMetadata;
+    metadata: AccountTreeGroupMetadata;
   },
 > = Type;
 
@@ -55,7 +55,7 @@ export type AccountGroupMultichainAccountObject = {
   id: MultichainAccountGroupId;
   // Blockchain Accounts (at least 1 account per multichain-accounts):
   accounts: [AccountId, ...AccountId[]];
-  metadata: AccountGroupTreeMetadata & {
+  metadata: AccountTreeGroupMetadata & {
     entropy: {
       groupIndex: number;
     };
@@ -70,7 +70,7 @@ export type AccountGroupSingleAccountObject = {
   id: AccountGroupId;
   // Blockchain Accounts (1 account per group):
   accounts: [AccountId];
-  metadata: AccountGroupTreeMetadata;
+  metadata: AccountTreeGroupMetadata;
 };
 
 /**
