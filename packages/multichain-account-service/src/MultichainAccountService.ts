@@ -101,6 +101,10 @@ export class MultichainAccountService {
       'MultichainAccountService:createNextMultichainAccountGroup',
       (...args) => this.createNextMultichainAccountGroup(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:createMultichainAccountGroup',
+      (...args) => this.createMultichainAccountGroup(...args),
+    );
   }
 
   /**
@@ -325,5 +329,25 @@ export class MultichainAccountService {
     return await this.#getWallet(
       entropySource,
     ).createNextMultichainAccountGroup();
+  }
+
+  /**
+   * Creates a multichain account group.
+   *
+   * @param options - Options.
+   * @param options.groupIndex - The group index to use.
+   * @param options.entropySource - The wallet's entropy source.
+   * @returns The multichain account group for this group index.
+   */
+  async createMultichainAccountGroup({
+    groupIndex,
+    entropySource,
+  }: {
+    groupIndex: number;
+    entropySource: EntropySourceId;
+  }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
+    return await this.#getWallet(entropySource).createMultichainAccountGroup(
+      groupIndex,
+    );
   }
 }
