@@ -13,6 +13,7 @@ const log = createModuleLogger(projectLogger, 'simulation-api');
 
 const RPC_METHOD = 'infura_simulateTransactions';
 const BASE_URL = 'https://tx-sentinel-{0}.api.cx.metamask.io/';
+const BASE_URL_SHIELD = 'https://tx-sentinel-shield-{0}.api.cx.metamask.io/';
 const ENDPOINT_NETWORKS = 'networks';
 
 /** Single transaction to simulate in a simulation API request.  */
@@ -301,9 +302,13 @@ export async function simulateTransactions(
  * Get the URL for the transaction simulation API.
  *
  * @param chainId - The chain ID to get the URL for.
+ * @param isShieldEnabled - Whether the transaction shield is enabled.
  * @returns The URL for the transaction simulation API.
  */
-async function getSimulationUrl(chainId: Hex): Promise<string> {
+async function getSimulationUrl(
+  chainId: Hex,
+  isShieldEnabled: () => Promise<boolean> = async () => false,
+): Promise<string> {
   const networkData = await getNetworkData();
   const chainIdDecimal = convertHexToDecimal(chainId);
   const network = networkData[chainIdDecimal];
@@ -313,7 +318,7 @@ async function getSimulationUrl(chainId: Hex): Promise<string> {
     throw new SimulationChainNotSupportedError(chainId);
   }
 
-  return getUrl(network.network);
+  return getUrl(network.network, await isShieldEnabled());
 }
 
 /**
@@ -331,10 +336,12 @@ async function getNetworkData(): Promise<SimulationNetworkResponse> {
  * Generate the URL for the specified subdomain in the simulation API.
  *
  * @param subdomain - The subdomain to generate the URL for.
+ * @param isShieldEnabled - Whether the transaction shield is enabled.
  * @returns The URL for the transaction simulation API.
  */
-function getUrl(subdomain: string): string {
-  return BASE_URL.replace('{0}', subdomain);
+function getUrl(subdomain: string, isShieldEnabled: boolean = false): string {
+  const baseUrl = isShieldEnabled ? BASE_URL_SHIELD : BASE_URL;
+  return baseUrl.replace('{0}', subdomain);
 }
 
 /**
