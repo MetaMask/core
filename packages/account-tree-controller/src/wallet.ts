@@ -15,7 +15,23 @@ import type {
   AccountGroupSingleAccountObject,
 } from './group';
 import { AccountTreeGroup } from './group';
+import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 import { type AccountTreeControllerMessenger } from './types';
+
+/**
+ * Persisted metadata for account wallets (stored in controller state for persistence/sync).
+ */
+export type AccountTreeWalletPersistedMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: UpdatableField<string>;
+};
+
+/**
+ * Tree metadata for account wallets (required plain values extracted from persisted metadata).
+ */
+export type AccountTreeWalletMetadata = Required<
+  ExtractFieldValues<AccountTreeWalletPersistedMetadata>
+>;
 
 /**
  * Type constraint for a {@link AccountGroupObject}. If one of its union-members
@@ -29,9 +45,7 @@ type IsAccountWalletObject<
     groups: {
       [groupId: AccountGroupId]: AccountGroupObject;
     };
-    metadata: {
-      name: string;
-    };
+    metadata: AccountTreeWalletMetadata;
   },
 > = Type;
 
@@ -48,8 +62,7 @@ export type AccountWalletEntropyObject = {
     // unsafe... So we keep it as a `AccountGroupId` for now.
     [groupId: AccountGroupId]: AccountGroupMultichainAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountTreeWalletMetadata & {
     entropy: {
       id: EntropySourceId;
       index: number;
@@ -66,8 +79,7 @@ export type AccountWalletSnapObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountTreeWalletMetadata & {
     snap: {
       id: SnapId;
     };
@@ -83,8 +95,7 @@ export type AccountWalletKeyringObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountTreeWalletMetadata & {
     keyring: {
       type: KeyringTypes;
     };

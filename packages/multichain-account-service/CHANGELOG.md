@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add multichain account group creation support ([#6222](https://github.com/MetaMask/core/pull/6222))
-  - This also includes the new action `MultichainAccountService:createNextMultichainAccount`.
+- Allow custom account providers ([#6231](https://github.com/MetaMask/core/pull/6231))
+  - You can now pass an extra option `providers` in the service's constructor.
+- Add multichain account group creation support ([#6222](https://github.com/MetaMask/core/pull/6222)), ([#6238](https://github.com/MetaMask/core/pull/6238)), ([#6240](https://github.com/MetaMask/core/pull/6240))
+  - This includes the new actions `MultichainAccountService:createNextMultichainAccountGroup` and `MultichainAccountService:createMultichainAccountGroup`.
 - Export `MultichainAccountWallet` and `MultichainAccountGroup` types ([#6220](https://github.com/MetaMask/core/pull/6220))
 
 ### Changed
