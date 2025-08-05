@@ -334,7 +334,10 @@ export class AccountTreeController extends BaseController<
     groupId: AccountGroupId,
   ) {
     const { wallets } = state.accountTree;
+
     delete wallets[walletId].groups[groupId];
+    this.#groupIdToWalletId.delete(groupId);
+
     if (Object.keys(wallets[walletId].groups).length === 0) {
       delete state.accountTree.wallets[walletId];
     }
