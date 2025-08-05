@@ -209,8 +209,9 @@ describe('SubscriptionController', () => {
     });
 
     it('should create default subscription service and use messenger for auth token', async () => {
-      const { messenger, mockGetBearerToken } = createMockSubscriptionMessenger();
-      
+      const { messenger, mockGetBearerToken } =
+        createMockSubscriptionMessenger();
+
       // Create controller without custom subscription service to test default creation
       const controller = new SubscriptionController({
         messenger,
@@ -220,7 +221,7 @@ describe('SubscriptionController', () => {
       });
 
       expect(controller).toBeDefined();
-      
+
       // Mock fetch to test the default service
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
@@ -231,7 +232,7 @@ describe('SubscriptionController', () => {
 
       try {
         await controller.getSubscription();
-        
+
         // Verify that the messenger's call method was used to get the bearer token
         expect(mockGetBearerToken).toHaveBeenCalled();
         expect(mockFetch).toHaveBeenCalledWith(
@@ -241,7 +242,7 @@ describe('SubscriptionController', () => {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
             }),
-          })
+          }),
         );
       } finally {
         // Clean up
