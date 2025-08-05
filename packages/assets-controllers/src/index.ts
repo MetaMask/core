@@ -207,5 +207,8 @@ export type {
   DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
-export type { AccountGroupBalance, WalletBalance } from './selectors';
-export { assetsControllersSelectors } from './selectors';
+export type {
+  AccountGroupBalance,
+  WalletBalance,
+} from './selectors/balanceSelectors';
+export { balanceSelectors } from './selectors/balanceSelectors';

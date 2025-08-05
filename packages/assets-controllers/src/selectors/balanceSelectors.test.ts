@@ -1,17 +1,17 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
-import { getDefaultMultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';
 import {
   selectBalanceByAccountGroup,
   selectBalanceByWallet,
   selectBalanceForAllWallets,
   selectBalanceForSelectedAccountGroup,
-} from './selectors';
-import type { RootState } from './selectors';
-import { getDefaultTokenBalancesState } from './TokenBalancesController';
-import { getDefaultTokenRatesControllerState } from './TokenRatesController';
-import type { MarketDataDetails } from './TokenRatesController';
-import { getDefaultTokensState } from './TokensController';
+} from './balanceSelectors';
+import type { RootState } from './balanceSelectors';
+import { getDefaultMultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
+import { getDefaultTokenBalancesState } from '../TokenBalancesController';
+import { getDefaultTokenRatesControllerState } from '../TokenRatesController';
+import type { MarketDataDetails } from '../TokenRatesController';
+import { getDefaultTokensState } from '../TokensController';
 
 const createMockState = (): RootState => ({
   AccountTreeController: {

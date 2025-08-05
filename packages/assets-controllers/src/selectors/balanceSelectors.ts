@@ -8,12 +8,12 @@ import type { Hex } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
-import type { CurrencyRateState } from './CurrencyRateController';
-import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from './MultichainBalancesController';
-import type { TokenBalancesControllerState } from './TokenBalancesController';
-import type { TokenRatesControllerState } from './TokenRatesController';
-import type { TokensControllerState } from './TokensController';
+import type { CurrencyRateState } from '../CurrencyRateController';
+import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
+import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
+import type { TokenBalancesControllerState } from '../TokenBalancesController';
+import type { TokenRatesControllerState } from '../TokenRatesController';
+import type { TokensControllerState } from '../TokensController';
 
 /**
  * Root state type for all controllers used in selectors
@@ -420,9 +420,9 @@ export const selectBalanceForSelectedAccountGroup = () =>
   );
 
 /**
- * Collection of selectors for assets controllers
+ * Collection of balance-related selectors for assets controllers
  */
-export const assetsControllersSelectors = {
+export const balanceSelectors = {
   selectBalanceByAccountGroup,
   selectBalanceByWallet,
   selectBalanceForAllWallets,

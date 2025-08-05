@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Comprehensive balance selectors for multichain account groups and wallets ([#6235](https://github.com/MetaMask/core/pull/6235))
 
 ## [73.0.2]
 
