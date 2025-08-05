@@ -43,38 +43,27 @@ const getInternalAccountsForGroup = (
   accountsState: AccountsControllerState,
   groupId: string,
 ) => {
-  try {
-    // Extract walletId from groupId (format: "walletId/groupIndex")
-    const walletId = groupId.split('/')[0] as EntropySourceId;
+  // Extract walletId from groupId (format: "walletId/groupIndex")
+  const walletId = groupId.split('/')[0] as EntropySourceId;
 
-    const wallet = (
-      accountTreeState.accountTree.wallets as Record<
-        string,
-        AccountWalletObject
-      >
-    )[walletId];
-    if (!wallet) {
-      return [];
-    }
-
-    const group = (wallet.groups as Record<string, AccountGroupObject>)[
-      groupId
-    ];
-    if (!group) {
-      return [];
-    }
-
-    // Map account IDs to actual account objects
-    return group.accounts
-      .map(
-        (accountId: string) =>
-          accountsState.internalAccounts.accounts[accountId],
-      )
-      .filter(Boolean);
-  } catch (error) {
-    console.error('Error getting accounts for group:', { groupId }, error);
+  const wallet = (
+    accountTreeState.accountTree.wallets as Record<string, AccountWalletObject>
+  )[walletId];
+  if (!wallet) {
     return [];
   }
+
+  const group = (wallet.groups as Record<string, AccountGroupObject>)[groupId];
+  if (!group) {
+    return [];
+  }
+
+  // Map account IDs to actual account objects
+  return group.accounts
+    .map(
+      (accountId: string) => accountsState.internalAccounts.accounts[accountId],
+    )
+    .filter(Boolean);
 };
 
 /**
