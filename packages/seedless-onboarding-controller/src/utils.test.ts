@@ -1,8 +1,14 @@
+import type { KeyPair } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
 import type { DecodedNodeAuthToken, DecodedBaseJWTToken } from './types';
-import { decodeNodeAuthToken, decodeJWTToken } from './utils';
+import {
+  decodeNodeAuthToken,
+  decodeJWTToken,
+  serializeAuthKeyPair,
+  deserializeAuthKeyPair,
+} from './utils';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {
@@ -173,6 +179,30 @@ describe('utils', () => {
       expect(result.aud).toBe('https://example.com/audience');
       expect(result.iss).toBe('https://issuer.example.com');
       expect(result.sub).toBe('user-123@example.com');
+    });
+  });
+
+  describe('serializeAuthKeyPair', () => {
+    it('should serialize the authentication key pair correctly', () => {
+      const authKeyPair: KeyPair = {
+        pk: new Uint8Array([1, 2, 3]),
+        sk: BigInt(123),
+      };
+
+      const serialized = serializeAuthKeyPair(authKeyPair);
+
+      expect(serialized).toBe('{"pk":"AQID","sk":"0x7b"}');
+    });
+  });
+
+  describe('deserializAuthKeyPair', () => {
+    it('should deserialize the authentication key pair correctly', () => {
+      const serialized = '{"pk":"AQID","sk":"0x7b"}';
+      const deserialized = deserializeAuthKeyPair(serialized);
+      expect(deserialized).toStrictEqual({
+        pk: new Uint8Array([1, 2, 3]),
+        sk: BigInt(123),
+      });
     });
   });
 });
