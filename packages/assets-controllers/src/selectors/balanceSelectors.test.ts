@@ -13,7 +13,7 @@ import { getDefaultTokenRatesControllerState } from '../TokenRatesController';
 import type { MarketDataDetails } from '../TokenRatesController';
 import { getDefaultTokensState } from '../TokensController';
 
-const createMockState = (): RootState => ({
+const createMockState = (userCurrency = 'USD'): RootState => ({
   AccountTreeController: {
     accountTree: {
       wallets: {
@@ -256,22 +256,22 @@ const createMockState = (): RootState => ({
     },
   },
   CurrencyRateController: {
-    currentCurrency: 'USD',
+    currentCurrency: userCurrency,
     currencyRates: {
       ETH: {
         conversionRate: 2400, // 1 ETH = $2400 USD
         conversionDate: null,
-        usdConversionRate: 1234567890,
+        usdConversionRate: 1.0, // 1 USD = 1 USD (for USD currency)
       },
       MATIC: {
         conversionRate: 0.8, // 1 MATIC = $0.80 USD
         conversionDate: null,
-        usdConversionRate: 1234567890,
+        usdConversionRate: 1.0, // 1 USD = 1 USD (for USD currency)
       },
       ARB: {
         conversionRate: 1.1, // 1 ARB = $1.10 USD
         conversionDate: null,
-        usdConversionRate: 1234567890,
+        usdConversionRate: 1.0, // 1 USD = 1 USD (for USD currency)
       },
     },
   },
@@ -286,8 +286,8 @@ const createMockState = (): RootState => ({
 
 describe('selectors', () => {
   describe('selectBalanceByAccountGroup', () => {
-    it('returns total balance for a specific account group', () => {
-      const state = createMockState();
+    it('returns total balance for a specific account group in USD', () => {
+      const state = createMockState('USD');
 
       const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
         state,
@@ -323,8 +323,50 @@ describe('selectors', () => {
       });
     });
 
-    it('returns total balance for mixed EVM and non-EVM accounts', () => {
-      const state = createMockState();
+    it('returns total balance for a specific account group in EUR', () => {
+      const state = createMockState('EUR');
+      // Set EUR conversion rate: 1 USD = 0.85 EUR
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.85;
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $4493.80
+       * Convert to EUR: $4493.80 * 0.85 EUR/USD = 3819.73 EUR
+       */
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groupId: 'entropy:entropy-source-1/0',
+        totalBalanceInUserCurrency: 3819.73,
+        userCurrency: 'EUR',
+      });
+    });
+
+    it('returns total balance for a specific account group in GBP', () => {
+      const state = createMockState('GBP');
+      // Set GBP conversion rate: 1 USD = 0.75 GBP
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.75;
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $4493.80
+       * Convert to GBP: $4493.80 * 0.75 GBP/USD = 3370.35 GBP
+       */
+      expect(result.walletId).toBe('entropy:entropy-source-1');
+      expect(result.groupId).toBe('entropy:entropy-source-1/0');
+      expect(result.totalBalanceInUserCurrency).toBeCloseTo(3370.35, 2);
+      expect(result.userCurrency).toBe('GBP');
+    });
+
+    it('returns total balance for mixed EVM and non-EVM accounts in USD', () => {
+      const state = createMockState('USD');
 
       // Add a non-EVM account to the test state
       state.AccountsController.internalAccounts.accounts['account-4'] = {
@@ -391,8 +433,67 @@ describe('selectors', () => {
       });
     });
 
-    it('returns total balance for non-EVM accounts only', () => {
-      const state = createMockState();
+    it('returns total balance for mixed EVM and non-EVM accounts in EUR', () => {
+      const state = createMockState('EUR');
+      // Set EUR conversion rate: 1 USD = 0.85 EUR
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.85;
+
+      // Add a non-EVM account to the test state
+      state.AccountsController.internalAccounts.accounts['account-4'] = {
+        id: 'account-4',
+        address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
+        type: 'solana:data-account',
+        options: {},
+        metadata: {
+          name: 'Solana Account',
+          keyring: { type: 'hd' },
+          importTime: 1234567890,
+        },
+        scopes: ['bip122:000000000019d6689c085ae165831e93'],
+        methods: ['solana_signTransaction'],
+      };
+
+      // Add the account to group 0
+      state.AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-4');
+
+      // Add non-EVM balance data
+      state.MultichainBalancesController.balances['account-4'] = {
+        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc':
+          {
+            amount: '50.0',
+            unit: 'SOL',
+          },
+      };
+
+      // Add conversion rate for SOL
+      state.MultichainAssetsRatesController.conversionRates[
+        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
+      ] = {
+        rate: '200.0', // $200 per SOL
+        conversionTime: 1234567890,
+      };
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $14,493.80
+       * Convert to EUR: $14,493.80 * 0.85 EUR/USD = 12,319.73 EUR
+       */
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groupId: 'entropy:entropy-source-1/0',
+        totalBalanceInUserCurrency: 12319.73,
+        userCurrency: 'EUR',
+      });
+    });
+
+    it('returns total balance for non-EVM accounts only in USD', () => {
+      const state = createMockState('USD');
 
       // Create a new group with only non-EVM accounts
       state.AccountTreeController.accountTree.wallets[
@@ -492,8 +593,104 @@ describe('selectors', () => {
       });
     });
 
+    it('returns total balance for non-EVM accounts only in EUR', () => {
+      const state = createMockState('EUR');
+      // Set EUR conversion rate: 1 USD = 0.85 EUR
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.85;
+
+      // Create a new group with only non-EVM accounts
+      state.AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/2'] = {
+        id: 'entropy:entropy-source-1/2',
+        type: AccountGroupType.MultichainAccount,
+        accounts: ['account-5', 'account-6'],
+        metadata: {
+          name: 'Non-EVM Group',
+          entropy: { groupIndex: 2 },
+        },
+      };
+
+      // Add non-EVM accounts
+      state.AccountsController.internalAccounts.accounts['account-5'] = {
+        id: 'account-5',
+        address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
+        type: 'solana:data-account',
+        options: {},
+        metadata: {
+          name: 'Solana Account 1',
+          keyring: { type: 'hd' },
+          importTime: 1234567890,
+        },
+        scopes: ['bip122:000000000019d6689c085ae165831e93'],
+        methods: ['solana_signTransaction'],
+      };
+
+      state.AccountsController.internalAccounts.accounts['account-6'] = {
+        id: 'account-6',
+        address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+        type: 'bip122:p2pkh',
+        options: {},
+        metadata: {
+          name: 'Bitcoin Account',
+          keyring: { type: 'hd' },
+          importTime: 1234567890,
+        },
+        scopes: ['bip122:000000000019d6689c085ae165831e93'],
+        methods: ['bip122_signTransaction'],
+      };
+
+      // Add non-EVM balance data
+      state.MultichainBalancesController.balances['account-5'] = {
+        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc':
+          {
+            amount: '25.0',
+            unit: 'SOL',
+          },
+      };
+
+      state.MultichainBalancesController.balances['account-6'] = {
+        'bip122:000000000019d6689c085ae165831e93/bitcoin:bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh':
+          {
+            amount: '0.5',
+            unit: 'BTC',
+          },
+      };
+
+      // Add conversion rates
+      state.MultichainAssetsRatesController.conversionRates[
+        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
+      ] = {
+        rate: '200.0', // $200 per SOL
+        conversionTime: 1234567890,
+      };
+
+      state.MultichainAssetsRatesController.conversionRates[
+        'bip122:000000000019d6689c085ae165831e93/bitcoin:bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'
+      ] = {
+        rate: '50000.0', // $50,000 per BTC
+        conversionTime: 1234567890,
+      };
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/2')(
+        state,
+      );
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $30,000
+       * Convert to EUR: $30,000 * 0.85 EUR/USD = 25,500 EUR
+       */
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groupId: 'entropy:entropy-source-1/2',
+        totalBalanceInUserCurrency: 25500,
+        userCurrency: 'EUR',
+      });
+    });
+
     it('returns zero balance for non-existent account group', () => {
-      const state = createMockState();
+      const state = createMockState('USD');
 
       const result = selectBalanceByAccountGroup('non-existent-group')(state);
 
@@ -504,11 +701,31 @@ describe('selectors', () => {
         userCurrency: 'USD',
       });
     });
+
+    it('falls back to USD when no USD conversion rate is available', () => {
+      const state = createMockState('EUR');
+      // Remove USD conversion rates
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = null;
+      state.CurrencyRateController.currencyRates.MATIC.usdConversionRate = null;
+      state.CurrencyRateController.currencyRates.ARB.usdConversionRate = null;
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      // Should fall back to USD amount when no conversion rate is available
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groupId: 'entropy:entropy-source-1/0',
+        totalBalanceInUserCurrency: 4493.8, // USD amount as fallback
+        userCurrency: 'EUR',
+      });
+    });
   });
 
   describe('selectBalanceByWallet', () => {
-    it('returns total balance for all account groups in a wallet', () => {
-      const state = createMockState();
+    it('returns total balance for all account groups in a wallet in USD', () => {
+      const state = createMockState('USD');
 
       const result = selectBalanceByWallet('entropy:entropy-source-1')(state);
 
@@ -516,7 +733,7 @@ describe('selectors', () => {
        * CALCULATION:
        * Wallet has 2 groups: group-0 and group-1
        *
-       * Group 0 (from previous test): $3,006,994.5
+       * Group 0 (from previous test): $4,493.80
        *
        * Group 1 (account-3 only):
        * - No token balances defined for account-3
@@ -545,8 +762,41 @@ describe('selectors', () => {
       });
     });
 
+    it('returns total balance for all account groups in a wallet in EUR', () => {
+      const state = createMockState('EUR');
+      // Set EUR conversion rate: 1 USD = 0.85 EUR
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.85;
+
+      const result = selectBalanceByWallet('entropy:entropy-source-1')(state);
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $4,493.80
+       * Convert to EUR: $4,493.80 * 0.85 EUR/USD = 3,819.73 EUR
+       */
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groups: {
+          'entropy:entropy-source-1/0': {
+            walletId: 'entropy:entropy-source-1',
+            groupId: 'entropy:entropy-source-1/0',
+            totalBalanceInUserCurrency: 3819.73,
+            userCurrency: 'EUR',
+          },
+          'entropy:entropy-source-1/1': {
+            walletId: 'entropy:entropy-source-1',
+            groupId: 'entropy:entropy-source-1/1',
+            totalBalanceInUserCurrency: 0,
+            userCurrency: 'EUR',
+          },
+        },
+        totalBalanceInUserCurrency: 3819.73,
+        userCurrency: 'EUR',
+      });
+    });
+
     it('returns zero balance for non-existent wallet', () => {
-      const state = createMockState();
+      const state = createMockState('USD');
 
       const result = selectBalanceByWallet('non-existent-wallet')(state);
 
@@ -560,8 +810,8 @@ describe('selectors', () => {
   });
 
   describe('selectBalanceForAllWallets', () => {
-    it('returns total balance for all wallets', () => {
-      const state = createMockState();
+    it('returns total balance for all wallets in USD', () => {
+      const state = createMockState('USD');
 
       const result = selectBalanceForAllWallets()(state);
 
@@ -598,11 +848,50 @@ describe('selectors', () => {
         userCurrency: 'USD',
       });
     });
+
+    it('returns total balance for all wallets in EUR', () => {
+      const state = createMockState('EUR');
+      // Set EUR conversion rate: 1 USD = 0.85 EUR
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.85;
+
+      const result = selectBalanceForAllWallets()(state);
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $4,493.80
+       * Convert to EUR: $4,493.80 * 0.85 EUR/USD = 3,819.73 EUR
+       */
+      expect(result).toStrictEqual({
+        wallets: {
+          'entropy:entropy-source-1': {
+            walletId: 'entropy:entropy-source-1',
+            groups: {
+              'entropy:entropy-source-1/0': {
+                walletId: 'entropy:entropy-source-1',
+                groupId: 'entropy:entropy-source-1/0',
+                totalBalanceInUserCurrency: 3819.73,
+                userCurrency: 'EUR',
+              },
+              'entropy:entropy-source-1/1': {
+                walletId: 'entropy:entropy-source-1',
+                groupId: 'entropy:entropy-source-1/1',
+                totalBalanceInUserCurrency: 0,
+                userCurrency: 'EUR',
+              },
+            },
+            totalBalanceInUserCurrency: 3819.73,
+            userCurrency: 'EUR',
+          },
+        },
+        totalBalanceInUserCurrency: 3819.73,
+        userCurrency: 'EUR',
+      });
+    });
   });
 
   describe('selectBalanceForSelectedAccountGroup', () => {
-    it('returns total balance for the selected account group', () => {
-      const state = createMockState();
+    it('returns total balance for the selected account group in USD', () => {
+      const state = createMockState('USD');
 
       const result = selectBalanceForSelectedAccountGroup()(state);
 
@@ -618,8 +907,28 @@ describe('selectors', () => {
       });
     });
 
+    it('returns total balance for the selected account group in EUR', () => {
+      const state = createMockState('EUR');
+      // Set EUR conversion rate: 1 USD = 0.85 EUR
+      state.CurrencyRateController.currencyRates.ETH.usdConversionRate = 0.85;
+
+      const result = selectBalanceForSelectedAccountGroup()(state);
+
+      /*
+       * CALCULATION:
+       * Same USD calculation as above: $4,493.80
+       * Convert to EUR: $4,493.80 * 0.85 EUR/USD = 3,819.73 EUR
+       */
+      expect(result).toStrictEqual({
+        walletId: 'entropy:entropy-source-1',
+        groupId: 'entropy:entropy-source-1/0',
+        totalBalanceInUserCurrency: 3819.73,
+        userCurrency: 'EUR',
+      });
+    });
+
     it('returns null when no account group is selected', () => {
-      const state = createMockState();
+      const state = createMockState('USD');
       state.AccountTreeController.accountTree.selectedAccountGroup = '';
 
       const result = selectBalanceForSelectedAccountGroup()(state);

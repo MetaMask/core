@@ -78,6 +78,37 @@ const getInternalAccountsForGroup = (
 };
 
 /**
+ * Helper function to convert USD amount to user's selected currency
+ *
+ * @param usdAmount - Amount in USD
+ * @param currencyRateState - CurrencyRateController state
+ * @returns Amount converted to user's selected currency
+ */
+const convertUsdToUserCurrency = (
+  usdAmount: number,
+  currencyRateState: CurrencyRateState,
+): number => {
+  // If user currency is USD, no conversion needed
+  if (currencyRateState.currentCurrency.toLowerCase() === 'usd') {
+    return usdAmount;
+  }
+
+  // Get USD conversion rate for the user's currency
+  // We need to find a currency that has usdConversionRate set
+  const currencyWithUsdRate = Object.values(
+    currencyRateState.currencyRates,
+  ).find((rate) => rate.usdConversionRate !== null);
+
+  if (!currencyWithUsdRate?.usdConversionRate) {
+    // If no USD conversion rate is available, return USD amount as fallback
+    return usdAmount;
+  }
+
+  // Convert USD to user currency using the USD conversion rate
+  return usdAmount * currencyWithUsdRate.usdConversionRate;
+};
+
+/**
  * Selector to get aggregated balances for a specific account group.
  * Returns total balance in user's selected currency, aggregating all tokens across accounts in the group.
  *
@@ -196,8 +227,11 @@ export const selectBalanceByAccountGroup = (groupId: string) =>
         }
       }
 
-      // The total is already in USD, no need to convert again
-      const totalBalanceInUserCurrency = totalBalanceInUSD;
+      // Convert USD balance to user's selected currency
+      const totalBalanceInUserCurrency = convertUsdToUserCurrency(
+        totalBalanceInUSD,
+        currencyRateState,
+      );
 
       return {
         walletId,
