@@ -1,5 +1,5 @@
-import type { AccountGroupObject } from 'src/group';
-import type { AccountWalletObject } from 'src/wallet';
+import type { AccountGroupMultichainAccountObject } from 'src/group';
+import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import type {
   UserStorageSyncedWallet,
@@ -7,25 +7,23 @@ import type {
 } from '../types';
 
 export const formatWalletForUserStorageUsage = (
-  wallet: AccountWalletObject,
+  wallet: AccountWalletEntropyObject,
 ): UserStorageSyncedWallet => {
   return {
-    ...wallet.metadata,
+    name: wallet.metadata.name,
   };
 };
 
 export const formatGroupForUserStorageUsage = (
-  group: AccountGroupObject,
+  group: AccountGroupMultichainAccountObject,
 ): UserStorageSyncedWalletGroup => {
   return {
-    ...group.metadata,
-    // Update this logic once the groupIndex is exposed in the group object.
-    // For now, here's a clunky way to get the index, based on export type AccountGroupId = `${AccountWalletId}/${string}`;
-    groupIndex: Number(group.id.split('/')[1]) || 0,
+    name: group.metadata.name,
+    groupIndex: group.metadata.entropy.groupIndex,
   };
 };
 
-export const parseWalletFromUserStorage = (
+export const parseWalletFromUserStorageResponse = (
   wallet: string,
 ): UserStorageSyncedWallet => {
   try {
@@ -37,7 +35,7 @@ export const parseWalletFromUserStorage = (
     );
   }
 };
-export const parseGroupFromUserStorage = (
+export const parseGroupFromUserStorageResponse = (
   group: string,
 ): UserStorageSyncedWalletGroup => {
   try {

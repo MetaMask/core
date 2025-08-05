@@ -1,13 +1,12 @@
-import { USER_STORAGE_FEATURE_NAMES } from '@metamask/profile-sync-controller/sdk';
-import type { AccountGroupObject } from 'src/group';
+import type { AccountGroupMultichainAccountObject } from 'src/group';
 import type { AccountTreeControllerMessenger } from 'src/types';
 import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
-  parseWalletFromUserStorage,
-  parseGroupFromUserStorage,
+  parseWalletFromUserStorageResponse,
+  parseGroupFromUserStorageResponse,
 } from './format';
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
@@ -33,7 +32,7 @@ export const getWalletFromUserStorage = async (
     return null;
   }
 
-  return parseWalletFromUserStorage(walletData);
+  return parseWalletFromUserStorageResponse(walletData);
 };
 
 export const pushWalletToUserStorage = async (
@@ -66,12 +65,12 @@ export const getAllGroupsFromUserStorage = async (
   }
 
   return groupData.map((groupStringifiedJSON) =>
-    parseGroupFromUserStorage(groupStringifiedJSON),
+    parseGroupFromUserStorageResponse(groupStringifiedJSON),
   );
 };
 
 export const pushGroupToUserStorage = async (
-  group: AccountGroupObject,
+  group: AccountGroupMultichainAccountObject,
   messenger: AccountTreeControllerMessenger,
 ): Promise<void> => {
   const formattedGroup = formatGroupForUserStorageUsage(group);
@@ -88,7 +87,7 @@ export const pushGroupToUserStorage = async (
 };
 
 export const pushGroupToUserStorageBatch = async (
-  groups: AccountGroupObject[],
+  groups: AccountGroupMultichainAccountObject[],
   messenger: AccountTreeControllerMessenger,
   entropySourceId: string,
 ): Promise<void> => {
@@ -102,18 +101,6 @@ export const pushGroupToUserStorageBatch = async (
     'UserStorageController:performBatchSetStorage',
     USER_STORAGE_GROUPS_FEATURE_KEY,
     entries,
-    entropySourceId,
-  );
-};
-
-// Legacy account syncing operations
-export const getLegacyAccountSyncingAccountsFromUserStorage = async (
-  messenger: AccountTreeControllerMessenger,
-  entropySourceId: string,
-): Promise<string[] | null> => {
-  return await messenger.call(
-    'UserStorageController:performGetStorageAllFeatureEntries',
-    `${USER_STORAGE_FEATURE_NAMES.accounts}`,
     entropySourceId,
   );
 };

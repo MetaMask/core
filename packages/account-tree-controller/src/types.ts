@@ -15,6 +15,7 @@ import {
 } from '@metamask/base-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
+  UserStorageControllerGetIsMultichainAccountSyncingEnabled,
   UserStorageControllerPerformBatchSetStorage,
   UserStorageControllerPerformGetStorage,
   UserStorageControllerPerformSetStorage,
@@ -37,7 +38,9 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
-  isLegacyAccountSyncingEnabled: boolean;
+  // Maps entropy source IDs to whether legacy account syncing has been triggered for that source.
+  // Legacy account syncing is a one-time operation that is performed when the user has legacy accounts.
+  isLegacyAccountSyncingDisabled: Record<string, boolean>;
   isAccountSyncingInProgress: boolean;
 };
 
@@ -67,7 +70,8 @@ export type AllowedActions =
   | UserStorageControllerPerformGetStorageAllFeatureEntries
   | UserStorageControllerPerformSetStorage
   | UserStorageControllerPerformBatchSetStorage
-  | UserStorageControllerSyncInternalAccountsWithUserStorage;
+  | UserStorageControllerSyncInternalAccountsWithUserStorage
+  | UserStorageControllerGetIsMultichainAccountSyncingEnabled;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
