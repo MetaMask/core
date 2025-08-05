@@ -298,8 +298,9 @@ export class AccountTreeController extends BaseController<
     walletId: AccountWalletId,
     groupId: AccountGroupId,
   ) {
-    delete state.accountTree.wallets[walletId].groups[groupId];
-    if (Object.keys(state.accountTree.wallets[walletId].groups).length === 0) {
+    const { wallets } = state.accountTree;
+    delete wallets[walletId].groups[groupId];
+    if (Object.keys(wallets[walletId].groups).length === 0) {
       delete state.accountTree.wallets[walletId];
     }
     return state;
