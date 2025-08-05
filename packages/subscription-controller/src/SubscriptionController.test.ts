@@ -245,7 +245,7 @@ describe('SubscriptionController', () => {
         );
       } finally {
         // Clean up
-        delete (global as any).fetch;
+        delete (global as unknown as { fetch: unknown }).fetch;
       }
     });
 

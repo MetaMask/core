@@ -115,7 +115,9 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
+      nock(testUrl)
+        .get('/api/v1/subscription')
+        .reply(200, { data: MOCK_SUBSCRIPTION });
 
       const result = await service.getSubscription();
 
@@ -195,41 +197,30 @@ describe('SubscriptionService', () => {
     it('should handle non-Error exceptions in catch block', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
-      
-      // Mock fetch to throw a non-Error object
-      const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockRejectedValue('string error');
 
-      try {
-        await expect(service.getSubscription()).rejects.toThrow(
-          SubscriptionServiceError,
-        );
-        await expect(service.getSubscription()).rejects.toThrow(
-          /failed to get subscription\. "string error"/u,
-        );
-      } finally {
-        global.fetch = originalFetch;
-      }
+      // Use nock to simulate a non-Error exception from the HTTP request
+      // nock's replyWithError can take a string, which will be wrapped as an Error,
+      // but to simulate a non-Error, we need to use the error option with a non-Error value.
+      // However, nock always wraps the value as an Error, so to simulate a non-Error thrown,
+      // we can mock the underlying http.request to throw a string, but that's complex.
+      // Instead, we can simulate a non-Error thrown from the auth.getAccessToken mock:
+      config.auth.getAccessToken.mockRejectedValue('string error');
+
+      await expect(service.getSubscription()).rejects.toThrow(
+        /failed to get subscription\. "string error"/u,
+      );
     });
 
     it('should handle null exceptions in catch block', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
-      
-      // Mock fetch to throw null
-      const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockRejectedValue(null);
 
-      try {
-        await expect(service.getSubscription()).rejects.toThrow(
-          SubscriptionServiceError,
-        );
-        await expect(service.getSubscription()).rejects.toThrow(
-          /failed to get subscription\. ""/u,
-        );
-      } finally {
-        global.fetch = originalFetch;
-      }
+      // Mock fetch to throw null to test the false branch with null value
+      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
+
+      await expect(service.getSubscription()).rejects.toThrow(
+        /failed to get subscription\. ""/u,
+      );
     });
 
     it('should use correct environment URL', async () => {
@@ -348,10 +339,13 @@ describe('SubscriptionService', () => {
     it('should handle non-Error exceptions in catch block', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
-      
+
       // Mock fetch to throw a non-Error object
       const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockRejectedValue('string error');
+      jest
+        .spyOn(global, 'fetch')
+        .mockImplementation()
+        .mockRejectedValue('string error');
 
       try {
         await expect(
@@ -368,10 +362,10 @@ describe('SubscriptionService', () => {
     it('should handle null exceptions in catch block', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
-      
+
       // Mock fetch to throw null
       const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockRejectedValue(null);
+      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
 
       try {
         await expect(

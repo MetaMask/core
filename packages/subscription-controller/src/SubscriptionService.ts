@@ -50,8 +50,8 @@ export class SubscriptionService implements ISubscriptionService {
         );
       }
 
-      const subscription = (await response.json()) as Subscription;
-      return subscription;
+      const res = (await response.json()) as { data: Subscription | null };
+      return res.data;
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
