@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/484.0.0 ([#6230](https://github.com/MetaMask/core/pull/6230))
+- Release/479.0.0 ([#6194](https://github.com/MetaMask/core/pull/6194))
+
 ### Added
 
 - Add `assetsFiatValues` property on `addTransaction` options ([#6178](https://github.com/MetaMask/core/pull/6178))
