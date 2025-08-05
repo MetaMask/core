@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [59.1.0]
+
+### Added
+
+- Add `assetsFiatValues` property on `addTransaction` options ([#6178](https://github.com/MetaMask/core/pull/6178))
+  - `assetsFiatValues.sending` is total fiat value of sent assets
+  - `assetsFiatValues.receiving` is total fiat value of recieved assets
+- Add and export `AddTransactionOptions` type ([#6178](https://github.com/MetaMask/core/pull/6178))
+
+### Fixed
+
+- Preserve provided `origin` in `transactions` when calling `addTransactionBatch` ([#6178](https://github.com/MetaMask/core/pull/6178))
+
 ## [59.0.0]
 
 ### Added
@@ -1732,7 +1745,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.1.0...HEAD
+[59.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.0.0...@metamask/transaction-controller@59.1.0
 [59.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.1...@metamask/transaction-controller@59.0.0
 [58.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.1.0...@metamask/transaction-controller@58.1.1
 [58.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@58.0.0...@metamask/transaction-controller@58.1.0
