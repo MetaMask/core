@@ -32,6 +32,7 @@ import type {
   SimulationToken,
   TransactionParams,
   NestedTransactionMetadata,
+  GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 
@@ -51,6 +52,7 @@ export type GetBalanceChangesRequest = {
   ethQuery: EthQuery;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
+  getSimulationConfig?: GetSimulationConfig;
 };
 
 type ParsedEvent = {
@@ -107,6 +109,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
+ * @param request.getSimulationConfig - Optional transaction simulation parameters.
  * @returns The simulation data.
  */
 export async function getBalanceChanges(
@@ -729,27 +732,31 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  return await simulateTransactions(chainId, {
-    ...params,
-    transactions,
-    withGas: true,
-    withDefaultBlockOverrides: true,
-    ...(blockTime && {
-      blockOverrides: {
-        ...params?.blockOverrides,
-        time: toHex(blockTime),
-      },
-    }),
-    ...(isInsufficientBalance && {
-      overrides: {
-        ...params?.overrides,
-        [from]: {
-          ...params?.overrides?.[from],
-          balance: requiredBalanceHex,
+  return await simulateTransactions(
+    chainId,
+    {
+      ...params,
+      transactions,
+      withGas: true,
+      withDefaultBlockOverrides: true,
+      ...(blockTime && {
+        blockOverrides: {
+          ...params?.blockOverrides,
+          time: toHex(blockTime),
         },
-      },
-    }),
-  });
+      }),
+      ...(isInsufficientBalance && {
+        overrides: {
+          ...params?.overrides,
+          [from]: {
+            ...params?.overrides?.[from],
+            balance: requiredBalanceHex,
+          },
+        },
+      }),
+    },
+    request.getSimulationConfig,
+  );
 }
 
 /**
