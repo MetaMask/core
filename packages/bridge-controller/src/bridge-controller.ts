@@ -71,6 +71,7 @@ import {
   getFeeForTransactionRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
+import type { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -319,43 +320,38 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   /**
-   * Fetches quotes for a list of quote requests without updating the controller state
+   * Fetches quotes for specified request without updating the controller state
    * This method does not start polling for quotes and does not emit UnifiedSwapBridge events
    *
-   * @param quoteRequests - The parameters for quote requests to fetch
+   * @param quoteRequest - The parameters for quote requests to fetch
    * @param abortSignal - The abort signal to cancel all the requests
-   * @param shouldIgnoreErrors - Whether to ignore errors or throw them
+   * @param featureId - The feature ID that maps to quoteParam overrides from LD
    * @returns A list of validated quotes
    */
   fetchQuotes = async (
-    quoteRequests: GenericQuoteRequest[],
+    quoteRequest: GenericQuoteRequest,
     abortSignal: AbortSignal | null = null,
-    shouldIgnoreErrors: boolean = false,
+    featureId: FeatureId | null = null,
   ): Promise<QuoteResponse[]> => {
-    const quotes = await Promise.allSettled(
-      quoteRequests.map(async (quoteRequest) => {
-        const baseQuotes = await fetchBridgeQuotes(
-          quoteRequest,
-          abortSignal,
-          this.#clientId,
-          this.#fetchFn,
-          this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-        );
-        const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-        const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
-        return quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
-      }),
-    );
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
+    const quoteRequestOverrides = featureId
+      ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
+      : undefined;
 
-    return quotes.reduce<QuoteResponse[]>((acc, res) => {
-      if (res.status === 'fulfilled') {
-        return [...acc, ...res.value];
-      }
-      if (shouldIgnoreErrors) {
-        return acc;
-      }
-      throw res.reason;
-    }, []);
+    // If quoteRequestOverrides is specified, merge it with the quoteRequest
+    const baseQuotes = await fetchBridgeQuotes(
+      quoteRequestOverrides
+        ? { ...quoteRequest, ...quoteRequestOverrides }
+        : quoteRequest,
+      abortSignal,
+      this.#clientId,
+      this.#fetchFn,
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+    );
+    const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
+    const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+    return quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
   };
 
   readonly #getExchangeRateSources = () => {
@@ -543,13 +539,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             updatedQuoteRequest.srcChainId,
           );
           const quotes = await this.fetchQuotes(
-            [updatedQuoteRequest],
+            updatedQuoteRequest,
             // AbortController is always defined by this line, because we assign it a few lines above,
             // not sure why Jest thinks it's not
             // Linters accurately say that it's defined
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             this.#abortController!.signal as AbortSignal,
-            false,
           );
 
           this.update((state) => {
