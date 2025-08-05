@@ -71,7 +71,7 @@ import {
   getFeeForTransactionRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
-import type { FeatureId } from './utils/validators';
+import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -351,7 +351,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
     const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
-    return quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+    const quotesWithFees =
+      quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+    // Sort perps quotes by increasing estimated processing time (fastest first)
+    if (featureId === FeatureId.PERPS) {
+      return quotesWithFees.sort((a, b) => {
+        return (
+          a.estimatedProcessingTimeInSeconds -
+          b.estimatedProcessingTimeInSeconds
+        );
+      });
+    }
+    return quotesWithFees;
   };
 
   readonly #getExchangeRateSources = () => {

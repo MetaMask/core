@@ -2064,6 +2064,9 @@ describe('BridgeController', function () {
       },
     };
 
+    const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];
+    quotesByDecreasingProcessingTime.reverse();
+
     beforeEach(() => {
       jest
         .spyOn(featureFlagUtils, 'getBridgeFeatureFlags')
@@ -2082,7 +2085,7 @@ describe('BridgeController', function () {
     it('should override aggIds and noFee in perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
-        .mockResolvedValueOnce(mockBridgeQuotesSolErc20 as never);
+        .mockResolvedValueOnce(quotesByDecreasingProcessingTime as never);
       const expectedControllerState = bridgeController.state;
 
       const quotes = await bridgeController.fetchQuotes(
@@ -2140,7 +2143,7 @@ describe('BridgeController', function () {
     it('should add aggIds and noFee to perps request', async () => {
       const fetchBridgeQuotesSpy = jest
         .spyOn(fetchUtils, 'fetchBridgeQuotes')
-        .mockResolvedValueOnce(mockBridgeQuotesSolErc20 as never);
+        .mockResolvedValueOnce(quotesByDecreasingProcessingTime as never);
       const expectedControllerState = bridgeController.state;
 
       const quotes = await bridgeController.fetchQuotes(
