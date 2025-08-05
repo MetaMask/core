@@ -1,14 +1,11 @@
-import type { AccountGroupObject } from 'src/group';
-import type { AccountWalletEntropyObject } from 'src/wallet';
+import type {
+  AccountGroupMultichainAccountObject,
+  AccountTreeGroupPersistedMetadata,
+} from 'src/group';
+import type { AccountTreeWalletPersistedMetadata } from 'src/wallet';
 
-export type UserStorageSyncedWallet = Omit<
-  AccountWalletEntropyObject['metadata'],
-  'entropy'
->;
+export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata;
 
-export type UserStorageSyncedWalletGroup = Omit<
-  AccountGroupObject['metadata'],
-  'entropy'
-> & {
-  groupIndex: number;
+export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
+  groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];
 };

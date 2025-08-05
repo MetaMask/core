@@ -14,6 +14,7 @@ import {
   type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
 import type {
   UserStorageControllerGetIsMultichainAccountSyncingEnabled,
   UserStorageControllerPerformBatchSetStorage,
@@ -36,6 +37,7 @@ import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
+import type { AuthenticationControllerGetSessionProfile } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 // Backward compatibility aliases using indexed access types
 /**
@@ -99,7 +101,9 @@ export type AllowedActions =
   | UserStorageControllerPerformSetStorage
   | UserStorageControllerPerformBatchSetStorage
   | UserStorageControllerSyncInternalAccountsWithUserStorage
-  | UserStorageControllerGetIsMultichainAccountSyncingEnabled;
+  | UserStorageControllerGetIsMultichainAccountSyncingEnabled
+  | AuthenticationControllerGetSessionProfile
+  | MultichainAccountServiceCreateMultichainAccountGroupAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction

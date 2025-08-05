@@ -12,6 +12,9 @@
     },
     {
       "path": "../accounts-controller"
+    },
+    {
+      "path": "../multichain-account-service"
     }
   ],
   "include": ["../../types", "./src"]
