@@ -2,7 +2,7 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Infer } from '@metamask/superstruct';
-import { is, number, object, string } from '@metamask/superstruct';
+import { is, number, string, type } from '@metamask/superstruct';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
@@ -175,8 +175,11 @@ export function getEvmGroupIndexFromAddressIndex(
 /**
  * HD keyring account for Snap accounts that handles non-EVM HD accounts. (e.g the
  * Solana Snap).
+ *
+ * NOTE: We use `superstruct.type` here `superstruct.object` since it allows
+ * extra-properties than a Snap might add in its `options`.
  */
-export const HdSnapKeyringAccountOptionsStruct = object({
+export const HdSnapKeyringAccountOptionsStruct = type({
   entropySource: string(),
   index: number(),
   derivationPath: string(),

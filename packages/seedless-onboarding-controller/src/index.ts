@@ -21,4 +21,5 @@ export {
   AuthConnection,
   SecretType,
 } from './constants';
+export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError } from './errors';

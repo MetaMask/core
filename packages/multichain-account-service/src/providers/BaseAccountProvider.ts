@@ -1,44 +1,32 @@
-import type { AccountProvider } from '@metamask/account-api';
-import type { AccountId } from '@metamask/accounts-controller';
+import {
+  isBip44Account,
+  type AccountProvider,
+  type Bip44Account,
+} from '@metamask/account-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type {
-  KeyringAccount,
-  KeyringAccountEntropyMnemonicOptions,
-} from '@metamask/keyring-api';
-import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
+  KeyringMetadata,
+  KeyringSelector,
+} from '@metamask/keyring-controller';
 
 import type { MultichainAccountServiceMessenger } from '../types';
 
-export type Bip44Account<Account extends KeyringAccount> = Account & {
-  options: {
-    entropy: KeyringAccountEntropyMnemonicOptions;
-  };
-};
-
 /**
- * Checks if an account is BIP-44 compatible.
+ * Asserts a keyring account is BIP-44 compatible.
  *
- * @param account - The account to be tested.
- * @returns True if the account is BIP-44 compatible.
+ * @param account - Keyring account to check.
+ * @throws If the keyring account is not compatible.
  */
-export function isBip44Account<Account extends KeyringAccount>(
-  account: Account,
-): account is Bip44Account<Account> {
-  if (
-    !account.options.entropy ||
-    account.options.entropy.type !== KeyringAccountEntropyTypeOption.Mnemonic
-  ) {
-    console.warn(
-      "! Found an HD account with invalid entropy options: account won't be associated to its wallet.",
-    );
-    return false;
+export function assertIsBip44Account(
+  account: KeyringAccount,
+): asserts account is Bip44Account<KeyringAccount> {
+  if (!isBip44Account(account)) {
+    throw new Error('Created account is not BIP-44 compatible');
   }
-
-  return true;
 }
 
 export abstract class BaseAccountProvider
-  implements AccountProvider<InternalAccount>
+  implements AccountProvider<Bip44Account<KeyringAccount>>
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
@@ -47,9 +35,9 @@ export abstract class BaseAccountProvider
   }
 
   #getAccounts(
-    filter: (account: InternalAccount) => boolean = () => true,
-  ): Bip44Account<InternalAccount>[] {
-    const accounts: Bip44Account<InternalAccount>[] = [];
+    filter: (account: KeyringAccount) => boolean = () => true,
+  ): Bip44Account<KeyringAccount>[] {
+    const accounts: Bip44Account<KeyringAccount>[] = [];
 
     for (const account of this.messenger.call(
       // NOTE: Even though the name is misleading, this only fetches all internal
@@ -58,8 +46,8 @@ export abstract class BaseAccountProvider
       'AccountsController:listMultichainAccounts',
     )) {
       if (
-        this.isAccountCompatible(account) &&
         isBip44Account(account) &&
+        this.isAccountCompatible(account) &&
         filter(account)
       ) {
         accounts.push(account);
@@ -69,11 +57,13 @@ export abstract class BaseAccountProvider
     return accounts;
   }
 
-  getAccounts(): InternalAccount[] {
+  getAccounts(): Bip44Account<KeyringAccount>[] {
     return this.#getAccounts();
   }
 
-  getAccount(id: AccountId): InternalAccount {
+  getAccount(
+    id: Bip44Account<KeyringAccount>['id'],
+  ): Bip44Account<KeyringAccount> {
     // TODO: Maybe just use a proper find for faster lookup?
     const [found] = this.#getAccounts((account) => account.id === id);
 
@@ -84,5 +74,44 @@ export abstract class BaseAccountProvider
     return found;
   }
 
-  abstract isAccountCompatible(account: InternalAccount): boolean;
+  protected async withKeyring<SelectedKeyring, CallbackResult = void>(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    const result = await this.messenger.call(
+      'KeyringController:withKeyring',
+      selector,
+      ({ keyring, metadata }) =>
+        operation({
+          keyring: keyring as SelectedKeyring,
+          metadata,
+        }),
+    );
+
+    return result as CallbackResult;
+  }
+
+  abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
+
+  abstract createAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]>;
+
+  abstract discoverAndCreateAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]>;
 }
