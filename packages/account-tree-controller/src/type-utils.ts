@@ -18,12 +18,3 @@ export type ExtractFieldValue<Field> =
 export type ExtractFieldValues<ObjectValue extends Record<string, unknown>> = {
   [Key in keyof ObjectValue]: ExtractFieldValue<ObjectValue[Key]>;
 };
-
-/**
- * Type utility to extract plain values and make all properties required (for tree objects).
- */
-export type ExtractRequiredFieldValues<
-  ObjectValue extends Record<string, unknown>,
-> = {
-  [Key in keyof ObjectValue]-?: ExtractFieldValue<ObjectValue[Key]>;
-};

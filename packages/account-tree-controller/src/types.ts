@@ -22,21 +22,21 @@ import type {
 } from './AccountTreeController';
 import type {
   AccountGroupObject,
-  AccountGroupPersistedMetadata,
+  AccountTreeGroupPersistedMetadata,
 } from './group';
 import type {
   AccountWalletObject,
-  AccountWalletPersistedMetadata,
+  AccountTreeWalletPersistedMetadata,
 } from './wallet';
 
 // Backward compatibility aliases using indexed access types
 /**
- * @deprecated Use AccountTreeGroupMetadata for tree objects or AccountGroupPersistedMetadata for controller state
+ * @deprecated Use AccountTreeGroupMetadata for tree objects or AccountTreeGroupPersistedMetadata for controller state
  */
 export type AccountGroupMetadata = AccountGroupObject['metadata'];
 
 /**
- * @deprecated Use AccountTreeWalletMetadata for tree objects or AccountWalletPersistedMetadata for controller state
+ * @deprecated Use AccountTreeWalletMetadata for tree objects or AccountTreeWalletPersistedMetadata for controller state
  */
 export type AccountWalletMetadata = AccountWalletObject['metadata'];
 
@@ -49,11 +49,14 @@ export type AccountTreeControllerState = {
     selectedAccountGroup: AccountGroupId | '';
   };
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
-  accountGroupsMetadata: Record<AccountGroupId, AccountGroupPersistedMetadata>;
+  accountGroupsMetadata: Record<
+    AccountGroupId,
+    AccountTreeGroupPersistedMetadata
+  >;
   /** Persistent metadata for account wallets (names, sync timestamps) */
   accountWalletsMetadata: Record<
     AccountWalletId,
-    AccountWalletPersistedMetadata
+    AccountTreeWalletPersistedMetadata
   >;
 };
 

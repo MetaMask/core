@@ -6,17 +6,14 @@ import type { AccountGroup, AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type {
-  UpdatableField,
-  ExtractRequiredFieldValues,
-} from './type-utils.js';
+import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 import type { AccountTreeControllerMessenger } from './types';
 import type { AccountTreeWallet } from './wallet';
 
 /**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
  */
-export type AccountGroupPersistedMetadata = {
+export type AccountTreeGroupPersistedMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
   /** Whether this group is pinned in the UI */
@@ -28,8 +25,9 @@ export type AccountGroupPersistedMetadata = {
 /**
  * Tree metadata for account groups (required plain values extracted from persisted metadata).
  */
-export type AccountTreeGroupMetadata =
-  ExtractRequiredFieldValues<AccountGroupPersistedMetadata>;
+export type AccountTreeGroupMetadata = Required<
+  ExtractFieldValues<AccountTreeGroupPersistedMetadata>
+>;
 
 export const DEFAULT_ACCOUNT_GROUP_NAME: string = 'Default';
 
