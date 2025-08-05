@@ -28,7 +28,25 @@ import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
-import type { AccountWalletObject } from './wallet';
+import type {
+  AccountGroupObject,
+  AccountTreeGroupPersistedMetadata,
+} from './group';
+import type {
+  AccountWalletObject,
+  AccountTreeWalletPersistedMetadata,
+} from './wallet';
+
+// Backward compatibility aliases using indexed access types
+/**
+ * @deprecated Use AccountTreeGroupMetadata for tree objects or AccountTreeGroupPersistedMetadata for controller state
+ */
+export type AccountGroupMetadata = AccountGroupObject['metadata'];
+
+/**
+ * @deprecated Use AccountTreeWalletMetadata for tree objects or AccountTreeWalletPersistedMetadata for controller state
+ */
+export type AccountWalletMetadata = AccountWalletObject['metadata'];
 
 export type AccountTreeControllerState = {
   accountTree: {
@@ -42,6 +60,16 @@ export type AccountTreeControllerState = {
   // Legacy account syncing is a one-time operation that is performed when the user has legacy accounts.
   isLegacyAccountSyncingDisabled: Record<string, boolean>;
   isAccountSyncingInProgress: boolean;
+  /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
+  accountGroupsMetadata: Record<
+    AccountGroupId,
+    AccountTreeGroupPersistedMetadata
+  >;
+  /** Persistent metadata for account wallets (names, sync timestamps) */
+  accountWalletsMetadata: Record<
+    AccountWalletId,
+    AccountTreeWalletPersistedMetadata
+  >;
 };
 
 export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
