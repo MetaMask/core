@@ -192,6 +192,46 @@ describe('SubscriptionService', () => {
       await expect(service.getSubscription()).rejects.toThrow(/Network error/u);
     });
 
+    it('should handle non-Error exceptions in catch block', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      
+      // Mock fetch to throw a non-Error object
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue('string error');
+
+      try {
+        await expect(service.getSubscription()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+        await expect(service.getSubscription()).rejects.toThrow(
+          /failed to get subscription\. "string error"/u,
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    it('should handle null exceptions in catch block', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      
+      // Mock fetch to throw null
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(null);
+
+      try {
+        await expect(service.getSubscription()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+        await expect(service.getSubscription()).rejects.toThrow(
+          /failed to get subscription\. ""/u,
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
     it('should use correct environment URL', async () => {
       const config = createMockConfig(Env.PRD);
       const service = new SubscriptionService(config);
@@ -303,6 +343,46 @@ describe('SubscriptionService', () => {
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
       ).rejects.toThrow(/Network error/u);
+    });
+
+    it('should handle non-Error exceptions in catch block', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      
+      // Mock fetch to throw a non-Error object
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue('string error');
+
+      try {
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(/failed to cancel subscription\. "string error"/u);
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    it('should handle null exceptions in catch block', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      
+      // Mock fetch to throw null
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(null);
+
+      try {
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(/failed to cancel subscription\. ""/u);
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
 
     it('should use correct environment URL', async () => {
