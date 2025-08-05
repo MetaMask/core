@@ -211,6 +211,7 @@ type ActionsObj = CreateActionsObj<
   | 'performDeleteStorage'
   | 'performBatchDeleteStorage'
   | 'getStorageKey'
+  | 'syncInternalAccountsWithUserStorage'
 >;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -232,6 +233,8 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
+export type UserStorageControllerSyncInternalAccountsWithUserStorage =
+  ActionsObj['syncInternalAccountsWithUserStorage'];
 
 export type AllowedActions =
   // Keyring Requests
@@ -472,6 +475,11 @@ export default class UserStorageController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'UserStorageController:getStorageKey',
       this.getStorageKey.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:syncInternalAccountsWithUserStorage',
+      this.syncInternalAccountsWithUserStorage.bind(this),
     );
   }
 

@@ -14,6 +14,13 @@ import {
   type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type {
+  UserStorageControllerPerformBatchSetStorage,
+  UserStorageControllerPerformGetStorage,
+  UserStorageControllerPerformSetStorage,
+  UserStorageControllerSyncInternalAccountsWithUserStorage,
+} from '@metamask/profile-sync-controller/user-storage';
+import type { UserStorageControllerPerformGetStorageAllFeatureEntries } from '@metamask/profile-sync-controller/user-storage';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import type {
@@ -30,6 +37,8 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
+  isLegacyAccountSyncingEnabled: boolean;
+  isAccountSyncingInProgress: boolean;
 };
 
 export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
@@ -53,7 +62,12 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
-  | SnapControllerGetSnap;
+  | SnapControllerGetSnap
+  | UserStorageControllerPerformGetStorage
+  | UserStorageControllerPerformGetStorageAllFeatureEntries
+  | UserStorageControllerPerformSetStorage
+  | UserStorageControllerPerformBatchSetStorage
+  | UserStorageControllerSyncInternalAccountsWithUserStorage;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
