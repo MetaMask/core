@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose `fetchQuotes` method that returns a list of quotes directly rather than adding them to the controller state in order for clients to be able to retrieve quotes directly without the automatic polling and state mechanism ([#6236](https://github.com/MetaMask/core/pull/6236))
+- Expose `fetchQuotes` method that returns a list of quotes directly rather than adding them to the controller state. This enables clients to retrieve quotes directly without automatic polling and state management ([#6236](https://github.com/MetaMask/core/pull/6236))
 
 ## [37.1.0]
 
