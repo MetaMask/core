@@ -775,6 +775,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount2.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -790,6 +792,8 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
       } as AccountTreeControllerState);
     });
 
@@ -806,6 +810,8 @@ describe('AccountTreeController', () => {
       messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
 
       expect(controller.state).toStrictEqual({
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
         accountTree: {
           // No wallets should be present.
           wallets: {},
