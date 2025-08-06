@@ -10,7 +10,7 @@ const baseConfig = require('../../jest.config.packages');
 
 const displayName = path.basename(__dirname);
 
-module.exports = merge(baseConfig, {
+const config = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
@@ -24,3 +24,13 @@ module.exports = merge(baseConfig, {
     },
   },
 });
+
+// Override manually to give a higher priority to the account-api/* sub-paths.
+config.moduleNameMapper = {
+  '^@metamask/account-api/(.+)$': [
+    '<rootDir>/../../node_modules/@metamask/account-api/dist/$1/index.cjs',
+  ],
+  ...baseConfig.moduleNameMapper,
+};
+
+module.exports = config;

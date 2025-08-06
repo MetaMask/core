@@ -5,12 +5,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { EthScope, SolScope } from '@metamask/keyring-api';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
-
-import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -18,8 +12,14 @@ import {
   MOCK_WALLET_1_ENTROPY_SOURCE,
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
-  setupAccountProvider,
-} from './tests';
+} from '@metamask/account-api/mocks';
+import type { KeyringAccount } from '@metamask/keyring-api';
+import { EthScope, SolScope } from '@metamask/keyring-api';
+
+import { MultichainAccountGroup } from './MultichainAccountGroup';
+import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { MockAccountProvider } from './tests';
+import { setupAccountProvider } from './tests';
 
 function setup({
   groupIndex = 0,
@@ -32,16 +32,16 @@ function setup({
       MOCK_SNAP_ACCOUNT_2, // Non-BIP-44 account.
     ],
   ],
-}: { groupIndex?: number; accounts?: InternalAccount[][] } = {}): {
-  wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
-  group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
+}: { groupIndex?: number; accounts?: KeyringAccount[][] } = {}): {
+  wallet: MultichainAccountWallet<Bip44Account<KeyringAccount>>;
+  group: MultichainAccountGroup<Bip44Account<KeyringAccount>>;
   providers: MockAccountProvider[];
 } {
   const providers = accounts.map((providerAccounts) => {
     return setupAccountProvider({ accounts: providerAccounts });
   });
 
-  const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
+  const wallet = new MultichainAccountWallet<Bip44Account<KeyringAccount>>({
     providers,
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
   });
@@ -55,7 +55,7 @@ function setup({
   return { wallet, group, providers };
 }
 
-describe('MultichainAccount', () => {
+describe('MultichainAccountGroup', () => {
   describe('constructor', () => {
     it('constructs a multichain account group', async () => {
       const accounts = [
