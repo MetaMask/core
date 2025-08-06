@@ -27,7 +27,7 @@ const config = merge(baseConfig, {
 
 // Override manually to give a higher priority to the account-api/* sub-paths.
 config.moduleNameMapper = {
-  '^@metamask/account-api/(.*)': [
+  '^@metamask/account-api/(.+)$': [
     '<rootDir>/../../node_modules/@metamask/account-api/dist/$1/index.cjs',
   ],
   ...baseConfig.moduleNameMapper,

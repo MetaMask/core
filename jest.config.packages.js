@@ -80,7 +80,7 @@ module.exports = {
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
   // NOTE: This must be synchronized with the `paths` option in `tsconfig.packages.json`.
   moduleNameMapper: {
-    '^@metamask/account-api/(.+)$': [
+    '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,
       // so in that case use their published versions
