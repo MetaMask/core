@@ -225,6 +225,9 @@ export class Messenger<
    */
   registerDelegatedActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
+    // Using wider `ActionConstraint` type here rather than `Action` because the `Action` type is
+    // contravariant over the handler parameter type. Using `Action` would lead to a type error
+    // here because the messenger we've delegated to supports _additional_ actions.
     handler: ActionHandler<ActionConstraint, ActionType>,
   ) {
     this.#registerActionHandler(actionType, handler);
