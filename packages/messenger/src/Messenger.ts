@@ -124,6 +124,10 @@ type DelegatedMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > = Pick<
+  // The type is brooadened to all actions/events because some messenger methods are contravarient
+  // over this type (`registerDelegatedActionHandler` and `publishDelegated` for example). If this
+  // type is narrowed to just the delegated actions/events, the types for event payload and action
+  // parameters would not be wide enough.
   Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
   | 'publishDelegated'
   | 'registerDelegatedActionHandler'
