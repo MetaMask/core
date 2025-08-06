@@ -106,6 +106,7 @@ export type RequiredEventContextFromClient = {
     warnings: string[]; // TODO standardize warnings
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
+    can_submit: QuoteFetchData['can_submit'];
   };
   [UnifiedSwapBridgeEventName.QuoteError]: Pick<
     RequestMetadata,
@@ -164,6 +165,7 @@ export type RequiredEventContextFromClient = {
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
       stx_enabled: RequestMetadata['stx_enabled'];
+      can_submit: QuoteFetchData['can_submit'];
     };
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: Pick<
     TradeData,
@@ -174,11 +176,13 @@ export type RequiredEventContextFromClient = {
       stx_enabled: RequestMetadata['stx_enabled'];
       sort_order: SortOrder;
       best_quote_provider: QuoteFetchData['best_quote_provider'];
+      can_submit: QuoteFetchData['can_submit'];
     };
   [UnifiedSwapBridgeEventName.QuoteSelected]: TradeData & {
     is_best_quote: boolean;
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
+    can_submit: QuoteFetchData['can_submit'];
   };
 };
 

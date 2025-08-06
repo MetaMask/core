@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
 
+### Fixed
+
+- **BREAKING** Require clients to define `can_submit` property when publishing `QuoteSelected`, `AllQuotesSorted`, `AllQuotesOpened` and `QuotesReceived` events
+
 ## [37.1.0]
 
 ### Added
