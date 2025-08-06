@@ -44,15 +44,18 @@ export function getLocalGroupsForEntropyWallet(
 
 /**
  * State snapshot type for rollback operations.
+ * Captures all the state that needs to be restored in case of sync failures.
  */
 export type StateSnapshot = {
   accountGroupsMetadata: AccountTreeControllerState['accountGroupsMetadata'];
   accountWalletsMetadata: AccountTreeControllerState['accountWalletsMetadata'];
   selectedAccountGroup: AccountTreeControllerState['accountTree']['selectedAccountGroup'];
+  accountTreeWallets: AccountTreeControllerState['accountTree']['wallets'];
 };
 
 /**
  * Creates a snapshot of the current controller state for rollback purposes.
+ * Captures all state including the account tree structure.
  *
  * @param context - The account syncing context containing controller and messenger.
  * @returns A deep copy of relevant state that can be restored later.
@@ -69,11 +72,16 @@ export function createStateSnapshot(
     ),
     selectedAccountGroup:
       context.controller.state.accountTree.selectedAccountGroup,
+    accountTreeWallets: JSON.parse(
+      JSON.stringify(context.controller.state.accountTree.wallets),
+    ),
   };
 }
 
 /**
  * Restores state using an update callback.
+ * Restores both persisted metadata and the complete account tree structure.
+ * Uses the controller's init() method to rebuild internal maps correctly.
  *
  * @param context - The account syncing context containing controller and messenger.
  * @param snapshot - The state snapshot to restore.
@@ -86,5 +94,11 @@ export function restoreStateFromSnapshot(
     state.accountGroupsMetadata = snapshot.accountGroupsMetadata;
     state.accountWalletsMetadata = snapshot.accountWalletsMetadata;
     state.accountTree.selectedAccountGroup = snapshot.selectedAccountGroup;
+    state.accountTree.wallets = snapshot.accountTreeWallets;
   });
+
+  // Use init() to rebuild the internal maps from the restored account tree state
+  // This ensures that the internal maps (#accountIdToContext and #groupIdToWalletId)
+  // are correctly synchronized with the restored account tree structure
+  context.controller.init();
 }
