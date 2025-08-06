@@ -49,15 +49,15 @@
   "dependencies": {
     "@metamask/base-controller": "^8.0.1",
     "@metamask/controller-utils": "^11.11.0",
-    "@metamask/keyring-api": "^19.0.0",
-    "@metamask/keyring-internal-api": "^7.0.0",
+    "@metamask/keyring-api": "^20.0.0",
+    "@metamask/keyring-internal-api": "^8.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.4.2",
     "@solana/addresses": "^2.0.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^32.0.0",
+    "@metamask/accounts-controller": "^32.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^22.1.0",
     "@metamask/network-controller": "^24.0.1",

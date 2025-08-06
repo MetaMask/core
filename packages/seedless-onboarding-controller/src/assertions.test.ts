@@ -1,4 +1,7 @@
-import { assertIsValidVaultData } from './assertions';
+import {
+  assertIsPasswordOutdatedCacheValid,
+  assertIsValidVaultData,
+} from './assertions';
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
 
 describe('assertIsValidVaultData', () => {
@@ -190,5 +193,53 @@ describe('assertIsValidVaultData', () => {
         assertIsValidVaultData(validDataWithExtras);
       }).not.toThrow();
     });
+  });
+});
+
+describe('assertIsPasswordOutdatedCacheValid', () => {
+  it('should throw when value is not a valid number', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(null);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is a negative number', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(-1);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should not throw when value is a valid number', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(1000);
+    }).not.toThrow();
+  });
+
+  it('should throw when value is NaN', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(NaN);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is Infinity', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(Infinity);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is -Infinity', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(-Infinity);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
   });
 });

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
+### Fixed
+
+- Make sure to pass the `requireApproval` for ERC20 approvals ([#6204](https://github.com/MetaMask/core/pull/6204))
+
 ## [37.0.0]
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "32.0.0",
+  "version": "32.0.1",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -49,9 +49,9 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@metamask/base-controller": "^8.0.1",
-    "@metamask/eth-snap-keyring": "^14.0.0",
-    "@metamask/keyring-api": "^19.0.0",
-    "@metamask/keyring-internal-api": "^7.0.0",
+    "@metamask/eth-snap-keyring": "^16.0.0",
+    "@metamask/keyring-api": "^20.0.0",
+    "@metamask/keyring-internal-api": "^8.0.0",
     "@metamask/keyring-utils": "^3.1.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
