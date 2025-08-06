@@ -8,26 +8,10 @@ import type { Hex } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
-import type { CurrencyRateState } from '../CurrencyRateController';
-import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
-import type { TokenBalancesControllerState } from '../TokenBalancesController';
-import type { TokenRatesControllerState } from '../TokenRatesController';
-import type { TokensControllerState } from '../TokensController';
-
-/**
- * Root state type for all controllers used in selectors
- */
-export type RootState = {
-  TokenBalancesController: TokenBalancesControllerState;
-  CurrencyRateController: CurrencyRateState;
-  TokenRatesController: TokenRatesControllerState;
-  MultichainAssetsRatesController: MultichainAssetsRatesControllerState;
-  MultichainBalancesController: MultichainBalancesControllerState;
-  TokensController: TokensControllerState;
-  AccountsController: AccountsControllerState;
-  AccountTreeController: AccountTreeControllerState;
-};
+import {
+  extractControllerStates,
+  type AssetsSelectorState,
+} from '../utils/stateAdapter';
 
 /**
  * Helper function to get internal accounts for a specific group.
@@ -75,26 +59,19 @@ const getInternalAccountsForGroup = (
  */
 export const selectBalanceByAccountGroup = (groupId: string) =>
   createSelector(
-    [
-      (state: RootState) => state.AccountTreeController,
-      (state: RootState) => state.AccountsController,
-      (state: RootState) => state.TokenBalancesController,
-      (state: RootState) => state.TokenRatesController,
-      (state: RootState) => state.MultichainAssetsRatesController,
-      (state: RootState) => state.MultichainBalancesController,
-      (state: RootState) => state.TokensController,
-      (state: RootState) => state.CurrencyRateController,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): AccountGroupBalance => {
+    [(state: unknown) => extractControllerStates(state)],
+    (extractedState: AssetsSelectorState): AccountGroupBalance => {
+      const {
+        AccountTreeController: accountTreeState,
+        AccountsController: accountsState,
+        TokenBalancesController: tokenBalancesState,
+        TokenRatesController: tokenRatesState,
+        MultichainAssetsRatesController: multichainRatesState,
+        MultichainBalancesController: multichainBalancesState,
+        TokensController: tokensState,
+        CurrencyRateController: currencyRateState,
+      } = extractedState;
+
       // Extract walletId from groupId
       const walletId = groupId.split('/')[0] as EntropySourceId;
 
@@ -256,26 +233,19 @@ export type AllWalletsBalance = {
  */
 export const selectBalanceByWallet = (walletId: EntropySourceId) =>
   createSelector(
-    [
-      (state: RootState) => state.AccountTreeController,
-      (state: RootState) => state.AccountsController,
-      (state: RootState) => state.TokenBalancesController,
-      (state: RootState) => state.TokenRatesController,
-      (state: RootState) => state.MultichainAssetsRatesController,
-      (state: RootState) => state.MultichainBalancesController,
-      (state: RootState) => state.TokensController,
-      (state: RootState) => state.CurrencyRateController,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): WalletBalance => {
+    [(state: unknown) => extractControllerStates(state)],
+    (extractedState: AssetsSelectorState): WalletBalance => {
+      const {
+        AccountTreeController: accountTreeState,
+        AccountsController: accountsState,
+        TokenBalancesController: tokenBalancesState,
+        TokenRatesController: tokenRatesState,
+        MultichainAssetsRatesController: multichainRatesState,
+        MultichainBalancesController: multichainBalancesState,
+        TokensController: tokensState,
+        CurrencyRateController: currencyRateState,
+      } = extractedState;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wallet = (accountTreeState.accountTree.wallets as any)[walletId];
       if (!wallet) {
@@ -325,26 +295,19 @@ export const selectBalanceByWallet = (walletId: EntropySourceId) =>
  */
 export const selectBalanceForAllWallets = () =>
   createSelector(
-    [
-      (state: RootState) => state.AccountTreeController,
-      (state: RootState) => state.AccountsController,
-      (state: RootState) => state.TokenBalancesController,
-      (state: RootState) => state.TokenRatesController,
-      (state: RootState) => state.MultichainAssetsRatesController,
-      (state: RootState) => state.MultichainBalancesController,
-      (state: RootState) => state.TokensController,
-      (state: RootState) => state.CurrencyRateController,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): AllWalletsBalance => {
+    [(state: unknown) => extractControllerStates(state)],
+    (extractedState: AssetsSelectorState): AllWalletsBalance => {
+      const {
+        AccountTreeController: accountTreeState,
+        AccountsController: accountsState,
+        TokenBalancesController: tokenBalancesState,
+        TokenRatesController: tokenRatesState,
+        MultichainAssetsRatesController: multichainRatesState,
+        MultichainBalancesController: multichainBalancesState,
+        TokensController: tokensState,
+        CurrencyRateController: currencyRateState,
+      } = extractedState;
+
       const walletBalances: Record<string, WalletBalance> = {};
       let totalBalanceInUserCurrency = 0;
 
@@ -384,26 +347,19 @@ export const selectBalanceForAllWallets = () =>
  */
 export const selectBalanceForSelectedAccountGroup = () =>
   createSelector(
-    [
-      (state: RootState) => state.AccountTreeController,
-      (state: RootState) => state.AccountsController,
-      (state: RootState) => state.TokenBalancesController,
-      (state: RootState) => state.TokenRatesController,
-      (state: RootState) => state.MultichainAssetsRatesController,
-      (state: RootState) => state.MultichainBalancesController,
-      (state: RootState) => state.TokensController,
-      (state: RootState) => state.CurrencyRateController,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): AccountGroupBalance | null => {
+    [(state: unknown) => extractControllerStates(state)],
+    (extractedState: AssetsSelectorState): AccountGroupBalance | null => {
+      const {
+        AccountTreeController: accountTreeState,
+        AccountsController: accountsState,
+        TokenBalancesController: tokenBalancesState,
+        TokenRatesController: tokenRatesState,
+        MultichainAssetsRatesController: multichainRatesState,
+        MultichainBalancesController: multichainBalancesState,
+        TokensController: tokensState,
+        CurrencyRateController: currencyRateState,
+      } = extractedState;
+
       const selectedGroupId = accountTreeState.accountTree.selectedAccountGroup;
 
       if (!selectedGroupId) {

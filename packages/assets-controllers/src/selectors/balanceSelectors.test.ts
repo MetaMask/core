@@ -6,14 +6,14 @@ import {
   selectBalanceForAllWallets,
   selectBalanceForSelectedAccountGroup,
 } from './balanceSelectors';
-import type { RootState } from './balanceSelectors';
 import { getDefaultMultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
 import { getDefaultTokenBalancesState } from '../TokenBalancesController';
 import { getDefaultTokenRatesControllerState } from '../TokenRatesController';
 import type { MarketDataDetails } from '../TokenRatesController';
 import { getDefaultTokensState } from '../TokensController';
+import type { AssetsSelectorState } from '../utils/stateAdapter';
 
-const createMockState = (userCurrency = 'USD'): RootState => ({
+const createMockState = (userCurrency = 'USD'): AssetsSelectorState => ({
   AccountTreeController: {
     accountTree: {
       wallets: {
