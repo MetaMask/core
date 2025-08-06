@@ -86,7 +86,7 @@ describe('MultichainAccountWallet', () => {
       const multichainAccountGroup =
         wallet.getMultichainAccountGroup(groupIndex);
       expect(multichainAccountGroup).toBeDefined();
-      expect(multichainAccountGroup?.index).toBe(groupIndex);
+      expect(multichainAccountGroup?.groupIndex).toBe(groupIndex);
 
       // We can still get a multichain account group as a "basic" account group too.
       const group = wallet.getAccountGroup(
@@ -238,7 +238,7 @@ describe('MultichainAccountWallet', () => {
 
       const specificGroup =
         await wallet.createMultichainAccountGroup(groupIndex);
-      expect(specificGroup.index).toBe(groupIndex);
+      expect(specificGroup.groupIndex).toBe(groupIndex);
 
       const internalAccounts = specificGroup.getAccounts();
       expect(internalAccounts).toHaveLength(1);
@@ -338,7 +338,7 @@ describe('MultichainAccountWallet', () => {
       }
 
       const nextGroup = await wallet.createNextMultichainAccountGroup();
-      expect(nextGroup.index).toBe(1);
+      expect(nextGroup.groupIndex).toBe(1);
 
       const internalAccounts = nextGroup.getAccounts();
       expect(internalAccounts).toHaveLength(2); // EVM + SOL.
