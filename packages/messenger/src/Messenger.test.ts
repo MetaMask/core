@@ -994,7 +994,7 @@ describe('Messenger', () => {
     it('allows calling delegated action', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1020,7 +1020,7 @@ describe('Messenger', () => {
     it('allows calling delegated action that is not registered yet at time of delegation', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1047,7 +1047,7 @@ describe('Messenger', () => {
     it('throws an error when delegated action is called before it is registered', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1071,7 +1071,7 @@ describe('Messenger', () => {
     it('unregisters delegated action handlers when action is unregistered', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1280,7 +1280,7 @@ describe('Messenger', () => {
     it('allows revoking a delegated action', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1315,7 +1315,7 @@ describe('Messenger', () => {
     it('allows revoking both a delegated and undelegated action', () => {
       type ExampleFirstAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       type ExampleSecondAction = {
         type: 'Source:getRandomString';
@@ -1363,7 +1363,7 @@ describe('Messenger', () => {
     it('allows revoking a delegated action that is delegated elsewhere', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1423,7 +1423,7 @@ describe('Messenger', () => {
     it('ignores revokation of action that is not delegated to the given messenger, but is delegated elsewhere', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
@@ -1464,7 +1464,7 @@ describe('Messenger', () => {
     it('ignores revokation of action that is not delegated', () => {
       type ExampleAction = {
         type: 'Source:getLength';
-        handler: (input: string) => string;
+        handler: (input: string) => number;
       };
       const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
         namespace: 'Source',
