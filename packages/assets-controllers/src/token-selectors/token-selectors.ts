@@ -1,9 +1,11 @@
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
+import type { Hex } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
+import type { Token } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
 
 export type AllAssets = {
@@ -15,7 +17,9 @@ export type GroupAssets = {
 };
 
 export type SelectorAsset = {
+  // TODO: It's unclear whether this type will be needed, ideally the UI should not need to know about it
   type: 'evm' | 'multichain';
+  // TODO: This is the address for evm tokens and the assetId for multichain tokens
   assetId: string;
   icon?: string;
   name: string;
@@ -24,6 +28,9 @@ export type SelectorAsset = {
 };
 
 const selectAllEvmTokens = (state: TokensControllerState) => state.allTokens;
+
+const selectIgnoredEvmTokens = (state: TokensControllerState) =>
+  state.allIgnoredTokens;
 
 const selectAllMultichainTokens = (state: MultichainAssetsControllerState) =>
   state.accountsAssets;
@@ -39,14 +46,13 @@ const selectAccountTree = (state: AccountTreeControllerState) =>
 const selectInternalAccounts = (state: AccountsControllerState) =>
   state.internalAccounts;
 
-export const selectAccountsMap = createSelector(
+export const selectAccountsToGroupIdMap = createSelector(
   [selectAccountTree, selectInternalAccounts],
   (accountTree, internalAccounts) => {
     const accountsMap: Record<string, AccountGroupId> = {};
     for (const { groups } of Object.values(accountTree.wallets)) {
       for (const { id: accountGroupId, accounts } of Object.values(groups)) {
         for (const accountId of accounts) {
-          // TODO: We would not need internalAccounts if evmTokens state had the accountId
           const internalAccount = internalAccounts.accounts[accountId];
 
           accountsMap[
@@ -59,25 +65,32 @@ export const selectAccountsMap = createSelector(
       }
     }
 
-    console.log('XXXXX ACCOUNT MAP', accountsMap);
-
     return accountsMap;
   },
 );
 
 const selectAllEvmAssets = createSelector(
-  [selectAccountsMap, selectAllEvmTokens],
-  (accountsMap, evmTokens) => {
+  [selectAccountsToGroupIdMap, selectAllEvmTokens, selectIgnoredEvmTokens],
+  (accountsMap, evmTokens, ignoredEvmTokens) => {
     const groupAssets: AllAssets = {};
 
-    for (const [chainId, chainTokens] of Object.entries(evmTokens)) {
+    for (const [chainId, chainTokens] of Object.entries(evmTokens) as [
+      Hex,
+      { [key: string]: Token[] },
+    ][]) {
       for (const [accountAddress, addressTokens] of Object.entries(
         chainTokens,
       )) {
         for (const token of addressTokens) {
           const accountGroupId = accountsMap[accountAddress];
           if (!accountGroupId) {
-            // TODO: This should not happen and we should warn
+            // TODO: This should not happen and we should log an error
+            continue;
+          }
+
+          if (
+            ignoredEvmTokens[chainId]?.[accountAddress]?.includes(token.address)
+          ) {
             continue;
           }
 
@@ -92,7 +105,6 @@ const selectAllEvmAssets = createSelector(
           }
 
           groupChainAssets.push({
-            // TODO: Consider if we should reuse existing types
             type: 'evm',
             assetId: token.address,
             icon: token.image,
@@ -104,15 +116,13 @@ const selectAllEvmAssets = createSelector(
       }
     }
 
-    console.log('XXXXX EVMS', groupAssets);
-
     return groupAssets;
   },
 );
 
 const selectAllMultichainAssets = createSelector(
   [
-    selectAccountsMap,
+    selectAccountsToGroupIdMap,
     selectAllMultichainTokens,
     selectAllMultichainAssetsMetadata,
   ],
@@ -121,13 +131,13 @@ const selectAllMultichainAssets = createSelector(
 
     for (const [accountId, accountAssets] of Object.entries(multichainTokens)) {
       for (const assetId of accountAssets) {
-        // TODO: We need a way to extract the chainId that is safe (in case of multiple / characters)
+        // TODO: We need a safe way to extract each part of the id (in case of multiple / characters)
         const [chainId, asset] = assetId.split('/');
 
         const accountGroupId = accountsMap[accountId];
         const assetMetadata = multichainAssetsMetadata[assetId];
         if (!accountGroupId || !assetMetadata) {
-          // TODO: This should not happen and we should warn
+          // TODO: This should not happen and we should log an error
           continue;
         }
 
@@ -141,14 +151,13 @@ const selectAllMultichainAssets = createSelector(
           groupAssets[accountGroupId][chainId] = groupChainAssets;
         }
 
-        // TODO: We need fallbacks for name, symbol and decimals, since they seem to be optional
+        // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
-          // TODO: Consider if we should reuse existing types
           type: 'multichain',
           assetId,
           icon: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
-          symbol: assetMetadata.symbol ?? asset,
+          symbol: assetMetadata.symbol ?? '',
           decimals:
             assetMetadata.units.find(
               (unit) =>
@@ -158,8 +167,6 @@ const selectAllMultichainAssets = createSelector(
         });
       }
     }
-
-    console.log('XXXXX MULTICHAIN', groupAssets);
 
     return groupAssets;
   },
@@ -187,13 +194,11 @@ export const selectAllAssets = createSelector(
       }
     }
 
-    console.log('XXXXX ALL', groupAssets);
-
     return groupAssets;
   },
 );
 
-export const selectAllAssetsForSelectedAccountGroup = createSelector(
+export const selectAssetsBySelectedAccountGroup = createSelector(
   [selectAllAssets, selectAccountTree],
   (groupAssets, accountTree) => {
     const { selectedAccountGroup } = accountTree;

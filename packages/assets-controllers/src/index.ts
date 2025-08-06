@@ -214,7 +214,7 @@ export type {
   SelectorAsset,
 } from './token-selectors/token-selectors';
 export {
-  selectAccountsMap,
+  selectAccountsToGroupIdMap,
   selectAllAssets,
-  selectAllAssetsForSelectedAccountGroup,
+  selectAssetsBySelectedAccountGroup,
 } from './token-selectors/token-selectors';
