@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add persistence support for user customizations ([#6221](https://github.com/MetaMask/core/pull/6221))
+  - New `accountGroupsMetadata` (of new type `AccountTreeGroupPersistedMetadata`) and `accountWalletsMetadata` (of new type `AccountTreeWalletPersistedMetadata`) state properties to persist custom names, pinning, and hiding states.
+  - Custom names and metadata survive controller initialization and tree rebuilds.
+  - Support for `lastUpdatedAt` timestamps for Account Syncing V2 compatibility.
+- Add setter methods for setting custom account group names, wallet names and their pinning state and visibility ([#6221](https://github.com/MetaMask/core/pull/6221))
+- Add `group.type` tag ([#6214](https://github.com/MetaMask/core/pull/6214))
+  - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountGroupObject`.
+- Add `group.metadata` metadata object ([#6214](https://github.com/MetaMask/core/pull/6214))
+  - Given the `group.type` you will now have access to specific metadata information (e.g. `groupIndex` for multichain account groups)
+- Automatically prune empty groups and wallets upon account removal ([#6234](https://github.com/MetaMask/core/pull/6234))
+  - This ensures that there aren't any empty nodes in the `AccountTreeController` state.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.7.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6222](https://github.com/MetaMask/core/pull/6222))
+- **BREAKING:** Move `wallet.metadata.type` tag to `wallet` node ([#6214](https://github.com/MetaMask/core/pull/6214))
+  - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountWalletObject`.
+- Defaults to the EVM account from a group when using `setSelectedAccountGroup` ([#6208](https://github.com/MetaMask/core/pull/6208))
+  - In case no EVM accounts are found in a group (which should not be possible), it will defaults to the first account of that group.
+- Enhanced customization priority hierarchy in tree building ([#6221](https://github.com/MetaMask/core/pull/6221))
+  - Custom user names now take priority over default rule-generated names.
+
+## [0.7.0]
+
+### Added
+
+- Add BIP-44/multichain accounts support ([#6185](https://github.com/MetaMask/core/pull/6185))
+  - Those are being attached to the `entropy` wallet category.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.2.0` to `^0.3.0` ([#6165](https://github.com/MetaMask/core/pull/6165))
+- Add `selectedAccountGroup` state and bidirectional synchronization with `AccountsController` ([#6186](https://github.com/MetaMask/core/pull/6186))
+  - New `getSelectedAccountGroup()` and `setSelectedAccountGroup()` methods.
+  - Automatic synchronization when selected account changes in AccountsController.
+  - New action types `AccountTreeControllerGetSelectedAccountGroupAction` and `AccountTreeControllerSetSelectedAccountGroupAction`.
+- Now use one account group per account for `snap` and `keyring` wallet categories ([#6185](https://github.com/MetaMask/core/pull/6185))
+  - We used to group all accounts under the `'default'` group, but we now compute the group ID using the address of each accounts.
+- Compute account group name based on their underlying account. ([#6185](https://github.com/MetaMask/core/pull/6185))
+  - This replaces the previous `'Default'` name for groups.
+
 ## [0.6.0]
 
 ### Changed
@@ -63,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.7.0...HEAD
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.6.0...@metamask/account-tree-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.5.0...@metamask/account-tree-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.4.0...@metamask/account-tree-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.3.0...@metamask/account-tree-controller@0.4.0

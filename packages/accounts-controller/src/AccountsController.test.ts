@@ -1804,6 +1804,35 @@ describe('AccountsController', () => {
         mockOlderEvmAccount.id,
       );
     });
+
+    it('should not emit an update if the selected account does not change', () => {
+      const messenger = buildMessenger();
+      const spy = jest.spyOn(messenger, 'publish');
+      const { accountsController, triggerMultichainNetworkChange } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockOlderEvmAccount.id]: mockOlderEvmAccount,
+              },
+              selectedAccount: mockOlderEvmAccount.id,
+            },
+          },
+          messenger,
+        });
+
+      triggerMultichainNetworkChange(InfuraNetworkType.mainnet);
+
+      expect(spy).not.toHaveBeenCalledWith(
+        'AccountsController:stateChange',
+        expect.any(Object),
+        expect.any(Array),
+      );
+
+      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
+        mockOlderEvmAccount.id,
+      );
+    });
   });
 
   describe('updateAccounts', () => {

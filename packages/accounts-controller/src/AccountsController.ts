@@ -428,6 +428,10 @@ export class AccountsController extends BaseController<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
+    if (this.state.internalAccounts.selectedAccount === account.id) {
+      return;
+    }
+
     this.#update((state) => {
       const { internalAccounts } = state;
 
@@ -1169,6 +1173,10 @@ export class AccountsController extends BaseController<
       // Update selected account to evm account
       const lastSelectedEvmAccount = this.getSelectedAccount();
       accountId = lastSelectedEvmAccount.id;
+    }
+
+    if (this.state.internalAccounts.selectedAccount === accountId) {
+      return;
     }
 
     this.update((currentState) => {
