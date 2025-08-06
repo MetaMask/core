@@ -1805,6 +1805,9 @@ export type GasFeeToken = {
   /** Estimated gas limit required for fee transfer. */
   gasTransfer?: Hex;
 
+  /** Whether the gas costs are sponsored meaning a transfer is not required. */
+  isSponsored?: boolean;
+
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;
 
@@ -1823,8 +1826,6 @@ export type GasFeeToken = {
   /** Address of the token contract. */
   tokenAddress: Hex;
 
-  /** Whether the gas costs are sponsored by the network. */
-  isSponsored?: boolean;
 };
 
 /** Request to check if atomic batch is supported for an account. */
