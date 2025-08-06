@@ -27,7 +27,7 @@ export type MultichainAccountSyncingAnalyticsEventPayload = {
 };
 
 /**
- * Formats the analytics event payload.
+ * Formats the analytics event payload to match the segment schema.
  *
  * @param params - The parameters for the analytics event.
  * @param params.action - The action being performed.
