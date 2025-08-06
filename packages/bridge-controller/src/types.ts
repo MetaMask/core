@@ -175,6 +175,7 @@ export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
 export type FeatureFlagResponse = Infer<typeof PlatformConfigSchema>;
 
+// TODO move definition to validators.ts
 /**
  * This is the interface for the quote request sent to the bridge-api
  * and should only be used by the fetchBridgeQuotes utility function
@@ -207,6 +208,7 @@ export type QuoteRequest<
    * and the current network has STX support
    */
   gasIncluded: boolean;
+  noFee?: boolean;
 };
 
 export enum StatusTypes {
@@ -279,6 +281,7 @@ export enum BridgeBackgroundAction {
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
   STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
+  FETCH_QUOTES = 'fetchQuotes',
 }
 
 export type BridgeControllerState = {
@@ -314,6 +317,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
+  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<
