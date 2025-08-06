@@ -391,7 +391,7 @@ export class Messenger<
    * @param args - The arguments to this function
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
-   * @template EventType - A type union of Event type strings.
+   * @template EventType - A type union of Event type strings under this messenger's namespace.
    */
   registerInitialEventPayload<
     EventType extends Event['type'] & NamespacedName<Namespace>,
