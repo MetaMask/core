@@ -19,6 +19,8 @@
   "exports": {
     "./package.json": "./package.json"
   },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "bin": {
     "mm-foundryup": "./dist/cli.mjs"
   },
@@ -32,11 +34,18 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/foundryup",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/foundryup",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "since-latest-release": "../../scripts/since-latest-release.sh"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "minipass": "^7.1.2",
+    "tar": "^7.4.3",
+    "unzipper": "^0.12.3",
+    "yargs": "^17.7.2",
+    "yargs-parser": "^21.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
@@ -59,14 +68,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "dependencies": {
-    "minipass": "^7.1.2",
-    "tar": "^7.4.3",
-    "unzipper": "^0.12.3",
-    "yargs": "^17.7.2",
-    "yargs-parser": "^21.1.1"
-  },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts"
+  }
 }
