@@ -225,16 +225,14 @@ export class Messenger<
    */
   registerDelegatedActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-    handler:
-      | ActionHandler<Action, ActionType>
-      | ActionHandler<ActionConstraint, ActionType>,
+    handler: ActionHandler<ActionConstraint, ActionType>,
   ) {
     this.#registerActionHandler(actionType, handler);
   }
 
   #registerActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
-    handler: ActionHandler<Action, ActionType>,
+    handler: ActionHandler<ActionConstraint, ActionType>,
   ) {
     if (this.#actions.has(actionType)) {
       throw new Error(
