@@ -1,6 +1,5 @@
-import type { AccountGroupMultichainAccountObject } from 'src/group';
-
 import { compareAndSyncMetadata } from './metadata';
+import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
 import { getLocalGroupsForEntropyWallet } from '../controller-utils';
@@ -134,7 +133,6 @@ export async function syncGroupsMetadata(
     const groupPersistedMetadata =
       context.controller.state.accountGroupsMetadata[localSyncableGroup.id];
 
-    // Defensive check: ensure we have proper metadata structure
     if (!groupPersistedMetadata) {
       console.warn(
         `No persisted metadata found for group ${localSyncableGroup.id}, pushing to user storage`,

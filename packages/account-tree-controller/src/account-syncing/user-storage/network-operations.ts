@@ -2,24 +2,30 @@ import type { AccountGroupMultichainAccountObject } from 'src/group';
 import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import {
+  USER_STORAGE_GROUPS_FEATURE_KEY,
+  USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
+  USER_STORAGE_WALLETS_FEATURE_KEY,
+} from './constants';
+import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
 } from './format-utils';
 import { executeWithRetry } from './network-utils';
-import {
-  USER_STORAGE_GROUPS_FEATURE_KEY,
-  USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
-  USER_STORAGE_WALLETS_FEATURE_KEY,
-} from '../constants';
 import type {
   AccountSyncingContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
 
-// Wallet operations
+/**
+ * Retrieves the wallet from user storage.
+ *
+ * @param context - The account syncing context.
+ * @param entropySourceId - The entropy source ID.
+ * @returns The wallet from user storage or null if not found.
+ */
 export const getWalletFromUserStorage = async (
   context: AccountSyncingContext,
   entropySourceId: string,
@@ -38,6 +44,13 @@ export const getWalletFromUserStorage = async (
   }, `Get wallet ${entropySourceId} from user storage`);
 };
 
+/**
+ * Pushes the wallet to user storage.
+ *
+ * @param context - The account syncing context.
+ * @param wallet - The wallet to push to user storage.
+ * @returns A promise that resolves when the operation is complete.
+ */
 export const pushWalletToUserStorage = async (
   context: AccountSyncingContext,
   wallet: AccountWalletEntropyObject,
@@ -55,7 +68,13 @@ export const pushWalletToUserStorage = async (
   }, `Push wallet ${wallet.id} to user storage`);
 };
 
-// Group operations
+/**
+ * Retrieves all groups from user storage.
+ *
+ * @param context - The account syncing context.
+ * @param entropySourceId - The entropy source ID.
+ * @returns An array of groups from user storage.
+ */
 export const getAllGroupsFromUserStorage = async (
   context: AccountSyncingContext,
   entropySourceId: string,
@@ -76,6 +95,13 @@ export const getAllGroupsFromUserStorage = async (
   }, `Get groups for wallet ${entropySourceId} from user storage`);
 };
 
+/**
+ * Pushes a group to user storage.
+ *
+ * @param context - The account syncing context.
+ * @param group - The group to push to user storage.
+ * @returns A promise that resolves when the operation is complete.
+ */
 export const pushGroupToUserStorage = async (
   context: AccountSyncingContext,
   group: AccountGroupMultichainAccountObject,
@@ -95,6 +121,14 @@ export const pushGroupToUserStorage = async (
   }, `Push group ${group.id} to user storage`);
 };
 
+/**
+ * Pushes a batch of groups to user storage.
+ *
+ * @param context - The account syncing context.
+ * @param groups - The groups to push to user storage.
+ * @param entropySourceId - The entropy source ID.
+ * @returns A promise that resolves when the operation is complete.
+ */
 export const pushGroupToUserStorageBatch = async (
   context: AccountSyncingContext,
   groups: AccountGroupMultichainAccountObject[],

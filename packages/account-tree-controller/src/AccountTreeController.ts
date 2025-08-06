@@ -810,12 +810,14 @@ export class AccountTreeController extends BaseController<
    * if individual wallet sync fails. A global lock prevents concurrent
    * sync operations.
    *
+   * During this process, all other atomic multichain related user storage updates are blocked.
+   *
    * @throws Will throw if the sync operation encounters unrecoverable errors
    */
   async syncWithUserStorage(): Promise<void> {
     if (this.#disableMultichainAccountSyncing) {
       console.warn(
-        'Multichain account syncing is disabled. Please enable it in the controller configuration.',
+        'Multichain account syncing is disabled. Skipping sync operation.',
       );
       return;
     }
@@ -943,7 +945,7 @@ export class AccountTreeController extends BaseController<
           }
         }
       } catch (error) {
-        console.error('Error during multilchain account syncing:', error);
+        console.error('Error during multichain account syncing:', error);
         throw error;
       } finally {
         this.update((state) => {

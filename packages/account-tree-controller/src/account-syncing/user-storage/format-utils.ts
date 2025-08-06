@@ -7,6 +7,15 @@ import type {
   UserStorageSyncedWalletGroup,
 } from '../types';
 
+/**
+ * Formats the wallet for user storage usage.
+ * This function extracts the necessary metadata from the wallet
+ * and formats it according to the user storage requirements.
+ *
+ * @param context - The account syncing context.
+ * @param wallet - The wallet object to format.
+ * @returns The formatted wallet for user storage.
+ */
 export const formatWalletForUserStorageUsage = (
   context: AccountSyncingContext,
   wallet: AccountWalletEntropyObject,
@@ -18,6 +27,15 @@ export const formatWalletForUserStorageUsage = (
   };
 };
 
+/**
+ * Formats the group for user storage usage.
+ * This function extracts the necessary metadata from the group
+ * and formats it according to the user storage requirements.
+ *
+ * @param context - The account syncing context.
+ * @param group - The group object to format.
+ * @returns The formatted group for user storage.
+ */
 export const formatGroupForUserStorageUsage = (
   context: AccountSyncingContext,
   group: AccountGroupMultichainAccountObject,
@@ -30,6 +48,15 @@ export const formatGroupForUserStorageUsage = (
   };
 };
 
+/**
+ * Parses the wallet from user storage response.
+ * This function attempts to parse the wallet data from a string format
+ * and returns it as a UserStorageSyncedWallet object.
+ *
+ * @param wallet - The wallet data in string format.
+ * @returns The parsed UserStorageSyncedWallet object.
+ * @throws If the wallet data is not in valid JSON format.
+ */
 export const parseWalletFromUserStorageResponse = (
   wallet: string,
 ): UserStorageSyncedWallet => {
@@ -42,6 +69,16 @@ export const parseWalletFromUserStorageResponse = (
     );
   }
 };
+
+/**
+ * Parses the group from user storage response.
+ * This function attempts to parse the group data from a string format
+ * and returns it as a UserStorageSyncedWalletGroup object.
+ *
+ * @param group - The group data in string format.
+ * @returns The parsed UserStorageSyncedWalletGroup object.
+ * @throws If the group data is not in valid JSON format.
+ */
 export const parseGroupFromUserStorageResponse = (
   group: string,
 ): UserStorageSyncedWalletGroup => {
