@@ -197,7 +197,7 @@ export class Messenger<
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
-   * @template ActionType - A type union of Action type strings.
+   * @template ActionType - A type union of Action type strings under this messenger's namespace.
    */
   registerActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
@@ -277,7 +277,7 @@ export class Messenger<
    * The action being unregistered must be under the same namespace as the messenger.
    *
    * @param actionType - The action type. This is a unique identifier for this action.
-   * @template ActionType - A type union of Action type strings.
+   * @template ActionType - A type union of Action type strings under this messenger's namespace.
    */
   unregisterActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
