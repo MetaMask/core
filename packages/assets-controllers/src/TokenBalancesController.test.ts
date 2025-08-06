@@ -1447,4 +1447,105 @@ describe('TokenBalancesController', () => {
       },
     });
   });
+
+  describe('error logging', () => {
+    it('should log error when balance fetcher throws in try-catch block', async () => {
+      const chainId = '0x1';
+      const mockError = new Error('Fetcher failed');
+
+      // Create log spy and pass it to the controller
+      const logSpy = jest.fn();
+      const { controller } = setupController({
+        config: { log: logSpy },
+      });
+
+      // Mock safelyExecuteWithTimeout to simulate the scenario where the error
+      // bypasses it and reaches the catch block directly (line 289-292)
+      const originalSafelyExecute = jest.requireActual(
+        '@metamask/controller-utils',
+      ).safelyExecuteWithTimeout;
+      const safelyExecuteSpy = jest
+        .spyOn(
+          require('@metamask/controller-utils'),
+          'safelyExecuteWithTimeout',
+        )
+        .mockImplementation(async () => {
+          // Instead of swallowing the error, throw it to reach the catch block
+          throw mockError;
+        });
+
+      // Mock a fetcher that supports the chain
+      const mockFetcher = {
+        supports: jest.fn().mockReturnValue(true),
+        fetch: jest.fn(),
+      };
+
+      Object.defineProperty(controller, '#balanceFetchers', {
+        value: [mockFetcher],
+        writable: true,
+      });
+
+      await controller.updateBalances({ chainIds: [chainId] });
+
+      // Verify the error was logged with the expected message
+      expect(logSpy).toHaveBeenCalledWith(
+        `Balance fetcher failed for chains ${chainId}: Error: Fetcher failed`,
+      );
+
+      // Restore mocks
+      safelyExecuteSpy.mockRestore();
+    });
+
+    it('should log error when updateBalances fails after token change', async () => {
+      const chainId = '0x1';
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+      const tokenAddress = '0x0000000000000000000000000000000000000001';
+      const mockError = new Error('UpdateBalances failed');
+
+      // Create log spy and pass it to the controller
+      const logSpy = jest.fn();
+      const { controller, messenger } = setupController({
+        config: { log: logSpy },
+      });
+
+      // Mock updateBalances to throw an error
+      const updateBalancesSpy = jest
+        .spyOn(controller, 'updateBalances')
+        .mockRejectedValue(mockError);
+
+      // Publish a token change that should trigger updateBalances
+      messenger.publish(
+        'TokensController:stateChange',
+        {
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, decimals: 0, symbol: 'S' },
+              ],
+            },
+          },
+        },
+        [],
+      );
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Verify updateBalances was called
+      expect(updateBalancesSpy).toHaveBeenCalled();
+
+      // Wait a bit more for the catch block to execute
+      await advanceTime({ clock, duration: 1 });
+
+      // Verify the error was logged
+      expect(logSpy).toHaveBeenCalledWith(
+        'Error updating balances after token change:',
+        mockError,
+      );
+
+      // Restore the original method
+      updateBalancesSpy.mockRestore();
+    });
+  });
 });

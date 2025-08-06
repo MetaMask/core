@@ -201,7 +201,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  get #chainIdsWithTokens(): ChainIdHex[] {
+  #chainIdsWithTokens(): ChainIdHex[] {
     return [
       ...new Set([
         ...Object.keys(this.#allTokens),
@@ -235,14 +235,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   };
 
-  // ───────── polling ─────────
   async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
     await this.updateBalances({ chainIds });
   }
 
-  // ───────── public API ─────────
   async updateBalances({ chainIds }: { chainIds?: ChainIdHex[] } = {}) {
-    const targetChains = chainIds ?? this.#chainIdsWithTokens;
+    const targetChains = chainIds ?? this.#chainIdsWithTokens();
     if (!targetChains.length) {
       return;
     }
