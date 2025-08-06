@@ -406,7 +406,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -414,7 +414,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
@@ -422,7 +422,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "token_destination",
-      "value": "eip155:10/erc20:0x123",
+      "input_value": "eip155:10/erc20:0x123",
     },
   ],
   Array [
@@ -430,7 +430,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
@@ -790,7 +790,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -798,7 +798,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     },
   ],
   Array [
@@ -806,7 +806,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "token_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
     },
   ],
   Array [
@@ -814,7 +814,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
@@ -931,7 +931,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -939,7 +939,7 @@ Array [
     Object {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
@@ -947,7 +947,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
 ]

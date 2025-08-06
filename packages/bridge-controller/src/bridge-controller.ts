@@ -905,7 +905,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           UnifiedSwapBridgeEventName.InputChanged,
           {
             input: inputKey,
-            value: inputValue,
+            input_value: inputValue,
           },
         );
       }

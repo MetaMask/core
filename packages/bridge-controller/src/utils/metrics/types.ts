@@ -85,7 +85,7 @@ export type RequiredEventContextFromClient = {
       | 'chain_source'
       | 'chain_destination'
       | 'slippage';
-    value: InputValues[keyof InputValues];
+    input_value: InputValues[keyof InputValues];
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationFlipped]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -194,7 +194,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.PageViewed]: RequestParams;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
-    value: string;
+    input_value: string;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationFlipped]: RequestParams;
   [UnifiedSwapBridgeEventName.QuotesRequested]: RequestParams &
