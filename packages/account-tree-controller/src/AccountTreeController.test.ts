@@ -31,7 +31,11 @@ import { AccountTreeController } from './AccountTreeController';
 import type { AccountGroupObject } from './group';
 import { AccountTreeGroup } from './group';
 import { BaseRule } from './rule';
-import { getAccountWalletNameFromKeyringType } from './rules/keyring';
+import {
+  KeyringRule,
+  getAccountWalletNameFromKeyringType,
+} from './rules/keyring';
+import { SnapRule } from './rules/snap';
 import {
   type AccountTreeControllerMessenger,
   type AccountTreeControllerActions,
@@ -1667,35 +1671,173 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('BaseRule', () => {
-    it('fallbacks to emptry group name if we cannot get its account', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
+  describe('Rules', () => {
+    describe('BaseRule', () => {
+      it('returns empty string for getComputedAccountGroupName when account is not found', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new BaseRule(messenger);
 
-      rootMessenger.registerActionHandler(
-        'AccountsController:getAccount',
-        () => undefined,
-      );
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccount',
+          () => undefined,
+        );
 
-      const group: AccountGroupObject = {
-        id: toMultichainAccountGroupId(
-          toMultichainAccountWalletId('test'),
-          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-        ),
-        type: AccountGroupType.MultichainAccount,
-        accounts: [MOCK_HD_ACCOUNT_1.id],
-        metadata: {
-          name: MOCK_HD_ACCOUNT_1.metadata.name,
-          entropy: {
-            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        const group: AccountGroupObject = {
+          id: toMultichainAccountGroupId(
+            toMultichainAccountWalletId('test'),
+            MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          ),
+          type: AccountGroupType.MultichainAccount,
+          accounts: [MOCK_HD_ACCOUNT_1.id],
+          metadata: {
+            name: MOCK_HD_ACCOUNT_1.metadata.name,
+            entropy: {
+              groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+            },
+            pinned: false,
+            hidden: false,
           },
-          pinned: false,
-          hidden: false,
-        },
-      };
+        };
 
-      expect(rule.getDefaultAccountGroupName(group)).toBe('');
+        expect(rule.getComputedAccountGroupName(group)).toBe('');
+      });
+
+      it('returns empty string for getDefaultAccountGroupName when no index is provided', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new BaseRule(messenger);
+
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccount',
+          () => undefined,
+        );
+
+        const group: AccountGroupObject = {
+          id: toMultichainAccountGroupId(
+            toMultichainAccountWalletId('test'),
+            MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          ),
+          type: AccountGroupType.MultichainAccount,
+          accounts: [MOCK_HD_ACCOUNT_1.id],
+          metadata: {
+            name: MOCK_HD_ACCOUNT_1.metadata.name,
+            entropy: {
+              groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+            },
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        expect(rule.getDefaultAccountGroupName(group)).toBe('');
+      });
+    });
+
+    describe('SnapRule', () => {
+      it('uses BaseRule implementation for getComputedAccountGroupName', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new SnapRule(messenger);
+
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccount',
+          () => MOCK_SNAP_ACCOUNT_1,
+        );
+
+        const group: AccountGroupObject = {
+          id: toAccountGroupId(
+            toAccountWalletId(AccountWalletType.Snap, MOCK_SNAP_1.id),
+            MOCK_SNAP_ACCOUNT_1.address,
+          ),
+          type: AccountGroupType.SingleAccount,
+          accounts: [MOCK_SNAP_ACCOUNT_1.id],
+          metadata: {
+            name: MOCK_SNAP_ACCOUNT_1.metadata.name,
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        expect(rule.getComputedAccountGroupName(group)).toBe(
+          MOCK_SNAP_ACCOUNT_1.metadata.name,
+        );
+      });
+
+      it('uses BaseRule implementation for getDefaultAccountGroupName', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new SnapRule(messenger);
+
+        const group: AccountGroupObject = {
+          id: toAccountGroupId(
+            toAccountWalletId(AccountWalletType.Snap, MOCK_SNAP_1.id),
+            MOCK_SNAP_ACCOUNT_1.address,
+          ),
+          type: AccountGroupType.SingleAccount,
+          accounts: [MOCK_SNAP_ACCOUNT_1.id],
+          metadata: {
+            name: MOCK_SNAP_ACCOUNT_1.metadata.name,
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        expect(rule.getDefaultAccountGroupName(group, 0)).toBe('Account 1');
+      });
+    });
+
+    describe('KeyringRule', () => {
+      it('uses BaseRule implementation for getComputedAccountGroupName', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new KeyringRule(messenger);
+
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccount',
+          () => MOCK_HARDWARE_ACCOUNT_1,
+        );
+
+        const group: AccountGroupObject = {
+          id: toAccountGroupId(
+            toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.ledger),
+            MOCK_HARDWARE_ACCOUNT_1.address,
+          ),
+          type: AccountGroupType.SingleAccount,
+          accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
+          metadata: {
+            name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        expect(rule.getComputedAccountGroupName(group)).toBe(
+          MOCK_HARDWARE_ACCOUNT_1.metadata.name,
+        );
+      });
+
+      it('uses BaseRule implementation for getDefaultAccountGroupName', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new KeyringRule(messenger);
+
+        const group: AccountGroupObject = {
+          id: toAccountGroupId(
+            toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.ledger),
+            MOCK_HARDWARE_ACCOUNT_1.address,
+          ),
+          type: AccountGroupType.SingleAccount,
+          accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
+          metadata: {
+            name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        expect(rule.getDefaultAccountGroupName(group, 0)).toBe('Account 1');
+      });
     });
   });
 
