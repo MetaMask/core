@@ -6,7 +6,7 @@ import {
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
-} from './format';
+} from './format-utils';
 import { executeWithRetry } from './network-utils';
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
