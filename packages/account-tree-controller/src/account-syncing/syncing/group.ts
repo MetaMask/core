@@ -2,10 +2,7 @@ import type { AccountGroupMultichainAccountObject } from 'src/group';
 
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import {
-  emitAnalyticsEvent,
-  MultichainAccountSyncingAnalyticsEvents,
-} from '../analytics';
+import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
 import { getLocalGroupsForEntropyWallet } from '../controller-utils';
 import type {
   AccountSyncingContext,
@@ -82,7 +79,7 @@ export async function createLocalGroupsFromUserStorage(
         },
       );
 
-      await emitAnalyticsEvent({
+      context.emitAnalyticsEventFn({
         action: MultichainAccountSyncingAnalyticsEvents.GROUP_ADDED,
         profileId,
       });
@@ -151,6 +148,7 @@ export async function syncGroupsMetadata(
 
     // Compare and sync name metadata
     const shouldPushForName = await compareAndSyncMetadata({
+      context,
       localMetadata: groupPersistedMetadata.name,
       userStorageMetadata: groupFromUserStorage.name,
       applyLocalUpdate: (name: string) => {
@@ -166,6 +164,7 @@ export async function syncGroupsMetadata(
 
     // Compare and sync pinned metadata
     const shouldPushForPinned = await compareAndSyncMetadata({
+      context,
       localMetadata: groupPersistedMetadata.pinned,
       userStorageMetadata: groupFromUserStorage.pinned,
       applyLocalUpdate: (pinned: boolean) => {
@@ -182,6 +181,7 @@ export async function syncGroupsMetadata(
 
     // Compare and sync hidden metadata
     const shouldPushForHidden = await compareAndSyncMetadata({
+      context,
       localMetadata: groupPersistedMetadata.hidden,
       userStorageMetadata: groupFromUserStorage.hidden,
       applyLocalUpdate: (hidden: boolean) => {

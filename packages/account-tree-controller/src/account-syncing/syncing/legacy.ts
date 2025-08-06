@@ -1,8 +1,5 @@
 import type { AccountTreeControllerState } from '../../types';
-import {
-  emitAnalyticsEvent,
-  MultichainAccountSyncingAnalyticsEvents,
-} from '../analytics';
+import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
 import { getProfileId } from '../authentication/utils';
 import { getLocalEntropyWallets } from '../controller-utils';
 import type { AccountSyncingContext } from '../types';
@@ -35,7 +32,7 @@ export async function performLegacySyncingIfNeeded(
   );
 
   const primarySrpProfileId = await getProfileId(context);
-  await emitAnalyticsEvent({
+  context.emitAnalyticsEventFn({
     action: MultichainAccountSyncingAnalyticsEvents.LEGACY_SYNCING_DONE,
     profileId: primarySrpProfileId,
   });

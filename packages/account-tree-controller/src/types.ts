@@ -13,6 +13,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
 import type {
@@ -25,6 +26,7 @@ import type {
 import type { UserStorageControllerPerformGetStorageAllFeatureEntries } from '@metamask/profile-sync-controller/user-storage';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
+import type { MultichainAccountSyncingAnalyticsEventPayload } from './account-syncing/analytics';
 import type {
   AccountTreeController,
   controllerName,
@@ -133,3 +135,10 @@ export type AccountTreeControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+export type AccountTreeControllerConfig = {
+  trace?: TraceCallback;
+  onAccountSyncingEvent?: (
+    event: MultichainAccountSyncingAnalyticsEventPayload,
+  ) => void;
+};

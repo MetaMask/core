@@ -46,6 +46,7 @@ export async function syncWalletMetadata(
 
   // Compare and sync name metadata
   const shouldPushToUserStorage = await compareAndSyncMetadata({
+    context,
     localMetadata: persistedMetadata?.name,
     userStorageMetadata: walletFromUserStorage.name,
     applyLocalUpdate: (name: string) => {
