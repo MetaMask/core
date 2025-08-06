@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/485.0.0 ([#6237](https://github.com/MetaMask/core/pull/6237))
-- Release/483.0.0 ([#6224](https://github.com/MetaMask/core/pull/6224))
-- Release/479.0.0 ([#6194](https://github.com/MetaMask/core/pull/6194))
-
 ### Fixed
 
 - Make sure to pass the `requireApproval` for ERC20 approvals ([#6204](https://github.com/MetaMask/core/pull/6204))
