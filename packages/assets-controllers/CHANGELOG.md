@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new utility functions for efficient balance fetching using Multicall3 ([#6212](https://github.com/MetaMask/core/pull/6212))
+  - Added `aggregate3` function for direct access to Multicall3's aggregate3 method with individual failure handling
+  - Added `getTokenBalancesForMultipleAddresses` function to efficiently batch ERC20 and native token balance queries for multiple addresses
+  - Supports up to 300 calls per batch with automatic fallback to individual calls on unsupported chains
+  - Returns organized balance data as nested maps for easy consumption by client applications
+
+### Changed
+
+- Improved `TokenBalancesController` performance with two-tier balance fetching strategy ([#6232](https://github.com/MetaMask/core/pull/6232))
+  - Implements Accounts API as primary fetching method for supported networks (faster, more efficient)
+  - Falls back to RPC calls using Multicall3's `aggregate3` for unsupported networks or API failures
+  - Significantly reduces RPC calls from N individual requests to batched calls of up to 300 operations
+  - Provides comprehensive network coverage with graceful degradation when services are unavailable
+
 ### Fixed
 
 - Use a narrow selector when listening to `CurrencyRateController:stateChange` ([#6217](https://github.com/MetaMask/core/pull/6217))
