@@ -73,12 +73,24 @@ export type Rule<
   ): string;
 
   /**
-   * Gets default name for a group.
+   * Gets computed name for a group based on its accounts.
    *
    * @param group - Group associated to this rule.
+   * @returns The computed name based on existing accounts.
+   */
+  getComputedAccountGroupName(group: AccountGroupObjectOf<GroupType>): string;
+
+  /**
+   * Gets default name for a group based on its position in the wallet.
+   *
+   * @param group - Group associated to this rule.
+   * @param index - The group's position within its wallet.
    * @returns The default name for that group.
    */
-  getDefaultAccountGroupName(group: AccountGroupObjectOf<GroupType>): string;
+  getDefaultAccountGroupName(
+    group: AccountGroupObjectOf<GroupType>,
+    index: number,
+  ): string;
 };
 
 export class BaseRule {
@@ -89,18 +101,32 @@ export class BaseRule {
   }
 
   /**
-   * Gets default name for a group.
+   * Gets computed name for a group based on its accounts.
    *
    * @param group - Group associated to this rule.
-   * @returns The default name for that group.
+   * @returns The computed name based on existing accounts.
    */
-  getDefaultAccountGroupName(group: AccountGroupObject): string {
+  getComputedAccountGroupName(group: AccountGroupObject): string {
     const account = this.messenger.call(
       'AccountsController:getAccount',
       // Type-wise, we are guaranteed to always have at least 1 account.
       group.accounts[0],
     );
 
-    return account?.metadata.name ?? ''; // Not sure what fallback name to use here..
+    return account?.metadata.name ?? '';
+  }
+
+  /**
+   * Gets default name for a group based on its position in the wallet.
+   *
+   * @param _group - Group associated to this rule.
+   * @param index - The group's position within its wallet.
+   * @returns The default name for that group.
+   */
+  getDefaultAccountGroupName(
+    _group: AccountGroupObject,
+    index?: number,
+  ): string {
+    return index === undefined ? '' : `Account ${index + 1}`;
   }
 }
