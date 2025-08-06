@@ -206,6 +206,34 @@ export class AccountTreeController extends BaseController<
     }
   }
 
+  /**
+   * Generates a fallback name for an account group using per-wallet indexing.
+   * This implements the "indexes per wallet" naming strategy:
+   * Wallet 1 → Account 1, Account 2
+   * Wallet 2 → Account 1, Account 2
+   *
+   * @param wallet - The wallet containing the group
+   * @param group - The group to generate a name for
+   * @returns A fallback name like "Account 1", "Account 2", etc.
+   */
+  #getFallbackAccountGroupName(
+    wallet: AccountWalletObject,
+    group: AccountGroupObject,
+  ): string {
+    // Get all groups in this wallet, sorted by their IDs for consistent ordering
+    const walletGroups = Object.values(wallet.groups).sort((a, b) =>
+      a.id.localeCompare(b.id),
+    );
+
+    // Find the index of the current group within this wallet
+    const groupIndex = walletGroups.findIndex((g) => g.id === group.id);
+
+    // Use 1-based indexing for human-readable names
+    const accountNumber = groupIndex + 1;
+
+    return `Account ${accountNumber}`;
+  }
+
   #applyAccountGroupMetadata(
     wallet: AccountWalletObject,
     group: AccountGroupObject,
@@ -217,22 +245,27 @@ export class AccountTreeController extends BaseController<
       group.metadata.name = persistedMetadata.name.value;
     } else if (!group.metadata.name) {
       // Generate default name if none exists
+      let ruleName = '';
       if (wallet.type === AccountWalletType.Entropy) {
-        group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
+        ruleName = this.#getEntropyRule().getDefaultAccountGroupName(
           // Get the group from the wallet, to get the proper type inference.
           wallet.groups[group.id],
         );
       } else if (wallet.type === AccountWalletType.Snap) {
-        group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
+        ruleName = this.#getSnapRule().getDefaultAccountGroupName(
           // Same here.
           wallet.groups[group.id],
         );
       } else {
-        group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
+        ruleName = this.#getKeyringRule().getDefaultAccountGroupName(
           // Same here.
           wallet.groups[group.id],
         );
       }
+
+      // Use rule-based name if available, otherwise fallback to per-wallet indexing
+      group.metadata.name =
+        ruleName || this.#getFallbackAccountGroupName(wallet, group);
     }
 
     // Apply persisted UI states

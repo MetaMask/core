@@ -2043,4 +2043,63 @@ describe('AccountTreeController', () => {
       ).toBeUndefined();
     });
   });
+
+  describe('Fallback Naming', () => {
+    it('uses fallback naming when rule-based naming returns empty string', () => {
+      // Create accounts with empty names to trigger fallback naming
+      const mockAccountWithEmptyName1: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-1',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name will cause rule-based naming to fail
+        },
+      };
+
+      const mockAccountWithEmptyName2: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-2',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            groupIndex: 1, // Different group index
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name will cause rule-based naming to fail
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccountWithEmptyName1, mockAccountWithEmptyName2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const expectedGroupId1 = toMultichainAccountGroupId(
+        expectedWalletId,
+        0, // First group
+      );
+
+      const expectedGroupId2 = toMultichainAccountGroupId(
+        expectedWalletId,
+        1, // Second group
+      );
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+      const group2 = wallet?.groups[expectedGroupId2];
+
+      // Verify fallback naming: "Account 1", "Account 2" within the same wallet
+      expect(group1?.metadata.name).toBe('Account 1');
+      expect(group2?.metadata.name).toBe('Account 2');
+    });
+  });
 });
