@@ -1,10 +1,10 @@
-import type { AccountTreeControllerMessenger } from 'src/types';
+import type { AccountSyncingContext } from '../types';
 
 export const getProfileId = async (
-  messenger: AccountTreeControllerMessenger,
+  context: AccountSyncingContext,
   entropySourceId?: string,
 ) => {
-  const sessionProfile = await messenger.call(
+  const sessionProfile = await context.messenger.call(
     'AuthenticationController:getSessionProfile',
     entropySourceId,
   );

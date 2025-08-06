@@ -2,6 +2,8 @@ export enum MultichainAccountSyncingAnalyticsEvents {
   WALLET_RENAMED = 'wallet_renamed',
   GROUP_ADDED = 'group_added',
   GROUP_RENAMED = 'group_renamed',
+  GROUP_HIDDEN_STATUS_CHANGED = 'group_hidden_status_changed',
+  GROUP_PINNED_STATUS_CHANGED = 'group_pinned_status_changed',
   LEGACY_SYNCING_DONE = 'legacy_syncing_done',
 }
 

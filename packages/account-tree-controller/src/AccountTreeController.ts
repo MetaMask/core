@@ -6,21 +6,28 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import {
-  emitAnalyticsEvent,
-  MultichainAccountSyncingAnalyticsEvents,
-} from './account-syncing/analytics';
 import { getProfileId } from './account-syncing/authentication/utils';
+import {
+  createLocalGroupsFromUserStorage,
+  syncGroupsMetadata,
+} from './account-syncing/group-sync';
+import { performLegacySyncingIfNeeded } from './account-syncing/legacy-sync';
+import {
+  createStateSnapshot,
+  restoreStateFromSnapshot,
+} from './account-syncing/state-management';
+import type { AccountSyncingContext } from './account-syncing/types';
 import {
   getAllGroupsFromUserStorage,
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
-  pushWalletToUserStorage,
 } from './account-syncing/user-storage/network-operations';
-import type {
-  AccountGroupMultichainAccountObject,
-  AccountGroupObject,
-} from './group';
+import { syncWalletMetadata } from './account-syncing/wallet-sync';
+import {
+  getLocalEntropyWallets,
+  getLocalGroupsForEntropyWallet,
+} from './account-syncing/wallet-utils';
+import type { AccountGroupObject } from './group';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
@@ -28,7 +35,7 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
-import type { AccountWalletEntropyObject, AccountWalletObject } from './wallet';
+import type { AccountWalletObject } from './wallet';
 import { AccountTreeWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
@@ -729,14 +736,23 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * "Big sync" method that will:
+   * Synchronizes the local account tree with user storage, ensuring consistency
+   * between local state and cloud-stored account data.
    *
-   * - 1. Iterate over all AccountWalletEntropyObject, and then, for each wallet:
-   * - 2. Assess if legacy account syncing is needed:
-   * - - 2.1 If any local wallet needs a legacy sync, we perform legacy syncing.
-   * - 3. Perform multichain account syncing
-   * - - 3.1 Wallet syncing
-   * - - 3.2 Wallet's Groups syncing
+   * This method performs a comprehensive sync operation that:
+   * 1. Identifies all local entropy wallets that can be synchronized
+   * 2. Performs legacy account syncing if needed (for backwards compatibility)
+   * 3. Executes multichain account syncing for each wallet:
+   * - Syncs wallet metadata (names, timestamps) bidirectionally
+   * - Creates missing local groups from user storage data
+   * - Syncs group metadata (names, UI states) bidirectionally
+   * - Pushes new local groups to user storage when needed
+   *
+   * The sync is atomic per wallet but continues processing other wallets
+   * if individual wallet sync fails. A global lock prevents concurrent
+   * sync operations.
+   *
+   * @throws Will throw if the sync operation encounters unrecoverable errors
    */
   async syncWithUserStorage(): Promise<void> {
     // Prevent multiple syncs from running at the same time.
@@ -745,272 +761,115 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
+    const context: AccountSyncingContext = {
+      controller: this,
+      messenger: this.messagingSystem,
+      controllerStateUpdateFn: this.update.bind(this),
+    };
+
     try {
       this.update((state) => {
         state.isAccountSyncingInProgress = true;
       });
 
-      // TODO: extract this logic into a separate method
-      const getLocalEntropyWallets = (): AccountWalletEntropyObject[] => {
-        return Object.values(this.state.accountTree.wallets).filter(
-          (wallet) => wallet.type === AccountWalletType.Entropy,
-        );
-      };
-      // TODO: extract this logic into a separate method
-      const getLocalGroupsForEntropyWallet = (
-        walletId: AccountWalletId,
-      ): AccountGroupMultichainAccountObject[] => {
-        const wallet = this.state.accountTree.wallets[walletId];
-        if (!wallet) {
-          return [];
-        }
-
-        return Object.values(wallet.groups);
-      };
-
-      // Get the feature flag value from UserStorageController
-      // This will determine if we should proceed with multichain account syncing, and allow multiple legacy syncs to run.
-      const isMultichainAccountSyncingEnabled = this.messagingSystem.call(
-        'UserStorageController:getIsMultichainAccountSyncingEnabled',
-      );
-
-      // 1. Iterate over all AccountWalletEntropyObject
-      const localSyncableWallets = getLocalEntropyWallets();
+      // 1. Identifies all local entropy wallets that can be synchronized
+      const localSyncableWallets = getLocalEntropyWallets(context);
 
       if (!localSyncableWallets.length) {
         // No wallets to sync, just return. This shouldn't happen.
         return;
       }
 
-      // 2. Assess if legacy account syncing is needed
-      // 2.1 If any wallet has legacy account syncing data, execute legacy syncing before proceeding.
-      const doSomeLocalSyncableWalletsNeedLegacySyncing =
-        localSyncableWallets.some(
-          (syncableWallet) =>
-            !this.state.isLegacyAccountSyncingDisabled[
-              syncableWallet.metadata.entropy.id
-            ],
-        );
+      // 2. Performs legacy account syncing if needed (for backwards compatibility)
+      const shouldContinueWithMultichainSync =
+        await performLegacySyncingIfNeeded(context);
 
-      if (doSomeLocalSyncableWalletsNeedLegacySyncing) {
-        // Dispatch legacy account syncing method before proceeding
-        // This will add and rename accounts as needed, and then update the account tree state accordingly.
-        await this.messagingSystem.call(
-          'UserStorageController:syncInternalAccountsWithUserStorage',
-        );
-
-        const primarySrpProfileId = await getProfileId(this.messagingSystem);
-        await emitAnalyticsEvent({
-          action: MultichainAccountSyncingAnalyticsEvents.LEGACY_SYNCING_DONE,
-          profileId: primarySrpProfileId,
-        });
-
-        // After legacy syncing is done, we can check if multichain account syncing is enabled.
-        // If it is not enabled, we can just return and not proceed with multichain account syncing.
-        if (!isMultichainAccountSyncingEnabled) {
-          return;
-        }
-
-        // If multichain account syncing is enabled, we prevent further legacy syncing
-        // by setting `isLegacyAccountSyncingDisabled` to true for all local syncable wallets.
-        // This is done to prevent legacy syncing from running again after the first successful sync.
-        // If a new wallet is added later, it will still be able to run legacy syncing.
-        // TODO: extract this logic into a separate method
-        this.update((state) => {
-          // Disable legacy syncing after the first successful sync.
-          localSyncableWallets.forEach((syncableWallet) => {
-            const syncableWalletEntropySourceId =
-              syncableWallet.metadata.entropy.id;
-            state.isLegacyAccountSyncingDisabled[
-              syncableWalletEntropySourceId
-            ] = true;
-          });
-        });
+      if (!shouldContinueWithMultichainSync) {
+        return;
       }
 
-      // 3. Multichain account syncing
+      // 3. Executes multichain account syncing for each wallet:
       for (const wallet of localSyncableWallets) {
-        const entropySourceId = wallet.metadata.entropy.id;
-        const profileId = await getProfileId(
-          this.messagingSystem,
-          entropySourceId,
-        );
+        // Create a state snapshot before processing each wallet for potential rollback
+        const stateSnapshot = createStateSnapshot(context);
 
-        const [walletFromUserStorage, groupsFromUserStorage] =
-          await Promise.all([
-            getWalletFromUserStorage(this.messagingSystem, entropySourceId),
-            getAllGroupsFromUserStorage(this.messagingSystem, entropySourceId),
-          ]);
+        try {
+          const entropySourceId = wallet.metadata.entropy.id;
+          const walletProfileId = await getProfileId(context, entropySourceId);
 
-        // 3.1 Wallet syncing
-        // If wallet data does not exist in user storage, push the local wallet
-        if (!walletFromUserStorage) {
-          await pushWalletToUserStorage(wallet, this.messagingSystem);
-        }
+          const [walletFromUserStorage, groupsFromUserStorage] =
+            await Promise.all([
+              getWalletFromUserStorage(context, entropySourceId),
+              getAllGroupsFromUserStorage(context, entropySourceId),
+            ]);
 
-        // TODO: extract the logic below into a separate method
-        // If wallet data exists, compare metadata and update if needed
-        // For now, some of what we need is not yet implemented, so we're mocking it.
-        // Also, since we don't add or remove wallets, the logic here only concerns comparing metadata and renaming if needed.
-        if (walletFromUserStorage) {
-          const walletPersistedMetadata =
-            this.state.accountWalletsMetadata[wallet.id];
+          // 3.1 Wallet syncing
+          await syncWalletMetadata(
+            context,
+            wallet,
+            walletFromUserStorage,
+            walletProfileId,
+          );
 
-          // TODO: check if we need early exits depending on the presence of metadata in either local or user storage
-          const isWalletNameFromUserStorageMoreRecent =
-            walletPersistedMetadata.name?.lastUpdatedAt &&
-            walletFromUserStorage.name?.lastUpdatedAt &&
-            walletPersistedMetadata.name?.lastUpdatedAt <
-              walletFromUserStorage.name?.lastUpdatedAt;
+          // 3.2 Groups syncing
+          // If groups data does not exist in user storage yet, create it
+          if (!groupsFromUserStorage.length) {
+            // If no groups exist in user storage, we can push all groups from the wallet to the user storage and exit
+            await pushGroupToUserStorageBatch(
+              context,
+              getLocalGroupsForEntropyWallet(context, wallet.id),
+              entropySourceId,
+            );
 
-          const isWalletNameFromUserStorageDifferentFromLocal =
-            walletPersistedMetadata.name?.value !==
-            walletFromUserStorage.name?.value;
-
-          if (isWalletNameFromUserStorageDifferentFromLocal) {
-            if (
-              isWalletNameFromUserStorageMoreRecent &&
-              // TODO: extract this type guard into a separate method
-              walletFromUserStorage.name?.value !== undefined
-            ) {
-              // If the name from user storage is more recent, update the local wallet name
-              this.setAccountWalletName(
-                wallet.id,
-                walletFromUserStorage.name?.value,
-              );
-
-              await emitAnalyticsEvent({
-                action: MultichainAccountSyncingAnalyticsEvents.WALLET_RENAMED,
-                profileId,
-              });
-            } else {
-              // If the local name is more recent, push it to user storage
-              await pushWalletToUserStorage(wallet, this.messagingSystem);
-            }
+            continue; // No need to proceed with metadata comparison if groups are new
           }
-        }
 
-        // 3.2 Groups syncing
-        // If groups data does not exist in user storage yet, create it
-        if (!groupsFromUserStorage.length) {
-          // If no groups exist in user storage, we can push all groups from the wallet to the user storage and exit
-          await pushGroupToUserStorageBatch(
-            getLocalGroupsForEntropyWallet(wallet.id),
-            this.messagingSystem,
+          // Create local groups for each group from user storage
+          await createLocalGroupsFromUserStorage(
+            context,
+            groupsFromUserStorage,
             entropySourceId,
+            walletProfileId,
           );
 
-          continue; // No need to proceed with metadata comparison if groups are new
-        }
+          // Refresh local state to ensure we have the latest groups that were just created
+          // This is important because createLocalGroupsFromUserStorage might have created new groups
+          // that need to be reflected in our local state before we proceed with metadata syncing
+          this.init();
 
-        // Sort groups from user storage by groupIndex in ascending order
-        groupsFromUserStorage.sort((a, b) => a.groupIndex - b.groupIndex);
-
-        // Create local groups for each group from user storage
-        // For now, we use idempotent local group creation logic for EVERY user storage group.
-        // This is needed because a user might have out of sequence groups in user storage due to deletions.
-        let previousGroupIndex = -1;
-        for (const groupFromUserStorage of groupsFromUserStorage) {
-          const { groupIndex } = groupFromUserStorage;
-
-          const isGroupIndexOutOfSequence =
-            groupIndex <= previousGroupIndex &&
-            groupIndex !== previousGroupIndex + 1;
-          previousGroupIndex = groupIndex;
-
-          if (isGroupIndexOutOfSequence) {
-            // TODO: Probably an erroneous situation
-            // In the future, this might also mean that we need to delete some groups
-          }
-
-          // This will be idempotent so we can create the group even if it already exists
-          await this.messagingSystem.call(
-            'MultichainAccountService:createMultichainAccountGroup',
-            {
-              entropySource: entropySourceId,
-              groupIndex,
-            },
-          );
-          await emitAnalyticsEvent({
-            action: MultichainAccountSyncingAnalyticsEvents.GROUP_ADDED,
-            profileId,
-          });
-        }
-
-        // Now we can compare groups metadata and update if needed
-        const localSyncableGroupsToBePushedToUserStorage: AccountGroupMultichainAccountObject[] =
-          [];
-
-        // TODO: has it been updated yet with the groups we just created?
-        const localSyncableGroups = getLocalGroupsForEntropyWallet(wallet.id);
-
-        for (const localSyncableGroup of localSyncableGroups) {
-          const groupFromUserStorage = groupsFromUserStorage.find(
-            (group) =>
-              group.groupIndex ===
-              localSyncableGroup.metadata.entropy.groupIndex,
-          );
-
-          if (!groupFromUserStorage) {
-            // If the group does not exist in user storage, we can push it
-            localSyncableGroupsToBePushedToUserStorage.push(localSyncableGroup);
-            continue; // No need to compare metadata if we just pushed it
-          }
-
-          // Compare metadata and update if needed
-          const groupPersistedMetadata =
-            this.state.accountGroupsMetadata[localSyncableGroup.id];
-
-          // 1 - Name comparison
-          const isGroupNameFromUserStorageDifferentFromLocal =
-            groupPersistedMetadata.name?.value !==
-            groupFromUserStorage.name?.value;
-
-          // TODO: check if we need early exits depending on the presence of metadata in either local or user storage
-          const isGroupNameFromUserStorageMoreRecent =
-            groupPersistedMetadata.name?.lastUpdatedAt &&
-            groupFromUserStorage.name?.lastUpdatedAt &&
-            groupPersistedMetadata.name?.lastUpdatedAt <
-              groupFromUserStorage.name?.lastUpdatedAt;
-
-          if (isGroupNameFromUserStorageDifferentFromLocal) {
-            if (
-              isGroupNameFromUserStorageMoreRecent &&
-              // TODO: extract this type guard into a separate method
-              groupFromUserStorage.name?.value
-            ) {
-              // If the name from user storage is more recent, update the local group name
-              this.setAccountGroupName(
-                localSyncableGroup.id,
-                groupFromUserStorage.name?.value,
-              );
-
-              await emitAnalyticsEvent({
-                action: MultichainAccountSyncingAnalyticsEvents.GROUP_RENAMED,
-                profileId,
-              });
-            } else {
-              localSyncableGroupsToBePushedToUserStorage.push(
-                localSyncableGroup,
-              );
-            }
-          }
-
-          // TODO: 2 - Pinned comparison
-          // TODO: 3 - Hidden comparison
-        }
-
-        // Push all groups that need to be updated to user storage
-        if (localSyncableGroupsToBePushedToUserStorage.length > 0) {
-          await pushGroupToUserStorageBatch(
-            localSyncableGroupsToBePushedToUserStorage,
-            this.messagingSystem,
+          // Sync group metadata
+          await syncGroupsMetadata(
+            context,
+            wallet,
+            groupsFromUserStorage,
             entropySourceId,
+            walletProfileId,
           );
+        } catch (error) {
+          console.error(
+            `Error syncing wallet ${wallet.id}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+
+          // Attempt to rollback state changes for this wallet
+          try {
+            restoreStateFromSnapshot(context, stateSnapshot);
+            console.log(`Rolled back state changes for wallet ${wallet.id}`);
+          } catch (rollbackError) {
+            console.error(
+              `Failed to rollback state for wallet ${wallet.id}:`,
+              rollbackError instanceof Error
+                ? rollbackError.message
+                : String(rollbackError),
+            );
+          }
+
+          // Continue with next wallet instead of failing the entire sync
+          continue;
         }
       }
     } catch (error) {
-      console.error('Error during account tree sync:', error);
+      console.error('Error during multilchain account syncing:', error);
       throw error;
     } finally {
       this.update((state) => {
