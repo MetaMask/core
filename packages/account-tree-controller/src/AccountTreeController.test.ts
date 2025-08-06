@@ -723,6 +723,8 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        isAccountSyncingInProgress: false,
+        walletsForWhichLegacyAccountSyncingIsDisabled: {},
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -760,6 +762,8 @@ describe('AccountTreeController', () => {
       );
 
       expect(controller.state).toStrictEqual({
+        isAccountSyncingInProgress: false,
+        walletsForWhichLegacyAccountSyncingIsDisabled: {},
         accountTree: {
           wallets: {
             [walletId1]: {
@@ -898,6 +902,8 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
+        isAccountSyncingInProgress: false,
+        walletsForWhichLegacyAccountSyncingIsDisabled: {},
       } as AccountTreeControllerState);
     });
 
@@ -952,7 +958,7 @@ describe('AccountTreeController', () => {
         walletId2,
         mockHdAccount2.options.entropy.groupIndex,
       );
-      expect(controller.state).toStrictEqual({
+      expect(controller.state.accountTree).toStrictEqual({
         accountTree: {
           wallets: {
             [walletId1]: {
@@ -1013,6 +1019,8 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
+        isAccountSyncingInProgress: false,
+        walletsForWhichLegacyAccountSyncingIsDisabled: {},
       } as AccountTreeControllerState);
     });
   });
