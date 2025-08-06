@@ -1,7 +1,7 @@
 import type {
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from './types';
+} from '../types';
 
 /**
  * Validates if user storage wallet data is properly structured and safe to use.

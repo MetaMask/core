@@ -8,14 +8,16 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { getProfileId } from './account-syncing/authentication/utils';
 import {
+  createStateSnapshot,
+  restoreStateFromSnapshot,
+  getLocalEntropyWallets,
+  getLocalGroupsForEntropyWallet,
+} from './account-syncing/controller-utils';
+import {
   createLocalGroupsFromUserStorage,
   syncGroupsMetadata,
 } from './account-syncing/group-sync';
 import { performLegacySyncingIfNeeded } from './account-syncing/legacy-sync';
-import {
-  createStateSnapshot,
-  restoreStateFromSnapshot,
-} from './account-syncing/state-management';
 import type { AccountSyncingContext } from './account-syncing/types';
 import {
   getAllGroupsFromUserStorage,
@@ -23,10 +25,6 @@ import {
   pushGroupToUserStorageBatch,
 } from './account-syncing/user-storage/network-operations';
 import { syncWalletMetadata } from './account-syncing/wallet-sync';
-import {
-  getLocalEntropyWallets,
-  getLocalGroupsForEntropyWallet,
-} from './account-syncing/wallet-utils';
 import type { AccountGroupObject } from './group';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';

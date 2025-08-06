@@ -3,8 +3,8 @@ import {
   MultichainAccountSyncingAnalyticsEvents,
 } from './analytics';
 import { getProfileId } from './authentication/utils';
+import { getLocalEntropyWallets } from './controller-utils';
 import type { AccountSyncingContext } from './types';
-import { getLocalEntropyWallets } from './wallet-utils';
 import type { AccountTreeControllerState } from '../types';
 
 /**

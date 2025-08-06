@@ -2,7 +2,7 @@ import { MultichainAccountSyncingAnalyticsEvents } from './analytics';
 import { compareAndSyncMetadata } from './metadata-sync';
 import type { AccountSyncingContext, UserStorageSyncedWallet } from './types';
 import { pushWalletToUserStorage } from './user-storage/network-operations';
-import { isValidUserStorageWallet } from './validation';
+import { isValidUserStorageWallet } from './user-storage/validation';
 import type { AccountWalletEntropyObject } from '../wallet';
 
 /**

@@ -4,14 +4,14 @@ import {
   emitAnalyticsEvent,
   MultichainAccountSyncingAnalyticsEvents,
 } from './analytics';
+import { getLocalGroupsForEntropyWallet } from './controller-utils';
 import { compareAndSyncMetadata } from './metadata-sync';
 import type {
   AccountSyncingContext,
   UserStorageSyncedWalletGroup,
 } from './types';
 import { pushGroupToUserStorageBatch } from './user-storage/network-operations';
-import { isValidUserStorageGroup } from './validation';
-import { getLocalGroupsForEntropyWallet } from './wallet-utils';
+import { isValidUserStorageGroup } from './user-storage/validation';
 import type { AccountWalletEntropyObject } from '../wallet';
 
 /**

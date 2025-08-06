@@ -12,10 +12,6 @@ export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
   groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];
 };
 
-/**
- * Context object containing dependencies for account syncing utilities.
- * This provides a clean interface for utilities to access controller methods and messaging.
- */
 export type AccountSyncingContext = {
   messenger: AccountTreeControllerMessenger;
   controller: AccountTreeController;

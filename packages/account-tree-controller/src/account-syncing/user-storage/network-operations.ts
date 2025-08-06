@@ -7,12 +7,12 @@ import {
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
 } from './format';
+import { executeWithRetry } from './network-utils';
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
   USER_STORAGE_WALLETS_FEATURE_KEY,
 } from '../constants';
-import { executeWithRetry } from '../retry';
 import type {
   AccountSyncingContext,
   UserStorageSyncedWallet,
