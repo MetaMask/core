@@ -2443,6 +2443,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/account-api@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "@metamask/account-api@npm:0.7.0"
+  dependencies:
+    "@metamask/keyring-api": "npm:^19.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+  checksum: 10/973286d46f33e1d74f0600ad29f50006f054e25340bd268d65b44b1d6b9f2faced28171725aae5d84ecac43b92074340d918b14fc732a131b61c13dda3a19e63
+  languageName: node
+  linkType: hard
+
 "@metamask/account-api@npm:^0.9.0":
   version: 0.9.0
   resolution: "@metamask/account-api@npm:0.9.0"
@@ -2646,6 +2656,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^8.0.0"
     "@metamask/keyring-snap-client": "npm:^7.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
+    "@metamask/multichain-account-service": "npm:^0.3.0"
     "@metamask/network-controller": "npm:^24.0.1"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/phishing-controller": "npm:^13.1.0"
@@ -3648,6 +3659,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^19.1.0":
+  version: 19.1.0
+  resolution: "@metamask/keyring-api@npm:19.1.0"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/2db4e6e1c0d7c6299b1bb74a5bef6a4b66111556b069dcf23d3dd9a328024da2c0b14ac350d606bc09cb677eb235a43f4a841d5cce850daba2526b4a44b00b3b
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-api@npm:^20.0.0":
   version: 20.0.0
   resolution: "@metamask/keyring-api@npm:20.0.0"
@@ -3816,7 +3839,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-service@workspace:packages/multichain-account-service":
+"@metamask/multichain-account-service@npm:^0.3.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
