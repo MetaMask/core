@@ -362,8 +362,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           );
         }
       });
-    } else {
-      this.#log('No balance changes detected');
     }
   }
 
