@@ -33,7 +33,9 @@ export function getLocalGroupsForEntropyWallet(
 ): AccountGroupMultichainAccountObject[] {
   const wallet = context.controller.state.accountTree.wallets[walletId];
   if (!wallet || wallet.type !== AccountWalletType.Entropy) {
-    console.warn(`Wallet ${walletId} not found or is not an entropy wallet`);
+    if (context.enableDebugLogging) {
+      console.warn(`Wallet ${walletId} not found or is not an entropy wallet`);
+    }
     return [];
   }
 

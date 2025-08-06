@@ -116,9 +116,12 @@ export class AccountTreeController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  readonly #emitAccountSyncingEvent: (
-    event: MultichainAccountSyncingEmitAnalyticsEventParams,
-  ) => void;
+  readonly #accountSyncingConfig: {
+    emitAccountSyncingEvent: (
+      event: MultichainAccountSyncingEmitAnalyticsEventParams,
+    ) => void;
+    enableDebugLogging: boolean;
+  };
 
   // Temporary: ensures we can release updates to AccountTreeController without
   // breaking changes while we transition to the new multichain syncing approach.
@@ -168,11 +171,15 @@ export class AccountTreeController extends BaseController<
     ];
 
     this.#trace = config?.trace ?? traceFallback;
-    this.#emitAccountSyncingEvent = (
-      event: MultichainAccountSyncingEmitAnalyticsEventParams,
-    ) => {
-      const formattedEvent = formatAnalyticsEvent(event);
-      return config?.onAccountSyncingEvent?.(formattedEvent);
+
+    this.#accountSyncingConfig = {
+      emitAccountSyncingEvent: (
+        event: MultichainAccountSyncingEmitAnalyticsEventParams,
+      ) => {
+        const formattedEvent = formatAnalyticsEvent(event);
+        return config?.accountSyncing?.onAccountSyncingEvent?.(formattedEvent);
+      },
+      enableDebugLogging: config?.accountSyncing?.enableDebugLogging ?? false,
     };
 
     this.messagingSystem.subscribe(
@@ -816,9 +823,11 @@ export class AccountTreeController extends BaseController<
    */
   async syncWithUserStorage(): Promise<void> {
     if (this.#disableMultichainAccountSyncing) {
-      console.warn(
-        'Multichain account syncing is disabled. Skipping sync operation.',
-      );
+      if (this.#accountSyncingConfig.enableDebugLogging) {
+        console.warn(
+          'Multichain account syncing is disabled. Skipping sync operation.',
+        );
+      }
       return;
     }
 
@@ -833,7 +842,9 @@ export class AccountTreeController extends BaseController<
       messenger: this.messagingSystem,
       controllerStateUpdateFn: this.update.bind(this),
       traceFn: this.#trace.bind(this),
-      emitAnalyticsEventFn: this.#emitAccountSyncingEvent.bind(this),
+      emitAnalyticsEventFn:
+        this.#accountSyncingConfig.emitAccountSyncingEvent.bind(this),
+      enableDebugLogging: this.#accountSyncingConfig.enableDebugLogging,
     };
 
     // Encapsulate the sync logic in a function to allow tracing
@@ -922,22 +933,30 @@ export class AccountTreeController extends BaseController<
               walletProfileId,
             );
           } catch (error) {
-            console.error(
-              `Error syncing wallet ${wallet.id}:`,
-              error instanceof Error ? error.message : String(error),
-            );
+            if (context.enableDebugLogging) {
+              console.error(
+                `Error syncing wallet ${wallet.id}:`,
+                error instanceof Error ? error.message : String(error),
+              );
+            }
 
             // Attempt to rollback state changes for this wallet
             try {
               restoreStateFromSnapshot(context, stateSnapshot);
-              console.log(`Rolled back state changes for wallet ${wallet.id}`);
+              if (context.enableDebugLogging) {
+                console.log(
+                  `Rolled back state changes for wallet ${wallet.id}`,
+                );
+              }
             } catch (rollbackError) {
-              console.error(
-                `Failed to rollback state for wallet ${wallet.id}:`,
-                rollbackError instanceof Error
-                  ? rollbackError.message
-                  : String(rollbackError),
-              );
+              if (context.enableDebugLogging) {
+                console.error(
+                  `Failed to rollback state for wallet ${wallet.id}:`,
+                  rollbackError instanceof Error
+                    ? rollbackError.message
+                    : String(rollbackError),
+                );
+              }
             }
 
             // Continue with next wallet instead of failing the entire sync
@@ -945,7 +964,9 @@ export class AccountTreeController extends BaseController<
           }
         }
       } catch (error) {
-        console.error('Error during multichain account syncing:', error);
+        if (context.enableDebugLogging) {
+          console.error('Error during multichain account syncing:', error);
+        }
         throw error;
       } finally {
         this.update((state) => {

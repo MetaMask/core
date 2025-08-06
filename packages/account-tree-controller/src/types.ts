@@ -138,7 +138,10 @@ export type AccountTreeControllerMessenger = RestrictedMessenger<
 
 export type AccountTreeControllerConfig = {
   trace?: TraceCallback;
-  onAccountSyncingEvent?: (
-    event: MultichainAccountSyncingAnalyticsEventPayload,
-  ) => void;
+  accountSyncing?: {
+    onAccountSyncingEvent?: (
+      event: MultichainAccountSyncingAnalyticsEventPayload,
+    ) => void;
+    enableDebugLogging?: boolean;
+  };
 };

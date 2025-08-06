@@ -27,9 +27,11 @@ export async function syncWalletMetadata(
 
   // Validate user storage data before processing
   if (!isValidUserStorageWallet(walletFromUserStorage)) {
-    console.warn(
-      `Invalid wallet data from user storage for wallet ${wallet.id}, pushing local data`,
-    );
+    if (context.enableDebugLogging) {
+      console.warn(
+        `Invalid wallet data from user storage for wallet ${wallet.id}, pushing local data`,
+      );
+    }
     await pushWalletToUserStorage(context, wallet);
     return;
   }
@@ -38,9 +40,11 @@ export async function syncWalletMetadata(
     context.controller.state.accountWalletsMetadata[wallet.id];
 
   if (!persistedMetadata) {
-    console.warn(
-      `No persisted metadata found for wallet ${wallet.id}, skipping sync`,
-    );
+    if (context.enableDebugLogging) {
+      console.warn(
+        `No persisted metadata found for wallet ${wallet.id}, skipping sync`,
+      );
+    }
     return;
   }
 

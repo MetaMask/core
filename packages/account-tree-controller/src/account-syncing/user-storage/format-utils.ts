@@ -65,7 +65,7 @@ export const parseWalletFromUserStorageResponse = (
     return walletData;
   } catch (error: unknown) {
     throw new Error(
-      `Invalid wallet metadata format: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse wallet from user storage response: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 };
@@ -87,7 +87,7 @@ export const parseGroupFromUserStorageResponse = (
     return groupData;
   } catch (error: unknown) {
     throw new Error(
-      `Invalid group metadata format: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse group from user storage response: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 };

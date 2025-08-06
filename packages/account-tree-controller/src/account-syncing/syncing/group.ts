@@ -27,21 +27,25 @@ export async function createLocalGroupsFromUserStorage(
   // Validate all groups before processing
   const validGroups = groupsFromUserStorage.filter((group) => {
     if (!isValidUserStorageGroup(group)) {
-      console.warn(
-        `Invalid group data from user storage for entropy ${entropySourceId}, skipping group`,
-        group,
-      );
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Invalid group data from user storage for entropy ${entropySourceId}, skipping group`,
+          group,
+        );
+      }
       return false;
     }
     return true;
   });
 
   if (validGroups.length !== groupsFromUserStorage.length) {
-    console.warn(
-      `Filtered out ${
-        groupsFromUserStorage.length - validGroups.length
-      } invalid groups from user storage`,
-    );
+    if (context.enableDebugLogging) {
+      console.warn(
+        `Filtered out ${
+          groupsFromUserStorage.length - validGroups.length
+        } invalid groups from user storage`,
+      );
+    }
   }
 
   // Sort groups from user storage by groupIndex in ascending order
@@ -52,9 +56,11 @@ export async function createLocalGroupsFromUserStorage(
     const { groupIndex } = groupFromUserStorage;
 
     if (typeof groupIndex !== 'number' || groupIndex < 0) {
-      console.warn(
-        `Invalid group index ${groupIndex} found in user storage, skipping`,
-      );
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Invalid group index ${groupIndex} found in user storage, skipping`,
+        );
+      }
       continue;
     }
 
@@ -63,9 +69,11 @@ export async function createLocalGroupsFromUserStorage(
     previousGroupIndex = groupIndex;
 
     if (isGroupIndexOutOfSequence) {
-      console.warn(
-        `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
-      );
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
+        );
+      }
     }
 
     try {
@@ -83,10 +91,12 @@ export async function createLocalGroupsFromUserStorage(
         profileId,
       });
     } catch (error) {
-      console.error(
-        `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
-        error instanceof Error ? error.message : String(error),
-      );
+      if (context.enableDebugLogging) {
+        console.error(
+          `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
       // Continue with other groups instead of failing completely
       continue;
     }
@@ -134,9 +144,11 @@ export async function syncGroupsMetadata(
       context.controller.state.accountGroupsMetadata[localSyncableGroup.id];
 
     if (!groupPersistedMetadata) {
-      console.warn(
-        `No persisted metadata found for group ${localSyncableGroup.id}, pushing to user storage`,
-      );
+      if (context.enableDebugLogging) {
+        console.warn(
+          `No persisted metadata found for group ${localSyncableGroup.id}, pushing to user storage`,
+        );
+      }
       localSyncableGroupsToBePushedToUserStorage.push(localSyncableGroup);
       continue;
     }

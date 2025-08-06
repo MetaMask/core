@@ -41,7 +41,7 @@ export const getWalletFromUserStorage = async (
     }
 
     return parseWalletFromUserStorageResponse(walletData);
-  }, `Get wallet ${entropySourceId} from user storage`);
+  });
 };
 
 /**
@@ -65,7 +65,7 @@ export const pushWalletToUserStorage = async (
       JSON.stringify(formattedWallet),
       entropySourceId,
     );
-  }, `Push wallet ${wallet.id} to user storage`);
+  });
 };
 
 /**
@@ -92,7 +92,7 @@ export const getAllGroupsFromUserStorage = async (
     return groupData.map((groupStringifiedJSON) =>
       parseGroupFromUserStorageResponse(groupStringifiedJSON),
     );
-  }, `Get groups for wallet ${entropySourceId} from user storage`);
+  });
 };
 
 /**
@@ -118,7 +118,7 @@ export const pushGroupToUserStorage = async (
       JSON.stringify(formattedGroup),
       entropySourceId,
     );
-  }, `Push group ${group.id} to user storage`);
+  });
 };
 
 /**
@@ -149,5 +149,5 @@ export const pushGroupToUserStorageBatch = async (
       entries,
       entropySourceId,
     );
-  }, `Push groups for wallet ${entropySourceId} to user storage`);
+  });
 };

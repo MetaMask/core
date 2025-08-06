@@ -23,4 +23,5 @@ export type AccountSyncingContext = {
   emitAnalyticsEventFn: (
     event: MultichainAccountSyncingEmitAnalyticsEventParams,
   ) => void;
+  enableDebugLogging: boolean;
 };
