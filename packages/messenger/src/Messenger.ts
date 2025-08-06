@@ -62,11 +62,11 @@ export type SelectorEventHandler<SelectorReturnValue = unknown> = (
 ) => void;
 
 export type ActionConstraint = {
-  type: string;
+  type: NamespacedName;
   handler: ((...args: never) => unknown) | ((...args: never[]) => unknown);
 };
 export type EventConstraint = {
-  type: string;
+  type: NamespacedName;
   payload: unknown[];
 };
 
