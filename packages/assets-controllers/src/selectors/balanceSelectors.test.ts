@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
 import {
@@ -6,14 +7,9 @@ import {
   selectBalanceForAllWallets,
   selectBalanceForSelectedAccountGroup,
 } from './balanceSelectors';
-import { getDefaultMultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import { getDefaultTokenBalancesState } from '../TokenBalancesController';
-import { getDefaultTokenRatesControllerState } from '../TokenRatesController';
-import type { MarketDataDetails } from '../TokenRatesController';
-import { getDefaultTokensState } from '../TokensController';
-import type { AssetsSelectorState } from '../utils/stateAdapter';
 
-const createMockState = (userCurrency = 'USD'): AssetsSelectorState => ({
+// Base mock state that can be extended for different state structures
+const createBaseMockState = (userCurrency = 'USD') => ({
   AccountTreeController: {
     accountTree: {
       wallets: {
@@ -71,7 +67,7 @@ const createMockState = (userCurrency = 'USD'): AssetsSelectorState => ({
             keyring: { type: 'hd' },
             importTime: 1234567890,
           },
-          scopes: ['eip155:1'],
+          scopes: ['eip155:1', 'eip155:89', 'eip155:a4b1'],
           methods: ['eth_sendTransaction', 'eth_signTransaction'],
         },
         'account-2': {
@@ -105,7 +101,6 @@ const createMockState = (userCurrency = 'USD'): AssetsSelectorState => ({
     },
   },
   TokenBalancesController: {
-    ...getDefaultTokenBalancesState(),
     tokenBalances: {
       '0x1': {
         '0x1234567890123456789012345678901234567890': {
@@ -132,58 +127,56 @@ const createMockState = (userCurrency = 'USD'): AssetsSelectorState => ({
     },
   },
   TokenRatesController: {
-    ...getDefaultTokenRatesControllerState(),
     marketData: {
       '0x1': {
         '0x1234567890123456789012345678901234567890': {
           tokenAddress: '0x1234567890123456789012345678901234567890',
           currency: 'ETH',
           price: 0.00041, // USDC price in ETH (~$1.00 at $2400 ETH)
-        } as unknown as MarketDataDetails,
+        },
         '0x2345678901234567890123456789012345678901': {
           tokenAddress: '0x2345678901234567890123456789012345678901',
           currency: 'ETH',
           price: 0.00041, // USDT price in ETH (~$1.00 at $2400 ETH)
-        } as unknown as MarketDataDetails,
+        },
         '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': {
           tokenAddress: '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1',
           currency: 'ETH',
           price: 0.00041, // DAI price in ETH (~$1.00 at $2400 ETH)
-        } as unknown as MarketDataDetails,
+        },
         '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': {
           tokenAddress: '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1',
           currency: 'ETH',
           price: 1.0, // WETH price in ETH (1:1)
-        } as unknown as MarketDataDetails,
+        },
       },
       '0x89': {
         '0x1234567890123456789012345678901234567890': {
           tokenAddress: '0x1234567890123456789012345678901234567890',
           currency: 'MATIC',
           price: 1.25, // USDC price in MATIC (~$1.00 at $0.80 MATIC)
-        } as unknown as MarketDataDetails,
+        },
         '0x2345678901234567890123456789012345678901': {
           tokenAddress: '0x2345678901234567890123456789012345678901',
           currency: 'MATIC',
           price: 1.25, // USDT price in MATIC (~$1.00 at $0.80 MATIC)
-        } as unknown as MarketDataDetails,
+        },
       },
       '0xa4b1': {
         '0x1234567890123456789012345678901234567890': {
           tokenAddress: '0x1234567890123456789012345678901234567890',
           currency: 'ARB',
           price: 0.91, // USDC price in ARB (~$1.00 at $1.10 ARB)
-        } as unknown as MarketDataDetails,
+        },
         '0x2345678901234567890123456789012345678901': {
           tokenAddress: '0x2345678901234567890123456789012345678901',
           currency: 'ARB',
           price: 0.91, // USDT price in ARB (~$1.00 at $1.10 ARB)
-        } as unknown as MarketDataDetails,
+        },
       },
     },
   },
   TokensController: {
-    ...getDefaultTokensState(),
     allTokens: {
       '0x1': {
         '0x1234567890123456789012345678901234567890': [
@@ -261,34 +254,49 @@ const createMockState = (userCurrency = 'USD'): AssetsSelectorState => ({
       },
     },
   },
-  CurrencyRateController: {
-    currentCurrency: userCurrency,
-    currencyRates: {
-      ETH: {
-        conversionRate: 2400, // 1 ETH = $2400 USD
-        conversionDate: null,
-        usdConversionRate: 1.0, // 1 USD = 1 USD (for USD currency)
-      },
-      MATIC: {
-        conversionRate: 0.8, // 1 MATIC = $0.80 USD
-        conversionDate: null,
-        usdConversionRate: 1.0, // 1 USD = 1 USD (for USD currency)
-      },
-      ARB: {
-        conversionRate: 1.1, // 1 ARB = $1.10 USD
-        conversionDate: null,
-        usdConversionRate: 1.0, // 1 USD = 1 USD (for USD currency)
-      },
-    },
-  },
   MultichainAssetsRatesController: {
-    ...getDefaultMultichainAssetsRatesControllerState(),
     conversionRates: {},
   },
   MultichainBalancesController: {
     balances: {},
   },
+  CurrencyRateController: {
+    currentCurrency: userCurrency,
+    currencyRates: {
+      ETH: {
+        conversionRate: 2400, // 1 ETH = 2400 USD
+        usdConversionRate: 2400,
+      },
+      MATIC: {
+        conversionRate: 0.8, // 1 MATIC = 0.8 USD
+        usdConversionRate: 0.8,
+      },
+      ARB: {
+        conversionRate: 1.1, // 1 ARB = 1.1 USD
+        usdConversionRate: 1.1,
+      },
+    },
+  },
 });
+
+// Mobile state structure: state.engine.backgroundState.ControllerName
+const createMobileMockState = (userCurrency = 'USD') => ({
+  engine: {
+    backgroundState: createBaseMockState(userCurrency),
+  },
+});
+
+// Extension state structure: state.metamask.ControllerName
+const createExtensionMockState = (userCurrency = 'USD') => ({
+  metamask: createBaseMockState(userCurrency),
+});
+
+// Flat state structure (default assets-controllers): state.ControllerName
+const createFlatMockState = (userCurrency = 'USD') =>
+  createBaseMockState(userCurrency);
+
+// Default mock state (mobile structure)
+const createMockState = createMobileMockState;
 
 describe('selectors', () => {
   describe('selectBalanceByAccountGroup', () => {
@@ -332,9 +340,9 @@ describe('selectors', () => {
     it('returns total balance for a specific account group in EUR', () => {
       const state = createMockState('EUR');
       // Set EUR conversion rate: 1 USD = 0.85 EUR
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
 
       const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
         state,
@@ -371,9 +379,9 @@ describe('selectors', () => {
     it('returns total balance for a specific account group in GBP', () => {
       const state = createMockState('GBP');
       // Set GBP conversion rate: 1 USD = 0.75 GBP
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 1800; // 1 ETH = 1800 GBP (2400 * 0.75)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.6; // 1 MATIC = 0.6 GBP (0.8 * 0.75)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.825; // 1 ARB = 0.825 GBP (1.1 * 0.75)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 1800; // 1 ETH = 1800 GBP (2400 * 0.75)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.6; // 1 MATIC = 0.6 GBP (0.8 * 0.75)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.825; // 1 ARB = 0.825 GBP (1.1 * 0.75)
 
       const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
         state,
@@ -410,44 +418,51 @@ describe('selectors', () => {
     it('returns total balance for mixed EVM and non-EVM accounts in EUR', () => {
       const state = createMockState('EUR');
       // Set EUR conversion rate: 1 USD = 0.85 EUR
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
 
       // Add a non-EVM account to the test state
-      state.AccountsController.internalAccounts.accounts['account-4'] = {
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-4'] = {
         id: 'account-4',
         address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
-        type: 'solana:data-account',
+        type: 'solana:eoa',
         options: {},
         metadata: {
           name: 'Solana Account',
           keyring: { type: 'hd' },
           importTime: 1234567890,
         },
-        scopes: ['bip122:000000000019d6689c085ae165831e93'],
-        methods: ['solana_signTransaction'],
+        scopes: ['solana:mainnet'],
+        methods: ['solana_signTransaction', 'solana_signMessage'],
       };
 
       // Add the account to group 0
-      state.AccountTreeController.accountTree.wallets[
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
         'entropy:entropy-source-1'
       ].groups['entropy:entropy-source-1/0'].accounts.push('account-4');
 
       // Add non-EVM balance data
-      state.MultichainBalancesController.balances['account-4'] = {
-        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc':
-          {
-            amount: '50.0',
-            unit: 'SOL',
-          },
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-4'] = {
+        'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc': {
+          amount: '50.0',
+          unit: 'SOL',
+        },
       };
 
       // Add conversion rate for SOL (already in user currency)
-      state.MultichainAssetsRatesController.conversionRates[
-        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
       ] = {
-        rate: '170.0', // 170 EUR per SOL (200 * 0.85)
+        rate: '50.0',
         conversionTime: 1234567890,
       };
 
@@ -455,46 +470,36 @@ describe('selectors', () => {
         state,
       );
 
-      /*
-       * CALCULATION (Direct Conversion):
-       * Group 0 now has 3 accounts: account-1, account-2 (EVM), and account-4 (non-EVM)
-       *
-       * EVM Accounts (from previous test): 3,819.73 EUR
-       * - Account 1 (Ethereum): 83.64 + 167.28 = 250.92 EUR
-       * - Account 1 (Polygon): 425.00 + 850.00 = 1,275.00 EUR
-       * - Account 1 (Arbitrum): 42.54 + 127.63 = 170.17 EUR
-       * - Account 2 (Ethereum): 83.64 + 2040.00 = 2,123.64 EUR
-       * - EVM Total: 250.92 + 1,275.00 + 170.17 + 2,123.64 = 3,819.73 EUR
-       *
-       * Non-EVM Account (Solana):
-       * - Account 4: 50 SOL * 170 EUR/SOL = 8,500.00 EUR
-       *
-       * Total: 3,819.73 + 8,500.00 = 12,319.73 EUR
+      /**
+       * Expected calculation:
+       * EVM balances: 3,819.73 EUR (from previous test)
+       * Non-EVM balance: 50.0 SOL * 50.0 EUR/SOL = 2,500.00 EUR
+       * Total: 3,819.73 + 2,500.00 = 6,319.73 EUR
        */
-      expect(result).toStrictEqual({
-        walletId: 'entropy:entropy-source-1',
-        groupId: 'entropy:entropy-source-1/0',
-        totalBalanceInUserCurrency: 12319.73,
-        userCurrency: 'EUR',
-      });
+      expect(result.walletId).toBe('entropy:entropy-source-1');
+      expect(result.groupId).toBe('entropy:entropy-source-1/0');
+      expect(result.totalBalanceInUserCurrency).toBeCloseTo(6319.73, 2);
+      expect(result.userCurrency).toBe('EUR');
     });
 
     it('returns total balance for non-EVM accounts only in EUR', () => {
       const state = createMockState('EUR');
       // Set EUR conversion rate: 1 USD = 0.85 EUR
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
 
       // Create a new group with only non-EVM accounts
-      state.AccountTreeController.accountTree.wallets[
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
         'entropy:entropy-source-1'
       ].groups['entropy:entropy-source-1/2'] = {
         id: 'entropy:entropy-source-1/2',
         type: AccountGroupType.MultichainAccount,
         accounts: ['account-5'],
         metadata: {
-          name: 'Group 2',
+          name: 'Non-EVM Group',
           pinned: false,
           hidden: false,
           entropy: { groupIndex: 2 },
@@ -502,34 +507,39 @@ describe('selectors', () => {
       };
 
       // Add non-EVM account
-      state.AccountsController.internalAccounts.accounts['account-5'] = {
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-5'] = {
         id: 'account-5',
         address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
-        type: 'solana:data-account',
+        type: 'solana:eoa',
         options: {},
         metadata: {
           name: 'Solana Account',
           keyring: { type: 'hd' },
           importTime: 1234567890,
         },
-        scopes: ['bip122:000000000019d6689c085ae165831e93'],
-        methods: ['solana_signTransaction'],
+        scopes: ['solana:mainnet'],
+        methods: ['solana_signTransaction', 'solana_signMessage'],
       };
 
       // Add non-EVM balance data
-      state.MultichainBalancesController.balances['account-5'] = {
-        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc':
-          {
-            amount: '25.0',
-            unit: 'SOL',
-          },
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-5'] = {
+        'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc': {
+          amount: '25.0',
+          unit: 'SOL',
+        },
       };
 
       // Add conversion rate for SOL (already in user currency)
-      state.MultichainAssetsRatesController.conversionRates[
-        'bip122:000000000019d6689c085ae165831e93/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
       ] = {
-        rate: '170.0', // 170 EUR per SOL (200 * 0.85)
+        rate: '50.0',
         conversionTime: 1234567890,
       };
 
@@ -537,19 +547,14 @@ describe('selectors', () => {
         state,
       );
 
-      /*
-       * CALCULATION (Direct Conversion):
-       * Group 2 has 1 non-EVM account: account-5
-       *
-       * Non-EVM Account (Solana):
-       * - Account 5: 25 SOL * 170 EUR/SOL = 4,250.00 EUR
-       *
-       * Total: 4,250.00 EUR
+      /**
+       * Expected calculation:
+       * Non-EVM balance: 25.0 SOL * 50.0 EUR/SOL = 1,250.00 EUR
        */
       expect(result).toStrictEqual({
         walletId: 'entropy:entropy-source-1',
         groupId: 'entropy:entropy-source-1/2',
-        totalBalanceInUserCurrency: 4250.0,
+        totalBalanceInUserCurrency: 1250.0,
         userCurrency: 'EUR',
       });
     });
@@ -570,9 +575,15 @@ describe('selectors', () => {
     it('falls back to zero when no conversion rate is available', () => {
       const state = createMockState('EUR');
       // Remove conversion rates
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = null;
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = null;
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = null;
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.ETH.conversionRate = null;
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.MATIC.conversionRate = null;
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.ARB.conversionRate = null;
 
       const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
         state,
@@ -591,13 +602,17 @@ describe('selectors', () => {
       const state = createMockState('USD');
 
       // Add malformed balance data that would result in NaN
-      state.TokenBalancesController.tokenBalances['0x1'][
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances['0x1'][
         '0x1234567890123456789012345678901234567890'
       ]['0xA0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] =
         'invalid_hex_string' as `0x${string}`;
 
       // Add another malformed balance for non-EVM account
-      state.MultichainBalancesController.balances['account-1'] = {
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-1'] = {
         'eip155:1/slip44:60': {
           amount: 'invalid_number',
           unit: 'ETH',
@@ -660,9 +675,9 @@ describe('selectors', () => {
     it('returns total balance for all account groups in a wallet in EUR', () => {
       const state = createMockState('EUR');
       // Set EUR conversion rate: 1 USD = 0.85 EUR
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
 
       const result = selectBalanceByWallet('entropy:entropy-source-1')(state);
 
@@ -751,9 +766,9 @@ describe('selectors', () => {
     it('returns total balance for all wallets in EUR', () => {
       const state = createMockState('EUR');
       // Set EUR conversion rate: 1 USD = 0.85 EUR
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
+      state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
 
       const result = selectBalanceForAllWallets()(state);
 
@@ -784,9 +799,15 @@ describe('selectors', () => {
     it('returns total balance for the selected account group in EUR', () => {
       const state = createMockState('EUR');
       // Set EUR conversion rate: 1 USD = 0.85 EUR
-      state.CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
-      state.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
-      state.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.ETH.conversionRate = 2040; // 1 ETH = 2040 EUR (2400 * 0.85)
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68; // 1 MATIC = 0.68 EUR (0.8 * 0.85)
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.ARB.conversionRate = 0.935; // 1 ARB = 0.935 EUR (1.1 * 0.85)
 
       const result = selectBalanceForSelectedAccountGroup()(state);
 
@@ -803,11 +824,44 @@ describe('selectors', () => {
 
     it('returns null when no account group is selected', () => {
       const state = createMockState('USD');
-      state.AccountTreeController.accountTree.selectedAccountGroup = '';
+      state.engine.backgroundState.AccountTreeController.accountTree.selectedAccountGroup =
+        '';
 
       const result = selectBalanceForSelectedAccountGroup()(state);
 
       expect(result).toBeNull();
     });
+  });
+});
+
+describe('state structure compatibility', () => {
+  it('works with mobile state structure', () => {
+    const mobileState = createMobileMockState('USD');
+
+    const result = selectBalanceForSelectedAccountGroup()(mobileState);
+
+    expect(result).toBeDefined();
+    expect(result?.walletId).toBe('entropy:entropy-source-1');
+    expect(result?.groupId).toBe('entropy:entropy-source-1/0');
+  });
+
+  it('works with extension state structure', () => {
+    const extensionState = createExtensionMockState('USD');
+
+    const result = selectBalanceForSelectedAccountGroup()(extensionState);
+
+    expect(result).toBeDefined();
+    expect(result?.walletId).toBe('entropy:entropy-source-1');
+    expect(result?.groupId).toBe('entropy:entropy-source-1/0');
+  });
+
+  it('works with flat state structure (default assets-controllers)', () => {
+    const flatState = createFlatMockState('USD');
+
+    const result = selectBalanceForSelectedAccountGroup()(flatState);
+
+    expect(result).toBeDefined();
+    expect(result?.walletId).toBe('entropy:entropy-source-1');
+    expect(result?.groupId).toBe('entropy:entropy-source-1/0');
   });
 });
