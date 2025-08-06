@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.7.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6222](https://github.com/MetaMask/core/pull/6222))
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.8.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6222](https://github.com/MetaMask/core/pull/6222)), ([#6248](https://github.com/MetaMask/core/pull/6248))
 - **BREAKING:** Move `wallet.metadata.type` tag to `wallet` node ([#6214](https://github.com/MetaMask/core/pull/6214))
   - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountWalletObject`.
 - Defaults to the EVM account from a group when using `setSelectedAccountGroup` ([#6208](https://github.com/MetaMask/core/pull/6208))
