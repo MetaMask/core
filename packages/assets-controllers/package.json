@@ -79,7 +79,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/account-api": "^0.7.0",
+    "@metamask/account-api": "^0.9.0",
     "@metamask/account-tree-controller": "^0.7.0",
     "@metamask/accounts-controller": "^32.0.1",
     "@metamask/approval-controller": "^7.1.3",
