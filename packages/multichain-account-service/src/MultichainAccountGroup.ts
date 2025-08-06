@@ -8,7 +8,6 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
 import type { AccountProvider } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
-import { isScopeEqualToAny } from '@metamask/keyring-utils';
 
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 
@@ -67,7 +66,7 @@ export class MultichainAccountGroup<
       for (const account of provider.getAccounts()) {
         if (
           account.options.entropy.id === this.wallet.entropySource &&
-          account.options.entropy.groupIndex === this.index
+          account.options.entropy.groupIndex === this.groupIndex
         ) {
           // We only use IDs to always fetch the latest version of accounts.
           accounts.push(account.id);
