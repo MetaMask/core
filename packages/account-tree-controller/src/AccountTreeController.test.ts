@@ -2187,6 +2187,70 @@ describe('AccountTreeController', () => {
   });
 
   describe('Fallback Naming', () => {
+    it('detects new groups based on account import time', () => {
+      const serviceStartTime = Date.now();
+      const mockAccountWithNewImportTime: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 0,
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          importTime: serviceStartTime + 1000, // Imported after service start
+        },
+      };
+
+      const mockAccountWithOldImportTime: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_2,
+        options: {
+          ...MOCK_HD_ACCOUNT_2.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_2.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 1,
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_2.metadata,
+          importTime: serviceStartTime - 1000, // Imported before service start
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccountWithOldImportTime, mockAccountWithNewImportTime],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const expectedGroupId1 = toMultichainAccountGroupId(
+        expectedWalletId,
+        mockAccountWithNewImportTime.options.entropy.groupIndex,
+      );
+
+      const expectedGroupId2 = toMultichainAccountGroupId(
+        expectedWalletId,
+        mockAccountWithOldImportTime.options.entropy.groupIndex,
+      );
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+      const group2 = wallet?.groups[expectedGroupId2];
+
+      // Groups should be named by index within the wallet
+      expect(group1?.metadata.name).toBe('Account 1');
+      expect(group2?.metadata.name).toBe('Account 2');
+    });
+
     it('uses fallback naming when rule-based naming returns empty string', () => {
       // Create accounts with empty names to trigger fallback naming
       const mockAccountWithEmptyName1: Bip44Account<InternalAccount> = {
