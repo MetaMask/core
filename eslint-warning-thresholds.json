@@ -59,7 +59,6 @@
     "prettier/prettier": 1
   },
   "packages/assets-controllers/src/TokenBalancesController.test.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
     "no-empty-function": 1
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {

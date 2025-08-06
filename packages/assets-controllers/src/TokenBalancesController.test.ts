@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import * as controllerUtils from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
@@ -1461,14 +1462,8 @@ describe('TokenBalancesController', () => {
 
       // Mock safelyExecuteWithTimeout to simulate the scenario where the error
       // bypasses it and reaches the catch block directly (line 289-292)
-      const originalSafelyExecute = jest.requireActual(
-        '@metamask/controller-utils',
-      ).safelyExecuteWithTimeout;
       const safelyExecuteSpy = jest
-        .spyOn(
-          require('@metamask/controller-utils'),
-          'safelyExecuteWithTimeout',
-        )
+        .spyOn(controllerUtils, 'safelyExecuteWithTimeout')
         .mockImplementation(async () => {
           // Instead of swallowing the error, throw it to reach the catch block
           throw mockError;
