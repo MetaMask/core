@@ -210,6 +210,8 @@ export class Messenger<
    *
    * This will make the registered function available to call via the `call` method.
    *
+   * The action being registered must be under the same namespace as the messenger.
+   *
    * @param actionType - The action type. This is a unique identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
@@ -290,6 +292,8 @@ export class Messenger<
    * Unregister an action handler.
    *
    * This will prevent this action from being called.
+   *
+   * The action being unregistered must be under the same namespace as the messenger.
    *
    * @param actionType - The action type. This is a unique identifier for this action.
    * @template ActionType - A type union of Action type strings.
@@ -382,6 +386,8 @@ export class Messenger<
    * Registering a function for getting the payload allows event selectors to have a point of
    * comparison the first time state changes.
    *
+   * The event type must be under the same namespace as the messenger.
+   *
    * @param args - The arguments to this function
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
@@ -454,6 +460,8 @@ export class Messenger<
    *
    * Note that this method should never throw directly. Any errors from
    * subscribers are captured and re-thrown in a timeout handler.
+   *
+   * The event being published must be under the same namespace as the messenger.
    *
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
