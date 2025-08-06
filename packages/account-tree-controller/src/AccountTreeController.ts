@@ -212,6 +212,10 @@ export class AccountTreeController extends BaseController<
    * Wallet 1 → Account 1, Account 2
    * Wallet 2 → Account 1, Account 2
    *
+   * Note: We use the group's position within the wallet for consistent ordering.
+   * This works for both multichain account groups (with group indexes) and
+   * single-account groups (with addresses).
+   *
    * @param wallet - The wallet containing the group
    * @param group - The group to generate a name for
    * @returns A fallback name like "Account 1", "Account 2", etc.
@@ -220,16 +224,13 @@ export class AccountTreeController extends BaseController<
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ): string {
-    // Get all groups in this wallet, sorted by their IDs for consistent ordering
-    const walletGroups = Object.values(wallet.groups).sort((a, b) =>
-      a.id.localeCompare(b.id),
-    );
+    // Use the group's position within the wallet as the index
+    // Sort group IDs for consistent ordering, then find the current group's position
+    const sortedGroupIds = Object.keys(wallet.groups).sort();
+    const groupPosition = sortedGroupIds.indexOf(group.id);
 
-    // Find the index of the current group within this wallet
-    const groupIndex = walletGroups.findIndex((g) => g.id === group.id);
-
-    // Use 1-based indexing for human-readable names
-    const accountNumber = groupIndex + 1;
+    // Use 1-based indexing for human-readable names (Account 1, Account 2, etc.)
+    const accountNumber = groupPosition + 1;
 
     return `Account ${accountNumber}`;
   }

@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Given the `group.type` you will now have access to specific metadata information (e.g. `groupIndex` for multichain account groups)
 - Automatically prune empty groups and wallets upon account removal ([#6234](https://github.com/MetaMask/core/pull/6234))
   - This ensures that there aren't any empty nodes in the `AccountTreeController` state.
+- Add fallback naming for account groups when rule-based naming fails
+  - Implements "indexes per wallet" strategy (Wallet 1 → Account 1, Account 2; Wallet 2 → Account 1, Account 2)
+  - Ensures new groups get proper sequential names within each wallet
 
 ### Changed
 
