@@ -110,10 +110,10 @@ type DelegatedMessenger<
   // type is narrowed to just the delegated actions/events, the types for event payload and action
   // parameters would not be wide enough.
   Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
-  | 'publishDelegated'
-  | 'registerDelegatedActionHandler'
-  | 'registerDelegatedInitialEventPayload'
-  | 'unregisterDelegatedActionHandler'
+  | '_internalPublishDelegated'
+  | '_internalRegisterDelegatedActionHandler'
+  | '_internalRegisterDelegatedInitialEventPayload'
+  | '_internalUnregisterDelegatedActionHandler'
 >;
 
 /**
@@ -213,28 +213,6 @@ export class Messenger<
     this.#registerActionHandler(actionType, handler);
   }
 
-  /**
-   * Register a delegated action handler.
-   *
-   * This will make the registered function available to call via the `call` method.
-   *
-   * @deprecated Do not call this directly, instead use the `delegate` method.
-   * @param actionType - The action type. This is a unique identifier for this action.
-   * @param handler - The action handler. This function gets called when the `call` method is
-   * invoked with the given action type.
-   * @throws Will throw when a handler has been registered for this action type already.
-   * @template ActionType - A type union of Action type strings.
-   */
-  registerDelegatedActionHandler<ActionType extends Action['type']>(
-    actionType: ActionType,
-    // Using wider `ActionConstraint` type here rather than `Action` because the `Action` type is
-    // contravariant over the handler parameter type. Using `Action` would lead to a type error
-    // here because the messenger we've delegated to supports _additional_ actions.
-    handler: ActionHandler<ActionConstraint, ActionType>,
-  ) {
-    this.#registerActionHandler(actionType, handler);
-  }
-
   #registerActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
     handler: ActionHandler<ActionConstraint, ActionType>,
@@ -293,21 +271,6 @@ export class Messenger<
     this.#unregisterActionHandler(actionType);
   }
 
-  /**
-   * Unregister a delegated action handler.
-   *
-   * This will prevent this action from being called.
-   *
-   * @deprecated Do not call this directly, instead use the `delegate` method.
-   * @param actionType - The action type. This is a unqiue identifier for this action.
-   * @template ActionType - A type union of Action type strings.
-   */
-  unregisterDelegatedActionHandler<ActionType extends Action['type']>(
-    actionType: ActionType,
-  ) {
-    this.#unregisterActionHandler(actionType);
-  }
-
   #unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
   ) {
@@ -317,7 +280,7 @@ export class Messenger<
       return;
     }
     for (const messenger of delegationTargets) {
-      messenger.unregisterDelegatedActionHandler(actionType);
+      messenger._internalUnregisterDelegatedActionHandler(actionType);
     }
     this.#actionDelegationTargets.delete(actionType);
   }
@@ -394,28 +357,6 @@ export class Messenger<
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
 
-  /**
-   * Register a function for getting the initial payload for a delegated event.
-   *
-   * This is used for events that represent a state change, where the payload is the state.
-   * Registering a function for getting the payload allows event selectors to have a point of
-   * comparison the first time state changes.
-   *
-   * @deprecated Do not call this directly, instead use the `delegate` method.
-   * @param args - The arguments to this function
-   * @param args.eventType - The event type to register a payload for.
-   * @param args.getPayload - A function for retrieving the event payload.
-   */
-  registerDelegatedInitialEventPayload<EventType extends Event['type']>({
-    eventType,
-    getPayload,
-  }: {
-    eventType: EventType;
-    getPayload: () => ExtractEventPayload<Event, EventType>;
-  }) {
-    this.#registerInitialEventPayload({ eventType, getPayload });
-  }
-
   #registerInitialEventPayload<EventType extends Event['type']>({
     eventType,
     getPayload,
@@ -430,7 +371,10 @@ export class Messenger<
       return;
     }
     for (const messenger of delegationTargets.keys()) {
-      messenger.registerDelegatedInitialEventPayload({ eventType, getPayload });
+      messenger._internalRegisterDelegatedInitialEventPayload({
+        eventType,
+        getPayload,
+      });
     }
   }
 
@@ -459,27 +403,6 @@ export class Messenger<
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
       );
     }
-    this.#publish(eventType, ...payload);
-  }
-
-  /**
-   * Publish a delegated event.
-   *
-   * Publishes the given payload to all subscribers of the given event type.
-   *
-   * Note that this method should never throw directly. Any errors from
-   * subscribers are captured and re-thrown in a timeout handler.
-   *
-   * @deprecated Do not call this directly, instead use the `delegate` method.
-   * @param eventType - The event type. This is a unique identifier for this event.
-   * @param payload - The event payload. The type of the parameters for each event handler must
-   * match the type of this payload.
-   * @template EventType - A type union of Event type strings.
-   */
-  publishDelegated<EventType extends Event['type']>(
-    eventType: EventType,
-    ...payload: ExtractEventPayload<Event, EventType>
-  ) {
     this.#publish(eventType, ...payload);
   }
 
@@ -695,7 +618,7 @@ export class Messenger<
       }
       delegationTargets.add(messenger);
 
-      messenger.registerDelegatedActionHandler(
+      messenger._internalRegisterDelegatedActionHandler(
         actionType,
         delegatedActionHandler,
       );
@@ -704,7 +627,7 @@ export class Messenger<
       const untypedSubscriber = (
         ...payload: ExtractEventPayload<DelegatedEvent, typeof eventType>
       ) => {
-        messenger.publishDelegated(eventType, ...payload);
+        messenger._internalPublishDelegated(eventType, ...payload);
       };
       // Cast to get more specific subscriber type for this specific event.
       // The types get collapsed here to the type union of all delegated
@@ -726,7 +649,7 @@ export class Messenger<
       delegatedEventSubscriptions.set(messenger, subscriber);
       const getPayload = this.#initialEventPayloadGetters.get(eventType);
       if (getPayload) {
-        messenger.registerDelegatedInitialEventPayload({
+        messenger._internalRegisterDelegatedInitialEventPayload({
           eventType,
           getPayload,
         });
@@ -758,7 +681,7 @@ export class Messenger<
         // Nothing to revoke
         continue;
       }
-      messenger.unregisterDelegatedActionHandler(actionType);
+      messenger._internalUnregisterDelegatedActionHandler(actionType);
       delegationTargets.delete(messenger);
       if (delegationTargets.size === 0) {
         this.#actionDelegationTargets.delete(actionType);
@@ -782,6 +705,105 @@ export class Messenger<
         this.#subscriptionDelegationTargets.delete(eventType);
       }
     }
+  }
+
+  /**
+   * Register an action handler for an action delegated from another messenger.
+   *
+   * This will make the registered function available to call via the `call` method.
+   *
+   * Note: This is an internal method. Never access this property from another module. This must be
+   * exposed as a public property so that these methods can be called internally on other messenger
+   * instances.
+   *
+   * @deprecated Internal use only. Use the `delegate` method for delegation.
+   * @param actionType - The action type. This is a unique identifier for this action.
+   * @param handler - The action handler. This function gets called when the `call` method is
+   * invoked with the given action type.
+   * @throws Will throw when a handler has been registered for this action type already.
+   * @template ActionType - A type union of Action type strings.
+   */
+  _internalRegisterDelegatedActionHandler<ActionType extends Action['type']>(
+    actionType: ActionType,
+    // Using wider `ActionConstraint` type here rather than `Action` because the `Action` type is
+    // contravariant over the handler parameter type. Using `Action` would lead to a type error
+    // here because the messenger we've delegated to supports _additional_ actions.
+    handler: ActionHandler<ActionConstraint, ActionType>,
+  ) {
+    this.#registerActionHandler(actionType, handler);
+  }
+
+  /**
+   * Unregister an action handler for an action delegated from another messenger.
+   *
+   * This will prevent this action from being called.
+   *
+   * Note: This is an internal method. Never access this property from another module. This must be
+   * exposed as a public property so that these methods can be called internally on other messenger
+   * instances.
+   *
+   * @deprecated Internal use only. Use the `delegate` method for delegation.
+   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @template ActionType - A type union of Action type strings.
+   */
+  _internalUnregisterDelegatedActionHandler<ActionType extends Action['type']>(
+    actionType: ActionType,
+  ) {
+    this.#unregisterActionHandler(actionType);
+  }
+
+  /**
+   * Register a function for getting the initial payload for an event that has been delegated from
+   * another messenger.
+   *
+   * This is used for events that represent a state change, where the payload is the state.
+   * Registering a function for getting the payload allows event selectors to have a point of
+   * comparison the first time state changes.
+   *
+   * Note: This is an internal method. Never access this property from another module. This must be
+   * exposed as a public property so that these methods can be called internally on other messenger
+   * instances.
+   *
+   * @deprecated Internal use only. Use the `delegate` method for delegation.
+   * @param args - The arguments to this function
+   * @param args.eventType - The event type to register a payload for.
+   * @param args.getPayload - A function for retrieving the event payload.
+   */
+  _internalRegisterDelegatedInitialEventPayload<
+    EventType extends Event['type'],
+  >({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    this.#registerInitialEventPayload({ eventType, getPayload });
+  }
+
+  /**
+   * Publish an event that was delegated from another messenger.
+   *
+   * Publishes the given payload to all subscribers of the given event type.
+   *
+   * Note that this method should never throw directly. Any errors from
+   * subscribers are captured and re-thrown in a timeout handler.
+   *
+   * Note: This is an internal method. Never access this property from another module. This must be
+   * exposed as a public property so that these methods can be called internally on other messenger
+   * instances.
+   *
+   * @deprecated Internal use only. Use the `delegate` method for delegation.
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param payload - The event payload. The type of the parameters for each event handler must
+   * match the type of this payload.
+   * @template EventType - A type union of Event type strings.
+   */
+  _internalPublishDelegated<EventType extends Event['type']>(
+    eventType: EventType,
+    ...payload: ExtractEventPayload<Event, EventType>
+  ) {
+    this.#publish(eventType, ...payload);
   }
 
   /**
