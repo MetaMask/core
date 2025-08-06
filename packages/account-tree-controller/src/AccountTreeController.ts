@@ -4,6 +4,7 @@ import type { AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
@@ -135,6 +136,13 @@ export class AccountTreeController extends BaseController<
       'AccountsController:selectedAccountChange',
       (account) => {
         this.#handleSelectedAccountChange(account);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'AccountsController:accountRenamed',
+      (account) => {
+        this.#handleAccountRenamed(account);
       },
     );
 
@@ -313,6 +321,29 @@ export class AccountTreeController extends BaseController<
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
+    }
+  }
+
+  #handleAccountRenamed(account: InternalAccount) {
+    // This method is only there to support legacy account syncing programmatic renames.
+    // Since legacy account syncing only syncs HD EVM accounts, we only
+    // handle HD EVM accounts here.
+    if (account.metadata.keyring.type !== (KeyringTypes.hd as string)) {
+      return;
+    }
+
+    const context = this.#accountIdToContext.get(account.id);
+
+    if (context) {
+      const { walletId, groupId } = context;
+
+      const wallet = this.state.accountTree.wallets[walletId];
+      if (wallet) {
+        const group = wallet.groups[groupId];
+        if (group) {
+          this.setAccountGroupName(groupId, account.metadata.name);
+        }
+      }
     }
   }
 

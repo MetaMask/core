@@ -223,6 +223,7 @@ function getAccountTreeControllerMessenger(
     name: 'AccountTreeController',
     allowedEvents: [
       'AccountsController:accountAdded',
+      'AccountsController:accountRenamed',
       'AccountsController:accountRemoved',
       'AccountsController:selectedAccountChange',
     ],
@@ -1014,6 +1015,89 @@ describe('AccountTreeController', () => {
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('on AccountsController:accountRenamed', () => {
+    it('renames an account in the tree if the renamed internal account is of type KeyringTypes.hd', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const newName = 'New Account Name';
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: newName,
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(newName);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1');
+    });
+
+    it('does not rename an account in the tree if the renamed internal account is not of type KeyringTypes.hd', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const newName = 'New Account Name';
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          keyring: {
+            type: KeyringTypes.simple,
+          },
+          name: newName,
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(MOCK_HD_ACCOUNT_1.metadata.name);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1');
     });
   });
 
