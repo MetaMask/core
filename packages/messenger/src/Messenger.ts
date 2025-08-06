@@ -447,9 +447,9 @@ export class Messenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
-   * @template EventType - A type union of Event type strings.
+   * @template EventType - A type union of Event type strings under this messenger's namespace.
    */
-  publish<EventType extends Event['type']>(
+  publish<EventType extends Event['type'] & NamespacedName<Namespace>>(
     eventType: EventType & NamespacedName<Namespace>,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
