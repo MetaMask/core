@@ -600,6 +600,14 @@ export class Messenger<
   /**
    * Delegate actions and/or events to another messenger.
    *
+   * The messenger these actions/events are delegated to will be able to call these actions and
+   * subscribe to these events.
+   *
+   * Note that the messenger these actions/events are delegated to must still have these
+   * actions/events included in its type definition (as part of the Action and Event type
+   * parameters). Actions and events are statically type checked, they cannot be delegated
+   * dynamically at runtime.
+   *
    * @param args - Arguments.
    * @param args.actions - The action types to delegate.
    * @param args.events - The event types to delegate.
@@ -679,6 +687,9 @@ export class Messenger<
 
   /**
    * Revoke delegated actions and/or events from another messenger.
+   *
+   * The messenger these actions/events are delegated to will no longer be able to call these
+   * actions or subscribe to these events.
    *
    * @param args - Arguments.
    * @param args.actions - The action types to revoke.
