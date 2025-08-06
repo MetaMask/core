@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/eip1193-permission-middleware",
-  "version": "1.0.0",
-  "description": "Implements the JSON-RPC methods for managing permissions as referenced in EIP-2255 and MIP-2 and inspired by MIP-5, but supporting chain-agnostic permission caveats in alignment with @metamask/multichain-api-middleware",
+  "name": "@metamask/network-enablement-controller",
+  "version": "0.1.0",
+  "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/eip1193-permission-middleware#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/network-enablement-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/eip1193-permission-middleware",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip1193-permission-middleware",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/network-enablement-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-enablement-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -46,24 +46,28 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
-  "dependencies": {
-    "@metamask/chain-agnostic-permission": "^1.1.0",
-    "@metamask/controller-utils": "^11.11.0",
-    "@metamask/json-rpc-engine": "^10.0.3",
-    "@metamask/permission-controller": "^11.0.6",
-    "@metamask/utils": "^11.4.2",
-    "lodash": "^4.17.21"
-  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/multichain-network-controller": "^0.11.0",
+    "@metamask/network-controller": "^24.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^8.0.1",
+    "@metamask/controller-utils": "^11.11.0",
+    "@metamask/utils": "^11.4.2",
+    "reselect": "^5.1.1"
+  },
+  "peerDependencies": {
+    "@metamask/multichain-network-controller": "^0.11.0",
+    "@metamask/network-controller": "^24.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

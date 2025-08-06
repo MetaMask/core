@@ -39,6 +39,7 @@
     { "path": "./packages/multichain-transactions-controller" },
     { "path": "./packages/name-controller" },
     { "path": "./packages/network-controller" },
+    { "path": "./packages/network-enablement-controller" },
     { "path": "./packages/notification-services-controller" },
     { "path": "./packages/permission-controller" },
     { "path": "./packages/permission-log-controller" },
