@@ -183,6 +183,9 @@ export type SimulationResponseTokenFee = {
 
   /** Estimated gas limit required for fee transfer. */
   transferEstimate: Hex;
+
+  /** Whether the gas fee is sponsored by the network. */
+  isSponsored?: boolean;
 };
 
 /** Response from the simulation API for a single transaction. */

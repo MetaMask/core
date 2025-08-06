@@ -135,6 +135,7 @@ function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
     recipient: tokenFee.feeRecipient,
     symbol: tokenFee.token.symbol,
     tokenAddress: tokenFee.token.address,
+    isSponsored: tokenFee.isSponsored,
   }));
 }
 

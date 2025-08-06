@@ -1822,6 +1822,9 @@ export type GasFeeToken = {
 
   /** Address of the token contract. */
   tokenAddress: Hex;
+
+  /** Whether the gas costs are sponsored by the network. */
+  isSponsored?: boolean;
 };
 
 /** Request to check if atomic batch is supported for an account. */

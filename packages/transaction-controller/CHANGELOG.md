@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isSponsored` property on the simulation API response and `GasFeeToken` types ([#6178](https://github.com/MetaMask/core/pull/6178))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
