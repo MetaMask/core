@@ -8,17 +8,7 @@ import {
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import {
-  EthAccountType,
-  SolAccountType,
-  type EntropySourceId,
-} from '@metamask/keyring-api';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
-
-import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MockAccountProvider } from './tests';
-import {
   MOCK_HD_ACCOUNT_1,
-  MOCK_HD_KEYRING_1,
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -27,8 +17,17 @@ import {
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
   MockAccountBuilder,
-  setupAccountProvider,
-} from './tests';
+} from '@metamask/account-api/mocks';
+import {
+  EthAccountType,
+  SolAccountType,
+  type EntropySourceId,
+} from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
+
+import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { MockAccountProvider } from './tests';
+import { MOCK_HD_KEYRING_1, setupAccountProvider } from './tests';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -45,16 +44,16 @@ function setup({
 }: {
   entropySource?: EntropySourceId;
   providers?: MockAccountProvider[];
-  accounts?: InternalAccount[][];
+  accounts?: KeyringAccount[][];
 } = {}): {
-  wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
+  wallet: MultichainAccountWallet<Bip44Account<KeyringAccount>>;
   providers: MockAccountProvider[];
 } {
   providers ??= accounts.map((providerAccounts) => {
     return setupAccountProvider({ accounts: providerAccounts });
   });
 
-  const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
+  const wallet = new MultichainAccountWallet<Bip44Account<KeyringAccount>>({
     providers,
     entropySource,
   });

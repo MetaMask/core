@@ -1,5 +1,13 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
+import {
+  MOCK_HARDWARE_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_2,
+  MOCK_SNAP_ACCOUNT_1,
+  MOCK_SNAP_ACCOUNT_2,
+  MockAccountBuilder,
+} from '@metamask/account-api/mocks';
 import type { Messenger } from '@metamask/base-controller';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
@@ -9,14 +17,6 @@ import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
-import {
-  MOCK_HARDWARE_ACCOUNT_1,
-  MOCK_HD_ACCOUNT_1,
-  MOCK_HD_ACCOUNT_2,
-  MOCK_SNAP_ACCOUNT_1,
-  MOCK_SNAP_ACCOUNT_2,
-  MockAccountBuilder,
-} from './tests';
 import {
   MOCK_HD_KEYRING_1,
   MOCK_HD_KEYRING_2,

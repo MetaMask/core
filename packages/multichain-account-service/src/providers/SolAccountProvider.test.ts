@@ -1,4 +1,5 @@
 import { isBip44Account } from '@metamask/account-api';
+import { MockAccountBuilder } from '@metamask/account-api/mocks';
 import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -11,10 +12,9 @@ import { SolAccountProvider } from './SolAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-  MOCK_HD_ACCOUNT_1,
+  MOCK_HD_INTERNAL_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
-  MOCK_SOL_ACCOUNT_1,
-  MockAccountBuilder,
+  MOCK_SOL_INTERNAL_ACCOUNT_1,
 } from '../tests';
 import type {
   AllowedActions,
@@ -69,7 +69,7 @@ class MockSolanaKeyring {
         }
       }
 
-      const account = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+      const account = MockAccountBuilder.from(MOCK_SOL_INTERNAL_ACCOUNT_1)
         .withUuid()
         .withAddressSuffix(`${this.accounts.length}`)
         .withGroupIndex(this.accounts.length)
@@ -158,7 +158,7 @@ function setup({
 
 describe('SolAccountProvider', () => {
   it('gets accounts', () => {
-    const accounts = [MOCK_SOL_ACCOUNT_1];
+    const accounts = [MOCK_SOL_INTERNAL_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -167,7 +167,7 @@ describe('SolAccountProvider', () => {
   });
 
   it('gets a specific account', () => {
-    const account = MOCK_SOL_ACCOUNT_1;
+    const account = MOCK_SOL_INTERNAL_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
@@ -176,19 +176,19 @@ describe('SolAccountProvider', () => {
   });
 
   it('throws if account does not exist', () => {
-    const account = MOCK_SOL_ACCOUNT_1;
+    const account = MOCK_SOL_INTERNAL_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
 
-    const unknownAccount = MOCK_HD_ACCOUNT_1;
+    const unknownAccount = MOCK_HD_INTERNAL_ACCOUNT_1;
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );
   });
 
   it('creates accounts', async () => {
-    const accounts = [MOCK_SOL_ACCOUNT_1];
+    const accounts = [MOCK_SOL_INTERNAL_ACCOUNT_1];
     const { provider, keyring } = setup({
       accounts,
     });
@@ -203,7 +203,7 @@ describe('SolAccountProvider', () => {
   });
 
   it('does not re-create accounts (idempotent)', async () => {
-    const accounts = [MOCK_SOL_ACCOUNT_1];
+    const accounts = [MOCK_SOL_INTERNAL_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -213,7 +213,7 @@ describe('SolAccountProvider', () => {
       groupIndex: 0,
     });
     expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
+    expect(newAccounts[0]).toStrictEqual(MOCK_SOL_INTERNAL_ACCOUNT_1);
   });
 
   // Skip this test for now, since we manually inject those options upon
@@ -221,13 +221,13 @@ describe('SolAccountProvider', () => {
   // using the new typed options).
   // eslint-disable-next-line jest/no-disabled-tests
   it.skip('throws if the created account is not BIP-44 compatible', async () => {
-    const accounts = [MOCK_SOL_ACCOUNT_1];
+    const accounts = [MOCK_SOL_INTERNAL_ACCOUNT_1];
     const { provider, mocks } = setup({
       accounts,
     });
 
     mocks.keyring.createAccount.mockResolvedValue({
-      ...MOCK_SOL_ACCOUNT_1,
+      ...MOCK_SOL_INTERNAL_ACCOUNT_1,
       options: {}, // No options, so it cannot be BIP-44 compatible.
     });
 
