@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for `AccountsController:accountRenamed` event handling for legacy account syncing compatibility.
+- Add support for `AccountsController:accountRenamed` event handling for legacy account syncing compatibility ([#6251](https://github.com/MetaMask/core/pull/6251))
 - Add persistence support for user customizations ([#6221](https://github.com/MetaMask/core/pull/6221))
   - New `accountGroupsMetadata` (of new type `AccountTreeGroupPersistedMetadata`) and `accountWalletsMetadata` (of new type `AccountTreeWalletPersistedMetadata`) state properties to persist custom names, pinning, and hiding states.
   - Custom names and metadata survive controller initialization and tree rebuilds.
