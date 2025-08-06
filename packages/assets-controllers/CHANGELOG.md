@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release 488.0.0 (#6249)" ([#6249](https://github.com/MetaMask/core/pull/6249))
+- Release 488.0.0 ([#6249](https://github.com/MetaMask/core/pull/6249))
+- Release/485.0.0 ([#6237](https://github.com/MetaMask/core/pull/6237))
+
 ### Fixed
 
 - Use a narrow selector when listening to `CurrencyRateController:stateChange` ([#6217](https://github.com/MetaMask/core/pull/6217))
