@@ -1,4 +1,4 @@
-import { AccountGroupType } from '@metamask/account-api';
+import { AccountGroupType, select, selectOne } from '@metamask/account-api';
 import {
   toMultichainAccountGroupId,
   type MultichainAccountGroupId,
@@ -23,7 +23,7 @@ export class MultichainAccountGroup<
 
   readonly #wallet: MultichainAccountWallet<Account>;
 
-  readonly #index: number;
+  readonly #groupIndex: number;
 
   readonly #providers: AccountProvider<Account>[];
 
@@ -41,7 +41,7 @@ export class MultichainAccountGroup<
     providers: AccountProvider<Account>[];
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
-    this.#index = groupIndex;
+    this.#groupIndex = groupIndex;
     this.#wallet = wallet;
     this.#providers = providers;
     this.#providerToAccounts = new Map();
@@ -114,8 +114,8 @@ export class MultichainAccountGroup<
    *
    * @returns The multichain account group index.
    */
-  get index(): number {
-    return this.#index;
+  get groupIndex(): number {
+    return this.#groupIndex;
   }
 
   /**
@@ -177,19 +177,7 @@ export class MultichainAccountGroup<
    * @throws If multiple accounts match the selector.
    */
   get(selector: AccountSelector<Account>): Account | undefined {
-    const accounts = this.select(selector);
-
-    if (accounts.length > 1) {
-      throw new Error(
-        `Too many account candidates, expected 1, got: ${accounts.length}`,
-      );
-    }
-
-    if (accounts.length === 0) {
-      return undefined;
-    }
-
-    return accounts[0]; // This is safe, see checks above.
+    return selectOne(this.getAccounts(), selector);
   }
 
   /**
@@ -199,33 +187,6 @@ export class MultichainAccountGroup<
    * @returns The accounts matching the selector.
    */
   select(selector: AccountSelector<Account>): Account[] {
-    return this.getAccounts().filter((account) => {
-      let selected = true;
-
-      if (selector.id) {
-        selected &&= account.id === selector.id;
-      }
-      if (selector.address) {
-        selected &&= account.address === selector.address;
-      }
-      if (selector.type) {
-        selected &&= account.type === selector.type;
-      }
-      if (selector.methods !== undefined) {
-        selected &&= selector.methods.some((method) =>
-          account.methods.includes(method),
-        );
-      }
-      if (selector.scopes !== undefined) {
-        selected &&= selector.scopes.some((scope) => {
-          return (
-            // This will cover specific EVM EOA scopes as well.
-            isScopeEqualToAny(scope, account.scopes)
-          );
-        });
-      }
-
-      return selected;
-    });
+    return select(this.getAccounts(), selector);
   }
 }
