@@ -43,7 +43,7 @@ export const pushWalletToUserStorage = async (
   wallet: AccountWalletEntropyObject,
 ): Promise<void> => {
   return executeWithRetry(async () => {
-    const formattedWallet = formatWalletForUserStorageUsage(wallet);
+    const formattedWallet = formatWalletForUserStorageUsage(context, wallet);
     const entropySourceId = wallet.metadata.entropy.id;
 
     return await context.messenger.call(
@@ -81,7 +81,7 @@ export const pushGroupToUserStorage = async (
   group: AccountGroupMultichainAccountObject,
 ): Promise<void> => {
   return executeWithRetry(async () => {
-    const formattedGroup = formatGroupForUserStorageUsage(group);
+    const formattedGroup = formatGroupForUserStorageUsage(context, group);
     // entropySourceId can be derived from the group ID, assuming it follows a specific format.
     // Group ID looks like: `entropy:${string}/${string}`
     const entropySourceId = group.id.split('/')[0].replace('entropy:', '');
@@ -101,7 +101,9 @@ export const pushGroupToUserStorageBatch = async (
   entropySourceId: string,
 ): Promise<void> => {
   return executeWithRetry(async () => {
-    const formattedGroups = groups.map(formatGroupForUserStorageUsage);
+    const formattedGroups = groups.map((group) =>
+      formatGroupForUserStorageUsage(context, group),
+    );
     const entries: [string, string][] = formattedGroups.map((group) => [
       String(group.groupIndex),
       JSON.stringify(group),

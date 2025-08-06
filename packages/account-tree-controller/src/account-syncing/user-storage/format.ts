@@ -2,23 +2,30 @@ import type { AccountGroupMultichainAccountObject } from 'src/group';
 import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import type {
+  AccountSyncingContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
 
 export const formatWalletForUserStorageUsage = (
+  context: AccountSyncingContext,
   wallet: AccountWalletEntropyObject,
 ): UserStorageSyncedWallet => {
+  const persistedWalletMetadata =
+    context.controller.state.accountWalletsMetadata[wallet.id];
   return {
-    name: wallet.metadata.name,
+    name: persistedWalletMetadata.name,
   };
 };
 
 export const formatGroupForUserStorageUsage = (
+  context: AccountSyncingContext,
   group: AccountGroupMultichainAccountObject,
 ): UserStorageSyncedWalletGroup => {
+  const persistedGroupMetadata =
+    context.controller.state.accountGroupsMetadata[group.id];
   return {
-    name: group.metadata.name,
+    name: persistedGroupMetadata.name,
     groupIndex: group.metadata.entropy.groupIndex,
   };
 };

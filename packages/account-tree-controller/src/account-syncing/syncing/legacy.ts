@@ -1,11 +1,11 @@
+import type { AccountTreeControllerState } from '../../types';
 import {
   emitAnalyticsEvent,
   MultichainAccountSyncingAnalyticsEvents,
-} from './analytics';
-import { getProfileId } from './authentication/utils';
-import { getLocalEntropyWallets } from './controller-utils';
-import type { AccountSyncingContext } from './types';
-import type { AccountTreeControllerState } from '../types';
+} from '../analytics';
+import { getProfileId } from '../authentication/utils';
+import { getLocalEntropyWallets } from '../controller-utils';
+import type { AccountSyncingContext } from '../types';
 
 /**
  * Performs legacy account syncing if needed for any wallet.
@@ -20,7 +20,7 @@ export async function performLegacySyncingIfNeeded(
 
   const doSomeLocalSyncableWalletsNeedLegacySyncing = localSyncableWallets.some(
     (syncableWallet) =>
-      !context.controller.state.isLegacyAccountSyncingDisabled[
+      !context.controller.state.walletsForWhichLegacyAccountSyncingIsDisabled[
         syncableWallet.metadata.entropy.id
       ],
   );
@@ -50,7 +50,7 @@ export async function performLegacySyncingIfNeeded(
   }
 
   // Disable legacy syncing after the first successful sync
-  const updates: AccountTreeControllerState['isLegacyAccountSyncingDisabled'] =
+  const updates: AccountTreeControllerState['walletsForWhichLegacyAccountSyncingIsDisabled'] =
     {};
   localSyncableWallets.forEach((syncableWallet) => {
     const syncableWalletEntropySourceId = syncableWallet.metadata.entropy.id;
@@ -58,7 +58,7 @@ export async function performLegacySyncingIfNeeded(
   });
 
   context.controllerStateUpdateFn((state) => {
-    Object.assign(state.isLegacyAccountSyncingDisabled, updates);
+    Object.assign(state.walletsForWhichLegacyAccountSyncingIsDisabled, updates);
   });
 
   return true; // Proceed with multichain syncing;

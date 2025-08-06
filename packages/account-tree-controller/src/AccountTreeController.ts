@@ -6,7 +6,7 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { getProfileId } from './account-syncing/authentication/utils';
+import { getProfileId } from './account-syncing/authentication';
 import {
   createStateSnapshot,
   restoreStateFromSnapshot,
@@ -15,16 +15,16 @@ import {
 } from './account-syncing/controller-utils';
 import {
   createLocalGroupsFromUserStorage,
+  performLegacySyncingIfNeeded,
   syncGroupsMetadata,
-} from './account-syncing/group-sync';
-import { performLegacySyncingIfNeeded } from './account-syncing/legacy-sync';
+  syncWalletMetadata,
+} from './account-syncing/syncing';
 import type { AccountSyncingContext } from './account-syncing/types';
 import {
   getAllGroupsFromUserStorage,
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
-} from './account-syncing/user-storage/network-operations';
-import { syncWalletMetadata } from './account-syncing/wallet-sync';
+} from './account-syncing/user-storage';
 import type { AccountGroupObject } from './group';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -44,7 +44,7 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
-    isLegacyAccountSyncingDisabled: {
+    walletsForWhichLegacyAccountSyncingIsDisabled: {
       persist: true,
       anonymous: false,
     },
@@ -73,7 +73,7 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
-    isLegacyAccountSyncingDisabled: {},
+    walletsForWhichLegacyAccountSyncingIsDisabled: {},
     isAccountSyncingInProgress: false,
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
@@ -105,6 +105,10 @@ export class AccountTreeController extends BaseController<
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
+
+  // Temporary: ensures we can release updates to AccountTreeController without
+  // breaking changes while we transition to the new multichain syncing approach.
+  readonly #disableMultichainAccountSyncing: boolean = true;
 
   /**
    * Constructor for AccountTreeController.
@@ -741,9 +745,9 @@ export class AccountTreeController extends BaseController<
    * 1. Identifies all local entropy wallets that can be synchronized
    * 2. Performs legacy account syncing if needed (for backwards compatibility)
    * 3. Executes multichain account syncing for each wallet:
-   * - Syncs wallet metadata (names, timestamps) bidirectionally
+   * - Syncs wallet metadata bidirectionally
    * - Creates missing local groups from user storage data
-   * - Syncs group metadata (names, UI states) bidirectionally
+   * - Syncs group metadata bidirectionally
    * - Pushes new local groups to user storage when needed
    *
    * The sync is atomic per wallet but continues processing other wallets
@@ -753,6 +757,13 @@ export class AccountTreeController extends BaseController<
    * @throws Will throw if the sync operation encounters unrecoverable errors
    */
   async syncWithUserStorage(): Promise<void> {
+    if (this.#disableMultichainAccountSyncing) {
+      console.warn(
+        'Multichain account syncing is disabled. Please enable it in the controller configuration.',
+      );
+      return;
+    }
+
     // Prevent multiple syncs from running at the same time.
     // Also prevents atomic updates from being applied while syncing is in progress.
     if (this.state.isAccountSyncingInProgress) {
@@ -802,6 +813,7 @@ export class AccountTreeController extends BaseController<
             ]);
 
           // 3.1 Wallet syncing
+          // Sync wallet metadata bidirectionally
           await syncWalletMetadata(
             context,
             wallet,
@@ -822,7 +834,8 @@ export class AccountTreeController extends BaseController<
             continue; // No need to proceed with metadata comparison if groups are new
           }
 
-          // Create local groups for each group from user storage
+          // Create local groups for each group from user storage if they do not exist
+          // This will ensure that we have all groups available locally before syncing metadata
           await createLocalGroupsFromUserStorage(
             context,
             groupsFromUserStorage,
@@ -835,7 +848,7 @@ export class AccountTreeController extends BaseController<
           // that need to be reflected in our local state before we proceed with metadata syncing
           this.init();
 
-          // Sync group metadata
+          // Sync group metadata bidirectionally
           await syncGroupsMetadata(
             context,
             wallet,

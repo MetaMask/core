@@ -1,18 +1,18 @@
 import type { AccountGroupMultichainAccountObject } from 'src/group';
 
+import { compareAndSyncMetadata } from './metadata';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import {
   emitAnalyticsEvent,
   MultichainAccountSyncingAnalyticsEvents,
-} from './analytics';
-import { getLocalGroupsForEntropyWallet } from './controller-utils';
-import { compareAndSyncMetadata } from './metadata-sync';
+} from '../analytics';
+import { getLocalGroupsForEntropyWallet } from '../controller-utils';
 import type {
   AccountSyncingContext,
   UserStorageSyncedWalletGroup,
-} from './types';
-import { pushGroupToUserStorageBatch } from './user-storage/network-operations';
-import { isValidUserStorageGroup } from './user-storage/validation';
-import type { AccountWalletEntropyObject } from '../wallet';
+} from '../types';
+import { pushGroupToUserStorageBatch } from '../user-storage/network-operations';
+import { isValidUserStorageGroup } from '../user-storage/validation';
 
 /**
  * Creates local groups from user storage groups.

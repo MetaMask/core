@@ -36,6 +36,7 @@ import type {
 import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
+  AccountWalletEntropyObject,
 } from './wallet';
 import type { AuthenticationControllerGetSessionProfile } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
@@ -60,7 +61,10 @@ export type AccountTreeControllerState = {
   };
   // Maps entropy source IDs to whether legacy account syncing has been triggered for that source.
   // Legacy account syncing is a one-time operation that is performed when the user has legacy accounts.
-  isLegacyAccountSyncingDisabled: Record<string, boolean>;
+  walletsForWhichLegacyAccountSyncingIsDisabled: Record<
+    AccountWalletEntropyObject['metadata']['entropy']['id'],
+    boolean
+  >;
   isAccountSyncingInProgress: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
   accountGroupsMetadata: Record<

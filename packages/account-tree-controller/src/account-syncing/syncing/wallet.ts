@@ -1,9 +1,9 @@
-import { MultichainAccountSyncingAnalyticsEvents } from './analytics';
-import { compareAndSyncMetadata } from './metadata-sync';
-import type { AccountSyncingContext, UserStorageSyncedWallet } from './types';
-import { pushWalletToUserStorage } from './user-storage/network-operations';
-import { isValidUserStorageWallet } from './user-storage/validation';
-import type { AccountWalletEntropyObject } from '../wallet';
+import { compareAndSyncMetadata } from './metadata';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
+import type { AccountSyncingContext, UserStorageSyncedWallet } from '../types';
+import { pushWalletToUserStorage } from '../user-storage/network-operations';
+import { isValidUserStorageWallet } from '../user-storage/validation';
 
 /**
  * Syncs wallet metadata with user storage.
@@ -37,7 +37,6 @@ export async function syncWalletMetadata(
   const persistedMetadata =
     context.controller.state.accountWalletsMetadata[wallet.id];
 
-  // Defensive check: ensure we have proper metadata structure
   if (!persistedMetadata) {
     console.warn(
       `No persisted metadata found for wallet ${wallet.id}, skipping sync`,

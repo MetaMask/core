@@ -1,7 +1,7 @@
 import {
   emitAnalyticsEvent,
   type MultichainAccountSyncingAnalyticsEvents,
-} from './analytics';
+} from '../analytics';
 
 /**
  * Compares metadata between local and user storage, applying the most recent version.
