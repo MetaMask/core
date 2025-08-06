@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Rename `BaseControllerV2` module to `BaseController` ([#6128](https://github.com/MetaMask/core/pull/6128))
+
 ### Added
 
 - Add `registerMethodActionHandlers` method to `Messenger`, and `RestrictedMessenger` for simplified bulk action handler registration ([#5927](https://github.com/MetaMask/core/pull/5927))
