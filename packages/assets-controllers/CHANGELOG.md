@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use a narrow selector when listening to `CurrencyRateController:stateChange` ([#6217](https://github.com/MetaMask/core/pull/6217))
 - Fixed an issue where attempting to fetch asset conversions for accounts without assets would crash the snap ([#6207](https://github.com/MetaMask/core/pull/6207))
+- Fix `AccountTrackerController` to force block number update to avoid stale cached native balances ([#6250](https://github.com/MetaMask/core/pull/6250))
 
 ## [73.0.1]
 

@@ -17,7 +17,6 @@ import {
   safelyExecuteWithTimeout,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
@@ -280,11 +279,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param networkClientId - Optional networkClientId to fetch a network client with
    * @returns network client config
    */
-  #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
-    chainId: string;
-    provider: SafeEventEmitterProvider;
-    ethQuery?: EthQuery;
-  } {
+  #getCorrectNetworkClient(networkClientId?: NetworkClientId) {
     const selectedNetworkClientId =
       networkClientId ??
       this.messagingSystem.call('NetworkController:getState')
@@ -292,6 +287,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const {
       configuration: { chainId },
       provider,
+      blockTracker,
     } = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
@@ -301,6 +297,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       chainId,
       provider,
       ethQuery: new EthQuery(provider),
+      blockTracker,
     };
   }
 
@@ -357,7 +354,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       // Create an array of promises for each networkClientId
       const updatePromises = networkClientIds.map(async (networkClientId) => {
-        const { chainId, ethQuery, provider } =
+        const { chainId, ethQuery, provider, blockTracker } =
           this.#getCorrectNetworkClient(networkClientId);
         const { accountsByChainId } = this.state;
         const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
@@ -369,6 +366,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
           : [toChecksumHexAddress(selectedAccount.address)];
 
         const accountsForChain = { ...accountsByChainId[chainId] };
+
+        // Force fresh block data before multicall
+        // TODO: This is a temporary fix to ensure that the block number is up to date.
+        // We should remove this once we have a better solution for this on the block tracker controller.
+        await blockTracker?.checkForLatestBlock?.();
 
         const stakedBalancesPromise = this.#includeStakedAssets
           ? this.#getStakedBalanceForChain(accountsToUpdate, networkClientId)
