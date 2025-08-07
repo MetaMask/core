@@ -1,3 +1,4 @@
+import { USER_STORAGE_FEATURE_NAMES } from '@metamask/profile-sync-controller/sdk';
 import type { AccountGroupMultichainAccountObject } from 'src/group';
 import type { AccountWalletEntropyObject } from 'src/wallet';
 
@@ -148,6 +149,43 @@ export const pushGroupToUserStorageBatch = async (
       USER_STORAGE_GROUPS_FEATURE_KEY,
       entries,
       entropySourceId,
+    );
+  });
+};
+
+/**
+ * Retrieves legacy user storage data for a specific entropy source ID.
+ *
+ * @param context - The account syncing context.
+ * @param entropySourceId - The entropy source ID to retrieve data for.
+ * @returns A promise that resolves with the legacy user storage data.
+ */
+export const getLegacyUserStorageData = async (
+  context: AccountSyncingContext,
+  entropySourceId: string,
+): Promise<
+  {
+    a: string;
+    n: string;
+    nlu: number;
+  }[]
+> => {
+  return executeWithRetry(async () => {
+    const rawAccountsListResponse = await context.messenger.call(
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      USER_STORAGE_FEATURE_NAMES.accounts,
+      entropySourceId,
+    );
+
+    return (
+      rawAccountsListResponse?.map(
+        (rawAccount) =>
+          JSON.parse(rawAccount) as {
+            a: string;
+            n: string;
+            nlu: number;
+          },
+      ) ?? []
     );
   });
 };

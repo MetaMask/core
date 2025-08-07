@@ -22,7 +22,7 @@ import {
 } from './account-syncing/controller-utils';
 import {
   createLocalGroupsFromUserStorage,
-  performLegacySyncingIfNeeded,
+  performLegacyAccountSyncingIfNeededAndResolvePotentialConflicts,
   syncGroupsMetadata,
   syncWalletMetadata,
 } from './account-syncing/syncing';
@@ -863,15 +863,26 @@ export class AccountTreeController extends BaseController<
         }
 
         // 2. Performs legacy account syncing if needed (for backwards compatibility)
-        const shouldContinueWithMultichainSync =
-          await performLegacySyncingIfNeeded(context);
+        // This might add new InternalAccounts and / or update existing ones' names.
+        // This in turn will be picked up by our `#handleAccountAdded` and `#handleAccountRenamed` methods
+        // to update the account tree.
+        // This can create potential conflicts with existing local groups, so we need to resolve them.
+        const { shouldContinueWithMultichainSync } =
+          await performLegacyAccountSyncingIfNeededAndResolvePotentialConflicts(
+            context,
+            {
+              listAccounts: () => this.#listAccounts(),
+              getEntropyRule: () => this.#getEntropyRule(),
+            },
+          );
 
         if (!shouldContinueWithMultichainSync) {
           return;
         }
 
         // 3. Executes multichain account syncing for each wallet:
-        for (const wallet of localSyncableWallets) {
+        // Use a refreshed list of wallets after legacy syncing
+        for (const wallet of getLocalEntropyWallets(context)) {
           // Create a state snapshot before processing each wallet for potential rollback
           const stateSnapshot = createStateSnapshot(context);
 
