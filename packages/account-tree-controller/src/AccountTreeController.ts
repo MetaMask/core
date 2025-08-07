@@ -1,9 +1,6 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
-import {
-  keyringTypeToName,
-  type AccountId,
-} from '@metamask/accounts-controller';
+import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -340,10 +337,7 @@ export class AccountTreeController extends BaseController<
       if (wallet) {
         const group = wallet.groups[groupId];
         if (group) {
-          const isDefaultNameRegex = new RegExp(
-            `^${keyringTypeToName(account.metadata.keyring.type)} ([0-9]+)$`,
-            'u',
-          );
+          const isDefaultNameRegex = /^Account ([0-9]+)$/u;
 
           const isAccountNameDefault = isDefaultNameRegex.test(
             account.metadata.name,

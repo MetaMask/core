@@ -1019,7 +1019,7 @@ describe('AccountTreeController', () => {
   });
 
   describe('on AccountsController:accountRenamed', () => {
-    it('renames an account in the tree if the renamed internal account is of type KeyringTypes.hd', () => {
+    it('renames a group in the tree if the renamed internal account is of EVM type, the group name is default and the internal account name is not default', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
@@ -1058,7 +1058,93 @@ describe('AccountTreeController', () => {
       ).toBe('Wallet 1');
     });
 
-    it('does not rename an account in the tree if the renamed internal account is not of type KeyringTypes.hd', () => {
+    it('does not rename a group in the tree if the renamed internal account is of EVM type, but the group name is not default', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const newName = 'New Account Name';
+      const customGroupName = 'Old Group Name';
+      const groupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      controller.setAccountGroupName(
+        groupId,
+        customGroupName, // Set a non-default group name
+      );
+
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: newName,
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(customGroupName); // Should not change
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1'); // Should not change
+    });
+
+    it('does not rename a group in the tree if the renamed internal account is of EVM type, the group name is default and the internal account name is also default', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: MOCK_HD_ACCOUNT_2.metadata.name, // Default name
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(MOCK_HD_ACCOUNT_1.metadata.name); // Should not change
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1'); // Should not change
+    });
+
+    it('does not rename an account in the tree if the renamed internal account is not of EVM type', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
@@ -1068,11 +1154,9 @@ describe('AccountTreeController', () => {
       const newName = 'New Account Name';
       messenger.publish('AccountsController:accountRenamed', {
         ...MOCK_HD_ACCOUNT_1,
+        type: SolAccountType.DataAccount, // Not an EVM account type
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
-          keyring: {
-            type: KeyringTypes.simple,
-          },
           name: newName,
         },
       });
