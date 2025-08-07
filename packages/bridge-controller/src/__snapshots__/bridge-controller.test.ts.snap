@@ -96,7 +96,6 @@ Array [
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
       "approval_transaction": "PENDING",
-      "can_submit": true,
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -133,7 +132,6 @@ Array [
     "Unified SwapBridge Failed",
     Object {
       "action_type": "crosschain-v1",
-      "can_submit": true,
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
@@ -195,7 +193,6 @@ Array [
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "crosschain-v1",
-      "can_submit": true,
       "chain_id_destination": "eip155:10",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
@@ -344,7 +341,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": true,
+      "can_submit": false,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
@@ -409,7 +406,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -417,7 +414,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
@@ -425,7 +422,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "token_destination",
-      "value": "eip155:10/erc20:0x123",
+      "input_value": "eip155:10/erc20:0x123",
     },
   ],
   Array [
@@ -433,7 +430,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
@@ -462,7 +459,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": false,
+      "can_submit": true,
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -793,7 +790,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -801,7 +798,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     },
   ],
   Array [
@@ -809,7 +806,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "token_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
     },
   ],
   Array [
@@ -817,7 +814,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
@@ -934,7 +931,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -942,7 +939,7 @@ Array [
     Object {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
@@ -950,7 +947,7 @@ Array [
     Object {
       "action_type": "crosschain-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
 ]
