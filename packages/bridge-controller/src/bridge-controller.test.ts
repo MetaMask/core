@@ -898,6 +898,7 @@ describe('BridgeController', function () {
         price_impact: 0,
         provider: 'provider_bridge',
         best_quote_provider: 'provider_bridge2',
+        can_submit: true,
       },
     );
 
@@ -1723,6 +1724,7 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
           gas_included: false,
           stx_enabled: false,
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1741,6 +1743,7 @@ describe('BridgeController', function () {
           token_symbol_source: 'ETH',
           best_quote_provider: 'provider_bridge2',
           token_symbol_destination: 'USDC',
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1760,6 +1763,7 @@ describe('BridgeController', function () {
           price_impact: 0,
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
+          can_submit: false,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1779,6 +1783,7 @@ describe('BridgeController', function () {
           price_impact: 0,
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -2035,6 +2040,7 @@ describe('BridgeController', function () {
           price_impact: 0,
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);

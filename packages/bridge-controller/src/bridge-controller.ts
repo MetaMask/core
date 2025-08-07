@@ -800,10 +800,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getQuoteFetchData = (): Omit<
     QuoteFetchData,
-    'best_quote_provider' | 'price_impact'
+    'best_quote_provider' | 'price_impact' | 'can_submit'
   > => {
     return {
-      can_submit: !this.state.quoteRequest.insufficientBal, // TODO check if balance is sufficient for network fees
       quotes_count: this.state.quotes.length,
       quotes_list: this.state.quotes.map(({ quote }) =>
         formatProviderLabel(quote),
@@ -906,7 +905,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           UnifiedSwapBridgeEventName.InputChanged,
           {
             input: inputKey,
-            value: inputValue,
+            input_value: inputValue,
           },
         );
       }

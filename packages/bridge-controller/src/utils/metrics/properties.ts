@@ -26,7 +26,7 @@ export const toInputChangedPropertyValue: Partial<
   Record<
     keyof typeof toInputChangedPropertyKey,
     (
-      value: Partial<GenericQuoteRequest>,
+      input_value: Partial<GenericQuoteRequest>,
     ) => InputValues[keyof InputValues] | undefined
   >
 > = {
