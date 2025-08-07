@@ -2772,7 +2772,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^37.1.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^38.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2828,7 +2828,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^32.0.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/bridge-controller": "npm:^37.1.0"
+    "@metamask/bridge-controller": "npm:^38.0.0"
     "@metamask/controller-utils": "npm:^11.11.0"
     "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/keyring-api": "npm:^20.0.0"
@@ -2852,7 +2852,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^32.0.0
-    "@metamask/bridge-controller": ^37.0.0
+    "@metamask/bridge-controller": ^38.0.0
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/snaps-controllers": ^14.0.0
