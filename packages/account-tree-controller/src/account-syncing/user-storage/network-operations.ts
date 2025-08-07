@@ -1,6 +1,4 @@
 import { USER_STORAGE_FEATURE_NAMES } from '@metamask/profile-sync-controller/sdk';
-import type { AccountGroupMultichainAccountObject } from 'src/group';
-import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
@@ -14,10 +12,13 @@ import {
   parseGroupFromUserStorageResponse,
 } from './format-utils';
 import { executeWithRetry } from './network-utils';
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
   AccountSyncingContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
+  UserStorageWalletExtendedMetadata,
 } from '../types';
 
 /**
@@ -50,14 +51,20 @@ export const getWalletFromUserStorage = async (
  *
  * @param context - The account syncing context.
  * @param wallet - The wallet to push to user storage.
+ * @param extendedMetadata - Optional extended metadata to include in the wallet.
  * @returns A promise that resolves when the operation is complete.
  */
 export const pushWalletToUserStorage = async (
   context: AccountSyncingContext,
   wallet: AccountWalletEntropyObject,
+  extendedMetadata?: UserStorageWalletExtendedMetadata,
 ): Promise<void> => {
   return executeWithRetry(async () => {
-    const formattedWallet = formatWalletForUserStorageUsage(context, wallet);
+    const formattedWallet = formatWalletForUserStorageUsage(
+      context,
+      wallet,
+      extendedMetadata,
+    );
     const entropySourceId = wallet.metadata.entropy.id;
 
     return await context.messenger.call(

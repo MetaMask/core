@@ -4,18 +4,22 @@ import type {
 } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountTreeController } from 'src/AccountTreeController';
+
+import type { MultichainAccountSyncingEmitAnalyticsEventParams } from './analytics';
+import type { AccountTreeController } from '../AccountTreeController';
 import type {
   AccountGroupMultichainAccountObject,
   AccountTreeGroupPersistedMetadata,
-} from 'src/group';
-import type { RuleResult } from 'src/rule';
-import type { AccountTreeControllerMessenger } from 'src/types';
-import type { AccountTreeWalletPersistedMetadata } from 'src/wallet';
+} from '../group';
+import type { RuleResult } from '../rule';
+import type { AccountTreeControllerMessenger } from '../types';
+import type { AccountTreeWalletPersistedMetadata } from '../wallet';
 
-import type { MultichainAccountSyncingEmitAnalyticsEventParams } from './analytics';
-
-export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata;
+export type UserStorageWalletExtendedMetadata = {
+  isLegacyAccountSyncingDisabled?: boolean;
+};
+export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata &
+  UserStorageWalletExtendedMetadata;
 
 export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
   groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];

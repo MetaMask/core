@@ -1,6 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
 import { getProfileId } from '../authentication/utils';
@@ -14,42 +13,20 @@ import type {
   AccountSyncingContext,
   LegacyAccountSyncingContext,
 } from '../types';
-import { getLegacyUserStorageData } from '../user-storage';
+import {
+  getLegacyUserStorageData,
+  pushWalletToUserStorage,
+} from '../user-storage';
 
 /**
- * Performs legacy account syncing if needed for any wallet.
+ * Performs legacy account syncing.
  *
  * @param context - The account syncing context containing controller and messenger
  * @returns Promise that resolves to true if multichain syncing should continue, false otherwise.
  */
-export async function performLegacyAccountSyncingIfNeeded(
+export async function performLegacyAccountSyncing(
   context: AccountSyncingContext,
-): Promise<{
-  shouldContinueWithMultichainSync: boolean;
-  hasLegacySyncingBeenPerformed: boolean;
-}> {
-  const isMultichainAccountSyncingEnabled = context.messenger.call(
-    'UserStorageController:getIsMultichainAccountSyncingEnabled',
-  );
-
-  const localSyncableWallets = getLocalEntropyWallets(context);
-
-  const doSomeLocalSyncableWalletsNeedLegacySyncing = localSyncableWallets.some(
-    (syncableWallet) =>
-      !context.controller.state.walletsForWhichLegacyAccountSyncingIsDisabled[
-        syncableWallet.metadata.entropy.id
-      ],
-  );
-
-  if (!doSomeLocalSyncableWalletsNeedLegacySyncing) {
-    // No legacy syncing needed, respect multichain syncing setting
-    return {
-      shouldContinueWithMultichainSync: isMultichainAccountSyncingEnabled,
-      hasLegacySyncingBeenPerformed: false,
-    };
-  }
-
-  // Dispatch legacy account syncing method before proceeding
+): Promise<void> {
   await context.messenger.call(
     'UserStorageController:syncInternalAccountsWithUserStorage',
   );
@@ -60,31 +37,16 @@ export async function performLegacyAccountSyncingIfNeeded(
     profileId: primarySrpProfileId,
   });
 
-  // Don't proceed with multichain syncing
-  if (!isMultichainAccountSyncingEnabled) {
-    return {
-      shouldContinueWithMultichainSync: false,
-      hasLegacySyncingBeenPerformed: true,
-    };
-  }
-
-  // Disable legacy syncing after the first successful sync
-  const updates: AccountTreeControllerState['walletsForWhichLegacyAccountSyncingIsDisabled'] =
-    {};
-  localSyncableWallets.forEach((syncableWallet) => {
-    const syncableWalletEntropySourceId = syncableWallet.metadata.entropy.id;
-    updates[syncableWalletEntropySourceId] = true;
-  });
-
-  context.controllerStateUpdateFn((state) => {
-    Object.assign(state.walletsForWhichLegacyAccountSyncingIsDisabled, updates);
-  });
-
-  // Proceed with multichain syncing;
-  return {
-    shouldContinueWithMultichainSync: true,
-    hasLegacySyncingBeenPerformed: true,
-  };
+  // Disable legacy syncing after the first successful sync by pushing all local wallets
+  // to the user storage with the `isLegacyAccountSyncingDisabled` flag set to true.
+  const allLocalEntropyWallets = getLocalEntropyWallets(context);
+  await Promise.all(
+    allLocalEntropyWallets.map(async (wallet) => {
+      await pushWalletToUserStorage(context, wallet, {
+        isLegacyAccountSyncingDisabled: true,
+      });
+    }),
+  );
 }
 
 /**
@@ -131,7 +93,8 @@ const resolvePotentialConflictsAfterLegacySyncing = async (
           localGroupThatChangedNameDueToLegacySyncing.id
         ];
 
-      if (!correspondingLocalGroupFromSnapshot.name?.lastUpdatedAt) {
+      const originalGroupName = correspondingLocalGroupFromSnapshot.name;
+      if (!originalGroupName || !originalGroupName.lastUpdatedAt) {
         continue;
       }
 
@@ -165,16 +128,24 @@ const resolvePotentialConflictsAfterLegacySyncing = async (
       }
 
       const wasLocalGroupNameMoreRecent =
-        correspondingLocalGroupFromSnapshot.name.lastUpdatedAt >
+        originalGroupName.lastUpdatedAt >
         correspondingLegacyUserStorageAccount.nlu;
 
       if (wasLocalGroupNameMoreRecent) {
         // If the local group name was more recent, then we should rollback and use the previous local group name
         // instead of the one fetched from user storage.
-        context.controller.setAccountGroupName(
-          localGroupThatChangedNameDueToLegacySyncing.id,
-          correspondingLocalGroupFromSnapshot.name.value,
-        );
+        // We don't use setAccountGroupName here because we want to keep the original timestamp
+        context.controllerStateUpdateFn((state) => {
+          state.accountGroupsMetadata[
+            localGroupThatChangedNameDueToLegacySyncing.id
+          ].name = {
+            value: originalGroupName.value,
+            lastUpdatedAt: originalGroupName.lastUpdatedAt,
+          };
+          state.accountTree.wallets[wallet.id].groups[
+            localGroupThatChangedNameDueToLegacySyncing.id
+          ].metadata.name = originalGroupName.value;
+        });
       }
     }
   }
@@ -188,52 +159,42 @@ const resolvePotentialConflictsAfterLegacySyncing = async (
  * @param legacyContext - The legacy account syncing context containing methods to list accounts and get entropy rules.
  * @returns An object indicating whether multichain syncing should continue and if legacy syncing was performed.
  */
-export const performLegacyAccountSyncingIfNeededAndResolvePotentialConflicts =
-  async (
-    context: AccountSyncingContext,
-    legacyContext: LegacyAccountSyncingContext,
-  ): Promise<{
-    shouldContinueWithMultichainSync: boolean;
-  }> => {
-    // Prepare a snapshot for resolving potential legacy syncing name conflicts
-    const stateSnapshot = createStateSnapshot(context);
+export const performLegacyAccountSyncingAndResolvePotentialConflicts = async (
+  context: AccountSyncingContext,
+  legacyContext: LegacyAccountSyncingContext,
+): Promise<void> => {
+  // Prepare a snapshot for resolving potential legacy syncing name conflicts
+  const stateSnapshot = createStateSnapshot(context);
 
-    // Perform legacy syncing if needed
-    // This method iterates over all local SRPs and syncs EVM HD accounts and their names
-    const { shouldContinueWithMultichainSync, hasLegacySyncingBeenPerformed } =
-      await performLegacyAccountSyncingIfNeeded(context);
+  // Perform legacy syncing if needed
+  // This method iterates over all local SRPs and syncs EVM HD accounts and their names
+  await performLegacyAccountSyncing(context);
 
-    // If legacy syncing was performed, we need to check if any local groups have names that have changed
-    // due to legacy syncing. This is important because there's a chance prior local group names should
-    // still take precedence over the names that were fetched from user storage.
-    // This is due to the fact that legacy syncing updates InternalAccount names and automatically sets
-    // the timestamp to the current time, which might not be what we want.
-    if (hasLegacySyncingBeenPerformed) {
-      const allInternalAccounts = legacyContext.listAccounts();
+  // We need to check if any local groups have names that have changed
+  // due to legacy syncing. This is important because there's a chance prior local group names should
+  // still take precedence over the names that were fetched from user storage.
+  // This is due to the fact that legacy syncing updates InternalAccount names and automatically sets
+  // the timestamp to the current time, which might not be what we want.
+  const allInternalAccounts = legacyContext.listAccounts();
 
-      for (const wallet of getLocalEntropyWallets(context)) {
-        try {
-          await resolvePotentialConflictsAfterLegacySyncing(
-            context,
-            legacyContext,
-            wallet,
-            stateSnapshot,
-            allInternalAccounts,
-          );
-        } catch (error) {
-          if (context.enableDebugLogging) {
-            console.error(
-              `Error during legacy syncing conflict resolution for wallet ${wallet.id}:`,
-              error instanceof Error ? error.message : String(error),
-            );
-          }
-          // If legacy syncing fails, we still want to continue with the next wallet
-          continue;
-        }
+  for (const wallet of getLocalEntropyWallets(context)) {
+    try {
+      await resolvePotentialConflictsAfterLegacySyncing(
+        context,
+        legacyContext,
+        wallet,
+        stateSnapshot,
+        allInternalAccounts,
+      );
+    } catch (error) {
+      if (context.enableDebugLogging) {
+        console.error(
+          `Error during legacy syncing conflict resolution for wallet ${wallet.id}:`,
+          error instanceof Error ? error.message : String(error),
+        );
       }
+      // If legacy syncing fails, we still want to continue with the next wallet
+      continue;
     }
-
-    return {
-      shouldContinueWithMultichainSync,
-    };
-  };
+  }
+};

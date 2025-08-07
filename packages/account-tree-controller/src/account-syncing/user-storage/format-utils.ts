@@ -1,10 +1,10 @@
-import type { AccountGroupMultichainAccountObject } from 'src/group';
-import type { AccountWalletEntropyObject } from 'src/wallet';
-
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
   AccountSyncingContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
+  UserStorageWalletExtendedMetadata,
 } from '../types';
 
 /**
@@ -14,16 +14,19 @@ import type {
  *
  * @param context - The account syncing context.
  * @param wallet - The wallet object to format.
+ * @param extendedMetadata - Optional extended metadata to include in the formatted wallet.
  * @returns The formatted wallet for user storage.
  */
 export const formatWalletForUserStorageUsage = (
   context: AccountSyncingContext,
   wallet: AccountWalletEntropyObject,
+  extendedMetadata?: UserStorageWalletExtendedMetadata,
 ): UserStorageSyncedWallet => {
   const persistedWalletMetadata =
     context.controller.state.accountWalletsMetadata[wallet.id];
   return {
     name: persistedWalletMetadata.name,
+    ...extendedMetadata,
   };
 };
 
@@ -44,6 +47,8 @@ export const formatGroupForUserStorageUsage = (
     context.controller.state.accountGroupsMetadata[group.id];
   return {
     name: persistedGroupMetadata.name,
+    hidden: persistedGroupMetadata.hidden,
+    pinned: persistedGroupMetadata.pinned,
     groupIndex: group.metadata.entropy.groupIndex,
   };
 };
