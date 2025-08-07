@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
@@ -299,3 +300,18 @@ export const MOCK_WALLET_1_BTC_P2TR_ACCOUNT = MockAccountBuilder.from(
   .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
   .withGroupIndex(0)
   .get();
+
+export function mockAsInternalAccount(
+  account: KeyringAccount,
+): InternalAccount {
+  return {
+    ...account,
+    metadata: {
+      name: 'Mocked Account',
+      importTime: Date.now(),
+      keyring: {
+        type: 'mock-keyring-type',
+      },
+    },
+  };
+}

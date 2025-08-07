@@ -291,6 +291,45 @@ describe('fetch', () => {
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(mockConsoleError.mock.calls).toMatchSnapshot();
     });
+
+    it('should fetch bridge quotes successfully, with aggIds, bridgeIds and noFee=true', async () => {
+      mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20);
+      const { signal } = new AbortController();
+
+      const result = await fetchBridgeQuotes(
+        {
+          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
+          srcChainId: 1,
+          destChainId: 10,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
+          srcTokenAmount: '20000',
+          slippage: 0.5,
+          gasIncluded: false,
+          aggIds: ['socket', 'lifi'],
+          bridgeIds: ['bridge1', 'bridge2'],
+          noFee: true,
+        },
+        signal,
+        BridgeClientId.EXTENSION,
+        mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
+      );
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&slippage=0.5&noFee=true&aggIds=socket%2Clifi&bridgeIds=bridge1%2Cbridge2',
+        {
+          cacheOptions: {
+            cacheRefreshTime: 0,
+          },
+          functionName: 'fetchBridgeQuotes',
+          headers: { 'X-Client-Id': 'extension' },
+          signal,
+        },
+      );
+
+      expect(result).toStrictEqual(mockBridgeQuotesNativeErc20);
+    });
   });
 
   describe('fetchAssetPrices', () => {

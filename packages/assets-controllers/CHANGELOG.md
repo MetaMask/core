@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
+## [73.0.2]
+
 ### Fixed
 
 - Correct the polling rate for the DeFiPositionsController from 1 minute to 10 minutes. ([#6242](https://github.com/MetaMask/core/pull/6242))
 - Use a narrow selector when listening to `CurrencyRateController:stateChange` ([#6217](https://github.com/MetaMask/core/pull/6217))
+- Fixed an issue where attempting to fetch asset conversions for accounts without assets would crash the snap ([#6207](https://github.com/MetaMask/core/pull/6207))
 
 ## [73.0.1]
 
@@ -1809,7 +1816,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.2...HEAD
+[73.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.1...@metamask/assets-controllers@73.0.2
 [73.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.0...@metamask/assets-controllers@73.0.1
 [73.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...@metamask/assets-controllers@73.0.0
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...@metamask/assets-controllers@72.0.0
