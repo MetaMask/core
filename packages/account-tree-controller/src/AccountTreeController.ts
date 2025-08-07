@@ -823,5 +823,10 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:setSelectedAccountGroup`,
       this.setSelectedAccountGroup.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getAccountsFromSelectedAccountGroup`,
+      this.getAccountsFromSelectedAccountGroup.bind(this),
+    );
   }
 }
