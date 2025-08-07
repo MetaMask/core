@@ -326,5 +326,26 @@ describe('Messenger', () => {
         messenger: messengerA,
       });
     });
+
+    test('allows delegating to parent with non-overlapping actions and events', () => {
+      const messengerA = new Messenger<
+        'A',
+        ExampleActionA | ExampleActionB | NonDelegatedActionA,
+        ExampleEventA | ExampleEventB | NonDelegatedEventA
+      >({
+        namespace: 'A',
+      });
+
+      expect(
+        Messenger<
+          'B',
+          ExampleActionA | ExampleActionB | NonDelegatedActionB,
+          ExampleEventA | ExampleEventB | NonDelegatedEventB
+        >,
+      ).type.toBeConstructableWith({
+        namespace: 'B',
+        parent: messengerA,
+      });
+    });
   });
 });
