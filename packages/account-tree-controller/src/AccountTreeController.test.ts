@@ -641,6 +641,113 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('getAccountGroupObject', () => {
+    it('returns a valid account group object', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+      expect(controller.getAccountGroupObject(groupId)).toBeDefined();
+    });
+
+    it('returns undefined if group id is not found', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toAccountGroupId(walletId, 'bad');
+      expect(controller.getAccountGroupObject(groupId)).toBeUndefined();
+    });
+  });
+
+  describe('getAccountsFromSelectAccountGroup', () => {
+    it('selects account without a selector', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toAccountGroupId(
+        walletId,
+        `${MOCK_HD_ACCOUNT_2.options.entropy.groupIndex}`,
+      );
+      controller.setSelectedAccountGroup(groupId);
+
+      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
+        MOCK_HD_ACCOUNT_2,
+      ]);
+    });
+
+    it('selects account with a selector', () => {
+      const mockSolAccount1: Bip44Account<InternalAccount> = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        options: {
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            groupIndex: 0,
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_2, mockSolAccount1],
+        keyrings: [MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      expect(
+        controller.getAccountsFromSelectedAccountGroup({
+          scopes: [SolScope.Mainnet],
+        }),
+      ).toStrictEqual([mockSolAccount1]);
+
+      expect(
+        controller.getAccountsFromSelectedAccountGroup({
+          scopes: [EthScope.Mainnet],
+        }),
+      ).toStrictEqual([MOCK_HD_ACCOUNT_2]);
+    });
+
+    it('returns no account if no group is selected', () => {
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountsFromSelectedAccountGroup()).toHaveLength(0);
+    });
+  });
+
   describe('on AccountsController:accountRemoved', () => {
     it('removes an account from the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -1172,7 +1279,7 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('getAccountWallet/getAccountWalletOrThrow', () => {
+  describe('getAccountWalletObject', () => {
     it('gets a wallet using its ID', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],

@@ -1,5 +1,9 @@
-import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
-import { AccountWalletType } from '@metamask/account-api';
+import type {
+  AccountGroupId,
+  AccountSelector,
+  AccountWalletId,
+} from '@metamask/account-api';
+import { AccountWalletType, select } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -265,6 +269,50 @@ export class AccountTreeController extends BaseController<
 
   getAccountWalletObjects(): AccountWalletObject[] {
     return Object.values(this.state.accountTree.wallets);
+  }
+
+  getAccountsFromSelectedAccountGroup(
+    selector?: AccountSelector<InternalAccount>,
+  ) {
+    const groupId = this.getSelectedAccountGroup();
+    if (!groupId) {
+      return [];
+    }
+
+    const group = this.getAccountGroupObject(groupId);
+    // We should never reach this part, so we cannot cover it either.
+    /* istanbul ignore next */
+    if (!group) {
+      return [];
+    }
+
+    const accounts: InternalAccount[] = [];
+    for (const id of group.accounts) {
+      const account = this.messagingSystem.call(
+        'AccountsController:getAccount',
+        id,
+      );
+
+      // For now, we're filtering undefined account, but I believe
+      // throwing would be more appropriate here.
+      if (account) {
+        accounts.push(account);
+      }
+    }
+
+    return selector ? select(accounts, selector) : accounts;
+  }
+
+  getAccountGroupObject(
+    groupId: AccountGroupId,
+  ): AccountGroupObject | undefined {
+    const walletId = this.#groupIdToWalletId.get(groupId);
+    if (!walletId) {
+      return undefined;
+    }
+
+    const wallet = this.getAccountWalletObject(walletId);
+    return wallet?.groups[groupId];
   }
 
   #handleAccountAdded(account: InternalAccount) {
@@ -774,6 +822,11 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setSelectedAccountGroup`,
       this.setSelectedAccountGroup.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getAccountsFromSelectedAccountGroup`,
+      this.getAccountsFromSelectedAccountGroup.bind(this),
     );
   }
 }
