@@ -1,10 +1,12 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
-import type { AccountId } from '@metamask/accounts-controller';
+import {
+  keyringTypeToName,
+  type AccountId,
+} from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
@@ -325,10 +327,7 @@ export class AccountTreeController extends BaseController<
   }
 
   #handleAccountRenamed(account: InternalAccount) {
-    // This method is only there to support legacy account syncing programmatic renames.
-    // Since legacy account syncing only syncs HD EVM accounts, we only
-    // handle HD EVM accounts here.
-    if (account.metadata.keyring.type !== (KeyringTypes.hd as string)) {
+    if (!isEvmAccountType(account.type)) {
       return;
     }
 
@@ -341,7 +340,21 @@ export class AccountTreeController extends BaseController<
       if (wallet) {
         const group = wallet.groups[groupId];
         if (group) {
-          this.setAccountGroupName(groupId, account.metadata.name);
+          const isDefaultNameRegex = new RegExp(
+            `^${keyringTypeToName(account.metadata.keyring.type)} ([0-9]+)$`,
+            'u',
+          );
+
+          const isAccountNameDefault = isDefaultNameRegex.test(
+            account.metadata.name,
+          );
+          const isGroupNameDefault = isDefaultNameRegex.test(
+            group.metadata.name,
+          );
+
+          if (isGroupNameDefault && !isAccountNameDefault) {
+            this.setAccountGroupName(groupId, account.metadata.name);
+          }
         }
       }
     }
