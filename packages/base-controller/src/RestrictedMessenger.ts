@@ -345,7 +345,10 @@ export class RestrictedMessenger<
     EventType extends
       | AllowedEvent
       | (Event['type'] & NamespacedName<Namespace>),
-  >(event: EventType, handler: ExtractEventHandler<Event, EventType>) {
+  >(
+    event: EventType,
+    handler: ExtractEventHandler<Event, EventType> | SelectorEventHandler,
+  ) {
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
