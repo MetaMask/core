@@ -238,6 +238,8 @@ export const getAddTransactionBatchParams = async ({
       feeData: { txFee },
       gasIncluded,
     },
+    sentAmount,
+    toTokenAmount,
   },
   requireApproval = false,
   estimateGasFeeFn,
@@ -315,6 +317,10 @@ export const getAddTransactionBatchParams = async ({
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     params: toBatchTxParams(disable7702, trade, gasFees),
+    assetsFiatValues: {
+      sending: sentAmount?.usd?.toString(),
+      receiving: toTokenAmount?.usd?.toString(),
+    },
   });
   const transactionParams: Parameters<
     TransactionController['addTransactionBatch']
