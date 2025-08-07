@@ -968,6 +968,154 @@ describe('edge cases and error handling', () => {
     expect(result.totalBalanceInUserCurrency).toBe(4493.8);
   });
 
+  it('handles token with 0 decimals correctly', () => {
+    const state = createMockState('USD');
+
+    // Add a token with 0 decimals (e.g., some governance tokens)
+    (state.engine.backgroundState as any).TokensController.allTokens['0x1'][
+      '0x1234567890123456789012345678901234567890'
+    ].push({
+      address: '0xZeroDecimalsToken',
+      decimals: 0, // 0 decimals should be handled correctly
+      symbol: 'ZERO',
+      name: 'Zero Decimals Token',
+    });
+
+    // Add balance for the token (100 tokens with 0 decimals = 100 in smallest unit)
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xZeroDecimalsToken'] = '0x64' as `0x${string}`; // 100 in hex
+
+    // Add market data for the token
+    (state.engine.backgroundState as any).TokenRatesController.marketData[
+      '0x1'
+    ]['0xZeroDecimalsToken'] = {
+      tokenAddress: '0xZeroDecimalsToken',
+      currency: 'ETH',
+      price: 0.00041, // $1.00 equivalent
+    };
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Expected calculation: 100 tokens * 0.00041 ETH * $2400/ETH = $98.40
+    // Plus existing balance: $4493.8
+    // Total: $4493.8 + $98.40 = $4592.2
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4592.2, 1);
+  });
+
+  it('handles token with undefined decimals correctly', () => {
+    const state = createMockState('USD');
+
+    // Add a token with undefined decimals
+    (state.engine.backgroundState as any).TokensController.allTokens['0x1'][
+      '0x1234567890123456789012345678901234567890'
+    ].push({
+      address: '0xUndefinedDecimalsToken',
+      decimals: undefined, // Should fallback to 18
+      symbol: 'UNDEF',
+      name: 'Undefined Decimals Token',
+    });
+
+    // Add balance for the token (1 token with 18 decimals = 1e18 in smallest unit)
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xUndefinedDecimalsToken'] = '0xde0b6b3a7640000' as `0x${string}`; // 1e18 in hex
+
+    // Add market data for the token
+    (state.engine.backgroundState as any).TokenRatesController.marketData[
+      '0x1'
+    ]['0xUndefinedDecimalsToken'] = {
+      tokenAddress: '0xUndefinedDecimalsToken',
+      currency: 'ETH',
+      price: 0.00041, // $1.00 equivalent
+    };
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Expected calculation: 1 token * 0.00041 ETH * $2400/ETH = $0.984
+    // Plus existing balance: $4493.8
+    // Total: $4493.8 + $0.984 = $4494.784
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4494.784, 3);
+  });
+
+  it('handles token with null decimals correctly', () => {
+    const state = createMockState('USD');
+
+    // Add a token with null decimals
+    (state.engine.backgroundState as any).TokensController.allTokens['0x1'][
+      '0x1234567890123456789012345678901234567890'
+    ].push({
+      address: '0xNullDecimalsToken',
+      decimals: null, // Should fallback to 18
+      symbol: 'NULL',
+      name: 'Null Decimals Token',
+    });
+
+    // Add balance for the token (1 token with 18 decimals = 1e18 in smallest unit)
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xNullDecimalsToken'] = '0xde0b6b3a7640000' as `0x${string}`; // 1e18 in hex
+
+    // Add market data for the token
+    (state.engine.backgroundState as any).TokenRatesController.marketData[
+      '0x1'
+    ]['0xNullDecimalsToken'] = {
+      tokenAddress: '0xNullDecimalsToken',
+      currency: 'ETH',
+      price: 0.00041, // $1.00 equivalent
+    };
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Expected calculation: 1 token * 0.00041 ETH * $2400/ETH = $0.984
+    // Plus existing balance: $4493.8
+    // Total: $4493.8 + $0.984 = $4494.784
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4494.784, 3);
+  });
+
+  it('handles token with NaN decimals correctly', () => {
+    const state = createMockState('USD');
+
+    // Add a token with NaN decimals
+    (state.engine.backgroundState as any).TokensController.allTokens['0x1'][
+      '0x1234567890123456789012345678901234567890'
+    ].push({
+      address: '0xNaNDecimalsToken',
+      decimals: NaN, // Should fallback to 18
+      symbol: 'NAN',
+      name: 'NaN Decimals Token',
+    });
+
+    // Add balance for the token (1 token with 18 decimals = 1e18 in smallest unit)
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xNaNDecimalsToken'] = '0xde0b6b3a7640000' as `0x${string}`; // 1e18 in hex
+
+    // Add market data for the token
+    (state.engine.backgroundState as any).TokenRatesController.marketData[
+      '0x1'
+    ]['0xNaNDecimalsToken'] = {
+      tokenAddress: '0xNaNDecimalsToken',
+      currency: 'ETH',
+      price: 0.00041, // $1.00 equivalent
+    };
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Expected calculation: 1 token * 0.00041 ETH * $2400/ETH = $0.984
+    // Plus existing balance: $4493.8
+    // Total: $4493.8 + $0.984 = $4494.784
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4494.784, 3);
+  });
+
   it('handles NaN balance values in non-EVM accounts', () => {
     const state = createMockState('USD');
 

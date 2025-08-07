@@ -298,7 +298,13 @@ export const selectBalanceForAllWallets = () =>
                       continue;
                     }
 
-                    const decimals = token.decimals || 18;
+                    // Use nullish coalescing to handle 0 decimals correctly
+                    // and ensure decimals is a valid number to prevent NaN propagation
+                    const decimals =
+                      typeof token.decimals === 'number' &&
+                      !Number.isNaN(token.decimals)
+                        ? token.decimals
+                        : 18;
                     const balanceInSmallestUnit = parseInt(
                       balance as string,
                       16,
