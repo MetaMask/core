@@ -20,7 +20,6 @@ import {
   getDefaultEarnControllerState,
   type EarnControllerMessenger,
   type EarnControllerEvents,
-  type EarnControllerActions,
   type AllowedActions,
   type AllowedEvents,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
@@ -88,10 +87,7 @@ jest.mock('@metamask/stake-sdk', () => ({
  * @returns A new instance of the Messenger class for the AccountsController.
  */
 function buildMessenger() {
-  return new Messenger<
-    EarnControllerActions | AllowedActions,
-    EarnControllerEvents | AllowedEvents
-  >();
+  return new Messenger<AllowedActions, EarnControllerEvents | AllowedEvents>();
 }
 
 /**
@@ -111,7 +107,7 @@ function getEarnControllerMessenger(
       'AccountsController:getSelectedAccount',
     ],
     allowedEvents: [
-      'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
       'AccountsController:selectedAccountChange',
       'TransactionController:transactionConfirmed',
     ],
@@ -839,14 +835,10 @@ describe('EarnController', () => {
     it('reinitializes SDK when network changes', async () => {
       const { messenger } = await setupController();
 
-      messenger.publish(
-        'NetworkController:stateChange',
-        {
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: '2',
-        },
-        [],
-      );
+      messenger.publish('NetworkController:networkDidChange', {
+        ...getDefaultNetworkControllerState(),
+        selectedNetworkClientId: '2',
+      });
 
       expect(EarnSdk.create).toHaveBeenCalledTimes(2);
       expect(
@@ -867,14 +859,10 @@ describe('EarnController', () => {
         })),
       });
 
-      messenger.publish(
-        'NetworkController:stateChange',
-        {
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: '2',
-        },
-        [],
-      );
+      messenger.publish('NetworkController:networkDidChange', {
+        ...getDefaultNetworkControllerState(),
+        selectedNetworkClientId: '2',
+      });
 
       expect(EarnSdk.create).toHaveBeenCalledTimes(2);
       expect(EarnSdk.create).toHaveBeenNthCalledWith(2, expect.any(Object), {
@@ -1358,14 +1346,10 @@ describe('EarnController', () => {
 
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-        messenger.publish(
-          'NetworkController:stateChange',
-          {
-            ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: '2',
-          },
-          [],
-        );
+        messenger.publish('NetworkController:networkDidChange', {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '2',
+        });
 
         expect(
           controller.refreshPooledStakingVaultMetadata,
@@ -1402,7 +1386,7 @@ describe('EarnController', () => {
     describe('On transaction confirmed', () => {
       let controller: EarnController;
       let messenger: Messenger<
-        EarnControllerActions | AllowedActions,
+        AllowedActions,
         EarnControllerStateChangeEvent | AllowedEvents
       >;
 
