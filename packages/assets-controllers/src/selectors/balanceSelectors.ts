@@ -203,13 +203,13 @@ const getInternalAccountsForGroup = (
 };
 
 /**
- * Selector to get aggregated balances for a specific account group.
- * Returns total balance in user's selected currency, aggregating all tokens across accounts in the group.
+ * Comprehensive selector that calculates all balances for all wallets and groups.
+ * This is the single source of truth for all balance calculations.
+ * Other selectors will derive from this to ensure proper memoization.
  *
- * @param groupId - The account group ID (format: "walletId/groupIndex", e.g., "entropy:entropy-source-1/0")
- * @returns Aggregated balance for the account group
+ * @returns Aggregated balance for all wallets
  */
-export const selectBalanceByAccountGroup = (groupId: string) =>
+export const selectBalanceForAllWallets = () =>
   createSelector(
     [
       selectAccountTreeControllerState,
@@ -230,125 +230,170 @@ export const selectBalanceByAccountGroup = (groupId: string) =>
       multichainBalancesState,
       tokensState,
       currencyRateState,
-    ): AccountGroupBalance => {
-      // Extract walletId from groupId
-      const walletId = groupId.split('/')[0] as EntropySourceId;
-
-      const accounts = getInternalAccountsForGroup(
-        accountTreeState,
-        accountsState,
-        groupId,
-      );
-
-      if (accounts.length === 0) {
-        return {
-          walletId,
-          groupId,
-          totalBalanceInUserCurrency: 0,
-          userCurrency: currencyRateState.currentCurrency,
-        };
-      }
-
+    ): AllWalletsBalance => {
+      const walletBalances: Record<string, WalletBalance> = {};
       let totalBalanceInUserCurrency = 0;
 
-      // Process each account's balances
-      for (const account of accounts) {
-        const isEvmAccount = isEvmAccountType(account.type);
+      const walletIds = Object.keys(
+        accountTreeState.accountTree.wallets,
+      ) as string[];
 
-        if (isEvmAccount) {
-          // Handle EVM account balances from TokenBalancesController
-          // Structure: tokenBalances[accountAddress][chainId][tokenAddress] = balance
-          const accountBalances =
-            tokenBalancesState.tokenBalances[account.address as Hex];
-          if (accountBalances) {
-            for (const [chainId, chainBalances] of Object.entries(
-              accountBalances,
-            )) {
-              for (const [tokenAddress, balance] of Object.entries(
-                chainBalances,
-              )) {
-                // Find token in TokensController state
-                const chainTokens = tokensState.allTokens[chainId as Hex];
-                const accountTokens = chainTokens?.[account.address];
-                const token = accountTokens?.find(
-                  (t) => t.address === tokenAddress,
-                );
-                if (!token) {
-                  continue;
+      for (const walletId of walletIds) {
+        const wallet = (
+          accountTreeState.accountTree.wallets as Record<
+            string,
+            AccountWalletObject
+          >
+        )[walletId];
+        if (!wallet) {
+          continue;
+        }
+
+        const groupBalances: Record<string, AccountGroupBalance> = {};
+        let walletTotalBalance = 0;
+
+        const groups = Object.keys(wallet.groups || {}) as string[];
+
+        for (const groupId of groups) {
+          const accounts = getInternalAccountsForGroup(
+            accountTreeState,
+            accountsState,
+            groupId,
+          );
+
+          if (accounts.length === 0) {
+            groupBalances[groupId] = {
+              walletId,
+              groupId,
+              totalBalanceInUserCurrency: 0,
+              userCurrency: currencyRateState.currentCurrency,
+            };
+            continue;
+          }
+
+          let groupTotalBalance = 0;
+
+          // Process each account's balances
+          for (const account of accounts) {
+            const isEvmAccount = isEvmAccountType(account.type);
+
+            if (isEvmAccount) {
+              // Handle EVM account balances from TokenBalancesController
+              const accountBalances =
+                tokenBalancesState.tokenBalances[account.address as Hex];
+              if (accountBalances) {
+                for (const [chainId, chainBalances] of Object.entries(
+                  accountBalances,
+                )) {
+                  for (const [tokenAddress, balance] of Object.entries(
+                    chainBalances,
+                  )) {
+                    // Find token in TokensController state
+                    const chainTokens = tokensState.allTokens[chainId as Hex];
+                    const accountTokens = chainTokens?.[account.address];
+                    const token = accountTokens?.find(
+                      (t) => t.address === tokenAddress,
+                    );
+                    if (!token) {
+                      continue;
+                    }
+
+                    const decimals = token.decimals || 18;
+                    const balanceInSmallestUnit = parseInt(
+                      balance as string,
+                      16,
+                    );
+
+                    // Skip invalid balance values to prevent NaN propagation
+                    if (Number.isNaN(balanceInSmallestUnit)) {
+                      continue;
+                    }
+
+                    const balanceInTokenUnits =
+                      balanceInSmallestUnit / Math.pow(10, decimals);
+
+                    // Get token rate in native currency from TokenRatesController
+                    const chainMarketData =
+                      tokenRatesState.marketData[chainId as Hex];
+                    const tokenMarketData =
+                      chainMarketData?.[tokenAddress as Hex];
+                    if (tokenMarketData?.price) {
+                      // Convert token price to user currency using native currency conversion rate
+                      const nativeCurrency = tokenMarketData.currency;
+                      const nativeToUserRate =
+                        currencyRateState.currencyRates[nativeCurrency]
+                          ?.conversionRate;
+
+                      if (nativeToUserRate) {
+                        // Convert token price to user currency: tokenPrice * nativeToUserRate
+                        const tokenPriceInUserCurrency =
+                          tokenMarketData.price * nativeToUserRate;
+                        const balanceInUserCurrency =
+                          balanceInTokenUnits * tokenPriceInUserCurrency;
+                        groupTotalBalance += balanceInUserCurrency;
+                      }
+                    }
+                  }
                 }
+              }
+            } else {
+              // Handle non-EVM account balances from MultichainBalancesController
+              const accountBalances =
+                multichainBalancesState.balances[account.id];
+              if (accountBalances) {
+                for (const [assetId, balanceData] of Object.entries(
+                  accountBalances,
+                )) {
+                  const balanceAmount = parseFloat(balanceData.amount);
 
-                const decimals = token.decimals || 18;
-                const balanceInSmallestUnit = parseInt(balance as string, 16);
+                  // Skip invalid balance values to prevent NaN propagation
+                  if (Number.isNaN(balanceAmount)) {
+                    continue;
+                  }
 
-                // Skip invalid balance values to prevent NaN propagation
-                if (Number.isNaN(balanceInSmallestUnit)) {
-                  continue;
-                }
+                  // Get conversion rate for this asset (already in user currency)
+                  const conversionRate =
+                    multichainRatesState.conversionRates[
+                      assetId as CaipAssetType
+                    ];
+                  if (conversionRate) {
+                    const conversionRateValue = parseFloat(conversionRate.rate);
 
-                const balanceInTokenUnits =
-                  balanceInSmallestUnit / Math.pow(10, decimals);
+                    // Skip invalid conversion rate values to prevent NaN propagation
+                    if (Number.isNaN(conversionRateValue)) {
+                      continue;
+                    }
 
-                // Get token rate in native currency from TokenRatesController
-                const chainMarketData =
-                  tokenRatesState.marketData[chainId as Hex];
-                const tokenMarketData = chainMarketData?.[tokenAddress as Hex];
-                if (tokenMarketData?.price) {
-                  // Convert token price to user currency using native currency conversion rate
-                  const nativeCurrency = tokenMarketData.currency;
-                  const nativeToUserRate =
-                    currencyRateState.currencyRates[nativeCurrency]
-                      ?.conversionRate;
-
-                  if (nativeToUserRate) {
-                    // Convert token price to user currency: tokenPrice * nativeToUserRate
-                    const tokenPriceInUserCurrency =
-                      tokenMarketData.price * nativeToUserRate;
+                    // MultichainAssetsRatesController already provides rates in user currency
                     const balanceInUserCurrency =
-                      balanceInTokenUnits * tokenPriceInUserCurrency;
-                    totalBalanceInUserCurrency += balanceInUserCurrency;
+                      balanceAmount * conversionRateValue;
+                    groupTotalBalance += balanceInUserCurrency;
                   }
                 }
               }
             }
           }
-        } else {
-          // Handle non-EVM account balances from MultichainBalancesController
-          const accountBalances = multichainBalancesState.balances[account.id];
-          if (accountBalances) {
-            for (const [assetId, balanceData] of Object.entries(
-              accountBalances,
-            )) {
-              const balanceAmount = parseFloat(balanceData.amount);
 
-              // Skip invalid balance values to prevent NaN propagation
-              if (Number.isNaN(balanceAmount)) {
-                continue;
-              }
-
-              // Get conversion rate for this asset (already in user currency)
-              const conversionRate =
-                multichainRatesState.conversionRates[assetId as CaipAssetType];
-              if (conversionRate) {
-                const conversionRateValue = parseFloat(conversionRate.rate);
-
-                // Skip invalid conversion rate values to prevent NaN propagation
-                if (Number.isNaN(conversionRateValue)) {
-                  continue;
-                }
-
-                // MultichainAssetsRatesController already provides rates in user currency
-                const balanceInUserCurrency =
-                  balanceAmount * conversionRateValue;
-                totalBalanceInUserCurrency += balanceInUserCurrency;
-              }
-            }
-          }
+          groupBalances[groupId] = {
+            walletId,
+            groupId,
+            totalBalanceInUserCurrency: groupTotalBalance,
+            userCurrency: currencyRateState.currentCurrency,
+          };
+          walletTotalBalance += groupTotalBalance;
         }
+
+        walletBalances[walletId] = {
+          walletId,
+          groups: groupBalances,
+          totalBalanceInUserCurrency: walletTotalBalance,
+          userCurrency: currencyRateState.currentCurrency,
+        };
+        totalBalanceInUserCurrency += walletTotalBalance;
       }
 
       return {
-        walletId,
-        groupId,
+        wallets: walletBalances,
         totalBalanceInUserCurrency,
         userCurrency: currencyRateState.currentCurrency,
       };
@@ -385,178 +430,87 @@ export type AllWalletsBalance = {
 };
 
 /**
+ * Selector to get aggregated balances for a specific account group.
+ * Derives from the comprehensive selector to ensure proper memoization.
+ *
+ * @param groupId - The account group ID (format: "walletId/groupIndex", e.g., "entropy:entropy-source-1/0")
+ * @returns Aggregated balance for the account group
+ */
+export const selectBalanceByAccountGroup = (groupId: string) =>
+  createSelector(
+    [selectBalanceForAllWallets()],
+    (allBalances): AccountGroupBalance => {
+      const walletId = groupId.split('/')[0] as EntropySourceId;
+      const wallet = allBalances.wallets[walletId];
+
+      if (!wallet || !wallet.groups[groupId]) {
+        return {
+          walletId,
+          groupId,
+          totalBalanceInUserCurrency: 0,
+          userCurrency: allBalances.userCurrency,
+        };
+      }
+
+      return wallet.groups[groupId];
+    },
+  );
+
+/**
  * Selector to get aggregated balances for all account groups in a wallet.
- * Returns total balance in user's selected currency, aggregating all tokens across all groups in the wallet.
+ * Derives from the comprehensive selector to ensure proper memoization.
  *
  * @param walletId - The wallet ID (entropy source)
  * @returns Aggregated balance for all groups in the wallet
  */
 export const selectBalanceByWallet = (walletId: EntropySourceId) =>
   createSelector(
-    [
-      selectAccountTreeControllerState,
-      selectAccountsControllerState,
-      selectTokenBalancesControllerState,
-      selectTokenRatesControllerState,
-      selectMultichainAssetsRatesControllerState,
-      selectMultichainBalancesControllerState,
-      selectTokensControllerState,
-      selectCurrencyRateControllerState,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): WalletBalance => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const wallet = (accountTreeState.accountTree.wallets as any)[walletId];
+    [selectBalanceForAllWallets()],
+    (allBalances): WalletBalance => {
+      const wallet = allBalances.wallets[walletId];
+
       if (!wallet) {
         return {
           walletId,
           groups: {},
           totalBalanceInUserCurrency: 0,
-          userCurrency: currencyRateState.currentCurrency,
+          userCurrency: allBalances.userCurrency,
         };
       }
 
-      const groupBalances: Record<string, AccountGroupBalance> = {};
-      let totalBalanceInUserCurrency = 0;
-
-      const groups = Object.keys(wallet.groups || {}) as string[];
-
-      for (const groupId of groups) {
-        const groupBalance = selectBalanceByAccountGroup(groupId)({
-          AccountTreeController: accountTreeState,
-          AccountsController: accountsState,
-          TokenBalancesController: tokenBalancesState,
-          TokenRatesController: tokenRatesState,
-          MultichainAssetsRatesController: multichainRatesState,
-          MultichainBalancesController: multichainBalancesState,
-          TokensController: tokensState,
-          CurrencyRateController: currencyRateState,
-        });
-
-        groupBalances[groupId] = groupBalance;
-        totalBalanceInUserCurrency += groupBalance.totalBalanceInUserCurrency;
-      }
-
-      return {
-        walletId,
-        groups: groupBalances,
-        totalBalanceInUserCurrency,
-        userCurrency: currencyRateState.currentCurrency,
-      };
-    },
-  );
-
-/**
- * Selector to get aggregated balances for all wallets and their account groups.
- * Returns total balance in user's selected currency, aggregating all tokens across all wallets.
- *
- * @returns Aggregated balance for all wallets
- */
-export const selectBalanceForAllWallets = () =>
-  createSelector(
-    [
-      selectAccountTreeControllerState,
-      selectAccountsControllerState,
-      selectTokenBalancesControllerState,
-      selectTokenRatesControllerState,
-      selectMultichainAssetsRatesControllerState,
-      selectMultichainBalancesControllerState,
-      selectTokensControllerState,
-      selectCurrencyRateControllerState,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): AllWalletsBalance => {
-      const walletBalances: Record<string, WalletBalance> = {};
-      let totalBalanceInUserCurrency = 0;
-
-      const walletIds = Object.keys(
-        accountTreeState.accountTree.wallets,
-      ) as string[];
-
-      for (const walletId of walletIds) {
-        const walletBalance = selectBalanceByWallet(walletId)({
-          AccountTreeController: accountTreeState,
-          AccountsController: accountsState,
-          TokenBalancesController: tokenBalancesState,
-          TokenRatesController: tokenRatesState,
-          MultichainAssetsRatesController: multichainRatesState,
-          MultichainBalancesController: multichainBalancesState,
-          TokensController: tokensState,
-          CurrencyRateController: currencyRateState,
-        });
-
-        walletBalances[walletId] = walletBalance;
-        totalBalanceInUserCurrency += walletBalance.totalBalanceInUserCurrency;
-      }
-
-      return {
-        wallets: walletBalances,
-        totalBalanceInUserCurrency,
-        userCurrency: currencyRateState.currentCurrency,
-      };
+      return wallet;
     },
   );
 
 /**
  * Selector to get aggregated balances for the currently selected account group.
- * Returns total balance in user's selected currency, aggregating all tokens in the selected group.
+ * Derives from the comprehensive selector to ensure proper memoization.
  *
  * @returns Aggregated balance for the currently selected group
  */
 export const selectBalanceForSelectedAccountGroup = () =>
   createSelector(
-    [
-      selectAccountTreeControllerState,
-      selectAccountsControllerState,
-      selectTokenBalancesControllerState,
-      selectTokenRatesControllerState,
-      selectMultichainAssetsRatesControllerState,
-      selectMultichainBalancesControllerState,
-      selectTokensControllerState,
-      selectCurrencyRateControllerState,
-    ],
-    (
-      accountTreeState,
-      accountsState,
-      tokenBalancesState,
-      tokenRatesState,
-      multichainRatesState,
-      multichainBalancesState,
-      tokensState,
-      currencyRateState,
-    ): AccountGroupBalance | null => {
+    [selectAccountTreeControllerState, selectBalanceForAllWallets()],
+    (accountTreeState, allBalances): AccountGroupBalance | null => {
       const selectedGroupId = accountTreeState.accountTree.selectedAccountGroup;
 
       if (!selectedGroupId) {
         return null;
       }
 
-      return selectBalanceByAccountGroup(selectedGroupId)({
-        AccountTreeController: accountTreeState,
-        AccountsController: accountsState,
-        TokenBalancesController: tokenBalancesState,
-        TokenRatesController: tokenRatesState,
-        MultichainAssetsRatesController: multichainRatesState,
-        MultichainBalancesController: multichainBalancesState,
-        TokensController: tokensState,
-        CurrencyRateController: currencyRateState,
-      });
+      const walletId = selectedGroupId.split('/')[0] as EntropySourceId;
+      const wallet = allBalances.wallets[walletId];
+
+      if (!wallet || !wallet.groups[selectedGroupId]) {
+        return {
+          walletId,
+          groupId: selectedGroupId,
+          totalBalanceInUserCurrency: 0,
+          userCurrency: allBalances.userCurrency,
+        };
+      }
+
+      return wallet.groups[selectedGroupId];
     },
   );
 
