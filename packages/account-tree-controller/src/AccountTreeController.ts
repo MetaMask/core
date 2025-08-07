@@ -153,6 +153,13 @@ export class AccountTreeController extends BaseController<
     this.#registerMessageHandlers();
   }
 
+  /**
+   * Initialize the controller's state.
+   *
+   * It constructs the initial state of the account tree (tree nodes, nodes
+   * names, metadata, etc..) and will automatically update the controller's
+   * state with it.
+   */
   init() {
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
@@ -185,18 +192,44 @@ export class AccountTreeController extends BaseController<
     });
   }
 
+  /**
+   * Rule for entropy-base wallets.
+   *
+   * @returns The rule for entropy-based wallets.
+   */
   #getEntropyRule(): EntropyRule {
     return this.#rules[0];
   }
 
+  /**
+   * Rule for Snap-base wallets.
+   *
+   * @returns The rule for snap-based wallets.
+   */
   #getSnapRule(): SnapRule {
     return this.#rules[1];
   }
 
+  /**
+   * Rule for keyring-base wallets.
+   *
+   * This rule acts as a fallback and never fails since all accounts
+   * comes from a keyring anyway.
+   *
+   * @returns The fallback rule for every accounts that did not match
+   * any other rules.
+   */
   #getKeyringRule(): KeyringRule {
     return this.#rules[2];
   }
 
+  /**
+   * Applies wallet metadata updates (name) by checking the persistent state
+   * first, and then fallbacks to default values (based on the wallet's
+   * type).
+   *
+   * @param wallet Account wallet object to update.
+   */
   #applyAccountWalletMetadata(wallet: AccountWalletObject) {
     const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
 
@@ -218,6 +251,15 @@ export class AccountTreeController extends BaseController<
     }
   }
 
+  /**
+   * Applies group metadata updates (name, pinned, hidden flags) by checking
+   * the persistent state first, and then fallbacks to default values (based
+   * on the wallet's
+   * type).
+   *
+   * @param wallet Account wallet object of the account group to update.
+   * @param group Account group object to update.
+   */
   #applyAccountGroupMetadata(
     wallet: AccountWalletObject,
     group: AccountGroupObject,
@@ -256,6 +298,12 @@ export class AccountTreeController extends BaseController<
     }
   }
 
+  /**
+   * Gets the account wallet object from its ID.
+   *
+   * @param walletId - Account wallet ID.
+   * @returns The account wallet object if found, undefined otherwise.
+   */
   getAccountWalletObject(
     walletId: AccountWalletId,
   ): AccountWalletObject | undefined {
@@ -267,10 +315,26 @@ export class AccountTreeController extends BaseController<
     return wallet;
   }
 
+  /**
+   * Gets all account wallet objects.
+   *
+   * @returns All account wallet objects.
+   */
   getAccountWalletObjects(): AccountWalletObject[] {
     return Object.values(this.state.accountTree.wallets);
   }
 
+  /**
+   * Gets all underlying accounts from the currently selected account
+   * group.
+   *
+   * It also support account selector, which allows to filter specific
+   * accounts given some criterias (account type, address, scopes, etc...).
+   *
+   * @param selector - Optional account selector.
+   * @returns Underlying accounts for the currently selected account (filtered
+   * by the selector if provided).
+   */
   getAccountsFromSelectedAccountGroup(
     selector?: AccountSelector<InternalAccount>,
   ) {
@@ -303,6 +367,12 @@ export class AccountTreeController extends BaseController<
     return selector ? select(accounts, selector) : accounts;
   }
 
+  /**
+   * Gets the account group object from its ID.
+   *
+   * @param groupId - Account group ID.
+   * @returns The account group object if found, undefined otherwise.
+   */
   getAccountGroupObject(
     groupId: AccountGroupId,
   ): AccountGroupObject | undefined {
@@ -315,6 +385,12 @@ export class AccountTreeController extends BaseController<
     return wallet?.groups[groupId];
   }
 
+  /**
+   * Handles "AccountsController:accountAdded" event to insert
+   * new accounts into the tree.
+   *
+   * @param account - New account.
+   */
   #handleAccountAdded(account: InternalAccount) {
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
@@ -336,6 +412,12 @@ export class AccountTreeController extends BaseController<
     });
   }
 
+  /**
+   * Handles "AccountsController:accountRemoved" event to remove
+   * given account from the tree.
+   *
+   * @param accountId - Removed account ID.
+   */
   #handleAccountRemoved(accountId: AccountId) {
     const context = this.#accountIdToContext.get(accountId);
 
@@ -372,6 +454,15 @@ export class AccountTreeController extends BaseController<
     }
   }
 
+  /**
+   * Handles "AccountsController:accountRenamed" event to rename
+   * the associated account group which contains the account being
+   * renamed.
+   *
+   * NOTE: This is mainly useful for legacy backup & sync v1.
+   *
+   * @param account - Account being renamed.
+   */
   #handleAccountRenamed(account: InternalAccount) {
     // We only consider HD and simple EVM accounts for the moment as they have
     // an higher priority over others when it comes to naming.
@@ -434,6 +525,16 @@ export class AccountTreeController extends BaseController<
     return state;
   }
 
+  /**
+   * Insert an account inside an account tree.
+   *
+   * We go over multiple rules to try to "match" the account following
+   * specific criterias. If a rule "matches" an account, then this
+   * account get added into its proper account wallet and account group.
+   *
+   * @param wallets - Account tree.
+   * @param account - The account to be inserted.
+   */
   #insert(
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
@@ -490,6 +591,11 @@ export class AccountTreeController extends BaseController<
     });
   }
 
+  /**
+   * List all internal accounts.
+   *
+   * @returns The list of all internal accounts.
+   */
   #listAccounts(): InternalAccount[] {
     return this.messagingSystem.call(
       'AccountsController:listMultichainAccounts',
