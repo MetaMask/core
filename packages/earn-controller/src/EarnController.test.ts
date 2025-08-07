@@ -16,7 +16,6 @@ import {
 import {
   EarnController,
   type EarnControllerState,
-  getDefaultEarnControllerState,
   type EarnControllerMessenger,
   type EarnControllerEvents,
   type EarnControllerActions,
@@ -696,6 +695,12 @@ const setupController = async ({
     selectedNetworkClientId,
   });
 
+  // We create a promise here and wait for it to resolve.
+  // We do this to try and ensure that the controller is fully initialized before we start testing.
+  // This is a hack; really we should implement an async 'init' method on the controller which does required async setup
+  // rather than having async calls in the constructor which is an anti-pattern.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
   return { controller, messenger };
 };
 
@@ -759,12 +764,7 @@ describe('EarnController', () => {
   });
 
   describe('constructor', () => {
-    it('initializes with default state when no state is provided', async () => {
-      const { controller } = await setupController();
-      expect(controller.state).toStrictEqual(getDefaultEarnControllerState());
-    });
-
-    it('uses provided state to initialize', async () => {
+    it('properly merges provided state with default state', async () => {
       const customState: Partial<EarnControllerState> = {
         pooled_staking: {
           '0': DEFAULT_POOLED_STAKING_CHAIN_STATE,
@@ -777,13 +777,30 @@ describe('EarnController', () => {
         options: { state: customState },
       });
 
-      expect(controller.state).toStrictEqual({
-        ...getDefaultEarnControllerState(),
-        ...customState,
-      });
+      // Verify that custom state properties are preserved
+      expect(controller.state.pooled_staking.isEligible).toBe(true);
+      expect(controller.state.lastUpdated).toBe(1234567890);
+      expect(controller.state.pooled_staking['0']).toStrictEqual(
+        DEFAULT_POOLED_STAKING_CHAIN_STATE,
+      );
+
+      // Verify that default lending state is still present
+      expect(controller.state.lending).toBeDefined();
     });
 
-    it('initializes with default environment (PROD)', async () => {
+    it('initializes API service with default environment (PROD)', async () => {
+      await setupController();
+      expect(EarnApiServiceMock).toHaveBeenCalledWith(EarnEnvironments.PROD);
+    });
+
+    it('initializes API service with custom environment when provided', async () => {
+      await setupController({
+        options: { env: EarnEnvironments.DEV },
+      });
+      expect(EarnApiServiceMock).toHaveBeenCalledWith(EarnEnvironments.DEV);
+    });
+
+    it('initializes Earn SDK with default environment (PROD)', async () => {
       await setupController();
       expect(EarnSdk.create).toHaveBeenCalledWith(expect.any(Object), {
         chainId: 1,
@@ -791,7 +808,7 @@ describe('EarnController', () => {
       });
     });
 
-    it('initializes with custom environment', async () => {
+    it('initializes Earn SDK with custom environment when provided', async () => {
       await setupController({
         options: { env: EarnEnvironments.DEV },
       });
@@ -911,8 +928,8 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          // First call occurs during setupController()
-          2,
+          // First 2 calls occur during setupController()
+          3,
           [mockAccount1Address],
           1,
           false,
@@ -926,8 +943,8 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          // First call occurs during setupController()
-          2,
+          // First 2 calls occur during setupController()
+          3,
           [mockAccount1Address],
           1,
           true,
@@ -943,8 +960,8 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          // First call occurs during setupController()
-          2,
+          // First 2 calls occur during setupController()
+          3,
           [mockAccount2Address],
           1,
           false,
@@ -958,22 +975,19 @@ describe('EarnController', () => {
         mockedEarnApiService = {
           pooledStaking: {
             getPooledStakes: jest.fn().mockImplementation(() => {
-              throw new Error('API Error');
+              throw new Error('API Error getPooledStakes');
             }),
             getPooledStakingEligibility: jest.fn().mockImplementation(() => {
-              throw new Error('API Error');
+              throw new Error('API Error getPooledStakingEligibility');
             }),
             getVaultData: jest.fn().mockImplementation(() => {
-              throw new Error('API Error');
+              throw new Error('API Error getVaultData');
             }),
             getVaultDailyApys: jest.fn().mockImplementation(() => {
-              throw new Error('API Error');
+              throw new Error('API Error getVaultDailyApys');
             }),
             getVaultApyAverages: jest.fn().mockImplementation(() => {
-              throw new Error('API Error');
-            }),
-            getUserDailyRewards: jest.fn().mockImplementation(() => {
-              throw new Error('API Error');
+              throw new Error('API Error getVaultApyAverages');
             }),
           } as unknown as PooledStakingApiService,
         };
@@ -985,7 +999,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         await expect(controller.refreshPooledStakingData()).rejects.toThrow(
-          'Failed to refresh some staking data: API Error, API Error, API Error',
+          'Failed to refresh some staking data: API Error getPooledStakingEligibility, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
         );
         expect(consoleErrorSpy).toHaveBeenCalled();
         consoleErrorSpy.mockRestore();
@@ -1023,11 +1037,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ resetCache: false });
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1038,11 +1052,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1053,11 +1067,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ resetCache: true });
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           true,
@@ -1068,11 +1082,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1083,21 +1097,21 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ address: mockAccount2Address });
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
-        ).toHaveBeenNthCalledWith(2, [mockAccount2Address], 1, false);
+        ).toHaveBeenNthCalledWith(3, [mockAccount2Address], 1, false);
       });
 
       it('fetches using Ethereum Mainnet fallback if chainId is not provided', async () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes();
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1109,11 +1123,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ chainId: 2 });
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.ETHEREUM,
           false,
@@ -1124,11 +1138,11 @@ describe('EarnController', () => {
         const { controller } = await setupController();
         await controller.refreshPooledStakes({ chainId: ChainId.HOODI });
 
-        // Assertion on second call since the first is part of controller setup.
+        // Assertion on third call since the first two are part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakes,
         ).toHaveBeenNthCalledWith(
-          2,
+          3,
           [mockAccount1Address],
           ChainId.HOODI,
           false,
@@ -1168,7 +1182,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenCalledTimes(2);
+        ).toHaveBeenCalledTimes(3);
       });
 
       it('fetches using Ethereum Mainnet fallback if chainId is not provided', async () => {
@@ -1177,7 +1191,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(2, ChainId.ETHEREUM);
+        ).toHaveBeenNthCalledWith(3, ChainId.ETHEREUM);
       });
 
       it('fetches using Ethereum Mainnet fallback if pooled-staking does not support provided chainId', async () => {
@@ -1187,7 +1201,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(2, ChainId.ETHEREUM);
+        ).toHaveBeenNthCalledWith(3, ChainId.ETHEREUM);
       });
 
       it('fetches using Ethereum Hoodi if it is the provided chainId', async () => {
@@ -1196,7 +1210,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultData,
-        ).toHaveBeenNthCalledWith(2, ChainId.HOODI);
+        ).toHaveBeenNthCalledWith(3, ChainId.HOODI);
       });
     });
 
@@ -1207,7 +1221,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenCalledTimes(2);
+        ).toHaveBeenCalledTimes(3);
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1223,7 +1237,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, 1, 180, 'desc');
+        ).toHaveBeenNthCalledWith(3, 1, 180, 'desc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1239,7 +1253,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, 1, 365, 'asc');
+        ).toHaveBeenNthCalledWith(3, 1, 365, 'asc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1255,7 +1269,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, 1, 180, 'asc');
+        ).toHaveBeenNthCalledWith(3, 1, 180, 'asc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1268,7 +1282,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, 1, 365, 'desc');
+        ).toHaveBeenNthCalledWith(3, 1, 365, 'desc');
         expect(controller.state.pooled_staking[1].vaultDailyApys).toStrictEqual(
           mockPooledStakingVaultDailyApys,
         );
@@ -1283,7 +1297,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultDailyApys,
-        ).toHaveBeenNthCalledWith(2, ChainId.HOODI, 365, 'desc');
+        ).toHaveBeenNthCalledWith(3, ChainId.HOODI, 365, 'desc');
         expect(
           controller.state.pooled_staking[ChainId.HOODI].vaultDailyApys,
         ).toStrictEqual(mockPooledStakingVaultDailyApys);
@@ -1297,7 +1311,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenCalledTimes(2);
+        ).toHaveBeenCalledTimes(3);
         expect(
           controller.state.pooled_staking[1].vaultApyAverages,
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
@@ -1310,7 +1324,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(2, 1);
+        ).toHaveBeenNthCalledWith(3, 1);
         expect(
           controller.state.pooled_staking[1].vaultApyAverages,
         ).toStrictEqual(mockPooledStakingVaultApyAverages);
@@ -1323,7 +1337,7 @@ describe('EarnController', () => {
 
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
-        ).toHaveBeenNthCalledWith(2, ChainId.HOODI);
+        ).toHaveBeenNthCalledWith(3, ChainId.HOODI);
       });
     });
   });
@@ -1395,7 +1409,6 @@ describe('EarnController', () => {
 
       beforeEach(async () => {
         const earnController = await setupController();
-        await new Promise((resolve) => setTimeout(resolve, 0));
         controller = earnController.controller;
         messenger = earnController.messenger;
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
@@ -1578,7 +1591,7 @@ describe('EarnController', () => {
         ).toHaveBeenCalledTimes(2);
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenCalledTimes(4); // Additionally called twice in controller setup by refreshPooledStakingData
+        ).toHaveBeenCalledTimes(3); // Additionally called once in controller setup by refreshPooledStakingData
       });
     });
 

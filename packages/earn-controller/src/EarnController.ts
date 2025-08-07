@@ -646,6 +646,11 @@ export class EarnController extends BaseController<
   }: RefreshPooledStakingDataOptions = {}): Promise<void> {
     const errors: Error[] = [];
 
+    // Refresh earn eligibility once since it's not chain-specific
+    await this.refreshEarnEligibility({ address }).catch((error) => {
+      errors.push(error);
+    });
+
     for (const chainId of this.#supportedPooledStakingChains) {
       await Promise.all([
         this.refreshPooledStakes({ resetCache, address, chainId }).catch(
@@ -653,9 +658,6 @@ export class EarnController extends BaseController<
             errors.push(error);
           },
         ),
-        this.refreshEarnEligibility({ address }).catch((error) => {
-          errors.push(error);
-        }),
         this.refreshPooledStakingVaultMetadata(chainId).catch((error) => {
           errors.push(error);
         }),
