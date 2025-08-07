@@ -13,13 +13,13 @@ import {
   ChainId,
 } from '@metamask/stake-sdk';
 
-import type { EarnControllerStateChangeEvent } from './EarnController';
 import {
   EarnController,
   type EarnControllerState,
   getDefaultEarnControllerState,
   type EarnControllerMessenger,
   type EarnControllerEvents,
+  type EarnControllerActions,
   type AllowedActions,
   type AllowedEvents,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
@@ -87,7 +87,10 @@ jest.mock('@metamask/stake-sdk', () => ({
  * @returns A new instance of the Messenger class for the AccountsController.
  */
 function buildMessenger() {
-  return new Messenger<AllowedActions, EarnControllerEvents | AllowedEvents>();
+  return new Messenger<
+    EarnControllerActions | AllowedActions,
+    EarnControllerEvents | AllowedEvents
+  >();
 }
 
 /**
@@ -1386,8 +1389,8 @@ describe('EarnController', () => {
     describe('On transaction confirmed', () => {
       let controller: EarnController;
       let messenger: Messenger<
-        AllowedActions,
-        EarnControllerStateChangeEvent | AllowedEvents
+        EarnControllerActions | AllowedActions,
+        EarnControllerEvents | AllowedEvents
       >;
 
       beforeEach(async () => {
