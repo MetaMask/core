@@ -1,8 +1,14 @@
-import type {
-  AccountGroupType,
-  MultichainAccountGroupId,
+import {
+  select,
+  selectOne,
+  type AccountGroupType,
+  type MultichainAccountGroupId,
 } from '@metamask/account-api';
-import type { AccountGroup, AccountGroupId } from '@metamask/account-api';
+import type {
+  AccountGroup,
+  AccountGroupId,
+  AccountSelector,
+} from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -160,5 +166,13 @@ export class AccountTreeGroup implements AccountGroup<InternalAccount> {
 
     // A group always have at least one account.
     return this.#getAccount(accountIds[0]);
+  }
+
+  get(selector: AccountSelector<InternalAccount>): InternalAccount | undefined {
+    return selectOne(this.getAccounts(), selector);
+  }
+
+  select(selector: AccountSelector<InternalAccount>): InternalAccount[] {
+    return select(this.getAccounts(), selector);
   }
 }

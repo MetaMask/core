@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/keyring-internal-api` from `^7.0.0` to `^8.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/eth-snap-keyring` from `^14.0.0` to `^16.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
 ### Fixed
 
 - Stop updating `selectedAccount` unnecesarily ([#6218](https://github.com/MetaMask/core/pull/6218))
