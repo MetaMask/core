@@ -30,4 +30,8 @@ export class FakeBlockTracker extends PollingBlockTracker {
   override async getLatestBlock() {
     return this.#latestBlockNumber;
   }
+
+  override async checkForLatestBlock(): Promise<string> {
+    return this.#latestBlockNumber;
+  }
 }

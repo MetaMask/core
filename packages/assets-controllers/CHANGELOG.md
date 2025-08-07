@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Correct the polling rate for the DeFiPositionsController from 1 minute to 10 minutes. ([#6242](https://github.com/MetaMask/core/pull/6242))
+- Fix `AccountTrackerController` to force block number update to avoid stale cached native balances ([#6250](https://github.com/MetaMask/core/pull/6250))
 
 ## [73.0.2]
 
