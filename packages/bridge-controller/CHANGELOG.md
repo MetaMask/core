@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **BREAKING** Require clients to define `can_submit` property when publishing `QuoteSelected`, `AllQuotesSorted`, `AllQuotesOpened` and `QuotesReceived` events ([#6254](https://github.com/MetaMask/core/pull/6254))
+- Rename the InputChanged event's `value` property key to `input_value` ([#6254](https://github.com/MetaMask/core/pull/6254))
+
 ## [37.2.0]
 
 ### Added
@@ -16,11 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
-
-### Fixed
-
-- **BREAKING** Require clients to define `can_submit` property when publishing `QuoteSelected`, `AllQuotesSorted`, `AllQuotesOpened` and `QuotesReceived` events ([#6254](https://github.com/MetaMask/core/pull/6254))
-- Rename the InputChanged event's `value` property key to `input_value` ([#6254](https://github.com/MetaMask/core/pull/6254))
 
 ## [37.1.0]
 
