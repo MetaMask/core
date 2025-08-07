@@ -832,6 +832,67 @@ describe('selectors', () => {
   });
 });
 
+describe('memoization behavior', () => {
+  it('memoizes selectBalanceByAccountGroup results', () => {
+    const state = createMockState('USD');
+    const selector = selectBalanceByAccountGroup('entropy:entropy-source-1/0');
+
+    const result1 = selector(state);
+    const result2 = selector(state);
+    const result3 = selector({ ...state }); // New state object with same values
+
+    expect(result1).toBe(result2); // Same reference for same state
+    expect(result1).toBe(result3); // Same reference for different state object with same values
+  });
+
+  it('memoizes selectBalanceByWallet results', () => {
+    const state = createMockState('USD');
+    const selector = selectBalanceByWallet('entropy:entropy-source-1');
+
+    const result1 = selector(state);
+    const result2 = selector(state);
+    const result3 = selector({ ...state }); // New state object with same values
+
+    expect(result1).toBe(result2); // Same reference for same state
+    expect(result1).toBe(result3); // Same reference for different state object with same values
+  });
+
+  it('memoizes selectBalanceForAllWallets results', () => {
+    const state = createMockState('USD');
+    const selector = selectBalanceForAllWallets();
+
+    const result1 = selector(state);
+    const result2 = selector(state);
+    const result3 = selector({ ...state }); // New state object with same values
+
+    expect(result1).toBe(result2); // Same reference for same state
+    expect(result1).toBe(result3); // Same reference for different state object with same values
+  });
+
+  it('memoizes selectBalanceForSelectedAccountGroup results', () => {
+    const state = createMockState('USD');
+    const selector = selectBalanceForSelectedAccountGroup();
+
+    const result1 = selector(state);
+    const result2 = selector(state);
+    const result3 = selector({ ...state }); // New state object with same values
+
+    expect(result1).toBe(result2); // Same reference for same state
+    expect(result1).toBe(result3); // Same reference for different state object with same values
+  });
+
+  it('returns different references when state values change', () => {
+    const state1 = createMockState('USD');
+    const state2 = createMockState('EUR'); // Different currency
+    const selector = selectBalanceForAllWallets();
+
+    const result1 = selector(state1);
+    const result2 = selector(state2);
+
+    expect(result1).not.toBe(result2); // Different references for different values
+  });
+});
+
 describe('state structure compatibility', () => {
   it('works with mobile state structure', () => {
     const mobileState = createMobileMockState('USD');
