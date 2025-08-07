@@ -9,14 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.0.0]
 
-### Uncategorized
-
-- Release/488.0.0 ([#6253](https://github.com/MetaMask/core/pull/6253))
-- Revert "Release 488.0.0 (#6249)" ([#6249](https://github.com/MetaMask/core/pull/6249))
-- Release 488.0.0 ([#6249](https://github.com/MetaMask/core/pull/6249))
-- Release/485.0.0 ([#6237](https://github.com/MetaMask/core/pull/6237))
-- Release/484.0.0 ([#6230](https://github.com/MetaMask/core/pull/6230))
-
 ### Added
 
 - Expose `fetchQuotes` method that returns a list of quotes directly rather than adding them to the controller state. This enables clients to retrieve quotes directly without automatic polling and state management ([#6236](https://github.com/MetaMask/core/pull/6236))
