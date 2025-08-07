@@ -2443,17 +2443,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@metamask/account-api@npm:0.3.0"
-  dependencies:
-    "@metamask/keyring-api": "npm:^19.1.0"
-    "@metamask/keyring-utils": "npm:^3.1.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-  checksum: 10/883ccab53b08415f00fa6920d58f01a2ea4d052a6f007e855d1cfd3067f61de23edf304b8d19ea31fe753c225366095792942943e58da236a9589930a98ce3f1
-  languageName: node
-  linkType: hard
-
 "@metamask/account-api@npm:^0.6.0":
   version: 0.6.0
   resolution: "@metamask/account-api@npm:0.6.0"
@@ -2640,7 +2629,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/account-api": "npm:^0.3.0"
+    "@metamask/account-api": "npm:^0.6.0"
     "@metamask/account-tree-controller": "npm:^0.7.0"
     "@metamask/accounts-controller": "npm:^32.0.1"
     "@metamask/approval-controller": "npm:^7.1.3"
