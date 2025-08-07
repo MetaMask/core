@@ -123,53 +123,57 @@ const resolvePotentialConflictsAfterLegacySyncing = async (
       entropySourceId,
     );
 
-    // Iterate through all accounts in the current wallet
-    // and check if any of them correspond to legacy synced accounts.
-    for (const account of allInternalAccounts) {
-      const correspondingLegacyUserStorageAccount =
-        legacyAccountsFromUserStorage.find(
-          (legacyAccount) => legacyAccount.a === account.address,
-        );
-
-      if (!correspondingLegacyUserStorageAccount) {
-        continue;
-      }
-
-      const correspondingEntropyAccount = legacyContext
-        .getEntropyRule()
-        .match(account);
-      if (!correspondingEntropyAccount) {
-        continue;
-      }
-
-      const correspondingLocalGroupThatChangedNameDueToLegacySyncing =
-        localGroupsWithNamesThatHaveChangedDueToLegacySyncing.find(
-          (group) => group.id === correspondingEntropyAccount.group.id,
-        );
-
-      if (!correspondingLocalGroupThatChangedNameDueToLegacySyncing) {
-        continue;
-      }
-
+    // Iterate through groups that have changed names due to legacy syncing
+    // and check if the name change should be reverted based on timestamps.
+    for (const localGroupThatChangedNameDueToLegacySyncing of localGroupsWithNamesThatHaveChangedDueToLegacySyncing) {
       const correspondingLocalGroupFromSnapshot =
         stateSnapshot.accountGroupsMetadata[
-          correspondingLocalGroupThatChangedNameDueToLegacySyncing.id
+          localGroupThatChangedNameDueToLegacySyncing.id
         ];
 
       if (!correspondingLocalGroupFromSnapshot.name?.lastUpdatedAt) {
-        continue; // No lastUpdatedAt timestamp available, cannot compare
+        continue;
+      }
+
+      // Find the account that belongs to this group (there's only one HD EVM account per group)
+      // We do this to find the address of the account that corresponds to this group
+      // and then find the corresponding legacy user storage entry.
+      const accountInGroup = allInternalAccounts.find((account) => {
+        const correspondingEntropyAccount = legacyContext
+          .getEntropyRule()
+          .match(account);
+        return (
+          correspondingEntropyAccount?.group.id ===
+          localGroupThatChangedNameDueToLegacySyncing.id
+        );
+      });
+
+      // Shouldn't happen, type guard
+      if (!accountInGroup) {
+        continue;
+      }
+
+      // Check if this account has a corresponding legacy user storage entry
+      // Again, this is a type guard as we wouldn't end up here if there was no legacy user storage data
+      const correspondingLegacyUserStorageAccount =
+        legacyAccountsFromUserStorage.find(
+          (legacyAccount) => legacyAccount.a === accountInGroup.address,
+        );
+
+      if (!correspondingLegacyUserStorageAccount) {
+        continue; // No legacy user storage data for this account
       }
 
       const wasLocalGroupNameMoreRecent =
-        correspondingLocalGroupFromSnapshot.name?.lastUpdatedAt >
+        correspondingLocalGroupFromSnapshot.name.lastUpdatedAt >
         correspondingLegacyUserStorageAccount.nlu;
 
       if (wasLocalGroupNameMoreRecent) {
         // If the local group name was more recent, then we should rollback and use the previous local group name
         // instead of the one fetched from user storage.
         context.controller.setAccountGroupName(
-          correspondingLocalGroupThatChangedNameDueToLegacySyncing.id,
-          correspondingLocalGroupFromSnapshot.name?.value,
+          localGroupThatChangedNameDueToLegacySyncing.id,
+          correspondingLocalGroupFromSnapshot.name.value,
         );
       }
     }
