@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Custom names and metadata survive controller initialization and tree rebuilds.
   - Support for `lastUpdatedAt` timestamps for Account Syncing V2 compatibility.
 - Add setter methods for setting custom account group names, wallet names and their pinning state and visibility ([#6221](https://github.com/MetaMask/core/pull/6221))
-- Add `group.type` tag ([#6214](https://github.com/MetaMask/core/pull/6214))
+- Add `{wallet,group}.type` tag ([#6214](https://github.com/MetaMask/core/pull/6214))
   - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountGroupObject`.
-- Add `group.metadata` metadata object ([#6214](https://github.com/MetaMask/core/pull/6214))
-  - Given the `group.type` you will now have access to specific metadata information (e.g. `groupIndex` for multichain account groups)
+  - The `type` from `wallet.metadata` has been moved to `wallet.type` instead and can be used to (tagged-union) the `AccountWalletObject`.
+- Add `{wallet,group}.metadata` metadata object ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6258](https://github.com/MetaMask/core/pull/6258))
+  - Given the `{wallet,group}.type` you will now have access to specific metadata information (e.g. `group.metadata.groupIndex` for multichain account groups or `wallet.metadata.entropy.id` for multichain account wallets)
 - Automatically prune empty groups and wallets upon account removal ([#6234](https://github.com/MetaMask/core/pull/6234))
   - This ensures that there aren't any empty nodes in the `AccountTreeController` state.
 
