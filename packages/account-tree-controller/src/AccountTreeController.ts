@@ -15,7 +15,6 @@ import type {
   AccountTreeControllerState,
 } from './types';
 import type { AccountWalletObject } from './wallet';
-import { AccountTreeWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -253,19 +252,19 @@ export class AccountTreeController extends BaseController<
     }
   }
 
-  getAccountWallet(walletId: AccountWalletId): AccountTreeWallet | undefined {
+  getAccountWalletObject(
+    walletId: AccountWalletId,
+  ): AccountWalletObject | undefined {
     const wallet = this.state.accountTree.wallets[walletId];
     if (!wallet) {
       return undefined;
     }
 
-    return new AccountTreeWallet({ messenger: this.messagingSystem, wallet });
+    return wallet;
   }
 
-  getAccountWallets(): AccountTreeWallet[] {
-    return Object.values(this.state.accountTree.wallets).map((wallet) => {
-      return new AccountTreeWallet({ messenger: this.messagingSystem, wallet });
-    });
+  getAccountWalletObjects(): AccountWalletObject[] {
+    return Object.values(this.state.accountTree.wallets);
   }
 
   #handleAccountAdded(account: InternalAccount) {
