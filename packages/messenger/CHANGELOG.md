@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `Namespace` type parameter and required `namespace` constructor parameter ([#6132](https://github.com/MetaMask/core/pull/6132))
   - All published events and registered actions should fall under the given namespace. Typically the namespace is the controller or service name. This is the equivalent to the `Namespace` parameter from the old `RestrictedMessenger` class.
+- **BREAKING:** The `type` property of `ActionConstraint` and `EventConstraint` is now a `NamespacedName` rather than a string ([#6132](https://github.com/MetaMask/core/pull/6132))
 
 ### Removed
 
