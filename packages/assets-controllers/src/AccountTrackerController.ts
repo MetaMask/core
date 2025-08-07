@@ -370,7 +370,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         // Force fresh block data before multicall
         // TODO: This is a temporary fix to ensure that the block number is up to date.
         // We should remove this once we have a better solution for this on the block tracker controller.
-        await blockTracker?.checkForLatestBlock?.();
+        await safelyExecuteWithTimeout(() =>
+          blockTracker?.checkForLatestBlock?.(),
+        );
 
         const stakedBalancesPromise = this.#includeStakedAssets
           ? this.#getStakedBalanceForChain(accountsToUpdate, networkClientId)
@@ -387,15 +389,22 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
             new Web3Provider(provider),
           );
 
-          const nativeBalances = await contract.balances(accountsToUpdate, [
-            '0x0000000000000000000000000000000000000000',
-          ]);
+          const nativeBalances = await safelyExecuteWithTimeout(
+            () =>
+              contract.balances(accountsToUpdate, [
+                '0x0000000000000000000000000000000000000000',
+              ]) as Promise<BigNumber[]>,
+            false,
+            3_000, // 3s max call for multicall contract call
+          );
 
-          accountsToUpdate.forEach((address, index) => {
-            accountsForChain[address] = {
-              balance: (nativeBalances[index] as BigNumber).toHexString(),
-            };
-          });
+          if (nativeBalances) {
+            accountsToUpdate.forEach((address, index) => {
+              accountsForChain[address] = {
+                balance: nativeBalances[index].toHexString(),
+              };
+            });
+          }
         } else {
           // Process accounts in batches using reduceInBatchesSerially
           await reduceInBatchesSerially<string, void>({
@@ -423,17 +432,19 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
           });
         }
 
-        const stakedBalanceResult = (await stakedBalancesPromise) as Record<
-          string,
-          StakedBalance
-        >;
+        const stakedBalanceResult = await safelyExecuteWithTimeout(
+          async () =>
+            (await stakedBalancesPromise) as Record<string, StakedBalance>,
+        );
 
-        Object.entries(stakedBalanceResult).forEach(([address, balance]) => {
-          accountsForChain[address] = {
-            ...accountsForChain[address],
-            stakedBalance: balance,
-          };
-        });
+        Object.entries(stakedBalanceResult ?? {}).forEach(
+          ([address, balance]) => {
+            accountsForChain[address] = {
+              ...accountsForChain[address],
+              stakedBalance: balance,
+            };
+          },
+        );
 
         // After all batches are processed, return the updated data
         return { chainId, accountsForChain };
