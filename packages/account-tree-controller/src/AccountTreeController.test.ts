@@ -1212,9 +1212,11 @@ describe('AccountTreeController', () => {
   });
 
   describe('AccountTreeGroup', () => {
-    it('gets accounts from an account group', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
+    const setupGroup = ({
+      accounts = [MOCK_HD_ACCOUNT_1],
+    }: { accounts?: InternalAccount[] } = {}) => {
+      const { controller, mocks } = setup({
+        accounts,
         keyrings: [MOCK_HD_KEYRING_1],
       });
       controller.init();
@@ -1227,6 +1229,13 @@ describe('AccountTreeController', () => {
       expect(groups).toHaveLength(1);
 
       const group = groups[0];
+
+      return { group, controller, mocks };
+    };
+
+    it('gets accounts from an account group', () => {
+      const { group } = setupGroup();
+
       expect(group.id).toBeDefined();
       expect(group.wallet).toBeDefined();
       expect(group.name).toBeDefined();
@@ -1239,16 +1248,7 @@ describe('AccountTreeController', () => {
     });
 
     it('throws if an account cannot be resolved', () => {
-      const { controller, mocks } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-      controller.init();
-
-      const wallets = controller.getAccountWallets();
-      const wallet = wallets[0];
-      const groups = wallet.getAccountGroups();
-      const group = groups[0];
+      const { group, mocks } = setupGroup();
 
       const accountIds = group.getAccountIds();
       expect(accountIds).toHaveLength(1);
@@ -1259,45 +1259,46 @@ describe('AccountTreeController', () => {
       );
     });
 
-    it('gets the only account from a group', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+    it('gets one account using a selector', () => {
+      const { group } = setupGroup();
 
-      const account = MOCK_HD_ACCOUNT_1;
-      const wallet = new AccountTreeWallet({
-        messenger,
-        wallet: {
-          id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.simple),
-          type: AccountWalletType.Keyring,
-          groups: {},
-          metadata: {
-            name: '',
-            keyring: {
-              type: KeyringTypes.simple,
-            },
-          },
-        },
-      });
-      const group = new AccountTreeGroup({
-        messenger,
-        wallet,
-        group: {
-          id: toAccountGroupId(wallet.id, 'bad'),
-          type: AccountGroupType.SingleAccount,
-          accounts: [account.id],
-          metadata: {
-            name: '',
-            pinned: false,
-            hidden: false,
-          },
-        },
+      expect(group.get({ scopes: [EthScope.Mainnet] })).toBe(MOCK_HD_ACCOUNT_1);
+    });
+
+    it('gets no account if selector did not match', () => {
+      const { group } = setupGroup();
+
+      expect(group.get({ scopes: [SolScope.Mainnet] })).toBeUndefined();
+    });
+
+    it('throws if too many accounts are matching selector', () => {
+      const { group } = setupGroup({
+        accounts: [MOCK_HD_ACCOUNT_2, MOCK_HD_ACCOUNT_2],
       });
 
-      rootMessenger.registerActionHandler(
-        'AccountsController:getAccount',
-        () => account,
+      expect(() => group.get({ scopes: [EthScope.Mainnet] })).toThrow(
+        'Too many account candidates, expected 1, got: 2',
       );
-      expect(group.getOnlyAccount()).toBe(account);
+    });
+
+    it('selects accounts using a selector', () => {
+      const { group } = setupGroup();
+
+      expect(group.select({ scopes: [EthScope.Mainnet] })).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+    });
+
+    it('selects no account if selector did not match', () => {
+      const { group } = setupGroup();
+
+      expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
+    });
+
+    it('gets the only account from a group', () => {
+      const { group } = setupGroup({ accounts: [MOCK_HARDWARE_ACCOUNT_1] });
+
+      expect(group.getOnlyAccount()).toBe(MOCK_HARDWARE_ACCOUNT_1);
     });
 
     it('throws if the group has more than 1 account when calling getOnlyAccount', () => {

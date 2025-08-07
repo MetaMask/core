@@ -2,10 +2,10 @@
 
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 
 export type MockAccountProvider = {
-  accounts: InternalAccount[];
+  accounts: KeyringAccount[];
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
@@ -13,7 +13,7 @@ export type MockAccountProvider = {
 };
 
 export function makeMockAccountProvider(
-  accounts: InternalAccount[] = [],
+  accounts: KeyringAccount[] = [],
 ): MockAccountProvider {
   return {
     accounts,
@@ -30,8 +30,8 @@ export function setupAccountProvider({
   filter = () => true,
 }: {
   mocks?: MockAccountProvider;
-  accounts: InternalAccount[];
-  filter?: (account: InternalAccount) => boolean;
+  accounts: KeyringAccount[];
+  filter?: (account: KeyringAccount) => boolean;
 }): MockAccountProvider {
   // You can mock this and all other mocks will re-use that list
   // of accounts.
@@ -44,7 +44,7 @@ export function setupAccountProvider({
 
   mocks.getAccounts.mockImplementation(getAccounts);
   mocks.getAccount.mockImplementation(
-    (id: Bip44Account<InternalAccount>['id']) =>
+    (id: Bip44Account<KeyringAccount>['id']) =>
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
