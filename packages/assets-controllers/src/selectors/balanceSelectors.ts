@@ -257,14 +257,15 @@ export const selectBalanceByAccountGroup = (groupId: string) =>
 
         if (isEvmAccount) {
           // Handle EVM account balances from TokenBalancesController
-          // Structure: tokenBalances[chainId][accountAddress][tokenAddress] = balance
-          for (const [chainId, chainBalances] of Object.entries(
-            tokenBalancesState.tokenBalances,
-          )) {
-            const accountBalances = chainBalances[account.address as Hex];
-            if (accountBalances) {
+          // Structure: tokenBalances[accountAddress][chainId][tokenAddress] = balance
+          const accountBalances =
+            tokenBalancesState.tokenBalances[account.address as Hex];
+          if (accountBalances) {
+            for (const [chainId, chainBalances] of Object.entries(
+              accountBalances,
+            )) {
               for (const [tokenAddress, balance] of Object.entries(
-                accountBalances,
+                chainBalances,
               )) {
                 // Find token in TokensController state
                 const chainTokens = tokensState.allTokens[chainId as Hex];

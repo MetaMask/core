@@ -102,26 +102,24 @@ const createBaseMockState = (userCurrency = 'USD') => ({
   },
   TokenBalancesController: {
     tokenBalances: {
-      '0x1': {
-        '0x1234567890123456789012345678901234567890': {
+      '0x1234567890123456789012345678901234567890': {
+        '0x1': {
           '0x1234567890123456789012345678901234567890': '0x5f5e100', // 100 USDC (6 decimals) = 100000000
           '0x2345678901234567890123456789012345678901': '0xbebc200', // 200 USDT (6 decimals) = 200000000
         },
-        '0x2345678901234567890123456789012345678901': {
-          '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': '0x56bc75e2d63100000', // 100 DAI (18 decimals)
-          '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': '0xde0b6b3a7640000', // 1 WETH (18 decimals)
-        },
-      },
-      '0x89': {
-        '0x1234567890123456789012345678901234567890': {
+        '0x89': {
           '0x1234567890123456789012345678901234567890': '0x1dcd6500', // 500 USDC (6 decimals) = 500000000
           '0x2345678901234567890123456789012345678901': '0x3b9aca00', // 1000 USDT (6 decimals) = 1000000000
         },
-      },
-      '0xa4b1': {
-        '0x1234567890123456789012345678901234567890': {
+        '0xa4b1': {
           '0x1234567890123456789012345678901234567890': '0x2faf080', // 50 USDC (6 decimals) = 50000000
           '0x2345678901234567890123456789012345678901': '0x8f0d180', // 150 USDT (6 decimals) = 150000000
+        },
+      },
+      '0x2345678901234567890123456789012345678901': {
+        '0x1': {
+          '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': '0x56bc75e2d63100000', // 100 DAI (18 decimals)
+          '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': '0xde0b6b3a7640000', // 1 WETH (18 decimals)
         },
       },
     },
@@ -604,9 +602,9 @@ describe('selectors', () => {
       // Add malformed balance data that would result in NaN
       (
         state.engine.backgroundState as any
-      ).TokenBalancesController.tokenBalances['0x1'][
+      ).TokenBalancesController.tokenBalances[
         '0x1234567890123456789012345678901234567890'
-      ]['0xA0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] =
+      ]['0x1']['0xA0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] =
         'invalid_hex_string' as `0x${string}`;
 
       // Add another malformed balance for non-EVM account
