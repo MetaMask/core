@@ -58,7 +58,7 @@ export type SelectorFunction<
   EventType extends Event['type'],
   ReturnValue,
 > = (...args: ExtractEventPayload<Event, EventType>) => ReturnValue;
-export type SelectorEventHandler<SelectorReturnValue> = (
+export type SelectorEventHandler<SelectorReturnValue = unknown> = (
   newValue: SelectorReturnValue,
   previousValue: SelectorReturnValue | undefined,
 ) => void;
@@ -382,7 +382,7 @@ export class Messenger<
    */
   unsubscribe<EventType extends Event['type']>(
     eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+    handler: ExtractEventHandler<Event, EventType> | SelectorEventHandler,
   ) {
     const subscribers = this.#events.get(eventType);
 
