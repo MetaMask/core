@@ -924,3 +924,428 @@ describe('state structure compatibility', () => {
     expect(result?.groupId).toBe('entropy:entropy-source-1/0');
   });
 });
+
+describe('edge cases and error handling', () => {
+  it('handles missing controller state gracefully', () => {
+    const state = createMockState('USD');
+    // Set TokenBalancesController to have empty structure instead of undefined
+    (state.engine.backgroundState as any).TokenBalancesController = {
+      tokenBalances: {},
+    };
+
+    const result = selectBalanceForAllWallets()(state);
+
+    // Should still return a valid structure even with empty controller
+    expect(result).toBeDefined();
+    expect(result.wallets).toBeDefined();
+    expect(result.totalBalanceInUserCurrency).toBe(0);
+    expect(result.userCurrency).toBe('USD');
+  });
+
+  it('handles NaN balance values in EVM accounts', () => {
+    const state = createMockState('USD');
+
+    // Add a balance that will result in NaN when parsed
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xNaNToken'] = '0xinvalid' as `0x${string}`;
+
+    // Add corresponding token with invalid decimals
+    (state.engine.backgroundState as any).TokensController.allTokens['0x1'][
+      '0x1234567890123456789012345678901234567890'
+    ].push({
+      address: '0xNaNToken',
+      decimals: 'invalid' as any, // This will cause NaN in calculation
+      symbol: 'NAN',
+      name: 'NaN Token',
+    });
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should skip the NaN balance and return valid result
+    expect(result.totalBalanceInUserCurrency).toBe(4493.8);
+  });
+
+  it('handles NaN balance values in non-EVM accounts', () => {
+    const state = createMockState('USD');
+
+    // Add non-EVM account with invalid balance
+    (
+      state.engine.backgroundState as any
+    ).AccountsController.internalAccounts.accounts['account-6'] = {
+      id: 'account-6',
+      address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
+      type: 'solana:eoa',
+      options: {},
+      metadata: {
+        name: 'Solana Account',
+        keyring: { type: 'hd' },
+        importTime: 1234567890,
+      },
+      scopes: ['solana:mainnet'],
+      methods: ['solana_signTransaction', 'solana_signMessage'],
+    };
+
+    // Add the account to group 0
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push('account-6');
+
+    // Add invalid balance data that will result in NaN
+    (state.engine.backgroundState as any).MultichainBalancesController.balances[
+      'account-6'
+    ] = {
+      'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc': {
+        amount: 'not_a_number',
+        unit: 'SOL',
+      },
+    };
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should skip the NaN balance and return valid result
+    expect(result.totalBalanceInUserCurrency).toBe(4493.8);
+  });
+
+  it('handles NaN conversion rate values in non-EVM accounts', () => {
+    const state = createMockState('USD');
+
+    // Add non-EVM account
+    (
+      state.engine.backgroundState as any
+    ).AccountsController.internalAccounts.accounts['account-7'] = {
+      id: 'account-7',
+      address: 'FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc',
+      type: 'solana:eoa',
+      options: {},
+      metadata: {
+        name: 'Solana Account',
+        keyring: { type: 'hd' },
+        importTime: 1234567890,
+      },
+      scopes: ['solana:mainnet'],
+      methods: ['solana_signTransaction', 'solana_signMessage'],
+    };
+
+    // Add the account to group 0
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push('account-7');
+
+    // Add valid balance data
+    (state.engine.backgroundState as any).MultichainBalancesController.balances[
+      'account-7'
+    ] = {
+      'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc': {
+        amount: '10.0',
+        unit: 'SOL',
+      },
+    };
+
+    // Add invalid conversion rate that will result in NaN
+    (
+      state.engine.backgroundState as any
+    ).MultichainAssetsRatesController.conversionRates[
+      'solana:mainnet/solana:FzQ4QJBjRA9p7kqpGgWGEYYhYqF8r2VG3vR2CzPq8dYc'
+    ] = {
+      rate: 'not_a_number',
+      conversionTime: 1234567890,
+    };
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should skip the NaN conversion rate and return valid result
+    expect(result.totalBalanceInUserCurrency).toBe(4493.8);
+  });
+
+  it('handles missing wallet in selectBalanceForSelectedAccountGroup', () => {
+    const state = createMockState('USD');
+
+    // Set selected account group to a non-existent wallet
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.selectedAccountGroup =
+      'non-existent-wallet/0';
+
+    const result = selectBalanceForSelectedAccountGroup()(state);
+
+    expect(result).toStrictEqual({
+      walletId: 'non-existent-wallet',
+      groupId: 'non-existent-wallet/0',
+      totalBalanceInUserCurrency: 0,
+      userCurrency: 'USD',
+    });
+  });
+
+  it('handles missing group in selectBalanceForSelectedAccountGroup', () => {
+    const state = createMockState('USD');
+
+    // Set selected account group to a non-existent group in existing wallet
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.selectedAccountGroup =
+      'entropy:entropy-source-1/999';
+
+    const result = selectBalanceForSelectedAccountGroup()(state);
+
+    expect(result).toStrictEqual({
+      walletId: 'entropy:entropy-source-1',
+      groupId: 'entropy:entropy-source-1/999',
+      totalBalanceInUserCurrency: 0,
+      userCurrency: 'USD',
+    });
+  });
+
+  it('handles empty groups in wallet', () => {
+    const state = createMockState('USD');
+
+    // Add a wallet with no groups
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets['empty-wallet'] = {
+      id: 'empty-wallet',
+      type: AccountWalletType.Entropy,
+      metadata: {
+        name: 'Empty Wallet',
+        entropy: {
+          id: 'empty-source',
+          index: 0,
+        },
+      },
+      groups: {},
+    };
+
+    const result = selectBalanceForAllWallets()(state);
+
+    // Should include the empty wallet with zero balance
+    expect(result.wallets['empty-wallet']).toBeDefined();
+    expect(result.wallets['empty-wallet'].totalBalanceInUserCurrency).toBe(0);
+    expect(result.wallets['empty-wallet'].groups).toStrictEqual({});
+  });
+
+  it('handles groups with no accounts', () => {
+    const state = createMockState('USD');
+
+    // Add a group with no accounts
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/empty'] = {
+      id: 'entropy:entropy-source-1/empty',
+      type: AccountGroupType.MultichainAccount,
+      accounts: [], // Empty accounts array
+      metadata: {
+        name: 'Empty Group',
+        pinned: false,
+        hidden: false,
+        entropy: { groupIndex: 999 },
+      },
+    };
+
+    const result = selectBalanceByAccountGroup(
+      'entropy:entropy-source-1/empty',
+    )(state);
+
+    expect(result).toStrictEqual({
+      walletId: 'entropy:entropy-source-1',
+      groupId: 'entropy:entropy-source-1/empty',
+      totalBalanceInUserCurrency: 0,
+      userCurrency: 'USD',
+    });
+  });
+
+  it('handles missing token in TokensController state', () => {
+    const state = createMockState('USD');
+
+    // Add a balance for a token that doesn't exist in TokensController
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xMissingToken'] = '0x5f5e100' as `0x${string}`;
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should skip the missing token and return valid result
+    expect(result.totalBalanceInUserCurrency).toBe(4493.8);
+  });
+
+  it('handles missing market data for tokens', () => {
+    const state = createMockState('USD');
+
+    // Add a token without market data
+    (state.engine.backgroundState as any).TokensController.allTokens['0x1'][
+      '0x1234567890123456789012345678901234567890'
+    ].push({
+      address: '0xNoMarketData',
+      decimals: 18,
+      symbol: 'NMD',
+      name: 'No Market Data Token',
+    });
+
+    // Add balance for the token
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      '0x1234567890123456789012345678901234567890'
+    ]['0x1']['0xNoMarketData'] = '0x5f5e100' as `0x${string}`;
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should skip the token without market data and return valid result
+    expect(result.totalBalanceInUserCurrency).toBe(4493.8);
+  });
+
+  it('handles missing conversion rates for native currencies', () => {
+    const state = createMockState('USD');
+
+    // Remove conversion rates
+    delete (state.engine.backgroundState as any).CurrencyRateController
+      .currencyRates.ETH;
+    delete (state.engine.backgroundState as any).CurrencyRateController
+      .currencyRates.MATIC;
+    delete (state.engine.backgroundState as any).CurrencyRateController
+      .currencyRates.ARB;
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should return zero when no conversion rates are available
+    expect(result).toStrictEqual({
+      walletId: 'entropy:entropy-source-1',
+      groupId: 'entropy:entropy-source-1/0',
+      totalBalanceInUserCurrency: 0,
+      userCurrency: 'USD',
+    });
+  });
+
+  it('handles accounts with missing account data', () => {
+    const state = createMockState('USD');
+
+    // Add an account ID to a group but don't add the actual account data
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push('missing-account');
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should filter out missing accounts and return valid result
+    expect(result.totalBalanceInUserCurrency).toBe(4493.8);
+  });
+
+  it('handles wallet with no groups property', () => {
+    const state = createMockState('USD');
+
+    // Add a wallet with undefined groups property
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets['undefined-groups-wallet'] = {
+      id: 'undefined-groups-wallet',
+      type: AccountWalletType.Entropy,
+      metadata: {
+        name: 'Undefined Groups Wallet',
+        entropy: {
+          id: 'undefined-groups-source',
+          index: 0,
+        },
+      },
+      groups: undefined, // This will trigger the fallback
+    };
+
+    const result = selectBalanceForAllWallets()(state);
+
+    // Should handle undefined groups property
+    expect(result.wallets['undefined-groups-wallet']).toBeDefined();
+    expect(
+      result.wallets['undefined-groups-wallet'].totalBalanceInUserCurrency,
+    ).toBe(0);
+    expect(result.wallets['undefined-groups-wallet'].groups).toStrictEqual({});
+  });
+
+  it('handles missing wallet in getInternalAccountsForGroup', () => {
+    const state = createMockState('USD');
+
+    // Remove the wallet to test the wallet not found case (line 189)
+    delete (state.engine.backgroundState as any).AccountTreeController
+      .accountTree.wallets['entropy:entropy-source-1'];
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should return zero balance when wallet doesn't exist
+    expect(result).toStrictEqual({
+      walletId: 'entropy:entropy-source-1',
+      groupId: 'entropy:entropy-source-1/0',
+      totalBalanceInUserCurrency: 0,
+      userCurrency: 'USD',
+    });
+  });
+
+  it('handles missing group in getInternalAccountsForGroup', () => {
+    const state = createMockState('USD');
+
+    // Remove the group to test the group not found case (line 194)
+    delete (state.engine.backgroundState as any).AccountTreeController
+      .accountTree.wallets['entropy:entropy-source-1'].groups[
+      'entropy:entropy-source-1/0'
+    ];
+
+    const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+      state,
+    );
+
+    // Should return zero balance when group doesn't exist
+    expect(result).toStrictEqual({
+      walletId: 'entropy:entropy-source-1',
+      groupId: 'entropy:entropy-source-1/0',
+      totalBalanceInUserCurrency: 0,
+      userCurrency: 'USD',
+    });
+  });
+
+  it('handles missing wallet in selectBalanceForAllWallets', () => {
+    const state = createMockState('USD');
+
+    // Add a wallet with no groups to test the wallet.groups || {} fallback (line 249)
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets['no-groups-wallet'] = {
+      id: 'no-groups-wallet',
+      type: AccountWalletType.Entropy,
+      metadata: {
+        name: 'No Groups Wallet',
+        entropy: {
+          id: 'no-groups-source',
+          index: 0,
+        },
+      },
+      // No groups property - should use fallback
+    };
+
+    const result = selectBalanceForAllWallets()(state);
+
+    // Should handle wallet with no groups property
+    expect(result.wallets['no-groups-wallet']).toBeDefined();
+    expect(result.wallets['no-groups-wallet'].totalBalanceInUserCurrency).toBe(
+      0,
+    );
+    expect(result.wallets['no-groups-wallet'].groups).toStrictEqual({});
+  });
+});
