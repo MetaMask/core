@@ -141,11 +141,7 @@ export class Messenger<
    * The parent messenger. All actions/events under this namespace are automatically delegated to
    * the parent messenger.
    */
-  readonly #parent?: Messenger<
-    string,
-    Action | ActionConstraint,
-    Event | EventConstraint
-  >;
+  readonly #parent?: DelegatedMessenger<Action, Event>;
 
   readonly #actions = new Map<Action['type'], Action['handler']>();
 
@@ -203,11 +199,7 @@ export class Messenger<
     parent,
   }: {
     namespace: Namespace;
-    parent?: Messenger<
-      string,
-      Action | ActionConstraint,
-      Event | EventConstraint
-    >;
+    parent?: DelegatedMessenger<Action, Event>;
   }) {
     this.#namespace = namespace;
     this.#parent = parent;
