@@ -65,7 +65,6 @@ export type AccountWalletEntropyObject = {
   metadata: AccountTreeWalletMetadata & {
     entropy: {
       id: EntropySourceId;
-      index: number;
     };
   };
 };

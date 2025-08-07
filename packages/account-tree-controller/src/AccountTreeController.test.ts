@@ -440,7 +440,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -480,7 +479,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 2',
                 entropy: {
                   id: MOCK_HD_KEYRING_2.metadata.id,
-                  index: 1,
                 },
               },
             },
@@ -716,7 +714,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -785,7 +782,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -890,7 +886,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -977,7 +972,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -1004,7 +998,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 2',
                 entropy: {
                   id: MOCK_HD_KEYRING_2.metadata.id,
-                  index: 1,
                 },
               },
             },
