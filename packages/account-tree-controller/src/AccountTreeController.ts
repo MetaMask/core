@@ -23,7 +23,8 @@ import {
 } from './account-syncing/controller-utils';
 import {
   createLocalGroupsFromUserStorage,
-  performLegacyAccountSyncingAndResolvePotentialConflicts,
+  disableLegacyAccountSyncingForAllWallets,
+  performLegacyAccountSyncing,
   syncGroupsMetadata,
   syncWalletMetadata,
 } from './account-syncing/syncing';
@@ -890,6 +891,9 @@ export class AccountTreeController extends BaseController<
 
     // Encapsulate the sync logic in a function to allow tracing
     const bigSyncFn = async () => {
+      // Do only once, since legacy account syncing iterates over all wallets
+      let hasLegacyAccountSyncingBeenPerformed = false;
+
       try {
         this.update((state) => {
           state.isAccountSyncingInProgress = true;
@@ -923,22 +927,17 @@ export class AccountTreeController extends BaseController<
             // 2.1 Decide if we need to perform legacy account syncing
             if (
               !walletFromUserStorage ||
-              !walletFromUserStorage.isLegacyAccountSyncingDisabled
+              (!walletFromUserStorage.isLegacyAccountSyncingDisabled &&
+                !hasLegacyAccountSyncingBeenPerformed)
             ) {
-              // 2.2 Perform legacy account syncing and resolve potential conflicts
+              // 2.2 Perform legacy account syncing
               // This will also update the `isLegacyAccountSyncingDisabled` remote flag for all wallets.
 
               // This might add new InternalAccounts and / or update existing ones' names.
               // This in turn will be picked up by our `#handleAccountAdded` and `#handleAccountRenamed` methods
               // to update the account tree.
-              // This can create potential conflicts with existing local groups, so we need to resolve them.
-              await performLegacyAccountSyncingAndResolvePotentialConflicts(
-                context,
-                {
-                  getEntropyRule: this.#getEntropyRule.bind(this),
-                  listAccounts: this.#listAccounts.bind(this),
-                },
-              );
+              await performLegacyAccountSyncing(context);
+              hasLegacyAccountSyncingBeenPerformed = true;
 
               const isMultichainAccountSyncingEnabled = context.messenger.call(
                 'UserStorageController:getIsMultichainAccountSyncingEnabled',
@@ -954,6 +953,14 @@ export class AccountTreeController extends BaseController<
                 return;
               }
             }
+
+            // If we reach this point, we are either:
+            // 1. Not performing legacy account syncing at all (new wallets)
+            // 2. Legacy account syncing has been performed and we are now ready to proceed with
+            //    multichain account syncing.
+            // 2.3 Disable legacy account syncing for all wallets
+            // This will ensure that we do not perform legacy account syncing again in the future for these wallets.
+            await disableLegacyAccountSyncingForAllWallets(context);
 
             // 3. Execute multichain account syncing
             // 3.1 Wallet syncing
