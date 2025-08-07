@@ -66,6 +66,8 @@ export type AccountContext = {
   groupId: AccountGroupObject['id'];
 };
 
+const DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX = /^Account ([0-9]+)$/u;
+
 export class AccountTreeController extends BaseController<
   typeof controllerName,
   AccountTreeControllerState,
@@ -324,6 +326,10 @@ export class AccountTreeController extends BaseController<
   }
 
   #handleAccountRenamed(account: InternalAccount) {
+    // We only consider HD and simple EVM accounts for the moment as they have
+    // an higher priority over others when it comes to naming.
+    // (Similar logic than `EntropyRule.getDefaultAccountGroupName`).
+    // TODO: Rename other kind of accounts, but we need to compute their "default name" with custom prefixes.
     if (!isEvmAccountType(account.type)) {
       return;
     }
@@ -337,12 +343,11 @@ export class AccountTreeController extends BaseController<
       if (wallet) {
         const group = wallet.groups[groupId];
         if (group) {
-          const isDefaultNameRegex = /^Account ([0-9]+)$/u;
-
-          const isAccountNameDefault = isDefaultNameRegex.test(
-            account.metadata.name,
-          );
-          const isGroupNameDefault = isDefaultNameRegex.test(
+          // We both use the same naming conventions for HD and simple accounts,
+          // so we can use the same regex to check if the name is a default one.
+          const isAccountNameDefault =
+            DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX.test(account.metadata.name);
+          const isGroupNameDefault = DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX.test(
             group.metadata.name,
           );
 
