@@ -807,6 +807,8 @@ export class AccountTreeController extends BaseController<
    * This method performs a comprehensive sync operation that:
    * 1. Identifies all local entropy wallets that can be synchronized
    * 2. Performs legacy account syncing if needed (for backwards compatibility)
+   * - Resolves potential name conflicts by comparing timestamps to preserve more recent local group names over legacy synced names
+   * - Disables subsequent legacy account syncing by setting a flag in the state
    * 3. Executes multichain account syncing for each wallet:
    * - Syncs wallet metadata bidirectionally
    * - Creates missing local groups from user storage data
