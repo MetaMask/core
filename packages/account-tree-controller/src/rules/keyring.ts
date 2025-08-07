@@ -3,9 +3,10 @@ import { AccountWalletType } from '@metamask/account-api';
 import { toAccountGroupId, toAccountWalletId } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountWalletObjectOf } from 'src/wallet';
 
+import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
+import type { AccountWalletObjectOf } from '../wallet';
 
 /**
  * Get wallet name from a keyring type.
@@ -92,5 +93,18 @@ export class KeyringRule
     wallet: AccountWalletObjectOf<AccountWalletType.Keyring>,
   ): string {
     return getAccountWalletNameFromKeyringType(wallet.metadata.keyring.type);
+  }
+
+  getComputedAccountGroupName(
+    group: AccountGroupObjectOf<AccountGroupType.SingleAccount>,
+  ): string {
+    return super.getComputedAccountGroupName(group);
+  }
+
+  getDefaultAccountGroupName(
+    group: AccountGroupObjectOf<AccountGroupType.SingleAccount>,
+    index?: number,
+  ): string {
+    return super.getDefaultAccountGroupName(group, index);
   }
 }

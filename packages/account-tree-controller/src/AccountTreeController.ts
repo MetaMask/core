@@ -1,4 +1,8 @@
-import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import type {
+  AccountGroupId,
+  AccountWalletId,
+  AccountGroupType,
+} from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
@@ -7,6 +11,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
+import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
@@ -14,7 +19,7 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
-import type { AccountWalletObject } from './wallet';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 import { AccountTreeWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
@@ -73,6 +78,8 @@ export class AccountTreeController extends BaseController<
   AccountTreeControllerState,
   AccountTreeControllerMessenger
 > {
+  readonly #serviceStartTime = Date.now();
+
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
@@ -86,6 +93,7 @@ export class AccountTreeController extends BaseController<
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
    */
+
   constructor({
     messenger,
     state,
@@ -215,6 +223,42 @@ export class AccountTreeController extends BaseController<
     }
   }
 
+  #getRuleForWallet<WalletType extends AccountWalletType>(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): Rule<WalletType, AccountGroupType> {
+    switch (wallet.type) {
+      case AccountWalletType.Entropy:
+        return this.#getEntropyRule() as unknown as Rule<
+          WalletType,
+          AccountGroupType
+        >;
+      case AccountWalletType.Snap:
+        return this.#getSnapRule() as unknown as Rule<
+          WalletType,
+          AccountGroupType
+        >;
+      default:
+        return this.#getKeyringRule() as unknown as Rule<
+          WalletType,
+          AccountGroupType
+        >;
+    }
+  }
+
+  #isNewGroup(group: AccountGroupObject): boolean {
+    // Check if any account in the group was created after service start
+    for (const id of group.accounts) {
+      const account = this.messagingSystem.call(
+        'AccountsController:getAccount',
+        id,
+      );
+      if (account && account.metadata.importTime > this.#serviceStartTime) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   #applyAccountGroupMetadata(
     wallet: AccountWalletObject,
     group: AccountGroupObject,
@@ -225,23 +269,20 @@ export class AccountTreeController extends BaseController<
     if (persistedMetadata?.name !== undefined) {
       group.metadata.name = persistedMetadata.name.value;
     } else if (!group.metadata.name) {
-      // Generate default name if none exists
-      if (wallet.type === AccountWalletType.Entropy) {
-        group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
-          // Get the group from the wallet, to get the proper type inference.
-          wallet.groups[group.id],
-        );
-      } else if (wallet.type === AccountWalletType.Snap) {
-        group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
-          // Same here.
-          wallet.groups[group.id],
-        );
-      } else {
-        group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
-          // Same here.
-          wallet.groups[group.id],
-        );
-      }
+      // Sort group IDs for consistent ordering
+      const sortedGroupIds = Object.keys(wallet.groups).sort();
+      const groupIndex = sortedGroupIds.indexOf(group.id);
+
+      // Get the appropriate rule for this wallet type
+      const rule = this.#getRuleForWallet(wallet);
+      const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
+      const typedGroup = typedWallet.groups[group.id];
+
+      // For new groups, use default naming. For existing groups, try computed name first
+      group.metadata.name = this.#isNewGroup(group)
+        ? rule.getDefaultAccountGroupName(typedGroup, groupIndex)
+        : rule.getComputedAccountGroupName(typedGroup) ||
+          rule.getDefaultAccountGroupName(typedGroup, groupIndex);
     }
 
     // Apply persisted UI states
