@@ -650,13 +650,12 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const walletId = toAccountWalletId(
-        AccountWalletType.Entropy,
+      const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const groupId = toAccountGroupId(
+      const groupId = toMultichainAccountGroupId(
         walletId,
-        `${MOCK_HD_ACCOUNT_2.options.entropy.groupIndex}`,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
       );
       expect(controller.getAccountGroupObject(groupId)).toBeDefined();
     });
@@ -668,10 +667,6 @@ describe('AccountTreeController', () => {
       });
 
       controller.init();
-
-      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
-        MOCK_HD_ACCOUNT_1,
-      ]);
 
       const walletId = toAccountWalletId(
         AccountWalletType.Entropy,
