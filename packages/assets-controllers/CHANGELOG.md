@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
 
+### Removed
+
+- **BREAKING:** Remove `NftController` property `openSeaApiKey` and method `setApiKey` ([#5088](https://github.com/MetaMask/core/pull/5088))
+  - This key was not actively used. No functional changes.
+
 ### Fixed
 
 - Correct the polling rate for the DeFiPositionsController from 1 minute to 10 minutes. ([#6242](https://github.com/MetaMask/core/pull/6242))
@@ -525,11 +530,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix multicall revert in `TokenBalancesController` ([#5083](https://github.com/MetaMask/core/pull/5083))
   - `TokenBalancesController` was fixed to fetch erc20 token balances even if there's an invalid token in state whose address does not point to a smart contract.
 - Fix state changes for `ignoreTokens` for non-selected networks ([#5014](https://github.com/MetaMask/core/pull/5014))
-
-### Removed
-
-- **BREAKING:** Remove `NftController` property `openSeaApiKey` and method `setApiKey` ([#5088](https://github.com/MetaMask/core/pull/5088))
-  - This key was not actively used. No functional changes.
 
 ## [45.1.2]
 
