@@ -1916,10 +1916,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.revokeToken - The revoke token to remove.
    */
   #removePendingRefreshToken({ revokeToken }: { revokeToken: string }) {
-    if (!this.state.pendingToBeRevokedTokens) {
-      return;
-    }
-
     this.update((state) => {
       state.pendingToBeRevokedTokens = state.pendingToBeRevokedTokens?.filter(
         (token) => token.revokeToken !== revokeToken,

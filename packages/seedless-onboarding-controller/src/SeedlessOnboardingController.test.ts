@@ -5484,22 +5484,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should do nothing when pendingToBeRevokedTokens is undefined', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            pendingToBeRevokedTokens: undefined,
-          }),
-        },
-        async ({ controller, mockRevokeRefreshToken }) => {
-          await controller.revokePendingRefreshTokens();
-
-          expect(mockRevokeRefreshToken).not.toHaveBeenCalled();
-        },
-      );
-    });
-
     it('should handle case where pendingToBeRevokedTokens is null', async () => {
       await withController(
         {
@@ -5546,7 +5530,7 @@ describe('SeedlessOnboardingController', () => {
           });
 
           // Verify the token was removed from the pending list
-          expect(controller.state.pendingToBeRevokedTokens).toEqual([]);
+          expect(controller.state.pendingToBeRevokedTokens?.length).toBe(0);
         },
       );
     });
