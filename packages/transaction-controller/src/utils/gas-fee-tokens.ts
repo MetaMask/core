@@ -129,6 +129,7 @@ function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
     fee: tokenFee.serviceFee,
     gas: feeLevel.gas,
     gasTransfer: tokenFee.transferEstimate,
+    isSponsored: tokenFee.isSponsored,
     maxFeePerGas: feeLevel.maxFeePerGas,
     maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
     rateWei: tokenFee.rateWei,

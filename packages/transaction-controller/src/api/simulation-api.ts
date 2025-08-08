@@ -175,6 +175,9 @@ export type SimulationResponseTokenFee = {
   /** Account address that token should be transferred to. */
   feeRecipient: Hex;
 
+  /** Whether the gas fee is sponsored meaning the transfer is not required. */
+  isSponsored?: boolean;
+
   /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
 
