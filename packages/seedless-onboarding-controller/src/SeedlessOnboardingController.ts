@@ -1288,10 +1288,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param encryptionKey - The optional encryption key to decrypt the vault.
    * @returns A promise that resolves to an object containing:
    */
-  async #decryptAndParseVaultData(
-    password?: string,
-    encryptionKey?: string,
-  ) {
+  async #decryptAndParseVaultData(password?: string, encryptionKey?: string) {
     let { vaultEncryptionKey, vaultEncryptionSalt } = this.state;
     const { vault: encryptedVault } = this.state;
 
@@ -1449,8 +1446,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.rawToprfEncryptionKey - The encryption key to encrypt the vault.
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
    * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
-   * @param params.revokeToken - The optional revoke token.
-   * @param params.shouldSetUnlocked - Whether to set the controller as unlocked. @default true
    */
   async #createNewVaultWithAuthData({
     password,
@@ -1465,7 +1460,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    const revokeToken = this.state.revokeToken;
+    const { revokeToken } = this.state;
     const accessToken = await this.#getAccessToken(password);
 
     const { toprfEncryptionKey, toprfPwEncryptionKey, toprfAuthKeyPair } =
