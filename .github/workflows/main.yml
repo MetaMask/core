@@ -40,6 +40,13 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
+  sonarcloud:
+    name: Sonar Analysis
+    needs: lint-build-test
+    uses: ./.github/workflows/sonarcloud.yml
+    permissions:
+      pull-requests: write
+
   is-release:
     name: Determine whether this is a release merge commit
     needs: lint-build-test
@@ -78,6 +85,7 @@ jobs:
     needs:
       - analyse-code
       - lint-build-test
+      - sonarcloud
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
     steps:
