@@ -179,6 +179,7 @@ export const processDomainList = (list: string[]) => {
  * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
+ * @param override.c2DomainBlocklistSet - the optional c2DomainBlocklist to override.
  * @returns the default phishing detector configuration.
  */
 export const getDefaultPhishingDetectorConfig = ({
@@ -192,6 +193,7 @@ export const getDefaultPhishingDetectorConfig = ({
   c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
+  c2DomainBlocklistSet?: Set<string>;
 }): PhishingDetectorConfiguration => ({
   allowlist: processDomainList(allowlist),
   blocklist: processDomainList(blocklist),

@@ -33,13 +33,13 @@ export type PhishingDetectorList = {
 
 export type FuzzyTolerance =
   | {
-      tolerance?: number;
-      fuzzylist: string[];
-    }
+    tolerance?: number;
+    fuzzylist: string[];
+  }
   | {
-      tolerance?: never;
-      fuzzylist?: never;
-    };
+    tolerance?: never;
+    fuzzylist?: never;
+  };
 
 export type PhishingDetectorOptions =
   | LegacyPhishingDetectorList
@@ -53,6 +53,7 @@ export type PhishingDetectorConfiguration = {
   c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
+  c2DomainBlocklistSet?: Set<string>;
 };
 
 export class PhishingDetector {
@@ -84,6 +85,7 @@ export class PhishingDetector {
           c2DomainBlocklist: opts.c2DomainBlocklist,
           fuzzylist: opts.fuzzylist,
           tolerance: opts.tolerance,
+          c2DomainBlocklistSet: new Set(opts.c2DomainBlocklist),
         }),
       ];
       this.#legacyConfig = true;
@@ -254,12 +256,12 @@ export class PhishingDetector {
     const hostnameHash = sha256Hash(hostname.toLowerCase());
     const domainsToCheck = generateParentDomains(sourceParts.reverse(), 5);
 
-    for (const { c2DomainBlocklist, name, version } of this.#configs) {
-      if (!c2DomainBlocklist || c2DomainBlocklist.length === 0) {
+    for (const { c2DomainBlocklistSet, name, version } of this.#configs) {
+      if (!c2DomainBlocklistSet || c2DomainBlocklistSet.size === 0) {
         continue;
       }
 
-      if (c2DomainBlocklist.includes(hostnameHash)) {
+      if (c2DomainBlocklistSet.has(hostnameHash)) {
         return {
           name,
           result: true,
@@ -270,7 +272,7 @@ export class PhishingDetector {
 
       for (const domain of domainsToCheck) {
         const domainHash = sha256Hash(domain);
-        if (c2DomainBlocklist.includes(domainHash)) {
+        if (c2DomainBlocklistSet.has(domainHash)) {
           return {
             name,
             result: true,
