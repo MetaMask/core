@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed `revokeRefreshToken` method ([#6272](https://github.com/MetaMask/core/pull/6272))
 
+### Fixed
+
+- Fixed the vault creation with incorrect revokeToken value after fetching new revoke token asynchronously. ([#6272](https://github.com/MetaMask/core/pull/6272))
+
 ## [2.5.0]
 
 ### Added
