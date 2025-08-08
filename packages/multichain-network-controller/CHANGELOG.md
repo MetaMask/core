@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.1]
 
-### Uncategorized
-
-- Release/479.0.0 ([#6194](https://github.com/MetaMask/core/pull/6194))
-- feat(multichain-account-service): re-sync multichain account and wallets on account events ([#6165](https://github.com/MetaMask/core/pull/6165))
-
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))

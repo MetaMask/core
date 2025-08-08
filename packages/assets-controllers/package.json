@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "73.1.0",
+  "version": "74.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -111,7 +111,7 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/account-tree-controller": "^0.0.0",
+    "@metamask/account-tree-controller": "^0.7.0",
     "@metamask/accounts-controller": "^32.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^22.0.0",
