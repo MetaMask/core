@@ -13,15 +13,15 @@ import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
 
-export type AllAssets = {
-  [accountGroupId: AccountGroupId]: GroupAssets;
+export type AssetsByAccountGroup = {
+  [accountGroupId: AccountGroupId]: AccountGroupAssets;
 };
 
-export type GroupAssets = {
-  [network: string]: SelectorAsset[];
+export type AccountGroupAssets = {
+  [network: string]: Asset[];
 };
 
-export type SelectorAsset = {
+export type Asset = {
   // TODO: It's unclear whether this type will be needed, ideally the UI should not need to know about it
   type: 'evm' | 'multichain';
   // TODO: This is the address for evm tokens and the assetId for multichain tokens
@@ -117,7 +117,7 @@ const selectAllEvmAssets = createSelector(
     currencyRates,
     currentCurrency,
   ) => {
-    const groupAssets: AllAssets = {};
+    const groupAssets: AssetsByAccountGroup = {};
 
     for (const [chainId, chainTokens] of Object.entries(evmTokens) as [
       Hex,
@@ -197,10 +197,10 @@ const selectAllMultichainAssets = createSelector(
     multichainAssetsMetadata,
     multichainBalances,
     multichainConversionRates,
-    currencyRates,
+    _currencyRates,
     currentCurrency,
   ) => {
-    const groupAssets: AllAssets = {};
+    const groupAssets: AssetsByAccountGroup = {};
 
     for (const [accountId, accountAssets] of Object.entries(multichainTokens)) {
       for (const assetId of accountAssets) {
@@ -264,13 +264,13 @@ const selectAllMultichainAssets = createSelector(
 export const selectAllAssets = createSelector(
   [selectAllEvmAssets, selectAllMultichainAssets],
   (evmAssets, multichainAssets) => {
-    const groupAssets: AllAssets = {
+    const groupAssets: AssetsByAccountGroup = {
       ...evmAssets,
     };
 
     for (const [accountGroupId, accountAssets] of Object.entries(
       multichainAssets,
-    ) as [AccountGroupId, GroupAssets][]) {
+    ) as [AccountGroupId, AccountGroupAssets][]) {
       const existingAssets = groupAssets[accountGroupId];
 
       if (!existingAssets) {

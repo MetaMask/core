@@ -1,8 +1,4 @@
-import type {
-  AccountWalletId,
-  Bip44Account,
-  MultichainAccountWalletId,
-} from '@metamask/account-api';
+import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -29,7 +25,6 @@ import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controlle
 
 import { AccountTreeController } from './AccountTreeController';
 import type { AccountGroupObject } from './group';
-import { AccountTreeGroup } from './group';
 import { BaseRule } from './rule';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
@@ -40,7 +35,6 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './types';
-import { AccountTreeWallet } from './wallet';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
@@ -223,6 +217,7 @@ function getAccountTreeControllerMessenger(
     name: 'AccountTreeController',
     allowedEvents: [
       'AccountsController:accountAdded',
+      'AccountsController:accountRenamed',
       'AccountsController:accountRemoved',
       'AccountsController:selectedAccountChange',
     ],
@@ -431,6 +426,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -438,7 +435,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -455,6 +451,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                 },
                 [expectedWalletId2Group2]: {
@@ -467,6 +465,8 @@ describe('AccountTreeController', () => {
                       groupIndex:
                         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -474,7 +474,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 2',
                 entropy: {
                   id: MOCK_HD_KEYRING_2.metadata.id,
-                  index: 1,
                 },
               },
             },
@@ -488,6 +487,8 @@ describe('AccountTreeController', () => {
                   accounts: [MOCK_SNAP_ACCOUNT_2.id],
                   metadata: {
                     name: MOCK_SNAP_ACCOUNT_2.metadata.name,
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -508,6 +509,8 @@ describe('AccountTreeController', () => {
                   accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
                   metadata: {
                     name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
+                    pinned: false,
+                    hidden: false,
                   },
                 },
               },
@@ -523,6 +526,8 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
       } as AccountTreeControllerState);
     });
 
@@ -636,6 +641,113 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('getAccountGroupObject', () => {
+    it('returns a valid account group object', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+      expect(controller.getAccountGroupObject(groupId)).toBeDefined();
+    });
+
+    it('returns undefined if group id is not found', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toAccountGroupId(walletId, 'bad');
+      expect(controller.getAccountGroupObject(groupId)).toBeUndefined();
+    });
+  });
+
+  describe('getAccountsFromSelectAccountGroup', () => {
+    it('selects account without a selector', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Entropy,
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toAccountGroupId(
+        walletId,
+        `${MOCK_HD_ACCOUNT_2.options.entropy.groupIndex}`,
+      );
+      controller.setSelectedAccountGroup(groupId);
+
+      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
+        MOCK_HD_ACCOUNT_2,
+      ]);
+    });
+
+    it('selects account with a selector', () => {
+      const mockSolAccount1: Bip44Account<InternalAccount> = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        options: {
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            groupIndex: 0,
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_2, mockSolAccount1],
+        keyrings: [MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      expect(
+        controller.getAccountsFromSelectedAccountGroup({
+          scopes: [SolScope.Mainnet],
+        }),
+      ).toStrictEqual([mockSolAccount1]);
+
+      expect(
+        controller.getAccountsFromSelectedAccountGroup({
+          scopes: [EthScope.Mainnet],
+        }),
+      ).toStrictEqual([MOCK_HD_ACCOUNT_2]);
+    });
+
+    it('returns no account if no group is selected', () => {
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountsFromSelectedAccountGroup()).toHaveLength(0);
+    });
+  });
+
   describe('on AccountsController:accountRemoved', () => {
     it('removes an account from the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
@@ -694,6 +806,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount2.id], // HD account 1 got removed.
                 },
@@ -702,11 +816,103 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
           },
+          selectedAccountGroup: expect.any(String), // Will be set after init
+        },
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
+      } as AccountTreeControllerState);
+    });
+
+    it('prunes an empty group if it holds no accounts', () => {
+      const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
+      const mockHdAccount2 = {
+        ...MOCK_HD_ACCOUNT_2,
+        options: {
+          entropy: {
+            ...MOCK_HD_ACCOUNT_2.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 1,
+          },
+        },
+      };
+
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1, mockHdAccount2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const walletId1Group2 = toMultichainAccountGroupId(
+        walletId1,
+        mockHdAccount2.options.entropy.groupIndex,
+      );
+
+      expect(controller.state).toStrictEqual({
+        accountTree: {
+          wallets: {
+            [walletId1]: {
+              id: walletId1,
+              type: AccountWalletType.Entropy,
+              groups: {
+                // First group gets removed as a result of pruning.
+                [walletId1Group2]: {
+                  id: walletId1Group2,
+                  type: AccountGroupType.MultichainAccount,
+                  metadata: {
+                    name: mockHdAccount2.metadata.name,
+                    entropy: {
+                      groupIndex: mockHdAccount2.options.entropy.groupIndex,
+                    },
+                    pinned: false,
+                    hidden: false,
+                  },
+                  accounts: [mockHdAccount2.id],
+                },
+              },
+              metadata: {
+                name: 'Wallet 1',
+                entropy: {
+                  id: MOCK_HD_KEYRING_1.metadata.id,
+                },
+              },
+            },
+          },
+          selectedAccountGroup: expect.any(String), // Will be set after init
+        },
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
+      } as AccountTreeControllerState);
+    });
+
+    it('prunes an empty wallet if it holds no groups', () => {
+      const mockHdAccount1: Bip44Account<InternalAccount> = MOCK_HD_ACCOUNT_1;
+
+      const { controller, messenger } = setup({
+        accounts: [mockHdAccount1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+
+      expect(controller.state).toStrictEqual({
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
+        accountTree: {
+          // No wallets should be present.
+          wallets: {},
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
       } as AccountTreeControllerState);
@@ -772,6 +978,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
                 },
@@ -780,12 +988,13 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
           },
         },
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
       } as AccountTreeControllerState);
     });
 
@@ -855,6 +1064,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount1.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount1.id],
                 },
@@ -863,7 +1074,6 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 1',
                 entropy: {
                   id: MOCK_HD_KEYRING_1.metadata.id,
-                  index: 0,
                 },
               },
             },
@@ -880,6 +1090,8 @@ describe('AccountTreeController', () => {
                     entropy: {
                       groupIndex: mockHdAccount2.options.entropy.groupIndex,
                     },
+                    pinned: false,
+                    hidden: false,
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -888,18 +1100,186 @@ describe('AccountTreeController', () => {
                 name: 'Wallet 2',
                 entropy: {
                   id: MOCK_HD_KEYRING_2.metadata.id,
-                  index: 1,
                 },
               },
             },
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
       } as AccountTreeControllerState);
     });
   });
 
-  describe('getAccountWallet/getAccountWalletOrThrow', () => {
+  describe('on AccountsController:accountRenamed', () => {
+    it('renames a group in the tree if the renamed internal account is of EVM type, the group name is default and the internal account name is not default', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const newName = 'New Account Name';
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: newName,
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(newName);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1');
+    });
+
+    it('does not rename a group in the tree if the renamed internal account is of EVM type, but the group name is not default', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+      const newName = 'New Account Name';
+      const customGroupName = 'Old Group Name';
+      const groupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      controller.setAccountGroupName(
+        groupId,
+        customGroupName, // Set a non-default group name
+      );
+
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: newName,
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(customGroupName); // Should not change
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1'); // Should not change
+    });
+
+    it('does not rename a group in the tree if the renamed internal account is of EVM type, the group name is default and the internal account name is also default', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: MOCK_HD_ACCOUNT_2.metadata.name, // Default name
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(MOCK_HD_ACCOUNT_1.metadata.name); // Should not change
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1'); // Should not change
+    });
+
+    it('does not rename an account in the tree if the renamed internal account is not of EVM type', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const newName = 'New Account Name';
+      messenger.publish('AccountsController:accountRenamed', {
+        ...MOCK_HD_ACCOUNT_1,
+        type: SolAccountType.DataAccount, // Not an EVM account type
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: newName,
+        },
+      });
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const group = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group],
+      ).toBeDefined();
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].metadata
+          .name,
+      ).toBe(MOCK_HD_ACCOUNT_1.metadata.name);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[group].accounts,
+      ).toContain(MOCK_HD_ACCOUNT_1.id);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Wallet 1');
+    });
+  });
+
+  describe('getAccountWalletObject', () => {
     it('gets a wallet using its ID', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
@@ -911,7 +1291,7 @@ describe('AccountTreeController', () => {
         AccountWalletType.Entropy,
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      const wallet = controller.getAccountWallet(walletId);
+      const wallet = controller.getAccountWalletObject(walletId);
       expect(wallet).toBeDefined();
     });
 
@@ -924,12 +1304,12 @@ describe('AccountTreeController', () => {
 
       const badGroupId: AccountWalletId = 'entropy:unknown';
 
-      const wallet = controller.getAccountWallet(badGroupId);
+      const wallet = controller.getAccountWalletObject(badGroupId);
       expect(wallet).toBeUndefined();
     });
   });
 
-  describe('getAccountWallets', () => {
+  describe('getAccountWalletObjects', () => {
     it('gets all wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
@@ -937,201 +1317,8 @@ describe('AccountTreeController', () => {
       });
       controller.init();
 
-      const wallets = controller.getAccountWallets();
+      const wallets = controller.getAccountWalletObjects();
       expect(wallets).toHaveLength(2);
-    });
-  });
-
-  describe('AccountTreeWallet', () => {
-    it('gets account groups from a wallet', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-      controller.init();
-
-      const wallets = controller.getAccountWallets();
-      expect(wallets).toHaveLength(1);
-
-      const wallet = wallets[0];
-      expect(wallet.id).toBeDefined();
-      expect(wallet.name).toBeDefined();
-      expect(wallet.type).toBeDefined();
-
-      const groups = wallet.getAccountGroups();
-      expect(groups).toHaveLength(1);
-      expect(groups[0].id).toStrictEqual(
-        toMultichainAccountGroupId(
-          wallet.id as MultichainAccountWalletId,
-          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-        ),
-      );
-    });
-
-    it('gets a specific account group using its ID', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-      controller.init();
-
-      const wallets = controller.getAccountWallets();
-      expect(wallets).toHaveLength(1);
-
-      const wallet = wallets[0];
-      const groupId = toMultichainAccountGroupId(
-        wallet.id as MultichainAccountWalletId,
-        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-      );
-
-      const group = wallet.getAccountGroup(groupId);
-      expect(group).toBeDefined();
-      expect(group?.id).toStrictEqual(groupId);
-
-      expect(() => wallet.getAccountGroupOrThrow(groupId)).not.toThrow();
-    });
-
-    it('throws if it cannot get an account group', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-      controller.init();
-
-      const wallets = controller.getAccountWallets();
-      expect(wallets).toHaveLength(1);
-
-      const wallet = wallets[0];
-      const groupId = toAccountGroupId(wallet.id, 'bad-id');
-      expect(() => wallet.getAccountGroupOrThrow(groupId)).toThrow(
-        'Unable to get account group',
-      );
-    });
-  });
-
-  describe('AccountTreeGroup', () => {
-    it('gets accounts from an account group', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-      controller.init();
-
-      const wallets = controller.getAccountWallets();
-      expect(wallets).toHaveLength(1);
-
-      const wallet = wallets[0];
-      const groups = wallet.getAccountGroups();
-      expect(groups).toHaveLength(1);
-
-      const group = groups[0];
-      expect(group.id).toBeDefined();
-      expect(group.wallet).toBeDefined();
-      expect(group.name).toBeDefined();
-      expect(group.type).toBeDefined();
-
-      const accounts = group.getAccounts();
-      const accountIds = group.getAccountIds();
-      expect(accounts).toHaveLength(1);
-      expect(accounts.map((account) => account.id)).toStrictEqual(accountIds);
-    });
-
-    it('throws if an account cannot be resolved', () => {
-      const { controller, mocks } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-      controller.init();
-
-      const wallets = controller.getAccountWallets();
-      const wallet = wallets[0];
-      const groups = wallet.getAccountGroups();
-      const group = groups[0];
-
-      const accountIds = group.getAccountIds();
-      expect(accountIds).toHaveLength(1);
-
-      mocks.AccountsController.getAccount.mockReturnValue(undefined);
-      expect(() => group.getAccounts()).toThrow(
-        `Unable to get account with ID: "${MOCK_HD_ACCOUNT_1.id}"`,
-      );
-    });
-
-    it('gets the only account from a group', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-
-      const account = MOCK_HD_ACCOUNT_1;
-      const wallet = new AccountTreeWallet({
-        messenger,
-        wallet: {
-          id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.simple),
-          type: AccountWalletType.Keyring,
-          groups: {},
-          metadata: {
-            name: '',
-            keyring: {
-              type: KeyringTypes.simple,
-            },
-          },
-        },
-      });
-      const group = new AccountTreeGroup({
-        messenger,
-        wallet,
-        group: {
-          id: toAccountGroupId(wallet.id, 'bad'),
-          type: AccountGroupType.SingleAccount,
-          accounts: [account.id],
-          metadata: {
-            name: '',
-          },
-        },
-      });
-
-      rootMessenger.registerActionHandler(
-        'AccountsController:getAccount',
-        () => account,
-      );
-      expect(group.getOnlyAccount()).toBe(account);
-    });
-
-    it('throws if the group has more than 1 account when calling getOnlyAccount', () => {
-      const messenger = getAccountTreeControllerMessenger();
-
-      const wallet = new AccountTreeWallet({
-        messenger,
-        wallet: {
-          id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.simple),
-          type: AccountWalletType.Keyring,
-          groups: {},
-          metadata: {
-            name: '',
-            keyring: {
-              type: KeyringTypes.simple,
-            },
-          },
-        },
-      });
-      const group = new AccountTreeGroup({
-        messenger,
-        wallet,
-        group: {
-          id: toAccountGroupId(wallet.id, 'bad'),
-          type: AccountGroupType.SingleAccount,
-          // Testing an error case here, so we have to cast.
-          accounts: [MOCK_HD_ACCOUNT_1.id, MOCK_HD_ACCOUNT_2.id] as unknown as [
-            InternalAccount['id'],
-          ],
-          metadata: {
-            name: '',
-          },
-        },
-      });
-
-      expect(() => group.getOnlyAccount()).toThrow(
-        'Group contains more than 1 account',
-      );
     });
   });
 
@@ -1568,10 +1755,357 @@ describe('AccountTreeController', () => {
           entropy: {
             groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
           },
+          pinned: false,
+          hidden: false,
         },
       };
 
       expect(rule.getDefaultAccountGroupName(group)).toBe('');
+    });
+  });
+
+  describe('Persistence - Custom Names', () => {
+    it('persists custom account group names across init calls', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const expectedWalletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId1 = toMultichainAccountGroupId(
+        expectedWalletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      const customName = 'My Custom Trading Group';
+      controller.setAccountGroupName(expectedGroupId1, customName);
+
+      // Re-init to test persistence
+      controller.init();
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId1];
+      const group = wallet?.groups[expectedGroupId1];
+      expect(group?.metadata.name).toBe(customName);
+
+      expect(
+        controller.state.accountGroupsMetadata[expectedGroupId1],
+      ).toStrictEqual({
+        name: {
+          value: customName,
+          lastUpdatedAt: expect.any(Number),
+        },
+      });
+    });
+
+    it('persists custom account wallet names across init calls', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const expectedWalletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const customName = 'My Primary Wallet';
+      controller.setAccountWalletName(expectedWalletId1, customName);
+
+      controller.init();
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId1];
+      expect(wallet?.metadata.name).toBe(customName);
+
+      expect(
+        controller.state.accountWalletsMetadata[expectedWalletId1],
+      ).toStrictEqual({
+        name: {
+          value: customName,
+          lastUpdatedAt: expect.any(Number),
+        },
+      });
+    });
+
+    it('custom names take priority over default rule-generated names', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(
+        expectedWalletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      // Check default names
+      const walletBeforeCustom =
+        controller.state.accountTree.wallets[expectedWalletId];
+      const groupBeforeCustom = walletBeforeCustom?.groups[expectedGroupId];
+      const defaultWalletName = walletBeforeCustom?.metadata.name;
+      const defaultGroupName = groupBeforeCustom?.metadata.name;
+
+      // Set custom names
+      const customWalletName = 'Custom Wallet Name';
+      const customGroupName = 'Custom Group Name';
+      controller.setAccountWalletName(expectedWalletId, customWalletName);
+      controller.setAccountGroupName(expectedGroupId, customGroupName);
+
+      // Verify custom names override defaults
+      const walletAfterCustom =
+        controller.state.accountTree.wallets[expectedWalletId];
+      const groupAfterCustom = walletAfterCustom?.groups[expectedGroupId];
+
+      expect(walletAfterCustom?.metadata.name).toBe(customWalletName);
+      expect(walletAfterCustom?.metadata.name).not.toBe(defaultWalletName);
+      expect(groupAfterCustom?.metadata.name).toBe(customGroupName);
+      expect(groupAfterCustom?.metadata.name).not.toBe(defaultGroupName);
+    });
+
+    it('updates lastUpdatedAt when setting custom names', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(
+        expectedWalletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      const beforeTime = Date.now();
+
+      controller.setAccountWalletName(expectedWalletId, 'Test Wallet');
+      controller.setAccountGroupName(expectedGroupId, 'Test Group');
+
+      const afterTime = Date.now();
+
+      const walletMetadata =
+        controller.state.accountWalletsMetadata[expectedWalletId];
+      const groupMetadata =
+        controller.state.accountGroupsMetadata[expectedGroupId];
+
+      expect(walletMetadata?.name?.lastUpdatedAt).toBeGreaterThanOrEqual(
+        beforeTime,
+      );
+      expect(walletMetadata?.name?.lastUpdatedAt).toBeLessThanOrEqual(
+        afterTime,
+      );
+      expect(groupMetadata?.name?.lastUpdatedAt).toBeGreaterThanOrEqual(
+        beforeTime,
+      );
+      expect(groupMetadata?.name?.lastUpdatedAt).toBeLessThanOrEqual(afterTime);
+    });
+  });
+
+  describe('Persistence - Pinning and Hiding', () => {
+    it('persists account group pinned state across init calls', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(
+        expectedWalletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      // Set pinned state
+      controller.setAccountGroupPinned(expectedGroupId, true);
+
+      // Re-init to test persistence
+      controller.init();
+
+      // Verify pinned state persists
+      expect(
+        controller.state.accountGroupsMetadata[expectedGroupId],
+      ).toStrictEqual({
+        pinned: {
+          value: true,
+          lastUpdatedAt: expect.any(Number),
+        },
+      });
+    });
+
+    it('persists account group hidden state across init calls', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(
+        expectedWalletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      // Set hidden state
+      controller.setAccountGroupHidden(expectedGroupId, true);
+
+      // Re-init to test persistence
+      controller.init();
+
+      // Verify hidden state persists
+      expect(
+        controller.state.accountGroupsMetadata[expectedGroupId],
+      ).toStrictEqual({
+        hidden: {
+          value: true,
+          lastUpdatedAt: expect.any(Number),
+        },
+      });
+    });
+
+    it('updates lastUpdatedAt when setting pinned/hidden state', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(
+        expectedWalletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      const beforeTime = Date.now();
+
+      controller.setAccountGroupPinned(expectedGroupId, true);
+
+      const afterTime = Date.now();
+
+      const groupMetadata =
+        controller.state.accountGroupsMetadata[expectedGroupId];
+      expect(groupMetadata?.pinned?.lastUpdatedAt).toBeGreaterThanOrEqual(
+        beforeTime,
+      );
+      expect(groupMetadata?.pinned?.lastUpdatedAt).toBeLessThanOrEqual(
+        afterTime,
+      );
+    });
+  });
+
+  describe('Persistence - State Structure', () => {
+    it('initializes with empty metadata maps', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(controller.state.accountGroupsMetadata).toStrictEqual({});
+      expect(controller.state.accountWalletsMetadata).toStrictEqual({});
+    });
+
+    it('preserves existing metadata when initializing with partial state', () => {
+      const existingGroupMetadata = {
+        'test-group-id': {
+          name: {
+            value: 'Existing Group',
+            lastUpdatedAt: 123456789,
+          },
+          pinned: {
+            value: true,
+            lastUpdatedAt: 123456789,
+          },
+        },
+      };
+      const existingWalletMetadata = {
+        'test-wallet-id': {
+          name: {
+            value: 'Existing Wallet',
+            lastUpdatedAt: 123456789,
+          },
+        },
+      };
+
+      const { controller } = setup({
+        state: {
+          accountGroupsMetadata: existingGroupMetadata,
+          accountWalletsMetadata: existingWalletMetadata,
+        },
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(controller.state.accountGroupsMetadata).toStrictEqual(
+        existingGroupMetadata,
+      );
+      expect(controller.state.accountWalletsMetadata).toStrictEqual(
+        existingWalletMetadata,
+      );
+    });
+
+    it('throws error when setting metadata for non-existent groups/wallets', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const nonExistentGroupId = 'non-existent-group-id' as AccountGroupId;
+      const nonExistentWalletId = 'non-existent-wallet-id' as AccountWalletId;
+
+      // Should throw for non-existent group operations
+      expect(() => {
+        controller.setAccountGroupName(nonExistentGroupId, 'Test Name');
+      }).toThrow(
+        `Account group with ID "${nonExistentGroupId}" not found in tree`,
+      );
+
+      expect(() => {
+        controller.setAccountGroupPinned(nonExistentGroupId, true);
+      }).toThrow(
+        `Account group with ID "${nonExistentGroupId}" not found in tree`,
+      );
+
+      expect(() => {
+        controller.setAccountGroupHidden(nonExistentGroupId, true);
+      }).toThrow(
+        `Account group with ID "${nonExistentGroupId}" not found in tree`,
+      );
+
+      // Should throw for non-existent wallet operations
+      expect(() => {
+        controller.setAccountWalletName(nonExistentWalletId, 'Test Wallet');
+      }).toThrow(
+        `Account wallet with ID "${nonExistentWalletId}" not found in tree`,
+      );
+
+      // Metadata should NOT be stored since the operations threw
+      expect(
+        controller.state.accountGroupsMetadata[nonExistentGroupId],
+      ).toBeUndefined();
+      expect(
+        controller.state.accountWalletsMetadata[nonExistentWalletId],
+      ).toBeUndefined();
     });
   });
 });

@@ -3,10 +3,9 @@ import type {
   AccountWalletId,
   MultichainAccountWalletId,
 } from '@metamask/account-api';
-import { type AccountGroupId, type AccountWallet } from '@metamask/account-api';
+import { type AccountGroupId } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import type { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
 import type {
@@ -14,8 +13,22 @@ import type {
   AccountGroupObject,
   AccountGroupSingleAccountObject,
 } from './group';
-import { AccountTreeGroup } from './group';
-import { type AccountTreeControllerMessenger } from './types';
+import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
+
+/**
+ * Persisted metadata for account wallets (stored in controller state for persistence/sync).
+ */
+export type AccountTreeWalletPersistedMetadata = {
+  /** Custom name set by user, overrides default naming logic */
+  name?: UpdatableField<string>;
+};
+
+/**
+ * Tree metadata for account wallets (required plain values extracted from persisted metadata).
+ */
+export type AccountTreeWalletMetadata = Required<
+  ExtractFieldValues<AccountTreeWalletPersistedMetadata>
+>;
 
 /**
  * Type constraint for a {@link AccountGroupObject}. If one of its union-members
@@ -29,9 +42,7 @@ type IsAccountWalletObject<
     groups: {
       [groupId: AccountGroupId]: AccountGroupObject;
     };
-    metadata: {
-      name: string;
-    };
+    metadata: AccountTreeWalletMetadata;
   },
 > = Type;
 
@@ -48,11 +59,9 @@ export type AccountWalletEntropyObject = {
     // unsafe... So we keep it as a `AccountGroupId` for now.
     [groupId: AccountGroupId]: AccountGroupMultichainAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountTreeWalletMetadata & {
     entropy: {
       id: EntropySourceId;
-      index: number;
     };
   };
 };
@@ -66,8 +75,7 @@ export type AccountWalletSnapObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountTreeWalletMetadata & {
     snap: {
       id: SnapId;
     };
@@ -83,8 +91,7 @@ export type AccountWalletKeyringObject = {
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
-  metadata: {
-    name: string;
+  metadata: AccountTreeWalletMetadata & {
     keyring: {
       type: KeyringTypes;
     };
@@ -107,84 +114,3 @@ export type AccountWalletObjectOf<WalletType extends AccountWalletType> =
     | { type: AccountWalletType.Snap; object: AccountWalletSnapObject },
     { type: WalletType }
   >['object'];
-
-/**
- * Account wallet coming from the {@link AccountTreeController}.
- */
-export class AccountTreeWallet implements AccountWallet<InternalAccount> {
-  readonly #wallet: AccountWalletObject;
-
-  protected messenger: AccountTreeControllerMessenger;
-
-  protected groups: Map<AccountGroupId, AccountTreeGroup>;
-
-  constructor({
-    messenger,
-    wallet,
-  }: {
-    messenger: AccountTreeControllerMessenger;
-    wallet: AccountWalletObject;
-  }) {
-    this.messenger = messenger;
-    this.#wallet = wallet;
-    this.groups = new Map();
-
-    for (const [groupId, group] of Object.entries(this.#wallet.groups)) {
-      this.groups.set(
-        groupId as AccountGroupId,
-        new AccountTreeGroup({
-          messenger: this.messenger,
-          wallet: this,
-          group,
-        }),
-      );
-    }
-  }
-
-  get id(): AccountWalletId {
-    return this.#wallet.id;
-  }
-
-  get type(): AccountWalletType {
-    return this.#wallet.type;
-  }
-
-  get name(): string {
-    return this.#wallet.metadata.name;
-  }
-
-  /**
-   * Gets account tree group for a given ID.
-   *
-   * @param groupId - Group ID.
-   * @returns Account tree group, or undefined if not found.
-   */
-  getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined {
-    return this.groups.get(groupId);
-  }
-
-  /**
-   * Gets account tree group for a given ID.
-   *
-   * @param groupId - Group ID.
-   * @throws If the account group is not found.
-   * @returns Account tree group.
-   */
-  getAccountGroupOrThrow(groupId: AccountGroupId): AccountTreeGroup {
-    const group = this.getAccountGroup(groupId);
-    if (!group) {
-      throw new Error('Unable to get account group');
-    }
-
-    return group;
-  }
-
-  /**
-   * Gets all account tree groups.
-   *
-   * @returns Account tree groups.
-   */
-  getAccountGroups(): AccountTreeGroup[] {
-    return Array.from(this.groups.values());
-  }
-}

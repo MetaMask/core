@@ -177,7 +177,9 @@ export class Messenger<
    *
    * @param messengerClient - The object that is expected to make use of the messenger.
    * @param methodNames - The names of the methods on the messenger client to register as action
-   * handlers
+   * handlers.
+   * @template MessengerClient - The type expected to make use of the messenger.
+   * @template MethodNames - The type union of method names to register as action handlers.
    */
   registerMethodActionHandlers<
     MessengerClient extends { name: string },
@@ -252,6 +254,7 @@ export class Messenger<
    * @param args - The arguments to this function
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
+   * @template EventType - A type union of Event type strings.
    */
   registerInitialEventPayload<EventType extends Event['type']>({
     eventType,

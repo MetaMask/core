@@ -207,14 +207,14 @@ export type {
   DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
-
 export type {
-  AllAssets,
-  GroupAssets,
-  SelectorAsset,
-} from './token-selectors/token-selectors';
-export {
-  selectAccountsToGroupIdMap,
-  selectAllAssets,
-  selectAssetsBySelectedAccountGroup,
-} from './token-selectors/token-selectors';
+  AccountGroupBalance,
+  WalletBalance,
+} from './selectors/balanceSelectors';
+export { balanceSelectors } from './selectors/balanceSelectors';
+export type {
+  AssetsByAccountGroup,
+  AccountGroupAssets,
+  Asset,
+} from './selectors/token-selectors';
+export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';
