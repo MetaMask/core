@@ -393,6 +393,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        this.#setUnlocked();
       };
 
       await this.#executeWithTokenRefresh(
@@ -491,6 +493,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             rawToprfAuthKeyPair: authKeyPair,
           });
         }
+
+        this.#setUnlocked();
 
         return secrets;
       };
@@ -1429,24 +1433,26 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.password - The password to encrypt the vault.
    * @param params.rawToprfEncryptionKey - The encryption key to encrypt the vault.
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
-   * @param params.rawToprfAuthKeyPair - The authentication key pair to encrypt the vault.
+   * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
+   * @param params.revokeToken - The optional revoke token.
    */
   async #createNewVaultWithAuthData({
     password,
     rawToprfEncryptionKey,
     rawToprfPwEncryptionKey,
     rawToprfAuthKeyPair,
+    revokeToken: _revokeToken,
   }: {
     password: string;
     rawToprfEncryptionKey: Uint8Array;
     rawToprfPwEncryptionKey: Uint8Array;
     rawToprfAuthKeyPair: KeyPair;
+    revokeToken?: string;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
     const accessToken = await this.#getAccessToken(password);
-
-    this.#setUnlocked();
+    const revokeToken = _revokeToken || this.state.revokeToken;
 
     const { toprfEncryptionKey, toprfPwEncryptionKey, toprfAuthKeyPair } =
       this.#serializeKeyData(
@@ -1459,7 +1465,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       toprfEncryptionKey,
       toprfPwEncryptionKey,
       toprfAuthKeyPair,
-      revokeToken: this.state.revokeToken,
+      revokeToken,
       accessToken,
     });
 
@@ -1832,18 +1838,22 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           connection: this.state.authConnection,
           revokeToken,
         });
-      this.update((state) => {
-        // set new revoke token in state temporarily for persisting in vault
-        state.revokeToken = newRevokeToken;
-        // set new refresh token to persist in state
-        state.refreshToken = newRefreshToken;
-      });
-      await this.#createNewVaultWithAuthData({
-        password,
-        rawToprfEncryptionKey,
-        rawToprfPwEncryptionKey,
-        rawToprfAuthKeyPair,
-      });
+      if (newRevokeToken && newRefreshToken) {
+        this.update((state) => {
+          // set new revoke token in state temporarily for persisting in vault
+          state.revokeToken = newRevokeToken;
+          // set new refresh token to persist in state
+          state.refreshToken = newRefreshToken;
+        });
+
+        await this.#createNewVaultWithAuthData({
+          password,
+          rawToprfEncryptionKey,
+          rawToprfPwEncryptionKey,
+          rawToprfAuthKeyPair,
+          revokeToken: newRevokeToken,
+        });
+      }
     });
   }
 
