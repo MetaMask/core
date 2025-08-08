@@ -503,6 +503,31 @@ describe('MultichainAssetsRatesController', () => {
     expect(controller.state.conversionRates).toStrictEqual({});
   });
 
+  it('does not make snap requests when updateAssetsRatesForNewAssets is called with no new assets', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapSpy = jest.fn().mockResolvedValue(fakeAccountRates);
+    messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
+
+    // Publish accountAssetListUpdated event with accounts that have no new assets (empty added arrays)
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [], // No new assets added
+          removed: [],
+        },
+      },
+    });
+
+    // Wait for the asynchronous subscriber to process the event
+    await Promise.resolve();
+
+    // Verify no snap requests were made since there are no new assets to process
+    expect(snapSpy).not.toHaveBeenCalled();
+    // Verify state remains empty
+    expect(controller.state.conversionRates).toStrictEqual({});
+  });
+
   it('updates state when currency is updated', async () => {
     const { controller, messenger } = setupController();
 

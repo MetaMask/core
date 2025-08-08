@@ -1,5 +1,11 @@
-import type { EntropySourceId } from '@metamask/keyring-api';
+/* eslint-disable jsdoc/require-jsdoc */
+import type { Bip44Account } from '@metamask/account-api';
+import { isBip44Account } from '@metamask/account-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
+  BtcAccountType,
+  BtcMethod,
+  BtcScope,
   EthAccountType,
   EthMethod,
   EthScope,
@@ -10,8 +16,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-
-import { isBip44Account } from '../providers/BaseAccountProvider';
+import { v4 as uuid } from 'uuid';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -57,7 +62,7 @@ export const MOCK_HD_KEYRING_2 = {
   accounts: ['0x456'],
 };
 
-export const MOCK_HD_ACCOUNT_1: InternalAccount = {
+export const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-id-1',
   address: '0x123',
   options: {
@@ -80,7 +85,7 @@ export const MOCK_HD_ACCOUNT_1: InternalAccount = {
   },
 };
 
-export const MOCK_HD_ACCOUNT_2: InternalAccount = {
+export const MOCK_HD_ACCOUNT_2: Bip44Account<InternalAccount> = {
   id: 'mock-id-2',
   address: '0x456',
   options: {
@@ -103,7 +108,7 @@ export const MOCK_HD_ACCOUNT_2: InternalAccount = {
   },
 };
 
-export const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
+export const MOCK_SOL_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-snap-id-1',
   address: 'aabbccdd',
   options: {
@@ -117,15 +122,75 @@ export const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   },
   methods: SOL_METHODS,
   type: SolAccountType.DataAccount,
-  scopes: [SolScope.Mainnet],
+  scopes: [SolScope.Mainnet, SolScope.Testnet, SolScope.Devnet],
   metadata: {
-    name: 'Snap Account 1',
+    name: 'Solana Account 1',
     keyring: { type: KeyringTypes.snap },
     snap: MOCK_SNAP_1,
     importTime: 0,
     lastSelected: 0,
   },
 };
+
+export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
+  id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
+  type: BtcAccountType.P2wpkh,
+  methods: [BtcMethod.SendBitcoin],
+  address: 'bc1qx8ls07cy8j8nrluy2u0xwn7gh8fxg0rg4s8zze',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  scopes: [BtcScope.Mainnet],
+  metadata: {
+    name: 'Bitcoin Native Segwit Account 1',
+    importTime: 0,
+    keyring: {
+      type: 'Snap keyring',
+    },
+    snap: {
+      id: 'mock-btc-snap-id',
+      enabled: true,
+      name: 'Mock Bitcoin Snap',
+    },
+  },
+};
+
+export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
+  id: 'a20c2e1a-6ff6-40ba-b8e0-ccdb6f9933bb',
+  type: BtcAccountType.P2tr,
+  methods: [BtcMethod.SendBitcoin],
+  address: 'tb1p5cyxnuxmeuwuvkwfem96lxx9wex9kkf4mt9ll6q60jfsnrzqg4sszkqjnh',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      // NOTE: shares entropy with MOCK_HD_ACCOUNT_2
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  scopes: [BtcScope.Testnet],
+  metadata: {
+    name: 'Bitcoin Taproot Account 1',
+    importTime: 0,
+    keyring: {
+      type: 'Snap keyring',
+    },
+    snap: {
+      id: 'mock-btc-snap-id',
+      enabled: true,
+      name: 'Mock Bitcoin Snap',
+    },
+  },
+};
+
+export const MOCK_SNAP_ACCOUNT_1 = MOCK_SOL_ACCOUNT_1;
 
 export const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
   id: 'mock-snap-id-2',
@@ -143,6 +208,9 @@ export const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
   },
 };
 
+export const MOCK_SNAP_ACCOUNT_3 = MOCK_BTC_P2WPKH_ACCOUNT_1;
+export const MOCK_SNAP_ACCOUNT_4 = MOCK_BTC_P2TR_ACCOUNT_1;
+
 export const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   id: 'mock-hardware-id-1',
   address: '0xABC',
@@ -158,16 +226,33 @@ export const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
-export class MockAccountBuilder {
-  readonly #account: InternalAccount;
+export class MockAccountBuilder<Account extends KeyringAccount> {
+  readonly #account: Account;
 
-  constructor(account: InternalAccount) {
+  constructor(account: Account) {
     // Make a deep-copy to avoid mutating the same ref.
     this.#account = JSON.parse(JSON.stringify(account));
   }
 
-  static from(account: InternalAccount): MockAccountBuilder {
+  static from<Account extends KeyringAccount>(
+    account: Account,
+  ): MockAccountBuilder<Account> {
     return new MockAccountBuilder(account);
+  }
+
+  withId(id: InternalAccount['id']) {
+    this.#account.id = id;
+    return this;
+  }
+
+  withUuid() {
+    this.#account.id = uuid();
+    return this;
+  }
+
+  withAddressSuffix(suffix: string) {
+    this.#account.address += suffix;
+    return this;
   }
 
   withEntropySource(entropySource: EntropySourceId) {
@@ -187,4 +272,46 @@ export class MockAccountBuilder {
   get() {
     return this.#account;
   }
+}
+
+export const MOCK_WALLET_1_ENTROPY_SOURCE = MOCK_ENTROPY_SOURCE_1;
+
+export const MOCK_WALLET_1_EVM_ACCOUNT = MockAccountBuilder.from(
+  MOCK_HD_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_SOL_ACCOUNT = MockAccountBuilder.from(
+  MOCK_SOL_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT = MockAccountBuilder.from(
+  MOCK_BTC_P2WPKH_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+export const MOCK_WALLET_1_BTC_P2TR_ACCOUNT = MockAccountBuilder.from(
+  MOCK_BTC_P2TR_ACCOUNT_1,
+)
+  .withEntropySource(MOCK_WALLET_1_ENTROPY_SOURCE)
+  .withGroupIndex(0)
+  .get();
+
+export function mockAsInternalAccount(
+  account: KeyringAccount,
+): InternalAccount {
+  return {
+    ...account,
+    metadata: {
+      name: 'Mocked Account',
+      importTime: Date.now(),
+      keyring: {
+        type: 'mock-keyring-type',
+      },
+    },
+  };
 }

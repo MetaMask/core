@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** Remove `getActionType` export and hardcode `action_type` to `swapbridge-v1`. Deprecate `crosschain-v1` MetricsActionType because it shouldn't be used after swaps and bridge are unified ([#6270](https://github.com/MetaMask/core/pull/6270))
+- Bump `@metamask/multichain-network-controller` from `^0.11.0` to `^0.11.1` ([#6273](https://github.com/MetaMask/core/pull/6273))
+
+## [38.0.0]
+
+### Fixed
+
+- **BREAKING** Require clients to define `can_submit` property when publishing `QuoteSelected`, `AllQuotesSorted`, `AllQuotesOpened` and `QuotesReceived` events ([#6254](https://github.com/MetaMask/core/pull/6254))
+- Rename the InputChanged event's `value` property key to `input_value` ([#6254](https://github.com/MetaMask/core/pull/6254))
+
+## [37.2.0]
+
+### Added
+
+- Expose `fetchQuotes` method that returns a list of quotes directly rather than adding them to the controller state. This enables clients to retrieve quotes directly without automatic polling and state management ([#6236](https://github.com/MetaMask/core/pull/6236))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
+## [37.1.0]
+
+### Added
+
+- Add schema for the new price impact threshold feature flag to the types for PlatformConfigSchema ([#6223](https://github.com/MetaMask/core/pull/6223))
+
 ## [37.0.0]
 
 ### Changed
@@ -442,7 +470,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@38.0.0...HEAD
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@37.2.0...@metamask/bridge-controller@38.0.0
+[37.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@37.1.0...@metamask/bridge-controller@37.2.0
+[37.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@37.0.0...@metamask/bridge-controller@37.1.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@36.2.0...@metamask/bridge-controller@37.0.0
 [36.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@36.1.0...@metamask/bridge-controller@36.2.0
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@36.0.0...@metamask/bridge-controller@36.1.0

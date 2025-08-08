@@ -23,14 +23,6 @@ For example:
 * Related to #67890
 -->
 
-## Changelog
-
-<!--
-THIS SECTION IS NO LONGER NEEDED.
-
-The process for updating changelogs has changed. Please consult the "Updating changelogs" section of the Contributing doc for more.
--->
-
 ## Checklist
 
 - [ ] I've updated the test suite for new or updated code as appropriate

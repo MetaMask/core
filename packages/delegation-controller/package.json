@@ -51,9 +51,9 @@
     "@metamask/utils": "^11.4.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^32.0.0",
+    "@metamask/accounts-controller": "^32.0.2",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^22.1.0",
+    "@metamask/keyring-controller": "^22.1.1",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
