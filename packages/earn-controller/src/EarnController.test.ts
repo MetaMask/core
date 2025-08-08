@@ -1302,6 +1302,33 @@ describe('EarnController', () => {
           controller.state.pooled_staking[ChainId.HOODI].vaultDailyApys,
         ).toStrictEqual(mockPooledStakingVaultDailyApys);
       });
+
+      it('uses default chain state when refreshing vault daily apys for uninitialized chain', async () => {
+        const { controller } = await setupController();
+
+        // Use a chain ID that's not in the hardcoded #supportedPooledStakingChains array but mock it as supported
+        // This will trigger the `?? DEFAULT_POOLED_STAKING_CHAIN_STATE` fallback
+        const uninitializedChainId = 2;
+        isSupportedPooledStakingChainMock.mockReturnValue(true);
+        await controller.refreshPooledStakingVaultDailyApys({
+          chainId: uninitializedChainId,
+        });
+
+        // Verify that the chain state was created using the default state
+        expect(
+          controller.state.pooled_staking[uninitializedChainId],
+        ).toBeDefined();
+        expect(
+          controller.state.pooled_staking[uninitializedChainId].vaultDailyApys,
+        ).toStrictEqual(mockPooledStakingVaultDailyApys);
+        // Verify other properties use defaults
+        expect(
+          controller.state.pooled_staking[uninitializedChainId].pooledStakes,
+        ).toStrictEqual(DEFAULT_POOLED_STAKING_CHAIN_STATE.pooledStakes);
+        expect(
+          controller.state.pooled_staking[uninitializedChainId].exchangeRate,
+        ).toStrictEqual(DEFAULT_POOLED_STAKING_CHAIN_STATE.exchangeRate);
+      });
     });
 
     describe('refreshPooledStakingVaultApyAverages', () => {
@@ -1338,6 +1365,34 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.pooledStaking?.getVaultApyAverages,
         ).toHaveBeenNthCalledWith(3, ChainId.HOODI);
+      });
+
+      it('uses default chain state when refreshing vault apy averages for uninitialized chain', async () => {
+        const { controller } = await setupController();
+
+        // Use a chain ID that's not in the hardcoded #supportedPooledStakingChains array but mock it as supported
+        // This will trigger the `?? DEFAULT_POOLED_STAKING_CHAIN_STATE` fallback
+        const uninitializedChainId = 2;
+        isSupportedPooledStakingChainMock.mockReturnValue(true);
+        await controller.refreshPooledStakingVaultApyAverages(
+          uninitializedChainId,
+        );
+
+        // Verify that the chain state was created using the default state
+        expect(
+          controller.state.pooled_staking[uninitializedChainId],
+        ).toBeDefined();
+        expect(
+          controller.state.pooled_staking[uninitializedChainId]
+            .vaultApyAverages,
+        ).toStrictEqual(mockPooledStakingVaultApyAverages);
+        // Verify other properties use defaults
+        expect(
+          controller.state.pooled_staking[uninitializedChainId].pooledStakes,
+        ).toStrictEqual(DEFAULT_POOLED_STAKING_CHAIN_STATE.pooledStakes);
+        expect(
+          controller.state.pooled_staking[uninitializedChainId].exchangeRate,
+        ).toStrictEqual(DEFAULT_POOLED_STAKING_CHAIN_STATE.exchangeRate);
       });
     });
   });
