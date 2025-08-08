@@ -3350,7 +3350,7 @@ describe('AccountsController', () => {
       keyringType: KeyringTypes.simple,
     });
 
-    const mockNewKeyringStateWith = (simpleAddressess: string[]) => {
+    const mockNewKeyringStateWith = (simpleAddresses: string[]) => {
       return {
         isUnlocked: true,
         keyrings: [
@@ -3364,7 +3364,7 @@ describe('AccountsController', () => {
           },
           {
             type: 'Simple Key Pair',
-            accounts: simpleAddressess,
+            accounts: simpleAddresses,
             metadata: {
               id: 'mock-id2',
               name: 'mock-name2',
@@ -3443,7 +3443,7 @@ describe('AccountsController', () => {
         [],
       );
 
-      // We then remove "Acccount 2" to create a gap
+      // We then remove "Account 2" to create a gap
       messenger.publish(
         'KeyringController:stateChange',
         mockNewKeyringStateWith([mockSimpleKeyring2.address]),
