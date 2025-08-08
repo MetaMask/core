@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added deduplication for outbound requests for the same url for `scanUrl`. ([#6032](https://github.com/MetaMask/core/pull/6032))
+- Added a `noFetch` flag to only return resolved scans or in-flight scans for `scanUrl`. ([6032](https://github.com/MetaMask/core/pull/6032))
+
 ### Changed
 
 - Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))

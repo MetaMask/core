@@ -345,6 +345,11 @@ export class PhishingController extends BaseController<
 
   #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
+  readonly #inProgressScans = new Map<
+    string,
+    Promise<PhishingDetectionScanResult>
+  >();
+
   /**
    * Construct a Phishing Controller.
    *
@@ -661,9 +666,14 @@ export class PhishingController extends BaseController<
    * web URLs.
    *
    * @param url - The URL to scan.
+   * @param noFetch - An optional flag to prevent making an outbound request. If true, the
+   * function will return the cached result or in-flight requests.
    * @returns The phishing detection scan result.
    */
-  scanUrl = async (url: string): Promise<PhishingDetectionScanResult> => {
+  scanUrl = async (
+    url: string,
+    noFetch?: boolean,
+  ): Promise<PhishingDetectionScanResult> => {
     const [hostname, ok] = getHostnameFromWebUrl(url);
     if (!ok) {
       return {
@@ -678,6 +688,34 @@ export class PhishingController extends BaseController<
       return cachedResult;
     }
 
+    const inProgressScan = this.#inProgressScans.get(hostname);
+    if (inProgressScan) {
+      return inProgressScan;
+    }
+
+    if (noFetch) {
+      // At this point we know there is no cached result and no in-progress scan so we can return a default result.
+      return { hostname: '', recommendedAction: RecommendedAction.None };
+    }
+
+    try {
+      const scanPromise = this.#performScan(hostname);
+      this.#inProgressScans.set(hostname, scanPromise);
+      return await scanPromise;
+    } finally {
+      // Clean up the in-progress cache when scan completes (success or failure)
+      this.#inProgressScans.delete(hostname);
+    }
+  };
+
+  /**
+   * Perform the actual phishing scan for a hostname.
+   * This method contains the HTTP request logic.
+   *
+   * @param hostname - The hostname to scan.
+   * @returns The phishing detection scan result.
+   */
+  async #performScan(hostname: string): Promise<PhishingDetectionScanResult> {
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
@@ -724,7 +762,7 @@ export class PhishingController extends BaseController<
     this.#urlScanCache.add(hostname, result);
 
     return result;
-  };
+  }
 
   /**
    * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
