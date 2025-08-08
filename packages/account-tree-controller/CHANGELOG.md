@@ -7,13 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0]
+
 ### Added
 
 - **BREAKING:** Add support for `AccountsController:accountRenamed` event handling for state 1 and legacy account syncing compatibility ([#6251](https://github.com/MetaMask/core/pull/6251))
-- Add `AccountTreeController:getAccountsFromSelectedAccountGroup` action ([#6266](https://github.com/MetaMask/core/pull/6266))
+- Add `AccountTreeController:getAccountsFromSelectedAccountGroup` action ([#6266](https://github.com/MetaMask/core/pull/6266)), ([#6248](https://github.com/MetaMask/core/pull/6248)), ([#6265](https://github.com/MetaMask/core/pull/6265))
   - This action can be used to get all accounts from the currently selected account group.
   - This action also support `AccountSelector` support to filter out accounts based on some criterias.
-- Add `AccountTreeGroup.{get,select}` selectors ([#6248](https://github.com/MetaMask/core/pull/6248))
 - Add persistence support for user customizations ([#6221](https://github.com/MetaMask/core/pull/6221))
   - New `accountGroupsMetadata` (of new type `AccountTreeGroupPersistedMetadata`) and `accountWalletsMetadata` (of new type `AccountTreeWalletPersistedMetadata`) state properties to persist custom names, pinning, and hiding states.
   - Custom names and metadata survive controller initialization and tree rebuilds.
@@ -114,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.8.0...HEAD
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.7.0...@metamask/account-tree-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.6.0...@metamask/account-tree-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.5.0...@metamask/account-tree-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.4.0...@metamask/account-tree-controller@0.5.0
