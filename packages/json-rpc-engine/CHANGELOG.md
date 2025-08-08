@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `JsonRpcEngineV2` ([#6176](https://github.com/MetaMask/core/pull/6176))
+  - This is a complete rewrite of `JsonRpcEngine`. See the readme for details.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+### Deprecated
+
+- `JsonRpcEngine` and related types ([#6176](https://github.com/MetaMask/core/pull/6176))
+  - To be replaced by `JsonRpcEngineV2`.
 
 ## [10.0.3]
 
