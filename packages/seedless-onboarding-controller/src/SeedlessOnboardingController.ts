@@ -393,8 +393,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
-
-        this.#setUnlocked();
       };
 
       await this.#executeWithTokenRefresh(
@@ -493,8 +491,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             rawToprfAuthKeyPair: authKeyPair,
           });
         }
-
-        this.#setUnlocked();
 
         return secrets;
       };
@@ -1435,6 +1431,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
    * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
    * @param params.revokeToken - The optional revoke token.
+   * @param params.shouldSetUnlocked - Whether to set the controller as unlocked. @default true
    */
   async #createNewVaultWithAuthData({
     password,
@@ -1442,12 +1439,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     rawToprfPwEncryptionKey,
     rawToprfAuthKeyPair,
     revokeToken: _revokeToken,
+    shouldSetUnlocked = true,
   }: {
     password: string;
     rawToprfEncryptionKey: Uint8Array;
     rawToprfPwEncryptionKey: Uint8Array;
     rawToprfAuthKeyPair: KeyPair;
     revokeToken?: string;
+    shouldSetUnlocked?: boolean;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
@@ -1479,6 +1478,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#persistAuthPubKey({
       authPubKey: rawToprfAuthKeyPair.pk,
     });
+
+    if (shouldSetUnlocked) {
+      this.#setUnlocked();
+    }
   }
 
   /**
@@ -1852,6 +1855,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey,
           rawToprfAuthKeyPair,
           revokeToken: newRevokeToken,
+          // when revoke refresh token, the vault is already unlocked
+          // and also, this method is supposed to be called asynchronously
+          // so we don't need to set the controller as unlocked
+          shouldSetUnlocked: false,
         });
       }
     });
