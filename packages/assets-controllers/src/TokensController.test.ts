@@ -46,6 +46,7 @@ import type {
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
+import { MAX_SYMBOL_LENGTH } from './constants';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
@@ -2041,14 +2042,16 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
 
+        const superLongSymbol = 'x'.repeat(MAX_SYMBOL_LENGTH + 1);
+
         const result = controller.watchAsset({
-          asset: buildToken({ symbol: 'ABCDEFGHIJKLM' }),
+          asset: buildToken({ symbol: superLongSymbol }),
           type: 'ERC20',
           networkClientId: 'mainnet',
         });
 
         await expect(result).rejects.toThrow(
-          'Invalid symbol "ABCDEFGHIJKLM": longer than 11 characters',
+          `Invalid symbol "${superLongSymbol}": longer than ${MAX_SYMBOL_LENGTH} characters`,
         );
       });
     });
