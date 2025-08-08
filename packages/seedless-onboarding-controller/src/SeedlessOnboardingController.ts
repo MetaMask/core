@@ -393,6 +393,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        this.#setUnlocked();
       };
 
       await this.#executeWithTokenRefresh(
@@ -490,6 +492,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             rawToprfPwEncryptionKey: pwEncKey,
             rawToprfAuthKeyPair: authKeyPair,
           });
+
+          this.#setUnlocked();
         }
 
         return secrets;
@@ -697,6 +701,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
 
         this.#resetPasswordOutdatedCache();
+
+        this.#setUnlocked();
       };
       return await this.#executeWithTokenRefresh(
         doSyncPassword,
@@ -1488,8 +1494,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#persistAuthPubKey({
       authPubKey: rawToprfAuthKeyPair.pk,
     });
-
-    this.#setUnlocked();
   }
 
   /**
