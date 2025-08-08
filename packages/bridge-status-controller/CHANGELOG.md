@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Include `assetsFiatValue` for sending and receiving assets in batch transaction request parameters ([#6277](https://github.com/MetaMask/core/pull/6277))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^38.0.0` ([#6268](https://github.com/MetaMask/core/pull/6268))
