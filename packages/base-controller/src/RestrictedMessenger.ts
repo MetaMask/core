@@ -340,12 +340,19 @@ export class RestrictedMessenger<
    * @param handler - The event handler to unregister.
    * @throws Will throw if the given event is not an allowed event for this messenger.
    * @template EventType - A type union of allowed Event type strings.
+   * @template SelectorReturnValue - The selector return value.
    */
   unsubscribe<
     EventType extends
       | AllowedEvent
       | (Event['type'] & NamespacedName<Namespace>),
-  >(event: EventType, handler: ExtractEventHandler<Event, EventType>) {
+    SelectorReturnValue = unknown,
+  >(
+    event: EventType,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
+  ) {
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
