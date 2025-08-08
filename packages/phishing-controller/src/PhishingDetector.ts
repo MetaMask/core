@@ -33,13 +33,13 @@ export type PhishingDetectorList = {
 
 export type FuzzyTolerance =
   | {
-    tolerance?: number;
-    fuzzylist: string[];
-  }
+      tolerance?: number;
+      fuzzylist: string[];
+    }
   | {
-    tolerance?: never;
-    fuzzylist?: never;
-  };
+      tolerance?: never;
+      fuzzylist?: never;
+    };
 
 export type PhishingDetectorOptions =
   | LegacyPhishingDetectorList
