@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved `@noble/ciphers` from dev dependencies to main dependencies and bumped from `^0.5.2` to `^1.3.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
 - Moved `@noble/curves` from dev dependencies to main dependencies and bumped from `^1.2.0` to `^1.9.2` ([#6101](https://github.com/MetaMask/core/pull/6101))
 
+### Fixed
+
+- Fixed the vault creation with incorrect revokeToken value after fetching new revoke token asynchronously. ([#6272](https://github.com/MetaMask/core/pull/6272))
+
 ## [2.5.0]
 
 ### Added
