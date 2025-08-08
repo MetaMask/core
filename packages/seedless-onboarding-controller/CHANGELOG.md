@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Apply controller level lock, mutex, on the `setLocked()` call. ([#6278](https://github.com/MetaMask/core/pull/6278))
+
+
+### Changed
+
+- Refactor `setUnlocked` method from `createNewVaultWithAuthData` method. ([#6278](https://github.com/MetaMask/core/pull/6278))
+
 ## [2.5.1]
 
 ### Changed
