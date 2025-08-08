@@ -55,7 +55,7 @@
     "reselect": "^5.1.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^32.0.1",
+    "@metamask/accounts-controller": "^32.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^24.0.1",
     "@metamask/transaction-controller": "^59.1.0",

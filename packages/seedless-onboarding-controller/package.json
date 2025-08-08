@@ -61,7 +61,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/keyring-controller": "^22.1.0",
+    "@metamask/keyring-controller": "^22.1.1",
     "@types/elliptic": "^6",
     "@types/jest": "^27.4.1",
     "@types/json-stable-stringify-without-jsonify": "^1.0.2",
