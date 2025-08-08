@@ -32,7 +32,6 @@ import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
   MetaMetricsSwapsEventSource,
-  MetricsActionType,
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -1811,7 +1810,6 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
         {
-          action_type: MetricsActionType.CROSSCHAIN_V1,
           price_impact: 0,
           usd_quoted_gas: 0,
           gas_included: false,
@@ -1869,7 +1867,6 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         {
-          action_type: MetricsActionType.CROSSCHAIN_V1,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,
           destination_transaction: StatusTypes.PENDING,
@@ -1907,7 +1904,6 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Failed,
         {
-          action_type: MetricsActionType.CROSSCHAIN_V1,
           allowance_reset_transaction: StatusTypes.PENDING,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,

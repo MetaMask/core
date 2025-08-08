@@ -48,10 +48,12 @@ import {
 } from './utils/caip-formatters';
 import { getBridgeFeatureFlags } from './utils/feature-flags';
 import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
-import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
+import {
+  MetricsActionType,
+  UnifiedSwapBridgeEventName,
+} from './utils/metrics/constants';
 import {
   formatProviderLabel,
-  getActionTypeFromQuoteRequest,
   getRequestParams,
   getSwapTypeFromQuote,
   isCustomSlippage,
@@ -819,8 +821,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
   ): CrossChainSwapsEventProperties<T> => {
     const baseProperties = {
-      action_type: getActionTypeFromQuoteRequest(this.state.quoteRequest),
       ...propertiesFromClient,
+      action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
