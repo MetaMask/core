@@ -44,6 +44,7 @@ import type {
   VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
+  RenewRefreshToken,
 } from './types';
 import { decodeJWTToken, decodeNodeAuthToken } from './utils';
 
@@ -125,6 +126,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: false,
       anonymous: true,
     },
+    pendingToBeRevokedTokens: {
+      persist: true,
+      anonymous: true,
+    },
     // stays in vault
     accessToken: {
       persist: false,
@@ -163,6 +168,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
   readonly #revokeRefreshToken: RevokeRefreshToken;
 
+  readonly #renewRefreshToken: RenewRefreshToken;
+
   /**
    * Controller lock state.
    *
@@ -186,6 +193,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
    * @param options.revokeRefreshToken - A function to revoke the refresh token.
+   * @param options.renewRefreshToken - A function to renew the refresh token and get new revoke token.
    * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.,
    */
   constructor({
@@ -196,6 +204,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     network = Web3AuthNetwork.Mainnet,
     refreshJWTToken,
     revokeRefreshToken,
+    renewRefreshToken,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
@@ -220,6 +229,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
+    this.#renewRefreshToken = renewRefreshToken;
 
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
@@ -1805,17 +1815,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Revoke the refresh token and get new refresh token and new revoke token
+   * Renew the refresh token - get new refresh token and new revoke token
    * and also updates the vault with the new revoke token.
    * This method is to be called after user is authenticated.
    *
    * @param password - The password to encrypt the vault.
    * @returns A Promise that resolves to void.
    */
-  async revokeRefreshToken(password: string) {
+  async renewRefreshToken(password: string) {
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
-      const { vaultEncryptionKey } = this.state;
+      const { refreshToken, vaultEncryptionKey } = this.state;
       const {
         toprfEncryptionKey: rawToprfEncryptionKey,
         toprfPwEncryptionKey: rawToprfPwEncryptionKey,
@@ -1827,11 +1837,20 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
         );
       }
-      const { newRevokeToken, newRefreshToken } =
-        await this.#revokeRefreshToken({
+
+      const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken(
+        {
           connection: this.state.authConnection,
           revokeToken,
-        });
+        },
+      );
+
+      // add the old refresh token to the list to be revoked later when possible
+      this.#addPendingRefreshToken({
+        refreshToken,
+        revokeToken,
+      });
+
       this.update((state) => {
         // set new revoke token in state temporarily for persisting in vault
         state.revokeToken = newRevokeToken;
@@ -1844,6 +1863,67 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         rawToprfPwEncryptionKey,
         rawToprfAuthKeyPair,
       });
+    });
+  }
+
+  /**
+   * Revoke all pending refresh tokens.
+   *
+   * This method is to be called after user is authenticated.
+   */
+  async revokePendingRefreshTokens() {
+    this.#assertIsAuthenticatedUser(this.state);
+    const { pendingToBeRevokedTokens } = this.state;
+    if (!pendingToBeRevokedTokens || pendingToBeRevokedTokens.length === 0) {
+      return;
+    }
+
+    for (const { revokeToken } of pendingToBeRevokedTokens) {
+      await this.#revokeRefreshToken({
+        connection: this.state.authConnection,
+        revokeToken,
+      });
+      this.#removePendingRefreshToken({ revokeToken });
+    }
+  }
+
+  /**
+   * Add a pending refresh, revoke token to the state to be revoked later.
+   *
+   * @param params - The parameters for adding a pending refresh, revoke token.
+   * @param params.refreshToken - The refresh token to add.
+   * @param params.revokeToken - The revoke token to add.
+   */
+  #addPendingRefreshToken({
+    refreshToken,
+    revokeToken,
+  }: {
+    refreshToken: string;
+    revokeToken: string;
+  }) {
+    this.update((state) => {
+      state.pendingToBeRevokedTokens = [
+        ...(state.pendingToBeRevokedTokens || []),
+        { refreshToken, revokeToken },
+      ];
+    });
+  }
+
+  /**
+   * Remove a pending refresh, revoke token from the state.
+   *
+   * @param params - The parameters for removing a pending refresh, revoke token.
+   * @param params.revokeToken - The revoke token to remove.
+   */
+  #removePendingRefreshToken({ revokeToken }: { revokeToken: string }) {
+    if (!this.state.pendingToBeRevokedTokens) {
+      return;
+    }
+
+    this.update((state) => {
+      state.pendingToBeRevokedTokens = state.pendingToBeRevokedTokens?.filter(
+        (token) => token.revokeToken !== revokeToken,
+      );
     });
   }
 
