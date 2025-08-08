@@ -112,10 +112,10 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/accounts-controller": "^32.0.1",
+    "@metamask/accounts-controller": "^32.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^20.0.0",
-    "@metamask/keyring-controller": "^22.1.0",
+    "@metamask/keyring-controller": "^22.1.1",
     "@metamask/keyring-internal-api": "^8.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
