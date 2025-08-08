@@ -318,8 +318,8 @@ export const getAddTransactionBatchParams = async ({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     params: toBatchTxParams(disable7702, trade, gasFees),
     assetsFiatValues: {
-      sending: sentAmount?.usd?.toString(),
-      receiving: toTokenAmount?.usd?.toString(),
+      sending: sentAmount?.valueInCurrency?.toString(),
+      receiving: toTokenAmount?.valueInCurrency?.toString(),
     },
   });
   const transactionParams: Parameters<
