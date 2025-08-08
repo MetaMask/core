@@ -31,7 +31,7 @@ export function testsForRpcFailoverBehavior({
   providerType: ProviderType;
   requestToCall: MockRequest;
   getRequestToMock: (request: MockRequest, blockNumber: Hex) => MockRequest;
-  failure: MockResponse | Error | string;
+  failure: MockResponse<unknown> | Error | string;
   isRetriableFailure: boolean;
   getExpectedError: (url: string) => Error | jest.Constructable;
   getExpectedBreakError?: (url: string) => Error | jest.Constructable;
