@@ -70,6 +70,11 @@ export type NotificationServicesControllerState = {
   isFeatureAnnouncementsEnabled: boolean;
 
   /**
+   * Flag that indicates if the perps notifications are enabled
+   */
+  isPerpsNotificationsEnabled: boolean;
+
+  /**
    * List of metamask notifications
    */
   metamaskNotificationsList: INotification[];
@@ -116,6 +121,10 @@ const metadata: StateMetadata<NotificationServicesControllerState> = {
     persist: true,
     anonymous: false,
   },
+  isPerpsNotificationsEnabled: {
+    persist: true,
+    anonymous: false,
+  },
   metamaskNotificationsList: {
     persist: true,
     anonymous: true,
@@ -146,6 +155,7 @@ export const defaultState: NotificationServicesControllerState = {
   isMetamaskNotificationsFeatureSeen: false,
   isNotificationServicesEnabled: false,
   isFeatureAnnouncementsEnabled: false,
+  isPerpsNotificationsEnabled: false,
   metamaskNotificationsList: [],
   metamaskNotificationsReadList: [],
   isUpdatingMetamaskNotifications: false,
@@ -748,6 +758,19 @@ export default class NotificationServicesController extends BaseController<
     }
   }
 
+  public async setPerpsNotificationsEnabled(
+    perpsNotificationsEnabled: boolean,
+  ) {
+    try {
+      this.update((s) => {
+        s.isPerpsNotificationsEnabled = perpsNotificationsEnabled;
+      });
+    } catch (e) {
+      log.error('Unable to toggle perps notifications', e);
+      throw new Error('Unable to toggle perps notifications');
+    }
+  }
+
   /**
    * This creates/re-creates on-chain triggers defined in User Storage.
    *
@@ -802,6 +825,7 @@ export default class NotificationServicesController extends BaseController<
       this.update((state) => {
         state.isNotificationServicesEnabled = true;
         state.isFeatureAnnouncementsEnabled = true;
+        state.isPerpsNotificationsEnabled = true;
         state.isMetamaskNotificationsFeatureSeen = true;
       });
     } catch (err) {
@@ -856,6 +880,7 @@ export default class NotificationServicesController extends BaseController<
     this.update((state) => {
       state.isNotificationServicesEnabled = false;
       state.isFeatureAnnouncementsEnabled = false;
+      state.isPerpsNotificationsEnabled = false;
       // reassigning the notifications list with just snaps
       // since the disable shouldn't affect snaps notifications
       state.metamaskNotificationsList = snapNotifications;
