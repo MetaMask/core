@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added 
 
-- Add `perpsDeposit` to `TransactionType` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `perpsDeposit` to `TransactionType` ([#6282](https://github.com/MetaMask/core/pull/6282))
 
 ## [59.1.0]
 
