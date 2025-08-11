@@ -1825,7 +1825,6 @@ export type GasFeeToken = {
 
   /** Address of the token contract. */
   tokenAddress: Hex;
-
 };
 
 /** Request to check if atomic batch is supported for an account. */
