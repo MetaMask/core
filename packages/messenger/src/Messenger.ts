@@ -118,13 +118,14 @@ export type NamespacedName<Namespace extends string = string> =
 /**
  * A messenger that actions and/or events can be delegated to.
  *
- * This is a minimal type interface to avoid complex incompatibilities resulting from generics.
+ * This is a minimal type interface to avoid complex incompatibilities resulting from generics over
+ * invariant types.
  */
 type DelegatedMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > = Pick<
-  // The type is brooadened to all actions/events because some messenger methods are contravarient
+  // The type is broadened to all actions/events because some messenger methods are contravariant
   // over this type (`registerDelegatedActionHandler` and `publishDelegated` for example). If this
   // type is narrowed to just the delegated actions/events, the types for event payload and action
   // parameters would not be wide enough.
@@ -510,7 +511,7 @@ export class Messenger<
     // Widen type of event handler by dropping ReturnType parameter.
     //
     // We need to drop it here because it's used as the parameter to the event handler, and
-    // functions in general are contravarient over the parameter type. This means the type is no
+    // functions in general are contravariant over the parameter type. This means the type is no
     // longer valid once it's added to a broader type union with other handlers (because as far
     // as TypeScript knows, we might call the handler with output from a different selector).
     //
@@ -554,7 +555,7 @@ export class Messenger<
     // Widen type of event handler by dropping ReturnType parameter.
     //
     // We need to drop it here because it's used as the parameter to the event handler, and
-    // functions in general are contravarient over the parameter type. This means the type is no
+    // functions in general are contravariant over the parameter type. This means the type is no
     // longer valid once it's added to a broader type union with other handlers (because as far
     // as TypeScript knows, we might call the handler with output from a different selector).
     //
