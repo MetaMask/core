@@ -200,6 +200,11 @@ export type TransactionMeta = {
    */
   isFirstTimeInteraction?: boolean;
 
+  /**
+   * Whether the transaction is sponsored meaning a subsequent transfer is not required.
+   */
+  isSponsored?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -1804,9 +1809,6 @@ export type GasFeeToken = {
 
   /** Estimated gas limit required for fee transfer. */
   gasTransfer?: Hex;
-
-  /** Whether the gas costs are sponsored meaning a transfer is not required. */
-  isSponsored?: boolean;
 
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;

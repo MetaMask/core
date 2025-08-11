@@ -17,6 +17,7 @@ import {
   type SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
+import { is } from 'immer/dist/internal.js';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 
@@ -106,7 +107,7 @@ export async function getGasFeeTokens({
     return result;
   } catch (error) {
     log('Failed to gas fee tokens', error);
-    return [];
+    return { gasFeeTokens: [], isSponsored: false };
   }
 }
 
@@ -114,29 +115,33 @@ export async function getGasFeeTokens({
  * Extract gas fee tokens from a simulation response.
  *
  * @param response - The simulation response.
- * @returns An array of gas fee tokens.
+ * @returns gasFeeTokens: An array of gas fee tokens. isSponsored: Whether the transaction is sponsored
  */
-function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
+function parseGasFeeTokens(response: SimulationResponse): { gasFeeTokens: GasFeeToken[], isSponsored: boolean } {
   const feeLevel = response.transactions?.[0]
     ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
+  const isSponsored = response.sponsorship?.isSponsored ?? false;
+
   const tokenFees = feeLevel?.tokenFees ?? [];
 
-  return tokenFees.map((tokenFee) => ({
-    amount: tokenFee.balanceNeededToken,
-    balance: tokenFee.currentBalanceToken,
-    decimals: tokenFee.token.decimals,
-    fee: tokenFee.serviceFee,
-    gas: feeLevel.gas,
-    gasTransfer: tokenFee.transferEstimate,
-    isSponsored: tokenFee.isSponsored,
-    maxFeePerGas: feeLevel.maxFeePerGas,
-    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
-    rateWei: tokenFee.rateWei,
-    recipient: tokenFee.feeRecipient,
-    symbol: tokenFee.token.symbol,
-    tokenAddress: tokenFee.token.address,
-  }));
+  return {
+    gasFeeTokens: tokenFees.map((tokenFee) => ({
+      amount: tokenFee.balanceNeededToken,
+      balance: tokenFee.currentBalanceToken,
+      decimals: tokenFee.token.decimals,
+      fee: tokenFee.serviceFee,
+      gas: feeLevel.gas,
+      gasTransfer: tokenFee.transferEstimate,
+      maxFeePerGas: feeLevel.maxFeePerGas,
+      maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+      rateWei: tokenFee.rateWei,
+      recipient: tokenFee.feeRecipient,
+      symbol: tokenFee.token.symbol,
+      tokenAddress: tokenFee.token.address,
+    })),
+    isSponsored,
+  };
 }
 
 /**

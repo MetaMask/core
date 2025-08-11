@@ -4156,6 +4156,7 @@ export class TransactionController extends BaseController<
     };
 
     let gasFeeTokens: GasFeeToken[] = [];
+    let isSponsored = false;
 
     const isBalanceChangesSkipped =
       this.#skipSimulationTransactionIds.has(transactionId);
@@ -4184,13 +4185,15 @@ export class TransactionController extends BaseController<
         };
       }
 
-      gasFeeTokens = await getGasFeeTokens({
+      const gasFeeTokensResponse = await getGasFeeTokens({
         chainId,
         isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
         messenger: this.messagingSystem,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
       });
+      gasFeeTokens = gasFeeTokensResponse.gasFeeTokens;
+      isSponsored = gasFeeTokensResponse.isSponsored;
     }
 
     const latestTransactionMeta = this.#getTransaction(transactionId);
@@ -4214,6 +4217,7 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
+        txMeta.isSponsored = isSponsored;
 
         if (!isBalanceChangesSkipped) {
           txMeta.simulationData = simulationData;

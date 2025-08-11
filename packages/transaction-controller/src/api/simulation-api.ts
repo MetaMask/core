@@ -240,6 +240,12 @@ export type SimulationResponseTransaction = {
 export type SimulationResponse = {
   /** Simulation data for each transaction in the request. */
   transactions: SimulationResponseTransaction[];
+  sponsorship: {
+    /** Whether the gas costs are sponsored meaning a transfer is not required. */
+    isSponsored: boolean;
+    /** Error message for the determination of sponsorship. */
+    error: string | null;
+  };
 };
 
 /** Data for a network supported by the Simulation API. */
