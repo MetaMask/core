@@ -116,20 +116,40 @@ export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 
 /**
+ * Validate that the given messenger has the provided capabilities.
+ *
+ * This type assumes that capability names are unique; action handlers and event payload types are
+ * not verified.
+ *
+ * @template Subject - The messenger being validated.
+ * @template ActionType - A type union of action types that the messenger should have.
+ * @template EventType - A type union of event types that the messenger should have.
+ */
+type WithCapabilities<
+  Subject extends Messenger<string, ActionConstraint, EventConstraint>,
+  ActionType extends NamespacedName,
+  EventType extends NamespacedName,
+> =
+  Subject extends Messenger<string, infer SubjectAction, infer SubjectEvent>
+    ? SubjectAction['type'] extends ActionType
+      ? SubjectEvent['type'] extends EventType
+        ? DelegatedMessenger
+        : never
+      : never
+    : never;
+
+/**
  * A messenger that actions and/or events can be delegated to.
  *
  * This is a minimal type interface to avoid complex incompatibilities resulting from generics over
  * invariant types.
  */
-type DelegatedMessenger<
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
-> = Pick<
+type DelegatedMessenger = Pick<
   // The type is broadened to all actions/events because some messenger methods are contravariant
   // over this type (`registerDelegatedActionHandler` and `publishDelegated` for example). If this
   // type is narrowed to just the delegated actions/events, the types for event payload and action
   // parameters would not be wide enough.
-  Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
+  Messenger<string, ActionConstraint, EventConstraint>,
   | '_internalPublishDelegated'
   | '_internalRegisterDelegatedActionHandler'
   | '_internalRegisterDelegatedInitialEventPayload'
@@ -164,10 +184,7 @@ export class Messenger<
    */
   readonly #subscriptionDelegationTargets = new Map<
     Event['type'],
-    Map<
-      DelegatedMessenger<Action, Event>,
-      ExtractEventHandler<Event, Event['type']>
-    >
+    Map<DelegatedMessenger, ExtractEventHandler<Event, Event['type']>>
   >();
 
   /**
@@ -175,7 +192,7 @@ export class Messenger<
    */
   readonly #actionDelegationTargets = new Map<
     Action['type'],
-    Set<DelegatedMessenger<Action, Event>>
+    Set<DelegatedMessenger>
   >();
 
   /**
@@ -614,14 +631,22 @@ export class Messenger<
    * @param args.events - The event types to delegate.
    * @param args.messenger - The messenger to delegate to.
    */
-  delegate<DelegatedAction extends Action, DelegatedEvent extends Event>({
+  delegate<
+    DelegatedAction extends Action,
+    DelegatedEvent extends Event,
+    Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
+  >({
     actions = [],
     events = [],
     messenger,
   }: {
     actions?: readonly DelegatedAction['type'][];
     events?: readonly DelegatedEvent['type'][];
-    messenger: DelegatedMessenger<DelegatedAction, DelegatedEvent>;
+    messenger: WithCapabilities<
+      Delegatee,
+      DelegatedAction['type'],
+      DelegatedEvent['type']
+    >;
   }) {
     for (const actionType of actions) {
       const delegatedActionHandler = (
@@ -641,7 +666,7 @@ export class Messenger<
       };
       let delegationTargets = this.#actionDelegationTargets.get(actionType);
       if (!delegationTargets) {
-        delegationTargets = new Set<DelegatedMessenger<Action, Event>>();
+        delegationTargets = new Set<DelegatedMessenger>();
         this.#actionDelegationTargets.set(actionType, delegationTargets);
       }
       delegationTargets.add(messenger);
@@ -697,14 +722,22 @@ export class Messenger<
    * @param args.events - The event types to revoke.
    * @param args.messenger - The messenger these actions/events were delegated to.
    */
-  revoke<DelegatedAction extends Action, DelegatedEvent extends Event>({
+  revoke<
+    DelegatedAction extends Action,
+    DelegatedEvent extends Event,
+    Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
+  >({
     actions = [],
     events = [],
     messenger,
   }: {
     actions?: readonly DelegatedAction['type'][];
     events?: readonly DelegatedEvent['type'][];
-    messenger: DelegatedMessenger<DelegatedAction, DelegatedEvent>;
+    messenger: WithCapabilities<
+      Delegatee,
+      DelegatedAction['type'],
+      DelegatedEvent['type']
+    >;
   }) {
     for (const actionType of actions) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
