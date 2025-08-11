@@ -645,11 +645,14 @@ export class Messenger<
   }: {
     actions?: readonly DelegatedAction['type'][];
     events?: readonly DelegatedEvent['type'][];
-    messenger: WithCapabilities<
-      Delegatee,
-      DelegatedAction['type'],
-      DelegatedEvent['type']
-    >;
+    // Use intersection with Delegatee here so that TypeScript can infer the type of Delegatee
+    // from this parameter.
+    messenger: Delegatee &
+      WithCapabilities<
+        Delegatee,
+        DelegatedAction['type'],
+        DelegatedEvent['type']
+      >;
   }) {
     for (const actionType of actions) {
       const delegatedActionHandler = (
@@ -739,11 +742,14 @@ export class Messenger<
   }: {
     actions?: readonly DelegatedAction['type'][];
     events?: readonly DelegatedEvent['type'][];
-    messenger: WithCapabilities<
-      Delegatee,
-      DelegatedAction['type'],
-      DelegatedEvent['type']
-    >;
+    // Use intersection with Delegatee here so that TypeScript can infer the type of Delegatee
+    // from this parameter.
+    messenger: Delegatee &
+      WithCapabilities<
+        Delegatee,
+        DelegatedAction['type'],
+        DelegatedEvent['type']
+      >;
   }) {
     for (const actionType of actions) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
