@@ -895,9 +895,8 @@ export class SeedlessOnboardingController<
       );
     }
 
-    const { accessToken: accessTokenFromVault } =
-      await this.#unlockVaultAndGetVaultData(password);
-    return accessTokenFromVault;
+    const { parsedVaultData } = await this.#decryptAndParseVaultData(password);
+    return parsedVaultData.accessToken;
   }
 
   #setUnlocked(): void {
@@ -1263,54 +1262,8 @@ export class SeedlessOnboardingController<
     accessToken: string;
   }> {
     return this.#withVaultLock(async () => {
-      let { vaultEncryptionKey } = this.state;
-      const { vault: encryptedVault, vaultEncryptionSalt } = this.state;
-
-      if (!encryptedVault) {
-        throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
-      }
-
-      if (encryptionKey) {
-        vaultEncryptionKey = encryptionKey;
-      }
-
-      let decryptedVaultData: unknown;
-      const updatedState: Partial<SeedlessOnboardingControllerState> = {};
-
-      if (password) {
-        assertIsValidPassword(password);
-        // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
-        // from the password using an intentionally slow key derivation function.
-        // We should make sure that we only call it very intentionally.
-        const result = await this.#vaultEncryptor.decryptWithDetail(
-          password,
-          encryptedVault,
-        );
-        decryptedVaultData = result.vault;
-        updatedState.vaultEncryptionKey = result.exportedKeyString;
-        updatedState.vaultEncryptionSalt = result.salt;
-      } else {
-        assertIsVaultEncryptionKeyDefined(vaultEncryptionKey);
-
-        const parsedEncryptedVault = JSON.parse(encryptedVault);
-
-        if (
-          vaultEncryptionSalt &&
-          vaultEncryptionSalt !== parsedEncryptedVault.salt
-        ) {
-          throw new Error(
-            SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
-          );
-        }
-
-        const key = await this.#vaultEncryptor.importKey(vaultEncryptionKey);
-        decryptedVaultData = await this.#vaultEncryptor.decryptWithKey(
-          key,
-          parsedEncryptedVault,
-        );
-        updatedState.vaultEncryptionKey = vaultEncryptionKey;
-        updatedState.vaultEncryptionSalt = vaultEncryptionSalt;
-      }
+      const { parsedVaultData, vaultEncryptionKey, vaultEncryptionSalt } =
+        await this.#decryptAndParseVaultData(password, encryptionKey);
 
       const {
         toprfEncryptionKey,
@@ -1318,11 +1271,11 @@ export class SeedlessOnboardingController<
         toprfAuthKeyPair,
         revokeToken,
         accessToken,
-      } = this.#parseVaultData(decryptedVaultData);
+      } = parsedVaultData;
 
       this.update((state) => {
-        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
-        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
+        state.vaultEncryptionKey = vaultEncryptionKey;
+        state.vaultEncryptionSalt = vaultEncryptionSalt;
         state.revokeToken = revokeToken;
         state.accessToken = accessToken;
       });
@@ -1335,6 +1288,69 @@ export class SeedlessOnboardingController<
         accessToken,
       };
     });
+  }
+
+  /**
+   * Decrypts the vault data and parses it into a usable format.
+   *
+   * @param password - The optional password to decrypt the vault.
+   * @param encryptionKey - The optional encryption key to decrypt the vault.
+   * @returns A promise that resolves to an object containing:
+   */
+  async #decryptAndParseVaultData(password?: string, encryptionKey?: string) {
+    let { vaultEncryptionKey, vaultEncryptionSalt } = this.state;
+    const { vault: encryptedVault } = this.state;
+
+    if (!encryptedVault) {
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultError);
+    }
+
+    if (encryptionKey) {
+      vaultEncryptionKey = encryptionKey;
+    }
+
+    let decryptedVaultData: unknown;
+
+    if (password) {
+      assertIsValidPassword(password);
+      // Note that vault decryption using the password is a very costly operation as it involves deriving the encryption key
+      // from the password using an intentionally slow key derivation function.
+      // We should make sure that we only call it very intentionally.
+      const result = await this.#vaultEncryptor.decryptWithDetail(
+        password,
+        encryptedVault,
+      );
+      decryptedVaultData = result.vault;
+      vaultEncryptionKey = result.exportedKeyString;
+      vaultEncryptionSalt = result.salt;
+    } else {
+      assertIsVaultEncryptionKeyDefined(vaultEncryptionKey);
+
+      const parsedEncryptedVault = JSON.parse(encryptedVault);
+
+      if (
+        vaultEncryptionSalt &&
+        vaultEncryptionSalt !== parsedEncryptedVault.salt
+      ) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
+        );
+      }
+
+      const key = await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+      decryptedVaultData = await this.#vaultEncryptor.decryptWithKey(
+        key,
+        parsedEncryptedVault,
+      );
+    }
+
+    const parsedVaultData = this.#parseVaultData(decryptedVaultData);
+
+    return {
+      parsedVaultData,
+      vaultEncryptionKey,
+      vaultEncryptionSalt,
+    };
   }
 
   /**
@@ -1438,7 +1454,7 @@ export class SeedlessOnboardingController<
    * @param params.password - The password to encrypt the vault.
    * @param params.rawToprfEncryptionKey - The encryption key to encrypt the vault.
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
-   * @param params.rawToprfAuthKeyPair - The authentication key pair to encrypt the vault.
+   * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
    */
   async #createNewVaultWithAuthData({
     password,
@@ -1453,9 +1469,8 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
+    const { revokeToken } = this.state;
     const accessToken = await this.#getAccessToken(password);
-
-    this.#setUnlocked();
 
     const { toprfEncryptionKey, toprfPwEncryptionKey, toprfAuthKeyPair } =
       this.#serializeKeyData(
@@ -1468,7 +1483,7 @@ export class SeedlessOnboardingController<
       toprfEncryptionKey,
       toprfPwEncryptionKey,
       toprfAuthKeyPair,
-      revokeToken: this.state.revokeToken,
+      revokeToken,
       accessToken,
     });
 
@@ -1482,6 +1497,8 @@ export class SeedlessOnboardingController<
     this.#persistAuthPubKey({
       authPubKey: rawToprfAuthKeyPair.pk,
     });
+
+    this.#setUnlocked();
   }
 
   /**
@@ -1841,18 +1858,21 @@ export class SeedlessOnboardingController<
           connection: this.state.authConnection,
           revokeToken,
         });
-      this.update((state) => {
-        // set new revoke token in state temporarily for persisting in vault
-        state.revokeToken = newRevokeToken;
-        // set new refresh token to persist in state
-        state.refreshToken = newRefreshToken;
-      });
-      await this.#createNewVaultWithAuthData({
-        password,
-        rawToprfEncryptionKey,
-        rawToprfPwEncryptionKey,
-        rawToprfAuthKeyPair,
-      });
+      if (newRevokeToken && newRefreshToken) {
+        this.update((state) => {
+          // set new revoke token in state temporarily for persisting in vault
+          state.revokeToken = newRevokeToken;
+          // set new refresh token to persist in state
+          state.refreshToken = newRefreshToken;
+        });
+
+        await this.#createNewVaultWithAuthData({
+          password,
+          rawToprfEncryptionKey,
+          rawToprfPwEncryptionKey,
+          rawToprfAuthKeyPair,
+        });
+      }
     });
   }
 

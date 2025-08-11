@@ -1,3 +1,6 @@
+import type { BigNumber } from '@ethersproject/bignumber';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerGetSelectedAccountAction,
@@ -22,13 +25,15 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import { assert } from '@metamask/utils';
+import { assert, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
+import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import type {
-  AssetsContractController,
-  StakedBalance,
+import {
+  SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
+  type AssetsContractController,
+  type StakedBalance,
 } from './AssetsContractController';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 
@@ -38,11 +43,13 @@ import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 const controllerName = 'AccountTrackerController';
 
 /**
- * @type AccountInformation
+ * AccountInformation
  *
  * Account information object
- * @property balance - Hex string of an account balance in wei
- * @property stakedBalance - Hex string of an account staked balance in wei
+ *
+ * balance - Hex string of an account balance in wei
+ *
+ * stakedBalance - Hex string of an account staked balance in wei
  */
 export type AccountInformation = {
   balance: string;
@@ -50,10 +57,11 @@ export type AccountInformation = {
 };
 
 /**
- * @type AccountTrackerControllerState
+ * AccountTrackerControllerState
  *
  * Account tracker controller state
- * @property accountsByChainId - Map of addresses to account information by chain
+ *
+ * accountsByChainId - Map of addresses to account information by chain
  */
 export type AccountTrackerControllerState = {
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
@@ -271,10 +279,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param networkClientId - Optional networkClientId to fetch a network client with
    * @returns network client config
    */
-  #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
-    chainId: string;
-    ethQuery?: EthQuery;
-  } {
+  #getCorrectNetworkClient(networkClientId?: NetworkClientId) {
     const selectedNetworkClientId =
       networkClientId ??
       this.messagingSystem.call('NetworkController:getState')
@@ -282,6 +287,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const {
       configuration: { chainId },
       provider,
+      blockTracker,
     } = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
@@ -289,7 +295,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     return {
       chainId,
+      provider,
       ethQuery: new EthQuery(provider),
+      blockTracker,
     };
   }
 
@@ -346,7 +354,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       // Create an array of promises for each networkClientId
       const updatePromises = networkClientIds.map(async (networkClientId) => {
-        const { chainId, ethQuery } =
+        const { chainId, ethQuery, provider, blockTracker } =
           this.#getCorrectNetworkClient(networkClientId);
         const { accountsByChainId } = this.state;
         const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
@@ -359,49 +367,84 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
         const accountsForChain = { ...accountsByChainId[chainId] };
 
-        // Process accounts in batches using reduceInBatchesSerially
-        await reduceInBatchesSerially<string, void>({
-          values: accountsToUpdate,
-          batchSize: TOKEN_PRICES_BATCH_SIZE,
-          initialResult: undefined,
-          eachBatch: async (workingResult: void, batch: string[]) => {
-            const balancePromises = batch.map(async (address: string) => {
-              const balancePromise = this.#getBalanceFromChain(
-                address,
-                ethQuery,
-              );
-              const stakedBalancePromise = this.#includeStakedAssets
-                ? this.#getStakedBalanceForChain(address, networkClientId)
-                : Promise.resolve(null);
+        // Force fresh block data before multicall
+        // TODO: This is a temporary fix to ensure that the block number is up to date.
+        // We should remove this once we have a better solution for this on the block tracker controller.
+        await safelyExecuteWithTimeout(() =>
+          blockTracker?.checkForLatestBlock?.(),
+        );
 
-              const [balanceResult, stakedBalanceResult] =
-                await Promise.allSettled([
-                  balancePromise,
-                  stakedBalancePromise,
-                ]);
+        const stakedBalancesPromise = this.#includeStakedAssets
+          ? this.#getStakedBalanceForChain(accountsToUpdate, networkClientId)
+          : Promise.resolve({});
 
-              // Update account balances
-              if (balanceResult.status === 'fulfilled' && balanceResult.value) {
-                accountsForChain[address] = {
-                  balance: balanceResult.value,
-                };
-              }
+        if (hasProperty(SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID, chainId)) {
+          const contractAddress = SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[
+            chainId
+          ] as string;
 
-              if (
-                stakedBalanceResult.status === 'fulfilled' &&
-                stakedBalanceResult.value
-              ) {
-                accountsForChain[address] = {
-                  ...accountsForChain[address],
-                  stakedBalance: stakedBalanceResult.value,
-                };
-              }
+          const contract = new Contract(
+            contractAddress,
+            abiSingleCallBalancesContract,
+            new Web3Provider(provider),
+          );
+
+          const nativeBalances = await safelyExecuteWithTimeout(
+            () =>
+              contract.balances(accountsToUpdate, [
+                '0x0000000000000000000000000000000000000000',
+              ]) as Promise<BigNumber[]>,
+            false,
+            3_000, // 3s max call for multicall contract call
+          );
+
+          if (nativeBalances) {
+            accountsToUpdate.forEach((address, index) => {
+              accountsForChain[address] = {
+                balance: nativeBalances[index].toHexString(),
+              };
             });
+          }
+        } else {
+          // Process accounts in batches using reduceInBatchesSerially
+          await reduceInBatchesSerially<string, void>({
+            values: accountsToUpdate,
+            batchSize: TOKEN_PRICES_BATCH_SIZE,
+            initialResult: undefined,
+            eachBatch: async (workingResult: void, batch: string[]) => {
+              const balancePromises = batch.map(async (address: string) => {
+                const balanceResult = await this.#getBalanceFromChain(
+                  address,
+                  ethQuery,
+                ).catch(() => null);
 
-            await Promise.allSettled(balancePromises);
-            return workingResult;
+                // Update account balances
+                if (balanceResult) {
+                  accountsForChain[address] = {
+                    balance: balanceResult,
+                  };
+                }
+              });
+
+              await Promise.allSettled(balancePromises);
+              return workingResult;
+            },
+          });
+        }
+
+        const stakedBalanceResult = await safelyExecuteWithTimeout(
+          async () =>
+            (await stakedBalancesPromise) as Record<string, StakedBalance>,
+        );
+
+        Object.entries(stakedBalanceResult ?? {}).forEach(
+          ([address, balance]) => {
+            accountsForChain[address] = {
+              ...accountsForChain[address],
+              stakedBalance: balance,
+            };
           },
-        });
+        );
 
         // After all batches are processed, return the updated data
         return { chainId, accountsForChain };
@@ -469,6 +512,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   > {
     const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
 
+    // TODO: This should use multicall when enabled by the user.
     return await Promise.all(
       addresses.map(
         (address): Promise<[string, string, StakedBalance] | undefined> => {
@@ -478,10 +522,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
             let stakedBalance: StakedBalance;
             if (this.#includeStakedAssets) {
-              stakedBalance = await this.#getStakedBalanceForChain(
-                address,
-                networkClientId,
-              );
+              stakedBalance = (
+                await this.#getStakedBalanceForChain([address], networkClientId)
+              )[address];
             }
             return [address, balance, stakedBalance];
           });

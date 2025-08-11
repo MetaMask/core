@@ -5,7 +5,7 @@ import {
   authenticate,
   authorizeOIDC,
   getNonce,
-  getUserProfileMetaMetrics,
+  getUserProfileLineage,
 } from './services';
 import type {
   AuthConfig,
@@ -14,7 +14,7 @@ import type {
   IBaseAuth,
   LoginResponse,
   UserProfile,
-  UserProfileMetaMetrics,
+  UserProfileLineage,
 } from './types';
 import { ValidationError } from '../errors';
 import { validateLoginResponse } from '../utils/validate-login-response';
@@ -70,9 +70,9 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
     return this.#signer.address;
   }
 
-  async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
+  async getUserProfileLineage(): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken();
-    return await getUserProfileMetaMetrics(this.#config.env, accessToken);
+    return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
   async signMessage(message: string): Promise<string> {

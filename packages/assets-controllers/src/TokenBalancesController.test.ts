@@ -89,7 +89,13 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    jest.fn().mockReturnValue({ provider: jest.fn() }),
+    jest.fn().mockReturnValue({
+      provider: jest.fn(),
+      blockTracker: {
+        checkForLatestBlock: jest.fn().mockResolvedValue(undefined),
+      },
+      getBlockNumber: jest.fn().mockResolvedValue(1),
+    }),
   );
   const controller = new TokenBalancesController({
     messenger: tokenBalancesMessenger,
@@ -558,7 +564,7 @@ describe('TokenBalancesController', () => {
 
     await controller._executePoll({ chainId });
 
-    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledTimes(2);
   });
 
   it('does not update balances when multi-account balances is enabled and multi-account contract failed', async () => {
@@ -632,7 +638,7 @@ describe('TokenBalancesController', () => {
     ]);
     jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
       { success: true, value: new BN(balance1) },
-      { success: true, value: new BN(balance3) },
+      { success: true, value: new BN(balance2) },
     ]);
 
     await controller._executePoll({ chainId });
@@ -650,6 +656,11 @@ describe('TokenBalancesController', () => {
       },
     });
 
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValueOnce([
+      { success: true, value: new BN(balance1) },
+      { success: true, value: new BN(balance3) },
+    ]);
+
     await controller._executePoll({ chainId });
 
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -665,7 +676,7 @@ describe('TokenBalancesController', () => {
       },
     });
 
-    expect(updateSpy).toHaveBeenCalledTimes(2);
+    expect(updateSpy).toHaveBeenCalledTimes(3);
   });
 
   it('only updates selected account balance when multi-account balances is disabled', async () => {
