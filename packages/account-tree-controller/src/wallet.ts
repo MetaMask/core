@@ -3,10 +3,9 @@ import type {
   AccountWalletId,
   MultichainAccountWalletId,
 } from '@metamask/account-api';
-import { type AccountGroupId, type AccountWallet } from '@metamask/account-api';
+import { type AccountGroupId } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import type { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
 import type {
@@ -14,9 +13,7 @@ import type {
   AccountGroupObject,
   AccountGroupSingleAccountObject,
 } from './group';
-import { AccountTreeGroup } from './group';
 import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
-import { type AccountTreeControllerMessenger } from './types';
 
 /**
  * Persisted metadata for account wallets (stored in controller state for persistence/sync).
@@ -65,7 +62,6 @@ export type AccountWalletEntropyObject = {
   metadata: AccountTreeWalletMetadata & {
     entropy: {
       id: EntropySourceId;
-      index: number;
     };
   };
 };
@@ -118,84 +114,3 @@ export type AccountWalletObjectOf<WalletType extends AccountWalletType> =
     | { type: AccountWalletType.Snap; object: AccountWalletSnapObject },
     { type: WalletType }
   >['object'];
-
-/**
- * Account wallet coming from the {@link AccountTreeController}.
- */
-export class AccountTreeWallet implements AccountWallet<InternalAccount> {
-  readonly #wallet: AccountWalletObject;
-
-  protected messenger: AccountTreeControllerMessenger;
-
-  protected groups: Map<AccountGroupId, AccountTreeGroup>;
-
-  constructor({
-    messenger,
-    wallet,
-  }: {
-    messenger: AccountTreeControllerMessenger;
-    wallet: AccountWalletObject;
-  }) {
-    this.messenger = messenger;
-    this.#wallet = wallet;
-    this.groups = new Map();
-
-    for (const [groupId, group] of Object.entries(this.#wallet.groups)) {
-      this.groups.set(
-        groupId as AccountGroupId,
-        new AccountTreeGroup({
-          messenger: this.messenger,
-          wallet: this,
-          group,
-        }),
-      );
-    }
-  }
-
-  get id(): AccountWalletId {
-    return this.#wallet.id;
-  }
-
-  get type(): AccountWalletType {
-    return this.#wallet.type;
-  }
-
-  get name(): string {
-    return this.#wallet.metadata.name;
-  }
-
-  /**
-   * Gets account tree group for a given ID.
-   *
-   * @param groupId - Group ID.
-   * @returns Account tree group, or undefined if not found.
-   */
-  getAccountGroup(groupId: AccountGroupId): AccountTreeGroup | undefined {
-    return this.groups.get(groupId);
-  }
-
-  /**
-   * Gets account tree group for a given ID.
-   *
-   * @param groupId - Group ID.
-   * @throws If the account group is not found.
-   * @returns Account tree group.
-   */
-  getAccountGroupOrThrow(groupId: AccountGroupId): AccountTreeGroup {
-    const group = this.getAccountGroup(groupId);
-    if (!group) {
-      throw new Error('Unable to get account group');
-    }
-
-    return group;
-  }
-
-  /**
-   * Gets all account tree groups.
-   *
-   * @returns Account tree groups.
-   */
-  getAccountGroups(): AccountTreeGroup[] {
-    return Array.from(this.groups.values());
-  }
-}
