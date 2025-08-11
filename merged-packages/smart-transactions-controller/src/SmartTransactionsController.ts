@@ -77,7 +77,7 @@ const controllerName = 'SmartTransactionsController';
 
 const controllerMetadata = {
   smartTransactionsState: {
-    persist: true,
+    persist: false,
     anonymous: true,
   },
 };
