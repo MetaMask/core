@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
 ### Uncategorized
 
 - chore: Add missing TSDoc template directives ([#6257](https://github.com/MetaMask/core/pull/6257))
@@ -330,7 +332,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.0...@metamask/base-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.1...@metamask/base-controller@8.0.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.0...@metamask/base-controller@7.1.1
