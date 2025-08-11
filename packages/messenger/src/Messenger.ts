@@ -630,6 +630,9 @@ export class Messenger<
    * @param args.actions - The action types to delegate.
    * @param args.events - The event types to delegate.
    * @param args.messenger - The messenger to delegate to.
+   * @template DelegatedAction - A type union of delegated actions.
+   * @template DelegatedEvent - A type union of delegated events.
+   * @template Delegatee - The messenger the actions/events are delegated to.
    */
   delegate<
     DelegatedAction extends Action,
@@ -721,6 +724,9 @@ export class Messenger<
    * @param args.actions - The action types to revoke.
    * @param args.events - The event types to revoke.
    * @param args.messenger - The messenger these actions/events were delegated to.
+   * @template DelegatedAction - A type union of delegated actions.
+   * @template DelegatedEvent - A type union of delegated events.
+   * @template Delegatee - The messenger the actions/events are being revoked from.
    */
   revoke<
     DelegatedAction extends Action,
