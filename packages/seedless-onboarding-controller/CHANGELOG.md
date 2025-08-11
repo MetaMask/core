@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1]
+
 ### Changed
 
 - Moved `@noble/hashes` from dev dependencies to main dependencies and bumped from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
 - Moved `@noble/ciphers` from dev dependencies to main dependencies and bumped from `^0.5.2` to `^1.3.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
 - Moved `@noble/curves` from dev dependencies to main dependencies and bumped from `^1.2.0` to `^1.9.2` ([#6101](https://github.com/MetaMask/core/pull/6101))
+
+### Fixed
+
+- Fixed the vault creation with incorrect revokeToken value after fetching new revoke token asynchronously. ([#6272](https://github.com/MetaMask/core/pull/6272))
 
 ## [2.5.0]
 
@@ -128,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.1...HEAD
+[2.5.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.0...@metamask/seedless-onboarding-controller@2.5.1
 [2.5.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.4.0...@metamask/seedless-onboarding-controller@2.5.0
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.3.0...@metamask/seedless-onboarding-controller@2.4.0
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.2.0...@metamask/seedless-onboarding-controller@2.3.0

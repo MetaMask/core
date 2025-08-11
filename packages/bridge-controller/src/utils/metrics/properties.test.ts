@@ -1,11 +1,10 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import { MetricsActionType, MetricsSwapType } from './constants';
+import { MetricsSwapType } from './constants';
 import {
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
-  getActionTypeFromQuoteRequest,
   getSwapTypeFromQuote,
   formatProviderLabel,
   getRequestParams,
@@ -134,26 +133,6 @@ describe('properties', () => {
       const result = slippageFormatter?.({});
 
       expect(result).toBeUndefined();
-    });
-  });
-
-  describe('getActionType', () => {
-    it('should return SWAPBRIDGE_V1 when srcChainId equals destChainId', () => {
-      const result = getActionTypeFromQuoteRequest({
-        srcChainId: '1',
-        destChainId: '1',
-      });
-
-      expect(result).toBe(MetricsActionType.SWAPBRIDGE_V1);
-    });
-
-    it('should return CROSSCHAIN_V1 when srcChainId does not equal destChainId', () => {
-      const result = getActionTypeFromQuoteRequest({
-        srcChainId: '1',
-        destChainId: '2',
-      });
-
-      expect(result).toBe(MetricsActionType.CROSSCHAIN_V1);
     });
   });
 

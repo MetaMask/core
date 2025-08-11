@@ -17,7 +17,6 @@ export type {
 export {
   formatProviderLabel,
   getRequestParams,
-  getActionType,
   getSwapType,
   isHardwareWallet,
   isCustomSlippage,
