@@ -5534,5 +5534,48 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should handle error when revokeRefreshToken fails and still remove token from pending list', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            pendingToBeRevokedTokens: [
+              {
+                refreshToken: 'old-refresh-token-1',
+                revokeToken: 'old-revoke-token-1',
+              },
+              {
+                refreshToken: 'old-refresh-token-2',
+                revokeToken: 'old-revoke-token-2',
+              },
+            ],
+          }),
+        },
+        async ({ controller, mockRevokeRefreshToken }) => {
+          // Mock the revokeRefreshToken to fail for the first token but succeed for the second
+          mockRevokeRefreshToken
+            .mockRejectedValueOnce(new Error('Revoke failed'))
+            .mockResolvedValueOnce(undefined);
+
+          await controller.revokePendingRefreshTokens();
+
+          expect(mockRevokeRefreshToken).toHaveBeenCalledTimes(2);
+          expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
+            connection: controller.state.authConnection,
+            revokeToken: 'old-revoke-token-1',
+          });
+          expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
+            connection: controller.state.authConnection,
+            revokeToken: 'old-revoke-token-2',
+          });
+
+          // Verify that both tokens were removed from the pending list
+          // The first one was removed in the catch block (line 1911)
+          // The second one was removed after successful revocation
+          expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
+        },
+      );
+    });
   });
 });

@@ -1898,13 +1898,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       return;
     }
 
-    for (const { revokeToken } of pendingToBeRevokedTokens) {
-      await this.#revokeRefreshToken({
-        connection: this.state.authConnection,
-        revokeToken,
-      });
-      this.#removePendingRefreshToken({ revokeToken });
-    }
+    // revoke all pending refresh tokens in parallel
+    const promises = pendingToBeRevokedTokens.map(({ revokeToken }) =>
+      (async () => {
+        try {
+          await this.#revokeRefreshToken({
+            connection: this.state.authConnection as AuthConnection,
+            revokeToken,
+          });
+          this.#removePendingRefreshToken({ revokeToken });
+        } catch (error) {
+          log('Error revoking refresh token', error);
+        }
+      })(),
+    );
+    await Promise.allSettled(promises);
   }
 
   /**
