@@ -313,7 +313,9 @@ export class RestrictedMessenger<
     SelectorReturnValue,
   >(
     event: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
     selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ) {
     if (!this.#isAllowedEvent(event)) {
@@ -323,7 +325,10 @@ export class RestrictedMessenger<
     if (selector) {
       return this.#messenger.subscribe(event, handler, selector);
     }
-    return this.#messenger.subscribe(event, handler);
+    return this.#messenger.subscribe(
+      event,
+      handler as ExtractEventHandler<Event, EventType>,
+    );
   }
 
   /**

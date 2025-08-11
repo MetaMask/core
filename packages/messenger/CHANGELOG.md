@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add default for `ReturnHandler` type parameter of `SelectorEventHandler` ([#6262](https://github.com/MetaMask/core/pull/6262))
+- Add default for `ReturnHandler` type parameter of `SelectorEventHandler` and `SelectorFunction` ([#6262](https://github.com/MetaMask/core/pull/6262), [#6264](https://github.com/MetaMask/core/pull/6264))
 
 ### Fixed
 
