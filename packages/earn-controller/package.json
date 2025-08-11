@@ -49,7 +49,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^8.0.1",
+    "@metamask/base-controller": "^8.1.0",
     "@metamask/controller-utils": "^11.11.0",
     "@metamask/stake-sdk": "^3.2.1",
     "reselect": "^5.1.1"
