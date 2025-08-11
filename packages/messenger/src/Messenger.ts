@@ -77,6 +77,11 @@ export type EventConstraint = {
  */
 type SubscriptionMetadata<Event extends EventConstraint> = {
   /**
+   * Whether this subscription is for a delegated messenger. Delegation subscriptions are ignored
+   * when clearing subscriptions.
+   */
+  delegation: boolean;
+  /**
    * The optional selector function for this subscription.
    */
   selector?: SelectorFunction<Event, Event['type']>;
@@ -519,12 +524,6 @@ export class Messenger<
       | SelectorEventHandler<SelectorReturnValue>,
     selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void {
-    let subscribers = this.#events.get(eventType);
-    if (!subscribers) {
-      subscribers = new Map();
-      this.#events.set(eventType, subscribers);
-    }
-
     // Widen type of event handler by dropping ReturnType parameter.
     //
     // We need to drop it here because it's used as the parameter to the event handler, and
@@ -539,7 +538,7 @@ export class Messenger<
     const widenedHandler = handler as
       | ExtractEventHandler<Event, EventType>
       | SelectorEventHandler;
-    subscribers.set(widenedHandler, { selector });
+    this.#subscribe(eventType, widenedHandler, { delegation: false, selector });
 
     if (selector) {
       const getPayload = this.#initialEventPayloadGetters.get(eventType);
@@ -548,6 +547,31 @@ export class Messenger<
         this.#eventPayloadCache.set(widenedHandler, initialValue);
       }
     }
+  }
+
+  /**
+   * Subscribe to an event.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event handler must
+   * match the type of the payload for this event type.
+   * @param metadata - Event metadata.
+   * @template SubscribedEvent - The event being subscribed to.
+   * @template SelectorReturnValue - The selector return value.
+   */
+  #subscribe<SubscribedEvent extends EventConstraint>(
+    eventType: SubscribedEvent['type'],
+    handler:
+      | ExtractEventHandler<SubscribedEvent, SubscribedEvent['type']>
+      | SelectorEventHandler,
+    metadata: SubscriptionMetadata<SubscribedEvent>,
+  ): void {
+    let subscribers = this.#events.get(eventType);
+    if (!subscribers) {
+      subscribers = new Map();
+      this.#events.set(eventType, subscribers);
+    }
+    subscribers.set(handler, metadata);
   }
 
   /**
@@ -580,12 +604,14 @@ export class Messenger<
     const widenedHandler = handler as
       | ExtractEventHandler<Event, EventType>
       | SelectorEventHandler;
-    if (!subscribers || !subscribers.has(widenedHandler)) {
+    if (!subscribers) {
       throw new Error(`Subscription not found for event: ${eventType}`);
     }
-
     const metadata = subscribers.get(widenedHandler);
-    if (metadata?.selector) {
+    if (!metadata) {
+      throw new Error(`Subscription not found for event: ${eventType}`);
+    }
+    if (metadata.selector) {
       this.#eventPayloadCache.delete(widenedHandler);
     }
 
@@ -595,7 +621,8 @@ export class Messenger<
   /**
    * Clear subscriptions for a specific event.
    *
-   * This will remove all subscribed handlers for this event.
+   * This will remove all subscribed handlers for this event registered from this messenger. The
+   * event may still have subscribers if it has been delegated to another messenger.
    *
    * @param eventType - The event type. This is a unique identifier for this event.
    * @template EventType - A type union of Event type strings.
@@ -603,16 +630,33 @@ export class Messenger<
   clearEventSubscriptions<EventType extends Event['type']>(
     eventType: EventType,
   ) {
-    this.#events.delete(eventType);
+    const subscriptions = this.#events.get(eventType);
+    if (!subscriptions) {
+      return;
+    }
+
+    for (const [handler, metadata] of subscriptions.entries()) {
+      if (metadata.delegation) {
+        continue;
+      }
+      subscriptions.delete(handler);
+    }
+
+    if (subscriptions.size === 0) {
+      this.#events.delete(eventType);
+    }
   }
 
   /**
    * Clear all subscriptions.
    *
-   * This will remove all subscribed handlers for all events.
+   * This will remove all subscribed handlers for all events registered from this messenger. Events
+   * may still have subscribers if they are delegated to another messenger.
    */
   clearSubscriptions() {
-    this.#events.clear();
+    for (const eventType of this.#events.keys()) {
+      this.clearEventSubscriptions(eventType);
+    }
   }
 
   /**
@@ -713,7 +757,8 @@ export class Messenger<
           getPayload,
         });
       }
-      this.subscribe(eventType, subscriber);
+
+      this.#subscribe(eventType, subscriber, { delegation: true });
     }
   }
 
