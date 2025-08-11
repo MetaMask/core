@@ -326,5 +326,49 @@ describe('Messenger', () => {
         messenger: messengerA,
       });
     });
+
+    test("does not allow delegating an action to a messenger that doesn't support that action", () => {
+      const messengerA = new Messenger<
+        'A',
+        ExampleActionA | NonDelegatedActionA,
+        ExampleEventA | NonDelegatedEventA
+      >({
+        namespace: 'A',
+      });
+      const messengerB = new Messenger<
+        'B',
+        ExampleActionB | NonDelegatedActionB,
+        ExampleEventB | NonDelegatedEventB
+      >({
+        namespace: 'B',
+      });
+
+      expect(messengerA.delegate).type.not.toBeCallableWith({
+        actions: ['A:exampleActionA'],
+        messenger: messengerB,
+      });
+    });
+
+    test("does not allow delegating an event to a messenger that doesn't support that event", () => {
+      const messengerA = new Messenger<
+        'A',
+        ExampleActionA | NonDelegatedActionA,
+        ExampleEventA | NonDelegatedEventA
+      >({
+        namespace: 'A',
+      });
+      const messengerB = new Messenger<
+        'B',
+        ExampleActionB | NonDelegatedActionB,
+        ExampleEventB | NonDelegatedEventB
+      >({
+        namespace: 'B',
+      });
+
+      expect(messengerA.delegate).type.not.toBeCallableWith({
+        events: ['A:exampleEventA'],
+        messenger: messengerB,
+      });
+    });
   });
 });
