@@ -1,5 +1,53 @@
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import type { VaultData } from './types';
+import type { AuthenticatedUserDetails, VaultData } from './types';
+
+/**
+ * Check if the provided value is a valid authenticated user.
+ *
+ * @param value - The value to check.
+ * @throws If the value is not a valid authenticated user.
+ */
+export function assertIsSeedlessOnboardingAuthenticatedUser(
+  value: unknown,
+): asserts value is AuthenticatedUserDetails {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('authConnectionId' in value) ||
+    typeof value.authConnectionId !== 'string' ||
+    !('userId' in value) ||
+    typeof value.userId !== 'string'
+  ) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+    );
+  }
+
+  if (
+    !('nodeAuthTokens' in value) ||
+    typeof value.nodeAuthTokens !== 'object' ||
+    !Array.isArray(value.nodeAuthTokens) ||
+    value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
+  ) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+    );
+  }
+
+  if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
+    );
+  }
+  if (
+    !('metadataAccessToken' in value) ||
+    typeof value.metadataAccessToken !== 'string'
+  ) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+    );
+  }
+}
 
 /**
  * Check if the provided value is a valid password outdated cache.

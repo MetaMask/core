@@ -20,6 +20,7 @@ import { Mutex } from 'async-mutex';
 
 import {
   assertIsPasswordOutdatedCacheValid,
+  assertIsSeedlessOnboardingAuthenticatedUser,
   assertIsValidVaultData,
 } from './assertions';
 import type { AuthConnection } from './constants';
@@ -50,14 +51,28 @@ import { decodeJWTToken, decodeNodeAuthToken } from './utils';
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
- * Get the default state for the Seedless Onboarding Controller.
+ * Get the initial state for the Seedless Onboarding Controller with defaults.
  *
- * @returns The default state for the Seedless Onboarding Controller.
+ * @param overrides - The overrides for the initial state.
+ * @returns The initial state for the Seedless Onboarding Controller.
  */
-export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
+export function getInitialSeedlessOnboardingControllerStateWithDefaults(
+  overrides?: Partial<SeedlessOnboardingControllerState>,
+): SeedlessOnboardingControllerState {
+  let isSeedlessOnboardingUserAuthenticated =
+    overrides?.isSeedlessOnboardingUserAuthenticated ?? false;
+
+  try {
+    assertIsSeedlessOnboardingAuthenticatedUser(overrides);
+    isSeedlessOnboardingUserAuthenticated = true;
+  } catch {
+    isSeedlessOnboardingUserAuthenticated = false;
+  }
+
   return {
-    socialBackupsMetadata: [],
-    isSeedlessOnboardingUserAuthenticated: false,
+    ...overrides,
+    socialBackupsMetadata: overrides?.socialBackupsMetadata ?? [],
+    isSeedlessOnboardingUserAuthenticated,
   };
 }
 
@@ -206,10 +221,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,
-      state: {
-        ...getDefaultSeedlessOnboardingControllerState(),
-        ...state,
-      },
+      state: getInitialSeedlessOnboardingControllerStateWithDefaults(state),
       messenger,
     });
 
@@ -904,7 +916,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Clears the current state of the SeedlessOnboardingController.
    */
   clearState() {
-    const defaultState = getDefaultSeedlessOnboardingControllerState();
+    const defaultState =
+      getInitialSeedlessOnboardingControllerStateWithDefaults();
     this.update(() => {
       return defaultState;
     });
@@ -1683,46 +1696,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     value: unknown,
   ): asserts value is AuthenticatedUserDetails {
     try {
-      if (
-        !value ||
-        typeof value !== 'object' ||
-        !('authConnectionId' in value) ||
-        typeof value.authConnectionId !== 'string' ||
-        !('userId' in value) ||
-        typeof value.userId !== 'string'
-      ) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-        );
-      }
-
-      if (
-        !('nodeAuthTokens' in value) ||
-        typeof value.nodeAuthTokens !== 'object' ||
-        !Array.isArray(value.nodeAuthTokens) ||
-        value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
-      ) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
-        );
-      }
-
-      if (
-        !('refreshToken' in value) ||
-        typeof value.refreshToken !== 'string'
-      ) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
-        );
-      }
-      if (
-        !('metadataAccessToken' in value) ||
-        typeof value.metadataAccessToken !== 'string'
-      ) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
-        );
-      }
+      assertIsSeedlessOnboardingAuthenticatedUser(value);
     } catch (error) {
       this.update((state) => {
         state.isSeedlessOnboardingUserAuthenticated = false;
