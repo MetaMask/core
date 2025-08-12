@@ -6,6 +6,12 @@ import type { EntropySourceId } from '@metamask/keyring-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
+import {
+  KnownCaipNamespace,
+  parseCaipAssetType,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import type { CurrencyRateState } from '../CurrencyRateController';
@@ -14,7 +20,6 @@ import type { MultichainBalancesControllerState } from '../MultichainBalancesCon
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
-import { KnownCaipNamespace, parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
 /**
  * Individual controller state selectors using direct state access
@@ -167,19 +172,61 @@ const selectCurrencyRateControllerState = createSelector(
 );
 
 /**
- * Selector for NetworkEnablementController state using direct state access
+ * Unified selector for the enabled network map across platforms.
+ * - Mobile: comes from `NetworkEnablementController.enabledNetworkMap` (keys present with true/false)
+ * - Extension: comes from `NetworkOrderController.enabledNetworkMap` (keys removed when disabled)
  *
- * Note: Mobile and Extension use different root state shapes. This helper accounts for both.
- * TODO: Unify network controllers across platforms; core NetworkEnablementController will be the primary.
+ * TODO: Unify network enablement/order controllers in core and remove this adapter.
+ * This temporary solution avoids passing enabled chain IDs from the UI into selectors.
+ *
+ * @param state - Root application state (mobile or extension) used to locate controller states
+ * @returns Enabled network map keyed by namespace, or undefined if not present
  */
-const selectNetworkEnablementControllerState = createSelector(
+const selectUnifiedEnabledNetworkMap = createSelector(
   [(state: unknown) => state],
-  (state): { enabledNetworkMap?: Record<string, Record<string, boolean>> } | undefined =>
-    getControllerState<{ enabledNetworkMap?: Record<string, Record<string, boolean>> } | undefined>(
-      state,
-      'NetworkEnablementController',
-    ),
+  (state): Record<string, Record<string, boolean>> | undefined => {
+    // Prefer NetworkEnablementController (mobile)
+    const enablement = getControllerState<
+      | { enabledNetworkMap?: Record<string, Record<string, boolean>> }
+      | undefined
+    >(state, 'NetworkEnablementController');
+    if (enablement?.enabledNetworkMap) {
+      return enablement.enabledNetworkMap;
+    }
+
+    // Fallback to NetworkOrderController (extension)
+    const networkOrder = getControllerState<
+      | { enabledNetworkMap?: Record<string, Record<string, boolean>> }
+      | undefined
+    >(state, 'NetworkOrderController');
+    return networkOrder?.enabledNetworkMap;
+  },
 );
+
+/**
+ * Tiny helper to check if a chain is enabled in a platform-agnostic way.
+ * - EVM (hex chain IDs) uses the 'eip155' namespace
+ * - Non-EVM (CAIP-2 chain IDs) uses the parsed namespace and full CAIP chain ID as the key
+ *
+ * @param map - Unified enabled network map keyed by namespace
+ * @param id - Chain identifier, either hex (EVM) or CAIP-2 chain ID
+ * @returns True if the chain is enabled; false otherwise
+ */
+const isChainEnabledByMap = (
+  map: Record<string, Record<string, boolean>> | undefined,
+  id: Hex | CaipChainId,
+): boolean => {
+  if (!map) {
+    return true;
+  }
+  const isHex = typeof id === 'string' && id.startsWith('0x');
+  if (isHex) {
+    const evm = map[String(KnownCaipNamespace.Eip155)];
+    return Boolean(evm?.[id as Hex]);
+  }
+  const { namespace } = parseCaipChainId(id as CaipChainId);
+  return Boolean(map[namespace]?.[id as CaipChainId]);
+};
 
 /**
  * Helper function to get internal accounts for a specific group.
@@ -236,7 +283,7 @@ export const selectBalanceForAllWallets = () =>
       selectMultichainBalancesControllerState,
       selectTokensControllerState,
       selectCurrencyRateControllerState,
-      selectNetworkEnablementControllerState,
+      selectUnifiedEnabledNetworkMap,
     ],
     (
       accountTreeState,
@@ -247,29 +294,17 @@ export const selectBalanceForAllWallets = () =>
       multichainBalancesState,
       tokensState,
       currencyRateState,
-      networkEnablementState,
+      enabledNetworkMap,
     ): AllWalletsBalance => {
       const walletBalances: Record<string, WalletBalance> = {};
       let totalBalanceInUserCurrency = 0;
 
-      const isEvmChainEnabled = (chainId: Hex): boolean => {
-        const enabledMap = networkEnablementState?.enabledNetworkMap;
-        if (!enabledMap) {
-          return true;
-        }
-        const evmEnabled = enabledMap[KnownCaipNamespace.Eip155 as unknown as string];
-        return Boolean(evmEnabled?.[chainId]);
-      };
+      const isEvmChainEnabled = (chainId: Hex): boolean =>
+        isChainEnabledByMap(enabledNetworkMap, chainId);
 
       const isAssetChainEnabled = (assetId: CaipAssetType): boolean => {
-        const enabledMap = networkEnablementState?.enabledNetworkMap;
-        if (!enabledMap) {
-          return true;
-        }
         const { chainId } = parseCaipAssetType(assetId);
-        const { namespace } = parseCaipChainId(chainId);
-        const nsEnabled = enabledMap[namespace as unknown as string];
-        return Boolean(nsEnabled?.[chainId]);
+        return isChainEnabledByMap(enabledNetworkMap, chainId);
       };
 
       const walletIds = Object.keys(

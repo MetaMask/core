@@ -297,6 +297,56 @@ const createFlatMockState = (userCurrency = 'USD') =>
 const createMockState = createMobileMockState;
 
 describe('selectors', () => {
+  describe('enablement filtering', () => {
+    it('filters balances using mobile semantics (false disables)', () => {
+      const state = createMobileMockState('USD');
+
+      // Enable ETH (0x1) and Polygon (0x89); disable Arbitrum (0xa4b1)
+      (state.engine.backgroundState as any).NetworkEnablementController = {
+        enabledNetworkMap: {
+          eip155: {
+            '0x1': true,
+            '0x89': true,
+            '0xa4b1': false,
+          },
+        },
+      };
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      // Original USD total: 4493.8
+      // Exclude Arbitrum (0xa4b1): 50.05 + 150.15 = 200.2
+      // Expected: 4493.8 - 200.2 = 4293.6
+      expect(result.totalBalanceInUserCurrency).toBeCloseTo(4293.6, 2);
+      expect(result.userCurrency).toBe('USD');
+    });
+
+    it('filters balances using extension semantics (missing key disables)', () => {
+      const state = createExtensionMockState('USD');
+
+      // Provide enabledNetworkMap under NetworkOrderController
+      // ETH (0x1) and Polygon (0x89) present; omit Arbitrum (0xa4b1)
+      (state.metamask as any).NetworkOrderController = {
+        enabledNetworkMap: {
+          eip155: {
+            '0x1': true,
+            '0x89': true,
+            // '0xa4b1' omitted => disabled
+          },
+        },
+      };
+
+      const result = selectBalanceByAccountGroup('entropy:entropy-source-1/0')(
+        state,
+      );
+
+      // Same expected as mobile case: 4293.6
+      expect(result.totalBalanceInUserCurrency).toBeCloseTo(4293.6, 2);
+      expect(result.userCurrency).toBe('USD');
+    });
+  });
   describe('selectBalanceByAccountGroup', () => {
     it('returns total balance for a specific account group in USD', () => {
       const state = createMockState('USD');
