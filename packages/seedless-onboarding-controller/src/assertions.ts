@@ -7,7 +7,7 @@ import type { AuthenticatedUserDetails, VaultData } from './types';
  * @param value - The value to check.
  * @throws If the value is not a valid authenticated user.
  */
-export function assertIsSeedlessOnboardingAuthenticatedUser(
+export function assertIsSeedlessOnboardingUserAuthenticated(
   value: unknown,
 ): asserts value is AuthenticatedUserDetails {
   if (

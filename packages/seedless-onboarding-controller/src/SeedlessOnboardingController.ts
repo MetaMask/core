@@ -20,7 +20,7 @@ import { Mutex } from 'async-mutex';
 
 import {
   assertIsPasswordOutdatedCacheValid,
-  assertIsSeedlessOnboardingAuthenticatedUser,
+  assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidVaultData,
 } from './assertions';
 import type { AuthConnection } from './constants';
@@ -67,7 +67,7 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
 
   // Ensure authenticated flag is set correctly.
   try {
-    assertIsSeedlessOnboardingAuthenticatedUser(initialState);
+    assertIsSeedlessOnboardingUserAuthenticated(initialState);
     initialState.isSeedlessOnboardingUserAuthenticated = true;
   } catch {
     initialState.isSeedlessOnboardingUserAuthenticated = false;
@@ -346,7 +346,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
           // we will check if the controller state is properly set with the authenticated user info
           // before setting the isSeedlessOnboardingUserAuthenticated to true
-          assertIsSeedlessOnboardingAuthenticatedUser(state);
+          assertIsSeedlessOnboardingUserAuthenticated(state);
           state.isSeedlessOnboardingUserAuthenticated = true;
         });
 
@@ -1695,7 +1695,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     value: unknown,
   ): asserts value is AuthenticatedUserDetails {
     try {
-      assertIsSeedlessOnboardingAuthenticatedUser(value);
+      assertIsSeedlessOnboardingUserAuthenticated(value);
     } catch (error) {
       this.update((state) => {
         state.isSeedlessOnboardingUserAuthenticated = false;
