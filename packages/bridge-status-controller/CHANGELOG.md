@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^38.0.0` ([#6268](https://github.com/MetaMask/core/pull/6268))
 - Hardcode `action_type` to `swapbridge-v1` after swaps and bridge unification ([#6270](https://github.com/MetaMask/core/pull/6270))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
-- Store the quote's effective gas fees as the `quotedGasInUsd` in txHistory; fallback to the total fees otherwise ([#6270](https://github.com/MetaMask/core/pull/6270))
+- Store the quote's effective gas fees as the `quotedGasInUsd` in txHistory; fallback to the total fees otherwise ([#6295](https://github.com/MetaMask/core/pull/6295))
 
 ## [37.0.1]
 
