@@ -120,7 +120,8 @@ export type QuoteMetadata = {
   includedTxFees?: TokenAmountValues | null;
   /**
    * The gas fee for the bridge transaction.
-   * effective is the gas fee that is shown to the user.
+   * effective is the gas fee that is shown to the user. If this value is not
+   * included in the trade, the calculation falls back to the gasLimit (total)
    * total is the gas fee that is spent by the user, including refunds.
    * max is the max gas fee that will be used by the transaction.
    */
