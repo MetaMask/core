@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-in-test */
 import {
   AccountGroupType,
   toAccountGroupId,

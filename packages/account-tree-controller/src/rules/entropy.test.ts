@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-in-test */
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
