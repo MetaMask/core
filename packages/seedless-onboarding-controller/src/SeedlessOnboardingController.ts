@@ -163,10 +163,6 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: true,
       anonymous: true,
     },
-    isSeedlessOnboardingUserAuthenticated: {
-      persist: true,
-      anonymous: true,
-    },
   };
 
 export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
