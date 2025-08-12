@@ -678,6 +678,32 @@ describe('Messenger', () => {
         messenger.clearEventSubscriptions('Fixture:message'),
       ).not.toThrow();
     });
+
+    it('should leave delegated events intact after clearing event subscriptions', () => {
+      type ExampleEvent = {
+        type: 'Source:event';
+        payload: ['test'];
+      };
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        never,
+        ExampleEvent
+      >({ namespace: 'Destination' });
+      const subscriber = jest.fn();
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        events: ['Source:event'],
+      });
+
+      sourceMessenger.clearEventSubscriptions('Source:event');
+
+      delegatedMessenger.subscribe('Source:event', subscriber);
+      sourceMessenger.publish('Source:event', 'test');
+      expect(subscriber).toHaveBeenCalledWith('test');
+    });
   });
 
   describe('clearSubscriptions', () => {
@@ -702,6 +728,32 @@ describe('Messenger', () => {
       });
 
       expect(() => messenger.clearSubscriptions()).not.toThrow();
+    });
+
+    it('should leave delegated events intact after clearing subscriptions', () => {
+      type ExampleEvent = {
+        type: 'Source:event';
+        payload: ['test'];
+      };
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        never,
+        ExampleEvent
+      >({ namespace: 'Destination' });
+      const subscriber = jest.fn();
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        events: ['Source:event'],
+      });
+
+      sourceMessenger.clearSubscriptions();
+
+      delegatedMessenger.subscribe('Source:event', subscriber);
+      sourceMessenger.publish('Source:event', 'test');
+      expect(subscriber).toHaveBeenCalledWith('test');
     });
   });
 
