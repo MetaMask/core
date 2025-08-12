@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-in-test */
 import {
   AccountGroupType,
   toAccountGroupId,
@@ -5,15 +6,14 @@ import {
   AccountWalletType,
 } from '@metamask/account-api';
 import { Messenger } from '@metamask/base-controller';
-import {
-  EthAccountType,
-  EthMethod,
-  EthScope,
-} from '@metamask/keyring-api';
+import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { SnapId } from '@metamask/snaps-sdk';
+import type { Snap } from '@metamask/snaps-utils';
 
 import { SnapRule } from './snap';
+import type { AccountGroupObjectOf } from '../group';
 import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerActions,
@@ -21,7 +21,6 @@ import type {
   AllowedActions,
   AllowedEvents,
 } from '../types';
-import type { AccountGroupObjectOf } from '../group';
 import type { AccountWalletObjectOf } from '../wallet';
 
 const ETH_EOA_METHODS = [
@@ -34,7 +33,7 @@ const ETH_EOA_METHODS = [
 ] as const;
 
 const MOCK_SNAP_1 = {
-  id: 'npm:@metamask/test-snap' as any,
+  id: 'npm:@metamask/test-snap' as unknown as SnapId,
   manifest: {
     proposedName: 'Test Snap',
   },
@@ -203,7 +202,7 @@ describe('SnapRule', () => {
         'SnapController:get',
         (snapId: string) => {
           if (snapId === MOCK_SNAP_1.id) {
-            return MOCK_SNAP_1 as any;
+            return MOCK_SNAP_1 as unknown as Snap;
           }
           return undefined;
         },
@@ -215,7 +214,7 @@ describe('SnapRule', () => {
         groups: {},
         metadata: {
           name: '',
-          snap: { id: MOCK_SNAP_1.id as any },
+          snap: { id: MOCK_SNAP_1.id as unknown as SnapId },
         },
       };
 
@@ -228,7 +227,7 @@ describe('SnapRule', () => {
       const rule = new SnapRule(messenger);
 
       const snapWithoutProposedName = {
-        id: 'npm:@metamask/example-snap' as any,
+        id: 'npm:@metamask/example-snap' as unknown as SnapId,
         manifest: {
           // No proposedName
         },
@@ -243,24 +242,27 @@ describe('SnapRule', () => {
         'SnapController:get',
         (snapId: string) => {
           if (snapId === snapWithoutProposedName.id) {
-            return snapWithoutProposedName as any;
+            return snapWithoutProposedName as unknown as Snap;
           }
           return undefined;
         },
       );
 
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {
-        id: toAccountWalletId(AccountWalletType.Snap, snapWithoutProposedName.id),
+        id: toAccountWalletId(
+          AccountWalletType.Snap,
+          snapWithoutProposedName.id,
+        ),
         type: AccountWalletType.Snap,
         groups: {},
         metadata: {
           name: '',
-          snap: { id: snapWithoutProposedName.id as any },
+          snap: { id: snapWithoutProposedName.id as unknown as SnapId },
         },
       };
 
       // Should strip "npm:" prefix and return clean name
-      expect(rule.getDefaultAccountWalletName(wallet)).toBe(undefined);
+      expect(rule.getDefaultAccountWalletName(wallet)).toBeUndefined();
     });
 
     it('returns cleaned snap ID when snap not found', () => {
@@ -281,12 +283,14 @@ describe('SnapRule', () => {
         groups: {},
         metadata: {
           name: '',
-          snap: { id: snapId as any },
+          snap: { id: snapId as unknown as SnapId },
         },
       };
 
       // Should strip "npm:" prefix and return clean name
-      expect(rule.getDefaultAccountWalletName(wallet)).toBe('@metamask/missing-snap');
+      expect(rule.getDefaultAccountWalletName(wallet)).toBe(
+        '@metamask/missing-snap',
+      );
     });
   });
 });
