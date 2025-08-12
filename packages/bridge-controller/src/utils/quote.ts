@@ -174,23 +174,25 @@ export const calcRelayerFee = (
 };
 
 const calcTotalGasFee = ({
-  bridgeQuote,
+  approvalGasLimit,
+  tradeGasLimit,
+  l1GasFeesInHexWei,
   feePerGasInDecGwei,
   priorityFeePerGasInDecGwei,
   nativeToDisplayCurrencyExchangeRate,
   nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
+  approvalGasLimit?: number | null;
+  tradeGasLimit?: number | null;
+  l1GasFeesInHexWei?: string | null;
   feePerGasInDecGwei: string;
   priorityFeePerGasInDecGwei: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const { approval, trade, l1GasFeesInHexWei } = bridgeQuote;
-
   const totalGasLimitInDec = new BigNumber(
-    trade.gasLimit?.toString() ?? '0',
-  ).plus(approval?.gasLimit?.toString() ?? '0');
+    tradeGasLimit?.toString() ?? '0',
+  ).plus(approvalGasLimit?.toString() ?? '0');
 
   const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
     priorityFeePerGasInDecGwei,
@@ -216,7 +218,7 @@ const calcTotalGasFee = ({
 };
 
 export const calcEstimatedAndMaxTotalGasFee = ({
-  bridgeQuote,
+  bridgeQuote: { approval, trade, l1GasFeesInHexWei },
   estimatedBaseFeeInDecGwei,
   maxFeePerGasInDecGwei,
   maxPriorityFeePerGasInDecGwei,
@@ -229,7 +231,9 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   maxPriorityFeePerGasInDecGwei: string;
 } & ExchangeRate) => {
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
-    bridgeQuote,
+    approvalGasLimit: approval?.gasLimit,
+    tradeGasLimit: trade?.gasLimit,
+    l1GasFeesInHexWei,
     feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
     priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
@@ -240,7 +244,9 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     valueInCurrency: valueInCurrencyMax,
     usd: usdMax,
   } = calcTotalGasFee({
-    bridgeQuote,
+    approvalGasLimit: approval?.gasLimit,
+    tradeGasLimit: trade?.gasLimit,
+    l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,
     priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
