@@ -535,12 +535,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "1.004463862259999726625700576488242768526",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": null,
             "sentAmount": Object {
@@ -604,12 +613,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "1.004463862259999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": null,
             "sentAmount": Object {
@@ -682,12 +700,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": Object {
               "amount": "0.001",
@@ -764,12 +791,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": Object {
               "amount": "3",
