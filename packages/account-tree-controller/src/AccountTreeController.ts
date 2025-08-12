@@ -21,7 +21,6 @@ import type {
   AccountTreeControllerState,
 } from './types';
 import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
-import { AccountTreeWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -303,9 +302,10 @@ export class AccountTreeController extends BaseController<
     if (persistedMetadata?.name !== undefined) {
       group.metadata.name = persistedMetadata.name.value;
     } else if (!group.metadata.name) {
-      // Sort group IDs for consistent ordering
-      const sortedGroupIds = Object.keys(wallet.groups).sort();
-      const groupIndex = sortedGroupIds.indexOf(group.id);
+      // Extract numeric index from group ID (e.g., "wallet123/2" -> 2)
+      // This is more efficient than sorting and works correctly for 10+ accounts
+      const groupIdParts = group.id.split('/');
+      const groupIndex = parseInt(groupIdParts[groupIdParts.length - 1], 10);
 
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
