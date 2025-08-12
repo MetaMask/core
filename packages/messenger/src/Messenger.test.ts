@@ -971,6 +971,34 @@ describe('Messenger', () => {
       expect(subscriber).toHaveBeenCalledWith('test');
     });
 
+    it('throws an error when delegating the same event a second time', () => {
+      type ExampleEvent = {
+        type: 'Source:event';
+        payload: ['test'];
+      };
+      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        never,
+        ExampleEvent
+      >({ namespace: 'Destination' });
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        events: ['Source:event'],
+      });
+
+      expect(() =>
+        sourceMessenger.delegate({
+          messenger: delegatedMessenger,
+          events: ['Source:event'],
+        }),
+      ).toThrow(
+        `The event 'Source:event' has already been delegated to this messenger`,
+      );
+    });
+
     it('correctly registers initial event payload when delegated after payload is set', () => {
       type ExampleEvent = {
         type: 'Source:event';
@@ -1094,6 +1122,36 @@ describe('Messenger', () => {
       const result = delegatedMessenger.call('Source:getLength', 'test');
       expect(result).toBe(4);
       expect(handler).toHaveBeenCalledWith('test');
+    });
+
+    it('throws an error when an action is delegated a second time', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => number;
+      };
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        ExampleAction,
+        never
+      >({ namespace: 'Destination' });
+      const handler = jest.fn((input) => input.length);
+      sourceMessenger.registerActionHandler('Source:getLength', handler);
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+      });
+
+      expect(() =>
+        sourceMessenger.delegate({
+          messenger: delegatedMessenger,
+          actions: ['Source:getLength'],
+        }),
+      ).toThrow(
+        `The action 'Source:getLength' has already been delegated to this messenger`,
+      );
     });
 
     it('throws an error when delegated action is called before it is registered', () => {

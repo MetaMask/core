@@ -719,6 +719,11 @@ export class Messenger<
         delegationTargets = new Set<DelegatedMessenger>();
         this.#actionDelegationTargets.set(actionType, delegationTargets);
       }
+      if (delegationTargets.has(messenger)) {
+        throw new Error(
+          `The action '${actionType}' has already been delegated to this messenger`,
+        );
+      }
       delegationTargets.add(messenger);
 
       messenger._internalRegisterDelegatedActionHandler(
@@ -747,6 +752,11 @@ export class Messenger<
         this.#subscriptionDelegationTargets.set(
           eventType,
           delegatedEventSubscriptions,
+        );
+      }
+      if (delegatedEventSubscriptions.has(messenger)) {
+        throw new Error(
+          `The event '${eventType}' has already been delegated to this messenger`,
         );
       }
       delegatedEventSubscriptions.set(messenger, subscriber);
