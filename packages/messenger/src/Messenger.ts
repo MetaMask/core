@@ -71,6 +71,30 @@ export type EventConstraint = {
 };
 
 /**
+ * Extract action types from a Messenger type.
+ *
+ * @template Subject - The messenger type to extract from.
+ */
+type MessengerActions<
+  Subject extends Messenger<string, ActionConstraint, EventConstraint>,
+> =
+  Subject extends Messenger<string, infer Action, EventConstraint>
+    ? Action
+    : never;
+
+/**
+ * Extract event types from a Messenger type.
+ *
+ * @template Subject - The messenger type to extract from.
+ */
+type MessengerEvents<
+  Subject extends Messenger<string, ActionConstraint, EventConstraint>,
+> =
+  Subject extends Messenger<string, ActionConstraint, infer Event>
+    ? Event
+    : never;
+
+/**
  * Metadata for a single event subscription.
  *
  * @template Event - The event this subscription is for.
@@ -119,29 +143,6 @@ export type NotNamespacedBy<
 
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
-
-/**
- * Validate that the given messenger has the provided capabilities.
- *
- * This type assumes that capability names are unique; action handlers and event payload types are
- * not verified.
- *
- * @template Subject - The messenger being validated.
- * @template ActionType - A type union of action types that the messenger should have.
- * @template EventType - A type union of event types that the messenger should have.
- */
-type WithCapabilities<
-  Subject extends Messenger<string, ActionConstraint, EventConstraint>,
-  ActionType extends NamespacedName,
-  EventType extends NamespacedName,
-> =
-  Subject extends Messenger<string, infer SubjectAction, infer SubjectEvent>
-    ? SubjectAction['type'] extends ActionType
-      ? SubjectEvent['type'] extends EventType
-        ? DelegatedMessenger
-        : never
-      : never
-    : never;
 
 /**
  * A messenger that actions and/or events can be delegated to.
@@ -677,38 +678,37 @@ export class Messenger<
    * @param args.actions - The action types to delegate.
    * @param args.events - The event types to delegate.
    * @param args.messenger - The messenger to delegate to.
-   * @template DelegatedAction - A type union of delegated actions.
-   * @template DelegatedEvent - A type union of delegated events.
    * @template Delegatee - The messenger the actions/events are delegated to.
+   * @template DelegatedActions - An array of delegated action types.
+   * @template DelegatedEvents - An array of delegated event types.
    */
   delegate<
-    DelegatedAction extends Action,
-    DelegatedEvent extends Event,
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
+    DelegatedActions extends (MessengerActions<Delegatee> & Action)['type'][],
+    DelegatedEvents extends (MessengerEvents<Delegatee> & Event)['type'][],
   >({
-    actions = [],
-    events = [],
+    actions,
+    events,
     messenger,
   }: {
-    actions?: readonly DelegatedAction['type'][];
-    events?: readonly DelegatedEvent['type'][];
-    // Use intersection with Delegatee here so that TypeScript can infer the type of Delegatee
-    // from this parameter.
-    messenger: Delegatee &
-      WithCapabilities<
-        Delegatee,
-        DelegatedAction['type'],
-        DelegatedEvent['type']
-      >;
+    actions?: DelegatedActions;
+    events?: DelegatedEvents;
+    messenger: Delegatee;
   }) {
-    for (const actionType of actions) {
+    for (const actionType of actions || []) {
       const delegatedActionHandler = (
-        ...args: ExtractActionParameters<DelegatedAction, typeof actionType>
+        ...args: ExtractActionParameters<
+          MessengerActions<Delegatee> & Action,
+          typeof actionType
+        >
       ) => {
         // Cast to get more specific type, for this specific action
         // The types get collapsed by `this.#actions`
         const actionHandler = this.#actions.get(actionType) as
-          | ActionHandler<DelegatedAction, typeof actionType>
+          | ActionHandler<
+              MessengerActions<Delegatee> & Action,
+              typeof actionType
+            >
           | undefined;
         if (!actionHandler) {
           throw new Error(
@@ -734,9 +734,12 @@ export class Messenger<
         delegatedActionHandler,
       );
     }
-    for (const eventType of events) {
+    for (const eventType of events || []) {
       const untypedSubscriber = (
-        ...payload: ExtractEventPayload<DelegatedEvent, typeof eventType>
+        ...payload: ExtractEventPayload<
+          MessengerEvents<Delegatee> & Event,
+          typeof eventType
+        >
       ) => {
         messenger._internalPublishDelegated(eventType, ...payload);
       };
@@ -745,7 +748,7 @@ export class Messenger<
       // events, rather than the single subscriber type corresponding to this
       // event.
       const subscriber = untypedSubscriber as ExtractEventHandler<
-        DelegatedEvent,
+        MessengerEvents<Delegatee> & Event,
         typeof eventType
       >;
       let delegatedEventSubscriptions =
@@ -785,31 +788,24 @@ export class Messenger<
    * @param args.actions - The action types to revoke.
    * @param args.events - The event types to revoke.
    * @param args.messenger - The messenger these actions/events were delegated to.
-   * @template DelegatedAction - A type union of delegated actions.
-   * @template DelegatedEvent - A type union of delegated events.
    * @template Delegatee - The messenger the actions/events are being revoked from.
+   * @template DelegatedActions - An array of delegated action types.
+   * @template DelegatedEvents - An array of delegated event types.
    */
   revoke<
-    DelegatedAction extends Action,
-    DelegatedEvent extends Event,
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
+    DelegatedActions extends (MessengerActions<Delegatee> & Action)['type'][],
+    DelegatedEvents extends (MessengerEvents<Delegatee> & Event)['type'][],
   >({
-    actions = [],
-    events = [],
+    actions,
+    events,
     messenger,
   }: {
-    actions?: readonly DelegatedAction['type'][];
-    events?: readonly DelegatedEvent['type'][];
-    // Use intersection with Delegatee here so that TypeScript can infer the type of Delegatee
-    // from this parameter.
-    messenger: Delegatee &
-      WithCapabilities<
-        Delegatee,
-        DelegatedAction['type'],
-        DelegatedEvent['type']
-      >;
+    actions?: DelegatedActions;
+    events?: DelegatedEvents;
+    messenger: Delegatee;
   }) {
-    for (const actionType of actions) {
+    for (const actionType of actions || []) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
       if (!delegationTargets || !delegationTargets.has(messenger)) {
         // Nothing to revoke
@@ -821,7 +817,7 @@ export class Messenger<
         this.#actionDelegationTargets.delete(actionType);
       }
     }
-    for (const eventType of events) {
+    for (const eventType of events || []) {
       const delegationTargets =
         this.#subscriptionDelegationTargets.get(eventType);
       if (!delegationTargets) {
