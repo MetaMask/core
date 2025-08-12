@@ -564,6 +564,7 @@ function getMockInitialControllerState(options?: {
     state.refreshToken = refreshToken;
     state.metadataAccessToken =
       options?.metadataAccessToken ?? metadataAccessToken;
+    state.isSeedlessOnboardingUserAuthenticated = true;
     if (!options?.withoutMockAccessToken || options?.accessToken) {
       state.accessToken = options?.accessToken ?? accessToken;
     }
@@ -725,6 +726,9 @@ describe('SeedlessOnboardingController', () => {
         expect(controller.state.userId).toBe(userId);
         expect(controller.state.authConnection).toBe(authConnection);
         expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
       });
     });
 
@@ -758,6 +762,9 @@ describe('SeedlessOnboardingController', () => {
         expect(controller.state.userId).toBe(userId);
         expect(controller.state.authConnection).toBe(authConnection);
         expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
       });
     });
 
@@ -795,6 +802,9 @@ describe('SeedlessOnboardingController', () => {
           groupedAuthConnectionId,
         );
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
       });
     });
 
@@ -839,6 +849,9 @@ describe('SeedlessOnboardingController', () => {
         expect(controller.state.authConnectionId).toBeUndefined();
         expect(controller.state.groupedAuthConnectionId).toBeUndefined();
         expect(controller.state.userId).toBeUndefined();
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          false,
+        );
       });
     });
   });
@@ -2827,6 +2840,10 @@ describe('SeedlessOnboardingController', () => {
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+          );
+
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            false,
           );
         },
       );
