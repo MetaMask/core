@@ -528,35 +528,46 @@ describe('Messenger', () => {
     );
   });
 
-  it('should not call subscriber after clearing event subscriptions', () => {
-    type MessageEvent = { type: 'message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent>();
+  describe('clearEventSubscriptions', () => {
+    it('should not call subscriber after clearing event subscriptions', () => {
+      type MessageEvent = { type: 'message'; payload: [string] };
+      const messenger = new Messenger<never, MessageEvent>();
 
-    const handler = sinon.stub();
-    messenger.subscribe('message', handler);
-    messenger.clearEventSubscriptions('message');
-    messenger.publish('message', 'hello');
+      const handler = sinon.stub();
+      messenger.subscribe('message', handler);
+      messenger.clearEventSubscriptions('message');
+      messenger.publish('message', 'hello');
 
-    expect(handler.callCount).toBe(0);
+      expect(handler.callCount).toBe(0);
+    });
+
+    it('should not throw when clearing event that has no subscriptions', () => {
+      type MessageEvent = { type: 'message'; payload: [string] };
+      const messenger = new Messenger<never, MessageEvent>();
+
+      expect(() => messenger.clearEventSubscriptions('message')).not.toThrow();
+    });
   });
 
-  it('should not throw when clearing event that has no subscriptions', () => {
-    type MessageEvent = { type: 'message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent>();
+  describe('clearSubscriptions', () => {
+    it('should not call subscriber after resetting subscriptions', () => {
+      type MessageEvent = { type: 'message'; payload: [string] };
+      const messenger = new Messenger<never, MessageEvent>();
 
-    expect(() => messenger.clearEventSubscriptions('message')).not.toThrow();
-  });
+      const handler = sinon.stub();
+      messenger.subscribe('message', handler);
+      messenger.clearSubscriptions();
+      messenger.publish('message', 'hello');
 
-  it('should not call subscriber after resetting subscriptions', () => {
-    type MessageEvent = { type: 'message'; payload: [string] };
-    const messenger = new Messenger<never, MessageEvent>();
+      expect(handler.callCount).toBe(0);
+    });
 
-    const handler = sinon.stub();
-    messenger.subscribe('message', handler);
-    messenger.clearSubscriptions();
-    messenger.publish('message', 'hello');
+    it('should not throw when clearing subscriptions on messenger that has no subscriptions', () => {
+      type MessageEvent = { type: 'message'; payload: [string] };
+      const messenger = new Messenger<never, MessageEvent>();
 
-    expect(handler.callCount).toBe(0);
+      expect(() => messenger.clearSubscriptions()).not.toThrow();
+    });
   });
 
   describe('registerMethodActionHandlers', () => {
