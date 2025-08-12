@@ -436,8 +436,8 @@ export class Messenger<
       throw new Error(`Subscription not found for event: ${eventType}`);
     }
 
-    const selector = subscribers.get(widenedHandler);
-    if (selector) {
+    const metadata = subscribers.get(widenedHandler);
+    if (metadata?.selector) {
       this.#eventPayloadCache.delete(widenedHandler);
     }
 
