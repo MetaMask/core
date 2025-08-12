@@ -64,6 +64,7 @@ import {
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
+import { Mutex } from 'async-mutex';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -3027,7 +3028,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await expect(
             controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
@@ -3065,6 +3066,27 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
+        },
+      );
+    });
+
+    it('should not lock the controller if the controller mutex is locked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          const isLockedSpy = jest
+            .spyOn(Mutex.prototype, 'isLocked')
+            .mockReturnValueOnce(true);
+
+          await expect(controller.setLocked()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultOperationMutexLocked,
+          );
+
+          expect(isLockedSpy).toHaveBeenCalled();
         },
       );
     });
@@ -3327,7 +3349,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await controller.submitGlobalPassword({
             globalPassword: GLOBAL_PASSWORD,
@@ -3495,7 +3517,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await controller.submitGlobalPassword({
             globalPassword: GLOBAL_PASSWORD,
@@ -3812,7 +3834,7 @@ describe('SeedlessOnboardingController', () => {
           // We still need verifyPassword to work conceptually, even if unlock is bypassed
           // verifyPasswordSpy.mockResolvedValueOnce(); // Don't mock, let the real one run inside syncLatestGlobalPassword
 
-          controller.setLocked();
+          await controller.setLocked();
 
           // Mock recoverEncKey for the global password
           const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);

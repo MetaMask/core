@@ -223,8 +223,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.setLocked();
+    this.messagingSystem.subscribe('KeyringController:lock', async () => {
+      await this.setLocked();
     });
     this.messagingSystem.subscribe('KeyringController:unlock', () => {
       this.#setUnlocked();
@@ -663,15 +663,30 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
    */
-  setLocked() {
-    this.update((state) => {
-      delete state.vaultEncryptionKey;
-      delete state.vaultEncryptionSalt;
-      delete state.revokeToken;
-      delete state.accessToken;
-    });
+  async setLocked() {
+    // check if the controller operation mutex is locked,
+    // i.e. the mutex is acquired by another controller operation such as `addNewSecretData`, `changePassword`, `syncLatestGlobalPassword`, etc.
+    const isLockedAcquired = this.#controllerOperationMutex.isLocked();
 
-    this.#isUnlocked = false;
+    // if the controller operation mutex is locked, throw an error
+    // this is to prevent race condition between the `setLocked` and the vault operation
+    if (isLockedAcquired) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.VaultOperationMutexLocked,
+      );
+    }
+
+    // if the vault operation mutex is not locked, proceed to lock the controller with the controller operation mutex
+    await this.#withControllerLock(async () => {
+      this.update((state) => {
+        delete state.vaultEncryptionKey;
+        delete state.vaultEncryptionSalt;
+        delete state.revokeToken;
+        delete state.accessToken;
+      });
+
+      this.#isUnlocked = false;
+    });
   }
 
   /**
