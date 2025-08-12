@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1]
 
-### Uncategorized
-
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-
 ### Added
 
 - add `isNetworkEnabled` method to check if network is enabled ([#6287](https://github.com/MetaMask/core/pull/6287))
