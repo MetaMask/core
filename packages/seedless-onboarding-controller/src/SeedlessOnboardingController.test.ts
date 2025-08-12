@@ -28,6 +28,7 @@ import {
 import { gcm } from '@noble/ciphers/aes';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
+import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
 
 import {
@@ -64,7 +65,6 @@ import {
 } from '../tests/mocks/toprf';
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
-import { Mutex } from 'async-mutex';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
