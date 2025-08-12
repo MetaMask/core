@@ -393,6 +393,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        // unlock the controller after creating the vault with new account
+        this.#setUnlocked();
       };
 
       await this.#executeWithTokenRefresh(
@@ -490,6 +493,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             rawToprfPwEncryptionKey: pwEncKey,
             rawToprfAuthKeyPair: authKeyPair,
           });
+
+          // unlock the controller after rehydrating the wallet
+          this.#setUnlocked();
         }
 
         return secrets;
@@ -697,6 +703,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
 
         this.#resetPasswordOutdatedCache();
+
+        // unlock the controller after syncing the latest global password
+        this.#setUnlocked();
       };
       return await this.#executeWithTokenRefresh(
         doSyncPassword,
@@ -1488,8 +1497,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#persistAuthPubKey({
       authPubKey: rawToprfAuthKeyPair.pk,
     });
-
-    this.#setUnlocked();
   }
 
   /**
