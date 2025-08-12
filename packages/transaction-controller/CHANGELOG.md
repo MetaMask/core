@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [59.2.0]
 
-### Uncategorized
-
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-
 ### Added
 
 - Add optional `updateType` property to disable `type` update in `updateEditableParams` method ([#6289](https://github.com/MetaMask/core/pull/6289))
@@ -20,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^32.0.1` to `^32.0.2` ([#6273](https://github.com/MetaMask/core/pull/6273))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 
 ## [59.1.0]
