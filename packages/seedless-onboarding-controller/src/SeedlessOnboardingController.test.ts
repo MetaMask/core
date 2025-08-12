@@ -672,7 +672,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should be able to instantiate with as an authenticated user', () => {
+    it('should be able to instantiate with an authenticated user', () => {
       const mockRefreshJWTToken = jest.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
       });
