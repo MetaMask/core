@@ -135,7 +135,7 @@ describe('gator-permissions-controller - constructor() tests', () => {
   it('creates GatorPermissionsController with custom state', () => {
     const customState = {
       isGatorPermissionsEnabled: true,
-      gatorPermissionsMap: JSON.stringify({
+      gatorPermissionsMapSerialized: JSON.stringify({
         'native-token-stream': {},
         'native-token-periodic': {},
         'erc20-token-stream': {},
@@ -155,7 +155,7 @@ describe('gator-permissions-controller - constructor() tests', () => {
     );
     expect(controller.state.isGatorPermissionsEnabled).toBe(true);
     expect(controller.state.gatorPermissionsMapSerialized).toBe(
-      customState.gatorPermissionsMap,
+      customState.gatorPermissionsMapSerialized,
     );
   });
 
