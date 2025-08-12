@@ -272,14 +272,21 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         destTokenExchangeRate,
       );
 
-      let totalEstimatedNetworkFee, gasFee, totalMaxNetworkFee, relayerFee;
+      let totalEstimatedNetworkFee,
+        totalMaxNetworkFee,
+        relayerFee,
+        gasFee: QuoteMetadata['gasFee'];
 
       if (isSolanaChainId(quote.quote.srcChainId)) {
         totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
           quote,
           nativeExchangeRate,
         );
-        gasFee = totalEstimatedNetworkFee;
+        gasFee = {
+          effective: totalEstimatedNetworkFee,
+          total: totalEstimatedNetworkFee,
+          max: totalEstimatedNetworkFee,
+        };
         totalMaxNetworkFee = totalEstimatedNetworkFee;
       } else {
         relayerFee = calcRelayerFee(quote, nativeExchangeRate);

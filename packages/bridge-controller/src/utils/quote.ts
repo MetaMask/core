@@ -11,6 +11,7 @@ import type {
   GenericQuoteRequest,
   L1GasFees,
   Quote,
+  QuoteMetadata,
   QuoteResponse,
   SolanaFees,
 } from '../types';
@@ -229,7 +230,8 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   estimatedBaseFeeInDecGwei: string;
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;
-} & ExchangeRate) => {
+} & ExchangeRate): QuoteMetadata['gasFee'] => {
+  // Estimated total gas fee, including refunded fees (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
@@ -239,6 +241,8 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
+
+  // Max gas fee (high), used to disable submission of the transaction
   const {
     amount: amountMax,
     valueInCurrency: valueInCurrencyMax,
@@ -253,28 +257,44 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     nativeToUsdExchangeRate,
   });
   return {
-    amount,
-    amountMax,
-    valueInCurrency,
-    valueInCurrencyMax,
-    usd,
-    usdMax,
+    total: {
+      amount,
+      valueInCurrency,
+      usd,
+    },
+    max: {
+      amount: amountMax,
+      valueInCurrency: valueInCurrencyMax,
+      usd: usdMax,
+    },
   };
 };
 
+/**
+ * Calculates the total estimated network fees for the bridge transaction
+ *
+ * @param gasFee - The gas fee for the bridge transaction
+ * @param relayerFee - The relayer fee paid to bridge providers
+ * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
+ */
 export const calcTotalEstimatedNetworkFee = (
   gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
+  const gasFeeToDisplay = gasFee.total;
   return {
-    amount: new BigNumber(gasFee.amount).plus(relayerFee.amount).toString(),
-    valueInCurrency: gasFee.valueInCurrency
-      ? new BigNumber(gasFee.valueInCurrency)
+    amount: new BigNumber(gasFeeToDisplay?.amount ?? '0')
+      .plus(relayerFee.amount)
+      .toString(),
+    valueInCurrency: gasFeeToDisplay?.valueInCurrency
+      ? new BigNumber(gasFeeToDisplay.valueInCurrency)
           .plus(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
-    usd: gasFee.usd
-      ? new BigNumber(gasFee.usd).plus(relayerFee.usd || '0').toString()
+    usd: gasFeeToDisplay?.usd
+      ? new BigNumber(gasFeeToDisplay.usd)
+          .plus(relayerFee.usd || '0')
+          .toString()
       : null,
   };
 };
@@ -283,15 +303,22 @@ export const calcTotalMaxNetworkFee = (
   gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
+  if (!gasFee.max) {
+    return {
+      amount: '0',
+      valueInCurrency: null,
+      usd: null,
+    };
+  }
   return {
-    amount: new BigNumber(gasFee.amountMax).plus(relayerFee.amount).toString(),
-    valueInCurrency: gasFee.valueInCurrencyMax
-      ? new BigNumber(gasFee.valueInCurrencyMax)
+    amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
+    valueInCurrency: gasFee.max.valueInCurrency
+      ? new BigNumber(gasFee.max.valueInCurrency)
           .plus(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
-    usd: gasFee.usdMax
-      ? new BigNumber(gasFee.usdMax).plus(relayerFee.usd || '0').toString()
+    usd: gasFee.max.usd
+      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd || '0').toString()
       : null,
   };
 };
