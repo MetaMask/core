@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Normalize enabled network filtering across mobile and extension for aggregated balances ([#6285](https://github.com/MetaMask/core/pull/6285))
+- Implement network filtering for aggregated balance selectors across mobile and extension ([#6285](https://github.com/MetaMask/core/pull/6285))
 
 ### Changed
 
