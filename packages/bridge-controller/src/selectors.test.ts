@@ -343,7 +343,7 @@ describe('Bridge Selectors', () => {
         effectiveGas: '21000',
       },
       approval: {
-        gasLimit: '42000',
+        gasLimit: '49000',
         effectiveGas: '46000',
       },
     };
