@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `updateType` property to disable `type` update in `updateEditableParams` method ([#6289](https://github.com/MetaMask/core/pull/6289))
 - Add `perpsDeposit` to `TransactionType` ([#6282](https://github.com/MetaMask/core/pull/6282))
 
 ### Changed

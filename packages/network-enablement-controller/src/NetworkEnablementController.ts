@@ -248,6 +248,20 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Checks if a network is enabled.
+   *
+   * @param chainId - The chain ID of the network to check. Can be either:
+   * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
+   * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
+   * @returns True if the network is enabled, false otherwise
+   */
+  isNetworkEnabled(chainId: Hex | CaipChainId): boolean {
+    const derivedKeys = deriveKeys(chainId);
+    const { namespace, storageKey } = derivedKeys;
+    return this.state.enabledNetworkMap[namespace]?.[storageKey] ?? false;
+  }
+
+  /**
    * Ensures that a namespace bucket exists in the state.
    *
    * This method creates the namespace entry in the enabledNetworkMap if it doesn't
