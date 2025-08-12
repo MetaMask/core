@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `lookupNetworkByClientId` ([#6308](https://github.com/MetaMask/core/pull/6308))
+  - `lookupNetwork` already supports passing in a network client ID; please use this instead.
+
 ## [24.1.0]
 
 ### Added
