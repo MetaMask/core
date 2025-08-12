@@ -14,8 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** renamed `getDefaultSeedlessOnboardingControllerState` to `getInitialSeedlessOnboardingControllerStateWithDefaults` and updated the implementation. ([#6288](https://github.com/MetaMask/core/pull/6288))
-  - Based on the provided state to the controller, the controller will compute the correct value of the state, `isSeedlessOnboardingUserAuthenticated`.
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 
 ### Fixed
