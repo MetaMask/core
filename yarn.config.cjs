@@ -663,7 +663,11 @@ function expectUpToDateWorkspacePeerDependencies(Yarn, workspace) {
           dependency.range,
         )
       ) {
-        dependency.update(`^${dependencyWorkspaceVersion.major}.0.0`);
+        // We allow "non-stable" peer dependency to be set to any range
+        // until they are being "stable" (^1.0.0).
+        if (dependencyWorkspaceVersion.major > 0) {
+          dependency.update(`^${dependencyWorkspaceVersion.major}.0.0`);
+        }
       }
     }
   }

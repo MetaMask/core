@@ -18,14 +18,14 @@ import type {
   serviceName,
 } from './MultichainAccountService';
 
-export type MultichainAccountServiceGetMultichainAccountAction = {
-  type: `${typeof serviceName}:getMultichainAccount`;
-  handler: MultichainAccountService['getMultichainAccount'];
+export type MultichainAccountServiceGetMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:getMultichainAccountGroup`;
+  handler: MultichainAccountService['getMultichainAccountGroup'];
 };
 
-export type MultichainAccountServiceGetMultichainAccountsAction = {
-  type: `${typeof serviceName}:getMultichainAccounts`;
-  handler: MultichainAccountService['getMultichainAccounts'];
+export type MultichainAccountServiceGetMultichainAccountGroupsAction = {
+  type: `${typeof serviceName}:getMultichainAccountGroups`;
+  handler: MultichainAccountService['getMultichainAccountGroups'];
 };
 
 export type MultichainAccountServiceGetMultichainAccountWalletAction = {
@@ -38,15 +38,27 @@ export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
   handler: MultichainAccountService['getMultichainAccountWallets'];
 };
 
+export type MultichainAccountServiceCreateNextMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:createNextMultichainAccountGroup`;
+  handler: MultichainAccountService['createNextMultichainAccountGroup'];
+};
+
+export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:createMultichainAccountGroup`;
+  handler: MultichainAccountService['createMultichainAccountGroup'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
  */
 export type MultichainAccountServiceActions =
-  | MultichainAccountServiceGetMultichainAccountAction
-  | MultichainAccountServiceGetMultichainAccountsAction
+  | MultichainAccountServiceGetMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountGroupsAction
   | MultichainAccountServiceGetMultichainAccountWalletAction
-  | MultichainAccountServiceGetMultichainAccountWalletsAction;
+  | MultichainAccountServiceGetMultichainAccountWalletsAction
+  | MultichainAccountServiceCreateNextMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupAction;
 
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules

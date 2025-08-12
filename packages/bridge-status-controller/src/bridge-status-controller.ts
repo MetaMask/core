@@ -10,10 +10,10 @@ import {
   isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
-  getActionType,
   formatChainIdToCaip,
   isCrossChain,
   isHardwareWallet,
+  MetricsActionType,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -771,6 +771,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
     quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+    requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
     const { approval } = quoteResponse;
 
@@ -783,6 +784,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             ? TransactionType.bridgeApproval
             : TransactionType.swapApproval,
           trade: approval,
+          requireApproval,
         });
 
         await handleLineaDelay(quoteResponse);
@@ -1081,6 +1083,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const approvalTxMeta = await this.#handleApprovalTx(
             isBridgeTx,
             quoteResponse,
+            requireApproval,
           );
           approvalTxId = approvalTxMeta?.id;
           return await this.#handleEvmTransaction({
@@ -1170,10 +1173,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     const requiredEventProperties = {
-      action_type: getActionType(
-        historyItem.quote.srcChainId,
-        historyItem.quote.destChainId,
-      ),
+      action_type: MetricsActionType.SWAPBRIDGE_V1,
       ...(eventProperties ?? {}),
       ...getRequestParamFromHistory(historyItem),
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),

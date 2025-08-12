@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "MetaMask",
@@ -47,33 +47,36 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.1",
-    "@metamask/keyring-api": "^19.0.0",
-    "@metamask/keyring-internal-api": "^7.0.0",
-    "@metamask/keyring-snap-client": "^6.0.0",
+    "@metamask/base-controller": "^8.1.0",
+    "@metamask/eth-snap-keyring": "^16.0.0",
+    "@metamask/keyring-api": "^20.0.0",
+    "@metamask/keyring-internal-api": "^8.0.0",
+    "@metamask/keyring-snap-client": "^7.0.0",
+    "@metamask/keyring-utils": "^3.1.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/superstruct": "^3.1.0"
   },
   "devDependencies": {
-    "@metamask/account-api": "^0.3.0",
-    "@metamask/accounts-controller": "^32.0.1",
+    "@metamask/account-api": "^0.9.0",
+    "@metamask/accounts-controller": "^32.0.2",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-snap-keyring": "^14.0.0",
-    "@metamask/keyring-controller": "^22.1.0",
+    "@metamask/keyring-controller": "^22.1.1",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
+    "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2",
+    "uuid": "^8.3.2",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/account-api": "^0.3.0",
+    "@metamask/account-api": "^0.9.0",
     "@metamask/accounts-controller": "^32.0.0",
     "@metamask/keyring-controller": "^22.0.0",
     "@metamask/providers": "^22.0.0",

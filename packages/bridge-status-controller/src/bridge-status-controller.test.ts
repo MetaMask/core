@@ -1838,8 +1838,12 @@ describe('BridgeStatusController', () => {
         destChainId: 10, // Optimism
       },
       estimatedProcessingTimeInSeconds: 15,
-      sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
-      toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+      sentAmount: { amount: '1.234', valueInCurrency: '2.00', usd: '1.01' },
+      toTokenAmount: {
+        amount: '1.5',
+        valueInCurrency: '2.9999',
+        usd: '0.134214',
+      },
       totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
       totalMaxNetworkFee: {
         amount: '1.234',
@@ -2231,8 +2235,12 @@ describe('BridgeStatusController', () => {
         destChainId: 42161,
       },
       estimatedProcessingTimeInSeconds: 0,
-      sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
-      toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+      sentAmount: { amount: '1.234', valueInCurrency: '2.00', usd: '1.01' },
+      toTokenAmount: {
+        amount: '1.5',
+        valueInCurrency: '2.9999',
+        usd: '0.134214',
+      },
       totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
       totalMaxNetworkFee: {
         amount: '1.234',

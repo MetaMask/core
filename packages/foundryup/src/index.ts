@@ -12,7 +12,7 @@ import {
   unlink,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { cwd, exit } from 'node:process';
 import { parse as parseYaml } from 'yaml';
 
@@ -137,6 +137,11 @@ export async function installBinaries(
     const target = join(file.parentPath, file.name);
     const path = join(BIN_DIR, relative(cachePath, target));
 
+    // compute the relative path from where the symlink will be created
+    // to the target file, so that it works even if the project is moved
+    // (like in some CI environments)
+    const relativeTarget = relative(dirname(path), target);
+
     // create the BIN_DIR paths if they don't exists already
     await mkdir(BIN_DIR, { recursive: true });
 
@@ -144,7 +149,7 @@ export async function installBinaries(
     await unlink(path).catch(noop);
     try {
       // create new symlink
-      await symlink(target, path);
+      await symlink(relativeTarget, path);
     } catch (e) {
       if (!(isCodedError(e) && ['EPERM', 'EXDEV'].includes(e.code))) {
         throw e;
