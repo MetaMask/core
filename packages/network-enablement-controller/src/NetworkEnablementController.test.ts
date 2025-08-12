@@ -448,4 +448,208 @@ describe('NetworkEnablementController', () => {
       );
     });
   });
+
+  describe('isNetworkEnabled', () => {
+    it('returns true for enabled networks using hex chain ID', () => {
+      const { controller } = setupController();
+
+      // Test default enabled networks
+      expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum Mainnet
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true); // Linea Mainnet
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true); // Base Mainnet
+    });
+
+    it('returns false for disabled networks using hex chain ID', () => {
+      const { controller } = setupController();
+
+      // Disable a network and test
+      controller.disableNetwork('0x1');
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      // Test networks that were never enabled
+      expect(controller.isNetworkEnabled('0x89')).toBe(false); // Polygon
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(false); // Avalanche
+    });
+
+    it('returns true for enabled networks using CAIP chain ID', () => {
+      const { controller } = setupController();
+
+      // Test EVM networks with CAIP format
+      expect(controller.isNetworkEnabled('eip155:1')).toBe(true); // Ethereum Mainnet
+      expect(controller.isNetworkEnabled('eip155:59144')).toBe(true); // Linea Mainnet
+      expect(controller.isNetworkEnabled('eip155:8453')).toBe(true); // Base Mainnet
+
+      // Test Solana network
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+    });
+
+    it('returns false for disabled networks using CAIP chain ID', () => {
+      const { controller } = setupController();
+
+      // Disable a network using hex and test with CAIP
+      controller.disableNetwork('0x1');
+      expect(controller.isNetworkEnabled('eip155:1')).toBe(false);
+
+      // Test networks that were never enabled
+      expect(controller.isNetworkEnabled('eip155:137')).toBe(false); // Polygon
+      expect(controller.isNetworkEnabled('eip155:43114')).toBe(false); // Avalanche
+    });
+
+    it('handles non-existent networks gracefully', () => {
+      const { controller } = setupController();
+
+      // Test networks that don't exist in the state
+      expect(controller.isNetworkEnabled('0x999')).toBe(false);
+      expect(controller.isNetworkEnabled('eip155:999')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('bip122:000000000019d6689c085ae165831e93'),
+      ).toBe(false);
+    });
+
+    it('returns false for networks in non-existent namespaces', () => {
+      const { controller } = setupController();
+
+      // Test a network in a namespace that doesn't exist yet
+      expect(controller.isNetworkEnabled('cosmos:cosmoshub-4')).toBe(false);
+      expect(
+        controller.isNetworkEnabled(
+          'polkadot:91b171bb158e2d3848fa23a9f1c25182',
+        ),
+      ).toBe(false);
+    });
+
+    it('works correctly after enabling/disabling networks', () => {
+      const { controller } = setupController();
+
+      // Initially enabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      // Disable and check
+      controller.disableNetwork('0x1');
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      // Re-enable and check
+      controller.enableNetwork('0x1');
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+    });
+
+    it('maintains consistency between hex and CAIP formats for same network', () => {
+      const { controller } = setupController();
+
+      // Both formats should return the same result for the same network
+      expect(controller.isNetworkEnabled('0x1')).toBe(
+        controller.isNetworkEnabled('eip155:1'),
+      );
+      expect(controller.isNetworkEnabled('0xe708')).toBe(
+        controller.isNetworkEnabled('eip155:59144'),
+      );
+      expect(controller.isNetworkEnabled('0x2105')).toBe(
+        controller.isNetworkEnabled('eip155:8453'),
+      );
+
+      // Test after disabling
+      controller.disableNetwork('0x1');
+      expect(controller.isNetworkEnabled('0x1')).toBe(
+        controller.isNetworkEnabled('eip155:1'),
+      );
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+    });
+
+    it('works with dynamically added networks', async () => {
+      const { controller, messenger } = setupController();
+
+      // Initially, Avalanche network should not be enabled (doesn't exist)
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
+
+      // Add Avalanche network
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa86a',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Avalanche',
+        nativeCurrency: 'AVAX',
+        rpcEndpoints: [
+          {
+            url: 'https://api.avax.network/ext/bc/C/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Now it should be enabled (auto-enabled when added)
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+      expect(controller.isNetworkEnabled('eip155:43114')).toBe(true);
+    });
+
+    it('handles networks across different namespaces independently', async () => {
+      const { controller, messenger } = setupController();
+
+      // EVM networks should not affect Solana network status
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+
+      // Disable all EVM networks
+      controller.disableNetwork('0xe708'); // Linea
+      controller.disableNetwork('0x2105'); // Base
+
+      // Solana should still be enabled
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+
+      // Add a Bitcoin network
+      messenger.publish('NetworkController:networkAdded', {
+        // @ts-expect-error Intentionally testing with Bitcoin network
+        chainId: 'bip122:000000000019d6689c085ae165831e93',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Bitcoin',
+        nativeCurrency: 'BTC',
+        rpcEndpoints: [
+          {
+            url: 'https://api.blockcypher.com/v1/btc/main',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Bitcoin should be enabled, others should be unchanged
+      expect(
+        controller.isNetworkEnabled('bip122:000000000019d6689c085ae165831e93'),
+      ).toBe(true);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+    });
+
+    it('handles invalid chain IDs gracefully', () => {
+      const { controller } = setupController();
+
+      // @ts-expect-error Intentionally passing invalid chain IDs
+      expect(() => controller.isNetworkEnabled('invalid')).toThrow(
+        'Value must be a hexadecimal string.',
+      );
+
+      // @ts-expect-error Intentionally passing undefined
+      expect(() => controller.isNetworkEnabled(undefined)).toThrow(
+        'Value must be a hexadecimal string.',
+      );
+
+      // @ts-expect-error Intentionally passing null
+      expect(() => controller.isNetworkEnabled(null)).toThrow(
+        'Value must be a hexadecimal string.',
+      );
+    });
+  });
 });

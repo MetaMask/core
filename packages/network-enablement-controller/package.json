@@ -48,7 +48,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/multichain-network-controller": "^0.11.0",
+    "@metamask/multichain-network-controller": "^0.11.1",
     "@metamask/network-controller": "^24.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -60,7 +60,7 @@
     "typescript": "~5.2.2"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.1",
+    "@metamask/base-controller": "^8.1.0",
     "@metamask/controller-utils": "^11.11.0",
     "@metamask/utils": "^11.4.2",
     "reselect": "^5.1.1"

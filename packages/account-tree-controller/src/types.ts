@@ -1,6 +1,7 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
@@ -75,6 +76,11 @@ export type AccountTreeControllerGetSelectedAccountGroupAction = {
   handler: AccountTreeController['getSelectedAccountGroup'];
 };
 
+export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:getAccountsFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -86,7 +92,8 @@ export type AllowedActions =
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
   | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetSelectedAccountGroupAction;
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -95,6 +102,7 @@ export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent;
 

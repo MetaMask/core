@@ -49,13 +49,13 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^8.0.1",
+    "@metamask/base-controller": "^8.1.0",
     "@metamask/controller-utils": "^11.11.0",
     "@metamask/stake-sdk": "^3.2.1",
     "reselect": "^5.1.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^32.0.1",
+    "@metamask/accounts-controller": "^32.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^24.0.1",
     "@metamask/transaction-controller": "^59.1.0",

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Added mandatory parameter `selectedNetworkClientId` to `EarnController` constructor ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Added mandatory `chainId` parameter to `executeLendingTokenApprove`, `executeLendingWithdraw`, `executeLendingDeposit`, `getLendingMarketDailyApysAndAverages` and `getLendingPositionHistory` methods ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Changed `refreshPooledStakingVaultDailyApys` to accept an options object with `chainId`, `days`, and `order` properties, where `chainId` is a new option, instead of separate parameters `days` and `order` ([#6153](https://github.com/MetaMask/core/pull/6153))
+- Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes` (defaults to Ethereum) ([#6153](https://github.com/MetaMask/core/pull/6153))
+
+### Changed
+
+- **BREAKING:** Removed usages of `NetworkController:getState` for GNS removal. ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** `EarnController` messenger must now allow `NetworkController:networkDidChange` and must not allow `NetworkController:getState` and `NetworkController:stateChange` ([#6153](https://github.com/MetaMask/core/pull/6153))
+- `refreshPooledStakingData` now refreshes for all supported chains, not just global chain ([#6153](https://github.com/MetaMask/core/pull/6153))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+
 ## [4.0.0]
 
 ### Changed
