@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The object in the `NetworkController:rpcEndpointDegraded` event payload now includes an `error` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - This `error` property will be `undefined` if the degraded event merely represents a slow request
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
