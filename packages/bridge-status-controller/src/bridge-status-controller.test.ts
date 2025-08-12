@@ -1527,9 +1527,9 @@ describe('BridgeStatusController', () => {
         usd: '15',
       },
       gasFee: {
-        amount: '0.05',
-        valueInCurrency: '5',
-        usd: '5',
+        effective: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        max: { amount: '0', valueInCurrency: null, usd: null },
       },
       adjustedReturn: {
         valueInCurrency: '985',
@@ -1727,9 +1727,9 @@ describe('BridgeStatusController', () => {
         usd: '15',
       },
       gasFee: {
-        amount: '0.05',
-        valueInCurrency: '5',
-        usd: '5',
+        effective: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        max: { amount: '0', valueInCurrency: null, usd: null },
       },
       adjustedReturn: {
         valueInCurrency: '985',
@@ -1854,7 +1854,11 @@ describe('BridgeStatusController', () => {
         valueInCurrency: null,
         usd: null,
       },
-      gasFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      gasFee: {
+        effective: { amount: '1.234', valueInCurrency: null, usd: null },
+        total: { amount: '1.234', valueInCurrency: null, usd: null },
+        max: { amount: '1.234', valueInCurrency: null, usd: null },
+      },
       adjustedReturn: { valueInCurrency: null, usd: null },
       swapRate: '1.234',
       cost: { valueInCurrency: null, usd: null },
@@ -2251,7 +2255,11 @@ describe('BridgeStatusController', () => {
         valueInCurrency: null,
         usd: null,
       },
-      gasFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      gasFee: {
+        effective: { amount: '1.234', valueInCurrency: null, usd: null },
+        total: { amount: '1.234', valueInCurrency: null, usd: null },
+        max: { amount: '1.234', valueInCurrency: null, usd: null },
+      },
       adjustedReturn: { valueInCurrency: null, usd: null },
       swapRate: '1.234',
       cost: { valueInCurrency: null, usd: null },
