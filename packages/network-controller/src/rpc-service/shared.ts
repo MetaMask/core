@@ -9,8 +9,5 @@ export type FetchOptions = RequestInit;
  */
 export type AddToCockatielEventData<EventListener, AdditionalData> =
   EventListener extends (data: infer Data) => void
-    ? // Prevent Data from being split if it's a type union
-      [Data] extends [void]
-      ? (data: AdditionalData) => void
-      : (data: Data & AdditionalData) => void
+    ? (data: Data extends void ? AdditionalData : Data & AdditionalData) => void
     : never;
