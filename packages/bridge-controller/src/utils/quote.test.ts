@@ -414,6 +414,65 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "effective": Object {
+            "amount": "0.003584",
+            "usd": "5.376",
+            "valueInCurrency": "7.168",
+          },
+          "max": Object {
+            "amount": "0.006934",
+            "usd": "10.401",
+            "valueInCurrency": "13.868",
+          },
+          "total": Object {
+            "amount": "0.003584",
+            "usd": "5.376",
+            "valueInCurrency": "7.168",
+          },
+        }
+      `);
+      expect(result.total.amount).toBeDefined();
+      expect(result.max.amount).toBeDefined();
+      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+        parseFloat(result.total.amount),
+      );
+    });
+
+    it('should calculate estimated and max gas fees correctly when effectiveGas is available', () => {
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: {
+          ...mockBridgeQuote,
+          trade: { gasLimit: 21000, effectiveGas: 10000 },
+          approval: { gasLimit: 46000, effectiveGas: 20000 },
+        } as QuoteResponse & L1GasFees,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "effective": Object {
+            "amount": "0.00166",
+            "usd": "2.49",
+            "valueInCurrency": "3.32",
+          },
+          "max": Object {
+            "amount": "0.006934",
+            "usd": "10.401",
+            "valueInCurrency": "13.868",
+          },
+          "total": Object {
+            "amount": "0.003584",
+            "usd": "5.376",
+            "valueInCurrency": "7.168",
+          },
+        }
+      `);
       expect(result.total.amount).toBeDefined();
       expect(result.max.amount).toBeDefined();
       expect(parseFloat(result.max.amount)).toBeGreaterThan(

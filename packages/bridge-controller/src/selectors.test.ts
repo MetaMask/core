@@ -308,6 +308,7 @@ describe('Bridge Selectors', () => {
   describe('selectBridgeQuotes', () => {
     const mockQuote = {
       quote: {
+        requestId: '123',
         srcChainId: '1',
         destChainId: '137',
         srcTokenAmount: '1000000000000000000',
@@ -338,15 +339,20 @@ describe('Bridge Selectors', () => {
       estimatedProcessingTimeInSeconds: 300,
       trade: {
         value: '0x0',
-        gasLimit: '21000',
+        gasLimit: '24000',
+        effectiveGas: '21000',
       },
       approval: {
-        gasLimit: '46000',
+        gasLimit: '42000',
+        effectiveGas: '46000',
       },
     };
 
     const mockState = {
-      quotes: [mockQuote],
+      quotes: [
+        mockQuote,
+        { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+      ],
       quoteRequest: {
         srcChainId: '1',
         destChainId: '137',
@@ -399,7 +405,10 @@ describe('Bridge Selectors', () => {
     it('should return sorted quotes with metadata', () => {
       const result = selectBridgeQuotes(mockState, mockClientParams);
 
-      expect(result.sortedQuotes).toHaveLength(1);
+      expect(result.sortedQuotes).toHaveLength(2);
+      expect(result.sortedQuotes[0].quote.requestId).toMatchInlineSnapshot(
+        `"123"`,
+      );
       expect(result.recommendedQuote).toBeDefined();
       expect(result.activeQuote).toBeDefined();
       expect(result.isLoading).toBe(false);
@@ -847,7 +856,7 @@ describe('Bridge Selectors', () => {
         mockClientParams,
       );
 
-      expect(result.sortedQuotes).toHaveLength(1);
+      expect(result.sortedQuotes).toHaveLength(2);
       expect(result.recommendedQuote).toBeDefined();
       expect(result.activeQuote).toBeDefined();
       expect(result.isLoading).toBe(false);
