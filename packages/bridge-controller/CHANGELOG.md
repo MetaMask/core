@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [39.0.0]
 
-### Uncategorized
-
-- Release 497.0.0 ([#6291](https://github.com/MetaMask/core/pull/6291))
-- Release 491.0.0 ([#6271](https://github.com/MetaMask/core/pull/6271))
-
 ### Added
 
 - **BREAKING** Added the `effective`, `max` and `total` keys to the `QuoteMetadata.gasFee` type ([#6295](https://github.com/MetaMask/core/pull/6295))
