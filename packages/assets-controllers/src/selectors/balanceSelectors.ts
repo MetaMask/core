@@ -14,6 +14,7 @@ import type { MultichainBalancesControllerState } from '../MultichainBalancesCon
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import { KnownCaipNamespace, parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
 /**
  * Individual controller state selectors using direct state access
@@ -166,6 +167,21 @@ const selectCurrencyRateControllerState = createSelector(
 );
 
 /**
+ * Selector for NetworkEnablementController state using direct state access
+ *
+ * Note: Mobile and Extension use different root state shapes. This helper accounts for both.
+ * TODO: Unify network controllers across platforms; core NetworkEnablementController will be the primary.
+ */
+const selectNetworkEnablementControllerState = createSelector(
+  [(state: unknown) => state],
+  (state): { enabledNetworkMap?: Record<string, Record<string, boolean>> } | undefined =>
+    getControllerState<{ enabledNetworkMap?: Record<string, Record<string, boolean>> } | undefined>(
+      state,
+      'NetworkEnablementController',
+    ),
+);
+
+/**
  * Helper function to get internal accounts for a specific group.
  * Uses AccountTreeController state to find accounts.
  *
@@ -220,6 +236,7 @@ export const selectBalanceForAllWallets = () =>
       selectMultichainBalancesControllerState,
       selectTokensControllerState,
       selectCurrencyRateControllerState,
+      selectNetworkEnablementControllerState,
     ],
     (
       accountTreeState,
@@ -230,9 +247,30 @@ export const selectBalanceForAllWallets = () =>
       multichainBalancesState,
       tokensState,
       currencyRateState,
+      networkEnablementState,
     ): AllWalletsBalance => {
       const walletBalances: Record<string, WalletBalance> = {};
       let totalBalanceInUserCurrency = 0;
+
+      const isEvmChainEnabled = (chainId: Hex): boolean => {
+        const enabledMap = networkEnablementState?.enabledNetworkMap;
+        if (!enabledMap) {
+          return true;
+        }
+        const evmEnabled = enabledMap[KnownCaipNamespace.Eip155 as unknown as string];
+        return Boolean(evmEnabled?.[chainId]);
+      };
+
+      const isAssetChainEnabled = (assetId: CaipAssetType): boolean => {
+        const enabledMap = networkEnablementState?.enabledNetworkMap;
+        if (!enabledMap) {
+          return true;
+        }
+        const { chainId } = parseCaipAssetType(assetId);
+        const { namespace } = parseCaipChainId(chainId);
+        const nsEnabled = enabledMap[namespace as unknown as string];
+        return Boolean(nsEnabled?.[chainId]);
+      };
 
       const walletIds = Object.keys(
         accountTreeState.accountTree.wallets,
@@ -285,6 +323,10 @@ export const selectBalanceForAllWallets = () =>
                 for (const [chainId, chainBalances] of Object.entries(
                   accountBalances,
                 )) {
+                  // Skip chains that are not enabled
+                  if (!isEvmChainEnabled(chainId as Hex)) {
+                    continue;
+                  }
                   for (const [tokenAddress, balance] of Object.entries(
                     chainBalances,
                   )) {
@@ -350,6 +392,11 @@ export const selectBalanceForAllWallets = () =>
                 for (const [assetId, balanceData] of Object.entries(
                   accountBalances,
                 )) {
+                  // Skip assets whose chain is not enabled
+                  if (!isAssetChainEnabled(assetId as CaipAssetType)) {
+                    continue;
+                  }
+
                   const balanceAmount = parseFloat(balanceData.amount);
 
                   // Skip invalid balance values to prevent NaN propagation
