@@ -75,11 +75,11 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     socialBackupsMetadata: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     nodeAuthTokens: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     authConnection: {
       persist: true,
@@ -95,23 +95,23 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     userId: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     socialLoginEmail: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     vaultEncryptionKey: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     vaultEncryptionSalt: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     authPubKey: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     passwordOutdatedCache: {
       persist: true,
@@ -119,30 +119,30 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     refreshToken: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     revokeToken: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     // stays in vault
     accessToken: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     encryptedSeedlessEncryptionKey: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     encryptedKeyringEncryptionKey: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
   };
 
