@@ -178,6 +178,8 @@ async function withController<ReturnValue>(
 
   const mockRefreshJWTToken = jest.fn().mockResolvedValue({
     idTokens: ['newIdToken'],
+    metadataAccessToken: 'mock-metadata-access-token',
+    accessToken: 'mock-access-token',
   });
   const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
     newRevokeToken: 'newRevokeToken',

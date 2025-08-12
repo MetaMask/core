@@ -335,7 +335,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           state.userId = userId;
           state.authConnection = authConnection;
           state.socialLoginEmail = socialLoginEmail;
-          state.isSeedlessOnboardingUserAuthenticated = true;
+          state.metadataAccessToken = metadataAccessToken;
+          state.accessToken = accessToken;
           if (refreshToken) {
             state.refreshToken = refreshToken;
           }
@@ -343,12 +344,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             // Temporarily store revoke token in state for later vault creation
             state.revokeToken = revokeToken;
           }
-          if (accessToken) {
-            state.accessToken = accessToken;
-          }
-          if (metadataAccessToken) {
-            state.metadataAccessToken = metadataAccessToken;
-          }
+
+          // we will check if the controller state is properly set with the authenticated user info
+          // before setting the isSeedlessOnboardingUserAuthenticated to true
+          assertIsSeedlessOnboardingAuthenticatedUser(state);
+          state.isSeedlessOnboardingUserAuthenticated = true;
         });
 
         return authenticationResult;
