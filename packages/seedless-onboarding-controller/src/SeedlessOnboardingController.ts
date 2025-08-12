@@ -57,6 +57,7 @@ const log = createModuleLogger(projectLogger, controllerName);
 export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
   return {
     socialBackupsMetadata: [],
+    isSeedlessOnboardingUserAuthenticated: false,
   };
 }
 
@@ -143,6 +144,10 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     encryptedKeyringEncryptionKey: {
       persist: true,
       anonymous: false,
+    },
+    isSeedlessOnboardingUserAuthenticated: {
+      persist: true,
+      anonymous: true,
     },
   };
 
@@ -318,6 +323,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           state.userId = userId;
           state.authConnection = authConnection;
           state.socialLoginEmail = socialLoginEmail;
+          state.isSeedlessOnboardingUserAuthenticated = true;
           if (refreshToken) {
             state.refreshToken = refreshToken;
           }
@@ -1676,42 +1682,52 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #assertIsAuthenticatedUser(
     value: unknown,
   ): asserts value is AuthenticatedUserDetails {
-    if (
-      !value ||
-      typeof value !== 'object' ||
-      !('authConnectionId' in value) ||
-      typeof value.authConnectionId !== 'string' ||
-      !('userId' in value) ||
-      typeof value.userId !== 'string'
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
+    try {
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        !('authConnectionId' in value) ||
+        typeof value.authConnectionId !== 'string' ||
+        !('userId' in value) ||
+        typeof value.userId !== 'string'
+      ) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+        );
+      }
 
-    if (
-      !('nodeAuthTokens' in value) ||
-      typeof value.nodeAuthTokens !== 'object' ||
-      !Array.isArray(value.nodeAuthTokens) ||
-      value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
-      );
-    }
+      if (
+        !('nodeAuthTokens' in value) ||
+        typeof value.nodeAuthTokens !== 'object' ||
+        !Array.isArray(value.nodeAuthTokens) ||
+        value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
+      ) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
+        );
+      }
 
-    if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
-      );
-    }
-    if (
-      !('metadataAccessToken' in value) ||
-      typeof value.metadataAccessToken !== 'string'
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
-      );
+      if (
+        !('refreshToken' in value) ||
+        typeof value.refreshToken !== 'string'
+      ) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
+        );
+      }
+      if (
+        !('metadataAccessToken' in value) ||
+        typeof value.metadataAccessToken !== 'string'
+      ) {
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+        );
+      }
+    } catch (error) {
+      this.update((state) => {
+        state.isSeedlessOnboardingUserAuthenticated = false;
+      });
+      throw error;
     }
   }
 
