@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.0]
 
-### Uncategorized
-
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-- Release/485.0.0 ([#6237](https://github.com/MetaMask/core/pull/6237))
-- Release/479.0.0 ([#6194](https://github.com/MetaMask/core/pull/6194))
-
 ### Added
 
 - **BREAKING:** Added mandatory parameter `selectedNetworkClientId` to `EarnController` constructor ([#6153](https://github.com/MetaMask/core/pull/6153))
