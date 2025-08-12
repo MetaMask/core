@@ -261,6 +261,12 @@ export class AccountTreeController extends BaseController<
     }
   }
 
+  /**
+   * Gets the appropriate rule instance for a given wallet type.
+   *
+   * @param wallet - The wallet object to get the rule for.
+   * @returns The rule instance that handles the wallet's type.
+   */
   #getRuleForWallet<WalletType extends AccountWalletType>(
     wallet: AccountWalletObjectOf<WalletType>,
   ): Rule<WalletType, AccountGroupType> {

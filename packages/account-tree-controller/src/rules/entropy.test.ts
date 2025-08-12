@@ -14,6 +14,7 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { EntropyRule } from './entropy';
 import type { AccountGroupObjectOf } from '../group';
 import type {
   AccountTreeControllerMessenger,
@@ -22,7 +23,6 @@ import type {
   AllowedActions,
   AllowedEvents,
 } from '../types';
-import { EntropyRule } from './entropy';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -192,6 +192,81 @@ describe('EntropyRule', () => {
       expect(rule.getDefaultAccountGroupName(group, 0)).toBe('Account 1');
       expect(rule.getDefaultAccountGroupName(group, 1)).toBe('Account 2');
       expect(rule.getDefaultAccountGroupName(group, 5)).toBe('Account 6');
+    });
+
+    it('getComputedAccountGroupName returns account name with EVM priority', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const rule = new EntropyRule(messenger);
+
+      const mockEvmAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'evm-account-id',
+        type: EthAccountType.Eoa,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'EVM Account',
+        },
+      };
+
+      rootMessenger.registerActionHandler(
+        'AccountsController:getAccount',
+        (accountId: string) => {
+          if (accountId === mockEvmAccount.id) {
+            return mockEvmAccount;
+          }
+          return undefined;
+        },
+      );
+
+      const group: AccountGroupObjectOf<AccountGroupType.MultichainAccount> = {
+        id: toMultichainAccountGroupId(
+          toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        ),
+        type: AccountGroupType.MultichainAccount,
+        accounts: [mockEvmAccount.id],
+        metadata: {
+          name: '',
+          entropy: {
+            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          },
+          pinned: false,
+          hidden: false,
+        },
+      };
+
+      expect(rule.getComputedAccountGroupName(group)).toBe('EVM Account');
+    });
+
+    it('getComputedAccountGroupName returns empty string when no accounts found', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const rule = new EntropyRule(messenger);
+
+      rootMessenger.registerActionHandler(
+        'AccountsController:getAccount',
+        () => undefined,
+      );
+
+      const group: AccountGroupObjectOf<AccountGroupType.MultichainAccount> = {
+        id: toMultichainAccountGroupId(
+          toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        ),
+        type: AccountGroupType.MultichainAccount,
+        accounts: ['non-existent-account'],
+        metadata: {
+          name: '',
+          entropy: {
+            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          },
+          pinned: false,
+          hidden: false,
+        },
+      };
+
+      expect(rule.getComputedAccountGroupName(group)).toBe('');
     });
   });
 });

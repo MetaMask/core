@@ -9,6 +9,7 @@ import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
 import type { AccountGroupObjectOf } from '../group';
 import type {
   AccountTreeControllerMessenger,
@@ -17,7 +18,7 @@ import type {
   AllowedActions,
   AllowedEvents,
 } from '../types';
-import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
+import type { AccountWalletObjectOf } from '../wallet';
 
 describe('keyring', () => {
   describe('getAccountWalletNameFromKeyringType', () => {
@@ -186,6 +187,116 @@ describe('keyring', () => {
         expect(rule.getDefaultAccountGroupName(group, 0)).toBe('Account 1');
         expect(rule.getDefaultAccountGroupName(group, 1)).toBe('Account 2');
         expect(rule.getDefaultAccountGroupName(group, 5)).toBe('Account 6');
+      });
+
+      it('getComputedAccountGroupName returns computed name from base class', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new KeyringRule(messenger);
+
+        // Mock the AccountsController to return an account
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccount',
+          (accountId: string) => {
+            if (accountId === MOCK_HARDWARE_ACCOUNT_1.id) {
+              return MOCK_HARDWARE_ACCOUNT_1;
+            }
+            return undefined;
+          },
+        );
+
+        const group: AccountGroupObjectOf<AccountGroupType.SingleAccount> = {
+          id: toAccountGroupId(
+            toAccountWalletId(
+              AccountWalletType.Keyring,
+              MOCK_HARDWARE_ACCOUNT_1.metadata.keyring.type,
+            ),
+            MOCK_HARDWARE_ACCOUNT_1.id,
+          ),
+          type: AccountGroupType.SingleAccount,
+          accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
+          metadata: {
+            name: '',
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        // Should return the account's metadata name since it exists and is non-empty
+        const computedName = rule.getComputedAccountGroupName(group);
+        expect(computedName).toBe(MOCK_HARDWARE_ACCOUNT_1.metadata.name);
+      });
+
+      it('getComputedAccountGroupName returns empty string when account not found', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new KeyringRule(messenger);
+
+        // Mock the AccountsController to return undefined (account not found)
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccount',
+          () => undefined,
+        );
+
+        const group: AccountGroupObjectOf<AccountGroupType.SingleAccount> = {
+          id: toAccountGroupId(
+            toAccountWalletId(
+              AccountWalletType.Keyring,
+              MOCK_HARDWARE_ACCOUNT_1.metadata.keyring.type,
+            ),
+            'non-existent-account-id',
+          ),
+          type: AccountGroupType.SingleAccount,
+          accounts: ['non-existent-account-id'],
+          metadata: {
+            name: '',
+            pinned: false,
+            hidden: false,
+          },
+        };
+
+        const computedName = rule.getComputedAccountGroupName(group);
+        expect(computedName).toBe('');
+      });
+
+      it('getDefaultAccountWalletName returns wallet name based on keyring type', () => {
+        const rootMessenger = getRootMessenger();
+        const messenger = getAccountTreeControllerMessenger(rootMessenger);
+        const rule = new KeyringRule(messenger);
+
+        const hdWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
+          id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.hd),
+          type: AccountWalletType.Keyring,
+          groups: {},
+          metadata: {
+            name: '',
+            keyring: { type: KeyringTypes.hd },
+          },
+        };
+
+        const ledgerWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
+          id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.ledger),
+          type: AccountWalletType.Keyring,
+          groups: {},
+          metadata: {
+            name: '',
+            keyring: { type: KeyringTypes.ledger },
+          },
+        };
+
+        const trezorWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
+          id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.trezor),
+          type: AccountWalletType.Keyring,
+          groups: {},
+          metadata: {
+            name: '',
+            keyring: { type: KeyringTypes.trezor },
+          },
+        };
+
+        expect(rule.getDefaultAccountWalletName(hdWallet)).toBe('HD Wallet');
+        expect(rule.getDefaultAccountWalletName(ledgerWallet)).toBe('Ledger');
+        expect(rule.getDefaultAccountWalletName(trezorWallet)).toBe('Trezor');
       });
     });
   });
