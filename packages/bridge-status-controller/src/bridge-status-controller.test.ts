@@ -300,7 +300,11 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
     totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
     totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-    gasFee: { amount: '1.234', valueInCurrency: null, usd: null },
+    gasFee: {
+      effective: { amount: '1.234', valueInCurrency: null, usd: null },
+      total: { amount: '1.234', valueInCurrency: null, usd: null },
+      max: { amount: '1.234', valueInCurrency: null, usd: null },
+    },
     adjustedReturn: { valueInCurrency: null, usd: null },
     swapRate: '1.234',
     cost: { valueInCurrency: null, usd: null },

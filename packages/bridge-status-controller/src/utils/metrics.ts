@@ -97,7 +97,7 @@ export const getTradeDataFromQuote = (
   quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
 ): TradeData => {
   return {
-    usd_quoted_gas: Number(quoteResponse.gasFee?.usd ?? 0),
+    usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
     gas_included: quoteResponse.quote.gasIncluded ?? false,
     provider: formatProviderLabel(quoteResponse.quote),
     quoted_time_minutes: Number(
