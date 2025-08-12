@@ -308,15 +308,17 @@ export class AccountTreeController extends BaseController<
     if (persistedMetadata?.name !== undefined) {
       group.metadata.name = persistedMetadata.name.value;
     } else if (!group.metadata.name) {
-      // Extract numeric index from group ID (e.g., "wallet123/2" -> 2)
-      // This is more efficient than sorting and works correctly for 10+ accounts
-      const groupIdParts = group.id.split('/');
-      const groupIndex = parseInt(groupIdParts[groupIdParts.length - 1], 10);
-
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
       const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
-      const typedGroup = typedWallet.groups[group.id];
+      const typedGroup = typedWallet.groups[group.id] as AccountGroupObject;
+
+      // Calculate group index based on position within sorted group IDs
+      // We sort to ensure consistent ordering across all wallet types:
+      // - Entropy: group IDs like "entropy:abc/0", "entropy:abc/1" sort to logical order
+      // - Snap/Keyring: group IDs like "keyring:ledger/0xABC" get consistent alphabetical order
+      const sortedGroupIds = Object.keys(wallet.groups).sort();
+      const groupIndex = sortedGroupIds.indexOf(group.id);
 
       // For new groups, use default naming. For existing groups, try computed name first
       const isNewGroup = this.#newGroupsMap.get(group) || false;

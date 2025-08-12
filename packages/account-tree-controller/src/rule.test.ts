@@ -1,4 +1,4 @@
-import type { AccountGroupId, Bip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
   toMultichainAccountGroupId,
