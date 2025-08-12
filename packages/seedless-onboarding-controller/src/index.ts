@@ -1,6 +1,6 @@
 export {
   SeedlessOnboardingController,
-  getDefaultSeedlessOnboardingControllerState,
+  getInitialSeedlessOnboardingControllerStateWithDefaults as getDefaultSeedlessOnboardingControllerState,
 } from './SeedlessOnboardingController';
 export type {
   AuthenticatedUserDetails,

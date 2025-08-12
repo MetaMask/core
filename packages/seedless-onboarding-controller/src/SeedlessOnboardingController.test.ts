@@ -40,7 +40,7 @@ import {
 import { PasswordSyncError, RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
 import {
-  getDefaultSeedlessOnboardingControllerState,
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import type {
@@ -179,6 +179,8 @@ async function withController<ReturnValue>(
 
   const mockRefreshJWTToken = jest.fn().mockResolvedValue({
     idTokens: ['newIdToken'],
+    metadataAccessToken: 'mock-metadata-access-token',
+    accessToken: 'mock-access-token',
   });
   const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
     newRevokeToken: 'newRevokeToken',
@@ -542,7 +544,7 @@ function getMockInitialControllerState(options?: {
   metadataAccessToken?: string;
   accessToken?: string;
 }): Partial<SeedlessOnboardingControllerState> {
-  const state = getDefaultSeedlessOnboardingControllerState();
+  const state = getInitialSeedlessOnboardingControllerStateWithDefaults();
 
   if (options?.vault) {
     state.vault = options.vault;
@@ -565,6 +567,7 @@ function getMockInitialControllerState(options?: {
     state.refreshToken = refreshToken;
     state.metadataAccessToken =
       options?.metadataAccessToken ?? metadataAccessToken;
+    state.isSeedlessOnboardingUserAuthenticated = true;
     if (!options?.withoutMockAccessToken || options?.accessToken) {
       state.accessToken = options?.accessToken ?? accessToken;
     }
@@ -608,7 +611,7 @@ describe('SeedlessOnboardingController', () => {
       });
       expect(controller).toBeDefined();
       expect(controller.state).toStrictEqual(
-        getDefaultSeedlessOnboardingControllerState(),
+        getInitialSeedlessOnboardingControllerStateWithDefaults(),
       );
     });
 
@@ -670,6 +673,38 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should be able to instantiate with an authenticated user', () => {
+      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+        idTokens: ['newIdToken'],
+      });
+      const mockRevokeRefreshToken = jest.fn().mockResolvedValue({
+        newRevokeToken: 'newRevokeToken',
+        newRefreshToken: 'newRefreshToken',
+      });
+      const { messenger } = mockSeedlessOnboardingMessenger();
+
+      const initialState = {
+        nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+        authConnectionId,
+        userId,
+        authConnection,
+        socialLoginEmail,
+        refreshToken,
+        revokeToken,
+        metadataAccessToken,
+        accessToken,
+      };
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
+        refreshJWTToken: mockRefreshJWTToken,
+        revokeRefreshToken: mockRevokeRefreshToken,
+        state: initialState,
+      });
+      expect(controller).toBeDefined();
+      expect(controller.state).toMatchObject(initialState);
+    });
+
     it('should throw an error if the password outdated cache TTL is not a valid number', () => {
       const mockRefreshJWTToken = jest.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
@@ -726,6 +761,9 @@ describe('SeedlessOnboardingController', () => {
         expect(controller.state.userId).toBe(userId);
         expect(controller.state.authConnection).toBe(authConnection);
         expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
       });
     });
 
@@ -759,6 +797,9 @@ describe('SeedlessOnboardingController', () => {
         expect(controller.state.userId).toBe(userId);
         expect(controller.state.authConnection).toBe(authConnection);
         expect(controller.state.socialLoginEmail).toBe(socialLoginEmail);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
       });
     });
 
@@ -796,6 +837,9 @@ describe('SeedlessOnboardingController', () => {
           groupedAuthConnectionId,
         );
         expect(controller.state.userId).toBe(userId);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
       });
     });
 
@@ -840,6 +884,9 @@ describe('SeedlessOnboardingController', () => {
         expect(controller.state.authConnectionId).toBeUndefined();
         expect(controller.state.groupedAuthConnectionId).toBeUndefined();
         expect(controller.state.userId).toBeUndefined();
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          false,
+        );
       });
     });
   });
@@ -2829,6 +2876,10 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
           );
+
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            false,
+          );
         },
       );
     });
@@ -2939,7 +2990,7 @@ describe('SeedlessOnboardingController', () => {
 
           controller.clearState();
           expect(controller.state).toStrictEqual(
-            getDefaultSeedlessOnboardingControllerState(),
+            getInitialSeedlessOnboardingControllerStateWithDefaults(),
           );
         },
       );
