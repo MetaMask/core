@@ -161,6 +161,9 @@ type DelegatedMessenger = Pick<
   | '_internalUnregisterDelegatedActionHandler'
 >;
 
+type StripNamespace<Namespaced extends NamespacedName> =
+  Namespaced extends `${string}:${infer Name}` ? Name : never;
+
 /**
  * A message broker for "actions" and "events".
  *
@@ -278,7 +281,7 @@ export class Messenger<
    */
   registerMethodActionHandlers<
     MessengerClient extends { name: Namespace },
-    MethodNames extends keyof MessengerClient & string,
+    MethodNames extends keyof MessengerClient & StripNamespace<Action['type']>,
   >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
     for (const methodName of methodNames) {
       const method = messengerClient[methodName];
