@@ -35,13 +35,12 @@ export type Asset = (
       chainId: `${string}:${string}`;
     }
 ) & {
-  image: string | undefined;
+  image: string; // TODO: This should also allow undefined at this stage for evm tokens, but it improves compatibility with FE types for now
   name: string;
   symbol: string;
   decimals: number;
-  balance: string | undefined;
-  fiatBalance: string | undefined;
-  tokenFiatAmount: string | undefined;
+  balance: string | undefined; // TODO: Change to number for consistency
+  fiatBalance: string | undefined; // TODO: Change to number as it's being converted anyway before displaying
 };
 
 const selectAllEvmTokens = (state: TokensControllerState) => state.allTokens;
@@ -182,7 +181,6 @@ const selectAllEvmAccountNativeBalances = createSelector(
               )
             : undefined,
           fiatBalance,
-          tokenFiatAmount: fiatBalance,
           chainId,
         });
       }
@@ -233,6 +231,18 @@ const selectAllEvmAssets = createSelector(
             continue;
           }
 
+          const rawBalance =
+            tokenBalances[accountAddress]?.[chainId]?.[tokenAddress];
+
+          if (!rawBalance) {
+            continue;
+          }
+
+          const displayBalance = stringifyBalanceWithDecimals(
+            hexToBigInt(rawBalance),
+            token.decimals,
+          );
+
           if (!groupAssets[accountGroupId]) {
             groupAssets[accountGroupId] = {};
           }
@@ -242,9 +252,6 @@ const selectAllEvmAssets = createSelector(
             groupChainAssets = [];
             groupAssets[accountGroupId][chainId] = groupChainAssets;
           }
-
-          const rawBalance =
-            tokenBalances[accountAddress]?.[chainId]?.[tokenAddress];
 
           const fiatBalance = getFiatBalanceForEvmToken(
             rawBalance,
@@ -259,18 +266,12 @@ const selectAllEvmAssets = createSelector(
             type: 'evm',
             assetId: tokenAddress,
             address: tokenAddress,
-            image: token.image,
+            image: token.image ?? '',
             name: token.name ?? token.symbol,
             symbol: token.symbol,
             decimals: token.decimals,
-            balance: rawBalance
-              ? stringifyBalanceWithDecimals(
-                  hexToBigInt(rawBalance),
-                  token.decimals,
-                )
-              : undefined,
+            balance: displayBalance,
             fiatBalance,
-            tokenFiatAmount: fiatBalance,
             chainId,
           });
         }
@@ -354,7 +355,6 @@ const selectAllMultichainAssets = createSelector(
             )?.decimals ?? 0,
           balance: balance ? balance.amount : undefined,
           fiatBalance,
-          tokenFiatAmount: fiatBalance,
           chainId,
         });
       }
