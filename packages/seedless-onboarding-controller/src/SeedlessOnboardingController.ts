@@ -59,21 +59,20 @@ const log = createModuleLogger(projectLogger, controllerName);
 export function getInitialSeedlessOnboardingControllerStateWithDefaults(
   overrides?: Partial<SeedlessOnboardingControllerState>,
 ): SeedlessOnboardingControllerState {
-  let isSeedlessOnboardingUserAuthenticated =
-    overrides?.isSeedlessOnboardingUserAuthenticated ?? false;
-
-  try {
-    assertIsSeedlessOnboardingAuthenticatedUser(overrides);
-    isSeedlessOnboardingUserAuthenticated = true;
-  } catch {
-    isSeedlessOnboardingUserAuthenticated = false;
-  }
-
-  return {
+  const initialState = {
+    socialBackupsMetadata: [],
+    isSeedlessOnboardingUserAuthenticated: false,
     ...overrides,
-    socialBackupsMetadata: overrides?.socialBackupsMetadata ?? [],
-    isSeedlessOnboardingUserAuthenticated,
   };
+
+  // Ensure authenticated flag is set correctly.
+  try {
+    assertIsSeedlessOnboardingAuthenticatedUser(initialState);
+    initialState.isSeedlessOnboardingUserAuthenticated = true;
+  } catch {
+    initialState.isSeedlessOnboardingUserAuthenticated = false;
+  }
+  return initialState;
 }
 
 /**
