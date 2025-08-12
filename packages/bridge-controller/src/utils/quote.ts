@@ -327,13 +327,6 @@ export const calcTotalMaxNetworkFee = (
   gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
-  if (!gasFee.max) {
-    return {
-      amount: '0',
-      valueInCurrency: null,
-      usd: null,
-    };
-  }
   return {
     amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
     valueInCurrency: gasFee.max.valueInCurrency
