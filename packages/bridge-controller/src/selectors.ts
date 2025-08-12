@@ -295,6 +295,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
           ...bridgeFeesPerGas,
           ...nativeExchangeRate,
         });
+        // Uses effectiveGasFee to calculate the total estimated network fee
         totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(
           gasFee,
           relayerFee,

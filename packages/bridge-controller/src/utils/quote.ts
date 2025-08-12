@@ -231,6 +231,22 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   maxFeePerGasInDecGwei: string;
   maxPriorityFeePerGasInDecGwei: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
+  // Estimated gas fees spent after receiving refunds, this is shown to the user
+  const {
+    amount: amountEffective,
+    valueInCurrency: valueInCurrencyEffective,
+    usd: usdEffective,
+  } = calcTotalGasFee({
+    // Fallback to gasLimit if effectiveGas is not available
+    approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
+    tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
+    l1GasFeesInHexWei,
+    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
+    nativeToDisplayCurrencyExchangeRate,
+    nativeToUsdExchangeRate,
+  });
+
   // Estimated total gas fee, including refunded fees (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
@@ -256,7 +272,13 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
+
   return {
+    effective: {
+      amount: amountEffective,
+      valueInCurrency: valueInCurrencyEffective,
+      usd: usdEffective,
+    },
     total: {
       amount,
       valueInCurrency,
@@ -281,7 +303,7 @@ export const calcTotalEstimatedNetworkFee = (
   gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
-  const gasFeeToDisplay = gasFee.total;
+  const gasFeeToDisplay = gasFee.effective ?? gasFee.total;
   return {
     amount: new BigNumber(gasFeeToDisplay?.amount ?? '0')
       .plus(relayerFee.amount)

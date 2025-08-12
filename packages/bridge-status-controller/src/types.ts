@@ -118,7 +118,9 @@ export type BridgeHistoryItem = {
      */
     amountSent: QuoteMetadata['sentAmount']['amount'];
     amountSentInUsd?: QuoteMetadata['sentAmount']['usd'];
-    quotedGasInUsd?: QuoteMetadata['gasFee']['total']['usd'];
+    quotedGasInUsd?:
+      | QuoteMetadata['gasFee']['effective']['usd']
+      | QuoteMetadata['gasFee']['total']['usd'];
     quotedReturnInUsd?: QuoteMetadata['toTokenAmount']['usd'];
     quotedRefuelSrcAmountInUsd?: string;
     quotedRefuelDestAmountInUsd?: string;

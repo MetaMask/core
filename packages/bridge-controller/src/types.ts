@@ -124,7 +124,7 @@ export type QuoteMetadata = {
    * total is the gas fee that is spent by the user, including refunds.
    * max is the max gas fee that will be used by the transaction.
    */
-  gasFee: Record<'total' | 'max', TokenAmountValues>;
+  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**
