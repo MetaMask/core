@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING** Remove `getActionType` export and hardcode `action_type` to `swapbridge-v1`. Deprecate `crosschain-v1` MetricsActionType because it shouldn't be used after swaps and bridge are unified ([#6270](https://github.com/MetaMask/core/pull/6270))
-- **BREAKING** Change default gas priority fee level from high -> medium to show more accurate estimates in the clients ([#6295](https://github.com/MetaMask/core/pull/6295))
+- Change default gas priority fee level from high -> medium to show more accurate estimates in the clients ([#6295](https://github.com/MetaMask/core/pull/6295))
 - Bump `@metamask/multichain-network-controller` from `^0.11.0` to `^0.11.1` ([#6273](https://github.com/MetaMask/core/pull/6273))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 
