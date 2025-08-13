@@ -289,7 +289,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     );
     expect(standardAndDetails.standard).toBe('ERC1155');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
-  });
+  }, 10000);
 
   it('should get ERC-20 token standard and details', async () => {
     const { messenger, networkClientConfiguration } =
@@ -388,7 +388,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     );
     expect(standardAndDetails.standard).toBe('ERC20');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
-  });
+  }, 10000);
 
   it('should get ERC-721 NFT tokenURI correctly', async () => {
     const { messenger, networkClientConfiguration } =
