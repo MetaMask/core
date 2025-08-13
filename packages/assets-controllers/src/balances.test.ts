@@ -532,5 +532,188 @@ describe('calculateBalanceForAllWallets', () => {
       expect(out.amountChangeInUserCurrency).toBeCloseTo(expectedDelta, 6);
       expect(out.percentChange).toBeCloseTo(expectedPct, 6);
     });
+
+    it('skips EVM asset when percent change is missing (coverage of guard path)', () => {
+      const state = createMobileMockState('USD');
+      // Ensure price exists but percent is missing
+      delete (state.engine.backgroundState as any).TokenRatesController
+        .marketData['0x1']['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1']
+        .pricePercentChange1d;
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      expect(out.currentTotalInUserCurrency).toBe(0);
+      expect(out.previousTotalInUserCurrency).toBe(0);
+      expect(out.amountChangeInUserCurrency).toBe(0);
+      expect(out.percentChange).toBe(0);
+    });
+
+    it('skips non-EVM asset when rate is NaN or percent is NaN (coverage of guard path)', () => {
+      const state = createMobileMockState('USD');
+
+      // Add a non-EVM account with a balance
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-5'] = {
+        id: 'account-5',
+        address: 'NonEvmAddress',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-5');
+
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-5'] = {
+        'solana:mainnet/asset:bad-rate': {
+          amount: '10.0',
+          unit: 'BAD',
+        },
+        'solana:mainnet/asset:bad-percent': {
+          amount: '10.0',
+          unit: 'BADPCT',
+        },
+      };
+      // First asset: non-numeric rate
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:bad-rate'
+      ] = {
+        rate: 'not-a-number',
+        marketData: { pricePercentChange: { P1D: 10 } },
+        conversionTime: 0,
+      };
+      // Second asset: NaN percent
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:bad-percent'
+      ] = {
+        rate: '5.0',
+        marketData: { pricePercentChange: { P1D: Number.NaN } },
+        conversionTime: 0,
+      };
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      // Both non-EVM entries should be skipped, so everything zero
+      expect(out.currentTotalInUserCurrency).toBe(0);
+      expect(out.previousTotalInUserCurrency).toBe(0);
+      expect(out.amountChangeInUserCurrency).toBe(0);
+      expect(out.percentChange).toBe(0);
+    });
+
+    it('skips EVM asset when percent change is -100 (denom === 0)', () => {
+      const state = createMobileMockState('USD');
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d =
+        -100;
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      expect(out.currentTotalInUserCurrency).toBe(0);
+      expect(out.previousTotalInUserCurrency).toBe(0);
+      expect(out.amountChangeInUserCurrency).toBe(0);
+      expect(out.percentChange).toBe(0);
+    });
+
+    it('skips non-EVM asset when percent change is -100 (denom === 0)', () => {
+      const state = createMobileMockState('USD');
+
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-6'] = {
+        id: 'account-6',
+        address: 'NonEvm2',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol2', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-6');
+
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-6'] = {
+        'solana:mainnet/asset:denom-zero': {
+          amount: '7.0',
+          unit: 'BAD100',
+        },
+      };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:denom-zero'
+      ] = {
+        rate: '10.0',
+        marketData: { pricePercentChange: { P1D: -100 } },
+        conversionTime: 0,
+      };
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      expect(out.currentTotalInUserCurrency).toBe(0);
+      expect(out.previousTotalInUserCurrency).toBe(0);
+      expect(out.amountChangeInUserCurrency).toBe(0);
+      expect(out.percentChange).toBe(0);
+    });
   });
 });
