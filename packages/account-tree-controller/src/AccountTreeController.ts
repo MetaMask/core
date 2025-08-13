@@ -318,7 +318,15 @@ export class AccountTreeController extends BaseController<
       // - Entropy: group IDs like "entropy:abc/0", "entropy:abc/1" sort to logical order
       // - Snap/Keyring: group IDs like "keyring:ledger/0xABC" get consistent alphabetical order
       const sortedGroupIds = Object.keys(wallet.groups).sort();
-      const groupIndex = sortedGroupIds.indexOf(group.id);
+      let groupIndex = sortedGroupIds.indexOf(group.id);
+
+      // Defensive fallback: if group.id is not found in sortedGroupIds (should never happen
+      // in normal operation since we iterate over wallet.groups), use index 0 to prevent
+      // passing -1 to getDefaultAccountGroupName which would result in "Account 0"
+      /* istanbul ignore next */
+      if (groupIndex === -1) {
+        groupIndex = 0;
+      }
 
       // For new groups, use default naming. For existing groups, try computed name first
       const isNewGroup = this.#newGroupsMap.get(group) || false;
@@ -326,6 +334,11 @@ export class AccountTreeController extends BaseController<
         ? rule.getDefaultAccountGroupName(groupIndex)
         : rule.getComputedAccountGroupName(typedGroup) ||
           rule.getDefaultAccountGroupName(groupIndex);
+
+      // Clear the flag after use to prevent stale state across rebuilds
+      if (isNewGroup) {
+        this.#newGroupsMap.delete(group);
+      }
     }
 
     // Apply persisted UI states
