@@ -69,6 +69,7 @@ import {
   getStatusRequestParams,
   getUSDTAllowanceResetTx,
   handleLineaDelay,
+  handleMobileHardwareWalletDelay,
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
@@ -1087,6 +1088,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             requireApproval,
           );
           approvalTxId = approvalTxMeta?.id;
+
+          await handleMobileHardwareWalletDelay(requireApproval);
+
           return await this.#handleEvmTransaction({
             transactionType: isBridgeTx
               ? TransactionType.bridge

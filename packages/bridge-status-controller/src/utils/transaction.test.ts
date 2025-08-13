@@ -17,6 +17,7 @@ import {
   getTxMetaFields,
   handleSolanaTxResponse,
   handleLineaDelay,
+  handleMobileHardwareWalletDelay,
   getClientRequest,
   toBatchTxParams,
 } from './transaction';
@@ -989,6 +990,48 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleLineaDelay(mockQuoteResponse);
+
+      // Verify that no timer was set
+      expect(jest.getTimerCount()).toBe(0);
+
+      // Wait for the promise to resolve
+      await delayPromise;
+
+      // Verify that no timer was set
+      expect(jest.getTimerCount()).toBe(0);
+    });
+  });
+
+  describe('handleMobileHardwareWalletDelay', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should delay when requireApproval is true', async () => {
+      // Create a promise that will resolve after the delay
+      const delayPromise = handleMobileHardwareWalletDelay(true);
+
+      // Verify that the timer was set with the correct delay (1000ms)
+      expect(jest.getTimerCount()).toBe(1);
+
+      // Fast-forward the timer by 1000ms
+      jest.advanceTimersByTime(1000);
+
+      // Wait for the promise to resolve
+      await delayPromise;
+
+      // Verify that the timer was cleared
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should not delay when requireApproval is false', async () => {
+      // Create a promise that will resolve without delay
+      const delayPromise = handleMobileHardwareWalletDelay(false);
 
       // Verify that no timer was set
       expect(jest.getTimerCount()).toBe(0);
