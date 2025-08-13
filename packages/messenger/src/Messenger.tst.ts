@@ -299,75 +299,133 @@ describe('Messenger', () => {
       handler: (arg1: 'B', arg2: number) => number;
     };
 
-    test('allows delegating to messengers with non-overlapping actions and events', () => {
-      const messengerA = new Messenger<
-        'A',
-        ExampleActionA | ExampleActionB | NonDelegatedActionA,
-        ExampleEventA | ExampleEventB | NonDelegatedEventA
-      >({
-        namespace: 'A',
-      });
-      const messengerB = new Messenger<
-        'B',
-        ExampleActionA | ExampleActionB | NonDelegatedActionB,
-        ExampleEventA | ExampleEventB | NonDelegatedEventB
-      >({
-        namespace: 'B',
+    describe('delegate', () => {
+      test('allows delegating to messengers with non-overlapping actions and events', () => {
+        const messengerA = new Messenger<
+          'A',
+          ExampleActionA | ExampleActionB | NonDelegatedActionA,
+          ExampleEventA | ExampleEventB | NonDelegatedEventA
+        >({
+          namespace: 'A',
+        });
+        const messengerB = new Messenger<
+          'B',
+          ExampleActionA | ExampleActionB | NonDelegatedActionB,
+          ExampleEventA | ExampleEventB | NonDelegatedEventB
+        >({
+          namespace: 'B',
+        });
+
+        expect(messengerA.delegate).type.toBeCallableWith({
+          actions: ['A:exampleActionA'],
+          events: ['A:exampleEventA'],
+          messenger: messengerB,
+        });
+        expect(messengerB.delegate).type.toBeCallableWith({
+          actions: ['B:exampleActionB'],
+          events: ['B:exampleEventB'],
+          messenger: messengerA,
+        });
       });
 
-      expect(messengerA.delegate).type.toBeCallableWith({
-        actions: ['A:exampleActionA'],
-        events: ['A:exampleEventA'],
-        messenger: messengerB,
+      test("does not allow delegating an action to a messenger that doesn't support that action", () => {
+        const messengerA = new Messenger<
+          'A',
+          ExampleActionA | NonDelegatedActionA,
+          ExampleEventA | NonDelegatedEventA
+        >({
+          namespace: 'A',
+        });
+        const messengerB = new Messenger<
+          'B',
+          ExampleActionB | NonDelegatedActionB,
+          ExampleEventB | NonDelegatedEventB
+        >({
+          namespace: 'B',
+        });
+
+        expect(messengerA.delegate).type.not.toBeCallableWith({
+          actions: ['A:exampleActionA'],
+          messenger: messengerB,
+        });
       });
-      expect(messengerB.delegate).type.toBeCallableWith({
-        actions: ['B:exampleActionB'],
-        events: ['B:exampleEventB'],
-        messenger: messengerA,
+
+      test("does not allow delegating an event to a messenger that doesn't support that event", () => {
+        const messengerA = new Messenger<
+          'A',
+          ExampleActionA | NonDelegatedActionA,
+          ExampleEventA | NonDelegatedEventA
+        >({
+          namespace: 'A',
+        });
+        const messengerB = new Messenger<
+          'B',
+          ExampleActionB | NonDelegatedActionB,
+          ExampleEventB | NonDelegatedEventB
+        >({
+          namespace: 'B',
+        });
+
+        expect(messengerA.delegate).type.not.toBeCallableWith({
+          events: ['A:exampleEventA'],
+          messenger: messengerB,
+        });
       });
     });
 
-    test("does not allow delegating an action to a messenger that doesn't support that action", () => {
-      const messengerA = new Messenger<
-        'A',
-        ExampleActionA | NonDelegatedActionA,
-        ExampleEventA | NonDelegatedEventA
-      >({
-        namespace: 'A',
-      });
-      const messengerB = new Messenger<
-        'B',
-        ExampleActionB | NonDelegatedActionB,
-        ExampleEventB | NonDelegatedEventB
-      >({
-        namespace: 'B',
+    describe('parent', () => {
+      test('allows delegating to messengers with all actions and events', () => {
+        const messengerA = new Messenger<
+          'A',
+          ExampleActionA | ExampleActionB | NonDelegatedActionA,
+          ExampleEventA | ExampleEventB | NonDelegatedEventA
+        >({
+          namespace: 'A',
+        });
+
+        expect(
+          // All actions and events are supported by the parent
+          Messenger<'B', ExampleActionB, ExampleEventB, typeof messengerA>,
+        ).type.toBeConstructableWith({
+          namespace: 'B',
+          parent: messengerA,
+        });
       });
 
-      expect(messengerA.delegate).type.not.toBeCallableWith({
-        actions: ['A:exampleActionA'],
-        messenger: messengerB,
-      });
-    });
+      test("does not allow delegating an action to a messenger that doesn't support some action", () => {
+        const messengerB = new Messenger<
+          'B',
+          ExampleActionB | NonDelegatedActionB,
+          ExampleEventB | NonDelegatedEventB | ExampleEventA
+        >({
+          namespace: 'B',
+        });
 
-    test("does not allow delegating an event to a messenger that doesn't support that event", () => {
-      const messengerA = new Messenger<
-        'A',
-        ExampleActionA | NonDelegatedActionA,
-        ExampleEventA | NonDelegatedEventA
-      >({
-        namespace: 'A',
-      });
-      const messengerB = new Messenger<
-        'B',
-        ExampleActionB | NonDelegatedActionB,
-        ExampleEventB | NonDelegatedEventB
-      >({
-        namespace: 'B',
+        expect(
+          // All events are supported by the parent, but ExampleActionA is not
+          Messenger<'A', ExampleActionA, ExampleEventA, typeof messengerB>,
+        ).type.not.toBeConstructableWith({
+          namespace: 'A',
+          parent: messengerB,
+        });
       });
 
-      expect(messengerA.delegate).type.not.toBeCallableWith({
-        events: ['A:exampleEventA'],
-        messenger: messengerB,
+      test("does not allow delegating an event to a messenger that doesn't support some event", () => {
+        const messengerB = new Messenger<
+          'B',
+          ExampleActionB | NonDelegatedActionB | ExampleActionA,
+          ExampleEventB | NonDelegatedEventB
+        >({
+          namespace: 'B',
+        });
+
+        expect(
+          // All actions are supported by the parent, but ExampleEventA is not
+          Messenger<'A', ExampleActionA, ExampleEventA, typeof messengerB>,
+        ).type.not.toBeConstructableWith({
+          namespace: 'A',
+          parent: messengerB,
+        });
       });
     });
   });
