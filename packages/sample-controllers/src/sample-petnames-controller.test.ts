@@ -1,11 +1,11 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 
 import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
@@ -196,8 +196,11 @@ describe('SamplePetnamesController', () => {
  * required by the controller under test.
  */
 type RootMessenger = Messenger<
-  ExtractAvailableAction<SamplePetnamesControllerMessenger>,
-  ExtractAvailableEvent<SamplePetnamesControllerMessenger>
+  // Use `string` rather than 'Root' here to allow registering actions and publishing events from
+  // any namespace in tests.
+  string,
+  MessengerActions<SamplePetnamesControllerMessenger>,
+  MessengerEvents<SamplePetnamesControllerMessenger>
 >;
 
 /**
@@ -223,7 +226,7 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({ namespace: 'Root' });
 }
 
 /**
@@ -236,10 +239,9 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SamplePetnamesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SamplePetnamesController',
-    allowedActions: [],
-    allowedEvents: [],
+  return new Messenger({
+    namespace: 'SamplePetnamesController',
+    parent: rootMessenger,
   });
 }
 
