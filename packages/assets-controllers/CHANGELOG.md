@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Implement network filtering for aggregated balance selectors across mobile and extension ([#6285](https://github.com/MetaMask/core/pull/6285))
+- Add aggregated portfolio change calculator in core with period support (1d/7d/30d) and unit tests; exposes `calculateAggregatedChangeForAllWallets` for mobile/extension selectors ([#6285](https://github.com/MetaMask/core/pull/6285))
 
 ### Changed
 
