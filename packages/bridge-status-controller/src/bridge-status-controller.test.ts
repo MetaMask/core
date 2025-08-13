@@ -301,7 +301,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
     totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
     gasFee: {
-      effective: { amount: '1.234', valueInCurrency: null, usd: null },
+      effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
       total: { amount: '1.234', valueInCurrency: null, usd: null },
       max: { amount: '1.234', valueInCurrency: null, usd: null },
     },
@@ -388,7 +388,8 @@ const MockTxHistory = {
       pricingData: {
         amountSent: '1.234',
         amountSentInUsd: undefined,
-        quotedGasInUsd: undefined,
+        quotedGasAmount: '.00055',
+        quotedGasInUsd: '2.5778',
         quotedReturnInUsd: undefined,
       },
       approvalTxId,
@@ -487,7 +488,8 @@ const MockTxHistory = {
       pricingData: {
         amountSent: '1.234',
         amountSentInUsd: undefined,
-        quotedGasInUsd: undefined,
+        quotedGasAmount: '.00055',
+        quotedGasInUsd: '2.5778',
         quotedReturnInUsd: undefined,
       },
       approvalTxId: undefined,
@@ -640,6 +642,7 @@ describe('BridgeStatusController', () => {
       expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
       expect(mockMessengerSubscribe.mock.calls).toMatchSnapshot();
     });
+
     it('rehydrates the tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
@@ -663,6 +666,7 @@ describe('BridgeStatusController', () => {
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
+
     it('restarts polling for history items that are not complete', async () => {
       // Setup
       jest.useFakeTimers();
@@ -1855,7 +1859,7 @@ describe('BridgeStatusController', () => {
         usd: null,
       },
       gasFee: {
-        effective: { amount: '1.234', valueInCurrency: null, usd: null },
+        effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
         total: { amount: '1.234', valueInCurrency: null, usd: null },
         max: { amount: '1.234', valueInCurrency: null, usd: null },
       },
@@ -1895,6 +1899,10 @@ describe('BridgeStatusController', () => {
         chainId: '0xa4b1',
         gasLimit: '0x5208',
       },
+      txReceipt: {
+        gasUsed: '0x2c92a',
+        effectiveGasPrice: '0x1880a',
+      },
     };
 
     const mockApprovalTxMeta = {
@@ -1911,6 +1919,10 @@ describe('BridgeStatusController', () => {
         data: '0xapprovalData',
         chainId: '0xa4b1',
         gasLimit: '0x5208',
+      },
+      txReceipt: {
+        gasUsed: '0x2c92a',
+        effectiveGasPrice: '0x1880a',
       },
     };
 
@@ -2256,7 +2268,7 @@ describe('BridgeStatusController', () => {
         usd: null,
       },
       gasFee: {
-        effective: { amount: '1.234', valueInCurrency: null, usd: null },
+        effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
         total: { amount: '1.234', valueInCurrency: null, usd: null },
         max: { amount: '1.234', valueInCurrency: null, usd: null },
       },

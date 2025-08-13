@@ -100,8 +100,9 @@ describe('metrics utils', () => {
     pricingData: {
       amountSent: '1.234',
       amountSentInUsd: '2000',
-      quotedGasInUsd: '10',
+      quotedGasInUsd: '2.54739',
       quotedReturnInUsd: '1980',
+      quotedGasAmount: '0.00055',
     },
     status: {
       status: StatusTypes.COMPLETE,
@@ -112,6 +113,7 @@ describe('metrics utils', () => {
       destChain: {
         chainId: 10,
         txHash: '0xdestHash',
+        amount: '880000000000000000',
       },
     },
     hasApprovalTx: false,
@@ -225,15 +227,35 @@ describe('metrics utils', () => {
   });
 
   describe('getFinalizedTxProperties', () => {
-    it('should calculate correct time and ratios', () => {
-      const result = getFinalizedTxProperties(mockHistoryItem);
-      expect(result).toStrictEqual({
-        actual_time_minutes: (2000 - 1000) / 60000,
-        usd_actual_return: 1980,
-        usd_actual_gas: 10,
-        quote_vs_execution_ratio: 1,
-        quoted_vs_used_gas_ratio: 1,
-      });
+    it('should calculate correct time and ratios for bridge tx', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00023762029936118124',
+            quotedReturnInUsd: '2.89114367789257129',
+            quotedGasAmount: '5.1901652883e-8',
+          },
+        },
+        {
+          type: TransactionType.bridge,
+          txReceipt: {
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 1.1251337476231986,
+          "quoted_vs_used_gas_ratio": 2.8325818363563227,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 2.5696,
+        }
+      `);
     });
 
     it('should handle missing completion time', () => {
@@ -345,13 +367,15 @@ describe('metrics utils', () => {
   describe('getTradeDataFromHistory', () => {
     it('should return correct trade data', () => {
       const result = getTradeDataFromHistory(mockHistoryItem);
-      expect(result).toStrictEqual({
-        usd_quoted_gas: 10,
-        gas_included: false,
-        provider: 'across_across',
-        quoted_time_minutes: 15,
-        usd_quoted_return: 1980,
-      });
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "gas_included": false,
+          "provider": "across_across",
+          "quoted_time_minutes": 15,
+          "usd_quoted_gas": 2.54739,
+          "usd_quoted_return": 1980,
+        }
+      `);
     });
 
     it('should handle missing pricing data', () => {

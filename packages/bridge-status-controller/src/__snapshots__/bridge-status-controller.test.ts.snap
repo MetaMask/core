@@ -13,7 +13,8 @@ Object {
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasInUsd": undefined,
+      "quotedGasAmount": ".00055",
+      "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
     "quote": Object {
@@ -140,6 +141,9 @@ Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -159,9 +163,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -174,7 +178,7 @@ Array [
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -194,7 +198,8 @@ Object {
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasInUsd": undefined,
+      "quotedGasAmount": ".00055",
+      "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
     "quote": Object {
@@ -308,6 +313,9 @@ Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -327,9 +335,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -342,7 +350,7 @@ Array [
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -364,6 +372,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -380,7 +392,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -504,7 +517,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -583,6 +596,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -599,7 +616,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -773,7 +791,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -812,6 +830,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -828,7 +850,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1067,7 +1090,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1139,6 +1162,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1155,7 +1182,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1324,7 +1352,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1377,6 +1405,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1393,7 +1425,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1562,7 +1595,7 @@ Array [
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1628,7 +1661,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1688,7 +1721,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1741,7 +1774,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1940,7 +1974,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2017,7 +2051,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -2141,7 +2176,7 @@ Array [
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
