@@ -4,6 +4,7 @@ import type {
   TxData,
   QuoteMetadata,
   QuoteFetchData,
+  TokenAmountValues,
 } from '@metamask/bridge-controller';
 import {
   type TxStatusData,
@@ -28,6 +29,7 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import type { BridgeHistoryItem } from 'src/types';
 
 export const getTxStatusesFromHistory = ({
@@ -66,6 +68,36 @@ export const getTxStatusesFromHistory = ({
   };
 };
 
+const getActualReturn = (
+  historyItem: BridgeHistoryItem,
+  txMeta?: TransactionMeta,
+): Omit<TokenAmountValues, 'valueInCurrency'> => {
+  const { quote, pricingData, status } = historyItem;
+  if (!txMeta) {
+    return {
+      amount: quote.destTokenAmount,
+      usd: pricingData?.quotedReturnInUsd ?? null,
+    };
+  }
+  const usdExchangeRate = pricingData?.quotedReturnInUsd
+    ? new BigNumber(pricingData.quotedReturnInUsd).div(quote.destTokenAmount)
+    : null;
+
+  const { type } = txMeta;
+  if (type === TransactionType.bridge) {
+    const actualAmount = status.destChain?.amount ?? '0';
+    return {
+      amount: actualAmount,
+      usd: usdExchangeRate?.multipliedBy(actualAmount).toString(10) ?? null,
+    };
+  }
+
+  return {
+    amount: quote.destTokenAmount, // TODO get this from swap transfer logs
+    usd: null,
+  };
+};
+
 export const getFinalizedTxProperties = (
   historyItem: BridgeHistoryItem,
   txMeta?: TransactionMeta,
@@ -77,10 +109,12 @@ export const getFinalizedTxProperties = (
     historyItem.startTime;
   const completionTime = historyItem.completionTime ?? txMeta?.time;
 
+  const actualReturn = getActualReturn(historyItem, txMeta);
+
   return {
     actual_time_minutes:
       completionTime && startTime ? (completionTime - startTime) / 60000 : 0,
-    usd_actual_return: Number(historyItem.pricingData?.quotedReturnInUsd ?? 0), // TODO calculate based on USD price at completion time
+    usd_actual_return: Number(actualReturn.usd ?? 0),
     usd_actual_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0), // TODO calculate based on USD price at completion time
     quote_vs_execution_ratio: 1, // TODO calculate based on USD price at completion time
     quoted_vs_used_gas_ratio: 1, // TODO calculate based on USD price at completion time
