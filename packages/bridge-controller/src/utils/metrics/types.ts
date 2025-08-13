@@ -85,7 +85,7 @@ export type RequiredEventContextFromClient = {
       | 'chain_source'
       | 'chain_destination'
       | 'slippage';
-    value: InputValues[keyof InputValues];
+    input_value: InputValues[keyof InputValues];
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationFlipped]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -106,6 +106,7 @@ export type RequiredEventContextFromClient = {
     warnings: string[]; // TODO standardize warnings
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
+    can_submit: QuoteFetchData['can_submit'];
   };
   [UnifiedSwapBridgeEventName.QuoteError]: Pick<
     RequestMetadata,
@@ -119,9 +120,7 @@ export type RequiredEventContextFromClient = {
     QuoteFetchData,
     'price_impact'
   > &
-    TradeData & {
-      action_type: MetricsActionType;
-    };
+    TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
@@ -136,7 +135,6 @@ export type RequiredEventContextFromClient = {
       usd_actual_gas: number;
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
-      action_type: MetricsActionType;
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
@@ -154,7 +152,6 @@ export type RequiredEventContextFromClient = {
         TradeData & {
           actual_time_minutes: number;
           error_message?: string;
-          action_type: MetricsActionType;
         });
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
@@ -164,6 +161,7 @@ export type RequiredEventContextFromClient = {
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
       stx_enabled: RequestMetadata['stx_enabled'];
+      can_submit: QuoteFetchData['can_submit'];
     };
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: Pick<
     TradeData,
@@ -174,11 +172,13 @@ export type RequiredEventContextFromClient = {
       stx_enabled: RequestMetadata['stx_enabled'];
       sort_order: SortOrder;
       best_quote_provider: QuoteFetchData['best_quote_provider'];
+      can_submit: QuoteFetchData['can_submit'];
     };
   [UnifiedSwapBridgeEventName.QuoteSelected]: TradeData & {
     is_best_quote: boolean;
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
+    can_submit: QuoteFetchData['can_submit'];
   };
 };
 
@@ -190,7 +190,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.PageViewed]: RequestParams;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
-    value: string;
+    input_value: string;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationFlipped]: RequestParams;
   [UnifiedSwapBridgeEventName.QuotesRequested]: RequestParams &
@@ -215,9 +215,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
     RequestMetadata &
     TradeData &
-    Pick<QuoteFetchData, 'price_impact'> & {
-      action_type: MetricsActionType;
-    };
+    Pick<QuoteFetchData, 'price_impact'> & {};
   [UnifiedSwapBridgeEventName.Completed]: null;
   [UnifiedSwapBridgeEventName.Failed]: RequestParams &
     RequestMetadata &
@@ -225,7 +223,6 @@ export type EventPropertiesFromControllerState = {
     TradeData &
     Pick<QuoteFetchData, 'price_impact'> & {
       actual_time_minutes: number;
-      action_type: MetricsActionType;
     };
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: RequestParams &
     RequestMetadata &

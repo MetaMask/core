@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.0.0]
+
+### Added
+
+- Include `assetsFiatValue` for sending and receiving assets in batch transaction request parameters ([#6277](https://github.com/MetaMask/core/pull/6277))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^38.0.0` ([#6268](https://github.com/MetaMask/core/pull/6268))
+- Hardcode `action_type` to `swapbridge-v1` after swaps and bridge unification ([#6270](https://github.com/MetaMask/core/pull/6270))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Store the quote's effective gas fees as the `quotedGasInUsd` in txHistory; fallback to the total fees otherwise ([#6295](https://github.com/MetaMask/core/pull/6295))
+
+## [37.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
 ### Fixed
 
 - Make sure to pass the `requireApproval` for ERC20 approvals ([#6204](https://github.com/MetaMask/core/pull/6204))
@@ -437,7 +456,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.0.0...HEAD
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@37.0.1...@metamask/bridge-status-controller@38.0.0
+[37.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@37.0.0...@metamask/bridge-status-controller@37.0.1
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@36.1.0...@metamask/bridge-status-controller@37.0.0
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@36.0.0...@metamask/bridge-status-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@35.0.0...@metamask/bridge-status-controller@36.0.0

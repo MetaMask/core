@@ -29,6 +29,9 @@ export enum MetaMetricsSwapsEventSource {
 }
 
 export enum MetricsActionType {
+  /**
+   * @deprecated new events should use SWAPBRIDGE_V1 instead
+   */
   CROSSCHAIN_V1 = 'crosschain-v1',
   SWAPBRIDGE_V1 = 'swapbridge-v1',
 }

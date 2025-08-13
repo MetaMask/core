@@ -10,10 +10,10 @@ import {
   isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
-  getActionType,
   formatChainIdToCaip,
   isCrossChain,
   isHardwareWallet,
+  MetricsActionType,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
@@ -430,7 +430,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       pricingData: {
         amountSent: quoteResponse.sentAmount.amount,
         amountSentInUsd: quoteResponse.sentAmount.usd ?? undefined,
-        quotedGasInUsd: quoteResponse.gasFee.usd ?? undefined,
+        quotedGasInUsd: quoteResponse.gasFee.effective?.usd ?? undefined,
         quotedReturnInUsd: quoteResponse.toTokenAmount.usd ?? undefined,
       },
       initialDestAssetBalance,
@@ -1173,10 +1173,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     const requiredEventProperties = {
-      action_type: getActionType(
-        historyItem.quote.srcChainId,
-        historyItem.quote.destChainId,
-      ),
+      action_type: MetricsActionType.SWAPBRIDGE_V1,
       ...(eventProperties ?? {}),
       ...getRequestParamFromHistory(historyItem),
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),

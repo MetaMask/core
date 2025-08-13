@@ -88,6 +88,7 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
+  AssetsFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -1107,6 +1108,7 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.assetsFiatValues - The fiat values of the assets being sent and received.
    * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
@@ -1129,6 +1131,7 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: {
       actionId?: string;
+      assetsFiatValues?: AssetsFiatValues;
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
@@ -1152,6 +1155,7 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      assetsFiatValues,
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
@@ -1245,6 +1249,7 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          assetsFiatValues,
           batchId,
           chainId,
           dappSuggestedGasFees,
@@ -2042,6 +2047,7 @@ export class TransactionController extends BaseController<
    * @param params.gasPrice - Price per gas for legacy transactions.
    * @param params.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
    * @param params.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @param params.updateType - Whether to update the transaction type. Defaults to `true`.
    * @param params.to - Address to send the transaction to.
    * @param params.value - Value associated with the transaction.
    * @returns The updated transaction metadata.
@@ -2057,6 +2063,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       maxPriorityFeePerGas,
       to,
+      updateType,
       value,
     }: {
       containerTypes?: TransactionContainerType[];
@@ -2067,6 +2074,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas?: string;
       maxPriorityFeePerGas?: string;
       to?: string;
+      updateType?: boolean;
       value?: string;
     },
   ) {
@@ -2103,12 +2111,14 @@ export class TransactionController extends BaseController<
     const provider = this.#getProvider({ networkClientId });
     const ethQuery = new EthQuery(provider);
 
-    const { type } = await determineTransactionType(
-      updatedTransaction.txParams,
-      ethQuery,
-    );
+    if (updateType !== false) {
+      const { type } = await determineTransactionType(
+        updatedTransaction.txParams,
+        ethQuery,
+      );
 
-    updatedTransaction.type = type;
+      updatedTransaction.type = type;
+    }
 
     if (containerTypes) {
       updatedTransaction.containerTypes = containerTypes;

@@ -35,6 +35,11 @@ export type TransactionMeta = {
   approvalTxId?: string;
 
   /**
+   * The fiat value of the transaction to be used to passed metrics.
+   */
+  assetsFiatValues?: AssetsFiatValues;
+
+  /**
    * Unique ID to prevent duplicate requests.
    */
   actionId?: string;
@@ -52,7 +57,7 @@ export type TransactionMeta = {
   /**
    * Additional transactions that must also be submitted in a batch.
    */
-  batchTransactions?: BatchTransactionParams[];
+  batchTransactions?: NestedTransactionMetadata[];
 
   /**
    * Number of the block where the transaction has been included.
@@ -695,6 +700,11 @@ export enum TransactionType {
    * A transaction that withdraws tokens from a lending contract.
    */
   lendingWithdraw = 'lendingWithdraw',
+
+  /**
+   * Deposit funds to be available for trading via Perps.
+   */
+  perpsDeposit = 'perpsDeposit',
 
   /**
    * A transaction for personal sign.
@@ -1570,6 +1580,9 @@ export type NestedTransactionMetadata = BatchTransactionParams & {
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
+  /** The total fiat values of the transaction, to support client metrics. */
+  assetsFiatValues?: AssetsFiatValues;
+
   /** Data if the transaction already exists. */
   existingTransaction?: {
     /** ID of the existing transaction. */
@@ -1877,3 +1890,18 @@ export type BeforeSignHook = (request: {
     }
   | undefined
 >;
+
+/**
+ * The total fiat values of the transaction, to support client metrics.
+ */
+export type AssetsFiatValues = {
+  /**
+   * The fiat value of the receiving assets.
+   */
+  receiving?: string;
+
+  /**
+   * The fiat value of the sending assets.
+   */
+  sending?: string;
+};

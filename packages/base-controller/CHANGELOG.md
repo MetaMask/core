@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
 ### Added
 
 - Add `registerMethodActionHandlers` method to `Messenger`, and `RestrictedMessenger` for simplified bulk action handler registration ([#5927](https://github.com/MetaMask/core/pull/5927))
@@ -16,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Add default for `ReturnHandler` type parameter of `SelectorEventHandler` and `SelectorFunction` ([#6262](https://github.com/MetaMask/core/pull/6262), [#6264](https://github.com/MetaMask/core/pull/6264))
+
+### Fixed
+
+- Update `unsubscribe` type signature to support selector event handlers ([#6262](https://github.com/MetaMask/core/pull/6262))
 
 ## [8.0.1]
 
@@ -320,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.0...@metamask/base-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.1...@metamask/base-controller@8.0.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.0...@metamask/base-controller@7.1.1

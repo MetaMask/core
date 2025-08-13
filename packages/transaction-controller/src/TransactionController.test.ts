@@ -100,6 +100,7 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import * as transactionTypeUtils from './utils/transaction-type';
 import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -1511,6 +1512,10 @@ describe('TransactionController', () => {
           to: ACCOUNT_MOCK,
         },
         {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
           deviceConfirmedOn: mockDeviceConfirmedOn,
           origin: mockOrigin,
           securityAlertResponse: mockSecurityAlertResponse,
@@ -1525,6 +1530,10 @@ describe('TransactionController', () => {
 
       expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
       expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
       expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
       expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
       expect(transactionMeta.origin).toBe(mockOrigin);
@@ -1717,6 +1726,7 @@ describe('TransactionController', () => {
 
       const expectedInitialSnapshot = {
         actionId: undefined,
+        assetsFiatValues: undefined,
         batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
@@ -7064,6 +7074,7 @@ describe('TransactionController', () => {
       networkClientId: NETWORK_CLIENT_ID_MOCK,
       status: TransactionStatus.unapproved as const,
       time: 123456789,
+      type: TransactionType.contractInteraction,
       txParams: {
         data: 'originalData',
         gas: '50000',
@@ -7179,6 +7190,54 @@ describe('TransactionController', () => {
       expect(updatedTransaction?.containerTypes).toStrictEqual([
         TransactionContainerType.EnforcedSimulations,
       ]);
+    });
+
+    it('updates transaction type', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      jest
+        .spyOn(transactionTypeUtils, 'determineTransactionType')
+        .mockResolvedValue({ type: TransactionType.tokenMethodTransfer });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.type).toStrictEqual(
+        TransactionType.tokenMethodTransfer,
+      );
+    });
+
+    it('does not update transaction type if disabled', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      jest
+        .spyOn(transactionTypeUtils, 'determineTransactionType')
+        .mockResolvedValue({ type: TransactionType.tokenMethodTransfer });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        { ...params, updateType: false },
+      );
+
+      expect(updatedTransaction?.type).toStrictEqual(
+        TransactionType.contractInteraction,
+      );
     });
 
     it('throws an error if no transaction metadata is found', async () => {

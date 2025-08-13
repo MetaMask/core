@@ -56,9 +56,9 @@ export type GenericEventHandler = (...args: unknown[]) => void;
 export type SelectorFunction<
   Event extends EventConstraint,
   EventType extends Event['type'],
-  ReturnValue,
+  ReturnValue = unknown,
 > = (...args: ExtractEventPayload<Event, EventType>) => ReturnValue;
-export type SelectorEventHandler<SelectorReturnValue> = (
+export type SelectorEventHandler<SelectorReturnValue = unknown> = (
   newValue: SelectorReturnValue,
   previousValue: SelectorReturnValue | undefined,
 ) => void;
@@ -72,12 +72,28 @@ export type EventConstraint = {
   payload: unknown[];
 };
 
-type EventSubscriptionMap<
-  Event extends EventConstraint,
-  ReturnValue = unknown,
-> = Map<
-  GenericEventHandler | SelectorEventHandler<ReturnValue>,
-  SelectorFunction<Event, Event['type'], ReturnValue> | undefined
+/**
+ * Metadata for a single event subscription.
+ *
+ * @template Event - The event this subscription is for.
+ */
+type SubscriptionMetadata<Event extends EventConstraint> = {
+  /**
+   * The optional selector function for this subscription.
+   */
+  selector?: SelectorFunction<Event, Event['type']>;
+};
+
+/**
+ * A map of event handlers for a specific event.
+ *
+ * The key is the handler function, and the value contains additional subscription metadata.
+ *
+ * @template Event - The event these handlers are for.
+ */
+type EventSubscriptionMap<Event extends EventConstraint> = Map<
+  GenericEventHandler | SelectorEventHandler,
+  SubscriptionMetadata<Event>
 >;
 
 /**
@@ -177,7 +193,9 @@ export class Messenger<
    *
    * @param messengerClient - The object that is expected to make use of the messenger.
    * @param methodNames - The names of the methods on the messenger client to register as action
-   * handlers
+   * handlers.
+   * @template MessengerClient - The type expected to make use of the messenger.
+   * @template MethodNames - The type union of method names to register as action handlers.
    */
   registerMethodActionHandlers<
     MessengerClient extends { name: string },
@@ -252,6 +270,7 @@ export class Messenger<
    * @param args - The arguments to this function
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
+   * @template EventType - A type union of Event type strings.
    */
   registerInitialEventPayload<EventType extends Event['type']>({
     eventType,
@@ -283,7 +302,7 @@ export class Messenger<
     const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
-      for (const [handler, selector] of subscribers.entries()) {
+      for (const [handler, { selector }] of subscribers.entries()) {
         try {
           if (selector) {
             const previousValue = this.#eventPayloadCache.get(handler);
@@ -347,7 +366,9 @@ export class Messenger<
 
   subscribe<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
     selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void {
     let subscribers = this.#events.get(eventType);
@@ -356,13 +377,27 @@ export class Messenger<
       this.#events.set(eventType, subscribers);
     }
 
-    subscribers.set(handler, selector);
+    // Widen type of event handler by dropping ReturnType parameter.
+    //
+    // We need to drop it here because it's used as the parameter to the event handler, and
+    // functions in general are contravarient over the parameter type. This means the type is no
+    // longer valid once it's added to a broader type union with other handlers (because as far
+    // as TypeScript knows, we might call the handler with output from a different selector).
+    //
+    // This cast means the type system is not guaranteeing the handler is called with the matching
+    // input selector return value. The parameter types do ensure they match when `subscribe` is
+    // called, but past that point we need to make sure of that with manual review and tests
+    // instead.
+    const widenedHandler = handler as
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler;
+    subscribers.set(widenedHandler, { selector });
 
     if (selector) {
       const getPayload = this.#initialEventPayloadGetters.get(eventType);
       if (getPayload) {
         const initialValue = selector(...getPayload());
-        this.#eventPayloadCache.set(handler, initialValue);
+        this.#eventPayloadCache.set(widenedHandler, initialValue);
       }
     }
   }
@@ -376,23 +411,37 @@ export class Messenger<
    * @param handler - The event handler to unregister.
    * @throws Will throw when the given event handler is not registered for this event.
    * @template EventType - A type union of Event type strings.
+   * @template SelectorReturnValue - The selector return value.
    */
-  unsubscribe<EventType extends Event['type']>(
+  unsubscribe<EventType extends Event['type'], SelectorReturnValue = unknown>(
     eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
   ) {
     const subscribers = this.#events.get(eventType);
 
-    if (!subscribers || !subscribers.has(handler)) {
+    // Widen type of event handler by dropping ReturnType parameter.
+    //
+    // We need to drop it here because it's used as the parameter to the event handler, and
+    // functions in general are contravarient over the parameter type. This means the type is no
+    // longer valid once it's added to a broader type union with other handlers (because as far
+    // as TypeScript knows, we might call the handler with output from a different selector).
+    //
+    // This poses no risk in this case, since we never call the handler past this point.
+    const widenedHandler = handler as
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler;
+    if (!subscribers || !subscribers.has(widenedHandler)) {
       throw new Error(`Subscription not found for event: ${eventType}`);
     }
 
-    const selector = subscribers.get(handler);
-    if (selector) {
-      this.#eventPayloadCache.delete(handler);
+    const metadata = subscribers.get(widenedHandler);
+    if (metadata?.selector) {
+      this.#eventPayloadCache.delete(widenedHandler);
     }
 
-    subscribers.delete(handler);
+    subscribers.delete(widenedHandler);
   }
 
   /**

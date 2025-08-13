@@ -414,10 +414,69 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result.amount).toBeDefined();
-      expect(result.amountMax).toBeDefined();
-      expect(parseFloat(result.amountMax)).toBeGreaterThan(
-        parseFloat(result.amount),
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "effective": Object {
+            "amount": "0.003584",
+            "usd": "5.376",
+            "valueInCurrency": "7.168",
+          },
+          "max": Object {
+            "amount": "0.006934",
+            "usd": "10.401",
+            "valueInCurrency": "13.868",
+          },
+          "total": Object {
+            "amount": "0.003584",
+            "usd": "5.376",
+            "valueInCurrency": "7.168",
+          },
+        }
+      `);
+      expect(result.total.amount).toBeDefined();
+      expect(result.max.amount).toBeDefined();
+      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+        parseFloat(result.total.amount),
+      );
+    });
+
+    it('should calculate estimated and max gas fees correctly when effectiveGas is available', () => {
+      const result = calcEstimatedAndMaxTotalGasFee({
+        bridgeQuote: {
+          ...mockBridgeQuote,
+          trade: { gasLimit: 21000, effectiveGas: 10000 },
+          approval: { gasLimit: 46000, effectiveGas: 20000 },
+        } as QuoteResponse & L1GasFees,
+        estimatedBaseFeeInDecGwei: '50',
+        maxFeePerGasInDecGwei: '100',
+        maxPriorityFeePerGasInDecGwei: '2',
+        exchangeRate: '2000',
+        usdExchangeRate: '1500',
+      });
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "effective": Object {
+            "amount": "0.00166",
+            "usd": "2.49",
+            "valueInCurrency": "3.32",
+          },
+          "max": Object {
+            "amount": "0.006934",
+            "usd": "10.401",
+            "valueInCurrency": "13.868",
+          },
+          "total": Object {
+            "amount": "0.003584",
+            "usd": "5.376",
+            "valueInCurrency": "7.168",
+          },
+        }
+      `);
+      expect(result.total.amount).toBeDefined();
+      expect(result.max.amount).toBeDefined();
+      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+        parseFloat(result.total.amount),
       );
     });
 
@@ -431,12 +490,12 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: undefined,
       });
 
-      expect(result.valueInCurrency).toBeNull();
-      expect(result.valueInCurrencyMax).toBeNull();
-      expect(result.usd).toBeNull();
-      expect(result.usdMax).toBeNull();
-      expect(result.amount).toBeDefined();
-      expect(result.amountMax).toBeDefined();
+      expect(result.total.valueInCurrency).toBeNull();
+      expect(result.max.valueInCurrency).toBeNull();
+      expect(result.total.usd).toBeNull();
+      expect(result.max.usd).toBeNull();
+      expect(result.total.amount).toBeDefined();
+      expect(result.max.amount).toBeDefined();
     });
 
     it('should handle only display currency exchange rate', () => {
@@ -449,10 +508,10 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: undefined,
       });
 
-      expect(result.valueInCurrency).toBeDefined();
-      expect(result.valueInCurrencyMax).toBeDefined();
-      expect(result.usd).toBeNull();
-      expect(result.usdMax).toBeNull();
+      expect(result.total.valueInCurrency).toBeDefined();
+      expect(result.max.valueInCurrency).toBeDefined();
+      expect(result.total.usd).toBeNull();
+      expect(result.max.usd).toBeNull();
     });
 
     it('should handle only USD exchange rate', () => {
@@ -465,10 +524,10 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result.valueInCurrency).toBeNull();
-      expect(result.valueInCurrencyMax).toBeNull();
-      expect(result.usd).toBeDefined();
-      expect(result.usdMax).toBeDefined();
+      expect(result.total.valueInCurrency).toBeNull();
+      expect(result.max.valueInCurrency).toBeNull();
+      expect(result.total.usd).toBeDefined();
+      expect(result.max.usd).toBeDefined();
     });
 
     it('should handle zero gas limits', () => {
@@ -489,10 +548,10 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result.amount).toBe('0');
-      expect(result.amountMax).toBe('0');
-      expect(result.valueInCurrency).toBe('0');
-      expect(result.usd).toBe('0');
+      expect(result.total.amount).toBe('0');
+      expect(result.max.amount).toBe('0');
+      expect(result.total.valueInCurrency).toBe('0');
+      expect(result.total.usd).toBe('0');
     });
 
     it('should handle missing approval', () => {
@@ -513,10 +572,10 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result.amount).toBeDefined();
-      expect(result.amountMax).toBeDefined();
-      expect(parseFloat(result.amountMax)).toBeGreaterThan(
-        parseFloat(result.amount),
+      expect(result.total.amount).toBeDefined();
+      expect(result.max.amount).toBeDefined();
+      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+        parseFloat(result.total.amount),
       );
     });
 
@@ -538,8 +597,8 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result.amount).toBeDefined();
-      expect(result.amountMax).toBeDefined();
+      expect(result.total.amount).toBeDefined();
+      expect(result.max.amount).toBeDefined();
     });
 
     it('should handle large gas limits and fees', () => {
@@ -560,16 +619,16 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '2500',
       });
 
-      expect(parseFloat(result.amount)).toBeGreaterThan(2); // Should be > 2 ETH due to L1 fees
-      expect(parseFloat(result.amountMax)).toBeGreaterThan(
-        parseFloat(result.amount),
+      expect(parseFloat(result.total.amount)).toBeGreaterThan(2); // Should be > 2 ETH due to L1 fees
+      expect(parseFloat(result.max.amount)).toBeGreaterThan(
+        parseFloat(result.total.amount),
       );
-      expect(result.valueInCurrency).toBeDefined();
-      expect(result.usd).toBeDefined();
-      expect(parseFloat(result.valueInCurrency as string)).toBeGreaterThan(
-        6000,
-      );
-      expect(parseFloat(result.usd as string)).toBeGreaterThan(5000);
+      expect(result.total.valueInCurrency).toBeDefined();
+      expect(result.total.usd).toBeDefined();
+      expect(
+        parseFloat(result.total.valueInCurrency as string),
+      ).toBeGreaterThan(6000);
+      expect(parseFloat(result.total.usd as string)).toBeGreaterThan(5000);
     });
   });
 
@@ -606,12 +665,9 @@ describe('Quote Metadata Utils', () => {
 
   describe('calcTotalEstimatedNetworkFee and calcTotalMaxNetworkFee', () => {
     const mockGasFee = {
-      amount: '0.1',
-      amountMax: '0.2',
-      valueInCurrency: '200',
-      valueInCurrencyMax: '400',
-      usd: '150',
-      usdMax: '300',
+      effective: { amount: '0.1', valueInCurrency: '200', usd: '150' },
+      total: { amount: '0.1', valueInCurrency: '200', usd: '150' },
+      max: { amount: '0.2', valueInCurrency: '400', usd: '300' },
     };
 
     const mockRelayerFee = {
