@@ -6,6 +6,7 @@ import {
   setupAssetContractControllers,
   mockNetworkWithDefaultChainId,
 } from './AssetsContractController.test';
+import { SECONDS } from '../../../tests/constants';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -240,155 +241,163 @@ describe('AssetsContractController with NetworkClientId', () => {
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
-  it('should get ERC-1155 token standard and details', async () => {
-    const { messenger, networkClientConfiguration } =
-      await setupAssetContractControllers();
-    mockNetworkWithDefaultChainId({
-      networkClientConfiguration,
-      mocks: [
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC1155_ADDRESS,
-                data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
-              },
-              'latest',
-            ],
+  it(
+    'should get ERC-1155 token standard and details',
+    async () => {
+      const { messenger, networkClientConfiguration } =
+        await setupAssetContractControllers();
+      mockNetworkWithDefaultChainId({
+        networkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC1155_ADDRESS,
+                  data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000000',
+            },
           },
-          response: {
-            result:
-              '0x0000000000000000000000000000000000000000000000000000000000000000',
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC1155_ADDRESS,
+                  data: '0x01ffc9a7d9b67a2600000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000001',
+            },
           },
-        },
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC1155_ADDRESS,
-                data: '0x01ffc9a7d9b67a2600000000000000000000000000000000000000000000000000000000',
-              },
-              'latest',
-            ],
-          },
-          response: {
-            result:
-              '0x0000000000000000000000000000000000000000000000000000000000000001',
-          },
-        },
-      ],
-    });
-    const standardAndDetails = await messenger.call(
-      `AssetsContractController:getTokenStandardAndDetails`,
-      ERC1155_ADDRESS,
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
-      undefined,
-      'mainnet',
-    );
-    expect(standardAndDetails.standard).toBe('ERC1155');
-    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
-  }, 10000);
+        ],
+      });
+      const standardAndDetails = await messenger.call(
+        `AssetsContractController:getTokenStandardAndDetails`,
+        ERC1155_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        undefined,
+        'mainnet',
+      );
+      expect(standardAndDetails.standard).toBe('ERC1155');
+      messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+    },
+    10 * SECONDS,
+  );
 
-  it('should get ERC-20 token standard and details', async () => {
-    const { messenger, networkClientConfiguration } =
-      await setupAssetContractControllers();
-    mockNetworkWithDefaultChainId({
-      networkClientConfiguration,
-      mocks: [
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC20_UNI_ADDRESS,
-                data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
-              },
-              'latest',
-            ],
+  it(
+    'should get ERC-20 token standard and details',
+    async () => {
+      const { messenger, networkClientConfiguration } =
+        await setupAssetContractControllers();
+      mockNetworkWithDefaultChainId({
+        networkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC20_UNI_ADDRESS,
+                  data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            error: {
+              code: -32000,
+              message: 'execution reverted',
+            },
           },
-          error: {
-            code: -32000,
-            message: 'execution reverted',
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC20_UNI_ADDRESS,
+                  data: '0x01ffc9a7d9b67a2600000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            error: {
+              code: -32000,
+              message: 'execution reverted',
+            },
           },
-        },
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC20_UNI_ADDRESS,
-                data: '0x01ffc9a7d9b67a2600000000000000000000000000000000000000000000000000000000',
-              },
-              'latest',
-            ],
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC20_UNI_ADDRESS,
+                  data: '0x95d89b41',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003554e490000000000000000000000000000000000000000000000000000000000',
+            },
           },
-          error: {
-            code: -32000,
-            message: 'execution reverted',
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC20_UNI_ADDRESS,
+                  data: '0x313ce567',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000012',
+            },
           },
-        },
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC20_UNI_ADDRESS,
-                data: '0x95d89b41',
-              },
-              'latest',
-            ],
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: ERC20_UNI_ADDRESS,
+                  data: '0x70a082310000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000001765caf344a06d0a',
+            },
           },
-          response: {
-            result:
-              '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003554e490000000000000000000000000000000000000000000000000000000000',
-          },
-        },
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC20_UNI_ADDRESS,
-                data: '0x313ce567',
-              },
-              'latest',
-            ],
-          },
-          response: {
-            result:
-              '0x0000000000000000000000000000000000000000000000000000000000000012',
-          },
-        },
-        {
-          request: {
-            method: 'eth_call',
-            params: [
-              {
-                to: ERC20_UNI_ADDRESS,
-                data: '0x70a082310000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
-              },
-              'latest',
-            ],
-          },
-          response: {
-            result:
-              '0x0000000000000000000000000000000000000000000000001765caf344a06d0a',
-          },
-        },
-      ],
-    });
-    const standardAndDetails = await messenger.call(
-      `AssetsContractController:getTokenStandardAndDetails`,
-      ERC20_UNI_ADDRESS,
-      TEST_ACCOUNT_PUBLIC_ADDRESS,
-      undefined,
-      'mainnet',
-    );
-    expect(standardAndDetails.standard).toBe('ERC20');
-    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
-  }, 10000);
+        ],
+      });
+      const standardAndDetails = await messenger.call(
+        `AssetsContractController:getTokenStandardAndDetails`,
+        ERC20_UNI_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        undefined,
+        'mainnet',
+      );
+      expect(standardAndDetails.standard).toBe('ERC20');
+      messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+    },
+    10 * SECONDS,
+  );
 
   it('should get ERC-721 NFT tokenURI correctly', async () => {
     const { messenger, networkClientConfiguration } =
