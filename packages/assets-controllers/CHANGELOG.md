@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add core portfolio change calculators with period support (1d/7d/30d), network filtering, and group-level computation; export `calculateAggregatedChangeForAllWallets` and `calculateAggregatedChangeForGroup` ([#6285](https://github.com/MetaMask/core/pull/6285))
+- feat(assets): implement balance change calculator and network filtering — add core portfolio change calculators with period support (1d/7d/30d), network filtering, and group-level computation; export `calculateAggregatedChangeForAllWallets` and `calculateAggregatedChangeForGroup` ([#6285](https://github.com/MetaMask/core/pull/6285))
 
 ### Changed
 
