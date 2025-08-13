@@ -1,6 +1,7 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
@@ -20,7 +21,25 @@ import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
-import type { AccountWalletObject } from './wallet';
+import type {
+  AccountGroupObject,
+  AccountTreeGroupPersistedMetadata,
+} from './group';
+import type {
+  AccountWalletObject,
+  AccountTreeWalletPersistedMetadata,
+} from './wallet';
+
+// Backward compatibility aliases using indexed access types
+/**
+ * @deprecated Use AccountTreeGroupMetadata for tree objects or AccountTreeGroupPersistedMetadata for controller state
+ */
+export type AccountGroupMetadata = AccountGroupObject['metadata'];
+
+/**
+ * @deprecated Use AccountTreeWalletMetadata for tree objects or AccountTreeWalletPersistedMetadata for controller state
+ */
+export type AccountWalletMetadata = AccountWalletObject['metadata'];
 
 export type AccountTreeControllerState = {
   accountTree: {
@@ -30,6 +49,16 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
+  /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
+  accountGroupsMetadata: Record<
+    AccountGroupId,
+    AccountTreeGroupPersistedMetadata
+  >;
+  /** Persistent metadata for account wallets (names, sync timestamps) */
+  accountWalletsMetadata: Record<
+    AccountWalletId,
+    AccountTreeWalletPersistedMetadata
+  >;
 };
 
 export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
@@ -47,6 +76,11 @@ export type AccountTreeControllerGetSelectedAccountGroupAction = {
   handler: AccountTreeController['getSelectedAccountGroup'];
 };
 
+export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:getAccountsFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -58,7 +92,8 @@ export type AllowedActions =
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
   | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetSelectedAccountGroupAction;
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -67,6 +102,7 @@ export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent;
 

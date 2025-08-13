@@ -1,19 +1,11 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import type { AccountSelector, Bip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import {
-  BtcAccountType,
-  BtcMethod,
-  BtcScope,
-  EthAccountType,
-  EthMethod,
-  EthScope,
-  SolScope,
-} from '@metamask/keyring-api';
+import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
@@ -82,7 +74,7 @@ describe('MultichainAccount', () => {
         toMultichainAccountGroupId(expectedWalletId, groupIndex),
       );
       expect(group.type).toBe(AccountGroupType.MultichainAccount);
-      expect(group.index).toBe(groupIndex);
+      expect(group.groupIndex).toBe(groupIndex);
       expect(group.wallet).toStrictEqual(wallet);
       expect(group.getAccounts()).toHaveLength(expectedAccounts.length);
       expect(group.getAccounts()).toStrictEqual(expectedAccounts);
@@ -92,7 +84,7 @@ describe('MultichainAccount', () => {
       const groupIndex = 2;
       const { group } = setup({ groupIndex });
 
-      expect(group.index).toBe(groupIndex);
+      expect(group.groupIndex).toBe(groupIndex);
     });
   });
 
@@ -114,227 +106,44 @@ describe('MultichainAccount', () => {
   });
 
   describe('get', () => {
-    it.each([
-      {
-        tc: 'using id',
-        selector: { id: MOCK_WALLET_1_EVM_ACCOUNT.id },
-        expected: MOCK_WALLET_1_EVM_ACCOUNT,
-      },
-      {
-        tc: 'using address',
-        selector: { address: MOCK_WALLET_1_SOL_ACCOUNT.address },
-        expected: MOCK_WALLET_1_SOL_ACCOUNT,
-      },
-      {
-        tc: 'using type',
-        selector: { type: MOCK_WALLET_1_EVM_ACCOUNT.type },
-        expected: MOCK_WALLET_1_EVM_ACCOUNT,
-      },
-      {
-        tc: 'using scope',
-        selector: { scopes: [SolScope.Mainnet] },
-        expected: MOCK_WALLET_1_SOL_ACCOUNT,
-      },
-      {
-        tc: 'using another scope (but still included in the list of account.scopes)',
-        selector: { scopes: [SolScope.Testnet] },
-        expected: MOCK_WALLET_1_SOL_ACCOUNT,
-      },
-      {
-        tc: 'using specific EVM chain still matches with EVM EOA scopes',
-        selector: { scopes: [EthScope.Testnet] },
-        expected: MOCK_WALLET_1_EVM_ACCOUNT,
-      },
-      {
-        tc: 'using multiple scopes',
-        selector: { scopes: [SolScope.Mainnet, SolScope.Testnet] },
-        expected: MOCK_WALLET_1_SOL_ACCOUNT,
-      },
-      {
-        tc: 'using method',
-        selector: { methods: [EthMethod.SignTransaction] },
-        expected: MOCK_WALLET_1_EVM_ACCOUNT,
-      },
-      {
-        tc: 'using another method',
-        selector: { methods: [EthMethod.PersonalSign] },
-        expected: MOCK_WALLET_1_EVM_ACCOUNT,
-      },
-      {
-        tc: 'using multiple methods',
-        selector: {
-          methods: [EthMethod.SignTransaction, EthMethod.PersonalSign],
-        },
-        expected: MOCK_WALLET_1_EVM_ACCOUNT,
-      },
-    ] as {
-      tc: string;
-      selector: AccountSelector<Bip44Account<InternalAccount>>;
-      expected: Bip44Account<InternalAccount>;
-    }[])(
-      'gets internal account from selector: $tc',
-      async ({ selector, expected }) => {
-        const { group } = setup();
+    it('gets one account using a selector', () => {
+      const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
 
-        expect(group.get(selector)).toStrictEqual(expected);
-      },
-    );
+      expect(group.get({ scopes: [EthScope.Mainnet] })).toBe(
+        MOCK_WALLET_1_EVM_ACCOUNT,
+      );
+    });
 
-    it.each([
-      {
-        tc: 'using non-matching id',
-        selector: { id: '66da96d7-8f24-4895-82d6-183d740c2da1' },
-      },
-      {
-        tc: 'using non-matching address',
-        selector: { address: 'unknown-address' },
-      },
-      {
-        tc: 'using non-matching type',
-        selector: { type: 'unknown-type' },
-      },
-      {
-        tc: 'using non-matching scope',
-        selector: {
-          scopes: ['bip122:12a765e31ffd4059bada1e25190f6e98' /* Litecoin */],
-        },
-      },
-      {
-        tc: 'using non-matching method',
-        selector: { methods: ['eth_unknownMethod'] },
-      },
-    ] as {
-      tc: string;
-      selector: AccountSelector<Bip44Account<InternalAccount>>;
-    }[])(
-      'gets undefined if not matching selector: $tc',
-      async ({ selector }) => {
-        const { group } = setup();
+    it('gets no account if selector did not match', () => {
+      const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
 
-        expect(group.get(selector)).toBeUndefined();
-      },
-    );
+      expect(group.get({ scopes: [SolScope.Mainnet] })).toBeUndefined();
+    });
 
-    it('throws if multiple candidates are found', async () => {
-      const { group } = setup();
+    it('throws if too many accounts are matching selector', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT, MOCK_WALLET_1_EVM_ACCOUNT]],
+      });
 
-      const selector = {
-        scopes: [EthScope.Mainnet, SolScope.Mainnet],
-      };
-
-      expect(() => group.get(selector)).toThrow(
+      expect(() => group.get({ scopes: [EthScope.Mainnet] })).toThrow(
         'Too many account candidates, expected 1, got: 2',
       );
     });
   });
 
-  it.each([
-    {
-      tc: 'using id',
-      selector: { id: MOCK_WALLET_1_EVM_ACCOUNT.id },
-      expected: [MOCK_WALLET_1_EVM_ACCOUNT],
-    },
-    {
-      tc: 'using non-matching id',
-      selector: { id: '66da96d7-8f24-4895-82d6-183d740c2da1' },
-      expected: [],
-    },
-    {
-      tc: 'using address',
-      selector: { address: MOCK_WALLET_1_SOL_ACCOUNT.address },
-      expected: [MOCK_WALLET_1_SOL_ACCOUNT],
-    },
-    {
-      tc: 'using non-matching address',
-      selector: { address: 'unknown-address' },
-      expected: [],
-    },
-    {
-      tc: 'using type',
-      selector: { type: MOCK_WALLET_1_EVM_ACCOUNT.type },
-      expected: [MOCK_WALLET_1_EVM_ACCOUNT],
-    },
-    {
-      tc: 'using non-matching type',
-      selector: { type: 'unknown-type' },
-      expected: [],
-    },
-    {
-      tc: 'using scope',
-      selector: { scopes: [SolScope.Mainnet] },
-      expected: [MOCK_WALLET_1_SOL_ACCOUNT],
-    },
-    {
-      tc: 'using another scope (but still included in the list of account.scopes)',
-      selector: { scopes: [SolScope.Testnet] },
-      expected: [MOCK_WALLET_1_SOL_ACCOUNT],
-    },
-    {
-      tc: 'using specific EVM chain still matches with EVM EOA scopes',
-      selector: { scopes: [EthScope.Testnet] },
-      expected: [MOCK_WALLET_1_EVM_ACCOUNT],
-    },
-    {
-      tc: 'using multiple scopes',
-      selector: { scopes: [BtcScope.Mainnet, BtcScope.Testnet] },
-      expected: [
-        MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT,
-        MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
-      ],
-    },
-    {
-      tc: 'using non-matching scopes',
-      selector: {
-        scopes: ['bip122:12a765e31ffd4059bada1e25190f6e98' /* Litecoin */],
-      },
-      expected: [],
-    },
-    {
-      tc: 'using method',
-      selector: { methods: [BtcMethod.SendBitcoin] },
-      expected: [
-        MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT,
-        MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
-      ],
-    },
-    {
-      tc: 'using multiple methods',
-      selector: {
-        methods: [EthMethod.SignTransaction, EthMethod.PersonalSign],
-      },
-      expected: [MOCK_WALLET_1_EVM_ACCOUNT],
-    },
-    {
-      tc: 'using non-matching method',
-      selector: { methods: ['eth_unknownMethod'] },
-      expected: [],
-    },
-    {
-      tc: 'using multiple selectors',
-      selector: {
-        type: EthAccountType.Eoa,
-        methods: [EthMethod.SignTransaction, EthMethod.PersonalSign],
-      },
-      expected: [MOCK_WALLET_1_EVM_ACCOUNT],
-    },
-    {
-      tc: 'using non-matching selectors',
-      selector: {
-        type: BtcAccountType.P2wpkh,
-        methods: [EthMethod.SignTransaction, EthMethod.PersonalSign],
-      },
-      expected: [],
-    },
-  ] as {
-    tc: string;
-    selector: AccountSelector<Bip44Account<InternalAccount>>;
-    expected: Bip44Account<InternalAccount>[];
-  }[])(
-    'selects internal accounts from selector: $tc',
-    async ({ selector, expected }) => {
+  describe('select', () => {
+    it('selects accounts using a selector', () => {
       const { group } = setup();
 
-      expect(group.select(selector)).toStrictEqual(expected);
-    },
-  );
+      expect(group.select({ scopes: [EthScope.Mainnet] })).toStrictEqual([
+        MOCK_WALLET_1_EVM_ACCOUNT,
+      ]);
+    });
+
+    it('selects no account if selector did not match', () => {
+      const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
+
+      expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
+    });
+  });
 });

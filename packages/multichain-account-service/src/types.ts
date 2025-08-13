@@ -43,6 +43,11 @@ export type MultichainAccountServiceCreateNextMultichainAccountGroupAction = {
   handler: MultichainAccountService['createNextMultichainAccountGroup'];
 };
 
+export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:createMultichainAccountGroup`;
+  handler: MultichainAccountService['createMultichainAccountGroup'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -52,7 +57,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceGetMultichainAccountGroupsAction
   | MultichainAccountServiceGetMultichainAccountWalletAction
   | MultichainAccountServiceGetMultichainAccountWalletsAction
-  | MultichainAccountServiceCreateNextMultichainAccountGroupAction;
+  | MultichainAccountServiceCreateNextMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupAction;
 
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules

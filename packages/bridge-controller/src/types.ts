@@ -118,7 +118,14 @@ export type QuoteMetadata = {
    * If gas is included, this is the value of the src or dest token that was used to pay for the gas
    */
   includedTxFees?: TokenAmountValues | null;
-  gasFee: TokenAmountValues;
+  /**
+   * The gas fee for the bridge transaction.
+   * effective is the gas fee that is shown to the user. If this value is not
+   * included in the trade, the calculation falls back to the gasLimit (total)
+   * total is the gas fee that is spent by the user, including refunds.
+   * max is the max gas fee that will be used by the transaction.
+   */
+  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**
@@ -175,6 +182,7 @@ export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
 export type FeatureFlagResponse = Infer<typeof PlatformConfigSchema>;
 
+// TODO move definition to validators.ts
 /**
  * This is the interface for the quote request sent to the bridge-api
  * and should only be used by the fetchBridgeQuotes utility function
@@ -207,6 +215,7 @@ export type QuoteRequest<
    * and the current network has STX support
    */
   gasIncluded: boolean;
+  noFee?: boolean;
 };
 
 export enum StatusTypes {
@@ -279,6 +288,7 @@ export enum BridgeBackgroundAction {
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
   TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
   STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
+  FETCH_QUOTES = 'fetchQuotes',
 }
 
 export type BridgeControllerState = {
@@ -314,6 +324,7 @@ export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
+  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
 export type BridgeControllerEvents = ControllerStateChangeEvent<

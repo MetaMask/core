@@ -48,10 +48,12 @@ import {
 } from './utils/caip-formatters';
 import { getBridgeFeatureFlags } from './utils/feature-flags';
 import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
-import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
+import {
+  MetricsActionType,
+  UnifiedSwapBridgeEventName,
+} from './utils/metrics/constants';
 import {
   formatProviderLabel,
-  getActionTypeFromQuoteRequest,
   getRequestParams,
   getSwapTypeFromQuote,
   isCustomSlippage,
@@ -71,6 +73,7 @@ import {
   getFeeForTransactionRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
+import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -235,6 +238,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
       this.stopPollingForQuotes.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
+      this.fetchQuotes.bind(this),
+    );
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
@@ -312,6 +319,52 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         context,
       });
     }
+  };
+
+  /**
+   * Fetches quotes for specified request without updating the controller state
+   * This method does not start polling for quotes and does not emit UnifiedSwapBridge events
+   *
+   * @param quoteRequest - The parameters for quote requests to fetch
+   * @param abortSignal - The abort signal to cancel all the requests
+   * @param featureId - The feature ID that maps to quoteParam overrides from LD
+   * @returns A list of validated quotes
+   */
+  fetchQuotes = async (
+    quoteRequest: GenericQuoteRequest,
+    abortSignal: AbortSignal | null = null,
+    featureId: FeatureId | null = null,
+  ): Promise<QuoteResponse[]> => {
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
+    const quoteRequestOverrides = featureId
+      ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
+      : undefined;
+
+    // If quoteRequestOverrides is specified, merge it with the quoteRequest
+    const baseQuotes = await fetchBridgeQuotes(
+      quoteRequestOverrides
+        ? { ...quoteRequest, ...quoteRequestOverrides }
+        : quoteRequest,
+      abortSignal,
+      this.#clientId,
+      this.#fetchFn,
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+    );
+    const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
+    const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+    const quotesWithFees =
+      quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+    // Sort perps quotes by increasing estimated processing time (fastest first)
+    if (featureId === FeatureId.PERPS) {
+      return quotesWithFees.sort((a, b) => {
+        return (
+          a.estimatedProcessingTimeInSeconds -
+          b.estimatedProcessingTimeInSeconds
+        );
+      });
+    }
+    return quotesWithFees;
   };
 
   readonly #getExchangeRateSources = () => {
@@ -478,33 +531,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
-    const fetchQuotes = async () => {
-      // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#setMinimumBalanceForRentExemptionInLamports(
-        updatedQuoteRequest.srcChainId,
-      );
-      const quotes = await fetchBridgeQuotes(
-        updatedQuoteRequest,
-        // AbortController is always defined by this line, because we assign it a few lines above,
-        // not sure why Jest thinks it's not
-        // Linters accurately say that it's defined
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        this.#abortController!.signal as AbortSignal,
-        this.#clientId,
-        this.#fetchFn,
-        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
-      );
-
-      const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
-      const quotesWithSolanaFees = await this.#appendSolanaFees(quotes);
-
-      this.update((state) => {
-        state.quotes = quotesWithL1GasFees ?? quotesWithSolanaFees ?? quotes;
-        state.quotesLoadingStatus = RequestStatus.FETCHED;
-      });
-    };
-
     try {
       await this.#trace(
         {
@@ -519,7 +545,26 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
           },
         },
-        fetchQuotes,
+        async () => {
+          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#setMinimumBalanceForRentExemptionInLamports(
+            updatedQuoteRequest.srcChainId,
+          );
+          const quotes = await this.fetchQuotes(
+            updatedQuoteRequest,
+            // AbortController is always defined by this line, because we assign it a few lines above,
+            // not sure why Jest thinks it's not
+            // Linters accurately say that it's defined
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.#abortController!.signal as AbortSignal,
+          );
+
+          this.update((state) => {
+            state.quotes = quotes;
+            state.quotesLoadingStatus = RequestStatus.FETCHED;
+          });
+        },
       );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
@@ -757,10 +802,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getQuoteFetchData = (): Omit<
     QuoteFetchData,
-    'best_quote_provider' | 'price_impact'
+    'best_quote_provider' | 'price_impact' | 'can_submit'
   > => {
     return {
-      can_submit: !this.state.quoteRequest.insufficientBal, // TODO check if balance is sufficient for network fees
       quotes_count: this.state.quotes.length,
       quotes_list: this.state.quotes.map(({ quote }) =>
         formatProviderLabel(quote),
@@ -777,8 +821,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
   ): CrossChainSwapsEventProperties<T> => {
     const baseProperties = {
-      action_type: getActionTypeFromQuoteRequest(this.state.quoteRequest),
       ...propertiesFromClient,
+      action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
@@ -863,7 +907,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           UnifiedSwapBridgeEventName.InputChanged,
           {
             input: inputKey,
-            value: inputValue,
+            input_value: inputValue,
           },
         );
       }

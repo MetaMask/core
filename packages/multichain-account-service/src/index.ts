@@ -6,7 +6,10 @@ export type {
   MultichainAccountServiceGetMultichainAccountWalletAction,
   MultichainAccountServiceGetMultichainAccountWalletsAction,
   MultichainAccountServiceGetMultichainAccountGroupsAction,
+  MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateNextMultichainAccountGroupAction,
 } from './types';
+export { BaseAccountProvider, SnapAccountProvider } from './providers';
 export { MultichainAccountWallet } from './MultichainAccountWallet';
 export { MultichainAccountGroup } from './MultichainAccountGroup';
 export { MultichainAccountService } from './MultichainAccountService';

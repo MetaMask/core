@@ -25,6 +25,18 @@ export function assertIsBip44Account(
   }
 }
 
+/**
+ * Asserts that a list of keyring accounts are all BIP-44 compatible.
+ *
+ * @param accounts - Keyring accounts to check.
+ * @throws If any of the keyring account is not compatible.
+ */
+export function assertAreBip44Accounts(
+  accounts: KeyringAccount[],
+): asserts accounts is Bip44Account<KeyringAccount>[] {
+  accounts.forEach(assertIsBip44Account);
+}
+
 export abstract class BaseAccountProvider
   implements AccountProvider<Bip44Account<KeyringAccount>>
 {
