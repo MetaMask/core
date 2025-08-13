@@ -290,16 +290,11 @@ export class NftController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  /**
-   * Optional API key to use with opensea
-   */
-  openSeaApiKey?: string;
-
   #selectedAccountId: string;
 
   #ipfsGateway: string;
 
-  #openSeaEnabled: boolean;
+  #displayNftMedia: boolean;
 
   #useIpfsSubdomains: boolean;
 
@@ -318,7 +313,7 @@ export class NftController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.ipfsGateway - The configured IPFS gateway.
-   * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param options.displayNftMedia - Controls whether the NFT API is used.
    * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
    * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
@@ -328,7 +323,10 @@ export class NftController extends BaseController<
    */
   constructor({
     ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
-    openSeaEnabled = false,
+    displayNftMedia = undefined,
+    // Deprecated: accept legacy option for backward-compat
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    openSeaEnabled = undefined,
     useIpfsSubdomains = true,
     isIpfsGatewayEnabled = true,
     onNftAdded,
@@ -336,6 +334,8 @@ export class NftController extends BaseController<
     state = {},
   }: {
     ipfsGateway?: string;
+    displayNftMedia?: boolean;
+    // Deprecated legacy option; kept for backward-compat with external callers/tests
     openSeaEnabled?: boolean;
     useIpfsSubdomains?: boolean;
     isIpfsGatewayEnabled?: boolean;
@@ -363,7 +363,7 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     ).id;
     this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
+    this.#displayNftMedia = (displayNftMedia ?? openSeaEnabled) ?? false;
     this.#useIpfsSubdomains = useIpfsSubdomains;
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
     this.#onNftAdded = onNftAdded;
@@ -388,29 +388,31 @@ export class NftController extends BaseController<
    *
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.ipfsGateway - The configured IPFS gateway.
-   * @param preferencesState.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param preferencesState.displayNftMedia - Controls whether the NFT API is used.
    * @param preferencesState.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    */
   async #onPreferencesControllerStateChange({
     ipfsGateway,
+    displayNftMedia,
     openSeaEnabled,
     isIpfsGatewayEnabled,
-  }: PreferencesState) {
+  }: PreferencesState & { openSeaEnabled?: boolean }) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
     // Get current state values
+    const effectiveDisplayNftMedia = (displayNftMedia ?? openSeaEnabled) ?? false;
     if (
       this.#ipfsGateway !== ipfsGateway ||
-      this.#openSeaEnabled !== openSeaEnabled ||
+      this.#displayNftMedia !== effectiveDisplayNftMedia ||
       this.#isIpfsGatewayEnabled !== isIpfsGatewayEnabled
     ) {
       this.#ipfsGateway = ipfsGateway;
-      this.#openSeaEnabled = openSeaEnabled;
+      this.#displayNftMedia = effectiveDisplayNftMedia;
       this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
       const needsUpdateNftMetadata =
-        (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || effectiveDisplayNftMedia;
 
       if (needsUpdateNftMetadata && selectedAccount) {
         await this.#updateNftUpdateForAccount(selectedAccount);
@@ -429,7 +431,7 @@ export class NftController extends BaseController<
 
     const needsUpdateNftMetadata =
       ((this.#isIpfsGatewayEnabled && this.#ipfsGateway !== '') ||
-        this.#openSeaEnabled) &&
+        this.#displayNftMedia) &&
       oldSelectedAccountId !== internalAccount.id;
 
     if (needsUpdateNftMetadata) {
@@ -631,7 +633,7 @@ export class NftController extends BaseController<
       };
     }
 
-    const isDisplayNFTMediaToggleEnabled = this.#openSeaEnabled;
+    const isDisplayNFTMediaToggleEnabled = this.#displayNftMedia;
     if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
       return {
         image: null,
@@ -771,7 +773,7 @@ export class NftController extends BaseController<
           networkClientId,
         ),
       ),
-      this.#openSeaEnabled && chainId === '0x1'
+      this.#displayNftMedia && chainId === '0x1'
         ? safelyExecute(() =>
             this.#getNftInformationFromApi(contractAddress, tokenId),
           )
@@ -1351,15 +1353,6 @@ export class NftController extends BaseController<
       userAddress,
       source: Source.Dapp,
     });
-  }
-
-  /**
-   * Sets an OpenSea API key to retrieve NFT information.
-   *
-   * @param openSeaApiKey - OpenSea API key.
-   */
-  setApiKey(openSeaApiKey: string) {
-    this.openSeaApiKey = openSeaApiKey;
   }
 
   /**

@@ -468,12 +468,7 @@ describe('NftController', () => {
     });
   });
 
-  it('should set api key', async () => {
-    const { nftController } = setupController();
-
-    nftController.setApiKey('testkey');
-    expect(nftController.openSeaApiKey).toBe('testkey');
-  });
+  
 
   describe('watchNft', function () {
     const ERC721_NFT = {
@@ -738,7 +733,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        openSeaEnabled: true,
       });
 
       const requestId = 'approval-request-id-1';
@@ -990,7 +985,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        openSeaEnabled: true,
       });
 
       const requestId = 'approval-request-id-1';
@@ -1249,7 +1244,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        openSeaEnabled: true,
       });
       const requestId = 'approval-request-id-1';
 
@@ -4081,7 +4076,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        openSeaEnabled: true,
       });
 
       await nftController.addNft(
@@ -5277,7 +5272,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        openSeaEnabled: true,
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
 

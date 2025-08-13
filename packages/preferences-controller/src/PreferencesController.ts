@@ -84,6 +84,10 @@ export type PreferencesState = {
    */
   openSeaEnabled: boolean;
   /**
+   * Controls whether the NFT API is used (replacement for openSeaEnabled)
+   */
+  displayNftMedia: boolean;
+  /**
    * Controls whether "security alerts" are enabled
    */
   securityAlertsEnabled: boolean;
@@ -157,6 +161,7 @@ const metadata = {
   isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
   lostIdentities: { persist: true, anonymous: false },
   openSeaEnabled: { persist: true, anonymous: true },
+  displayNftMedia: { persist: true, anonymous: true },
   securityAlertsEnabled: { persist: true, anonymous: true },
   selectedAddress: { persist: true, anonymous: false },
   showTestNetworks: { persist: true, anonymous: true },
@@ -214,6 +219,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     isMultiAccountBalancesEnabled: true,
     lostIdentities: {},
     openSeaEnabled: false,
+    displayNftMedia: false,
     securityAlertsEnabled: false,
     selectedAddress: '',
     showIncomingTransactions: {
@@ -451,9 +457,9 @@ export class PreferencesController extends BaseController<
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
   setUseNftDetection(useNftDetection: boolean) {
-    if (useNftDetection && !this.state.openSeaEnabled) {
+    if (useNftDetection && !(this.state.displayNftMedia || this.state.openSeaEnabled)) {
       throw new Error(
-        'useNftDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if displayNftMedia is false',
       );
     }
     this.update((state) => {
@@ -470,6 +476,20 @@ export class PreferencesController extends BaseController<
     this.update((state) => {
       state.openSeaEnabled = openSeaEnabled;
       if (!openSeaEnabled) {
+        state.useNftDetection = false;
+      }
+    });
+  }
+
+  /**
+   * Toggle the display nft media enabled setting.
+   *
+   * @param displayNftMedia - Boolean indicating user preference on using NFT media API.
+   */
+  setDisplayNftMedia(displayNftMedia: boolean) {
+    this.update((state) => {
+      state.displayNftMedia = displayNftMedia;
+      if (!displayNftMedia) {
         state.useNftDetection = false;
       }
     });
