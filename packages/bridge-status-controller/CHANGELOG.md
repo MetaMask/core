@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Wait for Mobile hardware wallet delay before submitting Ledger tx ([#6302](https://github.com/MetaMask/core/pull/6302))
+
 ## [38.0.0]
 
 ### Added
