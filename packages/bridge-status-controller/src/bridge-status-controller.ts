@@ -69,6 +69,7 @@ import {
   getStatusRequestParams,
   getUSDTAllowanceResetTx,
   handleLineaDelay,
+  handleMobileHardwareWalletDelay,
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
@@ -1087,12 +1088,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           );
           approvalTxId = approvalTxMeta?.id;
 
-          if (requireApproval) {
-            const mobileHardwareWalletDelay = new Promise((resolve) =>
-              setTimeout(resolve, 1000),
-            );
-            await mobileHardwareWalletDelay;
-          }
+          await handleMobileHardwareWalletDelay(requireApproval);
 
           return await this.#handleEvmTransaction({
             transactionType: isBridgeTx
