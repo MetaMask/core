@@ -205,6 +205,7 @@ export const TxDataSchema = type({
   value: HexStringSchema,
   data: HexStringSchema,
   gasLimit: nullable(number()),
+  effectiveGas: optional(number()),
 });
 
 export const QuoteResponseSchema = type({

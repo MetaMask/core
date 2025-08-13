@@ -72,9 +72,28 @@ export type EventConstraint = {
   payload: unknown[];
 };
 
+/**
+ * Metadata for a single event subscription.
+ *
+ * @template Event - The event this subscription is for.
+ */
+type SubscriptionMetadata<Event extends EventConstraint> = {
+  /**
+   * The optional selector function for this subscription.
+   */
+  selector?: SelectorFunction<Event, Event['type']>;
+};
+
+/**
+ * A map of event handlers for a specific event.
+ *
+ * The key is the handler function, and the value contains additional subscription metadata.
+ *
+ * @template Event - The event these handlers are for.
+ */
 type EventSubscriptionMap<Event extends EventConstraint> = Map<
   GenericEventHandler | SelectorEventHandler,
-  SelectorFunction<Event, Event['type']> | undefined
+  SubscriptionMetadata<Event>
 >;
 
 /**
@@ -283,7 +302,7 @@ export class Messenger<
     const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
-      for (const [handler, selector] of subscribers.entries()) {
+      for (const [handler, { selector }] of subscribers.entries()) {
         try {
           if (selector) {
             const previousValue = this.#eventPayloadCache.get(handler);
@@ -372,7 +391,7 @@ export class Messenger<
     const widenedHandler = handler as
       | ExtractEventHandler<Event, EventType>
       | SelectorEventHandler;
-    subscribers.set(widenedHandler, selector);
+    subscribers.set(widenedHandler, { selector });
 
     if (selector) {
       const getPayload = this.#initialEventPayloadGetters.get(eventType);
@@ -417,8 +436,8 @@ export class Messenger<
       throw new Error(`Subscription not found for event: ${eventType}`);
     }
 
-    const selector = subscribers.get(widenedHandler);
-    if (selector) {
+    const metadata = subscribers.get(widenedHandler);
+    if (metadata?.selector) {
       this.#eventPayloadCache.delete(widenedHandler);
     }
 
