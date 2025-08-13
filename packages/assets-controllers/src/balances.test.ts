@@ -1109,6 +1109,154 @@ describe('calculateBalanceForAllWallets', () => {
       expect(out.currentTotalInUserCurrency).toBe(0);
       expect(out.previousTotalInUserCurrency).toBe(0);
     });
+
+    it('records zero group total when group has no accounts', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/empty'] = {
+        id: 'entropy:entropy-source-1/empty',
+        type: AccountGroupType.MultichainAccount,
+        accounts: [],
+        metadata: {},
+      };
+      const res = calculateBalanceForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+      );
+      expect(
+        res.wallets['entropy:entropy-source-1'].groups[
+          'entropy:entropy-source-1/empty'
+        ].totalBalanceInUserCurrency,
+      ).toBe(0);
+    });
+
+    it('ignores invalid hex EVM balance in totals', () => {
+      const state = createMobileMockState('USD');
+      const baseline = calculateBalanceForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+      );
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[
+        '0x1234567890123456789012345678901234567890'
+      ]['0x1']['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] = '0xZZZ';
+      const res = calculateBalanceForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+      );
+      expect(res.totalBalanceInUserCurrency).toBe(
+        baseline.totalBalanceInUserCurrency,
+      );
+    });
+
+    it('skips non-EVM balances with NaN amount in totals', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-sol2'] = {
+        id: 'account-sol2',
+        address: 'SolAcc2',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol2', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-sol2');
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-sol2'] = {
+        'solana:mainnet/asset:X': { amount: 'abc', unit: 'X' },
+      };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:X'
+      ] = { rate: '2', conversionTime: 0 };
+      const res = calculateBalanceForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+      );
+      expect(res.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('skips non-EVM balances with NaN rate in totals', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-sol3'] = {
+        id: 'account-sol3',
+        address: 'SolAcc3',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol3', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-sol3');
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-sol3'] = {
+        'solana:mainnet/asset:Y': { amount: '5', unit: 'Y' },
+      };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:Y'
+      ] = { rate: 'abc', conversionTime: 0 };
+      const res = calculateBalanceForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+      );
+      expect(res.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
   });
 
   describe('calculateAggregatedChangeForGroup', () => {
@@ -1242,6 +1390,266 @@ describe('calculateBalanceForAllWallets', () => {
       expect(res.previousTotalInUserCurrency).toBe(0);
       expect(res.amountChangeInUserCurrency).toBe(0);
       expect(res.percentChange).toBe(0);
+    });
+
+    it('returns zeros when group wallet is missing', () => {
+      const state = createMobileMockState('USD');
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'missing-wallet/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBe(0);
+      expect(res.previousTotalInUserCurrency).toBe(0);
+    });
+
+    it('ignores EVM token not in allTokens for group', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[
+        '0x1234567890123456789012345678901234567890'
+      ]['0x1']['0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'] = '0x1';
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'] = {
+        tokenAddress: '0xEEEE',
+        currency: 'ETH',
+        price: 1.0,
+        pricePercentChange1d: 5,
+      } as any;
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBe(0);
+      expect(res.previousTotalInUserCurrency).toBe(0);
+    });
+
+    it('ignores invalid hex EVM balance for group', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[
+        '0x1234567890123456789012345678901234567890'
+      ]['0x1']['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] = '0xZZZ';
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBe(0);
+      expect(res.previousTotalInUserCurrency).toBe(0);
+    });
+
+    it('ignores EVM token when price is missing for group', () => {
+      const state = createMobileMockState('USD');
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] = {
+        tokenAddress: '0xC0b',
+        currency: 'ETH',
+        pricePercentChange1d: 10,
+      } as any;
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/1',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBe(0);
+    });
+
+    it('ignores EVM token when native conversion missing for group', () => {
+      const state = createMobileMockState('USD');
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] = {
+        tokenAddress: '0xC0b',
+        currency: 'ETH',
+        price: 1.0,
+        pricePercentChange1d: 10,
+      } as any;
+      delete (state.engine.backgroundState as any).CurrencyRateController
+        .currencyRates.ETH;
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/1',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBe(0);
+    });
+
+    it('non-EVM group path: continues when account has no balances', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-sol4'] = {
+        id: 'account-sol4',
+        address: 'SolAcc4',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol4', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-sol4');
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('non-EVM group path: disabled chain is skipped', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-sol5'] = {
+        id: 'account-sol5',
+        address: 'SolAcc5',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol5', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-sol5');
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-sol5'] = {
+        'solana:mainnet/asset:Q': { amount: '3', unit: 'Q' },
+      };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:Q'
+      ] = { rate: '10', marketData: { pricePercentChange: { P1D: 2 } } };
+      const enabledNetworkMap = {
+        solana: { 'solana:mainnet': false },
+      } as Record<string, Record<string, boolean>>;
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        enabledNetworkMap,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('non-EVM group path: skips NaN amount, NaN rate, and denom zero', () => {
+      const state = createMobileMockState('USD');
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-sol6'] = {
+        id: 'account-sol6',
+        address: 'SolAcc6',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol6', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-sol6');
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-sol6'] = {
+        'solana:mainnet/asset:R': { amount: 'abc', unit: 'R' },
+        'solana:mainnet/asset:S': { amount: '5', unit: 'S' },
+        'solana:mainnet/asset:T': { amount: '5', unit: 'T' },
+      };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:S'
+      ] = { rate: 'abc', marketData: { pricePercentChange: { P1D: 1 } } };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/asset:T'
+      ] = { rate: '10', marketData: { pricePercentChange: { P1D: -100 } } };
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
     });
   });
 });
