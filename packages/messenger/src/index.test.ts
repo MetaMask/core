@@ -5,7 +5,6 @@ describe('@metamask/messenger', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
         "Messenger",
-        "RestrictedMessenger",
       ]
     `);
   });
