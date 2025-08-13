@@ -66,12 +66,20 @@ export const getTxStatusesFromHistory = ({
   };
 };
 
-export const getFinalizedTxProperties = (historyItem: BridgeHistoryItem) => {
+export const getFinalizedTxProperties = (
+  historyItem: BridgeHistoryItem,
+  txMeta?: TransactionMeta,
+  approvalTxMeta?: TransactionMeta,
+) => {
+  const startTime =
+    approvalTxMeta?.submittedTime ??
+    txMeta?.submittedTime ??
+    historyItem.startTime;
+  const completionTime = historyItem.completionTime ?? txMeta?.time;
+
   return {
     actual_time_minutes:
-      historyItem.completionTime && historyItem.startTime
-        ? (historyItem.completionTime - historyItem.startTime) / 60000
-        : 0,
+      completionTime && startTime ? (completionTime - startTime) / 60000 : 0,
     usd_actual_return: Number(historyItem.pricingData?.quotedReturnInUsd ?? 0), // TODO calculate based on USD price at completion time
     usd_actual_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0), // TODO calculate based on USD price at completion time
     quote_vs_execution_ratio: 1, // TODO calculate based on USD price at completion time

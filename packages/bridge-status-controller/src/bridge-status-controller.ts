@@ -1168,6 +1168,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    const { transactions } = this.messagingSystem.call(
+      'TransactionController:getState',
+    );
+    const txMeta = transactions.find(({ id }) => id === txMetaId);
+    const approvalTxMeta = transactions.find(
+      ({ id }) => id === historyItem.approvalTxId,
+    );
+
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
       historyItem.account,
@@ -1180,7 +1188,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),
       ...getTradeDataFromHistory(historyItem),
       ...getTxStatusesFromHistory(historyItem),
-      ...getFinalizedTxProperties(historyItem),
+      ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(historyItem.quote),
     };
 
