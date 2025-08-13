@@ -1,12 +1,13 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
 import { flushPromises } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers';
 
 describe('SampleGasPricesController', () => {
@@ -301,7 +302,7 @@ describe('SampleGasPricesController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`Object {}`);
       });
@@ -362,8 +363,11 @@ describe('SampleGasPricesController', () => {
  * required by the controller under test.
  */
 type RootMessenger = Messenger<
-  ExtractAvailableAction<SampleGasPricesControllerMessenger>,
-  ExtractAvailableEvent<SampleGasPricesControllerMessenger>
+  // Use `string` rather than 'Root' here to allow registering actions and publishing events from
+  // any namespace in tests.
+  string,
+  MessengerActions<SampleGasPricesControllerMessenger>,
+  MessengerEvents<SampleGasPricesControllerMessenger>
 >;
 
 /**
@@ -389,7 +393,7 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({ namespace: 'Root' });
 }
 
 /**
@@ -402,13 +406,9 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SampleGasPricesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SampleGasPricesController',
-    allowedActions: [
-      'SampleGasPricesService:fetchGasPrices',
-      'NetworkController:getNetworkClientById',
-    ],
-    allowedEvents: ['NetworkController:stateChange'],
+  return new Messenger({
+    namespace: 'SampleGasPricesController',
+    parent: rootMessenger,
   });
 }
 
