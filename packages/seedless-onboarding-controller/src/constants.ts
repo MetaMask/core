@@ -26,6 +26,7 @@ export enum SecretMetadataVersion {
 
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
+  VaultOperationMutexLocked = `${controllerName} - The operation cannot be completed while the vault operation mutex is locked.`,
   AuthenticationError = `${controllerName} - Authentication error`,
   MissingAuthUserInfo = `${controllerName} - Missing authenticated user information`,
   FailedToPersistOprfKey = `${controllerName} - Failed to persist OPRF key`,
