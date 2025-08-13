@@ -1,4 +1,9 @@
-import { StatusTypes, FeeType, ActionTypes } from '@metamask/bridge-controller';
+import {
+  StatusTypes,
+  FeeType,
+  ActionTypes,
+  getNativeAssetForChainId,
+} from '@metamask/bridge-controller';
 import {
   MetricsSwapType,
   MetricsActionType,
@@ -98,10 +103,11 @@ describe('metrics utils', () => {
     account: '0xaccount1',
     targetContractAddress: '0xtarget',
     pricingData: {
-      amountSent: '1.234',
-      amountSentInUsd: '2000',
-      quotedGasInUsd: '10',
-      quotedReturnInUsd: '1980',
+      amountSent: '0.002',
+      amountSentInUsd: '9.15656',
+      quotedGasInUsd: '0.00021894522672048096',
+      quotedReturnInUsd: '8.900847230256',
+      quotedGasAmount: '4.7822594232e-8',
     },
     status: {
       status: StatusTypes.COMPLETE,
@@ -112,10 +118,64 @@ describe('metrics utils', () => {
       destChain: {
         chainId: 10,
         txHash: '0xdestHash',
+        amount: '1000000000000000000',
       },
     },
     hasApprovalTx: false,
     isStxEnabled: false,
+  };
+
+  const mockTxMetaNative = {
+    id: 'test-tx-id',
+    type: TransactionType.swap,
+    networkClientId: 'test-network',
+    time: 1755051744305,
+    chainId: '0x1' as const,
+    status: 'submitted' as TransactionStatus,
+    txReceipt: {
+      effectiveGasPrice: '0x1880a',
+      gasUsed: '0x4028b',
+    },
+    preTxBalance: '0x1554c96d491c70',
+    postTxBalance: '0xe39c0e2d7de7e',
+    txParams: {
+      from: '0x123',
+      to: '0x456',
+      value: '0x0',
+    },
+  };
+
+  const mockTxMetaERC20 = {
+    id: 'test-tx-id',
+    networkClientId: 'test-network',
+    type: TransactionType.swap,
+    time: 1234567890,
+    chainId: '0x1' as const,
+    status: 'submitted' as TransactionStatus,
+    txReceipt: {
+      effectiveGasPrice: '0x5f5e100',
+      gasUsed: '0x3396e',
+      logs: [],
+    },
+    txParams: {
+      from: '0x123',
+      to: '0x456',
+      value: '0x0',
+    },
+  };
+
+  const mockApprovalTxMeta = {
+    id: 'test-tx-id-approval',
+    networkClientId: 'test-network',
+    type: TransactionType.swapApproval,
+    time: 1234567890,
+    chainId: '0x1' as const,
+    status: 'submitted' as TransactionStatus,
+    txParams: {
+      from: '0x123',
+      to: '0x456',
+      value: '0x0',
+    },
   };
 
   describe('getTxStatusesFromHistory', () => {
@@ -225,15 +285,89 @@ describe('metrics utils', () => {
   });
 
   describe('getFinalizedTxProperties', () => {
-    it('should calculate correct time and ratios', () => {
-      const result = getFinalizedTxProperties(mockHistoryItem);
-      expect(result).toStrictEqual({
-        actual_time_minutes: (2000 - 1000) / 60000,
-        usd_actual_return: 1980,
-        usd_actual_gas: 10,
-        quote_vs_execution_ratio: 1,
-        quoted_vs_used_gas_ratio: 1,
-      });
+    it('should calculate correct time and ratios for native dest token', () => {
+      const result = getFinalizedTxProperties(
+        mockHistoryItem,
+        mockTxMetaNative,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": "-143173677737050428.51831067787343952138",
+          "quoted_vs_used_gas_ratio": "0.00000000181320424159",
+          "usd_actual_gas": 120750.4492315212,
+          "usd_actual_return": -62.16296277829591,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for ERC20 dest token', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          quote: {
+            ...mockHistoryItem.quote,
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+            },
+          },
+        },
+        mockTxMetaERC20,
+        mockApprovalTxMeta,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": "Infinity",
+          "quoted_vs_used_gas_ratio": "0.00000000000226314866",
+          "usd_actual_gas": 96743634.68,
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for bridge dest token', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          status: {
+            ...mockHistoryItem.status,
+            destChain: {
+              ...mockHistoryItem.status.destChain,
+              amount: '3488640201519109',
+            } as never,
+          },
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '3482466487463950',
+            destAsset: getNativeAssetForChainId(56),
+          },
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00023762029936118124',
+            quotedReturnInUsd: '2.89114367789257129',
+            quotedGasAmount: '5.1901652883e-8',
+          },
+        },
+        {
+          type: TransactionType.bridge,
+          txReceipt: {
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": "998230337983128586.74757790032760434378",
+          "quoted_vs_used_gas_ratio": "0.00000000283258183636",
+          "usd_actual_gas": 83888.2380418152,
+          "usd_actual_return": 2.8962690953011645,
+        }
+      `);
     });
 
     it('should handle missing completion time', () => {
@@ -345,13 +479,15 @@ describe('metrics utils', () => {
   describe('getTradeDataFromHistory', () => {
     it('should return correct trade data', () => {
       const result = getTradeDataFromHistory(mockHistoryItem);
-      expect(result).toStrictEqual({
-        usd_quoted_gas: 10,
-        gas_included: false,
-        provider: 'across_across',
-        quoted_time_minutes: 15,
-        usd_quoted_return: 1980,
-      });
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "gas_included": false,
+          "provider": "across_across",
+          "quoted_time_minutes": 15,
+          "usd_quoted_gas": 0.00021894522672048097,
+          "usd_quoted_return": 8.900847230256,
+        }
+      `);
     });
 
     it('should handle missing pricing data', () => {
@@ -423,15 +559,17 @@ describe('metrics utils', () => {
   describe('getRequestMetadataFromHistory', () => {
     it('should return correct request metadata', () => {
       const result = getRequestMetadataFromHistory(mockHistoryItem);
-      expect(result).toStrictEqual({
-        slippage_limit: 0.5,
-        custom_slippage: true,
-        security_warnings: [],
-        usd_amount_source: 2000,
-        swap_type: 'crosschain',
-        is_hardware_wallet: false,
-        stx_enabled: false,
-      });
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "custom_slippage": true,
+          "is_hardware_wallet": false,
+          "security_warnings": Array [],
+          "slippage_limit": 0.5,
+          "stx_enabled": false,
+          "swap_type": "crosschain",
+          "usd_amount_source": 9.15656,
+        }
+      `);
     });
 
     it('should handle hardware wallet account', () => {
