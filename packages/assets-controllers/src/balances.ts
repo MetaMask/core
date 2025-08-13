@@ -502,3 +502,194 @@ export function calculateAggregatedChangeForAllWallets(
     userCurrency: currencyRateState.currentCurrency,
   };
 }
+
+/**
+ * Calculate aggregated portfolio value change for a specific account group and period.
+ * Mirrors the logic of calculateAggregatedChangeForAllWallets but scoped to one group.
+ *
+ * @param accountTreeState - AccountTreeController state.
+ * @param accountsState - AccountsController state.
+ * @param tokenBalancesState - TokenBalancesController state.
+ * @param tokenRatesState - TokenRatesController state.
+ * @param multichainRatesState - MultichainAssetsRatesController state.
+ * @param multichainBalancesState - MultichainBalancesController state.
+ * @param tokensState - TokensController state.
+ * @param currencyRateState - CurrencyRateController state.
+ * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
+ * @param groupId - The account group ID to compute change for.
+ * @param period - Period to compute change for ('1d' | '7d' | '30d').
+ * @returns Aggregated change details for the requested group and period.
+ */
+export function calculateAggregatedChangeForGroup(
+  accountTreeState: AccountTreeControllerState,
+  accountsState: AccountsControllerState,
+  tokenBalancesState: TokenBalancesControllerState,
+  tokenRatesState: TokenRatesControllerState,
+  multichainRatesState: MultichainAssetsRatesControllerState,
+  multichainBalancesState: MultichainBalancesControllerState,
+  tokensState: TokensControllerState,
+  currencyRateState: CurrencyRateState,
+  enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
+  groupId: string,
+  period: PortfolioChangePeriod,
+): AggregatedChangeForAllWallets {
+  let currentTotal = 0;
+  let previousTotal = 0;
+
+  const isEvmChainEnabled = (chainId: Hex): boolean =>
+    isChainEnabledByMap(enabledNetworkMap, chainId);
+
+  const isAssetChainEnabled = (assetId: CaipAssetType): boolean => {
+    const { chainId } = parseCaipAssetType(assetId);
+    return isChainEnabledByMap(enabledNetworkMap, chainId);
+  };
+
+  const evmPercentField: Record<PortfolioChangePeriod, string> = {
+    '1d': 'pricePercentChange1d',
+    '7d': 'pricePercentChange7d',
+    '30d': 'pricePercentChange30d',
+  };
+
+  const nonEvmPercentKey: Record<PortfolioChangePeriod, string> = {
+    '1d': 'P1D',
+    '7d': 'P7D',
+    '30d': 'P30D',
+  };
+
+  const accounts = getInternalAccountsForGroup(
+    accountTreeState,
+    accountsState,
+    groupId,
+  );
+
+  for (const account of accounts) {
+    const isEvmAccount = isEvmAccountType(account.type);
+
+    if (isEvmAccount) {
+      const accountBalances =
+        tokenBalancesState.tokenBalances[account.address as Hex];
+      if (!accountBalances) {
+        continue;
+      }
+
+      for (const [chainId, chainBalances] of Object.entries(accountBalances)) {
+        if (!isEvmChainEnabled(chainId as Hex)) {
+          continue;
+        }
+        const chainMarketData = tokenRatesState.marketData[chainId as Hex];
+
+        for (const [tokenAddress, balance] of Object.entries(chainBalances)) {
+          const chainTokens = tokensState.allTokens[chainId as Hex];
+          const accountTokens = chainTokens?.[account.address];
+          const token = accountTokens?.find((t) => t.address === tokenAddress);
+          if (!token) {
+            continue;
+          }
+
+          const decimals =
+            typeof token.decimals === 'number' && !Number.isNaN(token.decimals)
+              ? token.decimals
+              : 18;
+
+          const balanceInSmallestUnit = parseInt(balance as string, 16);
+          if (Number.isNaN(balanceInSmallestUnit)) {
+            continue;
+          }
+
+          const balanceInTokenUnits =
+            balanceInSmallestUnit / Math.pow(10, decimals);
+
+          const tokenMarketData = chainMarketData?.[tokenAddress as Hex];
+          const price = tokenMarketData?.price as number | undefined;
+          const percentRaw = (
+            tokenMarketData as unknown as Record<string, unknown>
+          )?.[evmPercentField[period] as string] as number | undefined;
+
+          if (!isNonNaNNumber(price)) {
+            continue;
+          }
+
+          const nativeCurrency = (
+            tokenMarketData as unknown as { currency?: string }
+          )?.currency;
+          const nativeToUserRate =
+            nativeCurrency && currencyRateState.currencyRates[nativeCurrency]
+              ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
+              : undefined;
+
+          if (!isNonNaNNumber(nativeToUserRate)) {
+            continue;
+          }
+
+          if (!isNonNaNNumber(percentRaw)) {
+            continue;
+          }
+
+          const priceInUserCurrency = price * nativeToUserRate;
+          const currentValue = balanceInTokenUnits * priceInUserCurrency;
+          const denom = Number((1 + percentRaw / 100).toFixed(8));
+          if (denom === 0) {
+            continue;
+          }
+          const previousValue = currentValue / denom;
+          currentTotal += currentValue;
+          previousTotal += previousValue;
+        }
+      }
+    } else {
+      const accountBalances = multichainBalancesState.balances[account.id];
+      if (!accountBalances) {
+        continue;
+      }
+
+      for (const [assetId, balanceData] of Object.entries(accountBalances)) {
+        if (!isAssetChainEnabled(assetId as CaipAssetType)) {
+          continue;
+        }
+
+        const balanceAmount = parseFloat(balanceData.amount);
+        if (Number.isNaN(balanceAmount)) {
+          continue;
+        }
+
+        const conversionRate =
+          multichainRatesState.conversionRates[assetId as CaipAssetType];
+        const rateStr = conversionRate?.rate as string | undefined;
+        const percentObj = (
+          conversionRate as unknown as {
+            marketData?: { pricePercentChange?: Record<string, number> };
+          }
+        )?.marketData?.pricePercentChange;
+        const percentRaw = percentObj?.[nonEvmPercentKey[period]];
+
+        const rate =
+          typeof rateStr === 'string' ? parseFloat(rateStr) : undefined;
+        if (!isNonNaNNumber(rate) || !isNonNaNNumber(percentRaw)) {
+          continue;
+        }
+
+        const currentValue = balanceAmount * rate;
+        const denom = Number((1 + percentRaw / 100).toFixed(8));
+        if (denom === 0) {
+          continue;
+        }
+        const previousValue = currentValue / denom;
+        currentTotal += currentValue;
+        previousTotal += previousValue;
+      }
+    }
+  }
+
+  const amountChange = currentTotal - previousTotal;
+  const percentChange =
+    previousTotal !== 0 ? (amountChange / previousTotal) * 100 : 0;
+
+  return {
+    period,
+    currentTotalInUserCurrency: Number(currentTotal.toFixed(8)),
+    previousTotalInUserCurrency: Number(previousTotal.toFixed(8)),
+    amountChangeInUserCurrency: Number(amountChange.toFixed(8)),
+    percentChange: Number(percentChange.toFixed(8)),
+    userCurrency: currencyRateState.currentCurrency,
+  };
+}
