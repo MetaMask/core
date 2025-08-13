@@ -2297,7 +2297,5 @@ describe('AccountTreeController', () => {
       // Since the account has empty name, computed name will be empty, so it falls back to default
       expect(group?.metadata.name).toBe('Account 1');
     });
-
-
   });
 });
