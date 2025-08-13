@@ -20,6 +20,7 @@ import { Mutex } from 'async-mutex';
 
 import {
   assertIsPasswordOutdatedCacheValid,
+  assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidVaultData,
 } from './assertions';
 import type { AuthConnection } from './constants';
@@ -50,14 +51,28 @@ import { decodeJWTToken, decodeNodeAuthToken } from './utils';
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
- * Get the default state for the Seedless Onboarding Controller.
+ * Get the initial state for the Seedless Onboarding Controller with defaults.
  *
- * @returns The default state for the Seedless Onboarding Controller.
+ * @param overrides - The overrides for the initial state.
+ * @returns The initial state for the Seedless Onboarding Controller.
  */
-export function getDefaultSeedlessOnboardingControllerState(): SeedlessOnboardingControllerState {
-  return {
+export function getInitialSeedlessOnboardingControllerStateWithDefaults(
+  overrides?: Partial<SeedlessOnboardingControllerState>,
+): SeedlessOnboardingControllerState {
+  const initialState = {
     socialBackupsMetadata: [],
+    isSeedlessOnboardingUserAuthenticated: false,
+    ...overrides,
   };
+
+  // Ensure authenticated flag is set correctly.
+  try {
+    assertIsSeedlessOnboardingUserAuthenticated(initialState);
+    initialState.isSeedlessOnboardingUserAuthenticated = true;
+  } catch {
+    initialState.isSeedlessOnboardingUserAuthenticated = false;
+  }
+  return initialState;
 }
 
 /**
@@ -75,11 +90,11 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     socialBackupsMetadata: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     nodeAuthTokens: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     authConnection: {
       persist: true,
@@ -95,23 +110,23 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     userId: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     socialLoginEmail: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     vaultEncryptionKey: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     vaultEncryptionSalt: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     authPubKey: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     passwordOutdatedCache: {
       persist: true,
@@ -119,28 +134,32 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     refreshToken: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     revokeToken: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     // stays in vault
     accessToken: {
       persist: false,
-      anonymous: true,
+      anonymous: false,
     },
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     encryptedSeedlessEncryptionKey: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     encryptedKeyringEncryptionKey: {
+      persist: true,
+      anonymous: false,
+    },
+    isSeedlessOnboardingUserAuthenticated: {
       persist: true,
       anonymous: true,
     },
@@ -201,10 +220,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,
-      state: {
-        ...getDefaultSeedlessOnboardingControllerState(),
-        ...state,
-      },
+      state: getInitialSeedlessOnboardingControllerStateWithDefaults(state),
       messenger,
     });
 
@@ -318,6 +334,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           state.userId = userId;
           state.authConnection = authConnection;
           state.socialLoginEmail = socialLoginEmail;
+          state.metadataAccessToken = metadataAccessToken;
+          state.accessToken = accessToken;
           if (refreshToken) {
             state.refreshToken = refreshToken;
           }
@@ -325,12 +343,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
             // Temporarily store revoke token in state for later vault creation
             state.revokeToken = revokeToken;
           }
-          if (accessToken) {
-            state.accessToken = accessToken;
-          }
-          if (metadataAccessToken) {
-            state.metadataAccessToken = metadataAccessToken;
-          }
+
+          // we will check if the controller state is properly set with the authenticated user info
+          // before setting the isSeedlessOnboardingUserAuthenticated to true
+          assertIsSeedlessOnboardingUserAuthenticated(state);
+          state.isSeedlessOnboardingUserAuthenticated = true;
         });
 
         return authenticationResult;
@@ -898,7 +915,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Clears the current state of the SeedlessOnboardingController.
    */
   clearState() {
-    const defaultState = getDefaultSeedlessOnboardingControllerState();
+    const defaultState =
+      getInitialSeedlessOnboardingControllerStateWithDefaults();
     this.update(() => {
       return defaultState;
     });
@@ -1676,42 +1694,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #assertIsAuthenticatedUser(
     value: unknown,
   ): asserts value is AuthenticatedUserDetails {
-    if (
-      !value ||
-      typeof value !== 'object' ||
-      !('authConnectionId' in value) ||
-      typeof value.authConnectionId !== 'string' ||
-      !('userId' in value) ||
-      typeof value.userId !== 'string'
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
-
-    if (
-      !('nodeAuthTokens' in value) ||
-      typeof value.nodeAuthTokens !== 'object' ||
-      !Array.isArray(value.nodeAuthTokens) ||
-      value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken,
-      );
-    }
-
-    if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
-      );
-    }
-    if (
-      !('metadataAccessToken' in value) ||
-      typeof value.metadataAccessToken !== 'string'
-    ) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
-      );
+    try {
+      assertIsSeedlessOnboardingUserAuthenticated(value);
+    } catch (error) {
+      this.update((state) => {
+        state.isSeedlessOnboardingUserAuthenticated = false;
+      });
+      throw error;
     }
   }
 

@@ -702,6 +702,11 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * Deposit funds to be available for trading via Perps.
+   */
+  perpsDeposit = 'perpsDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',

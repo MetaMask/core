@@ -35,7 +35,7 @@ export const METABRIDGE_ETHEREUM_ADDRESS =
 export const BRIDGE_QUOTE_MAX_ETA_SECONDS = 60 * 60; // 1 hour
 export const BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE = 0.5; // if a quote returns in x times less return than the best quote, ignore it
 
-export const BRIDGE_PREFERRED_GAS_ESTIMATE = 'high';
+export const BRIDGE_PREFERRED_GAS_ESTIMATE = 'medium';
 export const BRIDGE_DEFAULT_SLIPPAGE = 0.5;
 export const BRIDGE_MM_FEE_RATE = 0.875;
 export const REFRESH_INTERVAL_MS = 30 * 1000;
