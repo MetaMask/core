@@ -166,23 +166,6 @@ describe('BaseRule', () => {
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
       const rule = new BaseRule(messenger);
 
-      const group: AccountGroupObject = {
-        id: toMultichainAccountGroupId(
-          toMultichainAccountWalletId('test'),
-          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-        ),
-        type: AccountGroupType.MultichainAccount,
-        accounts: [MOCK_HD_ACCOUNT_1.id],
-        metadata: {
-          name: MOCK_HD_ACCOUNT_1.metadata.name,
-          entropy: {
-            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-          },
-          pinned: false,
-          hidden: false,
-        },
-      };
-
       expect(rule.getDefaultAccountGroupName()).toBe('');
     });
 
@@ -190,23 +173,6 @@ describe('BaseRule', () => {
       const rootMessenger = getRootMessenger();
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
       const rule = new BaseRule(messenger);
-
-      const group: AccountGroupObject = {
-        id: toMultichainAccountGroupId(
-          toMultichainAccountWalletId('test'),
-          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-        ),
-        type: AccountGroupType.MultichainAccount,
-        accounts: [MOCK_HD_ACCOUNT_1.id],
-        metadata: {
-          name: MOCK_HD_ACCOUNT_1.metadata.name,
-          entropy: {
-            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-          },
-          pinned: false,
-          hidden: false,
-        },
-      };
 
       expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
       expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');

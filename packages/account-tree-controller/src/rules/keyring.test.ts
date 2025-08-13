@@ -170,20 +170,6 @@ describe('keyring', () => {
         const messenger = getAccountTreeControllerMessenger(rootMessenger);
         const rule = new KeyringRule(messenger);
 
-        const group: AccountGroupObjectOf<AccountGroupType.SingleAccount> = {
-          id: toAccountGroupId(
-            toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.ledger),
-            MOCK_HARDWARE_ACCOUNT_1.address,
-          ),
-          type: AccountGroupType.SingleAccount,
-          accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
-          metadata: {
-            name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
-            pinned: false,
-            hidden: false,
-          },
-        };
-
         expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
         expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
         expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');

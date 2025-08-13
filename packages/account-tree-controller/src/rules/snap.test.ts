@@ -165,20 +165,6 @@ describe('SnapRule', () => {
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
       const rule = new SnapRule(messenger);
 
-      const group: AccountGroupObjectOf<AccountGroupType.SingleAccount> = {
-        id: toAccountGroupId(
-          toAccountWalletId(AccountWalletType.Snap, MOCK_SNAP_1.id),
-          MOCK_SNAP_ACCOUNT_1.id,
-        ),
-        type: AccountGroupType.SingleAccount,
-        accounts: [MOCK_SNAP_ACCOUNT_1.id],
-        metadata: {
-          name: MOCK_SNAP_ACCOUNT_1.metadata.name,
-          pinned: false,
-          hidden: false,
-        },
-      };
-
       expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
       expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
       expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
