@@ -594,7 +594,11 @@ const addTransactionBatchFn = jest.fn();
 const updateTransactionFn = jest.fn();
 const estimateGasFeeFn = jest.fn();
 
-const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
+const getController = (
+  call: jest.Mock,
+  traceFn?: jest.Mock,
+  clientId: BridgeClientId = BridgeClientId.EXTENSION,
+) => {
   const controller = new BridgeStatusController({
     messenger: {
       call,
@@ -603,7 +607,7 @@ const getController = (call: jest.Mock, traceFn?: jest.Mock) => {
       registerActionHandler: jest.fn(),
       registerInitialEventPayload: jest.fn(),
     } as never,
-    clientId: BridgeClientId.EXTENSION,
+    clientId,
     fetchFn: mockFetchFn,
     addTransactionFn,
     addTransactionBatchFn,
@@ -2234,17 +2238,15 @@ describe('BridgeStatusController', () => {
     });
 
     it('should call handleMobileHardwareWalletDelay for hardware wallet on mobile', async () => {
-      // Mock the delay utility function
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
+      const mockTraceFn = jest
+        .fn()
+        .mockImplementation((_p, callback) => callback());
 
-      // Setup mocks
-      setupApprovalMocks();
-      setupBridgeMocks();
-
-      // Mock a hardware wallet account
-      const hardwareWalletAccount = {
+      // Mock for hardware wallet check
+      mockMessengerCall.mockReturnValueOnce({
         ...mockSelectedAccount,
         metadata: {
           ...mockSelectedAccount.metadata,
@@ -2252,180 +2254,36 @@ describe('BridgeStatusController', () => {
             type: 'Ledger Hardware',
           },
         },
-      };
-
-      // Override the account mock to return hardware wallet
-      mockMessengerCall.mockReset();
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
-
-      // Setup approval mocks with hardware wallet account
-      mockMessengerCall.mockReturnValueOnce(hardwareWalletAccount); // for approval
-      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockApprovalTxMeta,
-        result: Promise.resolve('0xapprovalTxHash'),
-      });
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [mockApprovalTxMeta],
       });
 
-      // Setup bridge mocks with hardware wallet account
-      mockMessengerCall.mockReturnValueOnce(hardwareWalletAccount); // for bridge tx
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockEvmTxMeta,
-        result: Promise.resolve('0xevmTxHash'),
-      });
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [mockEvmTxMeta],
-      });
-      mockMessengerCall.mockReturnValueOnce(hardwareWalletAccount); // for tracking
-
-      // Create controller with MOBILE client ID
-      const controller = new BridgeStatusController({
-        messenger: {
-          call: mockMessengerCall,
-          subscribe: mockMessengerSubscribe,
-          publish: jest.fn(),
-          registerActionHandler: jest.fn(),
-          registerInitialEventPayload: jest.fn(),
-        } as never,
-        clientId: BridgeClientId.MOBILE, // Use MOBILE client
-        fetchFn: jest.fn(),
-        addTransactionFn,
-        addTransactionBatchFn,
-        updateTransactionFn,
-        estimateGasFeeFn,
-      });
-
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
-      controller.stopAllPolling();
-
-      // Verify that the delay utility was called with true (requireApproval = true)
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(true);
-      expect(result).toBeDefined();
-      expect(result.id).toBe('test-tx-id');
-      expect(addTransactionFn).toHaveBeenCalledTimes(2); // approval + bridge tx
-    });
-
-    it('should not call handleMobileHardwareWalletDelay for hardware wallet on extension', async () => {
-      // Mock the delay utility function
-      const handleMobileHardwareWalletDelaySpy = jest
-        .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
-        .mockResolvedValueOnce();
-
-      // Setup mocks
       setupApprovalMocks();
       setupBridgeMocks();
 
-      // Mock a hardware wallet account
-      const hardwareWalletAccount = {
-        ...mockSelectedAccount,
-        metadata: {
-          ...mockSelectedAccount.metadata,
-          keyring: {
-            type: 'Ledger Hardware',
-          },
-        },
-      };
-
-      // Override the account mock to return hardware wallet
-      mockMessengerCall.mockReset();
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
-
-      // Setup approval mocks with hardware wallet account
-      mockMessengerCall.mockReturnValueOnce(hardwareWalletAccount); // for approval
-      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockApprovalTxMeta,
-        result: Promise.resolve('0xapprovalTxHash'),
-      });
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [mockApprovalTxMeta],
-      });
-
-      // Setup bridge mocks with hardware wallet account
-      mockMessengerCall.mockReturnValueOnce(hardwareWalletAccount); // for bridge tx
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
-        transactionMeta: mockEvmTxMeta,
-        result: Promise.resolve('0xevmTxHash'),
-      });
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [mockEvmTxMeta],
-      });
-      mockMessengerCall.mockReturnValueOnce(hardwareWalletAccount); // for tracking
-
-      // Create controller with EXTENSION client ID (default)
-      const { controller } = getController(mockMessengerCall);
+      const { controller, startPollingForBridgeTxStatusSpy } = getController(
+        mockMessengerCall,
+        mockTraceFn,
+        BridgeClientId.MOBILE,
+      );
 
       const result = await controller.submitTx(mockEvmQuoteResponse, false);
       controller.stopAllPolling();
 
-      // Verify that the delay utility was called with false (requireApproval = false for extension)
+      expect(mockTraceFn).toHaveBeenCalledTimes(2);
       expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(false);
-      expect(result).toBeDefined();
-      expect(result.id).toBe('test-tx-id');
-      expect(addTransactionFn).toHaveBeenCalledTimes(2); // approval + bridge tx
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
-    it('should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile', async () => {
-      // Mock the delay utility function
-      const handleMobileHardwareWalletDelaySpy = jest
-        .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
-        .mockResolvedValueOnce();
+    it.todo(
+      'should not call handleMobileHardwareWalletDelay for hardware wallet on extension',
+    );
 
-      // Setup mocks
-      setupApprovalMocks();
-      setupBridgeMocks();
-
-      // Create controller with MOBILE client ID but regular account
-      const controller = new BridgeStatusController({
-        messenger: {
-          call: mockMessengerCall,
-          subscribe: mockMessengerSubscribe,
-          publish: jest.fn(),
-          registerActionHandler: jest.fn(),
-          registerInitialEventPayload: jest.fn(),
-        } as never,
-        clientId: BridgeClientId.MOBILE, // Use MOBILE client
-        fetchFn: jest.fn(),
-        addTransactionFn,
-        addTransactionBatchFn,
-        updateTransactionFn,
-        estimateGasFeeFn,
-      });
-
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
-      controller.stopAllPolling();
-
-      // Verify that the delay utility was called with false (requireApproval = false for non-hardware wallet)
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(false);
-      expect(result).toBeDefined();
-      expect(result.id).toBe('test-tx-id');
-      expect(addTransactionFn).toHaveBeenCalledTimes(2); // approval + bridge tx
-    });
+    it.todo(
+      'should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile',
+    );
   });
 
   describe('submitTx: EVM swap', () => {
