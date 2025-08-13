@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 497.0.0 ([#6291](https://github.com/MetaMask/core/pull/6291))
+- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
+
 ### Added
 
 - Add new utility functions for efficient balance fetching using Multicall3 ([#6212](https://github.com/MetaMask/core/pull/6212))
