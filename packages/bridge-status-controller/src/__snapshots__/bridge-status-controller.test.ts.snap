@@ -390,6 +390,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -406,7 +410,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -530,7 +535,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1069,6 +1074,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1085,7 +1094,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1209,7 +1219,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1287,6 +1297,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1303,7 +1317,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1427,7 +1442,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
