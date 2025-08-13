@@ -323,9 +323,9 @@ export class AccountTreeController extends BaseController<
       // For new groups, use default naming. For existing groups, try computed name first
       const isNewGroup = this.#newGroupsMap.get(group) || false;
       group.metadata.name = isNewGroup
-        ? rule.getDefaultAccountGroupName(typedGroup, groupIndex)
+        ? rule.getDefaultAccountGroupName(groupIndex)
         : rule.getComputedAccountGroupName(typedGroup) ||
-          rule.getDefaultAccountGroupName(typedGroup, groupIndex);
+          rule.getDefaultAccountGroupName(groupIndex);
     }
 
     // Apply persisted UI states

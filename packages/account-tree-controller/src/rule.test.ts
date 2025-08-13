@@ -183,7 +183,7 @@ describe('BaseRule', () => {
         },
       };
 
-      expect(rule.getDefaultAccountGroupName(group)).toBe('');
+      expect(rule.getDefaultAccountGroupName()).toBe('');
     });
 
     it('returns formatted account name when index is provided', () => {
@@ -208,9 +208,9 @@ describe('BaseRule', () => {
         },
       };
 
-      expect(rule.getDefaultAccountGroupName(group, 0)).toBe('Account 1');
-      expect(rule.getDefaultAccountGroupName(group, 1)).toBe('Account 2');
-      expect(rule.getDefaultAccountGroupName(group, 5)).toBe('Account 6');
+      expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
+      expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
+      expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
     });
   });
 });

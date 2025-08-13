@@ -110,10 +110,7 @@ export class EntropyRule
     return candidate;
   }
 
-  getDefaultAccountGroupName(
-    _group: AccountGroupObjectOf<AccountGroupType.MultichainAccount>,
-    index: number,
-  ): string {
+  getDefaultAccountGroupName(index: number): string {
     return `Account ${index + 1}`;
   }
 }

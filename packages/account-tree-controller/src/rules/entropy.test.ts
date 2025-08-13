@@ -190,9 +190,9 @@ describe('EntropyRule', () => {
         },
       };
 
-      expect(rule.getDefaultAccountGroupName(group, 0)).toBe('Account 1');
-      expect(rule.getDefaultAccountGroupName(group, 1)).toBe('Account 2');
-      expect(rule.getDefaultAccountGroupName(group, 5)).toBe('Account 6');
+      expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
+      expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
+      expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
     });
 
     it('getComputedAccountGroupName returns account name with EVM priority', () => {

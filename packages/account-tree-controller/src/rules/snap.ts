@@ -100,10 +100,7 @@ export class SnapRule
     return super.getComputedAccountGroupName(group);
   }
 
-  getDefaultAccountGroupName(
-    group: AccountGroupObjectOf<AccountGroupType.SingleAccount>,
-    index?: number,
-  ): string {
-    return super.getDefaultAccountGroupName(group, index);
+  getDefaultAccountGroupName(index?: number): string {
+    return super.getDefaultAccountGroupName(index);
   }
 }

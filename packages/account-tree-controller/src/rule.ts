@@ -83,14 +83,10 @@ export type Rule<
   /**
    * Gets default name for a group based on its position in the wallet.
    *
-   * @param group - Group associated to this rule.
    * @param index - The group's position within its wallet.
    * @returns The default name for that group.
    */
-  getDefaultAccountGroupName(
-    group: AccountGroupObjectOf<GroupType>,
-    index: number,
-  ): string;
+  getDefaultAccountGroupName(index: number): string;
 };
 
 export class BaseRule {
@@ -119,14 +115,10 @@ export class BaseRule {
   /**
    * Gets default name for a group based on its position in the wallet.
    *
-   * @param _group - Group associated to this rule.
    * @param index - The group's position within its wallet.
    * @returns The default name for that group.
    */
-  getDefaultAccountGroupName(
-    _group: AccountGroupObject,
-    index?: number,
-  ): string {
+  getDefaultAccountGroupName(index?: number): string {
     return index === undefined ? '' : `Account ${index + 1}`;
   }
 }
