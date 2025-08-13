@@ -210,5 +210,11 @@ export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-
 export type {
   AccountGroupBalance,
   WalletBalance,
-} from './selectors/balanceSelectors';
-export { balanceSelectors } from './selectors/balanceSelectors';
+  AllWalletsBalance,
+} from './balances';
+export { calculateBalanceForAllWallets } from './balances';
+export type {
+  PortfolioChangePeriod,
+  AggregatedChangeForAllWallets,
+} from './balances';
+export { calculateAggregatedChangeForAllWallets } from './balances';
