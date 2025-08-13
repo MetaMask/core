@@ -1,0 +1,536 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
+
+import {
+  calculateBalanceForAllWallets,
+  calculateAggregatedChangeForAllWallets,
+} from './balances';
+
+const createBaseMockState = (userCurrency = 'USD') => ({
+  AccountTreeController: {
+    accountTree: {
+      wallets: {
+        'entropy:entropy-source-1': {
+          id: 'entropy:entropy-source-1',
+          type: AccountWalletType.Entropy,
+          metadata: {
+            name: 'Wallet 1',
+            entropy: { id: 'entropy-source-1', index: 0 },
+          },
+          groups: {
+            'entropy:entropy-source-1/0': {
+              id: 'entropy:entropy-source-1/0',
+              type: AccountGroupType.MultichainAccount,
+              accounts: ['account-1', 'account-2'],
+              metadata: {
+                name: 'Group 0',
+                pinned: false,
+                hidden: false,
+                entropy: { groupIndex: 0 },
+              },
+            },
+            'entropy:entropy-source-1/1': {
+              id: 'entropy:entropy-source-1/1',
+              type: AccountGroupType.MultichainAccount,
+              accounts: ['account-3'],
+              metadata: {
+                name: 'Group 1',
+                pinned: false,
+                hidden: false,
+                entropy: { groupIndex: 1 },
+              },
+            },
+          },
+        },
+      },
+      selectedAccountGroup: 'entropy:entropy-source-1/0',
+    },
+    accountGroupsMetadata: {},
+    accountWalletsMetadata: {},
+  },
+  AccountsController: {
+    internalAccounts: {
+      accounts: {
+        'account-1': {
+          id: 'account-1',
+          address: '0x1234567890123456789012345678901234567890',
+          type: 'eip155:eoa',
+          scopes: ['eip155:1', 'eip155:89', 'eip155:a4b1'],
+          methods: [],
+          options: {},
+          metadata: {
+            name: 'Account 1',
+            keyring: { type: 'hd' },
+            importTime: 0,
+          },
+        },
+        'account-2': {
+          id: 'account-2',
+          address: '0x2345678901234567890123456789012345678901',
+          type: 'eip155:eoa',
+          scopes: ['eip155:1'],
+          methods: [],
+          options: {},
+          metadata: {
+            name: 'Account 2',
+            keyring: { type: 'hd' },
+            importTime: 0,
+          },
+        },
+        'account-3': {
+          id: 'account-3',
+          address: '0x3456789012345678901234567890123456789012',
+          type: 'eip155:eoa',
+          scopes: ['eip155:1'],
+          methods: [],
+          options: {},
+          metadata: {
+            name: 'Account 3',
+            keyring: { type: 'hd' },
+            importTime: 0,
+          },
+        },
+      },
+      selectedAccount: 'account-1',
+    },
+  },
+  TokenBalancesController: {
+    tokenBalances: {
+      '0x1234567890123456789012345678901234567890': {
+        '0x1': {
+          '0x1234567890123456789012345678901234567890': '0x5f5e100',
+          '0x2345678901234567890123456789012345678901': '0xbebc200',
+        },
+        '0x89': {
+          '0x1234567890123456789012345678901234567890': '0x1dcd6500',
+          '0x2345678901234567890123456789012345678901': '0x3b9aca00',
+        },
+        '0xa4b1': {
+          '0x1234567890123456789012345678901234567890': '0x2faf080',
+          '0x2345678901234567890123456789012345678901': '0x8f0d180',
+        },
+      },
+      '0x2345678901234567890123456789012345678901': {
+        '0x1': {
+          '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': '0x56bc75e2d63100000',
+          '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': '0xde0b6b3a7640000',
+        },
+      },
+    },
+  },
+  TokenRatesController: {
+    marketData: {
+      '0x1': {
+        '0x1234567890123456789012345678901234567890': {
+          tokenAddress: '0x123...',
+          currency: 'ETH',
+          price: 0.00041,
+        },
+        '0x2345678901234567890123456789012345678901': {
+          tokenAddress: '0x234...',
+          currency: 'ETH',
+          price: 0.00041,
+        },
+        '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': {
+          tokenAddress: '0xC0b...',
+          currency: 'ETH',
+          price: 0.00041,
+        },
+        '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1': {
+          tokenAddress: '0xD0b...',
+          currency: 'ETH',
+          price: 1.0,
+        },
+      },
+      '0x89': {
+        '0x1234567890123456789012345678901234567890': {
+          tokenAddress: '0x123...',
+          currency: 'MATIC',
+          price: 1.25,
+        },
+        '0x2345678901234567890123456789012345678901': {
+          tokenAddress: '0x234...',
+          currency: 'MATIC',
+          price: 1.25,
+        },
+      },
+      '0xa4b1': {
+        '0x1234567890123456789012345678901234567890': {
+          tokenAddress: '0x123...',
+          currency: 'ARB',
+          price: 0.91,
+        },
+        '0x2345678901234567890123456789012345678901': {
+          tokenAddress: '0x234...',
+          currency: 'ARB',
+          price: 0.91,
+        },
+      },
+    },
+  },
+  TokensController: {
+    allTokens: {
+      '0x1': {
+        '0x1234567890123456789012345678901234567890': [
+          {
+            address: '0x1234567890123456789012345678901234567890',
+            decimals: 6,
+            symbol: 'USDC',
+            name: 'USD Coin',
+          },
+          {
+            address: '0x2345678901234567890123456789012345678901',
+            decimals: 6,
+            symbol: 'USDT',
+            name: 'Tether USD',
+          },
+          {
+            address: '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1',
+            decimals: 18,
+            symbol: 'DAI',
+            name: 'Dai',
+          },
+          {
+            address: '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1',
+            decimals: 18,
+            symbol: 'WETH',
+            name: 'Wrapped Ether',
+          },
+        ],
+        '0x2345678901234567890123456789012345678901': [
+          {
+            address: '0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1',
+            decimals: 18,
+            symbol: 'DAI',
+            name: 'Dai',
+          },
+          {
+            address: '0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1',
+            decimals: 18,
+            symbol: 'WETH',
+            name: 'Wrapped Ether',
+          },
+        ],
+      },
+      '0x89': {
+        '0x1234567890123456789012345678901234567890': [
+          {
+            address: '0x1234567890123456789012345678901234567890',
+            decimals: 6,
+            symbol: 'USDC',
+            name: 'USD Coin',
+          },
+          {
+            address: '0x2345678901234567890123456789012345678901',
+            decimals: 6,
+            symbol: 'USDT',
+            name: 'Tether USD',
+          },
+        ],
+      },
+      '0xa4b1': {
+        '0x1234567890123456789012345678901234567890': [
+          {
+            address: '0x1234567890123456789012345678901234567890',
+            decimals: 6,
+            symbol: 'USDC',
+            name: 'USD Coin',
+          },
+          {
+            address: '0x2345678901234567890123456789012345678901',
+            decimals: 6,
+            symbol: 'USDT',
+            name: 'Tether USD',
+          },
+        ],
+      },
+    },
+  },
+  MultichainAssetsRatesController: { conversionRates: {} },
+  MultichainBalancesController: { balances: {} },
+  CurrencyRateController: {
+    currentCurrency: userCurrency,
+    currencyRates: {
+      ETH: { conversionRate: 2400, usdConversionRate: 2400 },
+      MATIC: { conversionRate: 0.8, usdConversionRate: 0.8 },
+      ARB: { conversionRate: 1.1, usdConversionRate: 1.1 },
+    },
+  },
+});
+
+const createMobileMockState = (userCurrency = 'USD') => ({
+  engine: { backgroundState: createBaseMockState(userCurrency) },
+});
+
+describe('calculateBalanceForAllWallets', () => {
+  it('computes all wallets total in USD', () => {
+    const state = createMobileMockState('USD');
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4493.8, 1);
+  });
+
+  it('computes totals in EUR (different conversion rates)', () => {
+    const state = createMobileMockState('EUR');
+    state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040;
+    state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68;
+    state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935;
+
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(3819.73, 2);
+    expect(result.userCurrency).toBe('EUR');
+  });
+
+  it('includes non-EVM balances when provided', () => {
+    const state = createMobileMockState('EUR');
+    // Adjust EUR rates
+    state.engine.backgroundState.CurrencyRateController.currencyRates.ETH.conversionRate = 2040;
+    state.engine.backgroundState.CurrencyRateController.currencyRates.MATIC.conversionRate = 0.68;
+    state.engine.backgroundState.CurrencyRateController.currencyRates.ARB.conversionRate = 0.935;
+
+    // Add non-EVM account to group 0
+    (
+      state.engine.backgroundState as any
+    ).AccountsController.internalAccounts.accounts['account-4'] = {
+      id: 'account-4',
+      address: 'FzQ4QJ...yCzPq8dYc',
+      type: 'solana:eoa',
+      scopes: ['solana:mainnet'],
+      methods: [],
+      options: {},
+      metadata: { name: 'Sol', keyring: { type: 'hd' }, importTime: 0 },
+    };
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push('account-4');
+
+    // Non-EVM balance and conversion rate (already in user currency)
+    (state.engine.backgroundState as any).MultichainBalancesController.balances[
+      'account-4'
+    ] = {
+      'solana:mainnet/solana:FzQ4QJ...yCzPq8dYc': {
+        amount: '50.0',
+        unit: 'SOL',
+      },
+    };
+    (
+      state.engine.backgroundState as any
+    ).MultichainAssetsRatesController.conversionRates[
+      'solana:mainnet/solana:FzQ4QJ...yCzPq8dYc'
+    ] = {
+      rate: '50.0',
+      conversionTime: 0,
+    };
+
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+    // 3819.73 EUR (EVM from previous test) + 50*50 = 2500 = 6319.73
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(6319.73, 2);
+  });
+
+  it('filters out disabled chains via enabledNetworkMap (mobile semantics: false disables)', () => {
+    const state = createMobileMockState('USD');
+    const enabledNetworkMap = {
+      eip155: { '0x1': true, '0x89': true, '0xa4b1': false },
+    } as Record<string, Record<string, boolean>>;
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      enabledNetworkMap,
+    );
+    // Excluding ARB group amounts (200.2) from 4493.8 => 4293.6
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4293.6, 1);
+  });
+
+  it('filters out chains missing from enabledNetworkMap (extension semantics: missing disables)', () => {
+    const state = createMobileMockState('USD');
+    const enabledNetworkMap = {
+      eip155: { '0x1': true, '0x89': true },
+    } as Record<string, Record<string, boolean>>; // 0xa4b1 missing
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      enabledNetworkMap,
+    );
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(4293.6, 1);
+  });
+
+  describe('calculateAggregatedChangeForAllWallets', () => {
+    it('computes 1d change for EVM tokens', () => {
+      const state = createMobileMockState('USD');
+      // Inject percent change into market data for one token to exercise change calc
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      // Expect exact calculations:
+      // 1 WETH @ 1 ETH, 1 ETH = 2400 USD => current = 2400
+      // previous = 2400 / 1.1, delta = current - previous, pct = 10%
+      expect(out.userCurrency).toBe('USD');
+      expect(out.period).toBe('1d');
+      expect(out.currentTotalInUserCurrency).toBeCloseTo(2400, 6);
+      expect(out.previousTotalInUserCurrency).toBeCloseTo(2400 / 1.1, 6);
+      expect(out.amountChangeInUserCurrency).toBeCloseTo(2400 - 2400 / 1.1, 6);
+      expect(out.percentChange).toBeCloseTo(10, 6);
+    });
+
+    it('respects enabledNetworkMap', () => {
+      const state = createMobileMockState('USD');
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
+      const enabledNetworkMap = {
+        eip155: { '0x1': false, '0x89': true, '0xa4b1': true },
+      } as Record<string, Record<string, boolean>>;
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        enabledNetworkMap,
+        '1d',
+      );
+
+      // With ETH disabled, change should exclude 0x1 tokens => zeros across the board
+      expect(out.currentTotalInUserCurrency).toBe(0);
+      expect(out.previousTotalInUserCurrency).toBe(0);
+      expect(out.amountChangeInUserCurrency).toBe(0);
+      expect(out.percentChange).toBe(0);
+    });
+
+    it('computes 1d change aggregating EVM and non-EVM assets (complex case)', () => {
+      const state = createMobileMockState('USD');
+
+      // EVM side: 1 WETH @ 1 ETH, ETH→USD=2400, +10% (pricePercentChange1d)
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
+
+      // Non-EVM side: add a Solana-like asset with 10 units @ 50 USD each, +20% (P1D)
+      (
+        state.engine.backgroundState as any
+      ).AccountsController.internalAccounts.accounts['account-4'] = {
+        id: 'account-4',
+        address: 'FzQ4QJ...yCzPq8dYc',
+        type: 'solana:eoa',
+        scopes: ['solana:mainnet'],
+        methods: [],
+        options: {},
+        metadata: { name: 'Sol', keyring: { type: 'hd' }, importTime: 0 },
+      };
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/0'].accounts.push('account-4');
+
+      (
+        state.engine.backgroundState as any
+      ).MultichainBalancesController.balances['account-4'] = {
+        'solana:mainnet/solana:FzQ4QJ...yCzPq8dYc': {
+          amount: '10.0',
+          unit: 'SOL',
+        },
+      };
+      (
+        state.engine.backgroundState as any
+      ).MultichainAssetsRatesController.conversionRates[
+        'solana:mainnet/solana:FzQ4QJ...yCzPq8dYc'
+      ] = {
+        rate: '50.0',
+        marketData: { pricePercentChange: { P1D: 20 } },
+        conversionTime: 0,
+      };
+
+      const out = calculateAggregatedChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      // Calculation:
+      // EVM current = 1 * 1 ETH * 2400 USD = 2400; previous = 2400 / 1.1
+      // non-EVM current = 10 * 50 = 500; previous = 500 / 1.2
+      // total current = 2400 + 500 = 2900
+      // total previous = 2400/1.1 + 500/1.2
+      // amount change = current - previous
+      // percent change = (amount change / previous) * 100
+      const expectedCurrent = 2400 + 500;
+      const expectedPrevious = 2400 / 1.1 + 500 / 1.2;
+      const expectedDelta = expectedCurrent - expectedPrevious;
+      const expectedPct = (expectedDelta / expectedPrevious) * 100;
+
+      expect(out.currentTotalInUserCurrency).toBeCloseTo(expectedCurrent, 6);
+      expect(out.previousTotalInUserCurrency).toBeCloseTo(expectedPrevious, 6);
+      expect(out.amountChangeInUserCurrency).toBeCloseTo(expectedDelta, 6);
+      expect(out.percentChange).toBeCloseTo(expectedPct, 6);
+    });
+  });
+});
