@@ -3,6 +3,7 @@ import type {
   QuoteResponse,
   TxData,
   QuoteMetadata,
+  QuoteFetchData,
 } from '@metamask/bridge-controller';
 import {
   type TxStatusData,
@@ -28,8 +29,6 @@ import {
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import type { BridgeHistoryItem } from 'src/types';
-
-import type { QuoteFetchData } from '../../../bridge-controller/src/utils/metrics/types';
 
 export const getTxStatusesFromHistory = ({
   status,
