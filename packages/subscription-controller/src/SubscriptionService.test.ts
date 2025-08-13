@@ -456,7 +456,7 @@ describe('SubscriptionService', () => {
         .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
         .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
 
-      const result = await service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST);
+      const result = await service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST);
 
       expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
       expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
@@ -475,7 +475,7 @@ describe('SubscriptionService', () => {
         .post('/api/v1/subscriptions/card', request)
         .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
 
-      const result = await service.startSubscription(request);
+      const result = await service.startSubscriptionWithCard(request);
 
       expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
     });
@@ -490,7 +490,7 @@ describe('SubscriptionService', () => {
         .reply(400, MOCK_ERROR_RESPONSE);
 
       await expect(
-        service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+        service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
       ).rejects.toThrow(/Subscription not found/u);
     });
 
@@ -504,7 +504,7 @@ describe('SubscriptionService', () => {
         .replyWithError('Network error');
 
       await expect(
-        service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+        service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
       ).rejects.toThrow(/Network error/u);
     });
 
@@ -516,7 +516,7 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
 
       await expect(
-        service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+        service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
       ).rejects.toThrow(SubscriptionServiceError);
     });
 
@@ -530,10 +530,10 @@ describe('SubscriptionService', () => {
 
       try {
         await expect(
-          service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+          service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
         ).rejects.toThrow(SubscriptionServiceError);
         await expect(
-          service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+          service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
         ).rejects.toThrow(/failed to start subscription\. ""/u);
       } finally {
         // Clean up
@@ -550,7 +550,7 @@ describe('SubscriptionService', () => {
       };
 
       await expect(
-        service.startSubscription(request),
+        service.startSubscriptionWithCard(request),
       ).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
@@ -575,7 +575,7 @@ describe('SubscriptionService', () => {
 
       await service.getSubscription();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-      await service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST);
+      await service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST);
 
       expect(config.auth.getAccessToken).toHaveBeenCalledTimes(3);
     });
@@ -606,7 +606,7 @@ describe('SubscriptionService', () => {
 
       await service.getSubscription();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-      await service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST);
+      await service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST);
 
       expect(isDone()).toBe(true);
     });

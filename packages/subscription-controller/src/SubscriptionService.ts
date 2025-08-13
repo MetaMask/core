@@ -1,4 +1,8 @@
-import { getEnvUrls, SubscriptionControllerErrorMessage, type Env } from './constants';
+import {
+  getEnvUrls,
+  SubscriptionControllerErrorMessage,
+  type Env,
+} from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   ISubscriptionService,
@@ -96,7 +100,7 @@ export class SubscriptionService implements ISubscriptionService {
     }
   }
 
-  async startSubscription(
+  async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
     const path = 'subscriptions/card';

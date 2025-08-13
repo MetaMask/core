@@ -133,19 +133,19 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscription = jest.fn();
   const mockCancelSubscription = jest.fn();
-  const mockStartSubscription = jest.fn();
+  const mockStartSubscriptionWithCard = jest.fn();
 
   const mockService = {
     getSubscription: mockGetSubscription,
     cancelSubscription: mockCancelSubscription,
-    startSubscription: mockStartSubscription,
+    startSubscriptionWithCard: mockStartSubscriptionWithCard,
   };
 
   return {
     mockService,
     mockGetSubscription,
     mockCancelSubscription,
-    mockStartSubscription,
+    mockStartSubscriptionWithCard,
   };
 }
 
@@ -568,12 +568,12 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          mockService.startSubscription.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
+          mockService.startSubscriptionWithCard.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
 
-          const result = await controller.startShieldSubscription();
+          const result = await controller.startShieldSubscriptionWithCard();
 
           expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
-          expect(mockService.startSubscription).toHaveBeenCalledWith({
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
             products: ['shield'],
             isTrialRequested: true,
           });
@@ -589,12 +589,12 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          await expect(controller.startShieldSubscription()).rejects.toThrow(
+          await expect(controller.startShieldSubscriptionWithCard()).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserAlreadySubscribed,
           );
 
           // Verify the subscription service was not called
-          expect(mockService.startSubscription).not.toHaveBeenCalled();
+          expect(mockService.startSubscriptionWithCard).not.toHaveBeenCalled();
         },
       );
     });
@@ -608,15 +608,15 @@ describe('SubscriptionController', () => {
         },
         async ({ controller, mockService }) => {
           const errorMessage = 'Failed to start subscription';
-          mockService.startSubscription.mockRejectedValue(
+          mockService.startSubscriptionWithCard.mockRejectedValue(
             new SubscriptionServiceError(errorMessage),
           );
 
-          await expect(controller.startShieldSubscription()).rejects.toThrow(
+          await expect(controller.startShieldSubscriptionWithCard()).rejects.toThrow(
             SubscriptionServiceError,
           );
 
-          expect(mockService.startSubscription).toHaveBeenCalledWith({
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
             products: ['shield'],
             isTrialRequested: true,
           });

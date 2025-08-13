@@ -118,7 +118,7 @@ export type SubscriptionControllerOptions = {
 export type ISubscriptionService = {
   getSubscription(): Promise<Subscription | null>;
   cancelSubscription(params: { subscriptionId: string }): Promise<void>;
-  startSubscription(
+  startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
 };

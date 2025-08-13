@@ -120,10 +120,10 @@ export class SubscriptionController extends BaseController<
     await this.#subscriptionService.cancelSubscription({ subscriptionId });
   }
 
-  async startShieldSubscription() {
+  async startShieldSubscriptionWithCard() {
     this.#assertIsUserNotSubscribed();
 
-    return await this.#subscriptionService.startSubscription({
+    return await this.#subscriptionService.startSubscriptionWithCard({
       products: [SUBSCRIPTION_PRODUCTS.SHIELD],
       isTrialRequested: true,
     });
