@@ -30,7 +30,9 @@ import {
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import type { BridgeHistoryItem } from 'src/types';
+
+import { calcActualGasUsed } from './gas';
+import type { BridgeHistoryItem } from '../types';
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -68,7 +70,7 @@ export const getTxStatusesFromHistory = ({
   };
 };
 
-const getActualReturn = (
+const calcActualReturn = (
   historyItem: BridgeHistoryItem,
   txMeta?: TransactionMeta,
 ): Omit<TokenAmountValues, 'valueInCurrency'> => {
@@ -109,13 +111,18 @@ export const getFinalizedTxProperties = (
     historyItem.startTime;
   const completionTime = historyItem.completionTime ?? txMeta?.time;
 
-  const actualReturn = getActualReturn(historyItem, txMeta);
+  const actualReturn = calcActualReturn(historyItem, txMeta);
+  const actualGas = calcActualGasUsed(
+    historyItem,
+    txMeta?.txReceipt,
+    approvalTxMeta?.txReceipt,
+  );
 
   return {
     actual_time_minutes:
       completionTime && startTime ? (completionTime - startTime) / 60000 : 0,
     usd_actual_return: Number(actualReturn.usd ?? 0),
-    usd_actual_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0), // TODO calculate based on USD price at completion time
+    usd_actual_gas: actualGas?.usd ?? 0,
     quote_vs_execution_ratio: 1, // TODO calculate based on USD price at completion time
     quoted_vs_used_gas_ratio: 1, // TODO calculate based on USD price at completion time
   };

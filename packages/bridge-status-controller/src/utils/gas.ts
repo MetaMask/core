@@ -1,4 +1,4 @@
-import type { TxData } from '@metamask/bridge-controller';
+import type { TokenAmountValues, TxData } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
   GasFeeEstimates,
@@ -7,11 +7,15 @@ import type {
 import type {
   FeeMarketGasFeeEstimates,
   TransactionController,
+  TransactionReceipt,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeStatusControllerMessenger } from '../types';
+import type {
+  BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
+} from '../types';
 
 const getTransaction1559GasFeeEstimates = (
   txGasFeeEstimates: FeeMarketGasFeeEstimates,
@@ -95,4 +99,44 @@ export const calculateGasFees = async (
     maxPriorityFeePerGas,
     gas: maxGasLimit,
   };
+};
+
+const calcGasInHexWei = (gasLimit?: string, gasPrice?: string) => {
+  return gasLimit && gasPrice
+    ? new BigNumber(gasLimit, 16).times(new BigNumber(gasPrice, 16))
+    : null;
+};
+
+export const calcActualGasUsed = (
+  { pricingData }: BridgeHistoryItem,
+  txReceipt?: TransactionReceipt,
+  approvalTxReceipt?: TransactionReceipt,
+): Omit<TokenAmountValues, 'valueInCurrency'> | null => {
+  const usdExchangeRate =
+    pricingData?.quotedGasInUsd && pricingData?.quotedGasAmount
+      ? new BigNumber(pricingData?.quotedGasInUsd).div(
+          pricingData.quotedGasAmount,
+        )
+      : null;
+
+  const actualGasInDecEth = calcGasInHexWei(
+    txReceipt?.gasUsed,
+    txReceipt?.effectiveGasPrice,
+  )
+    ?.plus(
+      calcGasInHexWei(
+        approvalTxReceipt?.gasUsed,
+        approvalTxReceipt?.effectiveGasPrice,
+      ) ?? 0,
+    )
+    .div(new BigNumber(10).pow(18))
+    .toString(10);
+
+  return actualGasInDecEth
+    ? {
+        amount: actualGasInDecEth,
+        usd:
+          usdExchangeRate?.multipliedBy(actualGasInDecEth).toString(10) ?? null,
+      }
+    : null;
 };
