@@ -119,9 +119,16 @@ export const getFinalizedTxProperties = (
   );
 
   const quotedVsUsedGasRatio =
-    historyItem.pricingData?.quotedGasAmount && actualGas.usd
+    historyItem.pricingData?.quotedGasAmount && actualGas?.amount
       ? new BigNumber(historyItem.pricingData.quotedGasAmount)
           .div(actualGas.amount)
+          .toNumber()
+      : 0;
+
+  const quoteVsExecutionRatio =
+    historyItem.pricingData?.quotedReturnInUsd && actualReturn.usd
+      ? new BigNumber(historyItem.pricingData.quotedReturnInUsd)
+          .div(actualReturn.usd)
           .toNumber()
       : 0;
 
@@ -130,7 +137,7 @@ export const getFinalizedTxProperties = (
       completionTime && startTime ? (completionTime - startTime) / 60000 : 0,
     usd_actual_return: Number(actualReturn.usd ?? 0),
     usd_actual_gas: actualGas?.usd ?? 0,
-    quote_vs_execution_ratio: 1, // TODO calculate based on USD price at completion time
+    quote_vs_execution_ratio: quoteVsExecutionRatio,
     quoted_vs_used_gas_ratio: quotedVsUsedGasRatio,
   };
 };
