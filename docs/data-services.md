@@ -78,7 +78,7 @@ Next we'll define the messenger. We give the messenger a namespace, and we expos
 ```typescript
 // (top of file)
 
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/base-controller';
 
 const SERVICE_NAME = 'GasPricesService';
 

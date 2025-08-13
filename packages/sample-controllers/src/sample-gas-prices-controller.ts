@@ -1,10 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type { NetworkControllerGetStateAction } from './network-controller-types';
@@ -123,12 +123,10 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link SampleGasPricesController}.
  */
-export type SampleGasPricesControllerMessenger = RestrictedMessenger<
+export type SampleGasPricesControllerMessenger = Messenger<
   typeof controllerName,
   SampleGasPricesControllerActions | AllowedActions,
-  SampleGasPricesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SampleGasPricesControllerEvents | AllowedEvents
 >;
 
 /**

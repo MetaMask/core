@@ -1,11 +1,11 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 
 import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
@@ -143,38 +143,28 @@ describe('SamplePetnamesController', () => {
 });
 
 /**
- * The union of actions that the root messenger allows.
+ * The union of all SamplePetnamesController actions.
  */
-type RootAction = ExtractAvailableAction<SamplePetnamesControllerMessenger>;
+type AllSamplePetnamesControllerActions =
+  MessengerActions<SamplePetnamesControllerMessenger>;
 
 /**
- * The union of events that the root messenger allows.
+ * The union of all SamplePetnamesController events.
  */
-type RootEvent = ExtractAvailableEvent<SamplePetnamesControllerMessenger>;
+type AllSamplePetnamesControllerEvents =
+  MessengerEvents<SamplePetnamesControllerMessenger>;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
- * publish events within the tests for this controller.
+ * Constructs the SamplePetnamesController messenger.
  *
- * @returns The unrestricted messenger suited for SamplePetnamesController.
+ * @returns The SamplePetnamesController messenger.
  */
-function getRootMessenger(): Messenger<RootAction, RootEvent> {
-  return new Messenger<RootAction, RootEvent>();
-}
-
-/**
- * Constructs the messenger which is restricted to relevant SamplePetnamesController
- * actions and events.
- *
- * @param rootMessenger - The root messenger to restrict.
- * @returns The restricted messenger.
- */
-function getMessenger(
-  rootMessenger = getRootMessenger(),
-): SamplePetnamesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SamplePetnamesController',
-    allowedActions: [],
-    allowedEvents: [],
+function getMessenger(): SamplePetnamesControllerMessenger {
+  return new Messenger<
+    'SamplePetnamesController',
+    AllSamplePetnamesControllerActions,
+    AllSamplePetnamesControllerEvents
+  >({
+    namespace: 'SamplePetnamesController',
   });
 }
