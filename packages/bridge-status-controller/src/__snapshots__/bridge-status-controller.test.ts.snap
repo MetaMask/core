@@ -2380,6 +2380,7 @@ Object {
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
+    "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
@@ -2644,7 +2645,7 @@ Array [
       "provider": "test-bridge_undefined",
       "quote_vs_execution_ratio": 1,
       "quoted_time_minutes": 5,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -2654,7 +2655,7 @@ Array [
       "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
-      "usd_actual_gas": 5,
+      "usd_actual_gas": 0,
       "usd_actual_return": 1000,
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
@@ -2706,6 +2707,7 @@ Object {
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
+    "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
@@ -2886,6 +2888,9 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
 Array [
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2906,9 +2911,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -2952,9 +2957,9 @@ Array [
     "is_hardware_wallet": false,
     "price_impact": 0,
     "provider": "lifi_across",
-    "quote_vs_execution_ratio": 1,
+    "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0.25,
-    "quoted_vs_used_gas_ratio": 1,
+    "quoted_vs_used_gas_ratio": 0,
     "security_warnings": Array [],
     "slippage_limit": 0,
     "source_transaction": "COMPLETE",
@@ -2967,7 +2972,7 @@ Array [
     "usd_actual_gas": 0,
     "usd_actual_return": 0,
     "usd_amount_source": 0,
-    "usd_quoted_gas": 0,
+    "usd_quoted_gas": 2.5778,
     "usd_quoted_return": 0,
   },
 ]
@@ -3048,6 +3053,9 @@ Array [
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
 Array [
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -3068,9 +3076,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
