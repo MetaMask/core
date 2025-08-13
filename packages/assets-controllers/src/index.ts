@@ -217,4 +217,7 @@ export type {
   PortfolioChangePeriod,
   AggregatedChangeForAllWallets,
 } from './balances';
-export { calculateAggregatedChangeForAllWallets } from './balances';
+export {
+  calculateAggregatedChangeForAllWallets,
+  calculateAggregatedChangeForGroup,
+} from './balances';
