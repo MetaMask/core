@@ -1018,6 +1018,445 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay for hardware wallet on extension 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay for hardware wallet on extension 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": Object {
+    "bridgeId": "lifi",
+    "bridges": Array [
+      "across",
+    ],
+    "destAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 10,
+    "destTokenAmount": "990654755978612",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "8750000000000",
+        "asset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+    },
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": Object {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay for hardware wallet on extension 3`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay for hardware wallet on extension 4`] = `
+Array [
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasInUsd": undefined,
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": Object {
+    "bridgeId": "lifi",
+    "bridges": Array [
+      "across",
+    ],
+    "destAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 10,
+    "destTokenAmount": "990654755978612",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "8750000000000",
+        "asset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+    },
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": Object {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 3`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "gas_included": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 4`] = `
+Array [
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
+  ],
+]
+`;
+
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 1`] = `
 Object {
   "chainId": "0xa4b1",
