@@ -218,12 +218,16 @@ export class JsonRpcEngineV2<
           state.request = deepFreeze(request);
         }
 
-        const { value: middleware, done } = middlewareIterator.next();
+        const { value: nextMiddleware, done } = middlewareIterator.next();
         if (done) {
           return undefined;
         }
 
-        const result = await middleware({ request, context, next: makeNext() });
+        const result = await nextMiddleware({
+          request,
+          context,
+          next: makeNext(),
+        });
         this.#updateResult(result, state);
 
         return state.result;
