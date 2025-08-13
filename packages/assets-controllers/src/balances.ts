@@ -90,6 +90,9 @@ const getInternalAccountsForGroup = (
     .filter(Boolean) as InternalAccount[];
 };
 
+const isNonNaNNumber = (value: unknown): value is number =>
+  typeof value === 'number' && !Number.isNaN(value);
+
 /**
  * Calculate balances for all wallets and groups.
  * Pure function – accepts controller states and returns aggregated totals.
@@ -423,7 +426,7 @@ export function calculateAggregatedChangeForAllWallets(
                 continue;
               }
 
-              if (typeof percentRaw !== 'number' || Number.isNaN(percentRaw)) {
+              if (!isNonNaNNumber(percentRaw)) {
                 continue;
               }
 
@@ -468,12 +471,7 @@ export function calculateAggregatedChangeForAllWallets(
 
             const rate =
               typeof rateStr === 'string' ? parseFloat(rateStr) : undefined;
-            if (
-              typeof rate !== 'number' ||
-              Number.isNaN(rate) ||
-              typeof percentRaw !== 'number' ||
-              Number.isNaN(percentRaw)
-            ) {
+            if (!isNonNaNNumber(rate) || !isNonNaNNumber(percentRaw)) {
               continue;
             }
 
