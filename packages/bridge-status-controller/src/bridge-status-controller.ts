@@ -1168,13 +1168,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const { transactions } = this.messagingSystem.call(
-      'TransactionController:getState',
-    );
-    const txMeta = transactions.find(({ id }) => id === txMetaId);
-    const approvalTxMeta = transactions.find(
-      ({ id }) => id === historyItem.approvalTxId,
-    );
+    let txMeta: TransactionMeta | undefined;
+    let approvalTxMeta: TransactionMeta | undefined;
+    if (!isSolanaChainId(historyItem.quote.srcChainId)) {
+      const { transactions } = this.messagingSystem.call(
+        'TransactionController:getState',
+      );
+      txMeta = transactions?.find(({ id }) => id === txMetaId);
+      approvalTxMeta = transactions?.find(
+        ({ id }) => id === historyItem.approvalTxId,
+      );
+    }
 
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
