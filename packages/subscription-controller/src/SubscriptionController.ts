@@ -3,6 +3,7 @@ import { BaseController, type StateMetadata } from '@metamask/base-controller';
 import {
   controllerName,
   Env,
+  SUBSCRIPTION_PRODUCTS,
   SubscriptionControllerErrorMessage,
 } from './constants';
 // import { projectLogger, createModuleLogger } from './logger';
@@ -119,11 +120,20 @@ export class SubscriptionController extends BaseController<
     await this.#subscriptionService.cancelSubscription({ subscriptionId });
   }
 
-  // #assertIsUserNotSubscribed() {
-  //   if (this.state.subscription) {
-  //     throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
-  //   }
-  // }
+  async startShieldSubscription() {
+    this.#assertIsUserNotSubscribed();
+
+    return await this.#subscriptionService.startSubscription({
+      products: [SUBSCRIPTION_PRODUCTS.SHIELD],
+      isTrialRequested: true,
+    });
+  }
+
+  #assertIsUserNotSubscribed() {
+    if (this.state.subscription) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
+  }
 
   #assertIsUserSubscribed() {
     if (!this.state.subscription) {

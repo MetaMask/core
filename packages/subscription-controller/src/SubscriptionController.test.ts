@@ -133,16 +133,19 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscription = jest.fn();
   const mockCancelSubscription = jest.fn();
+  const mockStartSubscription = jest.fn();
 
   const mockService = {
     getSubscription: mockGetSubscription,
     cancelSubscription: mockCancelSubscription,
+    startSubscription: mockStartSubscription,
   };
 
   return {
     mockService,
     mockGetSubscription,
     mockCancelSubscription,
+    mockStartSubscription,
   };
 }
 
@@ -547,6 +550,76 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('startShieldSubscription', () => {
+    const MOCK_START_SUBSCRIPTION_RESPONSE = {
+      checkoutSessionUrl: 'https://checkout.example.com/session/123',
+    };
+
+    it('should start shield subscription successfully when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscription: undefined,
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscription.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
+
+          const result = await controller.startShieldSubscription();
+
+          expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+          expect(mockService.startSubscription).toHaveBeenCalledWith({
+            products: ['shield'],
+            isTrialRequested: true,
+          });
+        },
+      );
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscription: MOCK_SUBSCRIPTION,
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(controller.startShieldSubscription()).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.startSubscription).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors during start subscription', async () => {
+      await withController(
+        {
+          state: {
+            subscription: undefined,
+          },
+        },
+        async ({ controller, mockService }) => {
+          const errorMessage = 'Failed to start subscription';
+          mockService.startSubscription.mockRejectedValue(
+            new SubscriptionServiceError(errorMessage),
+          );
+
+          await expect(controller.startShieldSubscription()).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+
+          expect(mockService.startSubscription).toHaveBeenCalledWith({
+            products: ['shield'],
+            isTrialRequested: true,
+          });
         },
       );
     });

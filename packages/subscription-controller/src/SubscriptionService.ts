@@ -1,6 +1,11 @@
-import { getEnvUrls, type Env } from './constants';
+import { getEnvUrls, SubscriptionControllerErrorMessage, type Env } from './constants';
 import { SubscriptionServiceError } from './errors';
-import type { ISubscriptionService, Subscription } from './types';
+import type {
+  ISubscriptionService,
+  Subscription,
+  StartSubscriptionRequest,
+  StartSubscriptionResponse,
+} from './types';
 
 export type SubscriptionServiceConfig = {
   env: Env;
@@ -87,6 +92,46 @@ export class SubscriptionService implements ISubscriptionService {
 
       throw new SubscriptionServiceError(
         `failed to cancel subscription. ${errorMessage}`,
+      );
+    }
+  }
+
+  async startSubscription(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse> {
+    const path = 'subscriptions/card';
+    if (request.products.length === 0) {
+      throw new SubscriptionServiceError(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
+    try {
+      const headers = await this.#getAuthorizationHeader();
+      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      return (await response.json()) as StartSubscriptionResponse;
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new SubscriptionServiceError(
+        `failed to start subscription. ${errorMessage}`,
       );
     }
   }

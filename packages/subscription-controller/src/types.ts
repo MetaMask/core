@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import type { controllerName, Env } from './constants';
+import type { controllerName, Env, SubscriptionProduct } from './constants';
 
 // state
 export type Subscription = {
@@ -19,6 +19,15 @@ export type Subscription = {
   paymentCurrency: string;
   paymentDate: string;
   paymentId: string;
+};
+
+export type StartSubscriptionRequest = {
+  products: SubscriptionProduct[];
+  isTrialRequested: boolean;
+};
+
+export type StartSubscriptionResponse = {
+  checkoutSessionUrl: string;
 };
 
 export type AuthUserData = {
@@ -109,4 +118,7 @@ export type SubscriptionControllerOptions = {
 export type ISubscriptionService = {
   getSubscription(): Promise<Subscription | null>;
   cancelSubscription(params: { subscriptionId: string }): Promise<void>;
+  startSubscription(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse>;
 };

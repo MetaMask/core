@@ -1,9 +1,9 @@
 import nock, { cleanAll, isDone } from 'nock';
 
-import { Env, getEnvUrls } from './constants';
+import { Env, getEnvUrls, SUBSCRIPTION_PRODUCTS, SubscriptionControllerErrorMessage } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
-import type { Subscription } from './types';
+import type { Subscription, StartSubscriptionRequest } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -24,6 +24,15 @@ const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 const MOCK_ERROR_RESPONSE = {
   message: 'Subscription not found',
   error: 'NOT_FOUND',
+};
+
+const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
+  products: [SUBSCRIPTION_PRODUCTS.SHIELD],
+  isTrialRequested: true,
+};
+
+const MOCK_START_SUBSCRIPTION_RESPONSE = {
+  checkoutSessionUrl: 'https://checkout.example.com/session/123',
 };
 
 /**
@@ -436,6 +445,118 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('startSubscription', () => {
+
+    it('should start subscription successfully', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+
+      const result = await service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST);
+
+      expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('should start subscription without trial', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+      const request: StartSubscriptionRequest = {
+        products: [SUBSCRIPTION_PRODUCTS.SHIELD],
+        isTrialRequested: false,
+      };
+
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', request)
+        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+
+      const result = await service.startSubscription(request);
+
+      expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+    });
+
+    it('should throw SubscriptionServiceError for error responses', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+        .reply(400, MOCK_ERROR_RESPONSE);
+
+      await expect(
+        service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+      ).rejects.toThrow(/Subscription not found/u);
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+        .replyWithError('Network error');
+
+      await expect(
+        service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+      ).rejects.toThrow(/Network error/u);
+    });
+
+    it('should throw SubscriptionServiceError for authentication errors', async () => {
+      const config = createMockConfig();
+      config.auth.getAccessToken.mockRejectedValue(
+        new Error('Authentication failed'),
+      );
+      const service = new SubscriptionService(config);
+
+      await expect(
+        service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+      ).rejects.toThrow(SubscriptionServiceError);
+    });
+
+    it('should handle null exceptions in catch block', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+
+      // Mock fetch to throw null to test the false branch with null value
+      const originalFetch = global.fetch;
+      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
+
+      try {
+        await expect(
+          service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+        ).rejects.toThrow(SubscriptionServiceError);
+        await expect(
+          service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST),
+        ).rejects.toThrow(/failed to start subscription\. ""/u);
+      } finally {
+        // Clean up
+        global.fetch = originalFetch;
+      }
+    });
+
+    it('should handle empty products array', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const request: StartSubscriptionRequest = {
+        products: [],
+        isTrialRequested: true,
+      };
+
+      await expect(
+        service.startSubscription(request),
+      ).rejects.toThrow(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    });
+  });
+
   describe('authentication integration', () => {
     it('should call getAccessToken for each request', async () => {
       const config = createMockConfig();
@@ -448,20 +569,27 @@ describe('SubscriptionService', () => {
         .post('/api/v1/subscription/sub_123456789/cancel')
         .reply(200, {});
 
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+
       await service.getSubscription();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
+      await service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST);
 
-      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(2);
+      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(3);
     });
 
     it('should handle getAccessToken returning different tokens', async () => {
       const config = createMockConfig();
       const firstToken = 'token-1';
       const secondToken = 'token-2';
+      const thirdToken = 'token-3';
 
       config.auth.getAccessToken
         .mockResolvedValueOnce(firstToken)
-        .mockResolvedValueOnce(secondToken);
+        .mockResolvedValueOnce(secondToken)
+        .mockResolvedValueOnce(thirdToken);
 
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
@@ -472,8 +600,13 @@ describe('SubscriptionService', () => {
         .post('/api/v1/subscription/sub_123456789/cancel')
         .reply(200, {});
 
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+
       await service.getSubscription();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
+      await service.startSubscription(MOCK_START_SUBSCRIPTION_REQUEST);
 
       expect(isDone()).toBe(true);
     });
