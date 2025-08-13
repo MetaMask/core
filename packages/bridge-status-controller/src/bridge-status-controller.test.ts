@@ -2956,10 +2956,11 @@ describe('BridgeStatusController', () => {
         getLayer1GasFee: jest.fn(),
       });
 
+      mockFetchFn.mockResolvedValueOnce(MockStatusResponse.getPending());
       bridgeStatusController = new BridgeStatusController({
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
+        fetchFn: mockFetchFn,
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
         updateTransactionFn: jest.fn(),
@@ -2975,6 +2976,10 @@ describe('BridgeStatusController', () => {
           },
         },
       });
+    });
+
+    afterEach(() => {
+      bridgeStatusController.stopAllPolling();
     });
 
     describe('TransactionController:transactionFailed', () => {
