@@ -1260,6 +1260,40 @@ describe('calculateBalanceForAllWallets', () => {
   });
 
   describe('calculateAggregatedChangeForGroup', () => {
+    it('eVM path computes previous/current (denom > 0) for group with balances', () => {
+      const state = createMobileMockState('USD');
+      // Ensure group 1 contains an account with EVM balances (account-2)
+      (
+        state.engine.backgroundState as any
+      ).AccountTreeController.accountTree.wallets[
+        'entropy:entropy-source-1'
+      ].groups['entropy:entropy-source-1/1'].accounts.push('account-2');
+
+      // Provide 1d percent change for a token that account-2 holds on mainnet
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
+
+      const res = calculateAggregatedChangeForGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/1',
+        '1d',
+      );
+
+      expect(res.currentTotalInUserCurrency).toBeGreaterThan(0);
+      expect(res.previousTotalInUserCurrency).toBeGreaterThan(0);
+      expect(res.previousTotalInUserCurrency).toBeLessThan(
+        res.currentTotalInUserCurrency,
+      );
+    });
     it('computes 1d change for specified EVM-only group', () => {
       const state = createMobileMockState('USD');
       // attach percent change to one token on mainnet
