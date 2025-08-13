@@ -159,11 +159,11 @@ Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
-    "TransactionController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -331,11 +331,11 @@ Array [
     "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
-    "TransactionController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3303,6 +3303,9 @@ Array [
     "0x123...",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
@@ -3563,11 +3566,11 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
 Array [
   Array [
-    "TransactionController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3728,11 +3731,11 @@ Array [
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
 Array [
   Array [
-    "TransactionController:getState",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
