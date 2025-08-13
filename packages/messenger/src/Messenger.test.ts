@@ -34,7 +34,12 @@ describe('Messenger', () => {
     const parentMessenger = new Messenger<'Parent', CountAction, never>({
       namespace: 'Parent',
     });
-    const messenger = new Messenger<'Fixture', CountAction, never>({
+    const messenger = new Messenger<
+      'Fixture',
+      CountAction,
+      never,
+      typeof parentMessenger
+    >({
       namespace: 'Fixture',
       parent: parentMessenger,
     });
@@ -252,7 +257,12 @@ describe('Messenger', () => {
     const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
       namespace: 'Parent',
     });
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
+    const messenger = new Messenger<
+      'Fixture',
+      never,
+      MessageEvent,
+      typeof parentMessenger
+    >({
       namespace: 'Fixture',
       parent: parentMessenger,
     });
@@ -565,7 +575,12 @@ describe('Messenger', () => {
     const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
       namespace: 'Parent',
     });
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
+    const messenger = new Messenger<
+      'Fixture',
+      never,
+      MessageEvent,
+      typeof parentMessenger
+    >({
       namespace: 'Fixture',
       parent: parentMessenger,
     });
@@ -1289,7 +1304,12 @@ describe('Messenger', () => {
       const parentMessenger = new Messenger<'Parent', never, ExampleEvent>({
         namespace: 'Parent',
       });
-      const sourceMessenger = new Messenger<'Source', never, ExampleEvent>({
+      const sourceMessenger = new Messenger<
+        'Source',
+        never,
+        ExampleEvent,
+        typeof parentMessenger
+      >({
         namespace: 'Source',
         parent: parentMessenger,
       });
