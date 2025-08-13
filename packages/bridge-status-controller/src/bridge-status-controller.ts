@@ -432,6 +432,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         amountSentInUsd: quoteResponse.sentAmount.usd ?? undefined,
         quotedGasInUsd: quoteResponse.gasFee.effective?.usd ?? undefined,
         quotedReturnInUsd: quoteResponse.toTokenAmount.usd ?? undefined,
+        quotedGasAmount: quoteResponse.gasFee.effective?.amount ?? undefined,
       },
       initialDestAssetBalance,
       targetContractAddress,
