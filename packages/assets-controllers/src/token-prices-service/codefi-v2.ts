@@ -1,16 +1,14 @@
-import { handleFetch } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  DEFAULT_CIRCUIT_BREAK_DURATION,
+  DEFAULT_DEGRADED_THRESHOLD,
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+  handleFetch,
+} from '@metamask/controller-utils';
+import type { ServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
-import {
-  circuitBreaker,
-  ConsecutiveBreaker,
-  ExponentialBackoff,
-  handleAll,
-  type IPolicy,
-  retry,
-  wrap,
-  CircuitState,
-} from 'cockatiel';
 
 import type {
   AbstractTokenPricesService,
@@ -157,6 +155,24 @@ export const ZERO_ADDRESS: Hex =
   '0x0000000000000000000000000000000000000000' as const;
 
 /**
+ * A mapping from chain id to the address of the chain's native token.
+ * Only for chains whose native tokens have a specific address.
+ */
+const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
+  '0x89': '0x0000000000000000000000000000000000001010',
+};
+
+/**
+ * Returns the address that should be used to query the price api for the
+ * chain's native token. On most chains, this is signified by the zero address.
+ * But on some chains, the native token has a specific address.
+ * @param chainId - The hexadecimal chain id.
+ * @returns The address of the chain's native token.
+ */
+export const getNativeTokenAddress = (chainId: Hex): Hex =>
+  chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
+
+/**
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
@@ -239,6 +255,10 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x63564c40',
   // Linea Mainnet
   '0xe708',
+  // Sei Mainnet
+  '0x531',
+  // Sonic Mainnet
+  '0x92',
 ] as const;
 
 /**
@@ -252,13 +272,6 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
  * All requests to V2 of the Price API start with this.
  */
 const BASE_URL = 'https://price.api.cx.metamask.io/v2';
-
-const DEFAULT_TOKEN_PRICE_RETRIES = 3;
-// Each update attempt will result (1 + retries) calls if the server is down
-const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
-  (1 + DEFAULT_TOKEN_PRICE_RETRIES) * 3;
-
-const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
 /**
  * The shape of the data that the /spot-prices endpoint returns.
@@ -347,31 +360,64 @@ export class CodefiTokenPricesServiceV2
   implements
     AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
 {
-  #tokenPricePolicy: IPolicy;
+  readonly #policy: ServicePolicy;
 
   /**
    * Construct a Codefi Token Price Service.
    *
-   * @param options - Constructor options
-   * @param options.degradedThreshold - The threshold between "normal" and "degrated" service,
-   * in milliseconds.
-   * @param options.retries - Number of retry attempts for each token price update.
-   * @param options.maximumConsecutiveFailures - The maximum number of consecutive failures
-   * allowed before breaking the circuit and pausing further updates.
-   * @param options.onBreak - An event handler for when the circuit breaks, useful for capturing
-   * metrics about network failures.
-   * @param options.onDegraded - An event handler for when the circuit remains closed, but requests
-   * are failing or resolving too slowly (i.e. resolving more slowly than the `degradedThreshold).
-   * @param options.circuitBreakDuration - The amount of time to wait when the circuit breaks
-   * from too many consecutive failures.
+   * @param args - The arguments.
+   * @param args.degradedThreshold - The length of time (in milliseconds)
+   * that governs when the service is regarded as degraded (affecting when
+   * `onDegraded` is called). Defaults to 5 seconds.
+   * @param args.retries - Number of retry attempts for each fetch request.
+   * @param args.maximumConsecutiveFailures - The maximum number of consecutive
+   * failures allowed before breaking the circuit and pausing further updates.
+   * @param args.circuitBreakDuration - The amount of time to wait when the
+   * circuit breaks from too many consecutive failures.
    */
+  constructor(args?: {
+    degradedThreshold?: number;
+    retries?: number;
+    maximumConsecutiveFailures?: number;
+    circuitBreakDuration?: number;
+  });
+
+  /**
+   * Construct a Codefi Token Price Service.
+   *
+   * @deprecated This signature is deprecated; please use the `onBreak` and
+   * `onDegraded` methods instead.
+   * @param args - The arguments.
+   * @param args.degradedThreshold - The length of time (in milliseconds)
+   * that governs when the service is regarded as degraded (affecting when
+   * `onDegraded` is called). Defaults to 5 seconds.
+   * @param args.retries - Number of retry attempts for each fetch request.
+   * @param args.maximumConsecutiveFailures - The maximum number of consecutive
+   * failures allowed before breaking the circuit and pausing further updates.
+   * @param args.onBreak - Callback for when the circuit breaks, useful
+   * for capturing metrics about network failures.
+   * @param args.onDegraded - Callback for when the API responds successfully
+   * but takes too long to respond (5 seconds or more).
+   * @param args.circuitBreakDuration - The amount of time to wait when the
+   * circuit breaks from too many consecutive failures.
+   */
+  // eslint-disable-next-line @typescript-eslint/unified-signatures
+  constructor(args?: {
+    degradedThreshold?: number;
+    retries?: number;
+    maximumConsecutiveFailures?: number;
+    onBreak?: () => void;
+    onDegraded?: () => void;
+    circuitBreakDuration?: number;
+  });
+
   constructor({
     degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
-    retries = DEFAULT_TOKEN_PRICE_RETRIES,
-    maximumConsecutiveFailures = DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES,
+    retries = DEFAULT_MAX_RETRIES,
+    maximumConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
     onBreak,
     onDegraded,
-    circuitBreakDuration = 30 * 60 * 1000,
+    circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
   }: {
     degradedThreshold?: number;
     retries?: number;
@@ -380,35 +426,40 @@ export class CodefiTokenPricesServiceV2
     onDegraded?: () => void;
     circuitBreakDuration?: number;
   } = {}) {
-    // Construct a policy that will retry each update, and halt further updates
-    // for a certain period after too many consecutive failures.
-    const retryPolicy = retry(handleAll, {
-      maxAttempts: retries,
-      backoff: new ExponentialBackoff(),
-    });
-    const circuitBreakerPolicy = circuitBreaker(handleAll, {
-      halfOpenAfter: circuitBreakDuration,
-      breaker: new ConsecutiveBreaker(maximumConsecutiveFailures),
+    this.#policy = createServicePolicy({
+      maxRetries: retries,
+      maxConsecutiveFailures: maximumConsecutiveFailures,
+      circuitBreakDuration,
+      degradedThreshold,
     });
     if (onBreak) {
-      circuitBreakerPolicy.onBreak(onBreak);
+      this.#policy.onBreak(onBreak);
     }
     if (onDegraded) {
-      retryPolicy.onGiveUp(() => {
-        if (circuitBreakerPolicy.state === CircuitState.Closed) {
-          onDegraded();
-        }
-      });
-      retryPolicy.onSuccess(({ duration }) => {
-        if (
-          circuitBreakerPolicy.state === CircuitState.Closed &&
-          duration > degradedThreshold
-        ) {
-          onDegraded();
-        }
-      });
+      this.#policy.onDegraded(onDegraded);
     }
-    this.#tokenPricePolicy = wrap(retryPolicy, circuitBreakerPolicy);
+  }
+
+  /**
+   * Listens for when the request to the API fails too many times in a row.
+   *
+   * @param args - The same arguments that {@link ServicePolicy.onBreak}
+   * takes.
+   * @returns What {@link ServicePolicy.onBreak} returns.
+   */
+  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+    return this.#policy.onBreak(...args);
+  }
+
+  /**
+   * Listens for when the API is degraded.
+   *
+   * @param args - The same arguments that {@link ServicePolicy.onDegraded}
+   * takes.
+   * @returns What {@link ServicePolicy.onDegraded} returns.
+   */
+  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+    return this.#policy.onDegraded(...args);
   }
 
   /**
@@ -435,17 +486,17 @@ export class CodefiTokenPricesServiceV2
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
     url.searchParams.append(
       'tokenAddresses',
-      [ZERO_ADDRESS, ...tokenAddresses].join(','),
+      [getNativeTokenAddress(chainId), ...tokenAddresses].join(','),
     );
     url.searchParams.append('vsCurrency', currency);
     url.searchParams.append('includeMarketData', 'true');
 
     const addressCryptoDataMap: MarketDataByTokenAddress =
-      await this.#tokenPricePolicy.execute(() =>
+      await this.#policy.execute(() =>
         handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
       );
 
-    return [ZERO_ADDRESS, ...tokenAddresses].reduce(
+    return [getNativeTokenAddress(chainId), ...tokenAddresses].reduce(
       (
         obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
         tokenAddress,

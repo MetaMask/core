@@ -1,5 +1,7 @@
 import { handleFetch } from '@metamask/controller-utils';
 
+import { getKeyByValue } from '../assetsUtil';
+
 /**
  * A map from native currency symbol to CryptoCompare identifier.
  * This is only needed when the values don't match.
@@ -27,40 +29,39 @@ function getPricingURL(
   nativeCurrency: string,
   includeUSDRate?: boolean,
 ) {
-  nativeCurrency = nativeCurrency.toUpperCase();
-  const fsym = nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency;
   return (
     `${CRYPTO_COMPARE_DOMAIN}/data/price?fsym=` +
-    `${fsym}&tsyms=${currentCurrency.toUpperCase()}` +
+    `${nativeCurrency}&tsyms=${currentCurrency}` +
     `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
   );
 }
 
 /**
  * Get the CryptoCompare API URL for getting the conversion rate from a given array of native currencies
- * to the given currency. Optionally, the conversion rate from the native currency to USD can also be
+ * to the given currencies. Optionally, the conversion rate from the native currency to USD can also be
  * included in the response.
  *
  * @param fsyms - The native currencies to get conversion rates for.
- * @param tsyms - The currency to convert to.
+ * @param tsyms - The currencies to convert to.
  * @param includeUSDRate - Whether or not the native currency to USD conversion rate should be included.
  * @returns The API URL for getting the conversion rates.
  */
 function getMultiPricingURL(
-  fsyms: string,
-  tsyms: string,
+  fsyms: string[],
+  tsyms: string[],
   includeUSDRate = false,
 ) {
   const updatedTsyms =
-    includeUSDRate && !tsyms.includes('USD') ? `${tsyms},USD` : tsyms;
+    includeUSDRate && !tsyms.some((t) => t.toUpperCase() === 'USD')
+      ? [...tsyms, 'USD']
+      : tsyms;
 
   const params = new URLSearchParams();
-  params.append('fsyms', fsyms);
-  params.append('tsyms', updatedTsyms);
+  params.append('fsyms', fsyms.join(','));
+  params.append('tsyms', updatedTsyms.join(','));
 
   const url = new URL(`${CRYPTO_COMPARE_DOMAIN}/data/pricemulti`);
   url.search = params.toString();
-
   return url.toString();
 }
 
@@ -97,6 +98,11 @@ export async function fetchExchangeRate(
   conversionRate: number;
   usdConversionRate: number;
 }> {
+  currency = currency.toUpperCase();
+  nativeCurrency = nativeCurrency.toUpperCase();
+  currency = nativeSymbolOverrides.get(currency) ?? currency;
+  nativeCurrency = nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency;
+
   const json = await handleFetch(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
@@ -139,21 +145,22 @@ export async function fetchMultiExchangeRate(
   fiatCurrency: string,
   cryptocurrencies: string[],
   includeUSDRate: boolean,
-): Promise<Record<string, Record<string, string>>> {
-  const url = getMultiPricingURL(
-    Object.values(cryptocurrencies).join(','),
-    fiatCurrency,
-    includeUSDRate,
+): Promise<Record<string, Record<string, number>>> {
+  const fsyms = cryptocurrencies.map(
+    (nativeCurrency) =>
+      nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency,
   );
+  const url = getMultiPricingURL(fsyms, [fiatCurrency], includeUSDRate);
   const response = await handleFetch(url);
   handleErrorResponse(response);
 
-  const rates: Record<string, Record<string, string>> = {};
+  const rates: Record<string, Record<string, number>> = {};
   for (const [cryptocurrency, values] of Object.entries(response) as [
     string,
-    Record<string, string>,
+    Record<string, number>,
   ][]) {
-    rates[cryptocurrency.toLowerCase()] = {
+    const key = getKeyByValue(nativeSymbolOverrides, cryptocurrency);
+    rates[key?.toLowerCase() ?? cryptocurrency.toLowerCase()] = {
       [fiatCurrency.toLowerCase()]: values[fiatCurrency.toUpperCase()],
       ...(includeUSDRate && { usd: values.USD }),
     };

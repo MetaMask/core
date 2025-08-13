@@ -1,1 +1,1 @@
-export * from './on-chain-notification';
+export type * from './on-chain-notification';

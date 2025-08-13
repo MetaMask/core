@@ -8,16 +8,33 @@ export const InfuraNetworkType = {
   'linea-goerli': 'linea-goerli',
   'linea-sepolia': 'linea-sepolia',
   'linea-mainnet': 'linea-mainnet',
+  'base-mainnet': 'base-mainnet',
 } as const;
 
 export type InfuraNetworkType =
   (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
+ * Custom network types that are not part of Infura.
+ */
+export const CustomNetworkType = {
+  'megaeth-testnet': 'megaeth-testnet',
+  'monad-testnet': 'monad-testnet',
+} as const;
+export type CustomNetworkType =
+  (typeof CustomNetworkType)[keyof typeof CustomNetworkType];
+
+/**
+ * Network types supported including both Infura networks and other networks.
+ */
+export type BuiltInNetworkType = InfuraNetworkType | CustomNetworkType;
+
+/**
  * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
  */
 export const NetworkType = {
   ...InfuraNetworkType,
+  ...CustomNetworkType,
   rpc: 'rpc',
 } as const;
 
@@ -60,6 +77,9 @@ export enum BuiltInNetworkName {
   LineaSepolia = 'linea-sepolia',
   LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
+  MegaETHTestnet = 'megaeth-testnet',
+  MonadTestnet = 'monad-testnet',
+  BaseMainnet = 'base-mainnet',
 }
 
 /**
@@ -75,24 +95,25 @@ export const ChainId = {
   [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
   [BuiltInNetworkName.LineaSepolia]: '0xe705', // toHex(59141)
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
+  [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
+  [BuiltInNetworkName.MonadTestnet]: '0x279f', // toHex(10143)
+  [BuiltInNetworkName.BaseMainnet]: '0x2105', // toHex(8453)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
 export enum NetworksTicker {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   mainnet = 'ETH',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   goerli = 'GoerliETH',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   sepolia = 'SepoliaETH',
   'linea-goerli' = 'LineaETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'linea-sepolia' = 'LineaETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'linea-mainnet' = 'ETH',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+  'megaeth-testnet' = 'MegaETH',
+  'monad-testnet' = 'MON',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'base-mainnet' = 'ETH',
   rpc = '',
 }
 
@@ -103,18 +124,24 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.LineaGoerli]: 'https://goerli.lineascan.build',
   [BuiltInNetworkName.LineaSepolia]: 'https://sepolia.lineascan.build',
   [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
-} as const satisfies Record<InfuraNetworkType, string>;
+  [BuiltInNetworkName.MegaETHTestnet]: 'https://megaexplorer.xyz',
+  [BuiltInNetworkName.MonadTestnet]: 'https://testnet.monadexplorer.com',
+  [BuiltInNetworkName.BaseMainnet]: 'https://basescan.org',
+} as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
 export const NetworkNickname = {
-  [BuiltInNetworkName.Mainnet]: 'Mainnet',
+  [BuiltInNetworkName.Mainnet]: 'Ethereum Mainnet',
   [BuiltInNetworkName.Goerli]: 'Goerli',
   [BuiltInNetworkName.Sepolia]: 'Sepolia',
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
   [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
-  [BuiltInNetworkName.LineaMainnet]: 'Linea Mainnet',
-} as const satisfies Record<InfuraNetworkType, string>;
+  [BuiltInNetworkName.LineaMainnet]: 'Linea',
+  [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
+  [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
+  [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
+} as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
 

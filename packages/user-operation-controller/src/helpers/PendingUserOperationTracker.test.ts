@@ -93,7 +93,9 @@ describe('PendingUserOperationTracker', () => {
 
     beforeCallback?.(pendingUserOperationTracker);
 
-    await pendingUserOperationTracker._executePoll(NETWORK_CLIENT_ID_MOCK, {});
+    await pendingUserOperationTracker._executePoll({
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+    });
   }
 
   /**
@@ -117,7 +119,9 @@ describe('PendingUserOperationTracker', () => {
 
     beforeCallback?.(pendingUserOperationTracker);
 
-    await pendingUserOperationTracker._executePoll(NETWORK_CLIENT_ID_MOCK, {});
+    await pendingUserOperationTracker._executePoll({
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+    });
   }
 
   beforeEach(() => {
@@ -147,10 +151,9 @@ describe('PendingUserOperationTracker', () => {
         messenger: messengerMock,
       });
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       expect(bundlerMock.getUserOperationReceipt).not.toHaveBeenCalled();
       expect(queryMock).not.toHaveBeenCalled();
@@ -173,10 +176,9 @@ describe('PendingUserOperationTracker', () => {
         messenger: messengerMock,
       });
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       expect(bundlerMock.getUserOperationReceipt).not.toHaveBeenCalled();
       expect(queryMock).not.toHaveBeenCalled();
@@ -197,10 +199,9 @@ describe('PendingUserOperationTracker', () => {
         new Error('Test Error'),
       );
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
     });
 
     // eslint-disable-next-line jest/expect-expect
@@ -216,10 +217,9 @@ describe('PendingUserOperationTracker', () => {
 
       bundlerMock.getUserOperationReceipt.mockResolvedValueOnce(undefined);
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
     });
 
     it('queries bundler using eth_getUserOperationReceipt RPC method', async () => {
@@ -232,10 +232,9 @@ describe('PendingUserOperationTracker', () => {
         messenger: messengerMock,
       });
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledTimes(1);
       expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledWith(

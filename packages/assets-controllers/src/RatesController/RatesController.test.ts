@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
@@ -26,17 +26,14 @@ function getStubbedDate(): number {
 }
 
 /**
- * Builds a new ControllerMessenger instance for RatesController.
- * @returns A new ControllerMessenger instance.
+ * Builds a new Messenger instance for RatesController.
+ * @returns A new Messenger instance.
  */
-function buildMessenger(): ControllerMessenger<
+function buildMessenger(): Messenger<
   RatesControllerActions,
   RatesControllerEvents
 > {
-  return new ControllerMessenger<
-    RatesControllerActions,
-    RatesControllerEvents
-  >();
+  return new Messenger<RatesControllerActions, RatesControllerEvents>();
 }
 
 /**
@@ -45,7 +42,7 @@ function buildMessenger(): ControllerMessenger<
  * @returns A restricted messenger for the RatesController.
  */
 function buildRatesControllerMessenger(
-  messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>,
+  messenger: Messenger<RatesControllerActions, RatesControllerEvents>,
 ): RatesControllerMessenger {
   return messenger.getRestricted({
     name: ratesControllerName,
@@ -59,7 +56,7 @@ function buildRatesControllerMessenger(
  * @param config - The configuration object for the RatesController.
  * @param config.interval - Polling interval.
  * @param config.initialState - Initial state of the controller.
- * @param config.messenger - ControllerMessenger instance.
+ * @param config.messenger - Messenger instance.
  * @param config.includeUsdRate - Indicates if the USD rate should be included.
  * @param config.fetchMultiExchangeRate - Callback to fetch rates data.
  * @returns A new instance of RatesController.
@@ -73,7 +70,7 @@ function setupRatesController({
 }: {
   interval?: number;
   initialState: Partial<RatesControllerState>;
-  messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>;
+  messenger: Messenger<RatesControllerActions, RatesControllerEvents>;
   includeUsdRate: boolean;
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
 }) {
@@ -100,8 +97,14 @@ describe('RatesController', () => {
       const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
       expect(ratesController).toBeDefined();
       expect(fiatCurrency).toBe('usd');
-      expect(Object.keys(rates)).toStrictEqual([Cryptocurrency.Btc]);
-      expect(cryptocurrencies).toStrictEqual([Cryptocurrency.Btc]);
+      expect(Object.keys(rates)).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
+      expect(cryptocurrencies).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
     });
   });
 
@@ -119,11 +122,16 @@ describe('RatesController', () => {
       const publishActionSpy = jest.spyOn(messenger, 'publish');
 
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockRateValue = '57715.42';
+      const mockBtcRateValue = 57715.42;
+      const mockSolRateValue = 200.48;
+
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
-            eur: mockRateValue,
+            eur: mockBtcRateValue,
+          },
+          sol: {
+            eur: mockSolRateValue,
           },
         });
       });
@@ -142,7 +150,11 @@ describe('RatesController', () => {
       expect(ratesPreUpdate).toStrictEqual({
         btc: {
           conversionDate: 0,
-          conversionRate: '0',
+          conversionRate: 0,
+        },
+        sol: {
+          conversionDate: 0,
+          conversionRate: 0,
         },
       });
 
@@ -158,12 +170,16 @@ describe('RatesController', () => {
       const ratesPosUpdate = ratesController.state.rates;
 
       // checks for the RatesController:stateChange event
-      expect(publishActionSpy).toHaveBeenCalledTimes(2);
+      expect(publishActionSpy).toHaveBeenCalledTimes(3);
       expect(fetchExchangeRateStub).toHaveBeenCalled();
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
           conversionDate: MOCK_TIMESTAMP,
-          conversionRate: mockRateValue,
+          conversionRate: mockBtcRateValue,
+        },
+        sol: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockSolRateValue,
         },
       });
 
@@ -177,12 +193,12 @@ describe('RatesController', () => {
 
     it('starts the polling process with custom values', async () => {
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockBtcUsdRateValue = '62235.48';
-      const mockSolUsdRateValue = '148.41';
-      const mockStrkUsdRateValue = '1.248';
-      const mockBtcEurRateValue = '57715.42';
-      const mockSolEurRateValue = '137.68';
-      const mockStrkEurRateValue = '1.157';
+      const mockBtcUsdRateValue = 62235.48;
+      const mockSolUsdRateValue = 148.41;
+      const mockStrkUsdRateValue = 1.248;
+      const mockBtcEurRateValue = 57715.42;
+      const mockSolEurRateValue = 137.68;
+      const mockStrkEurRateValue = 1.157;
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
@@ -267,27 +283,27 @@ describe('RatesController', () => {
 
       await advanceTime({ clock, duration: 200 });
 
-      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
       // check the 3rd call since the 2nd one is for the
       // event stateChange
       expect(publishActionSpy).toHaveBeenNthCalledWith(
-        3,
+        4,
         `${ratesControllerName}:pollingStopped`,
       );
 
       await advanceTime({ clock, duration: 200 });
 
-      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
       // check if the stop method is called again, it returns early
       // and no extra logic is executed
       expect(publishActionSpy).not.toHaveBeenNthCalledWith(
-        4,
+        3,
         `${ratesControllerName}:pollingStopped`,
       );
     });
@@ -326,7 +342,10 @@ describe('RatesController', () => {
 
       const cryptocurrencyListPreUpdate =
         ratesController.getCryptocurrencyList();
-      expect(cryptocurrencyListPreUpdate).toStrictEqual([Cryptocurrency.Btc]);
+      expect(cryptocurrencyListPreUpdate).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
       // Just to make sure we're updating to something else than the default list
       expect(cryptocurrencyListPreUpdate).not.toStrictEqual(
         mockCryptocurrencyList,

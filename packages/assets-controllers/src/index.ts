@@ -120,6 +120,7 @@ export type {
   TokensControllerActions,
   TokensControllerGetStateAction,
   TokensControllerAddDetectedTokensAction,
+  TokensControllerAddTokensAction,
   TokensControllerEvents,
   TokensControllerStateChangeEvent,
   TokensControllerMessenger,
@@ -130,10 +131,12 @@ export {
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
   fetchTokenContractExchangeRates,
+  getKeyByValue,
 } from './assetsUtil';
 export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
+  getNativeTokenAddress,
 } from './token-prices-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
@@ -146,3 +149,66 @@ export type {
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
 } from './RatesController';
+export { MultichainBalancesController } from './MultichainBalancesController';
+export type {
+  MultichainBalancesControllerState,
+  MultichainBalancesControllerGetStateAction,
+  MultichainBalancesControllerStateChange,
+  MultichainBalancesControllerActions,
+  MultichainBalancesControllerEvents,
+  MultichainBalancesControllerMessenger,
+} from './MultichainBalancesController';
+
+export {
+  MultichainAssetsController,
+  getDefaultMultichainAssetsControllerState,
+} from './MultichainAssetsController';
+
+export type {
+  MultichainAssetsControllerState,
+  MultichainAssetsControllerGetStateAction,
+  MultichainAssetsControllerStateChangeEvent,
+  MultichainAssetsControllerActions,
+  MultichainAssetsControllerEvents,
+  MultichainAssetsControllerAccountAssetListUpdatedEvent,
+  MultichainAssetsControllerMessenger,
+} from './MultichainAssetsController';
+
+export {
+  MultichainAssetsRatesController,
+  getDefaultMultichainAssetsRatesControllerState,
+} from './MultichainAssetsRatesController';
+
+export type {
+  MultichainAssetsRatesControllerState,
+  MultichainAssetsRatesControllerActions,
+  MultichainAssetsRatesControllerEvents,
+  MultichainAssetsRatesControllerGetStateAction,
+  MultichainAssetsRatesControllerStateChange,
+  MultichainAssetsRatesControllerMessenger,
+} from './MultichainAssetsRatesController';
+export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController';
+export type {
+  TokenDisplayData,
+  TokenSearchDiscoveryDataControllerState,
+  TokenSearchDiscoveryDataControllerGetStateAction,
+  TokenSearchDiscoveryDataControllerEvents,
+  TokenSearchDiscoveryDataControllerStateChangeEvent,
+  TokenSearchDiscoveryDataControllerActions,
+  TokenSearchDiscoveryDataControllerMessenger,
+} from './TokenSearchDiscoveryDataController';
+export { DeFiPositionsController } from './DeFiPositionsController/DeFiPositionsController';
+export type {
+  DeFiPositionsControllerState,
+  DeFiPositionsControllerActions,
+  DeFiPositionsControllerEvents,
+  DeFiPositionsControllerGetStateAction,
+  DeFiPositionsControllerStateChangeEvent,
+  DeFiPositionsControllerMessenger,
+} from './DeFiPositionsController/DeFiPositionsController';
+export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
+export type {
+  AccountGroupBalance,
+  WalletBalance,
+} from './selectors/balanceSelectors';
+export { balanceSelectors } from './selectors/balanceSelectors';

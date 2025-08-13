@@ -1,10 +1,10 @@
-import { ControllerMessenger } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import log from 'loglevel';
 
+import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger';
 import NotificationServicesPushController from './NotificationServicesPushController';
 import type {
-  AllowedActions,
-  AllowedEvents,
+  ControllerConfig,
   NotificationServicesPushControllerMessenger,
 } from './NotificationServicesPushController';
 import * as services from './services/services';
@@ -12,36 +12,53 @@ import type { PushNotificationEnv } from './types';
 
 const MOCK_JWT = 'mockJwt';
 const MOCK_FCM_TOKEN = 'mockFcmToken';
-const MOCK_TRIGGERS = ['uuid1', 'uuid2'];
+const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
+
+// Testing util to clean up verbose logs when testing errors
+const mockErrorLog = () =>
+  jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 describe('NotificationServicesPushController', () => {
-  const arrangeServicesMocks = () => {
+  const arrangeServicesMocks = (token?: string) => {
     const activatePushNotificationsMock = jest
       .spyOn(services, 'activatePushNotifications')
-      .mockResolvedValue(MOCK_FCM_TOKEN);
+      .mockResolvedValue(token ?? MOCK_FCM_TOKEN);
 
     const deactivatePushNotificationsMock = jest
       .spyOn(services, 'deactivatePushNotifications')
       .mockResolvedValue(true);
 
-    const unsubscribeMock = jest.fn();
-    const listenToPushNotificationsMock = jest
-      .spyOn(services, 'listenToPushNotifications')
-      .mockResolvedValue(unsubscribeMock);
-
-    const updateTriggerPushNotificationsMock = jest
-      .spyOn(services, 'updateTriggerPushNotifications')
-      .mockResolvedValue({
-        isTriggersLinkedToPushNotifications: true,
-      });
-
     return {
       activatePushNotificationsMock,
       deactivatePushNotificationsMock,
-      listenToPushNotificationsMock,
-      updateTriggerPushNotificationsMock,
     };
   };
+
+  describe('subscribeToPushNotifications', () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should unsubscribe to old listeners and subscribe to new listeners if called multiple times', async () => {
+      const mockUnsubscribe = jest.fn();
+      const mockSubscribe = jest.fn().mockReturnValue(mockUnsubscribe);
+      const { controller } = arrangeMockMessenger({
+        pushService: {
+          createRegToken: jest.fn(),
+          deleteRegToken: jest.fn(),
+          subscribeToPushNotifications: mockSubscribe,
+        },
+      });
+
+      await controller.subscribeToPushNotifications();
+      expect(mockSubscribe).toHaveBeenCalledTimes(1);
+      expect(mockUnsubscribe).not.toHaveBeenCalled();
+
+      await controller.subscribeToPushNotifications();
+      expect(mockSubscribe).toHaveBeenCalledTimes(2);
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+    });
+  });
 
   describe('enablePushNotifications', () => {
     afterEach(() => {
@@ -53,10 +70,63 @@ describe('NotificationServicesPushController', () => {
       const { controller, messenger } = arrangeMockMessenger();
       mockAuthBearerTokenCall(messenger);
 
-      await controller.enablePushNotifications(MOCK_TRIGGERS);
-      expect(controller.state.fcmToken).toBe(MOCK_FCM_TOKEN);
+      const promise = controller.enablePushNotifications(MOCK_ADDRESSES);
+      expect(controller.state.isUpdatingFCMToken).toBe(true);
 
-      expect(services.listenToPushNotifications).toHaveBeenCalled();
+      await promise;
+      expect(controller.state.fcmToken).toBe(MOCK_FCM_TOKEN);
+      expect(controller.state.isPushEnabled).toBe(true);
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
+    });
+
+    it('should call activatePushNotifications with correct parameters including oldToken', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        state: {
+          fcmToken: 'existing-token',
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.enablePushNotifications(MOCK_ADDRESSES);
+
+      expect(mocks.activatePushNotificationsMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        env: expect.any(Object),
+        createRegToken: expect.any(Function),
+        regToken: {
+          platform: 'extension',
+          locale: 'en',
+          oldToken: 'existing-token',
+        },
+      });
+    });
+
+    it('should not activate push notifications triggers if there is no auth bearer token', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger();
+      const mockBearerTokenCall = mockAuthBearerTokenCall(messenger);
+      mockBearerTokenCall.mockRejectedValue(new Error('TEST ERROR'));
+
+      await controller.enablePushNotifications(MOCK_ADDRESSES);
+      expect(mocks.activatePushNotificationsMock).not.toHaveBeenCalled();
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
+    });
+
+    it('should not update reg token if push service fails', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger, initialState } = arrangeMockMessenger();
+      mockAuthBearerTokenCall(messenger);
+      mocks.activatePushNotificationsMock.mockRejectedValue(
+        new Error('TEST ERROR'),
+      );
+
+      await controller.enablePushNotifications(MOCK_ADDRESSES);
+      expect(controller.state.fcmToken).toBe(initialState.fcmToken);
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
     });
   });
 
@@ -67,21 +137,42 @@ describe('NotificationServicesPushController', () => {
 
     it('should update the state removing the fcmToken', async () => {
       arrangeServicesMocks();
-      const { controller, messenger } = arrangeMockMessenger();
-      mockAuthBearerTokenCall(messenger);
-      await controller.disablePushNotifications(MOCK_TRIGGERS);
+      const { controller } = arrangeMockMessenger();
+      const promise = controller.disablePushNotifications();
+      expect(controller.state.isUpdatingFCMToken).toBe(true);
+
+      await promise;
       expect(controller.state.fcmToken).toBe('');
+      expect(controller.state.isPushEnabled).toBe(false);
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
     });
 
-    it('should fail if a jwt token is not provided', async () => {
-      arrangeServicesMocks();
+    it('should bail early if push is not enabled', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        isPushFeatureEnabled: false,
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.disablePushNotifications();
+      expect(mocks.deactivatePushNotificationsMock).not.toHaveBeenCalled();
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
+    });
+
+    it('should fail if fails to delete FCM token', async () => {
+      const mocks = arrangeServicesMocks();
+      mocks.deactivatePushNotificationsMock.mockRejectedValue(
+        new Error('TEST ERROR'),
+      );
+      mockErrorLog();
       const { controller, messenger } = arrangeMockMessenger();
       mockAuthBearerTokenCall(messenger).mockResolvedValue(
         null as unknown as string,
       );
-      await expect(controller.disablePushNotifications([])).rejects.toThrow(
+      await expect(controller.disablePushNotifications()).rejects.toThrow(
         expect.any(Error),
       );
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
     });
   });
 
@@ -90,61 +181,136 @@ describe('NotificationServicesPushController', () => {
       jest.clearAllMocks();
     });
 
-    it('should call updateTriggerPushNotifications with the correct parameters', async () => {
-      arrangeServicesMocks();
+    it('should call activatePushNotifications with the correct parameters and update state', async () => {
+      const mocks = arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger();
       mockAuthBearerTokenCall(messenger);
-      const spy = jest
-        .spyOn(services, 'updateTriggerPushNotifications')
-        .mockResolvedValue({
-          isTriggersLinkedToPushNotifications: true,
-        });
 
-      await controller.updateTriggerPushNotifications(MOCK_TRIGGERS);
+      const promise = controller.updateTriggerPushNotifications(MOCK_ADDRESSES);
+      // Assert - loading
+      expect(controller.state.isUpdatingFCMToken).toBe(true);
 
-      expect(spy).toHaveBeenCalled();
-      const args = spy.mock.calls[0][0];
-      expect(args.bearerToken).toBe(MOCK_JWT);
-      expect(args.triggers).toBe(MOCK_TRIGGERS);
-      expect(args.regToken).toBe(controller.state.fcmToken);
+      await promise;
+
+      // Assert - update called with correct params
+      expect(mocks.activatePushNotificationsMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        env: expect.any(Object),
+        createRegToken: expect.any(Function),
+        regToken: {
+          platform: 'extension',
+          locale: 'en',
+          oldToken: '',
+        },
+      });
+
+      // Assert - state
+      expect(controller.state.isPushEnabled).toBe(true);
+      expect(controller.state.fcmToken).toBe(MOCK_FCM_TOKEN);
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
+    });
+
+    it('should bail early if push is not enabled', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        isPushFeatureEnabled: false,
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.updateTriggerPushNotifications(MOCK_ADDRESSES);
+      expect(mocks.activatePushNotificationsMock).not.toHaveBeenCalled();
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
+    });
+
+    it('should throw error if fails to update trigger push notifications', async () => {
+      mockErrorLog();
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger, initialState } = arrangeMockMessenger();
+      mockAuthBearerTokenCall(messenger);
+
+      // Arrange - service throws
+      mocks.activatePushNotificationsMock.mockRejectedValue(
+        new Error('TEST FAILURE'),
+      );
+
+      // Act / Assert Rejection
+      await expect(() =>
+        controller.updateTriggerPushNotifications(MOCK_ADDRESSES),
+      ).rejects.toThrow(expect.any(Error));
+
+      // Assert state did not change
+      expect(controller.state).toStrictEqual(initialState);
+      expect(controller.state.isUpdatingFCMToken).toBe(false);
+    });
+
+    it('should pass existing fcmToken as oldToken when updating triggers', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        state: {
+          fcmToken: 'existing-fcm-token',
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.updateTriggerPushNotifications(MOCK_ADDRESSES);
+
+      expect(mocks.activatePushNotificationsMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        env: expect.any(Object),
+        createRegToken: expect.any(Function),
+        regToken: {
+          platform: 'extension',
+          locale: 'en',
+          oldToken: 'existing-fcm-token',
+        },
+      });
     });
   });
 });
 
-// Test helper functions
-const buildPushPlatformNotificationsControllerMessenger = () => {
-  const globalMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
-
-  return globalMessenger.getRestricted<
-    'NotificationServicesPushController',
-    AllowedActions['type']
-  >({
-    name: 'NotificationServicesPushController',
-    allowedActions: ['AuthenticationController:getBearerToken'],
-    allowedEvents: [],
-  });
-};
-
 /**
  * Jest Mock Utility - mock messenger
  *
+ * @param controllerConfig - provide a partial override controller config for testing
  * @returns a mock messenger and other helpful mocks
  */
-function arrangeMockMessenger() {
+function arrangeMockMessenger(
+  controllerConfig?: Partial<
+    ControllerConfig & {
+      state?: Partial<NotificationServicesPushController['state']>;
+    }
+  >,
+) {
+  const { state: stateOverride, ...configOverride } = controllerConfig || {};
+
+  const config: ControllerConfig = {
+    isPushFeatureEnabled: true,
+    pushService: {
+      createRegToken: jest.fn(),
+      deleteRegToken: jest.fn(),
+      subscribeToPushNotifications: jest.fn(),
+    },
+    platform: 'extension',
+    ...configOverride,
+  };
+
+  const defaultState = {
+    fcmToken: '',
+    isPushEnabled: true,
+    isUpdatingFCMToken: false,
+  };
+  const state = { ...defaultState, ...stateOverride };
+
   const messenger = buildPushPlatformNotificationsControllerMessenger();
   const controller = new NotificationServicesPushController({
     messenger,
-    state: { fcmToken: '' },
+    state,
     env: {} as PushNotificationEnv,
-    config: {
-      isPushEnabled: true,
-      onPushNotificationClicked: jest.fn(),
-      onPushNotificationReceived: jest.fn(),
-      platform: 'extension',
-    },
+    config,
   });
 
   return {

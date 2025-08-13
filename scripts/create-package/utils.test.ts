@@ -14,6 +14,7 @@ jest.mock('fs', () => ({
     mkdir: jest.fn(),
     readFile: jest.fn(),
     writeFile: jest.fn(),
+    stat: jest.fn(),
   },
 }));
 
@@ -86,7 +87,10 @@ describe('create-package/utils', () => {
         nodeVersions: '>=18.0.0',
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
+      const mockError = new Error('Not found') as NodeJS.ErrnoException;
+      mockError.code = 'ENOENT';
+
+      jest.spyOn(fs.promises, 'stat').mockRejectedValue(mockError);
 
       (fsUtils.readAllFiles as jest.Mock).mockResolvedValueOnce({
         'src/index.ts': 'export default 42;',
@@ -167,7 +171,7 @@ describe('create-package/utils', () => {
         nodeVersions: '20.0.0',
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValueOnce(true);
+      (fs.promises.stat as jest.Mock).mockResolvedValue({});
 
       await expect(
         finalizeAndWriteData(packageData, monorepoFileData),
@@ -175,6 +179,35 @@ describe('create-package/utils', () => {
 
       expect(fs.promises.mkdir).not.toHaveBeenCalled();
       expect(fs.promises.writeFile).not.toHaveBeenCalled();
+    });
+
+    it('throws if fs.stat fails with an error other than ENOENT', async () => {
+      const mockError = new Error('Permission denied') as NodeJS.ErrnoException;
+      mockError.code = 'EACCES';
+
+      jest.spyOn(fs.promises, 'stat').mockRejectedValue(mockError);
+
+      const packageData: PackageData = {
+        name: '@metamask/foo',
+        description: 'A foo package.',
+        directoryName: 'foo',
+        nodeVersions: '20.0.0',
+        currentYear: '2023',
+      };
+
+      const monorepoFileData = {
+        tsConfig: {
+          references: [{ path: './packages/bar' }],
+        },
+        tsConfigBuild: {
+          references: [{ path: './packages/bar' }],
+        },
+        nodeVersions: '20.0.0',
+      };
+
+      await expect(
+        finalizeAndWriteData(packageData, monorepoFileData),
+      ).rejects.toThrow('Permission denied');
     });
   });
 });

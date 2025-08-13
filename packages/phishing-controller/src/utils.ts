@@ -200,16 +200,28 @@ export const getDefaultPhishingDetectorConfig = ({
 });
 
 /**
- * Processes the configurations for the phishing detector.
+ * Processes the configurations for the phishing detector, filtering out any invalid configs.
  *
- * @param configs - the configurations to process.
- * @returns the processed configurations.
+ * @param configs - The configurations to process.
+ * @returns An array of processed and valid configurations.
  */
-export const processConfigs = (configs: PhishingDetectorList[] = []) => {
-  return configs.map((config: PhishingDetectorList) => {
-    validateConfig(config);
-    return { ...config, ...getDefaultPhishingDetectorConfig(config) };
-  });
+export const processConfigs = (
+  configs: PhishingDetectorList[] = [],
+): PhishingDetectorConfiguration[] => {
+  return configs
+    .filter((config) => {
+      try {
+        validateConfig(config);
+        return true;
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    })
+    .map((config) => ({
+      ...config,
+      ...getDefaultPhishingDetectorConfig(config),
+    }));
 };
 
 /**
@@ -271,8 +283,84 @@ export const getHostnameFromUrl = (url: string): string | null => {
   let hostname;
   try {
     hostname = new URL(url).hostname;
-  } catch (error) {
+    // above will not throw if 'http://.' is passed. in fact, any string with a dot will pass.
+    if (!hostname || hostname.split('.').join('') === '') {
+      return null;
+    }
+  } catch {
     return null;
   }
   return hostname;
+};
+
+/**
+ * getHostnameFromWebUrl returns the hostname from a web URL.
+ * It returns the hostname and a boolean indicating if the hostname is valid.
+ *
+ * @param url - The web URL to extract the hostname from.
+ * @returns A tuple containing the extracted hostname and a boolean indicating if the hostname is valid.
+ * @example
+ * getHostnameFromWebUrl('https://example.com') // Returns: ['example.com', true]
+ * getHostnameFromWebUrl('example.com') // Returns: ['', false]
+ * getHostnameFromWebUrl('https://') // Returns: ['', false]
+ * getHostnameFromWebUrl('') // Returns: ['', false]
+ */
+export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
+  if (
+    !url.toLowerCase().startsWith('http://') &&
+    !url.toLowerCase().startsWith('https://')
+  ) {
+    return ['', false];
+  }
+
+  const hostname = getHostnameFromUrl(url);
+  return [hostname || '', Boolean(hostname)];
+};
+
+/**
+ * Generates all possible parent domains up to a specified limit.
+ *
+ * @param sourceParts - The list of domain parts in normal order (e.g., ['evil', 'domain', 'co', 'uk']).
+ * @param limit - The maximum number of parent domains to generate (default is 5).
+ * @returns An array of parent domains starting from the base TLD to the most specific subdomain.
+ * @example
+ * generateParentDomains(['evil', 'domain', 'co', 'uk'], 5)
+ * // Returns: ['co.uk', 'domain.co.uk', 'evil.domain.co.uk']
+ *
+ * generateParentDomains(['uk'], 5)
+ * // Returns: ['uk']
+ *
+ * generateParentDomains(['sub', 'example', 'com'], 5)
+ * // Returns: ['example.com', 'sub.example.com']
+ */
+export const generateParentDomains = (
+  sourceParts: string[],
+  limit = 5,
+): string[] => {
+  const domains: string[] = [];
+
+  if (sourceParts.length === 0) {
+    return domains;
+  }
+
+  if (sourceParts.length === 1) {
+    // Single-segment hostname (e.g., 'uk')
+    domains.push(sourceParts[0].toLowerCase());
+  } else {
+    // Start with the base domain or TLD (last two labels, e.g., 'co.uk' or 'example.com')
+    const baseDomain = sourceParts.slice(-2).join('.');
+    domains.push(baseDomain.toLowerCase());
+
+    // Iteratively add one subdomain level at a time, up to the specified limit
+    for (
+      let i = sourceParts.length - 3;
+      i >= 0 && domains.length < limit;
+      i--
+    ) {
+      const domain = sourceParts.slice(i).join('.');
+      domains.push(domain.toLowerCase());
+    }
+  }
+
+  return domains;
 };

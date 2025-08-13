@@ -1,11 +1,13 @@
+import type { AccessList, AuthorizationList } from '@ethereumjs/common';
 import {
   add0x,
   getKnownPropertyNames,
   isStrictHexString,
 } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
+import BN from 'bn.js';
 
-import { TransactionStatus } from '../types';
+import { TransactionEnvelopeType, TransactionStatus } from '../types';
 import type {
   TransactionParams,
   TransactionMeta,
@@ -19,6 +21,9 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
+  accessList: (accessList?: AccessList) => accessList,
+  authorizationList: (authorizationList?: AuthorizationList) =>
+    authorizationList,
   data: (data: string) => add0x(padHexToEvenLength(data)),
   from: (from: string) => add0x(from).toLowerCase(),
   gas: (gas: string) => add0x(gas),
@@ -54,6 +59,10 @@ export function normalizeTransactionParams(txParams: TransactionParams) {
     normalizedTxParams.value = '0x0';
   }
 
+  if (normalizedTxParams.gasLimit && !normalizedTxParams.gas) {
+    normalizedTxParams.gas = normalizedTxParams.gasLimit;
+  }
+
   return normalizedTxParams;
 }
 
@@ -82,8 +91,6 @@ export const validateGasValues = (
     const value = (gasValues as any)[key];
     if (typeof value !== 'string' || !isStrictHexString(value)) {
       throw new TypeError(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `expected hex string for ${key} but received: ${value}`,
       );
     }
@@ -103,8 +110,6 @@ export function validateIfTransactionUnapproved(
 ) {
   if (transactionMeta?.status !== TransactionStatus.unapproved) {
     throw new Error(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `TransactionsController: Can only call ${fnName} on an unapproved transaction.\n      Current tx status: ${transactionMeta?.status}`,
     );
   }
@@ -182,4 +187,52 @@ export function padHexToEvenLength(hex: string) {
   const evenData = data.length % 2 === 0 ? data : `0${data}`;
 
   return prefix + evenData;
+}
+
+/**
+ * Calculate the absolute percentage change between two values.
+ *
+ * @param originalValue - The first value.
+ * @param newValue - The second value.
+ * @returns The percentage change from the first value to the second value.
+ * If the original value is zero and the new value is not, returns 100.
+ */
+export function getPercentageChange(originalValue: BN, newValue: BN): number {
+  const precisionFactor = new BN(10).pow(new BN(18));
+  const originalValuePrecision = originalValue.mul(precisionFactor);
+  const newValuePrecision = newValue.mul(precisionFactor);
+
+  const difference = newValuePrecision.sub(originalValuePrecision);
+
+  if (difference.isZero()) {
+    return 0;
+  }
+
+  if (originalValuePrecision.isZero() && !newValuePrecision.isZero()) {
+    return 100;
+  }
+
+  return difference.muln(100).div(originalValuePrecision).abs().toNumber();
+}
+
+/**
+ * Sets the envelope type for the given transaction parameters based on the
+ * current network's EIP-1559 compatibility and the transaction parameters.
+ *
+ * @param txParams - The transaction parameters to set the envelope type for.
+ * @param isEIP1559Compatible - Indicates if the current network supports EIP-1559.
+ */
+export function setEnvelopeType(
+  txParams: TransactionParams,
+  isEIP1559Compatible: boolean,
+) {
+  if (txParams.accessList) {
+    txParams.type = TransactionEnvelopeType.accessList;
+  } else if (txParams.authorizationList) {
+    txParams.type = TransactionEnvelopeType.setCode;
+  } else {
+    txParams.type = isEIP1559Compatible
+      ? TransactionEnvelopeType.feeMarket
+      : TransactionEnvelopeType.legacy;
+  }
 }

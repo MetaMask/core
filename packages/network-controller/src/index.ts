@@ -17,19 +17,28 @@ export type {
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerInfuraIsBlockedEvent,
   NetworkControllerInfuraIsUnblockedEvent,
+  NetworkControllerNetworkAddedEvent,
+  NetworkControllerNetworkRemovedEvent,
   NetworkControllerEvents,
   NetworkControllerGetStateAction,
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetSelectedNetworkClientAction,
+  NetworkControllerGetSelectedChainIdAction,
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerSetProviderTypeAction,
   NetworkControllerSetActiveNetworkAction,
+  NetworkControllerAddNetworkAction,
+  NetworkControllerRemoveNetworkAction,
+  NetworkControllerUpdateNetworkAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,
   NetworkControllerOptions,
+  NetworkControllerRpcEndpointUnavailableEvent,
+  NetworkControllerRpcEndpointDegradedEvent,
+  NetworkControllerRpcEndpointRequestRetriedEvent,
 } from './NetworkController';
 export {
   getDefaultNetworkControllerState,
@@ -47,3 +56,6 @@ export type {
 } from './types';
 export { NetworkClientType } from './types';
 export type { NetworkClient } from './create-network-client';
+export type { AbstractRpcService } from './rpc-service/abstract-rpc-service';
+export type { RpcServiceRequestable } from './rpc-service/rpc-service-requestable';
+export { isConnectionError } from './rpc-service/rpc-service';

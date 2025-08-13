@@ -2,12 +2,12 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { merge, pickBy } from 'lodash';
 
+import { validateIfTransactionUnapproved } from './utils';
 import { CHAIN_IDS } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType } from '../types';
-import { validateIfTransactionUnapproved } from './utils';
 
 const log = createModuleLogger(projectLogger, 'swaps');
 
@@ -94,6 +94,12 @@ const ZKSYNC_ERA_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+const SEI_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  name: 'Sei',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+} as const;
+
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
   [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
@@ -104,6 +110,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.OPTIMISM]: OPTIMISM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.ARBITRUM]: ARBITRUM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export const SWAP_TRANSACTION_TYPES = [
@@ -211,6 +218,7 @@ export function updateSwapsTransaction(
  * @param updatePostTransactionBalanceRequest.ethQuery - EthQuery object
  * @param updatePostTransactionBalanceRequest.getTransaction - Reading function for the latest transaction state
  * @param updatePostTransactionBalanceRequest.updateTransaction - Updating transaction function
+ * @returns Updated transaction metadata and approval transaction metadata if applicable.
  */
 export async function updatePostTransactionBalance(
   transactionMeta: TransactionMeta,

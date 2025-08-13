@@ -1,11 +1,8 @@
-import { Env, Platform } from '../shared/env';
-import {
-  MOCK_ACCESS_JWT,
-  MOCK_SRP_LOGIN_RESPONSE,
-  arrangeAuthAPIs,
-} from './__fixtures__/mock-auth';
+import type { Eip1193Provider } from 'ethers';
+
+import { arrangeAuthAPIs } from './__fixtures__/auth';
 import type { MockVariable } from './__fixtures__/test-utils';
-import { arrangeAuth } from './__fixtures__/test-utils';
+import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
 import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
 import {
@@ -15,7 +12,9 @@ import {
   UnsupportedAuthTypeError,
   ValidationError,
 } from './errors';
+import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth';
 import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider';
+import { Env, Platform } from '../shared/env';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -86,7 +85,7 @@ describe('Identifier Pairing', () => {
           '0xc89a614e873c2c1f08fc8d72590e13c961ea856cc7a9cd08af4bf3d3fca11111',
         identifierType: 'SRP',
         signMessage: async (message: string): Promise<string> => {
-          return new Promise((_, reject) => {
+          return new Promise((_resolve, reject) => {
             reject(new Error(`unable to sign message: ${message}`));
           });
         },
@@ -143,14 +142,40 @@ describe('Authentication - constructor()', () => {
       );
     }).toThrow(UnsupportedAuthTypeError);
   });
+
+  it('supports using a custom provider as a constructor option', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP, {
+      customProvider: arrangeMockProvider().mockProvider,
+    });
+
+    await auth.connectSnap();
+    const isSnapConnected = await auth.isSnapConnected();
+
+    expect(isSnapConnected).toBe(true);
+  });
+
+  it('supports using a custom provider set at a later point in time', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+
+    auth.setCustomProvider(arrangeMockProvider().mockProvider);
+
+    await auth.connectSnap();
+    const isSnapConnected = await auth.isSnapConnected();
+
+    expect(isSnapConnected).toBe(true);
+  });
 });
 
-describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () => {
+describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUserProfileMetaMetrics()', () => {
   it('the SRP signIn success', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
 
-    const { mockNonceUrl, mockSrpLoginUrl, mockOAuth2TokenUrl } =
-      arrangeAuthAPIs();
+    const {
+      mockNonceUrl,
+      mockSrpLoginUrl,
+      mockOAuth2TokenUrl,
+      mockUserProfileLineageUrl,
+    } = arrangeAuthAPIs();
 
     // Token
     const accessToken = await auth.getAccessToken();
@@ -160,10 +185,15 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
     const profileResponse = await auth.getUserProfile();
     expect(profileResponse).toBeDefined();
 
+    // User Profile Lineage
+    const userProfileLineage = await auth.getUserProfileLineage();
+    expect(userProfileLineage).toBeDefined();
+
     // API
     expect(mockNonceUrl.isDone()).toBe(true);
     expect(mockSrpLoginUrl.isDone()).toBe(true);
     expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(mockUserProfileLineageUrl.isDone()).toBe(true);
   });
 
   it('the SRP signIn failed: nonce error', async () => {
@@ -223,8 +253,6 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
         mockOAuth2TokenUrl: {
           status: 400,
           body: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             error_description: 'invalid JWT token',
             error: 'invalid_request',
           },
@@ -400,8 +428,6 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
         mockOAuth2TokenUrl: {
           status: 400,
           body: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             error_description: 'invalid JWT token',
             error: 'invalid_request',
           },
@@ -554,13 +580,14 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
 
     // Sign Message
     await expect(auth.signMessage('not formatted message')).rejects.toThrow(
-      ValidationError,
+      'Message must start with "metamask:"',
     );
   });
 
   it('successfully uses default SRP flow', async () => {
     arrangeAuthAPIs();
     const { auth } = arrangeAuth('SRP', MOCK_SRP, { signing: undefined });
+
     arrangeProvider();
 
     const accessToken = await auth.getAccessToken();
@@ -571,6 +598,29 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
 
     const message = await auth.signMessage('metamask:test message');
     expect(message).toBeDefined();
+  });
+});
+
+describe('Authentication - rejects when calling unrelated methods', () => {
+  it('rejects when calling SRP methods in SiWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    expect(() => auth.setCustomProvider({} as Eip1193Provider)).toThrow(
+      UnsupportedAuthTypeError,
+    );
+  });
+
+  it('rejects when calling SiWE methods in SRP flow', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+
+    expect(() =>
+      auth.prepare({
+        address: MOCK_ADDRESS,
+        chainId: 1,
+        domain: 'https://metamask.io',
+        signMessage: async () => 'MOCK_SIWE_SIGNATURE',
+      }),
+    ).toThrow(UnsupportedAuthTypeError);
   });
 });
 

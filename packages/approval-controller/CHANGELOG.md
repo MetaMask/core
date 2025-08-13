@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.1.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284))
+
+## [7.1.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [7.1.2]
+
+### Changed
+
+- Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [7.1.0]
 
 ### Added
@@ -247,7 +274,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.3...HEAD
+[7.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.2...@metamask/approval-controller@7.1.3
+[7.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.1...@metamask/approval-controller@7.1.2
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.0...@metamask/approval-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.4...@metamask/approval-controller@7.1.0
 [7.0.4]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.3...@metamask/approval-controller@7.0.4
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.2...@metamask/approval-controller@7.0.3

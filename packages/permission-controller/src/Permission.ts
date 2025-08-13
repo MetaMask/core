@@ -405,8 +405,12 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
 
   /**
    * The validator function used to validate permissions of the associated type
-   * whenever they are mutated. The only way a permission can be legally mutated
-   * is when its caveats are modified by the permission controller.
+   * whenever they are granted or their caveat arrays are mutated.
+   *
+   * Permission validators are **not** invoked when a caveat is mutated, provided
+   * the caveat array has not changed. For this reason, permission validators
+   * **must not** be used to validate caveats. To validate caveats, use the
+   * corresponding caveat specification property.
    *
    * The validator should throw an appropriate JSON-RPC error if validation fails.
    */

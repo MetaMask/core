@@ -204,7 +204,7 @@ export class ERC721Standard {
         const object = await response.json();
         image = object?.image;
         if (image?.startsWith('ipfs://')) {
-          image = getFormattedIpfsUrl(ipfsGateway, image, true);
+          image = await getFormattedIpfsUrl(ipfsGateway, image, true);
         }
       } catch {
         // ignore

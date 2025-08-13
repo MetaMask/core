@@ -1,6 +1,6 @@
 /* eslint-disable jest/expect-expect */
 
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
@@ -223,21 +223,20 @@ function getError(message: string, code?: number) {
 }
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a restricted messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns A restricted messenger.
  */
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     ApprovalControllerActions,
     ApprovalControllerEvents
   >();
-  const messenger = controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: 'ApprovalController',
     allowedActions: [],
     allowedEvents: [],
   });
-  return messenger;
 }
 
 describe('approval controller', () => {
@@ -1270,7 +1269,7 @@ describe('approval controller', () => {
 
   describe('actions', () => {
     it('addApprovalRequest: shouldShowRequest = true', async () => {
-      const messenger = new ControllerMessenger<
+      const messenger = new Messenger<
         ApprovalControllerActions,
         ApprovalControllerEvents
       >();
@@ -1296,7 +1295,7 @@ describe('approval controller', () => {
     });
 
     it('addApprovalRequest: shouldShowRequest = false', async () => {
-      const messenger = new ControllerMessenger<
+      const messenger = new Messenger<
         ApprovalControllerActions,
         ApprovalControllerEvents
       >();
@@ -1322,7 +1321,7 @@ describe('approval controller', () => {
     });
 
     it('updateRequestState', () => {
-      const messenger = new ControllerMessenger<
+      const messenger = new Messenger<
         ApprovalControllerActions,
         ApprovalControllerEvents
       >();

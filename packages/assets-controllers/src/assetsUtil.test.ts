@@ -551,6 +551,35 @@ describe('assetsUtil', () => {
       expect(Object.keys(timestampsByIndex)).toHaveLength(3);
       expect(timestampsIncreasing).toBe(true);
     });
+
+    it('works when the result is an array', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        string[]
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          return [...workingResult, ...batch.map((s) => s.toUpperCase())];
+        },
+        initialResult: [],
+      });
+
+      expect(results).toStrictEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    });
+
+    it('works when the result is a number', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<number, number>({
+        values: [1, 2, 3, 4, 5],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          return workingResult + batch.reduce((a, b) => a + b, 0);
+        },
+        initialResult: 0,
+      });
+
+      expect(results).toBe(15);
+    });
   });
 
   describe('fetchAndMapExchangeRates', () => {
@@ -712,6 +741,17 @@ describe('assetsUtil', () => {
           currency: testNativeCurrency,
         });
       }
+    });
+  });
+
+  describe('getKeyByValue', () => {
+    it('should return correct key for a specific value', () => {
+      const testMap = new Map([
+        ['toto', 'koko'],
+        ['foo', 'bar'],
+      ]);
+      const result = assetsUtil.getKeyByValue(testMap, 'koko');
+      expect(result).toBe('toto');
     });
   });
 });

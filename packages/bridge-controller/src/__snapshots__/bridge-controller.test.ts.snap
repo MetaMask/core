@@ -1,0 +1,1047 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "minimumBalanceForRentExemptionInLamports": "0",
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "0x1",
+    "destTokenAddress": "0x0000000000000000000000000000000000000000",
+    "insufficientBal": false,
+    "srcChainId": "0xa",
+    "srcTokenAddress": "0x4200000000000000000000000000000000000006",
+    "srcTokenAmount": "991250000000000000",
+    "walletAddress": "eip:id/id:id/0x123",
+  },
+  "quotesInitialLoadTime": 10000,
+  "quotesLoadingStatus": 1,
+  "quotesRefreshCount": 1,
+}
+`;
+
+exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "minimumBalanceForRentExemptionInLamports": "0",
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "0x1",
+    "destTokenAddress": "0x0000000000000000000000000000000000000000",
+    "insufficientBal": false,
+    "srcChainId": "0xa",
+    "srcTokenAddress": "0x4200000000000000000000000000000000000006",
+    "srcTokenAmount": "991250000000000000",
+    "walletAddress": "eip:id/id:id/0x123",
+  },
+  "quotesInitialLoadTime": 10000,
+  "quotesLoadingStatus": 1,
+  "quotesRefreshCount": 1,
+}
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Completed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Completed",
+    Object {
+      "actual_time_minutes": 10,
+      "approval_transaction": "PENDING",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 6,
+      "provider": "provider_bridge",
+      "quote_vs_execution_ratio": 1,
+      "quoted_time_minutes": 0,
+      "quoted_vs_used_gas_ratio": 1,
+      "security_warnings": Array [],
+      "source_transaction": "PENDING",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 10,
+      "usd_actual_return": 100,
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Failed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 10,
+      "allowance_reset_transaction": "PENDING",
+      "approval_transaction": "PENDING",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
+      "error_message": "error_message",
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 0,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "security_warnings": Array [],
+      "slippage_limit": undefined,
+      "source_transaction": "PENDING",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Failed event before tx is submitted 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Failed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": true,
+      "error_message": "Failed to submit tx",
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 12,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 2,
+      "quotes_count": 2,
+      "quotes_list": Array [
+        "lifi_mayan",
+        "lifi_mayanMCTP",
+      ],
+      "slippage_limit": 0.5,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:1/erc20:0x1234",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 1,
+      "usd_quoted_return": 113,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the SnapConfirmationViewed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Snap Confirmation Page Viewed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 0,
+      "slippage_limit": undefined,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Submitted event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": true,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 12,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 2,
+      "quotes_count": 2,
+      "quotes_list": Array [
+        "lifi_mayan",
+        "lifi_mayanMCTP",
+      ],
+      "slippage_limit": 0.5,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/erc20:0x1234",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 1,
+      "usd_quoted_return": 113,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AllQuotesOpened event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge All Quotes Opened",
+    Object {
+      "action_type": "swapbridge-v1",
+      "can_submit": true,
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 6,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "slippage_limit": undefined,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AllQuotesSorted event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge All Quotes Sorted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "best_quote_provider": "provider_bridge2",
+      "can_submit": true,
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 6,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "slippage_limit": undefined,
+      "sort_order": "cost_ascending",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the ButtonClicked event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Button Clicked",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "location": "Main View",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": null,
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Source Destination Flipped",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "security_warnings": Array [
+        "warning1",
+      ],
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the PageViewed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Page Viewed",
+    Object {
+      "abc": 1,
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuoteSelected event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Quote Selected",
+    Object {
+      "action_type": "swapbridge-v1",
+      "best_quote_provider": "provider_bridge2",
+      "can_submit": false,
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_best_quote": true,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 10,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "slippage_limit": undefined,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 100,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the QuotesReceived event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Quotes Received",
+    Object {
+      "action_type": "swapbridge-v1",
+      "best_quote_provider": "provider_bridge2",
+      "can_submit": true,
+      "chain_id_destination": null,
+      "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 0,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 10,
+      "quotes_count": 0,
+      "quotes_list": Array [],
+      "refresh_count": 0,
+      "slippage_limit": undefined,
+      "swap_type": "crosschain",
+      "token_address_destination": null,
+      "token_address_source": "eip155:1/slip44:60",
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 100,
+      "warnings": Array [
+        "warning1",
+      ],
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should only poll once if insufficientBal=true 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_source",
+      "input_value": "eip155:1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_destination",
+      "input_value": "eip155:10",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "token_destination",
+      "input_value": "eip155:10/erc20:0x123",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "slippage",
+      "input_value": 0.5,
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/erc20:0x123",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Received",
+    Object {
+      "action_type": "swapbridge-v1",
+      "best_quote_provider": "provider_bridge2",
+      "can_submit": true,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "gas_included": false,
+      "initial_load_time_all_quotes": 11000,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "provider_bridge",
+      "quoted_time_minutes": 10,
+      "quotes_count": 2,
+      "quotes_list": Array [
+        "lifi_across",
+        "lifi_celercircle",
+      ],
+      "refresh_count": 1,
+      "slippage_limit": 0.5,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/erc20:0x123",
+      "token_address_source": "eip155:1/slip44:60",
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 100,
+      "warnings": Array [
+        "warning1",
+      ],
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 1`] = `
+Array [
+  Array [
+    "Error setting minimum balance for rent exemption",
+    [Error: Min balance error],
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails 2`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 1`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "minimumBalanceForRentExemptionInLamports": "0",
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
+    "insufficientBal": false,
+    "slippage": 0.5,
+    "srcChainId": "0x1",
+    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+    "srcTokenAmount": "10",
+    "walletAddress": "0x123",
+  },
+  "quotes": Array [],
+  "quotesInitialLoadTime": null,
+  "quotesLastFetched": null,
+  "quotesLoadingStatus": null,
+  "quotesRefreshCount": 0,
+}
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 2`] = `
+Object {
+  "assetExchangeRates": Object {
+    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
+      "exchangeRate": undefined,
+      "usdExchangeRate": "100",
+    },
+  },
+  "minimumBalanceForRentExemptionInLamports": "0",
+  "quoteFetchError": null,
+  "quoteRequest": Object {
+    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
+    "insufficientBal": false,
+    "slippage": 0.5,
+    "srcChainId": "0x1",
+    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+    "srcTokenAmount": "10",
+    "walletAddress": "0x123",
+  },
+  "quotesInitialLoadTime": 15000,
+  "quotesLoadingStatus": 1,
+  "quotesRefreshCount": 1,
+}
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 3`] = `
+Array [
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_source",
+      "input_value": "eip155:1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_destination",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "token_destination",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "slippage",
+      "input_value": 0.5,
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quote Error",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "error_message": "Network error",
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 100,
+      "warnings": Array [],
+    },
+  ],
+  Array [
+    "Unified SwapBridge Quotes Requested",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "eip155:1",
+      "custom_slippage": true,
+      "has_sufficient_funds": true,
+      "is_hardware_wallet": false,
+      "security_warnings": Array [],
+      "slippage_limit": 0.5,
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "token_address_source": "eip155:1/slip44:60",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams should update the quoteRequest state 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_source",
+      "input_value": "eip155:1",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "chain_destination",
+      "input_value": "eip155:10",
+    },
+  ],
+  Array [
+    "Unified SwapBridge Input Changed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "input": "slippage",
+      "input_value": 0.5,
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onRpcRequest",
+      "origin": "metamask",
+      "request": Object {
+        "method": "getFeeForTransaction",
+        "params": Object {
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `Array []`;

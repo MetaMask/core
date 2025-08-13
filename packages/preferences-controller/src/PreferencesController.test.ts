@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
 import { cloneDeep } from 'lodash';
 
@@ -22,26 +22,39 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      useSafeChainsListValidation: true,
       displayNftMedia: false,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
+      smartAccountOptIn: true,
+      smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
+      useMultiRpcMigration: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
-      ).reduce((acc, curr) => {
-        acc[curr] = true;
-        return acc;
-      }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
-      smartTransactionsOptInStatus: false,
+      ).reduce(
+        (acc, curr) => {
+          acc[curr] = true;
+          return acc;
+        },
+        {} as { [chainId in EtherscanSupportedHexChainId]: boolean },
+      ),
+      smartTransactionsOptInStatus: true,
+      useSafeChainsListValidation: true,
+      tokenSortConfig: {
+        key: 'tokenFiatAmount',
+        order: 'dsc',
+        sortCallback: 'stringNumeric',
+      },
+      privacyMode: false,
+      dismissSmartAccountSuggestionEnabled: false,
     });
   });
 
   describe('KeyringController:stateChange', () => {
     it('should update identities state to reflect new keyring accounts', () => {
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -59,7 +72,14 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
           ],
         },
         [],
@@ -82,7 +102,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update identities state to reflect removed keyring accounts', () => {
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -101,7 +121,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: ['0x00'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -112,7 +141,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update selected address to first identity if the selected address was removed', () => {
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -131,7 +160,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: ['0x00'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -145,36 +183,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
-      const controller = setupPreferencesController({
-        options: {
-          state: {
-            identities: cloneDeep(identitiesState),
-            selectedAddress: '0x00',
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        {
-          ...getDefaultKeyringState(),
-          keyrings: [{ accounts: [], type: 'CustomKeyring' }],
-        },
-        [],
-      );
-
-      expect(controller.state.identities).toStrictEqual(identitiesState);
-    });
-
-    it('should not update existing identities', () => {
-      const identitiesState = {
-        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
-        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
-        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
-      };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -190,7 +199,52 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            {
+              accounts: [],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toStrictEqual(identitiesState);
+    });
+
+    it('should not update existing identities', () => {
+      const identitiesState = {
+        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
+        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
+        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+      };
+      const messenger = getMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: cloneDeep(identitiesState),
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
           ],
         },
         [],
@@ -205,7 +259,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -221,8 +275,22 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
-            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+            {
+              accounts: ['0x00', '0x01', '0x02'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
           ],
         },
         [],
@@ -237,7 +305,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -252,7 +320,16 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [{ accounts: ['0x00', '0x01'], type: 'CustomKeyring' }],
+          keyrings: [
+            {
+              accounts: ['0x00', '0x01'],
+              type: 'CustomKeyring',
+              metadata: {
+                id: 'mock-id',
+                name: '',
+              },
+            },
+          ],
         },
         [],
       );
@@ -369,6 +446,18 @@ describe('PreferencesController', () => {
     );
   });
 
+  it('should set useMultiRpcMigration', () => {
+    const controller = setupPreferencesController();
+    controller.setUseMultiRpcMigration(true);
+    expect(controller.state.useMultiRpcMigration).toBe(true);
+  });
+
+  it('should set useMultiRpcMigration is false value is passed', () => {
+    const controller = setupPreferencesController();
+    controller.setUseMultiRpcMigration(false);
+    expect(controller.state.useMultiRpcMigration).toBe(false);
+  });
+
   it('should set featureFlags', () => {
     const controller = setupPreferencesController();
     controller.setFeatureFlag('Feature A', true);
@@ -412,6 +501,8 @@ describe('PreferencesController', () => {
 
   it('should set smartTransactionsOptInStatus', () => {
     const controller = setupPreferencesController();
+    controller.setSmartTransactionsOptInStatus(false);
+    expect(controller.state.smartTransactionsOptInStatus).toBe(false);
     controller.setSmartTransactionsOptInStatus(true);
     expect(controller.state.smartTransactionsOptInStatus).toBe(true);
   });
@@ -423,25 +514,79 @@ describe('PreferencesController', () => {
   });
 
   it('should set useSafeChainsListValidation', () => {
-    const controller = setupPreferencesController();
-    controller.setUseSafeChainsListValidation(false);
+    const controller = setupPreferencesController({
+      options: {
+        state: {
+          useSafeChainsListValidation: false,
+        },
+      },
+    });
     expect(controller.state.useSafeChainsListValidation).toBe(false);
+    controller.setUseSafeChainsListValidation(true);
+    expect(controller.state.useSafeChainsListValidation).toBe(true);
+  });
+
+  it('should set tokenSortConfig', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.tokenSortConfig).toStrictEqual({
+      key: 'tokenFiatAmount',
+      order: 'dsc',
+      sortCallback: 'stringNumeric',
+    });
+    controller.setTokenSortConfig({
+      key: 'someToken',
+      order: 'asc',
+      sortCallback: 'stringNumeric',
+    });
+    expect(controller.state.tokenSortConfig).toStrictEqual({
+      key: 'someToken',
+      order: 'asc',
+      sortCallback: 'stringNumeric',
+    });
+  });
+
+  it('should set privacyMode', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.privacyMode).toBe(false);
+    controller.setPrivacyMode(true);
+    expect(controller.state.privacyMode).toBe(true);
+  });
+
+  it('should set dismissSmartAccountSuggestionEnabled', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(false);
+    controller.setDismissSmartAccountSuggestionEnabled(true);
+    expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
+  });
+
+  it('should set smartAccountOptIn', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptIn).toBe(true);
+    controller.setSmartAccountOptIn(false);
+    expect(controller.state.smartAccountOptIn).toBe(false);
+  });
+
+  it('should set smartAccountOptInForAccounts', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
+    controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
+    expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
   });
 });
 
 /**
- * Construct a controller messenger for use in PreferencesController tests.
+ * Construct a messenger for use in PreferencesController tests.
  *
  * This is a utility function that saves us from manually entering the correct
- * type parameters for the ControllerMessenger each time we construct it.
+ * type parameters for the Messenger each time we construct it.
  *
- * @returns A controller messenger
+ * @returns A messenger
  */
-function getControllerMessenger(): ControllerMessenger<
+function getMessenger(): Messenger<
   PreferencesControllerActions,
   PreferencesControllerEvents | AllowedEvents
 > {
-  return new ControllerMessenger<
+  return new Messenger<
     PreferencesControllerActions,
     PreferencesControllerEvents | AllowedEvents
   >();
@@ -452,21 +597,20 @@ function getControllerMessenger(): ControllerMessenger<
  *
  * @param args - Arguments
  * @param args.options - PreferencesController options.
- * @param args.messenger - A controller messenger.
+ * @param args.messenger - A messenger.
  * @returns A PreferencesController instance.
  */
 function setupPreferencesController({
   options = {},
-  messenger,
+  messenger = getMessenger(),
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
-  messenger?: ControllerMessenger<
+  messenger?: Messenger<
     PreferencesControllerActions,
     PreferencesControllerEvents | AllowedEvents
   >;
 } = {}) {
-  const controllerMessenger = messenger ?? getControllerMessenger();
-  const preferencesControllerMessenger = controllerMessenger.getRestricted<
+  const preferencesControllerMessenger = messenger.getRestricted<
     'PreferencesController',
     never,
     AllowedEvents['type']

@@ -65,24 +65,53 @@ export async function isSnapConnected(
 }
 
 export const MESSAGE_SIGNING_SNAP = {
-  async getPublicKey(provider: Eip1193Provider) {
+  async getPublicKey(provider: Eip1193Provider, entropySourceId?: string) {
     const publicKey: string = await provider.request({
       method: 'wallet_invokeSnap',
-      params: { snapId: SNAP_ORIGIN, request: { method: 'getPublicKey' } },
+      params: {
+        snapId: SNAP_ORIGIN,
+        request: {
+          method: 'getPublicKey',
+          ...(entropySourceId ? { params: { entropySourceId } } : {}),
+        },
+      },
     });
 
     return publicKey;
   },
 
-  async signMessage(provider: Eip1193Provider, message: `metamask:${string}`) {
+  async signMessage(
+    provider: Eip1193Provider,
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ) {
     const signedMessage: string = await provider?.request({
       method: 'wallet_invokeSnap',
       params: {
         snapId: SNAP_ORIGIN,
-        request: { method: 'signMessage', params: { message } },
+        request: {
+          method: 'signMessage',
+          params: {
+            message,
+            ...(entropySourceId ? { entropySourceId } : {}),
+          },
+        },
       },
     });
 
     return signedMessage;
   },
 };
+
+/**
+ * Asserts that a message starts with "metamask:"
+ *
+ * @param message - The message to check.
+ */
+export function assertMessageStartsWithMetamask(
+  message: string,
+): asserts message is `metamask:${string}` {
+  if (!message.startsWith('metamask:')) {
+    throw new Error('Message must start with "metamask:"');
+  }
+}

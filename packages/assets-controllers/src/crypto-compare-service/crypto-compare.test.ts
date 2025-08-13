@@ -150,6 +150,15 @@ describe('CryptoCompare', () => {
     expect(conversionRate).toBe(123);
   });
 
+  it('should override currency symbol when the CryptoCompare identifier is different', async () => {
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=USD&tsyms=MANTLE')
+      .reply(200, { MANTLE: 1234 });
+
+    const { conversionRate } = await fetchExchangeRate('MNT', 'USD');
+    expect(conversionRate).toBe(1234);
+  });
+
   describe('fetchMultiExchangeRate', () => {
     it('should return CAD and USD conversion rate for BTC, ETH, and SOL', async () => {
       nock(cryptoCompareHost)
@@ -193,6 +202,22 @@ describe('CryptoCompare', () => {
         btc: { eur: 1000 },
         eth: { eur: 2000 },
         sol: { eur: 3000 },
+      });
+    });
+
+    it('should override native symbol for mantle native token', async () => {
+      nock(cryptoCompareHost)
+        .get('/data/pricemulti?fsyms=MANTLE,ETH&tsyms=EUR')
+        .reply(200, {
+          MANTLE: { EUR: 1000 },
+          ETH: { EUR: 2000 },
+        });
+
+      // @ts-expect-error Testing the case where the USD rate is not included
+      const response = await fetchMultiExchangeRate('EUR', ['MNT', 'ETH']);
+      expect(response).toStrictEqual({
+        eth: { eur: 2000 },
+        mnt: { eur: 1000 },
       });
     });
   });

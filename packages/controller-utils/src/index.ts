@@ -1,4 +1,57 @@
-export * from './constants';
+export {
+  BrokenCircuitError,
+  CircuitState,
+  ConstantBackoff,
+  DEFAULT_CIRCUIT_BREAK_DURATION,
+  DEFAULT_DEGRADED_THRESHOLD,
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+  ExponentialBackoff,
+  createServicePolicy,
+  handleAll,
+  handleWhen,
+} from './create-service-policy';
+export type {
+  CockatielEvent,
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from './create-service-policy';
+export {
+  RPC,
+  FALL_BACK_VS_CURRENCY,
+  IPFS_DEFAULT_GATEWAY_URL,
+  GANACHE_CHAIN_ID,
+  MAX_SAFE_CHAIN_ID,
+  ERC721,
+  ERC1155,
+  ERC20,
+  ERC721_INTERFACE_ID,
+  ERC721_METADATA_INTERFACE_ID,
+  ERC721_ENUMERABLE_INTERFACE_ID,
+  ERC1155_INTERFACE_ID,
+  ERC1155_METADATA_URI_INTERFACE_ID,
+  ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
+  GWEI,
+  ASSET_TYPES,
+  TESTNET_TICKER_SYMBOLS,
+  BUILT_IN_CUSTOM_NETWORKS_RPC,
+  BUILT_IN_NETWORKS,
+  OPENSEA_PROXY_URL,
+  NFT_API_BASE_URL,
+  NFT_API_VERSION,
+  NFT_API_TIMEOUT,
+  ORIGIN_METAMASK,
+  ApprovalType,
+  CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
+  SECOND,
+  SECONDS,
+  MINUTE,
+  MINUTES,
+  HOUR,
+  HOURS,
+  DAY,
+  DAYS,
+} from './constants';
 export type { NonEmptyArray } from './util';
 export {
   BNToHex,
@@ -11,6 +64,7 @@ export {
   handleFetch,
   hexToBN,
   hexToText,
+  HttpError,
   isNonEmptyArray,
   isPlainObject,
   isSafeChainId,
@@ -27,6 +81,7 @@ export {
   toChecksumHexAddress,
   toHex,
   weiHexToGweiDec,
+  isEqualCaseInsensitive,
 } from './util';
 export * from './types';
 export * from './siwe';

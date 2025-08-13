@@ -1,256 +1,202 @@
+import * as OnChainNotifications from './onchain-notifications';
 import {
-  MOCK_USER_STORAGE_ACCOUNT,
-  MOCK_USER_STORAGE_CHAIN,
-  createMockUserStorageWithTriggers,
-} from '../__fixtures__/mock-notification-user-storage';
-import {
-  mockBatchCreateTriggers,
-  mockBatchDeleteTriggers,
-  mockListNotifications,
+  mockGetOnChainNotificationsConfig,
+  mockUpdateOnChainNotifications,
+  mockGetOnChainNotifications,
   mockMarkNotificationsAsRead,
 } from '../__fixtures__/mockServices';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { UserStorage } from '../types/user-storage/user-storage';
-import * as Utils from '../utils/utils';
-import * as OnChainNotifications from './onchain-notifications';
 
-const MOCK_STORAGE_KEY = 'MOCK_USER_STORAGE_KEY';
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
-const MOCK_TRIGGER_ID = 'TRIGGER_ID_1';
+const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
-describe('On Chain Notifications - createOnChainTriggers()', () => {
-  const assertUserStorageTriggerStatus = (
-    userStorage: UserStorage,
-    enabled: boolean,
-  ) => {
-    expect(
-      userStorage[MOCK_USER_STORAGE_ACCOUNT][MOCK_USER_STORAGE_CHAIN][
-        MOCK_TRIGGER_ID
-      ].e,
-    ).toBe(enabled);
-  };
+describe('On Chain Notifications - getOnChainNotificationsConfig()', () => {
+  it('should return notification config for addresses', async () => {
+    const mockEndpoint = mockGetOnChainNotificationsConfig({
+      status: 200,
+      body: [{ address: '0xTestAddress', enabled: true }],
+    });
 
-  const arrangeMocks = () => {
-    const mockUserStorage = createMockUserStorageWithTriggers([
-      { id: MOCK_TRIGGER_ID, k: TRIGGER_TYPES.ETH_SENT, e: false },
-    ]);
-    const triggers = Utils.traverseUserStorageTriggers(mockUserStorage);
-    const mockEndpoint = mockBatchCreateTriggers();
+    const result =
+      await OnChainNotifications.getOnChainNotificationsConfigCached(
+        MOCK_BEARER_TOKEN,
+        MOCK_ADDRESSES,
+      );
 
-    return {
-      mockUserStorage,
-      triggers,
-      mockEndpoint,
-    };
-  };
-
-  it('should create new triggers', async () => {
-    const mocks = arrangeMocks();
-
-    // The initial trigger to create should not be enabled
-    assertUserStorageTriggerStatus(mocks.mockUserStorage, false);
-
-    await OnChainNotifications.createOnChainTriggers(
-      mocks.mockUserStorage,
-      MOCK_STORAGE_KEY,
-      MOCK_BEARER_TOKEN,
-      mocks.triggers,
-    );
-
-    expect(mocks.mockEndpoint.isDone()).toBe(true);
-
-    // once we created triggers, we expect the trigger to be enabled
-    assertUserStorageTriggerStatus(mocks.mockUserStorage, true);
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual([{ address: '0xTestAddress', enabled: true }]);
   });
 
-  it('does not call endpoint if there are no triggers to create', async () => {
-    const mocks = arrangeMocks();
-    await OnChainNotifications.createOnChainTriggers(
-      mocks.mockUserStorage,
-      MOCK_STORAGE_KEY,
-      MOCK_BEARER_TOKEN,
-      [], // there are no triggers we've provided that need to be created
-    );
+  it('should bail early if given a list of empty addresses', async () => {
+    const mockEndpoint = mockGetOnChainNotificationsConfig();
 
-    expect(mocks.mockEndpoint.isDone()).toBe(false);
+    const result =
+      await OnChainNotifications.getOnChainNotificationsConfigCached(
+        MOCK_BEARER_TOKEN,
+        [],
+      );
+
+    expect(mockEndpoint.isDone()).toBe(false); // bailed early before API was called
+    expect(result).toStrictEqual([]);
   });
 
-  it('should throw error if endpoint fails', async () => {
-    const mockUserStorage = createMockUserStorageWithTriggers([
-      { id: MOCK_TRIGGER_ID, k: TRIGGER_TYPES.ETH_SENT, e: false },
-    ]);
-    const triggers = Utils.traverseUserStorageTriggers(mockUserStorage);
-    const mockBadEndpoint = mockBatchCreateTriggers({
+  it('should return [] if endpoint fails', async () => {
+    const mockBadEndpoint = mockGetOnChainNotificationsConfig({
       status: 500,
       body: { error: 'mock api failure' },
     });
 
-    // The initial trigger to create should not be enabled
-    assertUserStorageTriggerStatus(mockUserStorage, false);
-
-    await expect(
-      OnChainNotifications.createOnChainTriggers(
-        mockUserStorage,
-        MOCK_STORAGE_KEY,
+    const result =
+      await OnChainNotifications.getOnChainNotificationsConfigCached(
         MOCK_BEARER_TOKEN,
-        triggers,
-      ),
-    ).rejects.toThrow(expect.any(Error));
+        MOCK_ADDRESSES,
+      );
 
-    mockBadEndpoint.done();
-
-    // since failed, expect triggers to not be enabled
-    assertUserStorageTriggerStatus(mockUserStorage, false);
+    expect(mockBadEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual([]);
   });
 });
 
-describe('On Chain Notifications - deleteOnChainTriggers()', () => {
-  const getTriggerFromUserStorage = (
-    userStorage: UserStorage,
-    triggerId: string,
-  ) => {
-    return userStorage[MOCK_USER_STORAGE_ACCOUNT][MOCK_USER_STORAGE_CHAIN][
-      triggerId
-    ];
-  };
+describe('On Chain Notifications - updateOnChainNotifications()', () => {
+  const mockAddressesWithStatus = [
+    { address: '0x123', enabled: true },
+    { address: '0x456', enabled: false },
+    { address: '0x789', enabled: true },
+  ];
 
-  const arrangeUserStorage = () => {
-    const triggerId1 = 'TRIGGER_ID_1';
-    const triggerId2 = 'TRIGGER_ID_2';
-    const mockUserStorage = createMockUserStorageWithTriggers([
-      triggerId1,
-      triggerId2,
-    ]);
+  it('should successfully update notification settings', async () => {
+    const mockEndpoint = mockUpdateOnChainNotifications();
 
-    return {
-      mockUserStorage,
-      triggerId1,
-      triggerId2,
-    };
-  };
-
-  it('should delete a trigger from API and in user storage', async () => {
-    const { mockUserStorage, triggerId1, triggerId2 } = arrangeUserStorage();
-    const mockEndpoint = mockBatchDeleteTriggers();
-
-    // Assert that triggers exists
-    [triggerId1, triggerId2].forEach((t) => {
-      expect(getTriggerFromUserStorage(mockUserStorage, t)).toBeDefined();
-    });
-
-    await OnChainNotifications.deleteOnChainTriggers(
-      mockUserStorage,
-      MOCK_STORAGE_KEY,
+    await OnChainNotifications.updateOnChainNotifications(
       MOCK_BEARER_TOKEN,
-      [triggerId2],
+      mockAddressesWithStatus,
     );
 
-    mockEndpoint.done();
-
-    // Assert trigger deletion
-    expect(
-      getTriggerFromUserStorage(mockUserStorage, triggerId1),
-    ).toBeDefined();
-    expect(
-      getTriggerFromUserStorage(mockUserStorage, triggerId2),
-    ).toBeUndefined();
+    expect(mockEndpoint.isDone()).toBe(true);
   });
 
-  it('should delete all triggers and account in user storage', async () => {
-    const { mockUserStorage, triggerId1, triggerId2 } = arrangeUserStorage();
-    const mockEndpoint = mockBatchDeleteTriggers();
+  it('should bail early if given empty list of addresses', async () => {
+    const mockEndpoint = mockUpdateOnChainNotifications();
 
-    await OnChainNotifications.deleteOnChainTriggers(
-      mockUserStorage,
-      MOCK_STORAGE_KEY,
+    await OnChainNotifications.updateOnChainNotifications(
       MOCK_BEARER_TOKEN,
-      [triggerId1, triggerId2], // delete all triggers for an account
+      [],
     );
 
-    mockEndpoint.done();
-
-    // assert that the underlying user is also deleted since all underlying triggers are deleted
-    expect(mockUserStorage[MOCK_USER_STORAGE_ACCOUNT]).toBeUndefined();
+    expect(mockEndpoint.isDone()).toBe(false); // bailed before API was called
   });
 
-  it('should throw error if endpoint fails to delete', async () => {
-    const { mockUserStorage, triggerId1, triggerId2 } = arrangeUserStorage();
-    const mockBadEndpoint = mockBatchDeleteTriggers({
+  it('should handle endpoint failure gracefully', async () => {
+    const mockBadEndpoint = mockUpdateOnChainNotifications({
       status: 500,
       body: { error: 'mock api failure' },
     });
 
-    await expect(
-      OnChainNotifications.deleteOnChainTriggers(
-        mockUserStorage,
-        MOCK_STORAGE_KEY,
-        MOCK_BEARER_TOKEN,
-        [triggerId1, triggerId2],
-      ),
-    ).rejects.toThrow(expect.any(Error));
+    // Should not throw error, should handle gracefully
+    await OnChainNotifications.updateOnChainNotifications(
+      MOCK_BEARER_TOKEN,
+      mockAddressesWithStatus,
+    );
 
-    mockBadEndpoint.done();
+    expect(mockBadEndpoint.isDone()).toBe(true);
+  });
 
-    // Assert that triggers were not deleted from user storage
-    [triggerId1, triggerId2].forEach((t) => {
-      expect(getTriggerFromUserStorage(mockUserStorage, t)).toBeDefined();
-    });
+  it('should send addresses with enabled status in request body', async () => {
+    const mockEndpoint = mockUpdateOnChainNotifications();
+
+    await OnChainNotifications.updateOnChainNotifications(
+      MOCK_BEARER_TOKEN,
+      mockAddressesWithStatus,
+    );
+
+    expect(mockEndpoint.isDone()).toBe(true);
   });
 });
 
 describe('On Chain Notifications - getOnChainNotifications()', () => {
   it('should return a list of notifications', async () => {
-    const mockEndpoint = mockListNotifications();
-    const mockUserStorage = createMockUserStorageWithTriggers([
-      'trigger_1',
-      'trigger_2',
-    ]);
+    const mockEndpoint = mockGetOnChainNotifications();
 
     const result = await OnChainNotifications.getOnChainNotifications(
-      mockUserStorage,
       MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
     );
 
-    mockEndpoint.done();
-    expect(result.length > 0).toBe(true);
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
   });
 
-  it('should return an empty list if not triggers found in user storage', async () => {
-    const mockEndpoint = mockListNotifications();
-    const mockUserStorage = createMockUserStorageWithTriggers([]); // no triggers
-
+  it('should bail early when a list of empty addresses is provided', async () => {
+    const mockEndpoint = mockGetOnChainNotifications();
     const result = await OnChainNotifications.getOnChainNotifications(
-      mockUserStorage,
       MOCK_BEARER_TOKEN,
+      [],
     );
 
-    expect(mockEndpoint.isDone()).toBe(false);
-    expect(result.length === 0).toBe(true);
+    expect(mockEndpoint.isDone()).toBe(false); // API was not called
+    expect(result).toHaveLength(0);
   });
 
-  it('should return an empty list of notifications if endpoint fails to fetch triggers', async () => {
-    const mockEndpoint = mockListNotifications({
+  it('should return an empty array if endpoint fails', async () => {
+    const mockBadEndpoint = mockGetOnChainNotifications({
       status: 500,
       body: { error: 'mock api failure' },
     });
-    const mockUserStorage = createMockUserStorageWithTriggers([
-      'trigger_1',
-      'trigger_2',
-    ]);
 
     const result = await OnChainNotifications.getOnChainNotifications(
-      mockUserStorage,
       MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
     );
 
-    mockEndpoint.done();
-    expect(result.length === 0).toBe(true);
+    expect(mockBadEndpoint.isDone()).toBe(true);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should send correct request body format with addresses', async () => {
+    const mockEndpoint = mockGetOnChainNotifications();
+
+    const result = await OnChainNotifications.getOnChainNotifications(
+      MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
+    );
+
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result.length > 0).toBe(true);
+  });
+
+  it('should filter out notifications without data.kind', async () => {
+    const mockEndpoint = mockGetOnChainNotifications({
+      status: 200,
+      body: [
+        {
+          id: '1',
+          data: { kind: 'eth_sent' },
+        },
+        {
+          id: '2',
+          data: {}, // missing kind
+        },
+        {
+          id: '3',
+          data: { kind: 'eth_received' },
+        },
+      ],
+    });
+
+    const result = await OnChainNotifications.getOnChainNotifications(
+      MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
+    );
+
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result).toHaveLength(2); // Should filter out the one without kind
   });
 });
 
 describe('On Chain Notifications - markNotificationsAsRead()', () => {
   it('should successfully call endpoint to mark notifications as read', async () => {
     const mockEndpoint = mockMarkNotificationsAsRead();
+
     await OnChainNotifications.markNotificationsAsRead(MOCK_BEARER_TOKEN, [
       'notification_1',
       'notification_2',
@@ -259,18 +205,12 @@ describe('On Chain Notifications - markNotificationsAsRead()', () => {
     expect(mockEndpoint.isDone()).toBe(true);
   });
 
-  it('should throw error if fails to call endpoint to mark notifications as read', async () => {
-    const mockBadEndpoint = mockMarkNotificationsAsRead({
-      status: 500,
-      body: { error: 'mock api failure' },
-    });
-    await expect(
-      OnChainNotifications.markNotificationsAsRead(MOCK_BEARER_TOKEN, [
-        'notification_1',
-        'notification_2',
-      ]),
-    ).rejects.toThrow(expect.any(Error));
+  it('should bail early if no notification IDs provided', async () => {
+    const mockEndpoint = mockMarkNotificationsAsRead();
 
-    mockBadEndpoint.done();
+    await OnChainNotifications.markNotificationsAsRead(MOCK_BEARER_TOKEN, []);
+
+    // Should not call the endpoint when no IDs provided
+    expect(mockEndpoint.isDone()).toBe(false);
   });
 });

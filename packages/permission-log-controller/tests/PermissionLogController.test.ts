@@ -1,23 +1,22 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
 import {
   type PendingJsonRpcResponse,
-  type Json,
   type JsonRpcRequest,
   PendingJsonRpcResponseStruct,
 } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
+import { constants, getters, noop } from './helpers';
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
 import {
   type Permission,
   type PermissionLogControllerState,
   PermissionLogController,
 } from '../src/PermissionLogController';
-import { constants, getters, noop } from './helpers';
 
 const { PERMS, RPC_REQUESTS } = getters;
 const { ACCOUNTS, EXPECTED_HISTORIES, SUBJECTS, PERM_NAMES, REQUEST_IDS } =
@@ -41,7 +40,7 @@ const initController = ({
   restrictedMethods: Set<string>;
   state?: Partial<PermissionLogControllerState>;
 }): PermissionLogController => {
-  const messenger = new ControllerMessenger().getRestricted({
+  const messenger = new Messenger().getRestricted({
     name,
     allowedActions: [],
     allowedEvents: [],
@@ -126,7 +125,7 @@ describe('PermissionLogController', () => {
         });
         const logMiddleware = controller.createMiddleware();
         const req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
-        const res: PendingJsonRpcResponse<Json> = {
+        const res: PendingJsonRpcResponse = {
           id: REQUEST_IDS.a,
           jsonrpc: '2.0',
           error: new CustomError('Unauthorized.', 1),
@@ -180,7 +179,7 @@ describe('PermissionLogController', () => {
         const logMiddleware = controller.createMiddleware();
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         // @ts-expect-error We are intentionally passing bad input.
-        const res: PendingJsonRpcResponse<Json> = null;
+        const res: PendingJsonRpcResponse = null;
 
         logMiddleware(req, res, mockNext(true), noop);
 

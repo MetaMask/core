@@ -19,8 +19,10 @@ import type { INotification } from '../types/notification/notification';
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
 const DEFAULT_CLIENT_ID = ':client_id';
-export const FEATURE_ANNOUNCEMENT_API = `https://cdn.contentful.com/spaces/${DEFAULT_SPACE_ID}/environments/master/entries`;
-export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients=${DEFAULT_CLIENT_ID}`;
+const DEFAULT_DOMAIN = 'cdn.contentful.com';
+const PREVIEW_DOMAIN = 'preview.contentful.com';
+export const FEATURE_ANNOUNCEMENT_API = `https://${DEFAULT_DOMAIN}/spaces/${DEFAULT_SPACE_ID}/environments/master/entries`;
+export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients[in]=${DEFAULT_CLIENT_ID}`;
 
 type Env = {
   spaceId: string;
@@ -33,23 +35,29 @@ type Env = {
  */
 export type ContentfulResult = {
   includes?: {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     Entry?: Entry[];
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     Asset?: Asset[];
   };
   items?: TypeFeatureAnnouncement[];
 };
 
-const getFeatureAnnouncementUrl = (env: Env) =>
-  FEATURE_ANNOUNCEMENT_URL.replace(DEFAULT_SPACE_ID, env.spaceId)
-    .replace(DEFAULT_ACCESS_TOKEN, env.accessToken)
-    .replace(DEFAULT_CLIENT_ID, env.platform);
+export const getFeatureAnnouncementUrl = (env: Env, previewToken?: string) => {
+  const domain = previewToken ? PREVIEW_DOMAIN : DEFAULT_DOMAIN;
+  const replacedUrl = FEATURE_ANNOUNCEMENT_URL.replace(
+    DEFAULT_SPACE_ID,
+    env.spaceId,
+  )
+    .replace(DEFAULT_ACCESS_TOKEN, previewToken || env.accessToken)
+    .replace(DEFAULT_CLIENT_ID, env.platform)
+    .replace(DEFAULT_DOMAIN, domain);
+  return encodeURI(replacedUrl);
+};
 
 const fetchFeatureAnnouncementNotifications = async (
   env: Env,
+  previewToken?: string,
 ): Promise<FeatureAnnouncementRawNotification[]> => {
-  const url = getFeatureAnnouncementUrl(env);
+  const url = getFeatureAnnouncementUrl(env, previewToken);
 
   const data = await fetch(url)
     .then((r) => r.json())
@@ -143,14 +151,20 @@ const fetchFeatureAnnouncementNotifications = async (
 
 /**
  * Gets Feature Announcement from our services
+ *
  * @param env - environment for feature announcements
+ * @param previewToken - the preview token to use if needed
  * @returns Raw Feature Announcements
  */
 export async function getFeatureAnnouncementNotifications(
   env: Env,
+  previewToken?: string,
 ): Promise<INotification[]> {
   if (env?.accessToken && env?.spaceId && env?.platform) {
-    const rawNotifications = await fetchFeatureAnnouncementNotifications(env);
+    const rawNotifications = await fetchFeatureAnnouncementNotifications(
+      env,
+      previewToken,
+    );
     const notifications = rawNotifications.map((notification) =>
       processFeatureAnnouncement(notification),
     );

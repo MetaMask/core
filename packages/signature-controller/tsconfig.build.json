@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
       "path": "../approval-controller/tsconfig.build.json"
     },
     {
@@ -23,6 +26,9 @@
     },
     {
       "path": "../logging-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

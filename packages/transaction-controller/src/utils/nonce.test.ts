@@ -3,13 +3,14 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 
+import { getAndFormatTransactionsForNonceTracker, getNextNonce } from './nonce';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import { getAndFormatTransactionsForNonceTracker, getNextNonce } from './nonce';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   chainId: '0x1',
   id: 'testId1',
+  networkClientId: 'testNetworkClientId',
   status: TransactionStatus.unapproved,
   time: 1,
   txParams: {
@@ -77,6 +78,21 @@ describe('nonce', () => {
 
       expect(releaseLock).toHaveBeenCalledTimes(1);
     });
+
+    it('returns undefined if transaction is signed externally', async () => {
+      const transactionMeta = {
+        ...TRANSACTION_META_MOCK,
+        isExternalSign: true,
+      };
+
+      const [nonce, releaseLock] = await getNextNonce(
+        transactionMeta,
+        jest.fn(),
+      );
+
+      expect(nonce).toBeUndefined();
+      expect(releaseLock).toBeUndefined();
+    });
   });
 
   describe('getAndFormatTransactionsForNonceTracker', () => {
@@ -86,6 +102,7 @@ describe('nonce', () => {
         {
           id: '1',
           chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
           time: 123456,
           txParams: {
             from: fromAddress,
@@ -98,6 +115,7 @@ describe('nonce', () => {
         {
           id: '2',
           chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
           time: 123457,
           txParams: {
             from: '0x124',
@@ -110,6 +128,7 @@ describe('nonce', () => {
         {
           id: '3',
           chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
           time: 123458,
           txParams: {
             from: fromAddress,
@@ -122,6 +141,7 @@ describe('nonce', () => {
         {
           id: '4',
           chainId: '0x2',
+          networkClientId: 'testNetworkClientId',
           time: 123459,
           txParams: {
             from: fromAddress,
@@ -134,6 +154,7 @@ describe('nonce', () => {
         {
           id: '5',
           chainId: '0x2',
+          networkClientId: 'testNetworkClientId',
           isTransfer: true,
           time: 123460,
           txParams: {
@@ -162,7 +183,7 @@ describe('nonce', () => {
       const result = getAndFormatTransactionsForNonceTracker(
         '0x2',
         fromAddress,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         inputTransactions,
       );
 

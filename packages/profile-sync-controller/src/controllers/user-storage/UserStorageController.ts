@@ -3,87 +3,57 @@ import type {
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountAddedEvent,
+  AccountsControllerUpdateAccountsAction,
 } from '@metamask/accounts-controller';
+import type {
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
+  AddressBookControllerActions,
+  AddressBookControllerListAction,
+  AddressBookControllerSetAction,
+  AddressBookControllerDeleteAction,
+} from '@metamask/address-book-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { type InternalAccount, isEvmAccountType } from '@metamask/keyring-api';
+import type {
+  TraceCallback,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import {
+  KeyringTypes,
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerAddNewAccountAction,
-  KeyringTypes,
+  type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
-import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
-import { createSHA256Hash } from '../../shared/encryption';
+import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
+import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
+import { BACKUPANDSYNC_FEATURES } from './constants';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
 import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
-} from '../../shared/storage-schema';
+  UserStorageGenericFeatureKey,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
+} from '../../sdk';
+import { Env, UserStorage } from '../../sdk';
 import type { NativeScrypt } from '../../shared/types/encryption';
+import { EventQueue } from '../../shared/utils/event-queue';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
-  AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
-import type { UserStorageAccount } from './accounts/user-storage';
-import {
-  isNameDefaultAccountName,
-  mapInternalAccountToUserStorageAccount,
-} from './accounts/user-storage';
-import { startNetworkSyncing } from './network-syncing/controller-integration';
-import {
-  batchUpsertUserStorage,
-  deleteUserStorageAllFeatureEntries,
-  getUserStorage,
-  getUserStorageAllFeatureEntries,
-  upsertUserStorage,
-} from './services';
-
-// TODO: add external NetworkController event
-// Need to listen for when a network gets added
-type NetworkControllerNetworkAddedEvent = {
-  type: 'NetworkController:networkAdded';
-  payload: [networkConfiguration: NetworkConfiguration];
-};
-
-// TODO: add external NetworkController event
-// Need to listen for when a network is updated, or the default rpc/block explorer changes
-type NetworkControllerNetworkChangedEvent = {
-  type: 'NetworkController:networkChanged';
-  payload: [networkConfiguration: NetworkConfiguration];
-};
-
-// TODO: add external NetworkController event
-// Need to listen for when a network gets deleted
-type NetworkControllerNetworkDeletedEvent = {
-  type: 'NetworkController:networkDeleted';
-  payload: [networkConfiguration: NetworkConfiguration];
-};
-
-// TODO: fix external dependencies
-export declare type NotificationServicesControllerDisableNotificationServices =
-  {
-    type: `NotificationServicesController:disableNotificationServices`;
-    handler: () => Promise<void>;
-  };
-
-export declare type NotificationServicesControllerSelectIsNotificationServicesEnabled =
-  {
-    type: `NotificationServicesController:selectIsNotificationServicesEnabled`;
-    handler: () => boolean;
-  };
 
 const controllerName = 'UserStorageController';
 
@@ -92,31 +62,95 @@ export type UserStorageControllerState = {
   /**
    * Condition used by UI and to determine if we can use some of the User Storage methods.
    */
-  isProfileSyncingEnabled: boolean | null;
+  isBackupAndSyncEnabled: boolean;
   /**
-   * Loading state for the profile syncing update
+   * Loading state for the backup and sync update
    */
-  isProfileSyncingUpdateLoading: boolean;
+  isBackupAndSyncUpdateLoading: boolean;
+  /**
+   * Condition used by UI to determine if account syncing is enabled.
+   */
+  isAccountSyncingEnabled: boolean;
+  /**
+   * Condition used by UI to determine if contact syncing is enabled.
+   */
+  isContactSyncingEnabled: boolean;
+  /**
+   * Condition used by UI to determine if contact syncing is in progress.
+   */
+  isContactSyncingInProgress: boolean;
+  /**
+   * Condition used to determine if account syncing has been dispatched at least once.
+   * This is used for event listeners to determine if they should be triggered.
+   * This is also used in E2E tests for verification purposes.
+   */
+  hasAccountSyncingSyncedAtLeastOnce: boolean;
+  /**
+   * Condition used by UI to determine if account syncing is ready to be dispatched.
+   */
+  isAccountSyncingReadyToBeDispatched: boolean;
+  /**
+   * Condition used by UI to determine if account syncing is in progress.
+   */
+  isAccountSyncingInProgress: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
-  isProfileSyncingEnabled: true,
-  isProfileSyncingUpdateLoading: false,
+  isBackupAndSyncEnabled: true,
+  isBackupAndSyncUpdateLoading: false,
+  isAccountSyncingEnabled: true,
+  isContactSyncingEnabled: true,
+  isContactSyncingInProgress: false,
+  hasAccountSyncingSyncedAtLeastOnce: false,
+  isAccountSyncingReadyToBeDispatched: false,
+  isAccountSyncingInProgress: false,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
-  isProfileSyncingEnabled: {
+  isBackupAndSyncEnabled: {
     persist: true,
     anonymous: true,
   },
-  isProfileSyncingUpdateLoading: {
+  isBackupAndSyncUpdateLoading: {
+    persist: false,
+    anonymous: false,
+  },
+  isAccountSyncingEnabled: {
+    persist: true,
+    anonymous: true,
+  },
+  isContactSyncingEnabled: {
+    persist: true,
+    anonymous: true,
+  },
+  isContactSyncingInProgress: {
+    persist: false,
+    anonymous: false,
+  },
+  hasAccountSyncingSyncedAtLeastOnce: {
+    persist: true,
+    anonymous: false,
+  },
+  isAccountSyncingReadyToBeDispatched: {
+    persist: true,
+    anonymous: false,
+  },
+  isAccountSyncingInProgress: {
     persist: false,
     anonymous: false,
   },
 };
 
 type ControllerConfig = {
+  env: Env;
   accountSyncing?: {
+    /**
+     * Defines the strategy to use for account syncing.
+     * If true, it will prevent any new push updates from being sent to the user storage.
+     * Multichain account syncing will be handled by `@metamask/account-tree-controller`.
+     */
+    getIsMultichainAccountSyncingEnabled?: () => boolean;
+    maxNumberOfAccountsToAdd?: number;
     /**
      * Callback that fires when account sync adds an account.
      * This is used for analytics.
@@ -128,6 +162,39 @@ type ControllerConfig = {
      * This is used for analytics.
      */
     onAccountNameUpdated?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when an erroneous situation happens during account sync.
+     * This is used for analytics.
+     */
+    onAccountSyncErroneousSituation?: (
+      profileId: string,
+      situationMessage: string,
+      sentryContext?: Record<string, unknown>,
+    ) => void;
+  };
+  contactSyncing?: {
+    /**
+     * Callback that fires when contact sync updates a contact.
+     * This is used for analytics.
+     */
+    onContactUpdated?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when contact sync deletes a contact.
+     * This is used for analytics.
+     */
+    onContactDeleted?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when an erroneous situation happens during contact sync.
+     * This is used for analytics.
+     */
+    onContactSyncErroneousSituation?: (
+      profileId: string,
+      situationMessage: string,
+      sentryContext?: Record<string, unknown>,
+    ) => void;
   };
 };
 
@@ -142,11 +209,11 @@ type ActionsObj = CreateActionsObj<
   | 'performGetStorage'
   | 'performGetStorageAllFeatureEntries'
   | 'performSetStorage'
+  | 'performBatchSetStorage'
+  | 'performDeleteStorage'
+  | 'performBatchDeleteStorage'
   | 'getStorageKey'
-  | 'enableProfileSyncing'
-  | 'disableProfileSyncing'
-  | 'syncInternalAccountsWithUserStorage'
-  | 'saveInternalAccountToUserStorage'
+  | 'getIsMultichainAccountSyncingEnabled'
 >;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -161,15 +228,15 @@ export type UserStorageControllerPerformGetStorageAllFeatureEntries =
   ActionsObj['performGetStorageAllFeatureEntries'];
 export type UserStorageControllerPerformSetStorage =
   ActionsObj['performSetStorage'];
+export type UserStorageControllerPerformBatchSetStorage =
+  ActionsObj['performBatchSetStorage'];
+export type UserStorageControllerPerformDeleteStorage =
+  ActionsObj['performDeleteStorage'];
+export type UserStorageControllerPerformBatchDeleteStorage =
+  ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStorageControllerEnableProfileSyncing =
-  ActionsObj['enableProfileSyncing'];
-export type UserStorageControllerDisableProfileSyncing =
-  ActionsObj['disableProfileSyncing'];
-export type UserStorageControllerSyncInternalAccountsWithUserStorage =
-  ActionsObj['syncInternalAccountsWithUserStorage'];
-export type UserStorageControllerSaveInternalAccountToUserStorage =
-  ActionsObj['saveInternalAccountToUserStorage'];
+export type UserStorageControllerGetIsMultichainAccountSyncingEnabled =
+  ActionsObj['getIsMultichainAccountSyncingEnabled'];
 
 export type AllowedActions =
   // Keyring Requests
@@ -181,49 +248,38 @@ export type AllowedActions =
   | AuthenticationControllerGetSessionProfile
   | AuthenticationControllerPerformSignIn
   | AuthenticationControllerIsSignedIn
-  | AuthenticationControllerPerformSignOut
-  // Metamask Notifications
-  | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled
-  // Account syncing
+  // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
-  | KeyringControllerAddNewAccountAction;
+  | AccountsControllerUpdateAccountsAction
+  | KeyringControllerWithKeyringAction
+  // Contact Syncing
+  | AddressBookControllerListAction
+  | AddressBookControllerSetAction
+  | AddressBookControllerDeleteAction
+  | AddressBookControllerActions;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
-export type UserStorageControllerAccountSyncingInProgress = {
-  type: `${typeof controllerName}:accountSyncingInProgress`;
-  payload: [boolean];
-};
-export type UserStorageControllerAccountSyncingComplete = {
-  type: `${typeof controllerName}:accountSyncingComplete`;
-  payload: [boolean];
-};
-export type Events =
-  | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete;
+
+export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
   | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events
-  | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRenamedEvent
-  // Network Syncing Events
-  | NetworkControllerNetworkAddedEvent
-  | NetworkControllerNetworkChangedEvent
-  | NetworkControllerNetworkDeletedEvent;
+  | AccountsControllerAccountAddedEvent
+  // Address Book Events
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
 
 // Messenger
-export type UserStorageControllerMessenger = RestrictedControllerMessenger<
+export type UserStorageControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events | AllowedEvents,
@@ -244,19 +300,17 @@ export default class UserStorageController extends BaseController<
   UserStorageControllerState,
   UserStorageControllerMessenger
 > {
-  #auth = {
-    getBearerToken: async () => {
-      return await this.messagingSystem.call(
-        'AuthenticationController:getBearerToken',
-      );
-    },
-    getProfileId: async () => {
+  readonly #userStorage: UserStorage;
+
+  readonly #auth = {
+    getProfileId: async (entropySourceId?: string) => {
       const sessionProfile = await this.messagingSystem.call(
         'AuthenticationController:getSessionProfile',
+        entropySourceId,
       );
       return sessionProfile?.profileId;
     },
-    isAuthEnabled: () => {
+    isSignedIn: () => {
       return this.messagingSystem.call('AuthenticationController:isSignedIn');
     },
     signIn: async () => {
@@ -264,133 +318,19 @@ export default class UserStorageController extends BaseController<
         'AuthenticationController:performSignIn',
       );
     },
-    signOut: async () => {
-      return this.messagingSystem.call(
-        'AuthenticationController:performSignOut',
-      );
-    },
   };
 
-  #accounts = {
-    // This is replaced with the actual value in the constructor
-    // We will remove this once the feature will be released
-    isAccountSyncingEnabled: false,
-    isAccountSyncingInProgress: false,
-    addedAccountsCount: 0,
-    canSync: () => {
-      try {
-        this.#assertProfileSyncingEnabled();
-
-        return (
-          this.#accounts.isAccountSyncingEnabled && this.#auth.isAuthEnabled()
-        );
-      } catch {
-        return false;
-      }
-    },
-    setupAccountSyncingSubscriptions: () => {
-      this.messagingSystem.subscribe(
-        'AccountsController:accountAdded',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
-            this.#accounts.addedAccountsCount += 1;
-            return;
-          }
-
-          await this.saveInternalAccountToUserStorage(account);
-        },
-      );
-
-      this.messagingSystem.subscribe(
-        'AccountsController:accountRenamed',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
-            return;
-          }
-          await this.saveInternalAccountToUserStorage(account);
-        },
-      );
-    },
-    doesInternalAccountHaveCorrectKeyringType: (account: InternalAccount) => {
-      return (
-        account.metadata.keyring.type === KeyringTypes.hd ||
-        account.metadata.keyring.type === KeyringTypes.simple
-      );
-    },
-    getInternalAccountsList: async (): Promise<InternalAccount[]> => {
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      const internalAccountsList = await this.messagingSystem.call(
-        'AccountsController:listAccounts',
-      );
-
-      return internalAccountsList?.filter(
-        this.#accounts.doesInternalAccountHaveCorrectKeyringType,
-      );
-    },
-    getUserStorageAccountsList: async (): Promise<
-      UserStorageAccount[] | null
-    > => {
-      const rawAccountsListResponse =
-        await this.performGetStorageAllFeatureEntries('accounts');
-
-      return (
-        rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ??
-        null
-      );
-    },
-    saveInternalAccountToUserStorage: async (
-      internalAccount: InternalAccount,
-    ) => {
-      // Map the internal account to the user storage account schema
-      const mappedAccount =
-        mapInternalAccountToUserStorageAccount(internalAccount);
-
-      await this.performSetStorage(
-        `accounts.${internalAccount.address}`,
-        JSON.stringify(mappedAccount),
-      );
-    },
-    saveInternalAccountsListToUserStorage: async () => {
-      const internalAccountsList =
-        await this.#accounts.getInternalAccountsList();
-
-      if (!internalAccountsList) {
-        return;
-      }
-
-      const internalAccountsListFormattedForUserStorage =
-        internalAccountsList.map(mapInternalAccountToUserStorageAccount);
-
-      await this.performBatchSetStorage(
-        'accounts',
-        internalAccountsListFormattedForUserStorage.map((account) => [
-          account.a,
-          JSON.stringify(account),
-        ]),
-      );
-    },
+  readonly #config: ControllerConfig = {
+    env: Env.PRD,
   };
 
-  #config?: ControllerConfig;
-
-  #notificationServices = {
-    disableNotificationServices: async () => {
-      return await this.messagingSystem.call(
-        'NotificationServicesController:disableNotificationServices',
-      );
-    },
-    selectIsNotificationServicesEnabled: async () => {
-      return this.messagingSystem.call(
-        'NotificationServicesController:selectIsNotificationServicesEnabled',
-      );
-    },
-  };
+  readonly #trace: TraceCallback;
 
   #isUnlocked = false;
 
-  #keyringController = {
+  #storageKeyCache: Record<`metamask:${string}`, string> = {};
+
+  readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
@@ -407,27 +347,22 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+  readonly #nativeScryptCrypto: NativeScrypt | undefined = undefined;
 
-  getMetaMetricsState: () => boolean;
+  eventQueue = new EventQueue();
 
   constructor({
     messenger,
     state,
-    env,
     config,
-    getMetaMetricsState,
     nativeScryptCrypto,
+    trace,
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
-    config?: ControllerConfig;
-    env?: {
-      isAccountSyncingEnabled?: boolean;
-      isNetworkSyncingEnabled?: boolean;
-    };
-    getMetaMetricsState: () => boolean;
+    config?: Partial<ControllerConfig>;
     nativeScryptCrypto?: NativeScrypt;
+    trace?: TraceCallback;
   }) {
     super({
       messenger,
@@ -436,33 +371,72 @@ export default class UserStorageController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#config = config;
+    this.#config = {
+      ...this.#config,
+      ...config,
+    };
+    this.#trace =
+      trace ??
+      (async <ReturnType>(
+        _request: TraceRequest,
+        fn?: (context?: TraceContext) => ReturnType,
+      ): Promise<ReturnType> => {
+        if (!fn) {
+          return undefined as ReturnType;
+        }
+        return await Promise.resolve(fn());
+      });
 
-    this.#accounts.isAccountSyncingEnabled = Boolean(
-      env?.isAccountSyncingEnabled,
+    this.#userStorage = new UserStorage(
+      {
+        env: this.#config.env,
+        auth: {
+          getAccessToken: (entropySourceId?: string) =>
+            this.messagingSystem.call(
+              'AuthenticationController:getBearerToken',
+              entropySourceId,
+            ),
+          getUserProfile: async (entropySourceId?: string) => {
+            return await this.messagingSystem.call(
+              'AuthenticationController:getSessionProfile',
+              entropySourceId,
+            );
+          },
+          signMessage: (message: string, entropySourceId?: string) =>
+            this.#snapSignMessage(
+              message as `metamask:${string}`,
+              entropySourceId,
+            ),
+        },
+      },
+      {
+        storage: {
+          getStorageKey: async (message) =>
+            this.#storageKeyCache[message] ?? null,
+          setStorageKey: async (message, key) => {
+            this.#storageKeyCache[message] = key;
+          },
+        },
+      },
     );
 
-    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
-    this.#accounts.setupAccountSyncingSubscriptions();
 
-    // Network Syncing
-    if (env?.isNetworkSyncingEnabled) {
-      startNetworkSyncing({
-        messenger,
-        getStorageConfig: async () => {
-          const { storageKey, bearerToken } =
-            await this.#getStorageKeyAndBearerToken();
-          return {
-            storageKey,
-            bearerToken,
-            nativeScryptCrypto: this.#nativeScryptCrypto,
-          };
-        },
-      });
-    }
+    // Account Syncing
+    setupAccountSyncingSubscriptions({
+      getUserStorageControllerInstance: () => this,
+      getMessenger: () => this.messagingSystem,
+      trace: this.#trace,
+    });
+
+    // Contact Syncing
+    setupContactSyncingSubscriptions({
+      getUserStorageControllerInstance: () => this,
+      getMessenger: () => this.messagingSystem,
+      trace: this.#trace,
+    });
   }
 
   /**
@@ -486,96 +460,29 @@ export default class UserStorageController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      'UserStorageController:performBatchSetStorage',
+      this.performBatchSetStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performDeleteStorage',
+      this.performDeleteStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performBatchDeleteStorage',
+      this.performBatchDeleteStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       'UserStorageController:getStorageKey',
       this.getStorageKey.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      'UserStorageController:enableProfileSyncing',
-      this.enableProfileSyncing.bind(this),
+      'UserStorageController:getIsMultichainAccountSyncingEnabled',
+      this.getIsMultichainAccountSyncingEnabled.bind(this),
     );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:disableProfileSyncing',
-      this.disableProfileSyncing.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:syncInternalAccountsWithUserStorage',
-      this.syncInternalAccountsWithUserStorage.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:saveInternalAccountToUserStorage',
-      this.saveInternalAccountToUserStorage.bind(this),
-    );
-  }
-
-  public async enableProfileSyncing(): Promise<void> {
-    try {
-      this.#setIsProfileSyncingUpdateLoading(true);
-
-      const authEnabled = this.#auth.isAuthEnabled();
-      if (!authEnabled) {
-        await this.#auth.signIn();
-      }
-
-      this.update((state) => {
-        state.isProfileSyncingEnabled = true;
-      });
-
-      this.#setIsProfileSyncingUpdateLoading(false);
-    } catch (e) {
-      this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to enable profile syncing - ${errorMessage}`,
-      );
-    }
-  }
-
-  public async setIsProfileSyncingEnabled(
-    isProfileSyncingEnabled: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.isProfileSyncingEnabled = isProfileSyncingEnabled;
-    });
-  }
-
-  public async disableProfileSyncing(): Promise<void> {
-    const isAlreadyDisabled = !this.state.isProfileSyncingEnabled;
-    if (isAlreadyDisabled) {
-      return;
-    }
-
-    try {
-      this.#setIsProfileSyncingUpdateLoading(true);
-
-      const isNotificationServicesEnabled =
-        await this.#notificationServices.selectIsNotificationServicesEnabled();
-
-      if (isNotificationServicesEnabled) {
-        await this.#notificationServices.disableNotificationServices();
-      }
-
-      const isMetaMetricsParticipation = this.getMetaMetricsState();
-
-      if (!isMetaMetricsParticipation) {
-        await this.#auth.signOut();
-      }
-
-      this.#setIsProfileSyncingUpdateLoading(false);
-
-      this.update((state) => {
-        state.isProfileSyncingEnabled = false;
-      });
-    } catch (e) {
-      this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to disable profile syncing - ${errorMessage}`,
-      );
-    }
   }
 
   /**
@@ -583,24 +490,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
+    entropySourceId?: string,
   ): Promise<string | null> {
-    this.#assertProfileSyncingEnabled();
-
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    const result = await getUserStorage({
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
     });
-
-    return result;
   }
 
   /**
@@ -608,24 +508,17 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns the array of decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
+    entropySourceId?: string,
   ): Promise<string[] | null> {
-    this.#assertProfileSyncingEnabled();
-
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    const result = await getUserStorageAllFeatureEntries({
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
     });
-
-    return result;
   }
 
   /**
@@ -634,22 +527,17 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
    * @param value - The string data you want to store.
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performSetStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     value: string,
+    entropySourceId?: string,
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await upsertUserStorage(value, {
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
     });
   }
 
@@ -659,22 +547,34 @@ export default class UserStorageController extends BaseController<
    *
    * @param path - string in the form of `${feature}` that matches schema
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performBatchSetStorage(
-    path: UserStoragePathWithFeatureOnly,
-    values: [UserStoragePathWithKeyOnly, string][],
+    path: UserStorageGenericPathWithFeatureOnly,
+    values: [UserStorageGenericFeatureKey, string][],
+    entropySourceId?: string,
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await batchUpsertUserStorage(values, {
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.deleteItem(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
     });
   }
 
@@ -683,21 +583,44 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
    * @returns nothing. NOTE that an error is thrown if fails to delete data.
    */
   public async performDeleteStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
+    entropySourceId?: string,
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await deleteUserStorageAllFeatureEntries({
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.deleteAllFeatureItems(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
     });
+  }
+
+  /**
+   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of entryKey[]
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchDeleteStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    values: UserStorageGenericFeatureKey[],
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.batchDeleteItems(path, values, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  public getIsMultichainAccountSyncingEnabled(): boolean {
+    return (
+      this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
+      false
+    );
   }
 
   /**
@@ -706,49 +629,37 @@ export default class UserStorageController extends BaseController<
    * @returns the storage key
    */
   public async getStorageKey(): Promise<string> {
-    this.#assertProfileSyncingEnabled();
-    const storageKey = await this.#createStorageKey();
-    return storageKey;
+    return await this.#userStorage.getStorageKey();
   }
 
-  #assertProfileSyncingEnabled(): void {
-    if (!this.state.isProfileSyncingEnabled) {
+  /**
+   * Flushes the storage key cache.
+   * CAUTION: This is only public for testing purposes.
+   * It should not be used in production code.
+   */
+  public flushStorageKeyCache(): void {
+    this.#storageKeyCache = {};
+  }
+
+  /**
+   * Lists all the available HD keyring metadata IDs.
+   * These IDs can be used in a multi-SRP context to segregate data specific to different SRPs.
+   *
+   * @returns A promise that resolves to an array of HD keyring metadata IDs.
+   */
+  async listEntropySources() {
+    if (!this.#isUnlocked) {
       throw new Error(
-        `${controllerName}: Unable to call method, user is not authenticated`,
+        'listEntropySources - unable to list entropy sources, wallet is locked',
       );
     }
-  }
 
-  /**
-   * Utility to get the bearer token and storage key
-   */
-  async #getStorageKeyAndBearerToken(): Promise<{
-    bearerToken: string;
-    storageKey: string;
-  }> {
-    const bearerToken = await this.#auth.getBearerToken();
-    if (!bearerToken) {
-      throw new Error('UserStorageController - unable to get bearer token');
-    }
-    const storageKey = await this.#createStorageKey();
-
-    return { bearerToken, storageKey };
-  }
-
-  /**
-   * Rather than storing the storage key, we can compute the storage key when needed.
-   *
-   * @returns the storage key
-   */
-  async #createStorageKey(): Promise<string> {
-    const id: string = await this.#auth.getProfileId();
-    if (!id) {
-      throw new Error('UserStorageController - unable to create storage key');
-    }
-
-    const storageKeySignature = await this.#snapSignMessage(`metamask:${id}`);
-    const storageKey = createSHA256Hash(storageKeySignature);
-    return storageKey;
+    const { keyrings } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    return keyrings
+      .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
+      .map((keyring) => keyring.metadata.id);
   }
 
   #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
@@ -757,9 +668,15 @@ export default class UserStorageController extends BaseController<
    * Signs a specific message using an underlying auth snap.
    *
    * @param message - A specific tagged message to sign.
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
    * @returns A Signature created by the snap.
    */
-  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+  async #snapSignMessage(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): Promise<string> {
+    // the message is SRP specific already, so there's no need to use the entropySourceId in the cache
     if (this.#_snapSignMessageCache[message]) {
       return this.#_snapSignMessageCache[message];
     }
@@ -772,7 +689,7 @@ export default class UserStorageController extends BaseController<
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
-      createSnapSignMessageRequest(message),
+      createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
     this.#_snapSignMessageCache[message] = result;
@@ -780,11 +697,90 @@ export default class UserStorageController extends BaseController<
     return result;
   }
 
-  #setIsProfileSyncingUpdateLoading(
-    isProfileSyncingUpdateLoading: boolean,
+  public async setIsBackupAndSyncFeatureEnabled(
+    feature: keyof typeof BACKUPANDSYNC_FEATURES,
+    enabled: boolean,
+  ): Promise<void> {
+    try {
+      this.#setIsBackupAndSyncUpdateLoading(true);
+
+      if (enabled) {
+        // If any of the features are enabled, we need to ensure the user is signed in
+        const isSignedIn = this.#auth.isSignedIn();
+        if (!isSignedIn) {
+          await this.#auth.signIn();
+        }
+      }
+
+      this.update((state) => {
+        if (feature === BACKUPANDSYNC_FEATURES.main) {
+          state.isBackupAndSyncEnabled = enabled;
+        }
+
+        if (feature === BACKUPANDSYNC_FEATURES.accountSyncing) {
+          state.isAccountSyncingEnabled = enabled;
+        }
+
+        if (feature === BACKUPANDSYNC_FEATURES.contactSyncing) {
+          state.isContactSyncingEnabled = enabled;
+        }
+      });
+    } catch (e) {
+      // istanbul ignore next
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      // istanbul ignore next
+      throw new Error(
+        `${controllerName} - failed to ${enabled ? 'enable' : 'disable'} ${feature} - ${errorMessage}`,
+      );
+    } finally {
+      this.#setIsBackupAndSyncUpdateLoading(false);
+    }
+  }
+
+  #setIsBackupAndSyncUpdateLoading(
+    isBackupAndSyncUpdateLoading: boolean,
   ): void {
     this.update((state) => {
-      state.isProfileSyncingUpdateLoading = isProfileSyncingUpdateLoading;
+      state.isBackupAndSyncUpdateLoading = isBackupAndSyncUpdateLoading;
+    });
+  }
+
+  async setHasAccountSyncingSyncedAtLeastOnce(
+    hasAccountSyncingSyncedAtLeastOnce: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.hasAccountSyncingSyncedAtLeastOnce =
+        hasAccountSyncingSyncedAtLeastOnce;
+    });
+  }
+
+  async setIsAccountSyncingReadyToBeDispatched(
+    isAccountSyncingReadyToBeDispatched: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.isAccountSyncingReadyToBeDispatched =
+        isAccountSyncingReadyToBeDispatched;
+    });
+  }
+
+  async setIsAccountSyncingInProgress(
+    isAccountSyncingInProgress: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.isAccountSyncingInProgress = isAccountSyncingInProgress;
+    });
+  }
+
+  /**
+   * Sets the isContactSyncingInProgress flag to prevent infinite loops during contact synchronization
+   *
+   * @param isContactSyncingInProgress - Whether contact syncing is in progress
+   */
+  async setIsContactSyncingInProgress(
+    isContactSyncingInProgress: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.isContactSyncingInProgress = isContactSyncingInProgress;
     });
   }
 
@@ -794,176 +790,80 @@ export default class UserStorageController extends BaseController<
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
   async syncInternalAccountsWithUserStorage(): Promise<void> {
-    if (!this.#accounts.canSync()) {
-      return;
-    }
+    const entropySourceIds = await this.listEntropySources();
 
     try {
-      this.#accounts.isAccountSyncingInProgress = true;
-      this.#accounts.addedAccountsCount = 0;
+      for (const entropySourceId of entropySourceIds) {
+        const profileId = await this.#auth.getProfileId(entropySourceId);
 
-      const profileId = await this.#auth.getProfileId();
-
-      const userStorageAccountsList =
-        await this.#accounts.getUserStorageAccountsList();
-
-      if (!userStorageAccountsList || !userStorageAccountsList.length) {
-        await this.#accounts.saveInternalAccountsListToUserStorage();
-        return;
-      }
-
-      // Prepare an array of internal accounts to be saved to the user storage
-      const internalAccountsToBeSavedToUserStorage: InternalAccount[] = [];
-
-      // Compare internal accounts list with user storage accounts list
-      // First step: compare lengths
-      let internalAccountsList = await this.#accounts.getInternalAccountsList();
-
-      if (!internalAccountsList || !internalAccountsList.length) {
-        throw new Error(`Failed to get internal accounts list`);
-      }
-
-      const hasMoreInternalAccountsThanUserStorageAccounts =
-        internalAccountsList.length > userStorageAccountsList.length;
-
-      // We don't want to remove existing accounts for a user
-      // so we only add new accounts if the user has more accounts than the internal accounts list
-      if (!hasMoreInternalAccountsThanUserStorageAccounts) {
-        const numberOfAccountsToAdd =
-          userStorageAccountsList.length - internalAccountsList.length;
-
-        // Create new accounts to match the user storage accounts list
-
-        for (let i = 0; i < numberOfAccountsToAdd; i++) {
-          await this.messagingSystem.call('KeyringController:addNewAccount');
-
-          this.#config?.accountSyncing?.onAccountAdded?.(profileId);
-        }
-      }
-
-      // Second step: compare account names
-      // Get the internal accounts list again since new accounts might have been added in the previous step
-      internalAccountsList = await this.#accounts.getInternalAccountsList();
-
-      for (const internalAccount of internalAccountsList) {
-        const userStorageAccount = userStorageAccountsList.find(
-          (account) => account.a === internalAccount.address,
+        await syncInternalAccountsWithUserStorage(
+          {
+            maxNumberOfAccountsToAdd:
+              this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
+            onAccountAdded: () =>
+              this.#config?.accountSyncing?.onAccountAdded?.(profileId),
+            onAccountNameUpdated: () =>
+              this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
+            onAccountSyncErroneousSituation: (
+              situationMessage,
+              sentryContext,
+            ) =>
+              this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
+                profileId,
+                situationMessage,
+                sentryContext,
+              ),
+          },
+          {
+            getMessenger: () => this.messagingSystem,
+            getUserStorageControllerInstance: () => this,
+            trace: this.#trace,
+          },
+          entropySourceId,
         );
-
-        if (!userStorageAccount) {
-          internalAccountsToBeSavedToUserStorage.push(internalAccount);
-          continue;
-        }
-
-        // One or both accounts have default names
-        const isInternalAccountNameDefault = isNameDefaultAccountName(
-          internalAccount.metadata.name,
-        );
-        const isUserStorageAccountNameDefault = isNameDefaultAccountName(
-          userStorageAccount.n,
-        );
-
-        // Internal account has default name
-        if (isInternalAccountNameDefault) {
-          if (!isUserStorageAccountNameDefault) {
-            this.messagingSystem.call(
-              'AccountsController:updateAccountMetadata',
-              internalAccount.id,
-              {
-                name: userStorageAccount.n,
-              },
-            );
-
-            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
-          }
-          continue;
-        }
-
-        // Internal account has custom name but user storage account has default name
-        if (isUserStorageAccountNameDefault) {
-          internalAccountsToBeSavedToUserStorage.push(internalAccount);
-          continue;
-        }
-
-        // Both accounts have custom names
-
-        // User storage account has a nameLastUpdatedAt timestamp
-        // Note: not storing the undefined checks in constants to act as a type guard
-        if (userStorageAccount.nlu !== undefined) {
-          if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
-            const isInternalAccountNameNewer =
-              internalAccount.metadata.nameLastUpdatedAt >
-              userStorageAccount.nlu;
-
-            if (isInternalAccountNameNewer) {
-              internalAccountsToBeSavedToUserStorage.push(internalAccount);
-              continue;
-            }
-          }
-
-          this.messagingSystem.call(
-            'AccountsController:updateAccountMetadata',
-            internalAccount.id,
-            {
-              name: userStorageAccount.n,
-              nameLastUpdatedAt: userStorageAccount.nlu,
-            },
-          );
-
-          const areInternalAndUserStorageAccountNamesEqual =
-            internalAccount.metadata.name === userStorageAccount.n;
-
-          if (!areInternalAndUserStorageAccountNamesEqual) {
-            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
-          }
-
-          continue;
-        } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
-          internalAccountsToBeSavedToUserStorage.push(internalAccount);
-          continue;
-        }
       }
 
-      // Save the internal accounts list to the user storage
-      await this.performBatchSetStorage(
-        'accounts',
-        internalAccountsToBeSavedToUserStorage.map((account) => [
-          account.address,
-          JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
-        ]),
-      );
+      // We do this here and not in the finally statement because we want to make sure that
+      // the accounts are saved / updated / deleted at least once before we set this flag
+      await this.setHasAccountSyncingSyncedAtLeastOnce(true);
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to sync user storage accounts list - ${errorMessage}`,
-      );
-    } finally {
-      this.#accounts.isAccountSyncingInProgress = false;
+      // Silently fail for now
+      // istanbul ignore next
+      console.error(e);
     }
   }
 
   /**
-   * Saves an individual internal account to the user storage.
-   * @param internalAccount - The internal account to save
+   * Syncs the address book list with the user storage address book list.
+   * This method is used to make sure that the address book list is up-to-date with the user storage address book list and vice-versa.
+   * It will add new contacts to the address book list, update/merge conflicting contacts and re-upload the results in some cases to the user storage.
    */
-  async saveInternalAccountToUserStorage(
-    internalAccount: InternalAccount,
-  ): Promise<void> {
-    if (
-      !this.#accounts.canSync() ||
-      !isEvmAccountType(internalAccount.type) ||
-      !this.#accounts.doesInternalAccountHaveCorrectKeyringType(internalAccount)
-    ) {
-      return;
-    }
+  async syncContactsWithUserStorage(): Promise<void> {
+    const profileId = await this.#auth.getProfileId();
 
-    try {
-      await this.#accounts.saveInternalAccountToUserStorage(internalAccount);
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to save account to user storage - ${errorMessage}`,
-      );
-    }
+    const config = {
+      onContactUpdated: () => {
+        this.#config?.contactSyncing?.onContactUpdated?.(profileId);
+      },
+      onContactDeleted: () => {
+        this.#config?.contactSyncing?.onContactDeleted?.(profileId);
+      },
+      onContactSyncErroneousSituation: (
+        errorMessage: string,
+        sentryContext?: Record<string, unknown>,
+      ) => {
+        this.#config?.contactSyncing?.onContactSyncErroneousSituation?.(
+          profileId,
+          errorMessage,
+          sentryContext,
+        );
+      },
+    };
+
+    await syncContactsWithUserStorage(config, {
+      getMessenger: () => this.messagingSystem,
+      getUserStorageControllerInstance: () => this,
+      trace: this.#trace,
+    });
   }
 }

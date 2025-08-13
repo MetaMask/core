@@ -1,0 +1,18 @@
+name: Check Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+
+jobs:
+  check_changelog:
+    uses: MetaMask/github-tools/.github/workflows/changelog-check.yml@fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
+    with:
+      action-sha: fc6fe1a3fb591f6afa61f0dbbe7698bd50fab9c7
+      base-branch: ${{ github.event.pull_request.base.ref }}
+      head-ref: ${{ github.head_ref }}
+      labels: ${{ toJSON(github.event.pull_request.labels) }}
+      pr-number: ${{ github.event.pull_request.number }}
+      repo: ${{ github.repository }}
+    secrets:
+      gh-token: ${{ secrets.GITHUB_TOKEN }}

@@ -6,16 +6,31 @@ import type {
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
+  GasPriceGasFeeEstimates,
+  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
+  LegacyGasFeeEstimates,
+  TransactionMeta,
+  TransactionParams,
+  TransactionBatchMeta,
 } from '../types';
-import { TransactionStatus, type TransactionMeta } from '../types';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  TransactionStatus,
+  TransactionEnvelopeType,
+} from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
@@ -29,19 +44,25 @@ const INTERVAL_MILLISECONDS = 10000;
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
-  #findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
+  readonly #findNetworkClientIdByChainId: (
+    chainId: Hex,
+  ) => NetworkClientId | undefined;
 
-  #gasFeeFlows: GasFeeFlow[];
+  readonly #gasFeeFlows: GasFeeFlow[];
 
-  #getGasFeeControllerEstimates: (
+  readonly #getGasFeeControllerEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
+  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
 
-  #getTransactions: () => TransactionMeta[];
+  readonly #getTransactions: () => TransactionMeta[];
 
-  #layer1GasFeeFlows: Layer1GasFeeFlow[];
+  readonly #getTransactionBatches: () => TransactionBatchMeta[];
+
+  readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
+
+  readonly #messenger: TransactionControllerMessenger;
 
   #timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -49,13 +70,16 @@ export class GasFeePoller {
 
   /**
    * Constructs a new instance of the GasFeePoller.
+   *
    * @param options - The options for this instance.
    * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
    * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
+   * @param options.getTransactionBatches - Callback to obtain the transaction batch data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
+   * @param options.messenger - The TransactionControllerMessenger instance.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
   constructor({
@@ -64,7 +88,9 @@ export class GasFeePoller {
     getGasFeeControllerEstimates,
     getProvider,
     getTransactions,
+    getTransactionBatches,
     layer1GasFeeFlows,
+    messenger,
     onStateChange,
   }: {
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
@@ -72,9 +98,11 @@ export class GasFeePoller {
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
     ) => Promise<GasFeeState>;
-    getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
+    getProvider: (networkClientId: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
+    getTransactionBatches: () => TransactionBatchMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
+    messenger: TransactionControllerMessenger;
     onStateChange: (listener: () => void) => void;
   }) {
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
@@ -83,11 +111,18 @@ export class GasFeePoller {
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
     this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
+    this.#getTransactionBatches = getTransactionBatches;
+    this.#messenger = messenger;
 
     onStateChange(() => {
       const unapprovedTransactions = this.#getUnapprovedTransactions();
+      const unapprovedTransactionBatches =
+        this.#getUnapprovedTransactionBatches();
 
-      if (unapprovedTransactions.length) {
+      if (
+        unapprovedTransactions.length ||
+        unapprovedTransactionBatches.length
+      ) {
         this.#start();
       } else {
         this.#stop();
@@ -124,6 +159,7 @@ export class GasFeePoller {
 
   async #onTimeout() {
     await this.#updateUnapprovedTransactions();
+    await this.#updateUnapprovedTransactionBatches();
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
@@ -157,6 +193,41 @@ export class GasFeePoller {
     );
   }
 
+  async #updateUnapprovedTransactionBatches() {
+    const unapprovedTransactionBatches =
+      this.#getUnapprovedTransactionBatches();
+
+    if (!unapprovedTransactionBatches.length) {
+      return;
+    }
+
+    log(
+      'Found unapproved transaction batches',
+      unapprovedTransactionBatches.length,
+    );
+
+    const gasFeeControllerDataByChainId = await this.#getGasFeeControllerData(
+      unapprovedTransactionBatches,
+    );
+
+    log('Retrieved gas fee controller data', gasFeeControllerDataByChainId);
+
+    await Promise.all(
+      unapprovedTransactionBatches.flatMap((txBatch) => {
+        const { chainId } = txBatch;
+
+        const gasFeeControllerData = gasFeeControllerDataByChainId.get(
+          chainId,
+        ) as GasFeeState;
+
+        return this.#updateUnapprovedTransactionBatch(
+          txBatch,
+          gasFeeControllerData,
+        );
+      }),
+    );
+  }
+
   async #updateUnapprovedTransaction(
     transactionMeta: TransactionMeta,
     gasFeeControllerData: GasFeeState,
@@ -183,6 +254,52 @@ export class GasFeePoller {
     });
   }
 
+  async #updateUnapprovedTransactionBatch(
+    txBatchMeta: TransactionBatchMeta,
+    gasFeeControllerData: GasFeeState,
+  ) {
+    const { id } = txBatchMeta;
+
+    const ethQuery = new EthQuery(
+      this.#getProvider(txBatchMeta.networkClientId),
+    );
+    const defaultGasFeeFlow = new DefaultGasFeeFlow();
+    const request: GasFeeFlowRequest = {
+      ethQuery,
+      gasFeeControllerData,
+      messenger: this.#messenger,
+      transactionMeta: {
+        ...txBatchMeta,
+        txParams: {
+          ...txBatchMeta.transactions?.[0],
+          from: txBatchMeta.from,
+          gas: txBatchMeta.gas,
+        },
+        time: Date.now(),
+      },
+    };
+
+    let gasFeeEstimates: GasFeeEstimates | undefined;
+
+    try {
+      const response = await defaultGasFeeFlow.getGasFees(request);
+
+      gasFeeEstimates = response.estimates;
+    } catch (error) {
+      log('Failed to get gas fees for batch', txBatchMeta.id, error);
+    }
+
+    if (!gasFeeEstimates) {
+      return;
+    }
+
+    this.hub.emit('transaction-batch-updated', {
+      transactionBatchId: id,
+      gasFeeEstimates,
+      gasFeeEstimatesLoaded: true,
+    });
+  }
+
   async #updateTransactionGasFeeEstimates(
     transactionMeta: TransactionMeta,
     gasFeeControllerData: GasFeeState,
@@ -190,10 +307,14 @@ export class GasFeePoller {
     | { gasFeeEstimates?: GasFeeEstimates; gasFeeEstimatesLoaded: boolean }
     | undefined
   > {
-    const { chainId, networkClientId } = transactionMeta;
+    const { networkClientId } = transactionMeta;
 
-    const ethQuery = new EthQuery(this.#getProvider(chainId, networkClientId));
-    const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
+    const ethQuery = new EthQuery(this.#getProvider(networkClientId));
+    const gasFeeFlow = getGasFeeFlow(
+      transactionMeta,
+      this.#gasFeeFlows,
+      this.#messenger,
+    );
 
     if (gasFeeFlow) {
       log(
@@ -206,6 +327,7 @@ export class GasFeePoller {
     const request: GasFeeFlowRequest = {
       ethQuery,
       gasFeeControllerData,
+      messenger: this.#messenger,
       transactionMeta,
     };
 
@@ -235,11 +357,12 @@ export class GasFeePoller {
   async #updateTransactionLayer1GasFee(
     transactionMeta: TransactionMeta,
   ): Promise<Hex | undefined> {
-    const { chainId, networkClientId } = transactionMeta;
-    const provider = this.#getProvider(chainId, networkClientId);
+    const { networkClientId } = transactionMeta;
+    const provider = this.#getProvider(networkClientId);
 
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
+      messenger: this.#messenger,
       provider,
       transactionMeta,
     });
@@ -257,8 +380,14 @@ export class GasFeePoller {
     );
   }
 
+  #getUnapprovedTransactionBatches() {
+    return this.#getTransactionBatches().filter(
+      (batch) => batch.status === TransactionStatus.unapproved,
+    );
+  }
+
   async #getGasFeeControllerData(
-    transactions: TransactionMeta[],
+    transactions: TransactionMeta[] | TransactionBatchMeta[],
   ): Promise<Map<string, GasFeeState>> {
     const networkClientIdsByChainId = new Map<Hex, NetworkClientId>();
 
@@ -289,5 +418,161 @@ export class GasFeePoller {
     );
 
     return new Map(await Promise.all(entryPromises));
+  }
+}
+
+/**
+ * Updates gas properties for transaction.
+ *
+ * @param args - Argument bag.
+ * @param args.txMeta - The transaction meta.
+ * @param args.gasFeeEstimates - The gas fee estimates.
+ * @param args.gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
+ * @param args.isTxParamsGasFeeUpdatesEnabled - Whether to update the gas fee properties in `txParams`.
+ * @param args.layer1GasFee - The layer 1 gas fee.
+ */
+export function updateTransactionGasProperties({
+  gasFeeEstimates,
+  gasFeeEstimatesLoaded,
+  isTxParamsGasFeeUpdatesEnabled,
+  layer1GasFee,
+  txMeta,
+}: {
+  gasFeeEstimates?: GasFeeEstimates;
+  gasFeeEstimatesLoaded?: boolean;
+  isTxParamsGasFeeUpdatesEnabled: (transactionMeta: TransactionMeta) => boolean;
+  layer1GasFee?: Hex;
+  txMeta: TransactionMeta;
+}): void {
+  const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
+  const isUsingGasFeeEstimateLevel =
+    Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+  const shouldUpdateTxParamsGasFees = isTxParamsGasFeeUpdatesEnabled(txMeta);
+
+  if (
+    shouldUpdateTxParamsGasFees &&
+    isUsingGasFeeEstimateLevel &&
+    gasFeeEstimates
+  ) {
+    const isEIP1559Compatible =
+      txMeta.txParams.type !== TransactionEnvelopeType.legacy;
+
+    updateGasFeeParameters(
+      txMeta.txParams,
+      gasFeeEstimates,
+      userFeeLevel,
+      isEIP1559Compatible,
+    );
+  }
+
+  if (gasFeeEstimates) {
+    txMeta.gasFeeEstimates = gasFeeEstimates;
+  }
+
+  if (gasFeeEstimatesLoaded !== undefined) {
+    txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+  }
+
+  if (layer1GasFee) {
+    txMeta.layer1GasFee = layer1GasFee;
+  }
+}
+
+/**
+ * Updates `txParams` gas values accordingly with given `userFeeLevel` from `txMeta.gasFeeEstimates`.
+ *
+ * @param args - Argument bag.
+ * @param args.txMeta - The transaction meta.
+ * @param args.userFeeLevel - The user fee level.
+ */
+export function updateTransactionGasEstimates({
+  txMeta,
+  userFeeLevel,
+}: {
+  txMeta: TransactionMeta;
+  userFeeLevel: GasFeeEstimateLevel;
+}): void {
+  const { txParams, gasFeeEstimates } = txMeta;
+
+  if (!gasFeeEstimates) {
+    return;
+  }
+
+  const isEIP1559Compatible =
+    txMeta.txParams.type !== TransactionEnvelopeType.legacy;
+
+  updateGasFeeParameters(
+    txParams,
+    gasFeeEstimates,
+    userFeeLevel,
+    isEIP1559Compatible,
+  );
+}
+
+/**
+ * Updates gas fee parameters based on transaction type and gas estimate type
+ *
+ * @param txParams - The transaction parameters to update
+ * @param gasFeeEstimates - The gas fee estimates
+ * @param userFeeLevel - The user fee level
+ * @param isEIP1559Compatible - Whether the transaction is EIP-1559 compatible
+ */
+function updateGasFeeParameters(
+  txParams: TransactionParams,
+  gasFeeEstimates: GasFeeEstimates,
+  userFeeLevel: GasFeeEstimateLevel,
+  isEIP1559Compatible: boolean,
+): void {
+  const { type: gasEstimateType } = gasFeeEstimates;
+
+  if (isEIP1559Compatible) {
+    // Handle EIP-1559 compatible transactions
+    if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+      const feeMarketGasFeeEstimates =
+        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      txParams.maxFeePerGas =
+        feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
+      txParams.maxPriorityFeePerGas =
+        feeMarketGasFeeEstimates[userFeeLevel]?.maxPriorityFeePerGas;
+    }
+
+    if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+      const gasPriceGasFeeEstimates =
+        gasFeeEstimates as GasPriceGasFeeEstimates;
+      txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
+      txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
+    }
+
+    if (gasEstimateType === GasFeeEstimateType.Legacy) {
+      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const gasPrice = legacyGasFeeEstimates[userFeeLevel];
+      txParams.maxFeePerGas = gasPrice;
+      txParams.maxPriorityFeePerGas = gasPrice;
+    }
+
+    // Remove gasPrice for EIP-1559 transactions
+    delete txParams.gasPrice;
+  } else {
+    // Handle non-EIP-1559 transactions
+    if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+      const feeMarketGasFeeEstimates =
+        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      txParams.gasPrice = feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
+    }
+
+    if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+      const gasPriceGasFeeEstimates =
+        gasFeeEstimates as GasPriceGasFeeEstimates;
+      txParams.gasPrice = gasPriceGasFeeEstimates.gasPrice;
+    }
+
+    if (gasEstimateType === GasFeeEstimateType.Legacy) {
+      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
+    }
+
+    // Remove EIP-1559 specific parameters for legacy transactions
+    delete txParams.maxFeePerGas;
+    delete txParams.maxPriorityFeePerGas;
   }
 }

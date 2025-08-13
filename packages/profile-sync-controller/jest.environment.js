@@ -1,4 +1,5 @@
-/* eslint-disable */
+/* eslint-disable n/prefer-global/text-encoder */
+/* eslint-disable n/prefer-global/text-decoder */
 const JSDOMEnvironment = require('jest-environment-jsdom');
 
 /**
@@ -11,6 +12,7 @@ class CustomTestEnvironment extends JSDOMEnvironment {
   async setup() {
     await super.setup();
 
+    // eslint-disable-next-line no-shadow
     const { TextEncoder, TextDecoder } = require('util');
     this.global.TextEncoder = TextEncoder;
     this.global.TextDecoder = TextDecoder;
@@ -18,6 +20,7 @@ class CustomTestEnvironment extends JSDOMEnvironment {
     this.global.Uint8Array = Uint8Array;
 
     if (typeof this.global.crypto === 'undefined') {
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins
       this.global.crypto = require('crypto').webcrypto;
     }
   }

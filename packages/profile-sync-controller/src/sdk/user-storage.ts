@@ -1,14 +1,17 @@
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
+import { NotFoundError, UserStorageError } from './errors';
 import encryption, { createSHA256Hash } from '../shared/encryption';
+import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
 import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
+  UserStorageGenericFeatureKey,
+  UserStorageGenericFeatureName,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
+import type { NativeScrypt } from '../shared/types/encryption';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;
@@ -19,20 +22,24 @@ export type UserStorageConfig = {
 };
 
 export type StorageOptions = {
-  getStorageKey: () => Promise<string | null>;
-  setStorageKey: (val: string) => Promise<void>;
+  getStorageKey: (message: `metamask:${string}`) => Promise<string | null>;
+  setStorageKey: (message: `metamask:${string}`, val: string) => Promise<void>;
 };
 
 export type UserStorageOptions = {
   storage?: StorageOptions;
 };
 
-type GetUserStorageAllFeatureEntriesResponse = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+export type GetUserStorageAllFeatureEntriesResponse = {
   HashedKey: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   Data: string;
 }[];
+
+export type UserStorageMethodOptions = {
+  nativeScryptCrypto?: NativeScrypt;
+  entropySourceId?: string;
+};
 
 type ErrorMessage = {
   message: string;
@@ -42,7 +49,7 @@ type ErrorMessage = {
 export class UserStorage {
   protected config: UserStorageConfig;
 
-  protected options: UserStorageOptions;
+  public options: UserStorageOptions;
 
   protected env: Env;
 
@@ -53,58 +60,92 @@ export class UserStorage {
   }
 
   async setItem(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     value: string,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
-    await this.#upsertUserStorage(path, value);
+    await this.#upsertUserStorage(path, value, options);
   }
 
   async batchSetItems(
-    path: UserStoragePathWithFeatureOnly,
-    values: [UserStoragePathWithKeyOnly, string][],
+    path: UserStorageGenericFeatureName,
+    values: [UserStorageGenericFeatureKey, string][],
+    options?: UserStorageMethodOptions,
   ) {
-    await this.#batchUpsertUserStorage(path, values);
+    await this.#batchUpsertUserStorage(path, values, options);
   }
 
-  async getItem(path: UserStoragePathWithFeatureAndKey): Promise<string> {
-    return this.#getUserStorage(path);
+  async getItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<string | null> {
+    return this.#getUserStorage(path, options);
   }
 
   async getAllFeatureItems(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
   ): Promise<string[] | null> {
-    return this.#getUserStorageAllFeatureEntries(path);
+    return this.#getUserStorageAllFeatureEntries(path, options);
+  }
+
+  async deleteItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    return this.#deleteUserStorage(path, options);
   }
 
   async deleteAllFeatureItems(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
-    return this.#deleteUserStorageAllFeatureEntries(path);
+    return this.#deleteUserStorageAllFeatureEntries(path, options);
   }
 
-  async getStorageKey(): Promise<string> {
-    const storageKey = await this.options.storage?.getStorageKey();
+  async batchDeleteItems(
+    path: UserStorageGenericFeatureName,
+    values: UserStorageGenericFeatureKey[],
+    options?: UserStorageMethodOptions,
+  ) {
+    return this.#batchDeleteUserStorage(path, values, options);
+  }
+
+  async getStorageKey(entropySourceId?: string): Promise<string> {
+    const userProfile = await this.config.auth.getUserProfile(entropySourceId);
+    const message = `metamask:${userProfile.profileId}` as const;
+
+    const storageKey = await this.options.storage?.getStorageKey(message);
     if (storageKey) {
       return storageKey;
     }
 
-    const userProfile = await this.config.auth.getUserProfile();
     const storageKeySignature = await this.config.auth.signMessage(
-      `metamask:${userProfile.profileId}`,
+      message,
+      entropySourceId,
     );
     const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
-    await this.options.storage?.setStorageKey(hashedStorageKeySignature);
+    await this.options.storage?.setStorageKey(
+      message,
+      hashedStorageKeySignature,
+    );
     return hashedStorageKeySignature;
   }
 
   async #upsertUserStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     data: string,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
     try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
-      const encryptedData = await encryption.encryptString(data, storageKey);
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+      const encryptedData = await encryption.encryptString(
+        data,
+        storageKey,
+        options?.nativeScryptCrypto,
+      );
       const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -138,22 +179,28 @@ export class UserStorage {
   }
 
   async #batchUpsertUserStorage(
-    path: UserStoragePathWithFeatureOnly,
-    data: [UserStoragePathWithKeyOnly, string][],
+    path: UserStorageGenericPathWithFeatureOnly,
+    data: [string, string][],
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
     try {
       if (!data.length) {
         return;
       }
 
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
 
       const encryptedData = await Promise.all(
         data.map(async (d) => {
           return [
             this.#createEntryKey(d[0], storageKey),
-            await encryption.encryptString(d[1], storageKey),
+            await encryption.encryptString(
+              d[1],
+              storageKey,
+              options?.nativeScryptCrypto,
+            ),
           ];
         }),
       );
@@ -188,17 +235,211 @@ export class UserStorage {
     }
   }
 
-  async #getUserStorage(
-    path: UserStoragePathWithFeatureAndKey,
-  ): Promise<string> {
+  async #batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    encryptedData: [string, string][],
+    entropySourceId?: string,
+  ): Promise<void> {
     try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
+      });
+
+      // istanbul ignore next
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      // istanbul ignore next
+      throw new UserStorageError(
+        `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #getUserStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<string | null> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
       const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
       const response = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      const userStorage = await response.json();
+      const encryptedData = userStorage?.Data ?? null;
+
+      if (!encryptedData) {
+        return null;
+      }
+
+      const decryptedData = await encryption.decryptString(
+        encryptedData,
+        storageKey,
+        options?.nativeScryptCrypto,
+      );
+
+      // Re-encrypt the entry if it was encrypted with a random salt
+      const salt = encryption.getSalt(encryptedData);
+      if (salt.toString() !== SHARED_SALT.toString()) {
+        await this.#upsertUserStorage(path, decryptedData, options);
+      }
+
+      return decryptedData;
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #getUserStorageAllFeatureEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    options?: UserStorageMethodOptions,
+  ): Promise<string[] | null> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      const userStorage: GetUserStorageAllFeatureEntriesResponse | null =
+        await response.json();
+
+      if (!Array.isArray(userStorage)) {
+        return null;
+      }
+
+      const decryptedData: string[] = [];
+      const reEncryptedEntries: [string, string][] = [];
+
+      for (const entry of userStorage) {
+        if (!entry.Data) {
+          continue;
+        }
+
+        try {
+          const data = await encryption.decryptString(
+            entry.Data,
+            storageKey,
+            options?.nativeScryptCrypto,
+          );
+          decryptedData.push(data);
+
+          // Re-encrypt the entry was encrypted with a random salt
+          const salt = encryption.getSalt(entry.Data);
+          if (salt.toString() !== SHARED_SALT.toString()) {
+            reEncryptedEntries.push([
+              entry.HashedKey,
+              await encryption.encryptString(
+                data,
+                storageKey,
+                options?.nativeScryptCrypto,
+              ),
+            ]);
+          }
+        } catch {
+          // do nothing
+        }
+      }
+
+      // Re-upload the re-encrypted entries
+      if (reEncryptedEntries.length) {
+        await this.#batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+          path,
+          reEncryptedEntries,
+          entropySourceId,
+        );
+      }
+
+      return decryptedData;
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           ...headers,
@@ -217,9 +458,6 @@ export class UserStorage {
           `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
         );
       }
-
-      const { Data: encryptedData } = await response.json();
-      return encryption.decryptString(encryptedData, storageKey);
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
@@ -230,76 +468,18 @@ export class UserStorage {
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
 
       throw new UserStorageError(
-        `failed to get user storage for path '${path}'. ${errorMessage}`,
-      );
-    }
-  }
-
-  async #getUserStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
-  ): Promise<string[] | null> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.getStorageKey();
-
-      const url = new URL(STORAGE_URL(this.env, path));
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-      });
-
-      if (response.status === 404) {
-        throw new NotFoundError(`feature not found for path '${path}'.`);
-      }
-
-      if (!response.ok) {
-        const responseBody = (await response.json()) as ErrorMessage;
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
-      }
-
-      const userStorage: GetUserStorageAllFeatureEntriesResponse | null =
-        await response.json();
-
-      if (!Array.isArray(userStorage)) {
-        return null;
-      }
-
-      const decryptedData = userStorage.flatMap((entry) => {
-        if (!entry.Data) {
-          return [];
-        }
-
-        return encryption.decryptString(entry.Data, storageKey);
-      });
-
-      return (await Promise.allSettled(decryptedData))
-        .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
-        .filter((d): d is string => d !== undefined);
-    } catch (e) {
-      if (e instanceof NotFoundError) {
-        throw e;
-      }
-
-      /* istanbul ignore next */
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? '');
-
-      throw new UserStorageError(
-        `failed to get user storage for path '${path}'. ${errorMessage}`,
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
 
   async #deleteUserStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
-      const headers = await this.#getAuthorizationHeader();
+      const entropySourceId = options?.entropySourceId;
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -336,15 +516,63 @@ export class UserStorage {
     }
   }
 
-  #createEntryKey(key: string, storageKey: string): string {
-    const hashedKey = createSHA256Hash(key + storageKey);
-    return hashedKey;
+  async #batchDeleteUserStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    keysToDelete: string[],
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    try {
+      if (!keysToDelete.length) {
+        return;
+      }
+
+      const entropySourceId = options?.entropySourceId;
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+
+      const rawEntryKeys = keysToDelete.map((d) =>
+        this.#createEntryKey(d, storageKey),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+
+        body: JSON.stringify({ batch_delete: rawEntryKeys }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
   }
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    const accessToken = await this.config.auth.getAccessToken();
+  #createEntryKey(key: string, storageKey: string): string {
+    return createSHA256Hash(key + storageKey);
+  }
+
+  async #getAuthorizationHeader(
+    entropySourceId?: string,
+  ): Promise<{ Authorization: string }> {
+    const accessToken = await this.config.auth.getAccessToken(entropySourceId);
     return { Authorization: `Bearer ${accessToken}` };
   }
 }

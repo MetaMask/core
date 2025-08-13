@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^8.0.0` to `^8.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.4.2` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/controller-utils` to `^11.11.0` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Base class of `DecryptMessageManager` and `EncryptionPublicKeyManager`(`AbstractMessageManager`) now expects new options to initialise ([#5103](https://github.com/MetaMask/core/pull/5103))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+### Removed
+
+- **BREAKING:** Removed internal event emitter (`hub` property) from `AbstractMessageManager` ([#5103](https://github.com/MetaMask/core/pull/5103))
+- **BREAKING:** `unapprovedMessage` and `updateBadge` removed from internal events. These events are now emitted from messaging system ([#5103](https://github.com/MetaMask/core/pull/5103))
+  - Controllers should now listen to `DerivedManagerName:X` event instead of using internal event emitter.
+
+## [11.0.3]
+
+### Changed
+
+- Bump `jsonschema` from `^1.2.4` to `^1.4.1` ([#4998](https://github.com/MetaMask/core/pull/4998), [#5027](https://github.com/MetaMask/core/pull/5027))
+
+## [11.0.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.4` ([#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+## [11.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.2` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+
+## [11.0.0]
+
+### Removed
+
+- Remove all code related to `@metamask/signature-controller` ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - Remove `TypedMessageManager`.
+  - Remove `PersonalMessageManager`.
+  - Remove utils:
+    - `validateSignMessageData`
+    - `validateTypedSignMessageDataV1`
+    - `validateTypedSignMessageDataV3V4`
+
 ## [10.1.1]
 
 ### Fixed
@@ -313,7 +382,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...@metamask/message-manager@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.0...@metamask/message-manager@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.3...@metamask/message-manager@12.0.0
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.2...@metamask/message-manager@11.0.3
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.1...@metamask/message-manager@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.0...@metamask/message-manager@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...@metamask/message-manager@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.0...@metamask/message-manager@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.3...@metamask/message-manager@10.1.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.2...@metamask/message-manager@10.0.3

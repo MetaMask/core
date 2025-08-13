@@ -1,5 +1,5 @@
 import { BigNumber } from '@ethersproject/bignumber';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -13,6 +13,7 @@ import type {
   NetworkClientId,
   NetworkControllerActions,
   NetworkControllerEvents,
+  InfuraNetworkClientConfiguration,
 } from '@metamask/network-controller';
 import {
   NetworkController,
@@ -22,18 +23,18 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
-import { mockNetwork } from '../../../tests/mock-network';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
-import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 import type { AssetsContractControllerMessenger } from './AssetsContractController';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import { mockNetwork } from '../../../tests/mock-network';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
+import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -69,16 +70,17 @@ async function setupAssetContractControllers({
   useNetworkControllerProvider?: boolean;
   infuraProjectId?: string;
 } = {}) {
-  const networkClientConfiguration = {
+  const networkClientConfiguration: InfuraNetworkClientConfiguration = {
     type: NetworkClientType.Infura,
     network: NetworkType.mainnet,
+    failoverRpcUrls: [],
     infuraProjectId,
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
     ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-  } as const;
+  };
   let provider: Provider;
 
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     | ExtractAvailableAction<AssetsContractControllerMessenger>
     | NetworkControllerActions,
     | ExtractAvailableEvent<AssetsContractControllerMessenger>
@@ -86,10 +88,14 @@ async function setupAssetContractControllers({
   >();
   const networkController = new NetworkController({
     infuraProjectId,
-    messenger: controllerMessenger.getRestricted({
+    messenger: messenger.getRestricted({
       name: 'NetworkController',
       allowedActions: [],
       allowedEvents: [],
+    }),
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
     }),
   });
   if (useNetworkControllerProvider) {
@@ -103,10 +109,8 @@ async function setupAssetContractControllers({
     );
   }
 
-  controllerMessenger.unregisterActionHandler(
-    'NetworkController:getNetworkClientById',
-  );
-  controllerMessenger.registerActionHandler(
+  messenger.unregisterActionHandler('NetworkController:getNetworkClientById');
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     useNetworkControllerProvider
@@ -117,7 +121,7 @@ async function setupAssetContractControllers({
         }),
   );
 
-  const assetsContractMessenger = controllerMessenger.getRestricted({
+  const assetsContractMessenger = messenger.getRestricted({
     name: 'AssetsContractController',
     allowedActions: [
       'NetworkController:getNetworkClientById',
@@ -137,18 +141,14 @@ async function setupAssetContractControllers({
   });
 
   return {
-    messenger: controllerMessenger,
+    messenger,
     network: networkController,
     assetsContract,
     provider,
     networkClientConfiguration,
     infuraProjectId,
     triggerPreferencesStateChange: (state: PreferencesState) => {
-      controllerMessenger.publish(
-        'PreferencesController:stateChange',
-        state,
-        [],
-      );
+      messenger.publish('PreferencesController:stateChange', state, []);
     },
   };
 }
@@ -1095,6 +1095,7 @@ describe('AssetsContractController', () => {
         ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
+        failoverRpcUrls: [],
         infuraProjectId: networkClientConfiguration.infuraProjectId,
       },
       mocks: [
@@ -1272,6 +1273,154 @@ describe('AssetsContractController', () => {
       ERC1155_ID,
     );
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should get the staked ethereum balance for an address', async () => {
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        // getShares
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0xca11bde05977b3631167028862be2a173976ca11',
+                data: '0xbce38bd700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000004fef9d741011476750a243ac70b9789a63dd47df00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000024f04da65b0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d00000000000000000000000000000000000000000000000000000000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000007de0ff9d7304a', // de0b6b3a7640000
+          },
+        },
+        // convertToAssets
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0xca11bde05977b3631167028862be2a173976ca11',
+                data: '0xbce38bd700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000004fef9d741011476750a243ac70b9789a63dd47df0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002407a2d13a0000000000000000000000000000000000000000000000000007de0ff9d7304a00000000000000000000000000000000000000000000000000000000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000081f495b33d2df',
+          },
+        },
+      ],
+    });
+
+    const balance = await assetsContract.getStakedBalanceForChain([
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    ]);
+
+    // Shares: 2214485034479690
+    // Assets: 2286199736881887 (0.002286199736881887 ETH)
+
+    expect(balance).toBeDefined();
+    expect(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toBe('0x081f495b33d2df');
+    expect(
+      BigNumber.from(balance[TEST_ACCOUNT_PUBLIC_ADDRESS]).toString(),
+    ).toBe('2286199736881887');
+
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should return default of zero hex as staked ethereum balance if user has no shares', async () => {
+    const errorSpy = jest.spyOn(console, 'error');
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        // getShares
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0xca11bde05977b3631167028862be2a173976ca11',
+                data: '0xbce38bd700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000004fef9d741011476750a243ac70b9789a63dd47df00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000024f04da65b0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d00000000000000000000000000000000000000000000000000000000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000',
+          },
+        },
+      ],
+    });
+
+    const balance = await assetsContract.getStakedBalanceForChain([
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    ]);
+
+    expect(balance).toBeDefined();
+    expect(balance).toStrictEqual({
+      '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D': '0x00',
+    });
+    expect(
+      BigNumber.from(
+        balance['0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D'],
+      ).toString(),
+    ).toBe('0');
+    expect(errorSpy).toHaveBeenCalledTimes(0);
+
+    errorSpy.mockRestore();
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should return default of zero hex as staked ethereum balance if there is any error thrown', async () => {
+    let error;
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementationOnce((e) => {
+        error = e;
+      });
+    const { assetsContract, messenger, provider } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    const balance = await assetsContract.getStakedBalanceForChain([
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    ]);
+
+    expect(balance).toBeDefined();
+    expect(balance).toStrictEqual({
+      '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D': '0x00',
+    });
+    expect(
+      BigNumber.from(
+        balance['0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D'],
+      ).toString(),
+    ).toBe('0');
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(error);
+
+    errorSpy.mockRestore();
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should throw missing provider error when getting staked ethereum balance and missing provider', async () => {
+    const { assetsContract, messenger } = await setupAssetContractControllers();
+    await expect(
+      assetsContract.getStakedBalanceForChain([TEST_ACCOUNT_PUBLIC_ADDRESS]),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 });

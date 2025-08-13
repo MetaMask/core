@@ -1,64 +1,45 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
-import type {
-  KeyringControllerGetAccountsAction,
-  KeyringControllerStateChangeEvent,
-  KeyringControllerGetStateAction,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
+import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
+import {
+  type KeyringControllerStateChangeEvent,
+  type KeyringControllerGetStateAction,
+  type KeyringControllerLockEvent,
+  type KeyringControllerUnlockEvent,
+  KeyringTypes,
+  type KeyringControllerState,
 } from '@metamask/keyring-controller';
-import type {
-  AuthenticationController,
-  UserStorageController,
-} from '@metamask/profile-sync-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import { assert } from '@metamask/utils';
 import log from 'loglevel';
 
-import { USER_STORAGE_VERSION_KEY } from './constants/constants';
 import { TRIGGER_TYPES } from './constants/notification-schema';
-import { safeProcessNotification } from './processors/process-notifications';
+import {
+  processAndFilterNotifications,
+  safeProcessNotification,
+} from './processors/process-notifications';
 import * as FeatureNotifications from './services/feature-announcements';
 import * as OnChainNotifications from './services/onchain-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
-  NotificationUnion,
 } from './types/notification/notification';
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
-import type { UserStorage } from './types/user-storage/user-storage';
-import * as Utils from './utils/utils';
-
-// TODO: Fix Circular Type Dependencies
-// This indicates that control flow of messages is everywhere, lets orchestrate these better
-export type NotificationServicesPushControllerEnablePushNotifications = {
-  type: `NotificationServicesPushController:enablePushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerDisablePushNotifications = {
-  type: `NotificationServicesPushController:disablePushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerUpdateTriggerPushNotifications = {
-  type: `NotificationServicesPushController:updateTriggerPushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerSubscribeToNotifications = {
-  type: `NotificationServicesPushController:subscribeToPushNotifications`;
-  handler: () => Promise<void>;
-};
-
-export type NotificationServicesPushControllerOnNewNotification = {
-  type: `NotificationServicesPushController:onNewNotifications`;
-  payload: [INotification];
-};
+import type {
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerSubscribeToNotificationsAction,
+  NotificationServicesPushControllerStateChangeEvent,
+  NotificationServicesPushControllerOnNewNotificationEvent,
+} from '../NotificationServicesPushController';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -173,6 +154,10 @@ export const defaultState: NotificationServicesControllerState = {
   isCheckingAccountsPresence: false,
 };
 
+const locallyPersistedNotificationTypes = new Set<TRIGGER_TYPES>([
+  TRIGGER_TYPES.SNAP,
+]);
+
 export type NotificationServicesControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
@@ -189,37 +174,36 @@ export type NotificationServicesControllerDisableNotificationServices = {
   handler: NotificationServicesController['disableNotificationServices'];
 };
 
-export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
-  {
-    type: `${typeof controllerName}:selectIsNotificationServicesEnabled`;
-    handler: NotificationServicesController['selectIsNotificationServicesEnabled'];
-  };
+export type NotificationServicesControllerGetNotificationsByType = {
+  type: `${typeof controllerName}:getNotificationsByType`;
+  handler: NotificationServicesController['getNotificationsByType'];
+};
+
+export type NotificationServicesControllerDeleteNotificationsById = {
+  type: `${typeof controllerName}:deleteNotificationsById`;
+  handler: NotificationServicesController['deleteNotificationsById'];
+};
 
 // Messenger Actions
 export type Actions =
   | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled;
+  | NotificationServicesControllerGetNotificationsByType
+  | NotificationServicesControllerDeleteNotificationsById;
 
 // Allowed Actions
 export type AllowedActions =
   // Keyring Controller Requests
-  | KeyringControllerGetAccountsAction
   | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
   | AuthenticationController.AuthenticationControllerIsSignedIn
-  // User Storage Controller Requests
-  | UserStorageController.UserStorageControllerEnableProfileSyncing
-  | UserStorageController.UserStorageControllerGetStorageKey
-  | UserStorageController.UserStorageControllerPerformGetStorage
-  | UserStorageController.UserStorageControllerPerformSetStorage
+  | AuthenticationController.AuthenticationControllerPerformSignIn
   // Push Notifications Controller Requests
-  | NotificationServicesPushControllerEnablePushNotifications
-  | NotificationServicesPushControllerDisablePushNotifications
-  | NotificationServicesPushControllerUpdateTriggerPushNotifications
-  | NotificationServicesPushControllerSubscribeToNotifications;
+  | NotificationServicesPushControllerEnablePushNotificationsAction
+  | NotificationServicesPushControllerDisablePushNotificationsAction
+  | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
@@ -251,17 +235,17 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Push Notification Events
-  | NotificationServicesPushControllerOnNewNotification;
+  | NotificationServicesPushControllerOnNewNotificationEvent
+  | NotificationServicesPushControllerStateChangeEvent;
 
 // Type for the messenger of NotificationServicesController
-export type NotificationServicesControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    Actions | AllowedActions,
-    Events | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type NotificationServicesControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  Actions | AllowedActions,
+  Events | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 type FeatureAnnouncementEnv = {
   spaceId: string;
@@ -277,25 +261,17 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerState,
   NotificationServicesControllerMessenger
 > {
-  // Temporary boolean as push notifications are not yet enabled on mobile
-  #isPushIntegrated = true;
+  readonly #keyringController = {
+    isUnlocked: false,
 
-  // Flag to check is notifications have been setup when the browser/extension is initialized.
-  // We want to re-initialize push notifications when the browser/extension is refreshed
-  // To ensure we subscribe to the most up-to-date notifications
-  #isPushNotificationsSetup = false;
-
-  #isUnlocked = false;
-
-  #keyringController = {
     setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
       );
-      this.#isUnlocked = isUnlocked;
+      this.#keyringController.isUnlocked = isUnlocked;
 
       this.messagingSystem.subscribe('KeyringController:unlock', () => {
-        this.#isUnlocked = true;
+        this.#keyringController.isUnlocked = true;
         // messaging system cannot await promises
         // we don't need to wait for a result on this.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -303,12 +279,12 @@ export default class NotificationServicesController extends BaseController<
       });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
-        this.#isUnlocked = false;
+        this.#keyringController.isUnlocked = false;
       });
     },
   };
 
-  #auth = {
+  readonly #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
         'AuthenticationController:getBearerToken',
@@ -317,81 +293,44 @@ export default class NotificationServicesController extends BaseController<
     isSignedIn: () => {
       return this.messagingSystem.call('AuthenticationController:isSignedIn');
     },
-  };
-
-  #storage = {
-    enableProfileSyncing: async () => {
+    signIn: async () => {
       return await this.messagingSystem.call(
-        'UserStorageController:enableProfileSyncing',
-      );
-    },
-    getStorageKey: () => {
-      return this.messagingSystem.call('UserStorageController:getStorageKey');
-    },
-    getNotificationStorage: async () => {
-      return await this.messagingSystem.call(
-        'UserStorageController:performGetStorage',
-        'notifications.notification_settings',
-      );
-    },
-    setNotificationStorage: async (state: string) => {
-      return await this.messagingSystem.call(
-        'UserStorageController:performSetStorage',
-        'notifications.notification_settings',
-        state,
+        'AuthenticationController:performSignIn',
       );
     },
   };
 
-  #pushNotifications = {
+  readonly #pushNotifications = {
+    // Flag to check is notifications have been setup when the browser/extension is initialized.
+    // We want to re-initialize push notifications when the browser/extension is refreshed
+    // To ensure we subscribe to the most up-to-date notifications
+    isSetup: false,
+
     subscribeToPushNotifications: async () => {
       await this.messagingSystem.call(
         'NotificationServicesPushController:subscribeToPushNotifications',
       );
     },
-    enablePushNotifications: async (UUIDs: string[]) => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
+    enablePushNotifications: async (addresses: string[]) => {
       try {
         await this.messagingSystem.call(
           'NotificationServicesPushController:enablePushNotifications',
-          UUIDs,
+          addresses,
         );
       } catch (e) {
         log.error('Silently failed to enable push notifications', e);
       }
     },
-    disablePushNotifications: async (UUIDs: string[]) => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
+    disablePushNotifications: async () => {
       try {
         await this.messagingSystem.call(
           'NotificationServicesPushController:disablePushNotifications',
-          UUIDs,
         );
       } catch (e) {
         log.error('Silently failed to disable push notifications', e);
       }
     },
-    updatePushNotifications: async (UUIDs: string[]) => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
-      try {
-        await this.messagingSystem.call(
-          'NotificationServicesPushController:updateTriggerPushNotifications',
-          UUIDs,
-        );
-      } catch (e) {
-        log.error('Silently failed to update push notifications', e);
-      }
-    },
     subscribe: () => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
       this.messagingSystem.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
@@ -401,45 +340,65 @@ export default class NotificationServicesController extends BaseController<
       );
     },
     initializePushNotifications: async () => {
-      if (!this.#isPushIntegrated) {
-        return;
-      }
       if (!this.state.isNotificationServicesEnabled) {
         return;
       }
-      if (this.#isPushNotificationsSetup) {
+      if (this.#pushNotifications.isSetup) {
         return;
       }
 
       // If wallet is unlocked, we can create a fresh push subscription
       // Otherwise we can subscribe to original subscription
-      if (this.#isUnlocked) {
-        const storage = await this.#getUserStorage();
-        if (!storage) {
-          return;
+      try {
+        if (!this.#keyringController.isUnlocked) {
+          throw new Error('Keyring is locked');
         }
-
-        const uuids = Utils.getAllUUIDs(storage);
-        await this.#pushNotifications.enablePushNotifications(uuids);
-        this.#isPushNotificationsSetup = true;
-      } else {
-        await this.#pushNotifications.subscribeToPushNotifications();
+        await this.enablePushNotifications();
+        this.#pushNotifications.isSetup = true;
+      } catch {
+        await this.#pushNotifications
+          .subscribeToPushNotifications()
+          .catch(() => {
+            // do nothing
+          });
       }
     },
   };
 
-  #accounts = {
+  readonly #accounts = {
+    // Flag to ensure we only setup once
+    isNotificationAccountsSetup: false,
+
+    getNotificationAccounts: () => {
+      const { keyrings } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      const firstHDKeyring = keyrings.find(
+        (k) => k.type === KeyringTypes.hd.toString(),
+      );
+      const keyringAccounts = firstHDKeyring?.accounts ?? null;
+      return keyringAccounts;
+    },
+
     /**
      * Used to get list of addresses from keyring (wallet addresses)
      *
      * @returns addresses removed, added, and latest list of addresses
      */
-    listAccounts: async () => {
+    listAccounts: () => {
       // Get previous and current account sets
-      const nonChecksumAccounts = await this.messagingSystem.call(
-        'KeyringController:getAccounts',
-      );
-      const accounts = nonChecksumAccounts.map((a) => toChecksumHexAddress(a));
+      const nonChecksumAccounts = this.#accounts.getNotificationAccounts();
+      if (!nonChecksumAccounts) {
+        return {
+          accountsAdded: [],
+          accountsRemoved: [],
+          accounts: [],
+        };
+      }
+
+      const accounts = nonChecksumAccounts
+        .map((a) => toChecksumHexAddress(a))
+        .filter((a) => isValidHexAddress(a));
       const currentAccountsSet = new Set(accounts);
       const prevAccountsSet = new Set(this.state.subscriptionAccountsSeen);
 
@@ -461,7 +420,7 @@ export default class NotificationServicesController extends BaseController<
 
       // Update accounts seen
       this.update((state) => {
-        state.subscriptionAccountsSeen = [...prevAccountsSet, ...accountsAdded];
+        state.subscriptionAccountsSeen = [...currentAccountsSet];
       });
 
       return {
@@ -473,11 +432,15 @@ export default class NotificationServicesController extends BaseController<
 
     /**
      * Initializes the cache/previous list. This is handy so we have an accurate in-mem state of the previous list of accounts.
-     *
-     * @returns result from list accounts
      */
-    initialize: () => {
-      return this.#accounts.listAccounts();
+    initialize: (): void => {
+      if (
+        this.#keyringController.isUnlocked &&
+        !this.#accounts.isNotificationAccountsSetup
+      ) {
+        this.#accounts.listAccounts();
+        this.#accounts.isNotificationAccountsSetup = true;
+      }
     },
 
     /**
@@ -488,29 +451,38 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async () => {
-          if (!this.state.isNotificationServicesEnabled) {
+        async (totalAccounts, prevTotalAccounts) => {
+          const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
+          if (
+            !this.state.isNotificationServicesEnabled ||
+            !hasTotalAccountsChanged
+          ) {
             return;
           }
 
           const { accountsAdded, accountsRemoved } =
-            await this.#accounts.listAccounts();
+            this.#accounts.listAccounts();
 
           const promises: Promise<unknown>[] = [];
           if (accountsAdded.length > 0) {
-            promises.push(this.updateOnChainTriggersByAccount(accountsAdded));
+            promises.push(this.enableAccounts(accountsAdded));
           }
           if (accountsRemoved.length > 0) {
-            promises.push(this.deleteOnChainTriggersByAccount(accountsRemoved));
+            promises.push(this.disableAccounts(accountsRemoved));
           }
-          await Promise.all(promises);
+          await Promise.allSettled(promises);
+        },
+        (state: KeyringControllerState) => {
+          return (
+            state?.keyrings?.flatMap?.((keyring) => keyring.accounts)?.length ??
+            0
+          );
         },
       );
     },
   };
 
-  #featureAnnouncementEnv: FeatureAnnouncementEnv;
+  readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
   /**
    * Creates a NotificationServicesController instance.
@@ -541,15 +513,17 @@ export default class NotificationServicesController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#isPushIntegrated = env.isPushIntegrated ?? true;
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+  }
 
-    this.#keyringController.setupLockedStateSubscriptions(
-      this.#pushNotifications.initializePushNotifications,
-    );
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  init() {
+    this.#keyringController.setupLockedStateSubscriptions(async () => {
+      this.#accounts.initialize();
+      await this.#pushNotifications.initializePushNotifications();
+    });
+
     this.#accounts.initialize();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#pushNotifications.initializePushNotifications();
@@ -569,8 +543,13 @@ export default class NotificationServicesController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:selectIsNotificationServicesEnabled`,
-      this.selectIsNotificationServicesEnabled.bind(this),
+      `${controllerName}:getNotificationsByType`,
+      this.getNotificationsByType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:deleteNotificationsById`,
+      this.deleteNotificationsById.bind(this),
     );
   }
 
@@ -592,72 +571,23 @@ export default class NotificationServicesController extends BaseController<
     }
   }
 
-  async #getValidStorageKeyAndBearerToken() {
+  async #enableAuth() {
+    const isSignedIn = this.#auth.isSignedIn();
+    if (!isSignedIn) {
+      await this.#auth.signIn();
+    }
+  }
+
+  async #getBearerToken() {
     this.#assertAuthEnabled();
 
     const bearerToken = await this.#auth.getBearerToken();
-    const storageKey = await this.#storage.getStorageKey();
 
-    if (!bearerToken || !storageKey) {
-      throw new Error('Missing BearerToken or storage key');
+    if (!bearerToken) {
+      throw new Error('Missing BearerToken');
     }
 
-    return { bearerToken, storageKey };
-  }
-
-  #performEnableProfileSyncing = async () => {
-    try {
-      await this.#storage.enableProfileSyncing();
-    } catch (e) {
-      log.error('Failed to enable profile syncing', e);
-      throw new Error('Failed to enable profile syncing');
-    }
-  };
-
-  #assertUserStorage(
-    storage: UserStorage | null,
-  ): asserts storage is UserStorage {
-    if (!storage) {
-      throw new Error('User Storage does not exist');
-    }
-  }
-
-  /**
-   * Retrieves and parses the user storage from the storage key.
-   *
-   * This method attempts to retrieve the user storage using the specified storage key,
-   * then parses the JSON string to an object. If the storage is not found or cannot be parsed,
-   * it throws an error.
-   *
-   * @returns The parsed user storage object or null
-   */
-  async #getUserStorage(): Promise<UserStorage | null> {
-    const userStorageString: string | null =
-      await this.#storage.getNotificationStorage();
-
-    if (!userStorageString) {
-      return null;
-    }
-
-    try {
-      const userStorage: UserStorage = JSON.parse(userStorageString);
-      return userStorage;
-    } catch (error) {
-      log.error('Unable to parse User Storage');
-      return null;
-    }
-  }
-
-  /**
-   * Retrieves the current enabled state of MetaMask notifications.
-   *
-   * This method directly returns the boolean value of `isMetamaskNotificationsEnabled`
-   * from the controller's state, indicating whether MetaMask notifications are currently enabled.
-   *
-   * @returns The enabled state of MetaMask notifications.
-   */
-  public selectIsNotificationServicesEnabled(): boolean {
-    return this.state.isNotificationServicesEnabled;
+    return { bearerToken };
   }
 
   /**
@@ -739,6 +669,36 @@ export default class NotificationServicesController extends BaseController<
     });
   }
 
+  /**
+   * Public method to expose enabling push notifications
+   */
+  public async enablePushNotifications() {
+    try {
+      const { bearerToken } = await this.#getBearerToken();
+      const { accounts } = this.#accounts.listAccounts();
+      const addressesWithNotifications =
+        await OnChainNotifications.getOnChainNotificationsConfigCached(
+          bearerToken,
+          accounts,
+        );
+      const addresses = addressesWithNotifications
+        .filter((a) => Boolean(a.enabled))
+        .map((a) => a.address);
+      if (addresses.length > 0) {
+        await this.#pushNotifications.enablePushNotifications(addresses);
+      }
+    } catch (e) {
+      log.error('Failed to enable push notifications', e);
+    }
+  }
+
+  /**
+   * Public method to expose disabling push notifications
+   */
+  public async disablePushNotifications() {
+    await this.#pushNotifications.disablePushNotifications();
+  }
+
   public async checkAccountsPresence(
     accounts: string[],
   ): Promise<Record<string, boolean>> {
@@ -746,11 +706,18 @@ export default class NotificationServicesController extends BaseController<
       this.#setIsCheckingAccountsPresence(true);
 
       // Retrieve user storage
-      const userStorage = await this.#getUserStorage();
-      this.#assertUserStorage(userStorage);
+      const { bearerToken } = await this.#getBearerToken();
+      const addressesWithNotifications =
+        await OnChainNotifications.getOnChainNotificationsConfigCached(
+          bearerToken,
+          accounts,
+        );
 
-      const presence = Utils.checkAccountsPresence(userStorage, accounts);
-      return presence;
+      const result: Record<string, boolean> = {};
+      addressesWithNotifications.forEach((a) => {
+        result[a.address] = a.enabled;
+      });
+      return result;
     } catch (error) {
       log.error('Failed to check accounts presence', error);
       throw error;
@@ -794,52 +761,42 @@ export default class NotificationServicesController extends BaseController<
    */
   public async createOnChainTriggers(opts?: {
     resetNotifications?: boolean;
-  }): Promise<UserStorage> {
+  }): Promise<void> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
-      await this.#performEnableProfileSyncing();
+      const { bearerToken } = await this.#getBearerToken();
 
-      const { bearerToken, storageKey } =
-        await this.#getValidStorageKeyAndBearerToken();
+      const { accounts } = this.#accounts.listAccounts();
 
-      const { accounts } = await this.#accounts.listAccounts();
-
-      // Attempt Get User Storage
-      // Will be null if entry does not exist, or a user is resetting their notifications
-      // Will be defined if entry exists
-      // Will throw if fails to get the user storage entry
-      let userStorage = opts?.resetNotifications
-        ? null
-        : await this.#getUserStorage();
-
-      // If userStorage does not exist, create a new one
-      // All the triggers created are set as: "disabled"
-      if (userStorage?.[USER_STORAGE_VERSION_KEY] === undefined) {
-        userStorage = Utils.initializeUserStorage(
-          accounts.map((account) => ({ address: account })),
-          false,
+      // 1. See if has enabled notifications before
+      const addressesWithNotifications =
+        await OnChainNotifications.getOnChainNotificationsConfigCached(
+          bearerToken,
+          accounts,
         );
 
-        // Write the userStorage
-        await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
+      // Notifications API can return array with addresses set to false
+      // So assert that at least one address is enabled
+      let accountsWithNotifications = addressesWithNotifications
+        .filter((a) => Boolean(a.enabled))
+        .map((a) => a.address);
+
+      // 2. Enable Notifications (if no accounts subscribed or we are resetting)
+      if (accountsWithNotifications.length === 0 || opts?.resetNotifications) {
+        await OnChainNotifications.updateOnChainNotifications(
+          bearerToken,
+          accounts.map((address) => ({ address, enabled: true })),
+        );
+        accountsWithNotifications = accounts;
       }
 
-      // Create the triggers
-      const triggers = Utils.traverseUserStorageTriggers(userStorage);
-      await OnChainNotifications.createOnChainTriggers(
-        userStorage,
-        storageKey,
-        bearerToken,
-        triggers,
-      );
-
-      // Create push notifications triggers
-      const allUUIDS = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.enablePushNotifications(allUUIDS);
-
-      // Write the new userStorage (triggers are now "enabled")
-      await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
+      // 3. Lazily enable push notifications (FCM may take some time, so keeps UI unblocked)
+      this.#pushNotifications
+        .enablePushNotifications(accountsWithNotifications)
+        .catch(() => {
+          // Do Nothing
+        });
 
       // Update the state of the controller
       this.update((state) => {
@@ -847,8 +804,6 @@ export default class NotificationServicesController extends BaseController<
         state.isFeatureAnnouncementsEnabled = true;
         state.isMetamaskNotificationsFeatureSeen = true;
       });
-
-      return userStorage;
     } catch (err) {
       log.error('Failed to create On Chain triggers', err);
       throw new Error('Failed to create On Chain triggers');
@@ -860,16 +815,13 @@ export default class NotificationServicesController extends BaseController<
   /**
    * Enables all MetaMask notifications for the user.
    * This is identical flow when initializing notifications for the first time.
-   * 1. Enable Profile Syncing
-   * 2. Get or Create Notification User Storage
-   * 3. Upsert Triggers
-   * 4. Update Push notifications
    *
    * @throws {Error} If there is an error during the process of enabling notifications.
    */
   public async enableMetamaskNotifications() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
+      await this.#enableAuth();
       await this.createOnChainTriggers();
     } catch (e) {
       log.error('Unable to enable notifications', e);
@@ -888,36 +840,37 @@ export default class NotificationServicesController extends BaseController<
    * @throws {Error} If the user is not authenticated or if there is an error during the process.
    */
   public async disableNotificationServices() {
+    this.#setIsUpdatingMetamaskNotifications(true);
+
+    // Attempt Disable Push Notifications
     try {
-      this.#setIsUpdatingMetamaskNotifications(true);
-
-      // Disable Push Notifications
-      const userStorage = await this.#getUserStorage();
-      this.#assertUserStorage(userStorage);
-      const UUIDs = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.disablePushNotifications(UUIDs);
-
-      // Clear Notification States (toggles and list)
-      this.update((state) => {
-        state.isNotificationServicesEnabled = false;
-        state.isFeatureAnnouncementsEnabled = false;
-        state.metamaskNotificationsList = [];
-      });
-    } catch (e) {
-      log.error('Unable to disable notifications', e);
-      throw new Error('Unable to disable notifications');
-    } finally {
-      this.#setIsUpdatingMetamaskNotifications(false);
+      await this.#pushNotifications.disablePushNotifications();
+    } catch {
+      // Do nothing
     }
+
+    // Update State: remove non-permitted notifications & disable flags
+    const snapNotifications = this.state.metamaskNotificationsList.filter(
+      (notification) => notification.type === TRIGGER_TYPES.SNAP,
+    );
+    this.update((state) => {
+      state.isNotificationServicesEnabled = false;
+      state.isFeatureAnnouncementsEnabled = false;
+      // reassigning the notifications list with just snaps
+      // since the disable shouldn't affect snaps notifications
+      state.metamaskNotificationsList = snapNotifications;
+    });
+
+    // Finish Updating State
+    this.#setIsUpdatingMetamaskNotifications(false);
   }
 
   /**
-   * Deletes on-chain triggers associated with a specific account.
+   * Deletes on-chain triggers associated with a specific account/s.
    * This method performs several key operations:
-   * 1. Validates Auth & Storage
-   * 2. Finds and deletes all triggers associated with the account
-   * 3. Disables any related push notifications
-   * 4. Updates Storage to reflect new state.
+   * 1. Validates Auth
+   * 2. Deletes accounts
+   * (note) We do not need to look through push notifications as we've deleted triggers
    *
    * **Action** - When a user disables notifications for a given account in settings.
    *
@@ -925,42 +878,17 @@ export default class NotificationServicesController extends BaseController<
    * @returns A promise that resolves to void or an object containing a success message.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async deleteOnChainTriggersByAccount(
-    accounts: string[],
-  ): Promise<UserStorage> {
+  public async disableAccounts(accounts: string[]): Promise<void> {
     try {
       this.#updateUpdatingAccountsState(accounts);
       // Get and Validate BearerToken and User Storage Key
-      const { bearerToken, storageKey } =
-        await this.#getValidStorageKeyAndBearerToken();
-
-      // Get & Validate User Storage
-      const userStorage = await this.#getUserStorage();
-      this.#assertUserStorage(userStorage);
-
-      // Get the UUIDs to delete
-      const UUIDs = accounts
-        .map((a) => Utils.getUUIDsForAccount(userStorage, a.toLowerCase()))
-        .flat();
-
-      if (UUIDs.length === 0) {
-        return userStorage;
-      }
+      const { bearerToken } = await this.#getBearerToken();
 
       // Delete these UUIDs (Mutates User Storage)
-      await OnChainNotifications.deleteOnChainTriggers(
-        userStorage,
-        storageKey,
+      await OnChainNotifications.updateOnChainNotifications(
         bearerToken,
-        UUIDs,
+        accounts.map((address) => ({ address, enabled: false })),
       );
-
-      // Delete these UUIDs from the push notifications
-      await this.#pushNotifications.disablePushNotifications(UUIDs);
-
-      // Update User Storage
-      await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
-      return userStorage;
     } catch (err) {
       log.error('Failed to delete OnChain triggers', err);
       throw new Error('Failed to delete OnChain triggers');
@@ -984,62 +912,15 @@ export default class NotificationServicesController extends BaseController<
    * @returns A promise that resolves to the updated user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async updateOnChainTriggersByAccount(
-    accounts: string[],
-  ): Promise<UserStorage> {
+  public async enableAccounts(accounts: string[]): Promise<void> {
     try {
       this.#updateUpdatingAccountsState(accounts);
-      // Get and Validate BearerToken and User Storage Key
-      const { bearerToken, storageKey } =
-        await this.#getValidStorageKeyAndBearerToken();
 
-      // Get & Validate User Storage
-      const userStorage = await this.#getUserStorage();
-      this.#assertUserStorage(userStorage);
-
-      // Add any missing triggers
-      accounts.forEach((a) => Utils.upsertAddressTriggers(a, userStorage));
-
-      const newTriggers = Utils.traverseUserStorageTriggers(userStorage, {
-        mapTrigger: (t) => {
-          if (!t.enabled) {
-            return t;
-          }
-          return undefined;
-        },
-      });
-
-      // Create any missing triggers.
-      if (newTriggers.length > 0) {
-        // Write te updated userStorage (where triggers are disabled)
-        await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
-
-        // Create the triggers
-        const triggers = Utils.traverseUserStorageTriggers(userStorage, {
-          mapTrigger: (t) => {
-            if (
-              accounts.some((a) => a.toLowerCase() === t.address.toLowerCase())
-            ) {
-              return t;
-            }
-            return undefined;
-          },
-        });
-        await OnChainNotifications.createOnChainTriggers(
-          userStorage,
-          storageKey,
-          bearerToken,
-          triggers,
-        );
-      }
-
-      // Update Push Notifications Triggers
-      const UUIDs = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.updatePushNotifications(UUIDs);
-
-      // Update the userStorage (where triggers are enabled)
-      await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
-      return userStorage;
+      const { bearerToken } = await this.#getBearerToken();
+      await OnChainNotifications.updateOnChainNotifications(
+        bearerToken,
+        accounts.map((address) => ({ address, enabled: true })),
+      );
     } catch (err) {
       log.error('Failed to update OnChain triggers', err);
       throw new Error('Failed to update OnChain triggers');
@@ -1050,59 +931,74 @@ export default class NotificationServicesController extends BaseController<
 
   /**
    * Fetches the list of metamask notifications.
-   * This includes OnChain notifications and Feature Announcements.
+   * This includes OnChain notifications; Feature Announcements; and Snap Notifications.
    *
    * **Action** - When a user views the notification list page/dropdown
    *
+   * @param previewToken - the preview token to use if needed
+   * @returns A promise that resolves to the list of notifications.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async fetchAndUpdateMetamaskNotifications(): Promise<INotification[]> {
+  public async fetchAndUpdateMetamaskNotifications(
+    previewToken?: string,
+  ): Promise<INotification[]> {
     try {
       this.#setIsFetchingMetamaskNotifications(true);
 
+      // This is used by Feature Announcement & On Chain
+      // Not used by Snaps
+      const isGlobalNotifsEnabled = this.state.isNotificationServicesEnabled;
+
       // Raw Feature Notifications
-      const rawFeatureAnnouncementNotifications = this.state
-        .isFeatureAnnouncementsEnabled
-        ? await FeatureNotifications.getFeatureAnnouncementNotifications(
-            this.#featureAnnouncementEnv,
-          ).catch(() => [])
-        : [];
+      const rawAnnouncements =
+        isGlobalNotifsEnabled && this.state.isFeatureAnnouncementsEnabled
+          ? await FeatureNotifications.getFeatureAnnouncementNotifications(
+              this.#featureAnnouncementEnv,
+              previewToken,
+            ).catch(() => [])
+          : [];
 
       // Raw On Chain Notifications
       const rawOnChainNotifications: OnChainRawNotification[] = [];
-      const userStorage = await this.#storage
-        .getNotificationStorage()
-        .then((s) => s && (JSON.parse(s) as UserStorage))
-        .catch(() => null);
-      const bearerToken = await this.#auth.getBearerToken().catch(() => null);
-      if (userStorage && bearerToken) {
-        const notifications =
-          await OnChainNotifications.getOnChainNotifications(
-            userStorage,
-            bearerToken,
-          ).catch(() => []);
-
-        rawOnChainNotifications.push(...notifications);
+      if (isGlobalNotifsEnabled) {
+        try {
+          const { bearerToken } = await this.#getBearerToken();
+          const { accounts } = this.#accounts.listAccounts();
+          const addressesWithNotifications = (
+            await OnChainNotifications.getOnChainNotificationsConfigCached(
+              bearerToken,
+              accounts,
+            )
+          )
+            .filter((a) => Boolean(a.enabled))
+            .map((a) => a.address);
+          const notifications =
+            await OnChainNotifications.getOnChainNotifications(
+              bearerToken,
+              addressesWithNotifications,
+            ).catch(() => []);
+          rawOnChainNotifications.push(...notifications);
+        } catch {
+          // Do nothing
+        }
       }
+
+      // Snap Notifications (original)
+      // We do not want to remove them
+      const snapNotifications = this.state.metamaskNotificationsList.filter(
+        (notification) => notification.type === TRIGGER_TYPES.SNAP,
+      );
 
       const readIds = this.state.metamaskNotificationsReadList;
 
-      // Combined Notifications
-      const isNotUndefined = <Item>(t?: Item): t is Item => Boolean(t);
-      const processAndFilter = (ns: NotificationUnion[]) =>
-        ns
-          .map((n) => safeProcessNotification(n, readIds))
-          .filter(isNotUndefined);
-
-      const featureAnnouncementNotifications = processAndFilter(
-        rawFeatureAnnouncementNotifications,
-      );
-      const onChainNotifications = processAndFilter(rawOnChainNotifications);
-
+      // Combine Notifications
       const metamaskNotifications: INotification[] = [
-        ...featureAnnouncementNotifications,
-        ...onChainNotifications,
+        ...processAndFilterNotifications(rawAnnouncements, readIds),
+        ...processAndFilterNotifications(rawOnChainNotifications, readIds),
+        ...snapNotifications,
       ];
+
+      // Sort Notifications
       metamaskNotifications.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -1128,6 +1024,79 @@ export default class NotificationServicesController extends BaseController<
   }
 
   /**
+   * Gets the specified type of notifications from state.
+   *
+   * @param type - The trigger type.
+   * @returns An array of notifications of the passed in type.
+   * @throws Throws an error if an invalid trigger type is passed.
+   */
+  public getNotificationsByType(type: TRIGGER_TYPES) {
+    assert(
+      Object.values(TRIGGER_TYPES).includes(type),
+      'Invalid trigger type.',
+    );
+    return this.state.metamaskNotificationsList.filter(
+      (notification) => notification.type === type,
+    );
+  }
+
+  /**
+   * Used to delete a notification by id.
+   *
+   * Note: This function should only be used for notifications that are stored
+   * in this controller directly, currently only snaps notifications.
+   *
+   * @param id - The id of the notification to delete.
+   */
+  public async deleteNotificationById(id: string) {
+    const fetchedNotification = this.state.metamaskNotificationsList.find(
+      (notification) => notification.id === id,
+    );
+
+    assert(
+      fetchedNotification,
+      'The notification to be deleted does not exist.',
+    );
+
+    assert(
+      locallyPersistedNotificationTypes.has(fetchedNotification.type),
+      `The notification type of "${
+        // notifications are guaranteed to have type properties which equate to strings
+        fetchedNotification.type as string
+      }" is not locally persisted, only the following types can use this function: ${[
+        ...locallyPersistedNotificationTypes,
+      ].join(', ')}.`,
+    );
+
+    const newList = this.state.metamaskNotificationsList.filter(
+      (notification) => notification.id !== id,
+    );
+
+    this.update((state) => {
+      state.metamaskNotificationsList = newList;
+    });
+  }
+
+  /**
+   * Used to batch delete notifications by id.
+   *
+   * Note: This function should only be used for notifications that are stored
+   * in this controller directly, currently only snaps notifications.
+   *
+   * @param ids - The ids of the notifications to delete.
+   */
+  public async deleteNotificationsById(ids: string[]) {
+    for (const id of ids) {
+      await this.deleteNotificationById(id);
+    }
+
+    this.messagingSystem.publish(
+      `${controllerName}:notificationsListUpdated`,
+      this.state.metamaskNotificationsList,
+    );
+  }
+
+  /**
    * Marks specified metamask notifications as read.
    *
    * @param notifications - An array of notifications to be marked as read. Each notification should include its type and read status.
@@ -1138,19 +1107,36 @@ export default class NotificationServicesController extends BaseController<
   ): Promise<void> {
     let onchainNotificationIds: string[] = [];
     let featureAnnouncementNotificationIds: string[] = [];
+    let snapNotificationIds: string[] = [];
 
     try {
-      // Filter unread on/off chain notifications
-      const onChainNotifications = notifications.filter(
-        (notification) =>
-          notification.type !== TRIGGER_TYPES.FEATURES_ANNOUNCEMENT &&
-          !notification.isRead,
-      );
-
-      const featureAnnouncementNotifications = notifications.filter(
-        (notification) =>
-          notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT &&
-          !notification.isRead,
+      const [
+        onChainNotifications,
+        featureAnnouncementNotifications,
+        snapNotifications,
+      ] = notifications.reduce<
+        [
+          MarkAsReadNotificationsParam,
+          MarkAsReadNotificationsParam,
+          MarkAsReadNotificationsParam,
+        ]
+      >(
+        (allNotifications, notification) => {
+          if (!notification.isRead) {
+            switch (notification.type) {
+              case TRIGGER_TYPES.FEATURES_ANNOUNCEMENT:
+                allNotifications[1].push(notification);
+                break;
+              case TRIGGER_TYPES.SNAP:
+                allNotifications[2].push(notification);
+                break;
+              default:
+                allNotifications[0].push(notification);
+            }
+          }
+          return allNotifications;
+        },
+        [[], [], []],
       );
 
       // Mark On-Chain Notifications as Read
@@ -1178,6 +1164,12 @@ export default class NotificationServicesController extends BaseController<
             (notification) => notification.id,
           );
       }
+
+      if (snapNotifications.length > 0) {
+        snapNotificationIds = snapNotifications.map(
+          (notification) => notification.id,
+        );
+      }
     } catch (err) {
       log.warn('Something failed when marking notifications as read', err);
     }
@@ -1185,7 +1177,10 @@ export default class NotificationServicesController extends BaseController<
     // Update the state (state is also used on counter & badge)
     this.update((state) => {
       const currentReadList = state.metamaskNotificationsReadList;
-      const newReadIds = [...featureAnnouncementNotificationIds];
+      const newReadIds = [
+        ...featureAnnouncementNotificationIds,
+        ...snapNotificationIds,
+      ];
       state.metamaskNotificationsReadList = [
         ...new Set([...currentReadList, ...newReadIds]),
       ];
@@ -1196,6 +1191,13 @@ export default class NotificationServicesController extends BaseController<
             newReadIds.includes(notification.id) ||
             onchainNotificationIds.includes(notification.id)
           ) {
+            if (notification.type === TRIGGER_TYPES.SNAP) {
+              return {
+                ...notification,
+                isRead: true,
+                readDate: new Date().toISOString(),
+              };
+            }
             return { ...notification, isRead: true };
           }
           return notification;
@@ -1233,17 +1235,18 @@ export default class NotificationServicesController extends BaseController<
           state.metamaskNotificationsList.map((n) => n.id),
         );
         // Add the new notification only if its ID is not already present in the list
-        if (!existingNotificationIds.has(notification.id)) {
+        if (!existingNotificationIds.has(processedNotification.id)) {
           state.metamaskNotificationsList = [
-            notification,
+            processedNotification,
             ...state.metamaskNotificationsList,
           ];
-          this.messagingSystem.publish(
-            `${controllerName}:notificationsListUpdated`,
-            state.metamaskNotificationsList,
-          );
         }
       });
+
+      this.messagingSystem.publish(
+        `${controllerName}:notificationsListUpdated`,
+        this.state.metamaskNotificationsList,
+      );
     }
   }
 }

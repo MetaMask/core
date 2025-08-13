@@ -1,12 +1,11 @@
 import { SiweMessage } from 'siwe';
 
-import { ValidationError } from '../errors';
-import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   SIWE_LOGIN_URL,
   authenticate,
   authorizeOIDC,
   getNonce,
+  getUserProfileLineage,
 } from './services';
 import type {
   AuthConfig,
@@ -15,16 +14,15 @@ import type {
   IBaseAuth,
   LoginResponse,
   UserProfile,
+  UserProfileLineage,
 } from './types';
+import { ValidationError } from '../errors';
+import { validateLoginResponse } from '../utils/validate-login-response';
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;
 };
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 type JwtBearerAuth_SIWE_Signer = {
   address: string;
   chainId: number;
@@ -33,9 +31,9 @@ type JwtBearerAuth_SIWE_Signer = {
 };
 
 export class SIWEJwtBearerAuth implements IBaseAuth {
-  #config: AuthConfig;
+  readonly #config: AuthConfig;
 
-  #options: JwtBearerAuth_SIWE_Options;
+  readonly #options: JwtBearerAuth_SIWE_Options;
 
   #signer: JwtBearerAuth_SIWE_Signer | undefined;
 
@@ -70,6 +68,11 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
   async getIdentifier(): Promise<string> {
     this.#assertSigner(this.#signer);
     return this.#signer.address;
+  }
+
+  async getUserProfileLineage(): Promise<UserProfileLineage> {
+    const accessToken = await this.getAccessToken();
+    return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
   async signMessage(message: string): Promise<string> {

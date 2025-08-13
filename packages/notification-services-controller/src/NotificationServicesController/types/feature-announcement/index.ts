@@ -1,3 +1,3 @@
-export * from './feature-announcement';
-export * from './type-links';
-export * from './type-feature-announcement';
+export type * from './feature-announcement';
+export type * from './type-links';
+export type * from './type-feature-announcement';

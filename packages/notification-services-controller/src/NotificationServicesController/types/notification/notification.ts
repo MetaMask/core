@@ -1,10 +1,18 @@
 import type { FeatureAnnouncementRawNotification } from '../feature-announcement/feature-announcement';
 import type { OnChainRawNotification } from '../on-chain-notification/on-chain-notification';
+import type { RawSnapNotification } from '../snaps';
 import type { Compute } from '../type-utils';
 
-export type NotificationUnion =
+export type BaseNotification = {
+  id: string;
+  createdAt: string;
+  isRead: boolean;
+};
+
+export type RawNotificationUnion =
+  | OnChainRawNotification
   | FeatureAnnouncementRawNotification
-  | OnChainRawNotification;
+  | RawSnapNotification;
 
 /**
  * The shape of a "generic" notification.
@@ -13,16 +21,13 @@ export type NotificationUnion =
  * - `data` field (declared in the Raw shapes)
  */
 export type INotification = Compute<
-  NotificationUnion & {
-    id: string;
-    createdAt: string;
-    isRead: boolean;
-  }
+  | (FeatureAnnouncementRawNotification & BaseNotification)
+  | (OnChainRawNotification & BaseNotification)
+  | (RawSnapNotification & BaseNotification & { readDate?: string | null })
 >;
 
 // NFT
 export type NFT = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_id: string;
   image: string;
   collection?: {

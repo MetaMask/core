@@ -3,10 +3,10 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import type { Provider } from '@metamask/network-controller';
 
+import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 
 jest.mock('@ethersproject/contracts', () => ({
   Contract: jest.fn(),
@@ -26,6 +26,7 @@ const TRANSACTION_PARAMS_MOCK = {
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: CHAIN_IDS.OPTIMISM,
+  networkClientId: 'testNetworkClientId',
   status: TransactionStatus.unapproved,
   time: 0,
   txParams: TRANSACTION_PARAMS_MOCK,
@@ -37,6 +38,7 @@ const LAYER_1_FEE_MOCK = '0x9ABCD';
 
 /**
  * Creates a mock TypedTransaction object.
+ *
  * @param serializedBuffer - The buffer returned by the serialize method.
  * @returns The mock TypedTransaction object.
  */
@@ -52,7 +54,7 @@ function createMockTypedTransaction(serializedBuffer: Buffer) {
 }
 
 class MockOracleLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
-  matchesTransaction(_transactionMeta: TransactionMeta): boolean {
+  matchesTransaction(): boolean {
     return true;
   }
 }
@@ -104,6 +106,7 @@ describe('OracleLayer1GasFeeFlow', () => {
       expect(transactionFactoryMock).toHaveBeenCalledWith(
         {
           from: TRANSACTION_PARAMS_MOCK.from,
+          gas: TRANSACTION_PARAMS_MOCK.gas,
           gasLimit: TRANSACTION_PARAMS_MOCK.gas,
         },
         expect.anything(),

@@ -2,43 +2,34 @@ import { createSHA256Hash } from './encryption';
 
 /**
  * The User Storage Endpoint requires a feature name and a namespace key.
- * Developers can provide additional features and keys by extending these types below.
- *
- * Adding ALLOW_ARBITRARY_KEYS as the first key in the array allows for any key to be used for this feature.
- * This can be useful for features where keys are not deterministic (eg. accounts addresses).
+ * Any user storage path should be in the form of `feature.key`.
  */
-const ALLOW_ARBITRARY_KEYS = 'ALLOW_ARBITRARY_KEYS' as const;
 
-export const USER_STORAGE_SCHEMA = {
-  notifications: ['notification_settings'],
-  accounts: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
-  networks: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
-} as const;
-
-type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
-
-export type UserStorageFeatures = keyof UserStorageSchema;
-export type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
-  UserStorageSchema[Feature][0] extends typeof ALLOW_ARBITRARY_KEYS
-    ? string
-    : UserStorageSchema[Feature][number];
-
-type UserStorageFeatureAndKey = {
-  feature: UserStorageFeatures;
-  key: UserStorageFeatureKeys<UserStorageFeatures>;
+/**
+ * Helper object that contains the feature names used in the controllers and SDK.
+ * Developers don't need to add new feature names to this object anymore, as the schema enforcement has been deprecated.
+ */
+export const USER_STORAGE_FEATURE_NAMES = {
+  notifications: 'notifications',
+  accounts: 'accounts_v2',
+  addressBook: 'addressBook',
 };
 
-export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
-export type UserStoragePathWithKeyOnly = {
-  [K in UserStorageFeatures]: `${UserStorageFeatureKeys<K>}`;
-}[UserStoragePathWithFeatureOnly];
-export type UserStoragePathWithFeatureAndKey = {
-  [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
-}[UserStoragePathWithFeatureOnly];
+export type UserStorageGenericFeatureName = string;
+export type UserStorageGenericFeatureKey = string;
+export type UserStorageGenericPathWithFeatureAndKey =
+  `${UserStorageGenericFeatureName}.${UserStorageGenericFeatureKey}`;
+export type UserStorageGenericPathWithFeatureOnly =
+  UserStorageGenericFeatureName;
+
+type UserStorageGenericFeatureAndKey = {
+  feature: UserStorageGenericFeatureName;
+  key: UserStorageGenericFeatureKey;
+};
 
 export const getFeatureAndKeyFromPath = (
-  path: UserStoragePathWithFeatureAndKey,
-): UserStorageFeatureAndKey => {
+  path: UserStorageGenericPathWithFeatureAndKey,
+): UserStorageGenericFeatureAndKey => {
   const pathRegex = /^\w+\.\w+$/u;
 
   if (!pathRegex.test(path)) {
@@ -47,37 +38,9 @@ export const getFeatureAndKeyFromPath = (
     );
   }
 
-  const [feature, key] = path.split('.') as [
-    UserStorageFeatures,
-    UserStorageFeatureKeys<UserStorageFeatures>,
-  ];
+  const [feature, key] = path.split('.');
 
-  if (!(feature in USER_STORAGE_SCHEMA)) {
-    throw new Error(`user-storage - invalid feature provided: ${feature}`);
-  }
-
-  const validFeature = USER_STORAGE_SCHEMA[feature] as readonly string[];
-
-  if (
-    !validFeature.includes(key) &&
-    !validFeature.includes(ALLOW_ARBITRARY_KEYS)
-  ) {
-    const validKeys = USER_STORAGE_SCHEMA[feature].join(', ');
-
-    throw new Error(
-      `user-storage - invalid key provided for this feature: ${key}. Valid keys: ${validKeys}`,
-    );
-  }
-
-  return { feature, key };
-};
-
-export const isPathWithFeatureAndKey = (
-  path: string,
-): path is UserStoragePathWithFeatureAndKey => {
-  const pathRegex = /^\w+\.\w+$/u;
-
-  return pathRegex.test(path);
+  return { feature, key } as UserStorageGenericFeatureAndKey;
 };
 
 /**
@@ -90,7 +53,7 @@ export const isPathWithFeatureAndKey = (
  * @returns path to store entry
  */
 export function createEntryPath(
-  path: UserStoragePathWithFeatureAndKey,
+  path: UserStorageGenericPathWithFeatureAndKey,
   storageKey: string,
 ): string {
   const { feature, key } = getFeatureAndKeyFromPath(path);

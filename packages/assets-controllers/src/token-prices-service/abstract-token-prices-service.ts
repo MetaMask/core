@@ -1,3 +1,4 @@
+import type { ServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 /**
@@ -53,7 +54,7 @@ export type AbstractTokenPricesService<
   ChainId extends Hex = Hex,
   TokenAddress extends Hex = Hex,
   Currency extends string = string,
-> = {
+> = Partial<Pick<ServicePolicy, 'onBreak' | 'onDegraded'>> & {
   /**
    * Retrieves prices in the given currency for the tokens identified by the
    * given addresses which are expected to live on the given chain.

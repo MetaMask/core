@@ -7,6 +7,230 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+
+## [31.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^31.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^30.0.0` ([#5888](https://github.com/MetaMask/core/pull/5888))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [29.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- **BREAKING:** bump `@metamask/accounts-controller` peer dependency to `^29.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^28.0.0` ([#5763](https://github.com/MetaMask/core/pull/5763))
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+## [27.1.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Fixed
+
+- Stop throwing an error if `verifyingContract` field in EIP712 payloads is undefined or not a string ([#5595](https://github.com/MetaMask/core/pull/5595))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^27.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** Add peer dependency on `^26.0.0` of `@metamask/accounts-controller`([#5470](https://github.com/MetaMask/core/pull/5470))
+- Add EIP-7702 signature validations ([#5470](https://github.com/MetaMask/core/pull/5470))
+  - Throw if external and `verifyingContract` matches any internal account.
+  - Throw if external and `primaryType` is `Delegation` and `delegator` matches any internal EOA account.
+
+### Changed
+
+- Bump `@metamask/accounts-controller` peer dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+## [23.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [23.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/keyring-controller` from `19.0.1` to `19.0.2` ([#5058](https://github.com/MetaMask/core/pull/5058))
+- Bump `@metamask/network-controller` from `22.1.0` to `^22.1.1` ([#5038](https://github.com/MetaMask/core/pull/5038))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+### Fixed
+
+- Align signature request and message params ID ([#5102](https://github.com/MetaMask/core/pull/5102))
+
+## [23.1.0]
+
+### Changed
+
+- fix: Fixes in signature decoding functionality ([#5028](https://github.com/MetaMask/core/pull/5028))
+- fix: signature decoding api should be called for typed sign V3 also ([#5033](https://github.com/MetaMask/core/pull/5033))
+- fix: Revert `eth-sig-util` package ([#5027](https://github.com/MetaMask/core/pull/5027))
+- fix: Update `jsonschema` version & `eth-sig-util` ([#4998](https://github.com/MetaMask/core/pull/4998))
+
+## [23.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/eth-sig-util`
+
+## [23.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [21.1.0]
+
+### Added
+
+- Add `isDecodeSignatureRequestEnabled` constructor callback to determine if decoding API should be used ([#4903](https://github.com/MetaMask/core/pull/4903))
+- Add `decodingApiUrl` constructor property to specify URL of API to provide additional decoding data. ([#4855](https://github.com/MetaMask/core/pull/4855))
+
+## [21.0.0]
+
+### Added
+
+- Add `chainId` and `networkClientId` to `SignatureRequest` and `LegacyStateMessage` types ([#4797](https://github.com/MetaMask/core/pull/4797))
+- Add `networkClientId` to `OriginalRequest` type ([#4797](https://github.com/MetaMask/core/pull/4797))
+
+### Changed
+
+- **BREAKING:** Make `request` argument required in `newUnsignedPersonalMessage` and `newUnsignedTypedMessage` methods ([#4797](https://github.com/MetaMask/core/pull/4797))
+- Throw if no `networkClientId` in `request` or if chain ID cannot be determined ([#4797](https://github.com/MetaMask/core/pull/4797))
+- Bump `@metamask/approval-controller` from `^7.1.0` to `^7.1.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/base-controller` from `7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+
+### Removed
+
+- Remove `getCurrentChainId` and `getAllState` callbacks from constructor options ([#4797](https://github.com/MetaMask/core/pull/4797))
+
+## [20.1.0]
+
+### Added
+
+- Add additional properties to message parameter types ([#4822](https://github.com/MetaMask/core/pull/4822))
+  - Add `metamaskId` to `MessageParams`.
+  - Add `version` to `MessageParamsTyped`.
+
+### Changed
+
+- Update required arguments in methods ([#4822](https://github.com/MetaMask/core/pull/4822))
+  - Make `request` argument optional in `newUnsignedPersonalMessage` and `newUnsignedTypedMessage`.
+  - Make `signingOptions` argument optional in `newUnsignedTypedMessage`.
+- Bump `eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+- Bump `@metamask/keyring-controller` from `^17.2.2` to `^17.3.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+
+## [20.0.0]
+
+### Added
+
+- Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - Add `signatureRequests` object to state to include all messages with all types and statuses.
+  - Add optional `state` option to constructor to provide initial state.
+  - Add equivalent types formerly in `@metamask/message-manager`:
+    - `OriginalRequest`
+    - `TypedSigningOptions`
+    - `MessageParams`
+    - `MessageParamsPersonal`
+    - `MessageParamsTyped`
+    - `SignatureRequest`
+    - `SignatureRequestStatus`
+    - `SignatureRequestType`
+
+### Changed
+
+- Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - **BREAKING** Change `type` property in message state to enum values rather than `string`.
+  - Deprecate the following state since the same data can be derived from `signatureRequests`:
+    - `unapprovedPersonalMsgs`
+    - `unapprovedTypedMessages`
+    - `unapprovedPersonalMsgCount`
+    - `unapprovedTypedMessagesCount`
+  - Deprecate the following properties since the same data can be derived from the state:
+    - `unapprovedPersonalMessagesCount`
+    - `unapprovedTypedMessagesCount`
+    - `messages`
+  - Deprecate the following constructor options since they are no longer used:
+    - `getAllState`
+    - `securityProviderRequest`
+
 ## [19.1.0]
 
 ### Added
@@ -329,7 +553,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.1...@metamask/signature-controller@32.0.0
+[31.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@31.0.0...@metamask/signature-controller@31.0.1
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@30.0.0...@metamask/signature-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@29.0.0...@metamask/signature-controller@30.0.0
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@28.0.0...@metamask/signature-controller@29.0.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.1.0...@metamask/signature-controller@28.0.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.0.0...@metamask/signature-controller@27.1.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@26.0.0...@metamask/signature-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@25.0.0...@metamask/signature-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@24.0.0...@metamask/signature-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.1...@metamask/signature-controller@24.0.0
+[23.2.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.0...@metamask/signature-controller@23.2.1
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.1.0...@metamask/signature-controller@23.2.0
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.1...@metamask/signature-controller@23.1.0
+[23.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.0...@metamask/signature-controller@23.0.1
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@22.0.0...@metamask/signature-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.1.0...@metamask/signature-controller@22.0.0
+[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.0.0...@metamask/signature-controller@21.1.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.1.0...@metamask/signature-controller@21.0.0
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.0.0...@metamask/signature-controller@20.1.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...@metamask/signature-controller@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...@metamask/signature-controller@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...@metamask/signature-controller@19.0.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0

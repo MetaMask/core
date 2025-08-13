@@ -131,6 +131,7 @@ export function getTransactionMetadata(
     hash: transactionHash ?? undefined,
     id,
     isUserOperation: true,
+    networkClientId: 'user-operation',
     origin,
     status,
     time,

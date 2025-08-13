@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "0.9.6",
+  "version": "23.0.0",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -49,12 +49,12 @@
     },
     "./auth/mocks": {
       "import": {
-        "types": "./dist/controllers/authentication/__fixtures__/index.d.mts",
-        "default": "./dist/controllers/authentication/__fixtures__/index.mjs"
+        "types": "./dist/controllers/authentication/mocks/index.d.mts",
+        "default": "./dist/controllers/authentication/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/controllers/authentication/__fixtures__/index.d.cts",
-        "default": "./dist/controllers/authentication/__fixtures__/index.cjs"
+        "types": "./dist/controllers/authentication/mocks/index.d.cts",
+        "default": "./dist/controllers/authentication/mocks/index.cjs"
       }
     },
     "./user-storage": {
@@ -69,12 +69,12 @@
     },
     "./user-storage/mocks": {
       "import": {
-        "types": "./dist/controllers/user-storage/__fixtures__/index.d.mts",
-        "default": "./dist/controllers/user-storage/__fixtures__/index.mjs"
+        "types": "./dist/controllers/user-storage/mocks/index.d.mts",
+        "default": "./dist/controllers/user-storage/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/controllers/user-storage/__fixtures__/index.d.cts",
-        "default": "./dist/controllers/user-storage/__fixtures__/index.cjs"
+        "types": "./dist/controllers/user-storage/mocks/index.d.cts",
+        "default": "./dist/controllers/user-storage/mocks/index.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -100,23 +100,25 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.1",
-    "@metamask/keyring-api": "^8.1.3",
-    "@metamask/keyring-controller": "^17.2.2",
-    "@metamask/snaps-sdk": "^6.5.0",
-    "@metamask/snaps-utils": "^8.1.1",
-    "@noble/ciphers": "^0.5.2",
-    "@noble/hashes": "^1.4.0",
+    "@metamask/base-controller": "^8.1.0",
+    "@metamask/snaps-sdk": "^9.0.0",
+    "@metamask/snaps-utils": "^11.0.0",
+    "@noble/ciphers": "^1.3.0",
+    "@noble/hashes": "^1.8.0",
     "immer": "^9.0.6",
     "loglevel": "^1.8.1",
     "siwe": "^2.3.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
-    "@metamask/accounts-controller": "^18.2.2",
+    "@lavamoat/preinstall-always-fail": "^2.1.0",
+    "@metamask/accounts-controller": "^32.0.2",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^21.0.1",
-    "@metamask/snaps-controllers": "^9.7.0",
+    "@metamask/keyring-api": "^20.0.0",
+    "@metamask/keyring-controller": "^22.1.1",
+    "@metamask/keyring-internal-api": "^8.0.0",
+    "@metamask/providers": "^22.1.0",
+    "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "ethers": "^6.12.0",
@@ -126,12 +128,15 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^18.1.1",
-    "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/snaps-controllers": "^9.7.0"
+    "@metamask/accounts-controller": "^32.0.0",
+    "@metamask/keyring-controller": "^22.0.0",
+    "@metamask/providers": "^22.0.0",
+    "@metamask/snaps-controllers": "^14.0.0",
+    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

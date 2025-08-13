@@ -7,6 +7,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
+
+## [13.1.0]
+
+### Added
+
+- Add proper action registration for `bulkScanUrls` method as `PhishingControllerBulkScanUrlsAction` ([#6105](https://github.com/MetaMask/core/pull/6105))
+- Export `PhishingControllerBulkScanUrlsAction` type for external use ([#6105](https://github.com/MetaMask/core/pull/6105))
+
+## [13.0.0]
+
+### Added
+
+- Exports `UrlScanCacheEntry` ([#6095](https://github.com/MetaMask/core/pull/6095))
+
+### Changed
+
+- **BREAKING**`scanUrl` hits the v2 endpoint now. Returns `hostname` instead of `domainName` now. ([#5981](https://github.com/MetaMask/core/pull/5981))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+
+## [12.6.0]
+
+### Added
+
+- Added `Verified` to `RecommendedAction` for `scanUrl` ([#5964](https://github.com/MetaMask/core/pull/5964))
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [12.5.0]
+
+### Added
+
+- Add URL scan cache functionality to improve performance ([#5625](https://github.com/MetaMask/core/pull/5625))
+  - Added `UrlScanCache` class for caching phishing detection scan results
+  - Added methods to `PhishingController`: `setUrlScanCacheTTL`, `setUrlScanCacheMaxSize`, `clearUrlScanCache`
+  - Added URL scan cache state to `PhishingControllerState`
+  - Added configuration options: `urlScanCacheTTL` and `urlScanCacheMaxSize`
+- Add `bulkScanUrls` method to `PhishingController` for scanning multiple URLs for phishing in bulk ([#5682](https://github.com/MetaMask/core/pull/5682))
+- Add `BulkPhishingDetectionScanResponse` type for bulk URL scan results ([#5682](https://github.com/MetaMask/core/pull/5682))
+- Add `PHISHING_DETECTION_BULK_SCAN_ENDPOINT` constant ([#5682](https://github.com/MetaMask/core/pull/5682))
+
+### Changed
+
+- Enhance `bulkScanUrls` method to leverage URL scan cache for improved performance ([#5688](https://github.com/MetaMask/core/pull/5688))
+  - URLs are now checked against the cache before making API requests
+  - Only uncached URLs are sent to the phishing detection API
+  - API results are automatically stored in the cache for future use
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+## [12.4.1]
+
+### Fixed
+
+- Fixed an edge case in `PhishingController` where empty phishing lists could trigger API requests with invalid `-Infinity` timestamps ([#5385](https://github.com/MetaMask/core/pull/5385))
+- Fixed `RecommendedAction` not being exported correctly ([#5456](https://github.com/MetaMask/core/pull/5456))
+
+## [12.4.0]
+
+### Added
+
+- Add `scanURL` to `PhishingController` ([#5319](https://github.com/MetaMask/core/pull/5319))
+- Add `PhishingDetectionScanResult` ([#5319](https://github.com/MetaMask/core/pull/5319))
+- Add `RecommendedAction` to `PhishingDetectionScanResult` ([#5319](https://github.com/MetaMask/core/pull/5319))
+- Add `getHostnameFromWebUrl` to only get hostnames on web URLs. ([#5319](https://github.com/MetaMask/core/pull/5319))
+
+### Fixed
+
+- Fixed `getHostnameFromUrl` to return null when the URL's hostname only contains '.' ([#5319](https://github.com/MetaMask/core/pull/5319))
+
+## [12.3.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+
+## [12.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.4` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `punycode/punycode.js`
+
+## [12.3.0]
+
+### Fixed
+
+- Fixed extension performance issues ([#4853](https://github.com/MetaMask/core/pull/4853))
+
+## [12.2.0]
+
+### Changed
+
+- Changed the c2 blocklist fetch interval from 15 minutes to 5 minutes ([#4850](https://github.com/MetaMask/core/pull/4850))
+
+## [12.1.0]
+
+### Fixed
+
+- Update the phishing detector validation to drop invalid configs from detector ([#4820](https://github.com/MetaMask/core/pull/4820))
+
 ## [12.0.3]
 
 ### Fixed
@@ -287,7 +400,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@13.0.0...@metamask/phishing-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.6.0...@metamask/phishing-controller@13.0.0
+[12.6.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.5.0...@metamask/phishing-controller@12.6.0
+[12.5.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.1...@metamask/phishing-controller@12.5.0
+[12.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...@metamask/phishing-controller@12.4.1
+[12.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...@metamask/phishing-controller@12.4.0
+[12.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...@metamask/phishing-controller@12.3.2
+[12.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...@metamask/phishing-controller@12.3.1
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1

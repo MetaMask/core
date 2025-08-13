@@ -1,4 +1,3 @@
-import { isValidAddress, toChecksumAddress } from '@ethereumjs/util';
 import type EthQuery from '@metamask/eth-query';
 import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
@@ -7,12 +6,18 @@ import {
   add0x,
   isHexString,
   remove0x,
+  getChecksumAddress,
+  isHexChecksumAddress,
 } from '@metamask/utils';
+import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
+import { memoize } from 'lodash';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
+
+export type { BigNumber };
 
 const TIMEOUT_ERROR = new Error('timeout');
 
@@ -59,14 +64,14 @@ export function isSafeChainId(chainId: Hex): boolean {
   );
 }
 /**
- * Converts a BN object to a hex string with a '0x' prefix.
+ * Converts a BN or BigNumber object to a hex string with a '0x' prefix.
  *
- * @param inputBn - BN instance to convert to a hex string.
+ * @param inputBn - BN|BigNumber instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function BNToHex(inputBn: BN) {
+export function BNToHex(inputBn: BN | BigNumber) {
   return add0x(inputBn.toString(16));
 }
 
@@ -281,7 +286,7 @@ export async function safelyExecuteWithTimeout<Result>(
  * @param address - The address to convert.
  * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
  */
-export function toChecksumHexAddress(address: string): string;
+function toChecksumHexAddressUnmemoized(address: string): string;
 
 /**
  * Convert an address to a checksummed hexadecimal address.
@@ -296,11 +301,11 @@ export function toChecksumHexAddress(address: string): string;
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function toChecksumHexAddress<T>(address: T): T;
+function toChecksumHexAddressUnmemoized<T>(address: T): T;
 
 // Tools only see JSDocs for overloads and ignore them for the implementation.
 // eslint-disable-next-line jsdoc/require-jsdoc
-export function toChecksumHexAddress(address: unknown) {
+function toChecksumHexAddressUnmemoized(address: unknown) {
   if (typeof address !== 'string') {
     // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
     // function was previously using) for backward compatibility.
@@ -317,21 +322,37 @@ export function toChecksumHexAddress(address: unknown) {
     return hexPrefixed;
   }
 
-  return toChecksumAddress(hexPrefixed);
+  try {
+    return getChecksumAddress(hexPrefixed);
+  } catch (error) {
+    // This is necessary for backward compatibility with the old behavior of
+    // `ethereumjs-util` which would return the original string if the address
+    // was invalid.
+    if (error instanceof Error && error.message === 'Invalid hex address.') {
+      return hexPrefixed;
+    }
+    throw error;
+  }
 }
 
 /**
- * Validates that the input is a hex address. This utility method is a thin
- * wrapper around @metamask/utils.isValidHexAddress, with the exception that it
- * by default will return true for hex strings that are otherwise valid
- * hex addresses, but are not prefixed with `0x`.
+ * Convert an address to a checksummed hexadecimal address.
  *
- * @param possibleAddress - Input parameter to check against.
- * @param options - The validation options.
- * @param options.allowNonPrefixed - If true will allow addresses without `0x` prefix.`
- * @returns Whether or not the input is a valid hex address.
+ * @param address - The address to convert. For backward compatibility reasons,
+ * this can be anything, even a non-hex string with an 0x prefix, but that usage
+ * is deprecated. Please use a valid hex string (with or without the `0x`
+ * prefix).
+ * @returns A 0x-prefixed checksummed version of `address` if it is a valid hex
+ * string, or the address as given otherwise.
  */
-export function isValidHexAddress(
+export const toChecksumHexAddress: {
+  (address: string): string;
+  <T>(address: T): T;
+} = memoize(toChecksumHexAddressUnmemoized);
+
+// JSDoc is only used for memoized version of this function that is exported
+// eslint-disable-next-line jsdoc/require-jsdoc
+function isValidHexAddressUnmemoized(
   possibleAddress: string,
   { allowNonPrefixed = true } = {},
 ): boolean {
@@ -342,8 +363,32 @@ export function isValidHexAddress(
     return false;
   }
 
-  return isValidAddress(addressToCheck);
+  // We used to rely on `isValidAddress` from `@ethereumjs/util` which allows
+  // for upper-case characters too. So we preserve this behavior and use our
+  // faster and memoized validation function instead.
+  return isHexChecksumAddress(addressToCheck);
 }
+
+/**
+ * Validates that the input is a hex address. This utility method is a thin
+ * wrapper around `isValidHexAddress` from `@metamask/utils`, with the exception
+ * that it may return true for non-0x-prefixed hex strings (depending on the
+ * option below).
+ *
+ * @param possibleAddress - Input parameter to check against.
+ * @param options - The validation options.
+ * @param options.allowNonPrefixed - If true will regard addresses without a
+ * `0x` prefix as valid.
+ * @returns Whether or not the input is a valid hex address.
+ */
+export const isValidHexAddress: (
+  possibleAddress: string,
+  options?: { allowNonPrefixed?: boolean },
+) => boolean = memoize(
+  isValidHexAddressUnmemoized,
+  (possibleAddress, { allowNonPrefixed = true } = {}) =>
+    `${possibleAddress}-${allowNonPrefixed}`,
+);
 
 /**
  * Returns whether the given code corresponds to a smart contract.
@@ -362,6 +407,24 @@ export function isSmartContractCode(code: string) {
 }
 
 /**
+ * An error representing a non-200 HTTP response.
+ */
+export class HttpError extends Error {
+  public httpStatus: number;
+
+  /**
+   * Construct an HTTP error.
+   *
+   * @param status - The HTTP response status.
+   * @param message - The error message.
+   */
+  constructor(status: number, message?: string) {
+    super(message || `Fetch failed with status '${status}'`);
+    this.httpStatus = status;
+  }
+}
+
+/**
  * Execute fetch and verify that the response was successful.
  *
  * @param request - Request information.
@@ -374,10 +437,9 @@ export async function successfulFetch(
 ) {
   const response = await fetch(request, options);
   if (!response.ok) {
-    throw new Error(
-      `Fetch failed with status '${response.status}' for request '${String(
-        request,
-      )}'`,
+    throw new HttpError(
+      response.status,
+      `Fetch failed with status '${response.status}' for request '${String(request)}'`,
     );
   }
   return response;
@@ -615,7 +677,24 @@ function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
       throw error;
     }
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
     throw error;
   }
+}
+
+/**
+ * Checks if two strings are equal, ignoring case.
+ *
+ * @param value1 - The first string to compare.
+ * @param value2 - The second string to compare.
+ * @returns `true` if the strings are equal, ignoring case; otherwise, `false`.
+ */
+export function isEqualCaseInsensitive(
+  value1: string,
+  value2: string,
+): boolean {
+  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
+    return false;
+  }
+  return value1.toLowerCase() === value2.toLowerCase();
 }

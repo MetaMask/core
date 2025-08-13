@@ -1,10 +1,10 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
+import { remove0x, type Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionMeta } from '../types';
+import { DELEGATION_PREFIX } from './eip7702';
+import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import type { UpdateGasRequest } from './gas';
 import {
   addGasBuffer,
@@ -12,63 +12,132 @@ import {
   updateGas,
   FIXED_GAS,
   DEFAULT_GAS_MULTIPLIER,
-  GAS_ESTIMATE_FALLBACK_MULTIPLIER,
+  MAX_GAS_BLOCK_PERCENT,
+  INTRINSIC_GAS,
+  DUMMY_AUTHORIZATION_SIGNATURE,
+  simulateGasBatch,
 } from './gas';
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
+} from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionEnvelopeType, type TransactionMeta } from '../types';
+import type {
+  AuthorizationList,
+  TransactionBatchSingleRequest,
+} from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   query: jest.fn(),
 }));
 
+jest.mock('./feature-flags');
+jest.mock('../api/simulation-api');
+
+const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
+const FIXED_ESTIMATE_GAS_MOCK = 100000;
+const MESSENGER_MOCK = {
+  call: jest.fn().mockReturnValue({
+    remoteFeatureFlags: {},
+  }),
+} as unknown as jest.Mocked<TransactionControllerMessenger>;
+
+const GAS_ESTIMATE_FALLBACK_FIXED_MOCK = {
+  percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+  fixed: FIXED_ESTIMATE_GAS_MOCK,
+};
+
+const GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK = {
+  percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+  fixed: undefined,
+};
+
 const GAS_MOCK = 100;
-const BLOCK_GAS_LIMIT_MOCK = 1234567;
+const BLOCK_GAS_LIMIT_MOCK = 123456789;
 const BLOCK_NUMBER_MOCK = '0x5678';
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ETH_QUERY_MOCK = {} as any as EthQuery;
+const ETH_QUERY_MOCK = {} as unknown as EthQuery;
+const FALLBACK_MULTIPLIER_35_PERCENT = 0.35;
+const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
+const CHAIN_ID_MOCK = '0x123';
+const GAS_2_MOCK = 12345;
+const SIMULATE_GAS_MOCK = 54321;
+
+const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
+  {
+    address: '0x123',
+  },
+];
 
 const TRANSACTION_META_MOCK = {
   txParams: {
     data: '0x1',
+    from: '0xabc',
     to: '0x2',
+    value: '0xcba',
   },
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any as TransactionMeta;
+} as unknown as TransactionMeta;
 
 const UPDATE_GAS_REQUEST_MOCK = {
   txMeta: TRANSACTION_META_MOCK,
   chainId: '0x0',
   isCustomNetwork: false,
+  isSimulationEnabled: false,
   ethQuery: ETH_QUERY_MOCK,
+  messenger: MESSENGER_MOCK,
 } as UpdateGasRequest;
 
+/**
+ * Converts number to hex string.
+ *
+ * @param value - The number to convert.
+ * @returns The hex string.
+ */
 function toHex(value: number) {
   return `0x${value.toString(16)}`;
 }
 
 describe('gas', () => {
   const queryMock = jest.mocked(query);
+  const simulateTransactionsMock = jest.mocked(simulateTransactions);
+  const getGasEstimateFallbackMock = jest.mocked(getGasEstimateFallback);
+  const getGasEstimateBufferMock = jest.mocked(getGasEstimateBuffer);
+
   let updateGasRequest: UpdateGasRequest;
 
+  /**
+   * Mocks query responses.
+   *
+   * @param options - The options.
+   * @param options.getCodeResponse - The response for getCode.
+   * @param options.getBlockByNumberResponse - The response for getBlockByNumber.
+   * @param options.estimateGasResponse - The response for estimateGas.
+   * @param options.estimateGasError - The error for estimateGas.
+   * @param options.estimateGasOverridesResponse - The response for estimateGas with overrides.
+   * @param options.estimateGasOverridesError - The error for estimateGas with overrides.
+   */
   function mockQuery({
     getCodeResponse,
     getBlockByNumberResponse,
     estimateGasResponse,
     estimateGasError,
+    estimateGasOverridesResponse,
+    estimateGasOverridesError,
   }: {
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getCodeResponse?: any;
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getBlockByNumberResponse?: any;
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     estimateGasResponse?: any;
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     estimateGasError?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    estimateGasOverridesResponse?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    estimateGasOverridesError?: any;
   }) {
     if (getCodeResponse !== undefined) {
       queryMock.mockResolvedValueOnce(getCodeResponse);
@@ -83,8 +152,17 @@ describe('gas', () => {
     } else {
       queryMock.mockResolvedValueOnce(estimateGasResponse);
     }
+
+    if (estimateGasOverridesError) {
+      queryMock.mockRejectedValueOnce(estimateGasOverridesError);
+    } else {
+      queryMock.mockResolvedValueOnce(estimateGasOverridesResponse);
+    }
   }
 
+  /**
+   * Assert that estimateGas was not called.
+   */
   function expectEstimateGasNotCalled() {
     expect(queryMock).not.toHaveBeenCalledWith(
       expect.anything(),
@@ -94,7 +172,15 @@ describe('gas', () => {
   }
 
   beforeEach(() => {
-    updateGasRequest = JSON.parse(JSON.stringify(UPDATE_GAS_REQUEST_MOCK));
+    jest.resetAllMocks();
+
+    updateGasRequest = cloneDeep(UPDATE_GAS_REQUEST_MOCK);
+
+    getGasEstimateFallbackMock.mockReturnValue(
+      GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
+    );
+
+    getGasEstimateBufferMock.mockReturnValue(1.5);
   });
 
   describe('updateGas', () => {
@@ -116,24 +202,9 @@ describe('gas', () => {
         expectEstimateGasNotCalled();
       });
 
-      it('to estimate if custom network', async () => {
-        updateGasRequest.isCustomNetwork = true;
+      it('to estimate if transaction type is 0x4', async () => {
+        updateGasRequest.txMeta.txParams.type = TransactionEnvelopeType.setCode;
 
-        mockQuery({
-          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(GAS_MOCK),
-        });
-
-        await updateGas(updateGasRequest);
-
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
-        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-          updateGasRequest.txMeta.txParams.gas,
-        );
-      });
-
-      it('to estimate if not custom network and no to parameter', async () => {
-        updateGasRequest.isCustomNetwork = false;
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
         delete updateGasRequest.txMeta.txParams.to;
         mockQuery({
@@ -149,8 +220,28 @@ describe('gas', () => {
         );
       });
 
-      it('to estimate if estimate greater than 90% of block gas limit', async () => {
-        const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
+      it('to estimate if no to parameter', async () => {
+        updateGasRequest.txMeta.txParams.type =
+          TransactionEnvelopeType.feeMarket;
+        const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
+        delete updateGasRequest.txMeta.txParams.to;
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(gasEstimation));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
+      it('to estimate if estimate greater than percentage of block gas limit', async () => {
+        const estimatedGas = Math.ceil(
+          BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER + 10,
+        );
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -165,10 +256,12 @@ describe('gas', () => {
         );
       });
 
-      it('to padded estimate if padded estimate less than 90% of block gas limit', async () => {
-        const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
-        const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
-        const estimatedGas = Math.round(estimatedGasPadded / 1.5);
+      it('to padded estimate if padded estimate less than percentage of block gas limit', async () => {
+        const maxGasLimit = BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER;
+        const estimatedGasPadded = Math.floor(maxGasLimit) - 10;
+        const estimatedGas = Math.ceil(
+          estimatedGasPadded / DEFAULT_GAS_MULTIPLIER,
+        );
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -183,14 +276,19 @@ describe('gas', () => {
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
         );
+        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
+          toHex(estimatedGas),
+        );
       });
 
-      it('to padded estimate using chain multiplier if padded estimate less than 90% of block gas limit', async () => {
-        const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
-        const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
-        const estimatedGas = estimatedGasPadded; // Optimism multiplier is 1
-
-        updateGasRequest.chainId = CHAIN_IDS.OPTIMISM;
+      it('to percentage of block gas limit if padded estimate only is greater than percentage of block gas limit', async () => {
+        const maxGasLimit = Math.round(
+          BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER,
+        );
+        const estimatedGasPadded = maxGasLimit + 10;
+        const estimatedGas = Math.ceil(
+          estimatedGasPadded / DEFAULT_GAS_MULTIPLIER,
+        );
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -199,29 +297,26 @@ describe('gas', () => {
 
         await updateGas(updateGasRequest);
 
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(
-          toHex(estimatedGasPadded),
-        );
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(maxGasLimit));
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
         );
+        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
+          toHex(estimatedGas),
+        );
       });
 
-      it('to 90% of block gas limit if padded estimate only is greater than 90% of block gas limit', async () => {
-        const blockGasLimit90Percent = Math.round(BLOCK_GAS_LIMIT_MOCK * 0.9);
-        const estimatedGasPadded = blockGasLimit90Percent + 10;
-        const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
-
+      it('to exact estimate if buffer disabled', async () => {
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-          estimateGasResponse: toHex(estimatedGas),
+          estimateGasResponse: toHex(GAS_MOCK),
         });
+
+        updateGasRequest.txMeta.disableGasBuffer = true;
 
         await updateGas(updateGasRequest);
 
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(
-          toHex(blockGasLimit90Percent),
-        );
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
         );
@@ -267,7 +362,11 @@ describe('gas', () => {
     describe('on estimate query error', () => {
       it('sets gas to 35% of block gas limit', async () => {
         const fallbackGas = Math.floor(
-          BLOCK_GAS_LIMIT_MOCK * GAS_ESTIMATE_FALLBACK_MULTIPLIER,
+          BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
+        );
+
+        getGasEstimateFallbackMock.mockReturnValue(
+          GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
         );
 
         mockQuery({
@@ -315,15 +414,19 @@ describe('gas', () => {
         estimateGasResponse: toHex(GAS_MOCK),
       });
 
-      const result = await estimateGas(
-        { ...TRANSACTION_META_MOCK.txParams, data: undefined },
-        ETH_QUERY_MOCK,
-      );
+      const result = await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
 
       expect(result).toStrictEqual({
         estimatedGas: toHex(GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: undefined,
+        isUpgradeWithDataToSelf: false,
       });
     });
 
@@ -336,14 +439,18 @@ describe('gas', () => {
         estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
       });
 
-      const result = await estimateGas(
-        TRANSACTION_META_MOCK.txParams,
-        ETH_QUERY_MOCK,
-      );
+      const result = await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
 
       expect(result).toStrictEqual({
         estimatedGas: expect.any(String),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        isUpgradeWithDataToSelf: false,
         simulationFails: {
           reason: 'TestError',
           errorKey: 'TestKey',
@@ -357,7 +464,7 @@ describe('gas', () => {
 
     it('returns estimated gas as 35% of block gas limit on error', async () => {
       const fallbackGas = Math.floor(
-        BLOCK_GAS_LIMIT_MOCK * GAS_ESTIMATE_FALLBACK_MULTIPLIER,
+        BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
       );
 
       mockQuery({
@@ -367,58 +474,642 @@ describe('gas', () => {
         estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
       });
 
-      const result = await estimateGas(
-        TRANSACTION_META_MOCK.txParams,
-        ETH_QUERY_MOCK,
-      );
+      const result = await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
 
       expect(result).toStrictEqual({
         estimatedGas: toHex(fallbackGas),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        isUpgradeWithDataToSelf: false,
+      });
+    });
+
+    it('returns fixed gas estimate fallback from feature flags on error', async () => {
+      getGasEstimateFallbackMock.mockReturnValue(
+        GAS_ESTIMATE_FALLBACK_FIXED_MOCK,
+      );
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result).toStrictEqual({
+        estimatedGas: toHex(FIXED_ESTIMATE_GAS_MOCK),
+        blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        simulationFails: expect.any(Object),
+        isUpgradeWithDataToSelf: false,
+      });
+    });
+
+    it('removes gas fee properties from estimate request', async () => {
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          gasPrice: '0x1',
+          maxFeePerGas: '0x2',
+          maxPriorityFeePerGas: '0x3',
+        },
+      });
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        {
+          ...TRANSACTION_META_MOCK.txParams,
+          value: expect.anything(),
+        },
+      ]);
+    });
+
+    it('normalizes data in estimate request', async () => {
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          data: '123',
+        },
+      });
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        expect.objectContaining({
+          ...TRANSACTION_META_MOCK.txParams,
+          data: '0x123',
+        }),
+      ]);
+    });
+
+    it('normalizes value in estimate request', async () => {
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          value: undefined,
+        },
+      });
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        {
+          ...TRANSACTION_META_MOCK.txParams,
+          value: '0x0',
+        },
+      ]);
+    });
+
+    it('normalizes authorization list in estimate request', async () => {
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: AUTHORIZATION_LIST_MOCK,
+          value: undefined,
+        },
+      });
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: [
+            {
+              ...AUTHORIZATION_LIST_MOCK[0],
+              chainId: CHAIN_ID_MOCK,
+              nonce: '0x1',
+              r: DUMMY_AUTHORIZATION_SIGNATURE,
+              s: DUMMY_AUTHORIZATION_SIGNATURE,
+              yParity: '0x1',
+            },
+          ],
+          value: '0x0',
+        },
+      ]);
+    });
+
+    describe('with ignoreDelegationSignatures', () => {
+      it('returns gas limit from simulation', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
+            },
+          ],
+        } as SimulationResponse);
+
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          ignoreDelegationSignatures: true,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: TRANSACTION_META_MOCK.txParams,
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(SIMULATE_GAS_MOCK),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          simulationFails: undefined,
+          isUpgradeWithDataToSelf: false,
+        });
+      });
+
+      it('throws if simulation disabled', async () => {
+        await expect(
+          estimateGas({
+            chainId: CHAIN_ID_MOCK,
+            ethQuery: ETH_QUERY_MOCK,
+            ignoreDelegationSignatures: true,
+            isSimulationEnabled: false,
+            messenger: MESSENGER_MOCK,
+            txParams: TRANSACTION_META_MOCK.txParams,
+          }),
+        ).rejects.toThrow(
+          'Gas estimation with ignored delegation signatures is not supported as simulation disabled',
+        );
+      });
+    });
+
+    describe('with type 4 transaction and data to self', () => {
+      it('returns combination of provider estimate and simulation', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasLimit: toHex(SIMULATE_GAS_MOCK) as Hex,
+            },
+          ],
+        } as SimulationResponse);
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          simulationFails: undefined,
+          isUpgradeWithDataToSelf: true,
+        });
+      });
+
+      it('uses provider estimate with no data and dummy authorization signature', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasUsed: toHex(SIMULATE_GAS_MOCK) as Hex,
+            },
+          ],
+        } as SimulationResponse);
+
+        await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [
+              {
+                ...AUTHORIZATION_LIST_MOCK[0],
+                chainId: CHAIN_ID_MOCK,
+                nonce: '0x1',
+                r: DUMMY_AUTHORIZATION_SIGNATURE,
+                s: DUMMY_AUTHORIZATION_SIGNATURE,
+                yParity: '0x1',
+              },
+            ],
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+          {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [
+              {
+                address: AUTHORIZATION_LIST_MOCK[0].address,
+                chainId: CHAIN_ID_MOCK,
+                nonce: '0x1',
+                r: DUMMY_AUTHORIZATION_SIGNATURE,
+                s: DUMMY_AUTHORIZATION_SIGNATURE,
+                yParity: '0x1',
+              },
+            ],
+            data: '0x',
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        ]);
+      });
+
+      it('uses simulation API', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasUsed: toHex(SIMULATE_GAS_MOCK) as Hex,
+            },
+          ],
+        } as SimulationResponse);
+
+        await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK.txParams,
+              to: TRANSACTION_META_MOCK.txParams.from,
+            },
+          ],
+          overrides: {
+            [TRANSACTION_META_MOCK.txParams.from]: {
+              code:
+                DELEGATION_PREFIX +
+                remove0x(AUTHORIZATION_LIST_MOCK[0].address),
+            },
+          },
+        });
+      });
+
+      it('does provider estimation if simulation is disabled', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+        });
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: false,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(GAS_2_MOCK),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          simulationFails: undefined,
+          isUpgradeWithDataToSelf: true,
+        });
+      });
+
+      it('uses node with overrides if simulation fails', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+          estimateGasOverridesResponse: toHex(SIMULATE_GAS_MOCK),
+        });
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasUsed: undefined,
+            },
+          ],
+        } as SimulationResponse);
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          isUpgradeWithDataToSelf: true,
+          simulationFails: undefined,
+        });
+      });
+
+      it('uses gas limit fallback if simulation and node overrides fail', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_2_MOCK),
+          estimateGasOverridesError: new Error('Estimate failed'),
+        });
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              gasUsed: undefined,
+            },
+          ],
+        } as SimulationResponse);
+
+        const result = await estimateGas({
+          chainId: CHAIN_ID_MOCK,
+          ethQuery: ETH_QUERY_MOCK,
+          isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            type: TransactionEnvelopeType.setCode,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          estimatedGas: expect.any(String),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          isUpgradeWithDataToSelf: true,
+          simulationFails: {
+            debug: {
+              blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+              blockNumber: undefined,
+            },
+            errorKey: undefined,
+            reason: 'Estimate failed',
+          },
+        });
       });
     });
   });
 
   describe('addGasBuffer', () => {
-    it('returns estimated gas if greater than 90% of block gas limit', () => {
-      const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
+    it('returns estimated gas if greater than percentage of block gas limit', () => {
+      const estimatedGas = Math.ceil(
+        BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER + 10,
+      );
 
       const result = addGasBuffer(
         toHex(estimatedGas),
         toHex(BLOCK_GAS_LIMIT_MOCK),
-        1.5,
+        DEFAULT_GAS_MULTIPLIER,
       );
 
       expect(result).toBe(toHex(estimatedGas));
     });
 
-    it('returns padded estimate if less than 90% of block gas limit', () => {
-      const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
-      const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
-      const estimatedGas = Math.round(estimatedGasPadded / 1.5);
+    it('returns padded estimate if less than percentage of block gas limit', () => {
+      const maxGasLimit = BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER;
+      const estimatedGasPadded = Math.floor(maxGasLimit - 10);
+      const estimatedGas = Math.ceil(
+        estimatedGasPadded / DEFAULT_GAS_MULTIPLIER,
+      );
 
       const result = addGasBuffer(
         toHex(estimatedGas),
         toHex(BLOCK_GAS_LIMIT_MOCK),
-        1.5,
+        DEFAULT_GAS_MULTIPLIER,
       );
 
       expect(result).toBe(toHex(estimatedGasPadded));
     });
 
-    it('returns 90% of block gas limit if padded estimate only is greater than 90% of block gas limit', () => {
-      const blockGasLimit90Percent = Math.round(BLOCK_GAS_LIMIT_MOCK * 0.9);
-      const estimatedGasPadded = blockGasLimit90Percent + 10;
-      const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
+    it('returns percentage of block gas limit if padded estimate only is greater than percentage of block gas limit', () => {
+      const maxGasLimit = Math.round(BLOCK_GAS_LIMIT_MOCK * MAX_GAS_MULTIPLIER);
+      const estimatedGasPadded = maxGasLimit + 10;
+      const estimatedGas = Math.ceil(
+        estimatedGasPadded / DEFAULT_GAS_MULTIPLIER,
+      );
 
       const result = addGasBuffer(
         toHex(estimatedGas),
         toHex(BLOCK_GAS_LIMIT_MOCK),
-        1.5,
+        DEFAULT_GAS_MULTIPLIER,
       );
 
-      expect(result).toBe(toHex(blockGasLimit90Percent));
+      expect(result).toBe(toHex(maxGasLimit));
+    });
+  });
+
+  describe('simulateGasBatch', () => {
+    const FROM_MOCK = '0xabc';
+    const TO_MOCK = '0xdef';
+    const VALUE_MOCK = '0x1';
+    const VALUE_MOCK_2 = '0x2';
+    const DATA_MOCK = '0xabcdef';
+    const DATA_MOCK_2 = '0x123456';
+    const GAS_MOCK_1 = '0x5208'; // 21000 gas
+    const GAS_MOCK_2 = '0x7a120'; // 500000 gas
+    const TRANSACTION_BATCH_REQUEST_MOCK = [
+      {
+        params: {
+          data: DATA_MOCK,
+          to: TO_MOCK,
+          value: VALUE_MOCK,
+        },
+      },
+      {
+        params: {
+          data: DATA_MOCK_2,
+          to: TO_MOCK,
+          value: VALUE_MOCK_2,
+        },
+      },
+    ] as TransactionBatchSingleRequest[];
+
+    const SIMULATED_TRANSACTIONS_RESPONSE_MOCK = {
+      transactions: [{ gasLimit: GAS_MOCK_1 }, { gasLimit: GAS_MOCK_2 }],
+    } as unknown as SimulationResponse;
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('returns the total gas limit as a hex string', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce(
+        SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
+      );
+
+      const result = await simulateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        gasLimit: '0x7f328', // Total gas limit (21000 + 500000 = 521000)
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        transactions: [
+          {
+            ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
+            from: FROM_MOCK,
+          },
+          {
+            ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
+            from: FROM_MOCK,
+          },
+        ],
+      });
+    });
+
+    it('throws an error if the simulated response does not match the number of transactions', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          { gasLimit: GAS_MOCK_1 } as unknown as SimulationResponseTransaction,
+        ], // Only one transaction returned
+      });
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws an error if no simulated gas is returned for a transaction', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          { gasLimit: undefined },
+          { gasLimit: GAS_MOCK_2 },
+        ] as unknown as SimulationResponseTransaction[],
+      });
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles empty transactions gracefully', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+      });
+
+      const result = await simulateGasBatch({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        transactions: [],
+      });
+
+      expect(result).toStrictEqual({
+        gasLimit: '0x0', // Total gas limit is 0
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        transactions: [],
+      });
+    });
+
+    it('throws an error if the simulation fails', async () => {
+      simulateTransactionsMock.mockRejectedValueOnce(
+        new Error('Simulation failed'),
+      );
+
+      await expect(
+        simulateGasBatch({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          transactions: TRANSACTION_BATCH_REQUEST_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Cannot estimate transaction batch total gas as simulation failed',
+      );
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
     });
   });
 });

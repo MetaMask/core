@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
+### Added
+
+- Add `registerMethodActionHandlers` method to `Messenger`, and `RestrictedMessenger` for simplified bulk action handler registration ([#5927](https://github.com/MetaMask/core/pull/5927))
+  - Allows registering action handlers that map to methods on a messenger client at once by passing an array of method names
+  - Automatically binds action handlers to the given messenger client
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Add default for `ReturnHandler` type parameter of `SelectorEventHandler` and `SelectorFunction` ([#6262](https://github.com/MetaMask/core/pull/6262), [#6264](https://github.com/MetaMask/core/pull/6264))
+
+### Fixed
+
+- Update `unsubscribe` type signature to support selector event handlers ([#6262](https://github.com/MetaMask/core/pull/6262))
+
+## [8.0.1]
+
+### Changed
+
+- Don't emit `:stateChange` from `BaseController` unnecessarily ([#5480](https://github.com/MetaMask/core/pull/5480))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Remove deprecated messenger-related exports and simplify `RestrictedMessenger` constructor ([#5260](https://github.com/MetaMask/core/pull/5260))
+  - Remove `ControllerMessenger` export which was an alias for `Messenger`. Consumers should import `Messenger` directly
+  - Remove `RestrictedControllerMessenger` export which was an alias for `RestrictedMessenger`. Consumers should import `RestrictedMessenger` directly
+  - Remove `RestrictedControllerMessengerConstraint` type export which was an alias for `RestrictedMessengerConstraint`. Consumers should use `RestrictedMessengerConstraint` type directly
+  - Simplify `RestrictedMessenger` constructor by removing deprecated `controllerMessenger` parameter. The messenger instance should now be passed using only the `messenger` parameter instead of supporting both options
+- Widen input parameter for type guard `isBaseController` from `ControllerInstance` to `unknown` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.0.3` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Removed
+
+- **BREAKING:** Remove class `BaseControllerV1` and type guard `isBaseControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- **BREAKING:** Remove types `BaseConfig`, `BaseControllerV1Instance`, `BaseState`, `ConfigConstraintV1`, `Listener`, `StateConstraintV1`, `LegacyControllerStateConstraint`, `ControllerInstance` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+## [7.1.0]
+
+### Changed
+
+- Rename `ControllerMessenger` to `Messenger` ([#5050](https://github.com/MetaMask/core/pull/5050))
+  - `ControllerMessenger` has been renamed to `Messenger`
+  - `RestrictedControllerMessengerConstraint` has been renamed to `RestrictedMessengerConstraint`
+  - `RestrictedControllerMessenger` has been renamed to `RestrictedMessenger`
+  - The `RestrictedMessenger` constructor parameter `controllerMessenger` has been renamed to `messenger`, though the old name is still accepted
+  - The old names remain exported as deprecated aliases of the new names, so this is not a breaking change.
+
+## [7.0.2]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [7.0.1]
 
 ### Fixed
@@ -263,7 +327,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.0...@metamask/base-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.1...@metamask/base-controller@8.0.0
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.0...@metamask/base-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.0.2...@metamask/base-controller@7.1.0
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.0.1...@metamask/base-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.0.0...@metamask/base-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.3...@metamask/base-controller@7.0.0
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.2...@metamask/base-controller@6.0.3

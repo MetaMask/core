@@ -1,5 +1,6 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
@@ -25,6 +26,9 @@ import {
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 
+import type { NetworkControllerMessenger } from './NetworkController';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -48,49 +52,116 @@ export type NetworkClient = {
 /**
  * Create a JSON RPC network client for a specific network.
  *
- * @param networkConfig - The network configuration.
+ * @param args - The arguments.
+ * @param args.configuration - The network configuration.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.getBlockTrackerOptions - Factory for constructing block tracker
+ * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
+ * @param args.messenger - The network controller messenger.
+ * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
+ * primary RPC endpoint for this network should be automatically diverted to
+ * provided failover endpoints if the primary is unavailable. This effectively
+ * causes the `failoverRpcUrls` property of the network client configuration
+ * to be honored or ignored.
  * @returns The network client.
  */
-export function createNetworkClient(
-  networkConfig: NetworkClientConfiguration,
-): NetworkClient {
+export function createNetworkClient({
+  configuration,
+  getRpcServiceOptions,
+  getBlockTrackerOptions,
+  messenger,
+  isRpcFailoverEnabled,
+}: {
+  configuration: NetworkClientConfiguration;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  getBlockTrackerOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  messenger: NetworkControllerMessenger;
+  isRpcFailoverEnabled: boolean;
+}): NetworkClient {
+  const primaryEndpointUrl =
+    configuration.type === NetworkClientType.Infura
+      ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
+      : configuration.rpcUrl;
+  const availableEndpointUrls = isRpcFailoverEnabled
+    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
+    : [primaryEndpointUrl];
+  const rpcServiceChain = new RpcServiceChain(
+    availableEndpointUrls.map((endpointUrl) => ({
+      ...getRpcServiceOptions(endpointUrl),
+      endpointUrl,
+    })),
+  );
+  rpcServiceChain.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
+    let error: unknown;
+    if ('error' in rest) {
+      error = rest.error;
+    } else if ('value' in rest) {
+      error = rest.value;
+    }
+
+    messenger.publish('NetworkController:rpcEndpointUnavailable', {
+      chainId: configuration.chainId,
+      endpointUrl,
+      failoverEndpointUrl,
+      error,
+    });
+  });
+  rpcServiceChain.onDegraded(({ endpointUrl, ...rest }) => {
+    let error: unknown;
+    if ('error' in rest) {
+      error = rest.error;
+    } else if ('value' in rest) {
+      error = rest.value;
+    }
+
+    messenger.publish('NetworkController:rpcEndpointDegraded', {
+      chainId: configuration.chainId,
+      endpointUrl,
+      error,
+    });
+  });
+  rpcServiceChain.onRetry(({ endpointUrl, attempt }) => {
+    messenger.publish('NetworkController:rpcEndpointRequestRetried', {
+      endpointUrl,
+      attempt,
+    });
+  });
+
   const rpcApiMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    configuration.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network,
-          projectId: networkConfig.infuraProjectId,
-          maxAttempts: 5,
-          source: 'metamask',
+          rpcService: rpcServiceChain,
+          options: {
+            source: 'metamask',
+          },
         })
-      : createFetchMiddleware({
-          btoa: global.btoa,
-          fetch: global.fetch,
-          rpcUrl: networkConfig.rpcUrl,
-        });
+      : createFetchMiddleware({ rpcService: rpcServiceChain });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
-  const blockTrackerOpts =
-    // eslint-disable-next-line n/no-process-env
-    process.env.IN_TEST && networkConfig.type === 'custom'
-      ? { pollingInterval: SECOND }
-      : {};
-  const blockTracker = new PollingBlockTracker({
-    ...blockTrackerOpts,
+  const blockTracker = createBlockTracker({
+    networkClientType: configuration.type,
+    endpointUrl: primaryEndpointUrl,
+    getOptions: getBlockTrackerOptions,
     provider: rpcProvider,
   });
 
   const networkMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    configuration.type === NetworkClientType.Infura
       ? createInfuraNetworkMiddleware({
           blockTracker,
-          network: networkConfig.network,
+          network: configuration.network,
           rpcProvider,
           rpcApiMiddleware,
         })
       : createCustomNetworkMiddleware({
           blockTracker,
-          chainId: networkConfig.chainId,
+          chainId: configuration.chainId,
           rpcApiMiddleware,
         });
 
@@ -106,7 +177,44 @@ export function createNetworkClient(
     blockTracker.destroy();
   };
 
-  return { configuration: networkConfig, provider, blockTracker, destroy };
+  return { configuration, provider, blockTracker, destroy };
+}
+
+/**
+ * Create the block tracker for the network.
+ *
+ * @param args - The arguments.
+ * @param args.networkClientType - The type of the network client ("infura" or
+ * "custom").
+ * @param args.endpointUrl - The URL of the endpoint.
+ * @param args.getOptions - Factory for the block tracker options.
+ * @param args.provider - The EIP-1193 provider for the network's JSON-RPC
+ * middleware stack.
+ * @returns The created block tracker.
+ */
+function createBlockTracker({
+  networkClientType,
+  endpointUrl,
+  getOptions,
+  provider,
+}: {
+  networkClientType: NetworkClientType;
+  endpointUrl: string;
+  getOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  provider: SafeEventEmitterProvider;
+}) {
+  const testOptions =
+    process.env.IN_TEST && networkClientType === NetworkClientType.Custom
+      ? { pollingInterval: SECOND }
+      : {};
+
+  return new PollingBlockTracker({
+    ...testOptions,
+    ...getOptions(endpointUrl),
+    provider,
+  });
 }
 
 /**
@@ -190,7 +298,6 @@ function createCustomNetworkMiddleware({
   chainId: Hex;
   rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 }): JsonRpcMiddleware<JsonRpcParams, Json> {
-  // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

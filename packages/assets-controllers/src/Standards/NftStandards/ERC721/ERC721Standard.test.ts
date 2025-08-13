@@ -538,4 +538,126 @@ describe('ERC721Standard', () => {
     );
     expect(details).toMatchObject(expectedResult);
   });
+
+  it('should get correct details including tokenURI and image for a given contract (that supports the ERC721 metadata interface) with a tokenID provided when the tokenURI content is hosted on IPFS & image starts with "ipfs://"', async () => {
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 25,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xbd3531da5cf5857e7cfaa92426877b022e612cf8',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 25,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 26,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xbd3531da5cf5857e7cfaa92426877b022e612cf8',
+            data: '0x95d89b41',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 26,
+        result:
+          '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035050470000000000000000000000000000000000000000000000000000000000',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 27,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xbd3531da5cf5857e7cfaa92426877b022e612cf8',
+            data: '0x06fdde03',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 27,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d507564677950656e6775696e7300000000000000000000000000000000000000',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 28,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xbd3531da5cf5857e7cfaa92426877b022e612cf8',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 28,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 29,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xbd3531da5cf5857e7cfaa92426877b022e612cf8',
+            data: '0xc87b56dd000000000000000000000000000000000000000000000000000000000000065b',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 29,
+        result:
+          '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000047697066733a2f2f6261667962656962633573676f32706c6d6a6b7132747a6d68726e3534626b336372686e6332337a64326d73673465613761347078726b67666e612f3136323700000000000000000000000000000000000000000000000000',
+      });
+
+    nock(
+      'https://bafybeibc5sgo2plmjkq2tzmhrn54bk3crhnc23zd2msg4ea7a4pxrkgfna.ipfs.dweb.link',
+    )
+      .get('/1627')
+      .reply(200, () => {
+        return {
+          image:
+            'ipfs://QmNf1UsmdGaMbpatQ6toXSkzDpizaGmC9zfunCyoz1enD5/penguin/1627.png',
+        };
+      });
+
+    const expectedResult = {
+      standard: 'ERC721',
+      tokenURI:
+        'https://bafybeibc5sgo2plmjkq2tzmhrn54bk3crhnc23zd2msg4ea7a4pxrkgfna.ipfs.dweb.link/1627',
+      symbol: 'PPG',
+      name: 'PudgyPenguins',
+      image:
+        'https://bafybeiaewpyqaytvogprfiv563tfkjhepkkz5mn57pr5z3kyag62kfuc7a.ipfs.dweb.link/penguin/1627.png',
+    };
+
+    const details = await erc721Standard.getDetails(
+      '0xBd3531dA5CF5857e7CfAA92426877b022e612cf8',
+      'dweb.link',
+      '1627',
+    );
+    expect(details).toMatchObject(expectedResult);
+  });
 });

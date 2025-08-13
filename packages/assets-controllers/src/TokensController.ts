@@ -3,11 +3,12 @@ import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -24,18 +25,22 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Hex } from '@metamask/utils';
+import { isStrictHexString, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
+import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -46,7 +51,6 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
 import type {
-  TokenListMap,
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
@@ -74,35 +78,17 @@ type SuggestedAssetMeta = {
  * @type TokensControllerState
  *
  * Assets controller state
- * @property tokens - List of tokens associated with the active network and address pair
- * @property ignoredTokens - List of ignoredTokens associated with the active network and address pair
- * @property detectedTokens - List of detected tokens associated with the active network and address pair
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
 export type TokensControllerState = {
-  tokens: Token[];
-  ignoredTokens: string[];
-  detectedTokens: Token[];
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 };
 
 const metadata = {
-  tokens: {
-    persist: true,
-    anonymous: false,
-  },
-  ignoredTokens: {
-    persist: true,
-    anonymous: false,
-  },
-  detectedTokens: {
-    persist: true,
-    anonymous: false,
-  },
   allTokens: {
     persist: true,
     anonymous: false,
@@ -121,7 +107,8 @@ const controllerName = 'TokensController';
 
 export type TokensControllerActions =
   | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction;
+  | TokensControllerAddDetectedTokensAction
+  | TokensControllerAddTokensAction;
 
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -133,6 +120,11 @@ export type TokensControllerAddDetectedTokensAction = {
   handler: TokensController['addDetectedTokens'];
 };
 
+export type TokensControllerAddTokensAction = {
+  type: `${typeof controllerName}:addTokens`;
+  handler: TokensController['addTokens'];
+};
+
 /**
  * The external actions available to the {@link TokensController}.
  */
@@ -140,7 +132,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerListAccountsAction;
 
 export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -150,14 +143,16 @@ export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
 export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | KeyringControllerAccountRemovedEvent;
 
 /**
  * The messenger of the {@link TokensController}.
  */
-export type TokensControllerMessenger = RestrictedControllerMessenger<
+export type TokensControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TokensControllerActions | AllowedActions,
   TokensControllerEvents | AllowedEvents,
@@ -167,9 +162,6 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
 
 export const getDefaultTokensState = (): TokensControllerState => {
   return {
-    tokens: [],
-    ignoredTokens: [],
-    detectedTokens: [],
     allTokens: {},
     allIgnoredTokens: {},
     allDetectedTokens: {},
@@ -186,13 +178,11 @@ export class TokensController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  #chainId: Hex;
-
   #selectedAccountId: string;
 
   #provider: Provider;
 
-  #abortController: AbortController;
+  readonly #abortController: AbortController;
 
   /**
    * Tokens controller options
@@ -200,10 +190,9 @@ export class TokensController extends BaseController<
    * @param options.chainId - The chain ID of the current network.
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    */
   constructor({
-    chainId: initialChainId,
     provider,
     state,
     messenger,
@@ -223,8 +212,6 @@ export class TokensController extends BaseController<
       },
     });
 
-    this.#chainId = initialChainId;
-
     this.#provider = provider;
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
@@ -236,81 +223,148 @@ export class TokensController extends BaseController<
       this.addDetectedTokens.bind(this),
     );
 
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addTokens` as const,
+      this.addTokens.bind(this),
+    );
+
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
     );
 
     this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      this.#onNetworkDidChange.bind(this),
+      'NetworkController:stateChange',
+      this.#onNetworkStateChange.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
+      'KeyringController:accountRemoved',
+      (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
-      ({ tokenList }) => {
-        const { tokens } = this.state;
-        if (tokens.length && !tokens[0].name) {
-          this.#updateTokensAttribute(tokenList, 'name');
+      ({ tokensChainsCache }) => {
+        const { allTokens } = this.state;
+        const selectedAddress = this.#getSelectedAddress();
+
+        // Deep clone the `allTokens` object to ensure mutability
+        const updatedAllTokens = cloneDeep(allTokens);
+
+        for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
+          const chainData = chainCache?.data || {};
+
+          if (updatedAllTokens[chainId as Hex]) {
+            if (updatedAllTokens[chainId as Hex][selectedAddress]) {
+              const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
+
+              for (const [, token] of Object.entries(tokens)) {
+                const cachedToken = chainData[token.address];
+                if (cachedToken && cachedToken.name && !token.name) {
+                  token.name = cachedToken.name; // Update the token name
+                }
+              }
+            }
+          }
         }
+
+        // Update the state with the modified tokens
+        this.update(() => {
+          return {
+            ...this.state,
+            allTokens: updatedAllTokens,
+          };
+        });
       },
     );
   }
 
-  /**
-   * Handles the event when the network changes.
-   *
-   * @param networkState - The changed network state.
-   * @param networkState.selectedNetworkClientId - The ID of the currently
-   * selected network client.
-   */
-  #onNetworkDidChange({ selectedNetworkClientId }: NetworkState) {
-    const selectedNetworkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
+  #handleOnAccountRemoved(accountAddress: string) {
+    const isEthAddress =
+      isStrictHexString(accountAddress.toLowerCase()) &&
+      isValidHexAddress(accountAddress);
+
+    if (!isEthAddress) {
+      return;
+    }
+
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId } = selectedNetworkClient.configuration;
-    this.#abortController.abort();
-    this.#abortController = new AbortController();
-    this.#chainId = chainId;
-    const selectedAddress = this.#getSelectedAddress();
+    const newAllTokens = cloneDeep(allTokens);
+    const newAllDetectedTokens = cloneDeep(allDetectedTokens);
+    const newAllIgnoredTokens = cloneDeep(allIgnoredTokens);
+
+    for (const chainId of Object.keys(newAllTokens)) {
+      if (newAllTokens[chainId as Hex][accountAddress]) {
+        delete newAllTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    for (const chainId of Object.keys(newAllDetectedTokens)) {
+      if (newAllDetectedTokens[chainId as Hex][accountAddress]) {
+        delete newAllDetectedTokens[chainId as Hex][accountAddress];
+      }
+    }
+
+    for (const chainId of Object.keys(newAllIgnoredTokens)) {
+      if (newAllIgnoredTokens[chainId as Hex][accountAddress]) {
+        delete newAllIgnoredTokens[chainId as Hex][accountAddress];
+      }
+    }
+
     this.update((state) => {
-      state.tokens = allTokens[chainId]?.[selectedAddress] || [];
-      state.ignoredTokens = allIgnoredTokens[chainId]?.[selectedAddress] || [];
-      state.detectedTokens =
-        allDetectedTokens[chainId]?.[selectedAddress] || [];
+      state.allTokens = newAllTokens;
+      state.allIgnoredTokens = newAllIgnoredTokens;
+      state.allDetectedTokens = newAllDetectedTokens;
     });
   }
 
   /**
+   * Handles the event when the network state changes.
+   * @param _ - The network state.
+   * @param patches - An array of patch operations performed on the network state.
+   */
+  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    // Remove state for deleted networks
+    for (const patch of patches) {
+      if (
+        patch.op === 'remove' &&
+        patch.path[0] === 'networkConfigurationsByChainId'
+      ) {
+        const removedChainId = patch.path[1] as Hex;
+
+        this.update((state) => {
+          delete state.allTokens[removedChainId];
+          delete state.allIgnoredTokens[removedChainId];
+          delete state.allDetectedTokens[removedChainId];
+        });
+      }
+    }
+  }
+
+  /**
    * Handles the selected account change in the accounts controller.
+   *
    * @param selectedAccount - The new selected account
    */
   #onSelectedAccountChange(selectedAccount: InternalAccount) {
-    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     this.#selectedAccountId = selectedAccount.id;
-    this.update((state) => {
-      state.tokens = allTokens[this.#chainId]?.[selectedAccount.address] ?? [];
-      state.ignoredTokens =
-        allIgnoredTokens[this.#chainId]?.[selectedAccount.address] ?? [];
-      state.detectedTokens =
-        allDetectedTokens[this.#chainId]?.[selectedAccount.address] ?? [];
-    });
   }
 
   /**
    * Fetch metadata for a token.
    *
    * @param tokenAddress - The address of the token.
+   * @param chainId - The chain ID of the network on which the token is detected.
    * @returns The token metadata.
    */
   async #fetchTokenMetadata(
     tokenAddress: string,
+    chainId: Hex,
   ): Promise<TokenListToken | undefined> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
-        this.#chainId,
+        chainId,
         tokenAddress,
         this.#abortController.signal,
       );
@@ -354,42 +408,32 @@ export class TokensController extends BaseController<
     name?: string;
     image?: string;
     interactingAddress?: string;
-    networkClientId?: NetworkClientId;
+    networkClientId: NetworkClientId;
   }): Promise<Token[]> {
-    const chainId = this.#chainId;
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    let currentChainId = chainId;
-    if (networkClientId) {
-      currentChainId = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      ).configuration.chainId;
-    }
+
+    const chainIdToUse = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
 
     const accountAddress =
       this.#getAddressOrSelectedAddress(interactingAddress);
-    const isInteractingWithWalletAccount =
-      this.#isInteractingWithWallet(accountAddress);
+
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[currentChainId]?.[accountAddress] || [];
+      const tokens = allTokens[chainIdToUse]?.[accountAddress] || [];
       const ignoredTokens =
-        allIgnoredTokens[currentChainId]?.[accountAddress] || [];
+        allIgnoredTokens[chainIdToUse]?.[accountAddress] || [];
       const detectedTokens =
-        allDetectedTokens[currentChainId]?.[accountAddress] || [];
+        allDetectedTokens[chainIdToUse]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this.#detectIsERC721(address, networkClientId),
         // TODO parameterize the token metadata fetch by networkClientId
-        this.#fetchTokenMetadata(address),
+        this.#fetchTokenMetadata(address, chainIdToUse),
       ]);
-      // TODO remove this once this method is fully parameterized by networkClientId
-      if (!networkClientId && currentChainId !== this.#chainId) {
-        throw new Error(
-          'TokensController Error: Switched networks while adding token',
-        );
-      }
       const newEntry: Token = {
         address,
         symbol,
@@ -397,7 +441,7 @@ export class TokensController extends BaseController<
         image:
           image ||
           formatIconUrlWithProxy({
-            chainId: currentChainId,
+            chainId: chainIdToUse,
             tokenAddress: address,
           }),
         isERC721,
@@ -426,24 +470,14 @@ export class TokensController extends BaseController<
           newIgnoredTokens,
           newDetectedTokens,
           interactingAddress: accountAddress,
-          interactingChainId: currentChainId,
+          interactingChainId: chainIdToUse,
         });
 
-      let newState: Partial<TokensControllerState> = {
+      const newState: Partial<TokensControllerState> = {
         allTokens: newAllTokens,
         allIgnoredTokens: newAllIgnoredTokens,
         allDetectedTokens: newAllDetectedTokens,
       };
-
-      // Only update active tokens if user is interacting with their active wallet account.
-      if (isInteractingWithWalletAccount) {
-        newState = {
-          ...newState,
-          tokens: newTokens,
-          ignoredTokens: newIgnoredTokens,
-          detectedTokens: newDetectedTokens,
-        };
-      }
 
       this.update((state) => {
         Object.assign(state, newState);
@@ -460,15 +494,28 @@ export class TokensController extends BaseController<
    * @param tokensToImport - Array of tokens to import.
    * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
+  async addTokens(tokensToImport: Token[], networkClientId: NetworkClientId) {
     const releaseLock = await this.#mutex.acquire();
-    const { tokens, detectedTokens, ignoredTokens } = this.state;
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
+
+    const interactingChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
+
     // Used later to dedupe imported tokens
-    const newTokensMap = tokens.reduce((output, current) => {
-      output[current.address] = current;
-      return output;
-    }, {} as { [address: string]: Token });
+    const newTokensMap = [
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+        []),
+      ...tokensToImport,
+    ].reduce(
+      (output, token) => {
+        output[token.address] = token;
+        return output;
+      },
+      {} as { [address: string]: Token },
+    );
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =
@@ -488,20 +535,17 @@ export class TokensController extends BaseController<
       });
       const newTokens = Object.values(newTokensMap);
 
-      const newDetectedTokens = detectedTokens.filter(
-        (token) => !importedTokensMap[token.address.toLowerCase()],
-      );
-      const newIgnoredTokens = ignoredTokens.filter(
-        (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
-      );
+      const newIgnoredTokens = allIgnoredTokens[interactingChainId]?.[
+        this.#getSelectedAddress()
+      ]?.filter((tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()]);
 
-      let interactingChainId;
-      if (networkClientId) {
-        interactingChainId = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        ).configuration.chainId;
-      }
+      const detectedTokensForGivenChain = interactingChainId
+        ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
+        : [];
+
+      const newDetectedTokens = detectedTokensForGivenChain?.filter(
+        (t) => !importedTokensMap[t.address.toLowerCase()],
+      );
 
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
         this.#getNewAllTokensState({
@@ -512,11 +556,8 @@ export class TokensController extends BaseController<
         });
 
       this.update((state) => {
-        state.tokens = newTokens;
         state.allTokens = newAllTokens;
-        state.detectedTokens = newDetectedTokens;
         state.allDetectedTokens = newAllDetectedTokens;
-        state.ignoredTokens = newIgnoredTokens;
         state.allIgnoredTokens = newAllIgnoredTokens;
       });
     } finally {
@@ -528,11 +569,28 @@ export class TokensController extends BaseController<
    * Ignore a batch of tokens.
    *
    * @param tokenAddressesToIgnore - Array of token addresses to ignore.
+   * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  ignoreTokens(tokenAddressesToIgnore: string[]) {
-    const { ignoredTokens, detectedTokens, tokens } = this.state;
+  ignoreTokens(
+    tokenAddressesToIgnore: string[],
+    networkClientId: NetworkClientId,
+  ) {
+    const interactingChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
+
+    const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
+    const ignoredTokens =
+      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
+
+    const tokens =
+      allTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+
+    const detectedTokens =
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -552,12 +610,10 @@ export class TokensController extends BaseController<
         newIgnoredTokens,
         newDetectedTokens,
         newTokens,
+        interactingChainId,
       });
 
     this.update((state) => {
-      state.ignoredTokens = newIgnoredTokens;
-      state.tokens = newTokens;
-      state.detectedTokens = newDetectedTokens;
       state.allIgnoredTokens = newAllIgnoredTokens;
       state.allDetectedTokens = newAllDetectedTokens;
       state.allTokens = newAllTokens;
@@ -574,11 +630,11 @@ export class TokensController extends BaseController<
    */
   async addDetectedTokens(
     incomingDetectedTokens: Token[],
-    detectionDetails?: { selectedAddress: string; chainId: Hex },
+    detectionDetails: { selectedAddress?: string; chainId: Hex },
   ) {
     const releaseLock = await this.#mutex.acquire();
 
-    const chainId = detectionDetails?.chainId ?? this.#chainId;
+    const { chainId } = detectionDetails;
     // Previously selectedAddress could be an empty string. This is to preserve the behaviour
     const accountAddress =
       detectionDetails?.selectedAddress ?? this.#getSelectedAddress();
@@ -610,10 +666,12 @@ export class TokensController extends BaseController<
           aggregators,
           name,
         };
+
         const previousImportedIndex = newTokens.findIndex(
           (token) =>
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
+
         if (previousImportedIndex !== -1) {
           // Update existing data of imported token
           newTokens[previousImportedIndex] = newEntry;
@@ -650,14 +708,12 @@ export class TokensController extends BaseController<
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
       const selectedAddress = this.#getSelectedAddress();
 
-      newTokens = newAllTokens?.[this.#chainId]?.[selectedAddress] || [];
+      newTokens = newAllTokens?.[chainId]?.[selectedAddress] || [];
       newDetectedTokens =
-        newAllDetectedTokens?.[this.#chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
 
       this.update((state) => {
-        state.tokens = newTokens;
         state.allTokens = newAllTokens;
-        state.detectedTokens = newDetectedTokens;
         state.allDetectedTokens = newAllDetectedTokens;
       });
     } finally {
@@ -670,45 +726,30 @@ export class TokensController extends BaseController<
    * were previously added which do not yet had isERC721 field.
    *
    * @param tokenAddress - The contract address of the token requiring the isERC721 field added.
+   * @param networkClientId - The network client ID of the network on which the token is detected.
    * @returns The new token object with the added isERC721 field.
    */
-  async updateTokenType(tokenAddress: string) {
-    const isERC721 = await this.#detectIsERC721(tokenAddress);
-    const tokens = [...this.state.tokens];
+  async updateTokenType(
+    tokenAddress: string,
+    networkClientId: NetworkClientId,
+  ) {
+    const chainIdToUse = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
+
+    const isERC721 = await this.#detectIsERC721(tokenAddress, networkClientId);
+    const accountAddress = this.#getSelectedAddress();
+    const tokens = [...this.state.allTokens[chainIdToUse][accountAddress]];
     const tokenIndex = tokens.findIndex((token) => {
       return token.address.toLowerCase() === tokenAddress.toLowerCase();
     });
     const updatedToken = { ...tokens[tokenIndex], isERC721 };
     tokens[tokenIndex] = updatedToken;
     this.update((state) => {
-      state.tokens = tokens;
+      state.allTokens[chainIdToUse][accountAddress] = tokens;
     });
     return updatedToken;
-  }
-
-  /**
-   * This is a function that updates the tokens name for the tokens name if it is not defined.
-   *
-   * @param tokenList - Represents the fetched token list from service API
-   * @param tokenAttribute - Represents the token attribute that we want to update on the token list
-   */
-  #updateTokensAttribute(
-    tokenList: TokenListMap,
-    tokenAttribute: keyof Token & keyof TokenListToken,
-  ) {
-    const { tokens } = this.state;
-
-    const newTokens = tokens.map((token) => {
-      const newToken = tokenList[token.address.toLowerCase()];
-
-      return !token[tokenAttribute] && newToken?.[tokenAttribute]
-        ? { ...token, [tokenAttribute]: newToken[tokenAttribute] }
-        : { ...token };
-    });
-
-    this.update((state) => {
-      state.tokens = newTokens;
-    });
   }
 
   /**
@@ -793,7 +834,7 @@ export class TokensController extends BaseController<
     asset: Token;
     type: string;
     interactingAddress?: string;
-    networkClientId?: NetworkClientId;
+    networkClientId: NetworkClientId;
   }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
@@ -944,7 +985,7 @@ export class TokensController extends BaseController<
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
     interactingAddress?: string;
-    interactingChainId?: Hex;
+    interactingChainId: Hex;
   }) {
     const {
       newTokens,
@@ -958,24 +999,22 @@ export class TokensController extends BaseController<
     const userAddressToAddTokens =
       this.#getAddressOrSelectedAddress(interactingAddress);
 
-    const chainIdToAddTokens = interactingChainId ?? this.#chainId;
-
     let newAllTokens = allTokens;
     if (
       newTokens?.length ||
       (newTokens &&
         allTokens &&
-        allTokens[chainIdToAddTokens] &&
-        allTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allTokens[interactingChainId] &&
+        allTokens[interactingChainId][userAddressToAddTokens])
     ) {
-      const networkTokens = allTokens[chainIdToAddTokens];
+      const networkTokens = allTokens[interactingChainId];
       const newNetworkTokens = {
         ...networkTokens,
         ...{ [userAddressToAddTokens]: newTokens },
       };
       newAllTokens = {
         ...allTokens,
-        ...{ [chainIdToAddTokens]: newNetworkTokens },
+        ...{ [interactingChainId]: newNetworkTokens },
       };
     }
 
@@ -984,17 +1023,17 @@ export class TokensController extends BaseController<
       newIgnoredTokens?.length ||
       (newIgnoredTokens &&
         allIgnoredTokens &&
-        allIgnoredTokens[chainIdToAddTokens] &&
-        allIgnoredTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allIgnoredTokens[interactingChainId] &&
+        allIgnoredTokens[interactingChainId][userAddressToAddTokens])
     ) {
-      const networkIgnoredTokens = allIgnoredTokens[chainIdToAddTokens];
+      const networkIgnoredTokens = allIgnoredTokens[interactingChainId];
       const newIgnoredNetworkTokens = {
         ...networkIgnoredTokens,
         ...{ [userAddressToAddTokens]: newIgnoredTokens },
       };
       newAllIgnoredTokens = {
         ...allIgnoredTokens,
-        ...{ [chainIdToAddTokens]: newIgnoredNetworkTokens },
+        ...{ [interactingChainId]: newIgnoredNetworkTokens },
       };
     }
 
@@ -1003,17 +1042,17 @@ export class TokensController extends BaseController<
       newDetectedTokens?.length ||
       (newDetectedTokens &&
         allDetectedTokens &&
-        allDetectedTokens[chainIdToAddTokens] &&
-        allDetectedTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allDetectedTokens[interactingChainId] &&
+        allDetectedTokens[interactingChainId][userAddressToAddTokens])
     ) {
-      const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
+      const networkDetectedTokens = allDetectedTokens[interactingChainId];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,
         ...{ [userAddressToAddTokens]: newDetectedTokens },
       };
       newAllDetectedTokens = {
         ...allDetectedTokens,
-        ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
+        ...{ [interactingChainId]: newDetectedNetworkTokens },
       };
     }
     return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };
@@ -1027,18 +1066,11 @@ export class TokensController extends BaseController<
     return this.#getSelectedAddress();
   }
 
-  #isInteractingWithWallet(address: string | undefined) {
-    const selectedAddress = this.#getSelectedAddress();
-
-    return selectedAddress === address;
-  }
-
   /**
    * Removes all tokens from the ignored list.
    */
   clearIgnoredTokens() {
     this.update((state) => {
-      state.ignoredTokens = [];
       state.allIgnoredTokens = {};
     });
   }
@@ -1076,6 +1108,15 @@ export class TokensController extends BaseController<
       this.#selectedAccountId,
     );
     return account?.address || '';
+  }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultTokensState();
+    });
   }
 }
 

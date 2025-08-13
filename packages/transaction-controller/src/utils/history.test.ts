@@ -3,15 +3,15 @@ import { add0x } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import {
+  MAX_TRANSACTION_HISTORY_LENGTH,
+  updateTransactionHistory,
+} from './history';
+import {
   type TransactionHistory,
   TransactionStatus,
   type TransactionMeta,
   type TransactionHistoryEntry,
 } from '../types';
-import {
-  MAX_TRANSACTION_HISTORY_LENGTH,
-  updateTransactionHistory,
-} from './history';
 
 describe('History', () => {
   describe('updateTransactionHistory', () => {
@@ -288,6 +288,7 @@ function createMinimalMockTransaction(): TransactionMeta {
   return {
     chainId: toHex(1337),
     id: 'mock-id',
+    networkClientId: 'testNetworkClientId',
     time: 0,
     status: TransactionStatus.submitted as const,
     txParams: {

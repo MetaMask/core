@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   type ProviderProxy,
   type BlockTrackerProxy,
@@ -25,33 +25,33 @@ import {
 } from '../src/SelectedNetworkController';
 
 /**
- * Builds a new instance of the ControllerMessenger class for the SelectedNetworkController.
+ * Builds a new instance of the Messenger class for the SelectedNetworkController.
  *
- * @returns A new instance of the ControllerMessenger class for the SelectedNetworkController.
+ * @returns A new instance of the Messenger class for the SelectedNetworkController.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >();
 }
 
 /**
- * Build a restricted controller messenger for the selected network controller.
+ * Build a restricted messenger for the selected network controller.
  *
  * @param options - The options bag.
- * @param options.messenger - A controller messenger.
+ * @param options.messenger - A messenger.
  * @param options.getSubjectNames - Permissions controller list of domains with permissions
  * @returns The network controller restricted messenger.
  */
-export function buildSelectedNetworkControllerMessenger({
-  messenger = new ControllerMessenger<
+function buildSelectedNetworkControllerMessenger({
+  messenger = new Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >(),
   getSubjectNames,
 }: {
-  messenger?: ControllerMessenger<
+  messenger?: Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >;
@@ -218,11 +218,11 @@ describe('SelectedNetworkController', () => {
     it('can be instantiated with a state', () => {
       const { controller } = setup({
         state: {
-          domains: { networkClientId: 'goerli' },
+          domains: { networkClientId: 'sepolia' },
         },
       });
       expect(controller.state).toStrictEqual({
-        domains: { networkClientId: 'goerli' },
+        domains: { networkClientId: 'sepolia' },
       });
     });
 
@@ -298,7 +298,7 @@ describe('SelectedNetworkController', () => {
     describe('when a network is deleted from the network controller', () => {
       const initialDomains = {
         'not-deleted-network.com': 'linea-mainnet',
-        'deleted-network.com': 'goerli',
+        'deleted-network.com': 'sepolia',
       };
 
       const deleteNetwork = (
@@ -331,7 +331,7 @@ describe('SelectedNetworkController', () => {
 
         const networkControllerState = getDefaultNetworkControllerState();
         deleteNetwork(
-          '0x5',
+          '0xaa36a7',
           networkControllerState,
           messenger,
           mockNetworkControllerGetState,
@@ -352,7 +352,53 @@ describe('SelectedNetworkController', () => {
         };
 
         deleteNetwork(
-          '0x5',
+          '0xaa36a7',
+          networkControllerState,
+          messenger,
+          mockNetworkControllerGetState,
+        );
+
+        expect(controller.state.domains).toStrictEqual({
+          ...initialDomains,
+          'deleted-network.com': networkControllerState.selectedNetworkClientId,
+        });
+      });
+
+      it('redirects domains to the globally selected network when useRequestQueuePreference is true and handles garbage collected proxies', () => {
+        const domainProxyMap = new Map();
+        const {
+          controller,
+          messenger,
+          mockNetworkControllerGetState,
+          mockGetNetworkClientById,
+        } = setup({
+          state: { domains: initialDomains },
+          useRequestQueuePreference: true,
+          domainProxyMap,
+        });
+
+        // Simulate proxies being garbage collected
+        domainProxyMap.clear();
+
+        const networkControllerState = {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: 'mainnet',
+        };
+
+        mockGetNetworkClientById.mockImplementation((id) => {
+          // Simulate the previous domain being deleted in NetworkController
+          if (id !== 'mainnet') {
+            throw new Error('Network client does not exist');
+          }
+
+          return {
+            provider: { request: jest.fn() },
+            blockTracker: { getLatestBlock: jest.fn() },
+          };
+        });
+
+        deleteNetwork(
+          '0xaa36a7',
           networkControllerState,
           messenger,
           mockNetworkControllerGetState,
@@ -369,7 +415,7 @@ describe('SelectedNetworkController', () => {
       it('redirects domains when the default rpc endpoint is switched', () => {
         const initialDomains = {
           'different-chain.com': 'mainnet',
-          'chain-with-new-default.com': 'goerli',
+          'chain-with-new-default.com': 'sepolia',
         };
 
         const { controller, messenger, mockNetworkControllerGetState } = setup({
@@ -379,12 +425,13 @@ describe('SelectedNetworkController', () => {
 
         const networkControllerState = getDefaultNetworkControllerState();
         const goerliNetwork =
-          networkControllerState.networkConfigurationsByChainId['0x5'];
+          networkControllerState.networkConfigurationsByChainId['0xaa36a7'];
 
         goerliNetwork.defaultRpcEndpointIndex =
           goerliNetwork.rpcEndpoints.push({
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
+            failoverUrls: [],
             networkClientId: 'new-default-network-client-id',
           }) - 1;
 
@@ -398,7 +445,7 @@ describe('SelectedNetworkController', () => {
           [
             {
               op: 'replace',
-              path: ['networkConfigurationsByChainId', '0x5'],
+              path: ['networkConfigurationsByChainId', '0xaa36a7'],
             },
           ],
         );
@@ -412,7 +459,7 @@ describe('SelectedNetworkController', () => {
       it('redirects domains when the default rpc endpoint is deleted and replaced', () => {
         const initialDomains = {
           'different-chain.com': 'mainnet',
-          'chain-with-new-default.com': 'goerli',
+          'chain-with-new-default.com': 'sepolia',
         };
 
         const { controller, messenger, mockNetworkControllerGetState } = setup({
@@ -422,12 +469,13 @@ describe('SelectedNetworkController', () => {
 
         const networkControllerState = getDefaultNetworkControllerState();
         const goerliNetwork =
-          networkControllerState.networkConfigurationsByChainId['0x5'];
+          networkControllerState.networkConfigurationsByChainId['0xaa36a7'];
 
         goerliNetwork.rpcEndpoints = [
           {
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
+            failoverUrls: [],
             networkClientId: 'new-default-network-client-id',
           },
         ];
@@ -442,7 +490,7 @@ describe('SelectedNetworkController', () => {
           [
             {
               op: 'replace',
-              path: ['networkConfigurationsByChainId', '0x5'],
+              path: ['networkConfigurationsByChainId', '0xaa36a7'],
             },
           ],
         );
@@ -479,33 +527,46 @@ describe('SelectedNetworkController', () => {
       });
 
       describe('when the requesting domain is a snap (starts with "npm:" or "local:"', () => {
-        it('skips setting the networkClientId for the passed in domain', () => {
+        it('sets the networkClientId for the passed in snap ID', () => {
           const { controller, mockHasPermissions } = setup({
             state: { domains: {} },
             useRequestQueuePreference: true,
           });
           mockHasPermissions.mockReturnValue(true);
-          const snapDomainOne = 'npm:@metamask/bip32-example-snap';
-          const snapDomainTwo = 'local:@metamask/bip32-example-snap';
-          const nonSnapDomain = 'example.com';
+          const domain = 'npm:foo-snap';
           const networkClientId = 'network1';
+          controller.setNetworkClientIdForDomain(domain, networkClientId);
+          expect(controller.state.domains[domain]).toBe(networkClientId);
+        });
 
-          controller.setNetworkClientIdForDomain(
-            nonSnapDomain,
-            networkClientId,
-          );
-          controller.setNetworkClientIdForDomain(
-            snapDomainOne,
-            networkClientId,
-          );
-          controller.setNetworkClientIdForDomain(
-            snapDomainTwo,
-            networkClientId,
-          );
-
-          expect(controller.state.domains).toStrictEqual({
-            [nonSnapDomain]: networkClientId,
+        it('updates the provider and block tracker proxy when they already exist for the snap ID', () => {
+          const { controller, mockProviderProxy, mockHasPermissions } = setup({
+            state: { domains: {} },
+            useRequestQueuePreference: true,
           });
+          mockHasPermissions.mockReturnValue(true);
+          const initialNetworkClientId = '123';
+
+          // creates the proxy for the new domain
+          controller.setNetworkClientIdForDomain(
+            'npm:foo-snap',
+            initialNetworkClientId,
+          );
+          const newNetworkClientId = 'abc';
+
+          expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(1);
+
+          // calls setTarget on the proxy
+          controller.setNetworkClientIdForDomain(
+            'npm:foo-snap',
+            newNetworkClientId,
+          );
+
+          expect(mockProviderProxy.setTarget).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ request: expect.any(Function) }),
+          );
+          expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(2);
         });
       });
 
@@ -728,23 +789,22 @@ describe('SelectedNetworkController', () => {
 
     // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
     describe('when the domain is a snap (starts with "npm:" or "local:")', () => {
-      it('returns a proxied globally selected networkClient and does not create a new proxy in the domainProxyMap', () => {
-        const { controller, domainProxyMap, messenger } = setup({
+      it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
+        const { controller, messenger } = setup({
           state: {
             domains: {},
           },
-          useRequestQueuePreference: true,
+          useRequestQueuePreference: false,
         });
         jest.spyOn(messenger, 'call');
-        const snapDomain = 'npm:@metamask/bip32-example-snap';
 
-        const result = controller.getProviderAndBlockTracker(snapDomain);
-
-        expect(domainProxyMap.get(snapDomain)).toBeUndefined();
+        const result = controller.getProviderAndBlockTracker('npm:foo-snap');
+        expect(result).toBeDefined();
+        // unfortunately checking which networkController method is called is the best
+        // proxy (no pun intended) for checking that the correct instance of the networkClient is used
         expect(messenger.call).toHaveBeenCalledWith(
           'NetworkController:getSelectedNetworkClient',
         );
-        expect(result).toBeDefined();
       });
 
       it('throws an error if the globally selected network client is not initialized', () => {

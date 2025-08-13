@@ -1,115 +1,97 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { Mutex } from 'async-mutex';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
+import { getIncomingTransactionsPollingInterval } from '../utils/feature-flags';
 
-const RECENT_HISTORY_BLOCK_RANGE = 10;
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
-  (txMeta) => txMeta.status,
-  (txMeta) => txMeta.txParams.gasUsed,
-];
-
-/**
- * Configuration options for the IncomingTransactionHelper
- *
- * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
- * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
- * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
- * @property updateTransactions - Whether to update local transactions using remote transaction data.
- */
 export type IncomingTransactionOptions = {
+  /** Name of the client to include in requests. */
+  client?: string;
+
+  /** Whether to retrieve incoming token transfers. Defaults to false. */
   includeTokenTransfers?: boolean;
+
+  /** Callback to determine if incoming transaction polling is enabled. */
   isEnabled?: () => boolean;
+
+  /** @deprecated No longer used. */
   queryEntireHistory?: boolean;
+
+  /** Whether to retrieve outgoing transactions. Defaults to false. */
   updateTransactions?: boolean;
 };
+
+const TAG_POLLING = 'automatic-polling';
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
-  #blockTracker: BlockTracker;
+  readonly #client?: string;
 
-  #getCurrentAccount: () => ReturnType<
+  readonly #getCurrentAccount: () => ReturnType<
     AccountsController['getSelectedAccount']
   >;
 
-  #getLastFetchedBlockNumbers: () => Record<string, number>;
+  readonly #getLocalTransactions: () => TransactionMeta[];
 
-  #getLocalTransactions: () => TransactionMeta[];
+  readonly #includeTokenTransfers?: boolean;
 
-  #getChainId: () => Hex;
-
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   #isRunning: boolean;
 
-  #mutex = new Mutex();
+  readonly #messenger: TransactionControllerMessenger;
 
-  #onLatestBlock: (blockNumberHex: Hex) => Promise<void>;
+  readonly #remoteTransactionSource: RemoteTransactionSource;
 
-  #queryEntireHistory: boolean;
+  #timeoutId?: unknown;
 
-  #remoteTransactionSource: RemoteTransactionSource;
+  readonly #trimTransactions: (
+    transactions: TransactionMeta[],
+  ) => TransactionMeta[];
 
-  #transactionLimit?: number;
-
-  #updateTransactions: boolean;
+  readonly #updateTransactions?: boolean;
 
   constructor({
-    blockTracker,
+    client,
     getCurrentAccount,
-    getLastFetchedBlockNumbers,
     getLocalTransactions,
-    getChainId,
+    includeTokenTransfers,
     isEnabled,
-    queryEntireHistory,
+    messenger,
     remoteTransactionSource,
-    transactionLimit,
+    trimTransactions,
     updateTransactions,
   }: {
-    blockTracker: BlockTracker;
+    client?: string;
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
     >;
-    getLastFetchedBlockNumbers: () => Record<string, number>;
-    getLocalTransactions?: () => TransactionMeta[];
-    getChainId: () => Hex;
+    getLocalTransactions: () => TransactionMeta[];
+    includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
-    queryEntireHistory?: boolean;
+    messenger: TransactionControllerMessenger;
     remoteTransactionSource: RemoteTransactionSource;
-    transactionLimit?: number;
+    trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
     updateTransactions?: boolean;
   }) {
     this.hub = new EventEmitter();
 
-    this.#blockTracker = blockTracker;
+    this.#client = client;
     this.#getCurrentAccount = getCurrentAccount;
-    this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
-    this.#getLocalTransactions = getLocalTransactions || (() => []);
-    this.#getChainId = getChainId;
+    this.#getLocalTransactions = getLocalTransactions;
+    this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
-    this.#queryEntireHistory = queryEntireHistory ?? true;
+    this.#messenger = messenger;
     this.#remoteTransactionSource = remoteTransactionSource;
-    this.#transactionLimit = transactionLimit;
-    this.#updateTransactions = updateTransactions ?? false;
-
-    // Using a property instead of a method to provide a listener reference
-    // with the correct scope that we can remove later if stopped.
-    this.#onLatestBlock = async (blockNumberHex: Hex) => {
-      try {
-        await this.update(blockNumberHex);
-      } catch (error) {
-        console.error('Error while checking incoming transactions', error);
-      }
-    };
+    this.#trimTransactions = trimTransactions;
+    this.#updateTransactions = updateTransactions;
   }
 
   start() {
@@ -121,208 +103,166 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#blockTracker.addListener('latest', this.#onLatestBlock);
+    const interval = this.#getInterval();
+
+    log('Started polling', { interval });
+
     this.#isRunning = true;
+
+    this.#onInterval().catch((error) => {
+      log('Initial polling failed', error);
+    });
   }
 
   stop() {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#blockTracker.removeListener('latest', this.#onLatestBlock);
+    if (this.#timeoutId) {
+      clearTimeout(this.#timeoutId as number);
+    }
+
+    if (!this.#isRunning) {
+      return;
+    }
+
     this.#isRunning = false;
+
+    log('Stopped polling');
   }
 
-  async update(latestBlockNumberHex?: Hex): Promise<void> {
-    const releaseLock = await this.#mutex.acquire();
+  async #onInterval() {
+    try {
+      await this.update({ isInterval: true });
+    } catch (error) {
+      console.error('Error while checking incoming transactions', error);
+    }
 
-    log('Checking for incoming transactions');
+    if (this.#isRunning) {
+      this.#timeoutId = setTimeout(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        () => this.#onInterval(),
+        this.#getInterval(),
+      );
+    }
+  }
+
+  async update({
+    isInterval,
+    tags,
+  }: { isInterval?: boolean; tags?: string[] } = {}): Promise<void> {
+    const finalTags = this.#getTags(tags, isInterval);
+
+    log('Checking for incoming transactions', {
+      isInterval: Boolean(isInterval),
+      tags: finalTags,
+    });
+
+    if (!this.#canStart()) {
+      return;
+    }
+
+    const account = this.#getCurrentAccount();
+    const includeTokenTransfers = this.#includeTokenTransfers ?? true;
+    const updateTransactions = this.#updateTransactions ?? false;
+
+    let remoteTransactions: TransactionMeta[] = [];
 
     try {
-      if (!this.#canStart()) {
-        return;
-      }
-
-      const latestBlockNumber = parseInt(
-        latestBlockNumberHex || (await this.#blockTracker.getLatestBlock()),
-        16,
-      );
-
-      const additionalLastFetchedKeys =
-        this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
-
-      const fromBlock = this.#getFromBlock(latestBlockNumber);
-      const account = this.#getCurrentAccount();
-      const currentChainId = this.#getChainId();
-
-      let remoteTransactions = [];
-
-      try {
-        remoteTransactions =
-          await this.#remoteTransactionSource.fetchTransactions({
-            address: account.address,
-            currentChainId,
-            fromBlock,
-            limit: this.#transactionLimit,
-          });
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        log('Error while fetching remote transactions', error);
-        return;
-      }
-      if (!this.#updateTransactions) {
-        const address = account.address.toLowerCase();
-        remoteTransactions = remoteTransactions.filter(
-          (tx) => tx.txParams.to?.toLowerCase() === address,
-        );
-      }
-
-      const localTransactions = !this.#updateTransactions
-        ? []
-        : this.#getLocalTransactions();
-
-      const newTransactions = this.#getNewTransactions(
-        remoteTransactions,
-        localTransactions,
-      );
-
-      const updatedTransactions = this.#getUpdatedTransactions(
-        remoteTransactions,
-        localTransactions,
-      );
-
-      if (newTransactions.length > 0 || updatedTransactions.length > 0) {
-        this.#sortTransactionsByTime(newTransactions);
-        this.#sortTransactionsByTime(updatedTransactions);
-
-        log('Found incoming transactions', {
-          new: newTransactions,
-          updated: updatedTransactions,
+      remoteTransactions =
+        await this.#remoteTransactionSource.fetchTransactions({
+          address: account.address as Hex,
+          includeTokenTransfers,
+          tags: finalTags,
+          updateTransactions,
         });
-
-        this.hub.emit('transactions', {
-          added: newTransactions,
-          updated: updatedTransactions,
-        });
-      }
-      this.#updateLastFetchedBlockNumber(
-        remoteTransactions,
-        additionalLastFetchedKeys,
-      );
-    } finally {
-      releaseLock();
+    } catch (error: unknown) {
+      log('Error while fetching remote transactions', error);
+      return;
     }
+
+    if (!remoteTransactions.length) {
+      return;
+    }
+
+    this.#sortTransactionsByTime(remoteTransactions);
+
+    log(
+      'Found potential transactions',
+      remoteTransactions.length,
+      remoteTransactions,
+    );
+
+    const localTransactions = this.#getLocalTransactions();
+
+    const uniqueTransactions = remoteTransactions.filter(
+      (tx) =>
+        !localTransactions.some(
+          (currentTx) =>
+            currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
+            currentTx.txParams.from?.toLowerCase() ===
+              tx.txParams.from?.toLowerCase() &&
+            currentTx.type === tx.type,
+        ),
+    );
+
+    if (!uniqueTransactions.length) {
+      log('All transactions are already known');
+      return;
+    }
+
+    log(
+      'Found unique transactions',
+      uniqueTransactions.length,
+      uniqueTransactions,
+    );
+
+    const trimmedTransactions = this.#trimTransactions([
+      ...uniqueTransactions,
+      ...localTransactions,
+    ]);
+
+    const uniqueTransactionIds = uniqueTransactions.map((tx) => tx.id);
+
+    const newTransactions = trimmedTransactions.filter((tx) =>
+      uniqueTransactionIds.includes(tx.id),
+    );
+
+    if (!newTransactions.length) {
+      log('All unique transactions truncated due to limit');
+      return;
+    }
+
+    log('Adding new transactions', newTransactions.length, newTransactions);
+
+    this.hub.emit('transactions', newTransactions);
   }
 
   #sortTransactionsByTime(transactions: TransactionMeta[]) {
     transactions.sort((a, b) => (a.time < b.time ? -1 : 1));
   }
 
-  #getNewTransactions(
-    remoteTxs: TransactionMeta[],
-    localTxs: TransactionMeta[],
-  ): TransactionMeta[] {
-    return remoteTxs.filter(
-      (tx) => !localTxs.some(({ hash }) => hash === tx.hash),
-    );
-  }
-
-  #getUpdatedTransactions(
-    remoteTxs: TransactionMeta[],
-    localTxs: TransactionMeta[],
-  ): TransactionMeta[] {
-    return remoteTxs.filter((remoteTx) =>
-      localTxs.some(
-        (localTx) =>
-          remoteTx.hash === localTx.hash &&
-          this.#isTransactionOutdated(remoteTx, localTx),
-      ),
-    );
-  }
-
-  #isTransactionOutdated(
-    remoteTx: TransactionMeta,
-    localTx: TransactionMeta,
-  ): boolean {
-    return UPDATE_CHECKS.some(
-      (getValue) => getValue(remoteTx) !== getValue(localTx),
-    );
-  }
-
-  #getLastFetchedBlockNumberDec(): number {
-    const additionalLastFetchedKeys =
-      this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
-    const lastFetchedKey = this.#getBlockNumberKey(additionalLastFetchedKeys);
-    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
-    return lastFetchedBlockNumbers[lastFetchedKey];
-  }
-
-  #getFromBlock(latestBlockNumber: number): number | undefined {
-    const lastFetchedBlockNumber = this.#getLastFetchedBlockNumberDec();
-
-    if (lastFetchedBlockNumber) {
-      return lastFetchedBlockNumber + 1;
-    }
-
-    return this.#queryEntireHistory
-      ? undefined
-      : latestBlockNumber - RECENT_HISTORY_BLOCK_RANGE;
-  }
-
-  #updateLastFetchedBlockNumber(
-    remoteTxs: TransactionMeta[],
-    additionalKeys: string[],
-  ) {
-    let lastFetchedBlockNumber = -1;
-
-    for (const tx of remoteTxs) {
-      const currentBlockNumberValue = tx.blockNumber
-        ? parseInt(tx.blockNumber, 10)
-        : -1;
-
-      lastFetchedBlockNumber = Math.max(
-        lastFetchedBlockNumber,
-        currentBlockNumberValue,
-      );
-    }
-
-    if (lastFetchedBlockNumber === -1) {
-      return;
-    }
-
-    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
-    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
-    const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
-
-    if (previousValue >= lastFetchedBlockNumber) {
-      return;
-    }
-
-    this.hub.emit('updatedLastFetchedBlockNumbers', {
-      lastFetchedBlockNumbers: {
-        ...lastFetchedBlockNumbers,
-        [lastFetchedKey]: lastFetchedBlockNumber,
-      },
-      blockNumber: lastFetchedBlockNumber,
-    });
-  }
-
-  #getBlockNumberKey(additionalKeys: string[]): string {
-    const currentChainId = this.#getChainId();
-    const currentAccount = this.#getCurrentAccount()?.address.toLowerCase();
-
-    return [currentChainId, currentAccount, ...additionalKeys].join('#');
-  }
-
   #canStart(): boolean {
-    const isEnabled = this.#isEnabled();
-    const currentChainId = this.#getChainId();
+    return this.#isEnabled();
+  }
 
-    const isSupportedNetwork =
-      this.#remoteTransactionSource.isSupportedNetwork(currentChainId);
+  #getInterval(): number {
+    return getIncomingTransactionsPollingInterval(this.#messenger);
+  }
 
-    return isEnabled && isSupportedNetwork;
+  #getTags(
+    requestTags: string[] | undefined,
+    isInterval: boolean | undefined,
+  ): string[] | undefined {
+    const tags = [];
+
+    if (this.#client) {
+      tags.push(this.#client);
+    }
+
+    if (requestTags?.length) {
+      tags.push(...requestTags);
+    } else if (isInterval) {
+      tags.push(TAG_POLLING);
+    }
+
+    return tags?.length ? tags : undefined;
   }
 }

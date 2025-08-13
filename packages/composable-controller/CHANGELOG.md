@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.1.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284))
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Re-define `ComposableControllerStateConstraint` type using `StateConstraint` instead of `LegacyControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- **BREAKING:** Constrain the `ComposableControllerState` generic argument for the `ComposableController` class using `ComposableControllerStateConstraint` instead of `LegacyComposableControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** `ComposableController` constructor option `controllers` and generic type argument `ChildControllers` are re-defined from an array of controller instances to an object that maps controller names to controller instances ([#4968](https://github.com/MetaMask/core/pull/4968))
+- **BREAKING:** `ComposableController` class field objects `state` and `metadata` exclude child controllers that do not extend from `BaseController` or `BaseControllerV1`. Any non-controller entries that are passed into the constructor will be removed automatically ([#4968](https://github.com/MetaMask/core/pull/4968))
+- Bump devDependency `@metamask/json-rpc-engine` from `^9.0.3` to `^10.0.1` ([#4798](https://github.com/MetaMask/core/pull/4798), [#4862](https://github.com/MetaMask/core/pull/4862))
+
+### Fixed
+
+- **BREAKING:** `ComposableController` class field object `metadata` now assigns the `StateMetadataProperty`-type object `{ persist: true, anonymous: true }` to each child controller name ([#4968](https://github.com/MetaMask/core/pull/4968))
+  - Previously, V2 child controllers were erroneously assigned their own metadata object. This issue was introduced in `@metamask/base-controller@6.0.0`.
+
 ## [9.0.1]
 
 ### Fixed
@@ -199,7 +225,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@10.0.0...@metamask/composable-controller@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...@metamask/composable-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@8.0.0...@metamask/composable-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@7.0.0...@metamask/composable-controller@8.0.0

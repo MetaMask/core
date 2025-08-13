@@ -2,13 +2,14 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 
@@ -43,6 +44,12 @@ export type EtherscanSupportedChains =
  */
 export type EtherscanSupportedHexChainId =
   (typeof ETHERSCAN_SUPPORTED_CHAIN_IDS)[EtherscanSupportedChains];
+
+type TokenSortConfig = {
+  key: string;
+  order: 'asc' | 'dsc';
+  sortCallback: string;
+};
 
 /**
  * Preferences controller state
@@ -111,9 +118,35 @@ export type PreferencesState = {
    */
   useTransactionSimulations: boolean;
   /**
-   * Controls whether safe chains list validation is used
+   * Controls whether Multi rpc modal is displayed or not
+   */
+  useMultiRpcMigration: boolean;
+  /**
+   * Controls whether to use the safe chains list validation
    */
   useSafeChainsListValidation: boolean;
+  /**
+   * Controls which order tokens are sorted in
+   */
+  tokenSortConfig: TokenSortConfig;
+  /**
+   * Controls whether balance and assets are hidden or not
+   */
+  privacyMode: boolean;
+  /**
+   * Allow user to stop being prompted for smart account upgrade
+   */
+  dismissSmartAccountSuggestionEnabled: boolean;
+  /**
+   * User to opt in for smart account upgrade for all user accounts.
+   */
+  smartAccountOptIn: boolean;
+  /**
+   * User to opt in for smart account upgrade for specific accounts.
+   *
+   * @deprecated This preference is deprecated and will be removed in the future.
+   */
+  smartAccountOptInForAccounts: Hex[];
 };
 
 const metadata = {
@@ -124,7 +157,6 @@ const metadata = {
   isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
   lostIdentities: { persist: true, anonymous: false },
   displayNftMedia: { persist: true, anonymous: true },
-  useSafeChainsListValidation: { persist: true, anonymous: true },
   securityAlertsEnabled: { persist: true, anonymous: true },
   selectedAddress: { persist: true, anonymous: false },
   showTestNetworks: { persist: true, anonymous: true },
@@ -133,6 +165,13 @@ const metadata = {
   useTokenDetection: { persist: true, anonymous: true },
   smartTransactionsOptInStatus: { persist: true, anonymous: false },
   useTransactionSimulations: { persist: true, anonymous: true },
+  useMultiRpcMigration: { persist: true, anonymous: true },
+  useSafeChainsListValidation: { persist: true, anonymous: true },
+  tokenSortConfig: { persist: true, anonymous: true },
+  privacyMode: { persist: true, anonymous: true },
+  dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
+  smartAccountOptIn: { persist: true, anonymous: true },
+  smartAccountOptInForAccounts: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -153,7 +192,7 @@ export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
 export type AllowedEvents = KeyringControllerStateChangeEvent;
 
-export type PreferencesControllerMessenger = RestrictedControllerMessenger<
+export type PreferencesControllerMessenger = RestrictedMessenger<
   typeof name,
   PreferencesControllerActions,
   PreferencesControllerEvents | AllowedEvents,
@@ -166,7 +205,7 @@ export type PreferencesControllerMessenger = RestrictedControllerMessenger<
  *
  * @returns The default PreferencesController state.
  */
-export function getDefaultPreferencesState() {
+export function getDefaultPreferencesState(): PreferencesState {
   return {
     featureFlags: {},
     identities: {},
@@ -198,13 +237,24 @@ export function getDefaultPreferencesState() {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM_TESTNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEI]: true,
     },
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
-    useSafeChainsListValidation: true,
-    smartTransactionsOptInStatus: false,
+    useMultiRpcMigration: true,
+    smartTransactionsOptInStatus: true,
     useTransactionSimulations: true,
+    useSafeChainsListValidation: true,
+    tokenSortConfig: {
+      key: 'tokenFiatAmount',
+      order: 'dsc',
+      sortCallback: 'stringNumeric',
+    },
+    privacyMode: false,
+    dismissSmartAccountSuggestionEnabled: false,
+    smartAccountOptIn: true,
+    smartAccountOptInForAccounts: [],
   };
 }
 
@@ -490,6 +540,20 @@ export class PreferencesController extends BaseController<
   }
 
   /**
+   * Toggle multi rpc migration modal.
+   *
+   * @param useMultiRpcMigration - Boolean indicating if the multi rpc modal will be displayed or not.
+   */
+  setUseMultiRpcMigration(useMultiRpcMigration: boolean) {
+    this.update((state) => {
+      state.useMultiRpcMigration = useMultiRpcMigration;
+      if (!useMultiRpcMigration) {
+        state.useMultiRpcMigration = false;
+      }
+    });
+  }
+
+  /**
    * A setter for the user to opt into smart transactions
    *
    * @param smartTransactionsOptInStatus - true to opt into smart transactions
@@ -512,13 +576,73 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Toggle the use safe chains list validation.
+   * A setter to update the user's preferred token sorting order.
    *
-   * @param useSafeChainsListValidation - Boolean indicating user preference on using chainid.network third part to check safe networks.
+   * @param tokenSortConfig - a configuration representing the sort order of tokens.
+   */
+  setTokenSortConfig(tokenSortConfig: TokenSortConfig) {
+    this.update((state) => {
+      state.tokenSortConfig = tokenSortConfig;
+    });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable safe chains list validation.
+   *
+   * @param useSafeChainsListValidation - true to enable safe chains list validation, false to disable it.
    */
   setUseSafeChainsListValidation(useSafeChainsListValidation: boolean) {
     this.update((state) => {
       state.useSafeChainsListValidation = useSafeChainsListValidation;
+    });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable privacy mode.
+   *
+   * @param privacyMode - true to enable privacy mode, false to disable it.
+   */
+  setPrivacyMode(privacyMode: boolean) {
+    this.update((state) => {
+      state.privacyMode = privacyMode;
+    });
+  }
+
+  /**
+   * A setter for the user preferences dismiss smart account upgrade prompt.
+   *
+   * @param dismissSmartAccountSuggestionEnabled - true to dismiss smart account upgrade prompt, false to enable it.
+   */
+  setDismissSmartAccountSuggestionEnabled(
+    dismissSmartAccountSuggestionEnabled: boolean,
+  ) {
+    this.update((state) => {
+      state.dismissSmartAccountSuggestionEnabled =
+        dismissSmartAccountSuggestionEnabled;
+    });
+  }
+
+  /**
+   * A setter for the user preferences smart account OptIn.
+   *
+   * @param smartAccountOptIn - true if user opts in for smart account update, false otherwise.
+   */
+  setSmartAccountOptIn(smartAccountOptIn: boolean) {
+    this.update((state) => {
+      state.smartAccountOptIn = smartAccountOptIn;
+    });
+  }
+
+  /**
+   * Add account to list of accounts for which user has optedin
+   * smart account upgrade.
+   *
+   * @param accounts - accounts for which user wants to optin for smart account upgrade
+   * @deprecated This method is deprecated and will be removed in the future.
+   */
+  setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
+    this.update((state) => {
+      state.smartAccountOptInForAccounts = accounts;
     });
   }
 }

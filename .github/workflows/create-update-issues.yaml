@@ -1,0 +1,22 @@
+name: Create Update Issues
+
+on:
+  workflow_call:
+    secrets:
+      CORE_CREATE_UPDATE_ISSUES_TOKEN:
+        description: GitHub token with permission to create issues in both mobile and extension repositories
+        required: true
+
+jobs:
+  create-update-issues:
+    environment: default-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout head
+        uses: actions/checkout@v4
+      - name: Fetch tags
+        run: git fetch --prune --unshallow --tags
+      - name: Create issues
+        run: ./scripts/create-update-issues.sh --no-dry-run
+        env:
+          GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}

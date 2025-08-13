@@ -1,8 +1,10 @@
+// import { BigNumber } from '@ethersproject/bignumber';
+import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   ActionConstraint,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
@@ -19,7 +21,12 @@ import { getKnownPropertyNames, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import {
+  SupportedStakedBalanceNetworks,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
+import type { Call } from './multicall';
+import { multicallOrFallback } from './multicall';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
@@ -69,14 +76,22 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
 } as const satisfies Record<Hex, string>;
 
+export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
+  [SupportedStakedBalanceNetworks.mainnet]:
+    '0x4fef9d741011476750a243ac70b9789a63dd47df',
+  [SupportedStakedBalanceNetworks.hoodi]:
+    '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
+} as const satisfies Record<Hex, string>;
+
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**
- * @type BalanceMap
+ * BalanceMap
  *
  * Key value object containing the balance for each tokenAddress
- * @property [tokenAddress] - Address of the token
+ *
+ * [tokenAddress] - Address of the token
  */
 export type BalanceMap = {
   [tokenAddress: string]: BN;
@@ -90,6 +105,7 @@ const name = 'AssetsContractController';
 /**
  * A utility type that derives the public method names of a given messenger consumer class,
  * and uses it to generate the class's internal messenger action types.
+ *
  * @template Controller - A messenger consumer class.
  */
 // TODO: Figure out generic constraint and move to base-controller
@@ -189,13 +205,15 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AssetsContractController}.
  */
-export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
+export type AssetsContractControllerMessenger = RestrictedMessenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
   AssetsContractControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+export type StakedBalance = string | undefined;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
@@ -215,7 +233,7 @@ export class AssetsContractController {
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.chainId - The chain ID of the current network.
    */
   constructor({
@@ -314,8 +332,8 @@ export class AssetsContractController {
           `NetworkController:getNetworkClientById`,
           networkClientId,
         ).provider
-      : this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
-          ?.provider ?? this.#provider;
+      : (this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
+          ?.provider ?? this.#provider);
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
@@ -687,6 +705,107 @@ export class AssetsContractController {
       });
     }
     return nonZeroBalances;
+  }
+
+  /**
+   * Get the staked ethereum balance for multiple addresses in a single call.
+   *
+   * @param addresses - The addresses to check staked ethereum balance for.
+   * @param networkClientId - Network Client ID to fetch the provider with.
+   * @returns The hex staked ethereum balance for address.
+   */
+  async getStakedBalanceForChain(
+    addresses: string[],
+    networkClientId?: NetworkClientId,
+  ): Promise<Record<string, StakedBalance>> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    const balances = addresses.reduce<Record<string, StakedBalance>>(
+      (accumulator, address) => {
+        accumulator[address] = '0x00';
+        return accumulator;
+      },
+      {},
+    );
+
+    // Only fetch staked balance on supported networks
+    if (
+      ![
+        SupportedStakedBalanceNetworks.mainnet,
+        SupportedStakedBalanceNetworks.hoodi,
+      ].includes(chainId as SupportedStakedBalanceNetworks)
+    ) {
+      return {};
+    }
+    // Only fetch staked balance if contract address exists
+    if (
+      !((id): id is keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID =>
+        id in STAKING_CONTRACT_ADDRESS_BY_CHAINID)(chainId)
+    ) {
+      return {};
+    }
+
+    const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
+    const abi = [
+      {
+        inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+        name: 'getShares',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+      {
+        inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+        name: 'convertToAssets',
+        outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+    ];
+
+    try {
+      const calls = addresses.map((address) => ({
+        contract: new Contract(contractAddress, abi, provider),
+        functionSignature: 'getShares(address)',
+        arguments: [address],
+      }));
+
+      const userShares = await multicallOrFallback(calls, chainId, provider);
+
+      const nonZeroCalls = userShares
+        .map((shares, index) => {
+          if (shares.success && (shares.value as BigNumber).gt(0)) {
+            return {
+              address: addresses[index],
+              call: {
+                contract: new Contract(contractAddress, abi, provider),
+                functionSignature: 'convertToAssets(uint256)',
+                arguments: [(shares.value as BigNumber).toString()],
+              },
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as { call: Call; address: string }[];
+
+      const nonZeroBalances = await multicallOrFallback(
+        nonZeroCalls.map((call) => call.call),
+        chainId,
+        provider,
+      );
+      nonZeroBalances.forEach((balance, index) => {
+        if (balance.success && balance.value) {
+          const { address } = nonZeroCalls[index];
+          balances[address] = (balance.value as BigNumber).toHexString();
+        }
+      });
+    } catch (error) {
+      // if we get an error, log and return the default value
+      console.error(error);
+    }
+
+    return balances;
   }
 }
 

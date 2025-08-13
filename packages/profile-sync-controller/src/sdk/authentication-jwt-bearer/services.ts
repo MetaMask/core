@@ -1,13 +1,19 @@
+import type {
+  AccessToken,
+  ErrorMessage,
+  UserProfile,
+  UserProfileLineage,
+} from './types';
+import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
+import type { MetaMetricsAuth } from '../../shared/types/services';
 import {
   NonceRetrievalError,
   PairError,
   SignInError,
   ValidationError,
 } from '../errors';
-import type { AccessToken, ErrorMessage, UserProfile } from './types';
-import { AuthType } from './types';
 
 export const NONCE_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
@@ -23,6 +29,9 @@ export const SRP_LOGIN_URL = (env: Env) =>
 
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
+
+export const PROFILE_LINEAGE_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -46,14 +55,8 @@ type NonceResponse = {
 
 type PairRequest = {
   signature: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   raw_message: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   encrypted_storage_key: string;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   identifier_type: 'SIWE' | 'SRP';
 };
 
@@ -167,8 +170,6 @@ export async function authorizeOIDC(
 
     if (!response.ok) {
       const responseBody = (await response.json()) as {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         error_description: string;
         error: string;
       };
@@ -203,6 +204,7 @@ type Authentication = {
  * @param signature - signed raw message
  * @param authType - authentication type/flow used
  * @param env - server environment
+ * @param metametrics - optional metametrics
  * @returns Authentication Token
  */
 export async function authenticate(
@@ -210,6 +212,7 @@ export async function authenticate(
   signature: string,
   authType: AuthType,
   env: Env,
+  metametrics?: MetaMetricsAuth,
 ): Promise<Authentication> {
   const authenticationUrl = getAuthenticationUrl(authType, env);
 
@@ -221,9 +224,15 @@ export async function authenticate(
       },
       body: JSON.stringify({
         signature,
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         raw_message: rawMessage,
+        ...(metametrics
+          ? {
+              metametrics: {
+                metametrics_id: await metametrics.getMetaMetricsId(),
+                agent: metametrics.agent,
+              },
+            }
+          : {}),
       }),
     });
 
@@ -249,5 +258,44 @@ export async function authenticate(
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
     throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
+  }
+}
+
+/**
+ * Service to get the Profile Lineage
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns Profile Lineage information.
+ */
+export async function getUserProfileLineage(
+  env: Env,
+  accessToken: string,
+): Promise<UserProfileLineage> {
+  const profileLineageUrl = new URL(PROFILE_LINEAGE_URL(env));
+
+  try {
+    const response = await fetch(profileLineageUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const responseBody = (await response.json()) as ErrorMessage;
+      throw new Error(
+        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      );
+    }
+
+    const profileJson: UserProfileLineage = await response.json();
+
+    return profileJson;
+  } catch (e) {
+    /* istanbul ignore next */
+    const errorMessage =
+      e instanceof Error ? e.message : JSON.stringify(e ?? '');
+    throw new SignInError(`failed to get profile lineage: ${errorMessage}`);
   }
 }

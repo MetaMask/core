@@ -2,7 +2,7 @@ import type { ControllerGetStateAction } from '@metamask/base-controller';
 import {
   BaseController,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -119,7 +119,7 @@ export type ApprovalControllerState = {
   approvalFlows: ApprovalFlowState[];
 };
 
-export type ApprovalControllerMessenger = RestrictedControllerMessenger<
+export type ApprovalControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   ApprovalControllerActions,
   ApprovalControllerEvents,
@@ -367,7 +367,7 @@ export class ApprovalController extends BaseController<
    * @param options - The controller options.
    * @param options.showApprovalRequest - Function for opening the UI such that
    * the request can be displayed to the user.
-   * @param options.messenger - The restricted controller messenger for the Approval controller.
+   * @param options.messenger - The restricted messenger for the Approval controller.
    * @param options.state - The initial controller state.
    * @param options.typesExcludedFromRateLimiting - Array of approval types which allow multiple pending approval requests from the same origin.
    */

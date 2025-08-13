@@ -37,6 +37,7 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     'animationOriginal',
     'externalLink',
     'tokenURI',
+    'chainId',
   ];
   const differentValues = keys.reduce((value, key) => {
     if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
@@ -185,6 +186,21 @@ export enum SupportedTokenDetectionNetworks {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   moonriver = '0x505', // decimal: 1285
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  sei = '0x531', // decimal: 1329
+}
+
+/**
+ * Networks where staked balance is supported - Values are in hex format
+ */
+export enum SupportedStakedBalanceNetworks {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  mainnet = '0x1', // decimal: 1
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  hoodi = '0x88bb0', // decimal: 560048
 }
 
 /**
@@ -319,7 +335,7 @@ export function divideIntoBatches<Value>(
 }
 
 /**
- * Constructs an object from processing batches of the given values
+ * Constructs a result from processing batches of the given values
  * sequentially.
  *
  * @param args - The arguments to this function.
@@ -331,12 +347,9 @@ export function divideIntoBatches<Value>(
  * and the index, and should return an updated version of the object.
  * @param args.initialResult - The initial value of the final data structure,
  * i.e., the value that will be fed into the first call of `eachBatch`.
- * @returns The built object.
+ * @returns The built result.
  */
-export async function reduceInBatchesSerially<
-  Value,
-  Result extends Record<PropertyKey, unknown>,
->({
+export async function reduceInBatchesSerially<Value, Result>({
   values,
   batchSize,
   eachBatch,
@@ -423,4 +436,19 @@ export async function fetchTokenContractExchangeRates({
     },
     {},
   );
+}
+
+/**
+ * Function to search for a specific value in a given map and return the key
+ * @param map - map input to search value
+ * @param value - the value to search for
+ * @returns returns key that corresponds to the value
+ */
+export function getKeyByValue(map: Map<string, string>, value: string) {
+  for (const [key, val] of map.entries()) {
+    if (val === value) {
+      return key;
+    }
+  }
+  return null; // Return null if no match is found
 }

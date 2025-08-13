@@ -8,7 +8,9 @@ import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
   domainToParts,
+  generateParentDomains,
   getDefaultPhishingDetectorConfig,
+  getHostnameFromUrl,
   matchPartsAgainstList,
   processConfigs,
   sha256Hash,
@@ -223,10 +225,8 @@ export class PhishingDetector {
    * @returns An object indicating if the URL is blocked and relevant metadata.
    */
   isMaliciousC2Domain(urlString: string): PhishingDetectorResult {
-    let hostname;
-    try {
-      hostname = new URL(urlString).hostname;
-    } catch (error) {
+    const hostname = getHostnameFromUrl(urlString);
+    if (!hostname) {
       return {
         result: false,
         type: PhishingDetectorResultType.C2DomainBlocklist,
@@ -234,12 +234,11 @@ export class PhishingDetector {
     }
 
     const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
-
-    const source = domainToParts(fqdn);
+    const sourceParts = domainToParts(fqdn);
 
     for (const { allowlist, name, version } of this.#configs) {
       // if source matches allowlist hostname (or subdomain thereof), PASS
-      const allowlistMatch = matchPartsAgainstList(source, allowlist);
+      const allowlistMatch = matchPartsAgainstList(sourceParts, allowlist);
       if (allowlistMatch) {
         const match = domainPartsToDomain(allowlistMatch);
         return {
@@ -252,17 +251,33 @@ export class PhishingDetector {
       }
     }
 
-    for (const { c2DomainBlocklist, name, version } of this.#configs) {
-      const hash = sha256Hash(hostname.toLowerCase());
-      const blocked = c2DomainBlocklist?.includes(hash) ?? false;
+    const hostnameHash = sha256Hash(hostname.toLowerCase());
+    const domainsToCheck = generateParentDomains(sourceParts.reverse(), 5);
 
-      if (blocked) {
+    for (const { c2DomainBlocklist, name, version } of this.#configs) {
+      if (!c2DomainBlocklist || c2DomainBlocklist.length === 0) {
+        continue;
+      }
+
+      if (c2DomainBlocklist.includes(hostnameHash)) {
         return {
           name,
           result: true,
           type: PhishingDetectorResultType.C2DomainBlocklist,
           version: version === undefined ? version : String(version),
         };
+      }
+
+      for (const domain of domainsToCheck) {
+        const domainHash = sha256Hash(domain);
+        if (c2DomainBlocklist.includes(domainHash)) {
+          return {
+            name,
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: version === undefined ? version : String(version),
+          };
+        }
       }
     }
     // did not match, PASS

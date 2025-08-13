@@ -1,14 +1,17 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
   convertHexToDecimal,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  getDefaultNetworkControllerState,
+  RpcEndpointType,
+} from '@metamask/network-controller';
 import type {
   NetworkState,
   NetworkConfiguration,
@@ -25,14 +28,15 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
+import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
+import * as MutliChainAccountsServiceModule from './multi-chain-accounts-service';
+import {
+  MOCK_GET_BALANCES_RESPONSE,
+  createMockGetBalancesResponse,
+} from './multi-chain-accounts-service/mocks/mock-get-balances';
+import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './multi-chain-accounts-service/mocks/mock-get-supported-networks';
 import { TOKEN_END_POINT_API } from './token-service';
 import type {
   AllowedActions,
@@ -43,17 +47,28 @@ import {
   STATIC_MAINNET_TOKEN_LIST,
   TokenDetectionController,
   controllerName,
+  mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
 import {
   getDefaultTokenListState,
+  type TokenListMap,
   type TokenListState,
   type TokenListToken,
 } from './TokenListController';
+import type { Token } from './TokenRatesController';
 import type {
   TokensController,
   TokensControllerState,
 } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
+import type { TransactionMeta } from '../../transaction-controller/src/types';
+import { TransactionStatus } from '../../transaction-controller/src/types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -117,8 +132,8 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   [InfuraNetworkType.mainnet]: buildInfuraNetworkConfiguration(
     InfuraNetworkType.mainnet,
   ),
-  [InfuraNetworkType.goerli]: buildInfuraNetworkConfiguration(
-    InfuraNetworkType.goerli,
+  [InfuraNetworkType.sepolia]: buildInfuraNetworkConfiguration(
+    InfuraNetworkType.sepolia,
   ),
   polygon: {
     blockExplorerUrls: ['https://polygonscan.com/'],
@@ -135,20 +150,21 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   },
 };
 
-type MainControllerMessenger = ControllerMessenger<
+type MainMessenger = Messenger<
   AllowedActions | AddApprovalRequest,
   AllowedEvents
 >;
 
 /**
  * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.
- * @param controllerMessenger - The main controller messenger.
+ *
+ * @param messenger - The main messenger.
  * @returns The restricted messenger.
  */
 function buildTokenDetectionControllerMessenger(
-  controllerMessenger: MainControllerMessenger = new ControllerMessenger(),
+  messenger: MainMessenger = new Messenger(),
 ): TokenDetectionControllerMessenger {
-  return controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [
       'AccountsController:getAccount',
@@ -161,6 +177,8 @@ function buildTokenDetectionControllerMessenger(
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
       'PreferencesController:getState',
+      'TokensController:addTokens',
+      'NetworkController:findNetworkClientIdByChainId',
     ],
     allowedEvents: [
       'AccountsController:selectedEvmAccountChange',
@@ -169,28 +187,41 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
       'PreferencesController:stateChange',
+      'TransactionController:transactionConfirmed',
     ],
   });
 }
 
+const mockMultiChainAccountsService = () => {
+  const mockFetchSupportedNetworks = jest
+    .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+    .mockResolvedValue(MOCK_GET_SUPPORTED_NETWORKS_RESPONSE.fullSupport);
+  const mockFetchMultiChainBalances = jest
+    .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+    .mockResolvedValue(MOCK_GET_BALANCES_RESPONSE);
+
+  return {
+    mockFetchSupportedNetworks,
+    mockFetchMultiChainBalances,
+  };
+};
+
 describe('TokenDetectionController', () => {
   const defaultSelectedAccount = createMockInternalAccount();
+
+  mockMultiChainAccountsService();
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenAFromList.address
         }`,
       )
       .reply(200, tokenAFromList)
       .get(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenBFromList.address
         }`,
@@ -257,6 +288,24 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    it('should not poll if the controller is not active', async () => {
+      await withController(
+        {
+          isKeyringUnlocked: true,
+        },
+        async ({ controller }) => {
+          controller.setIntervalLength(10);
+
+          await controller._executePoll({
+            chainIds: [ChainId.mainnet],
+            address: defaultSelectedAccount.address,
+          });
+
+          expect(controller.isActive).toBe(false);
+        },
+      );
+    });
+
     it('should stop polling and detect tokens on interval if unlocked keyring is locked', async () => {
       await withController(
         {
@@ -305,16 +354,23 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockNetworkState }) => {
+        async ({ controller, mockNetworkState, mockGetNetworkClientById }) => {
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: ChainId.sepolia },
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+          );
           await controller.start();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
@@ -333,13 +389,16 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getAccount: selectedAccount,
             getSelectedAccount: selectedAccount,
           },
         },
+
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockMultiChainAccountsService();
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -363,6 +422,77 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [sampleTokenA],
+            'mainnet',
+          );
+        },
+      );
+    });
+
+    it('should not call add tokens if balance is not available on account api', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+        },
+
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockMultiChainAccountsService();
+
+          const mockAPI = mockMultiChainAccountsService();
+          mockAPI.mockFetchMultiChainBalances.mockResolvedValue({
+            count: 0,
+            balances: [
+              {
+                object: 'token',
+                address: '0xaddress',
+                name: 'Mock Token',
+                symbol: 'MOCK',
+                decimals: 18,
+                balance: '10.18',
+                chainId: 2,
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  test: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: 'test',
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          await controller.start();
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA],
             {
@@ -385,6 +515,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getAccount: selectedAccount,
@@ -396,8 +527,10 @@ describe('TokenDetectionController', () => {
           mockTokenListGetState,
           mockNetworkState,
           mockGetNetworkClientById,
+          mockFindNetworkClientIdByChainId,
           callActionSpy,
         }) => {
+          mockMultiChainAccountsService();
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'polygon',
@@ -406,9 +539,9 @@ describe('TokenDetectionController', () => {
             () =>
               ({
                 configuration: { chainId: '0x89' },
-              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
-
+          mockFindNetworkClientIdByChainId(() => 'polygon');
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -432,12 +565,9 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: '0x89',
-              selectedAddress: selectedAccount.address,
-            },
+            'polygon',
           );
         },
       );
@@ -464,6 +594,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockMultiChainAccountsService();
           const tokenListState = {
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -499,12 +630,9 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: interval });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA, sampleTokenB],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -521,6 +649,7 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getAccount: selectedAccount,
@@ -533,9 +662,9 @@ describe('TokenDetectionController', () => {
           mockTokenListGetState,
           callActionSpy,
         }) => {
+          mockMultiChainAccountsService();
           mockTokensGetState({
             ...getDefaultTokensState(),
-            ignoredTokens: [sampleTokenA.address],
           });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
@@ -574,12 +703,14 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: defaultSelectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockMultiChainAccountsService();
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -613,7 +744,7 @@ describe('TokenDetectionController', () => {
   describe('AccountsController:selectedAccountChange', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      clock = useFakeTimers();
     });
 
     afterEach(() => {
@@ -636,6 +767,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: firstSelectedAccount,
@@ -647,6 +779,7 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange,
             callActionSpy,
           }) => {
+            mockMultiChainAccountsService();
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -672,12 +805,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -695,6 +825,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: selectedAccount,
@@ -705,6 +836,7 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange,
             callActionSpy,
           }) => {
+            mockMultiChainAccountsService();
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -814,6 +946,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: firstSelectedAccount,
@@ -884,6 +1017,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: firstSelectedAccount,
@@ -892,10 +1026,12 @@ describe('TokenDetectionController', () => {
           async ({
             mockGetAccount,
             mockTokenListGetState,
+            mockNetworkState,
             triggerPreferencesStateChange,
             triggerSelectedAccountChange,
             callActionSpy,
           }) => {
+            mockMultiChainAccountsService();
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -915,6 +1051,27 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+            mockNetworkState({
+              networkConfigurationsByChainId: {
+                '0x1': {
+                  name: 'ethereum',
+                  nativeCurrency: 'ETH',
+                  rpcEndpoints: [
+                    {
+                      networkClientId: 'mainnet',
+                      type: RpcEndpointType.Infura,
+                      url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                      failoverUrls: [],
+                    },
+                  ],
+                  blockExplorerUrls: [],
+                  chainId: '0x1',
+                  defaultRpcEndpointIndex: 0,
+                },
+              },
+              networksMetadata: {},
+              selectedNetworkClientId: 'mainnet',
+            });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
@@ -925,13 +1082,82 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenLastCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAccount.address,
-              },
+              'mainnet',
             );
+          },
+        );
+      });
+
+      it('should detect new tokens after switching between accounts on different chains', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
+            },
+          },
+          async ({
+            mockGetAccount,
+            mockTokenListGetState,
+            mockNetworkState,
+            triggerPreferencesStateChange,
+            triggerSelectedAccountChange,
+            controller,
+          }) => {
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+            mockMultiChainAccountsService();
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                },
+              },
+            });
+            mockNetworkState({
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: NetworkType.mainnet,
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: true,
+            });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
+
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockTokens).toHaveBeenNthCalledWith(1, {
+              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708', '0x2105'],
+              selectedAddress: secondSelectedAccount.address,
+            });
           },
         );
       });
@@ -948,6 +1174,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: selectedAccount,
@@ -959,6 +1186,7 @@ describe('TokenDetectionController', () => {
             triggerPreferencesStateChange,
             callActionSpy,
           }) => {
+            mockMultiChainAccountsService();
             mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -993,12 +1221,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: selectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1019,6 +1244,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: firstSelectedAccount,
@@ -1031,18 +1257,24 @@ describe('TokenDetectionController', () => {
             triggerPreferencesStateChange,
             callActionSpy,
           }) => {
+            mockMultiChainAccountsService();
             mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1087,15 +1319,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1146,15 +1383,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1200,15 +1442,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1264,15 +1511,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1317,15 +1569,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1362,67 +1619,6 @@ describe('TokenDetectionController', () => {
     });
 
     describe('when "disabled" is false', () => {
-      it('should detect new tokens after switching network client id', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getAccount: selectedAccount,
-              getSelectedAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerNetworkDidChange,
-          }) => {
-            mockTokenListGetState({
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                '0x89': {
-                  timestamp: 0,
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                },
-              },
-            });
-
-            triggerNetworkDidChange({
-              ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'polygon',
-            });
-            await advanceTime({ clock, duration: 1 });
-
-            expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
-              [sampleTokenA],
-              {
-                chainId: '0x89',
-                selectedAddress: selectedAccount.address,
-              },
-            );
-          },
-        );
-      });
-
       it('should not detect new tokens after switching to a chain that does not support token detection', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -1449,7 +1645,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
-                '0x5': {
+                [ChainId.sepolia]: {
                   timestamp: 0,
                   data: {
                     [sampleTokenA.address]: {
@@ -1468,7 +1664,7 @@ describe('TokenDetectionController', () => {
 
             triggerNetworkDidChange({
               ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'goerli',
+              selectedNetworkClientId: NetworkType.sepolia,
             });
             await advanceTime({ clock, duration: 1 });
 
@@ -1504,15 +1700,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1557,15 +1758,20 @@ describe('TokenDetectionController', () => {
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  [ChainId.mainnet]: {
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
+                    timestamp: 0,
                   },
                 },
               });
@@ -1611,15 +1817,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1662,6 +1873,7 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
             },
             mocks: {
               getSelectedAccount: selectedAccount,
@@ -1673,6 +1885,7 @@ describe('TokenDetectionController', () => {
             callActionSpy,
             triggerTokenListStateChange,
           }) => {
+            mockMultiChainAccountsService();
             const tokenList = {
               [sampleTokenA.address]: {
                 name: sampleTokenA.name,
@@ -1686,7 +1899,6 @@ describe('TokenDetectionController', () => {
             };
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList,
               tokensChainsCache: {
                 '0x1': {
                   timestamp: 0,
@@ -1700,12 +1912,9 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
+              'TokensController:addTokens',
               [sampleTokenA],
-              {
-                chainId: ChainId.mainnet,
-                selectedAddress: selectedAccount.address,
-              },
+              'mainnet',
             );
           },
         );
@@ -1736,7 +1945,7 @@ describe('TokenDetectionController', () => {
           }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {},
+              tokensChainsCache: {},
             };
             mockTokenListGetState(tokenListState);
 
@@ -1777,15 +1986,20 @@ describe('TokenDetectionController', () => {
             }) => {
               const tokenListState = {
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  [ChainId.mainnet]: {
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
+                    timestamp: 0,
                   },
                 },
               };
@@ -1829,15 +2043,20 @@ describe('TokenDetectionController', () => {
           }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             };
@@ -1853,9 +2072,229 @@ describe('TokenDetectionController', () => {
         );
       });
     });
+
+    describe('when previous and incoming tokensChainsCache are equal with the same timestamp', () => {
+      it('should not call detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerTokenListStateChange,
+            controller,
+          }) => {
+            mockMultiChainAccountsService();
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
+                },
+              },
+            };
+            mockTokenListGetState(tokenListState);
+            // This should set the tokensChainsCache value
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+
+            // Re-trigger state change so that incoming list is equal the current list in state
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+            expect(mockTokens).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
+    });
+
+    describe('when previous and incoming tokensChainsCache are equal with different timestamp', () => {
+      it('should not call detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerTokenListStateChange,
+            controller,
+          }) => {
+            mockMultiChainAccountsService();
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
+                },
+              },
+            };
+            mockTokenListGetState(tokenListState);
+            // This should set the tokensChainsCache value
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+
+            // Re-trigger state change so that incoming list is equal the current list in state
+            triggerTokenListStateChange({
+              ...tokenListState,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 3424, // same list with different timestamp should not trigger detectTokens again
+                },
+              },
+            });
+            await advanceTime({ clock, duration: 1 });
+            expect(mockTokens).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
+    });
+
+    describe('when previous and incoming tokensChainsCache are not equal', () => {
+      it('should call detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerTokenListStateChange,
+            controller,
+          }) => {
+            mockMultiChainAccountsService();
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
+                },
+              },
+            };
+            mockTokenListGetState(tokenListState);
+            // This should set the tokensChainsCache value
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+
+            // Re-trigger state change so that incoming list is equal the current list in state
+            triggerTokenListStateChange({
+              ...tokenListState,
+              tokensChainsCache: {
+                ...tokenListState.tokensChainsCache,
+                [ChainId['linea-mainnet']]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 5546454,
+                },
+              },
+            });
+            await advanceTime({ clock, duration: 1 });
+            expect(mockTokens).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+    });
   });
 
-  describe('startPollingByNetworkClientId', () => {
+  describe('startPolling', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
       clock = sinon.useFakeTimers();
@@ -1886,15 +2325,20 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+                timestamp: 0,
               },
             },
           });
@@ -1904,31 +2348,34 @@ describe('TokenDetectionController', () => {
               return Promise.resolve();
             });
 
-          controller.startPollingByNetworkClientId('mainnet', {
+          controller.startPolling({
+            chainIds: ['0x1'],
             address: '0x1',
           });
-          controller.startPollingByNetworkClientId('sepolia', {
+          controller.startPolling({
+            chainIds: ['0xaa36a7'],
             address: '0xdeadbeef',
           });
-          controller.startPollingByNetworkClientId('goerli', {
+          controller.startPolling({
+            chainIds: ['0x5'],
             address: '0x3',
           });
           await advanceTime({ clock, duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ chainIds: ['0x1'], selectedAddress: '0x1' }],
+            [{ chainIds: ['0xaa36a7'], selectedAddress: '0xdeadbeef' }],
+            [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
           ]);
 
           await advanceTime({ clock, duration: DEFAULT_INTERVAL });
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
-            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ chainIds: ['0x1'], selectedAddress: '0x1' }],
+            [{ chainIds: ['0xaa36a7'], selectedAddress: '0xdeadbeef' }],
+            [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
+            [{ chainIds: ['0x1'], selectedAddress: '0x1' }],
+            [{ chainIds: ['0xaa36a7'], selectedAddress: '0xdeadbeef' }],
+            [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
           ]);
         },
       );
@@ -1948,6 +2395,7 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: selectedAccount,
@@ -1960,16 +2408,17 @@ describe('TokenDetectionController', () => {
           triggerPreferencesStateChange,
           callActionSpy,
         }) => {
+          mockMultiChainAccountsService();
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            networkClientId: NetworkType.goerli,
+            chainIds: [ChainId.sepolia],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -2008,16 +2457,17 @@ describe('TokenDetectionController', () => {
           triggerPreferencesStateChange,
           callActionSpy,
         }) => {
+          mockMultiChainAccountsService();
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
               const { iconUrl, ...tokenMetadata } = token;
               return {
@@ -2026,10 +2476,7 @@ describe('TokenDetectionController', () => {
                 isERC721: false,
               };
             }),
-            {
-              selectedAddress: selectedAccount.address,
-              chainId: ChainId.mainnet,
-            },
+            'mainnet',
           );
         },
       );
@@ -2047,6 +2494,7 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: selectedAccount,
@@ -2054,6 +2502,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockMultiChainAccountsService();
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2075,17 +2524,14 @@ describe('TokenDetectionController', () => {
           });
 
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [sampleTokenA],
-            {
-              chainId: ChainId.mainnet,
-              selectedAddress: selectedAccount.address,
-            },
+            'mainnet',
           );
         },
       );
@@ -2106,6 +2552,7 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: selectedAccount,
@@ -2113,6 +2560,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState }) => {
+          mockMultiChainAccountsService();
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2134,7 +2582,7 @@ describe('TokenDetectionController', () => {
           });
 
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
 
@@ -2168,6 +2616,7 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
+            useAccountsAPI: true, // USING ACCOUNTS API
           },
         },
         async ({
@@ -2176,6 +2625,7 @@ describe('TokenDetectionController', () => {
           mockTokenListGetState,
           callActionSpy,
         }) => {
+          mockMultiChainAccountsService();
           // @ts-expect-error forcing an undefined value
           mockGetAccount(undefined);
           mockTokenListGetState({
@@ -2199,11 +2649,11 @@ describe('TokenDetectionController', () => {
           });
 
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
           });
 
           expect(callActionSpy).toHaveBeenLastCalledWith(
-            'TokensController:addDetectedTokens',
+            'TokensController:addTokens',
             [
               {
                 address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
@@ -2228,10 +2678,861 @@ describe('TokenDetectionController', () => {
                 symbol: 'LINK',
               },
             ],
-            { chainId: '0x1', selectedAddress: '' },
+            'mainnet',
           );
         },
       );
+    });
+
+    it('should fallback to rpc call', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          triggerPreferencesStateChange,
+          callActionSpy,
+        }) => {
+          const mockAPI = mockMultiChainAccountsService();
+          mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+            new Error('Mock Error'),
+          );
+          mockNetworkState({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'polygon',
+          });
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: false,
+          });
+          await controller.detectTokens({
+            chainIds: [ChainId.sepolia],
+            selectedAddress: selectedAccount.address,
+          });
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+          );
+        },
+      );
+    });
+
+    /**
+     * Test Utility - Arrange and Act `detectTokens()` with the Accounts API feature
+     * RPC flow will return `sampleTokenA` and the Accounts API flow will use `sampleTokenB`
+     * @param props - options to modify these tests
+     * @param props.overrideMockTokensCache - change the tokens cache
+     * @param props.mockMultiChainAPI - change the Accounts API responses
+     * @param props.overrideMockTokenGetState - change the external TokensController state
+     * @returns properties that can be used for assertions
+     */
+    const arrangeActTestDetectTokensWithAccountsAPI = async (props?: {
+      /** Overwrite the tokens cache inside Tokens Controller */
+      overrideMockTokensCache?: (typeof sampleTokenA)[];
+      mockMultiChainAPI?: ReturnType<typeof mockMultiChainAccountsService>;
+      overrideMockTokenGetState?: Partial<TokensControllerState>;
+    }) => {
+      const {
+        overrideMockTokensCache = [sampleTokenA, sampleTokenB],
+        mockMultiChainAPI,
+        overrideMockTokenGetState,
+      } = props ?? {};
+
+      // Arrange - RPC Tokens Flow - Uses sampleTokenA
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      // Arrange - API Tokens Flow - Uses sampleTokenB
+      const { mockFetchSupportedNetworks, mockFetchMultiChainBalances } =
+        mockMultiChainAPI ?? mockMultiChainAccountsService();
+
+      if (!mockMultiChainAPI) {
+        mockFetchSupportedNetworks.mockResolvedValue([1]);
+        mockFetchMultiChainBalances.mockResolvedValue(
+          createMockGetBalancesResponse([sampleTokenB.address], 1),
+        );
+      }
+
+      // Arrange - Selected Account
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      // Arrange / Act - withController setup + invoke detectTokens
+      const { callAction } = await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          mockTokensGetState,
+        }) => {
+          const tokenCacheData: TokenListMap = {};
+          overrideMockTokensCache.forEach(
+            (t) =>
+              (tokenCacheData[t.address] = {
+                name: t.name,
+                symbol: t.symbol,
+                decimals: t.decimals,
+                address: t.address,
+                occurrences: 1,
+                aggregators: t.aggregators,
+                iconUrl: t.image,
+              }),
+          );
+
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: tokenCacheData,
+              },
+            },
+          });
+
+          if (overrideMockTokenGetState) {
+            mockTokensGetState({
+              ...getDefaultTokensState(),
+              ...overrideMockTokenGetState,
+            });
+          }
+
+          // Act
+          await controller.detectTokens({
+            chainIds: ['0x1'],
+            selectedAddress: selectedAccount.address,
+          });
+
+          return {
+            callAction: callActionSpy,
+          };
+        },
+      );
+
+      const assertAddedTokens = (token: Token) =>
+        expect(callAction).toHaveBeenCalledWith(
+          'TokensController:addTokens',
+          [token],
+          'mainnet',
+        );
+
+      const assertTokensNeverAdded = () =>
+        expect(callAction).not.toHaveBeenCalledWith(
+          'TokensController:addTokens',
+        );
+
+      return {
+        assertAddedTokens,
+        assertTokensNeverAdded,
+        mockFetchMultiChainBalances,
+        mockGetBalancesInSingleCall,
+        rpcToken: sampleTokenA,
+        apiToken: sampleTokenB,
+      };
+    };
+
+    it('should trigger and use Accounts API for detection', async () => {
+      const {
+        assertAddedTokens,
+        mockFetchMultiChainBalances,
+        apiToken,
+        mockGetBalancesInSingleCall,
+      } = await arrangeActTestDetectTokensWithAccountsAPI();
+
+      expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+      expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+      assertAddedTokens(apiToken);
+    });
+
+    it('uses the Accounts API but does not add unknown tokens', async () => {
+      // API returns sampleTokenB
+      // As this is not a known token (in cache), then is not added
+      const {
+        assertTokensNeverAdded,
+        mockFetchMultiChainBalances,
+        mockGetBalancesInSingleCall,
+      } = await arrangeActTestDetectTokensWithAccountsAPI({
+        overrideMockTokensCache: [sampleTokenA],
+      });
+
+      expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+      expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+      assertTokensNeverAdded();
+    });
+
+    it('fallbacks from using the Accounts API if fails', async () => {
+      // Test 1 - fetch supported networks fails
+      let mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchSupportedNetworks.mockRejectedValue(
+        new Error('Mock Error'),
+      );
+      let actResult = await arrangeActTestDetectTokensWithAccountsAPI({
+        mockMultiChainAPI: mockAPI,
+      });
+
+      expect(actResult.mockFetchMultiChainBalances).not.toHaveBeenCalled(); // never called as could not fetch supported networks...
+      expect(actResult.mockGetBalancesInSingleCall).toHaveBeenCalled(); // ...so then RPC flow was initiated
+      actResult.assertAddedTokens(actResult.rpcToken);
+
+      // Test 2 - fetch multi chain fails
+      mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+        new Error('Mock Error'),
+      );
+      actResult = await arrangeActTestDetectTokensWithAccountsAPI({
+        mockMultiChainAPI: mockAPI,
+      });
+
+      expect(actResult.mockFetchMultiChainBalances).toHaveBeenCalled(); // API was called, but failed...
+      expect(actResult.mockGetBalancesInSingleCall).toHaveBeenCalled(); // ...so then RPC flow was initiated
+      actResult.assertAddedTokens(actResult.rpcToken);
+    });
+
+    it('uses the Accounts API but does not add tokens that are already added', async () => {
+      // Here we populate the token state with a token that exists in the tokenAPI.
+      // So the token retrieved from the API should not be added
+      const { assertTokensNeverAdded, mockFetchMultiChainBalances } =
+        await arrangeActTestDetectTokensWithAccountsAPI({
+          overrideMockTokenGetState: {
+            allDetectedTokens: {
+              '0x1': {
+                '0x0000000000000000000000000000000000000001': [
+                  {
+                    address: sampleTokenB.address,
+                    name: sampleTokenB.name,
+                    symbol: sampleTokenB.symbol,
+                    decimals: sampleTokenB.decimals,
+                    aggregators: sampleTokenB.aggregators,
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+      expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+      assertTokensNeverAdded();
+    });
+  });
+
+  describe('mapChainIdWithTokenListMap', () => {
+    it('should return an empty object when given an empty input', () => {
+      const tokensChainsCache = {};
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return the same structure when there is no "data" property in the object', () => {
+      const tokensChainsCache = {
+        chain1: { info: 'no data property' },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual(tokensChainsCache); // Expect unchanged structure
+    });
+
+    it('should map "data" property if present in the object', () => {
+      const tokensChainsCache = {
+        chain1: { data: 'someData' },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual({ chain1: 'someData' });
+    });
+
+    it('should handle multiple chains with mixed "data" properties', () => {
+      const tokensChainsCache = {
+        chain1: { data: 'someData1' },
+        chain2: { info: 'no data property' },
+        chain3: { data: 'someData3' },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+
+      expect(result).toStrictEqual({
+        chain1: 'someData1',
+        chain2: { info: 'no data property' },
+        chain3: 'someData3',
+      });
+    });
+
+    it('should handle nested object with "data" property correctly', () => {
+      const tokensChainsCache = {
+        chain1: {
+          data: {
+            nested: 'nestedData',
+          },
+        },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
+    });
+  });
+
+  describe('TransactionController:transactionConfirmed', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+    it('calls detectTokens when a transaction is confirmed', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const firstSelectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      const secondSelectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000002',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: firstSelectedAccount,
+          },
+        },
+        async ({
+          mockGetAccount,
+          mockTokenListGetState,
+          triggerTransactionConfirmed,
+          callActionSpy,
+        }) => {
+          mockMultiChainAccountsService();
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          mockGetAccount(secondSelectedAccount);
+          triggerTransactionConfirmed({
+            chainId: '0x1',
+            status: TransactionStatus.confirmed,
+          } as unknown as TransactionMeta);
+          await advanceTime({ clock, duration: 1 });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [sampleTokenA],
+            'mainnet',
+          );
+        },
+      );
+    });
+  });
+
+  describe('constructor options', () => {
+    describe('useTokenDetection', () => {
+      it('should disable token detection when useTokenDetection is false', async () => {
+        const mockGetBalancesInSingleCall = jest.fn();
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => false,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            // Try to detect tokens
+            await controller.detectTokens();
+
+            // Should not call getBalancesInSingleCall when useTokenDetection is false
+            expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should enable token detection when useTokenDetection is true (default)', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => true,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            // Try to detect tokens
+            await controller.detectTokens();
+
+            // Should call getBalancesInSingleCall when useTokenDetection is true
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not start polling when useTokenDetection is false', async () => {
+        const mockGetBalancesInSingleCall = jest.fn();
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => false,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.start();
+
+            // Should not call getBalancesInSingleCall during start when useTokenDetection is false
+            expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should start polling when useTokenDetection is true (default)', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => true,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.start();
+
+            // Should call getBalancesInSingleCall during start when useTokenDetection is true
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('useExternalServices', () => {
+      it('should not use external services when useExternalServices is false (default)', async () => {
+        const mockFetchSupportedNetworks = jest.spyOn(
+          MutliChainAccountsServiceModule,
+          'fetchSupportedNetworks',
+        );
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => false,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.detectTokens();
+
+            // Should not call fetchSupportedNetworks when useExternalServices is false
+            expect(mockFetchSupportedNetworks).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should use external services when useExternalServices is true', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]); // Mainnet and Polygon
+
+        jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockResolvedValue({
+            count: 1,
+            balances: [
+              {
+                object: 'token_balance',
+                address: sampleTokenA.address,
+                symbol: sampleTokenA.symbol,
+                name: sampleTokenA.name,
+                decimals: sampleTokenA.decimals,
+                chainId: 1,
+                balance: '1000000000000000000',
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call fetchSupportedNetworks when useExternalServices is true
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not use external services when useAccountsAPI is false, regardless of useExternalServices', async () => {
+        const mockFetchSupportedNetworks = jest.spyOn(
+          MutliChainAccountsServiceModule,
+          'fetchSupportedNetworks',
+        );
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: false,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.detectTokens();
+
+            // Should not call fetchSupportedNetworks when useAccountsAPI is false
+            expect(mockFetchSupportedNetworks).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should use external services when both useExternalServices and useAccountsAPI are true', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]);
+
+        jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockResolvedValue({
+            count: 1,
+            balances: [
+              {
+                object: 'token_balance',
+                address: sampleTokenA.address,
+                symbol: sampleTokenA.symbol,
+                name: sampleTokenA.name,
+                decimals: sampleTokenA.decimals,
+                chainId: 1,
+                balance: '1000000000000000000',
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call both external service methods when both flags are true
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should fall back to RPC detection when external services fail', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]);
+
+        const mockFetchMultiChainBalances = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockRejectedValue(new Error('API Error'));
+
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+
+        await withController(
+          {
+            options: {
+              useExternalServices: () => true,
+              useAccountsAPI: true,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call external services first
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+            expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+
+            // Should fall back to RPC detection when external services fail
+            expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('useTokenDetection and useExternalServices combination', () => {
+      it('should not use external services when useTokenDetection is false, regardless of useExternalServices', async () => {
+        const mockFetchSupportedNetworks = jest.spyOn(
+          MutliChainAccountsServiceModule,
+          'fetchSupportedNetworks',
+        );
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => false,
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller }) => {
+            await controller.detectTokens();
+
+            // Should not call external services when token detection is disabled
+            expect(mockFetchSupportedNetworks).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should use external services when both useTokenDetection and useExternalServices are true', async () => {
+        const mockFetchSupportedNetworks = jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+          .mockResolvedValue([1, 137]);
+
+        jest
+          .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+          .mockResolvedValue({
+            count: 1,
+            balances: [
+              {
+                object: 'token_balance',
+                address: sampleTokenA.address,
+                symbol: sampleTokenA.symbol,
+                name: sampleTokenA.name,
+                decimals: sampleTokenA.decimals,
+                chainId: 1,
+                balance: '1000000000000000000',
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+        await withController(
+          {
+            options: {
+              useTokenDetection: () => true,
+              useExternalServices: () => true,
+              disabled: false,
+              useAccountsAPI: true,
+            },
+            mocks: {
+              getSelectedAccount: defaultSelectedAccount,
+            },
+          },
+          async ({ controller, mockTokenListGetState }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                      occurrences: 11,
+                    },
+                  },
+                },
+              },
+            });
+
+            await controller.detectTokens();
+
+            // Should call external services when both flags are true
+            expect(mockFetchSupportedNetworks).toHaveBeenCalled();
+          },
+        );
+      });
     });
   });
 });
@@ -2243,11 +3544,9 @@ describe('TokenDetectionController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false`;
 }
 
 type WithControllerCallback<ReturnValue> = ({
@@ -2268,6 +3567,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange,
   triggerSelectedAccountChange,
   triggerNetworkDidChange,
+  triggerTransactionConfirmed,
 }: {
   controller: TokenDetectionController;
   mockGetAccount: (internalAccount: InternalAccount) => void;
@@ -2285,6 +3585,9 @@ type WithControllerCallback<ReturnValue> = ({
     handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
   ) => void;
   mockNetworkState: (state: NetworkState) => void;
+  mockFindNetworkClientIdByChainId: (
+    handler: (chainId: Hex) => NetworkClientId,
+  ) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -2292,12 +3595,12 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
+  triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
   isKeyringUnlocked?: boolean;
-  messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
   mocks?: {
     getAccount?: InternalAccount;
     getSelectedAccount?: InternalAccount;
@@ -2321,12 +3624,11 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, messenger, mocks } = rest;
-  const controllerMessenger =
-    messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const { options, isKeyringUnlocked, mocks } = rest;
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getAccount',
     mockGetAccount.mockReturnValue(
       mocks?.getAccount ?? createMockInternalAccount({ address: '0x1' }),
@@ -2334,7 +3636,7 @@ async function withController<ReturnValue>(
   );
 
   const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount.mockReturnValue(
       mocks?.getSelectedAccount ??
@@ -2342,7 +3644,7 @@ async function withController<ReturnValue>(
     ),
   );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: isKeyringUnlocked ?? true,
@@ -2352,7 +3654,7 @@ async function withController<ReturnValue>(
     ReturnType<NetworkController['getNetworkClientById']>,
     Parameters<NetworkController['getNetworkClientById']>
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById.mockImplementation(() => {
       return {
@@ -2367,7 +3669,7 @@ async function withController<ReturnValue>(
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
     Parameters<NetworkController['getNetworkConfigurationByNetworkClientId']>
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
       (networkClientId: NetworkClientId) => {
@@ -2376,28 +3678,35 @@ async function withController<ReturnValue>(
     ),
   );
   const mockNetworkState = jest.fn<NetworkState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkState.mockReturnValue({ ...getDefaultNetworkControllerState() }),
   );
   const mockTokensState = jest.fn<TokensControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
   );
   const mockTokenListState = jest.fn<TokenListState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokenListController:getState',
     mockTokenListState.mockReturnValue({ ...getDefaultTokenListState() }),
   );
   const mockPreferencesState = jest.fn<PreferencesState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'PreferencesController:getState',
     mockPreferencesState.mockReturnValue({
       ...getDefaultPreferencesState(),
     }),
   );
-  controllerMessenger.registerActionHandler(
+
+  const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mockFindNetworkClientIdByChainId.mockReturnValue('mainnet'),
+  );
+
+  messenger.registerActionHandler(
     'TokensController:addDetectedTokens',
     jest
       .fn<
@@ -2406,12 +3715,25 @@ async function withController<ReturnValue>(
       >()
       .mockResolvedValue(undefined),
   );
-  const callActionSpy = jest.spyOn(controllerMessenger, 'call');
+
+  messenger.registerActionHandler(
+    'TokensController:addTokens',
+    jest
+      .fn<
+        ReturnType<TokensController['addTokens']>,
+        Parameters<TokensController['addTokens']>
+      >()
+      .mockResolvedValue(undefined),
+  );
+
+  const callActionSpy = jest.spyOn(messenger, 'call');
 
   const controller = new TokenDetectionController({
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
-    messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
+    messenger: buildTokenDetectionControllerMessenger(messenger),
+    useAccountsAPI: false,
+    platform: 'extension',
     ...options,
   });
   try {
@@ -2442,6 +3764,11 @@ async function withController<ReturnValue>(
       ) => {
         mockGetNetworkClientById.mockImplementation(handler);
       },
+      mockFindNetworkClientIdByChainId: (
+        handler: (chainId: Hex) => NetworkClientId,
+      ) => {
+        mockFindNetworkClientIdByChainId.mockImplementation(handler);
+      },
       mockGetNetworkConfigurationByNetworkClientId: (
         handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
       ) => {
@@ -2454,35 +3781,30 @@ async function withController<ReturnValue>(
       },
       callActionSpy,
       triggerKeyringUnlock: () => {
-        controllerMessenger.publish('KeyringController:unlock');
+        messenger.publish('KeyringController:unlock');
       },
       triggerKeyringLock: () => {
-        controllerMessenger.publish('KeyringController:lock');
+        messenger.publish('KeyringController:lock');
       },
       triggerTokenListStateChange: (state: TokenListState) => {
-        controllerMessenger.publish(
-          'TokenListController:stateChange',
-          state,
-          [],
-        );
+        messenger.publish('TokenListController:stateChange', state, []);
       },
       triggerPreferencesStateChange: (state: PreferencesState) => {
-        controllerMessenger.publish(
-          'PreferencesController:stateChange',
-          state,
-          [],
-        );
+        messenger.publish('PreferencesController:stateChange', state, []);
       },
       triggerSelectedAccountChange: (account: InternalAccount) => {
-        controllerMessenger.publish(
+        messenger.publish(
           'AccountsController:selectedEvmAccountChange',
           account,
         );
       },
       triggerNetworkDidChange: (state: NetworkState) => {
-        controllerMessenger.publish(
-          'NetworkController:networkDidChange',
-          state,
+        messenger.publish('NetworkController:networkDidChange', state);
+      },
+      triggerTransactionConfirmed: (transactionMeta: TransactionMeta) => {
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
         );
       },
     });
