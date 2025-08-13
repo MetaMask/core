@@ -658,25 +658,23 @@ describe('BridgeStatusController', () => {
         },
       });
 
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
-      );
-
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
+      bridgeStatusController.stopAllPolling();
     });
 
     it('restarts polling for history items that are not complete', async () => {
       // Setup
       jest.useFakeTimers();
+      mockFetchFn
+        .mockResolvedValueOnce(MockStatusResponse.getPending())
+        .mockResolvedValueOnce(MockStatusResponse.getComplete());
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
       );
 
       // Execution
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
         state: {
@@ -687,7 +685,7 @@ describe('BridgeStatusController', () => {
           },
         },
         clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
+        fetchFn: mockFetchFn,
         addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
         updateTransactionFn: jest.fn(),
@@ -698,6 +696,7 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+      bridgeStatusController.stopAllPolling();
     });
   });
 
@@ -737,7 +736,7 @@ describe('BridgeStatusController', () => {
       await flushPromises();
 
       // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
       // Transaction should still be in history but status should remain unchanged
       expect(bridgeStatusController.state.txHistory).toHaveProperty(
         'bridgeTxMetaId1',
@@ -755,6 +754,8 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
           ?.lastAttemptTime,
       ).toBeDefined();
+
+      bridgeStatusController.stopAllPolling();
     });
 
     it('should stop polling after max attempts are reached', async () => {

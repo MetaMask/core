@@ -5,7 +5,9 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "attempts": undefined,
     "batchId": undefined,
+    "completionTime": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -110,8 +112,24 @@ Object {
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": Object {
+      "destChain": Object {
+        "chainId": 10,
+        "token": Object {},
+      },
       "srcChain": Object {
+        "amount": "991250000000000",
         "chainId": 42161,
+        "token": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2518.47",
+          "symbol": "ETH",
+        },
         "txHash": "0xsrcTxHash1",
       },
       "status": "PENDING",
