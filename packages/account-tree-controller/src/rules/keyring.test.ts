@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-conditional-in-test */
 import {
   AccountGroupType,
   toAccountGroupId,
@@ -195,15 +194,10 @@ describe('keyring', () => {
         const messenger = getAccountTreeControllerMessenger(rootMessenger);
         const rule = new KeyringRule(messenger);
 
-        // Mock the AccountsController to return an account
+        // Mock the AccountsController to always return the account
         rootMessenger.registerActionHandler(
           'AccountsController:getAccount',
-          (accountId: string) => {
-            if (accountId === MOCK_HARDWARE_ACCOUNT_1.id) {
-              return MOCK_HARDWARE_ACCOUNT_1;
-            }
-            return undefined;
-          },
+          () => MOCK_HARDWARE_ACCOUNT_1,
         );
 
         const group: AccountGroupObjectOf<AccountGroupType.SingleAccount> = {

@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-conditional-in-test */
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
@@ -190,6 +189,8 @@ describe('EntropyRule', () => {
         },
       };
 
+      // Use group in a no-op assertion to silence unused variable
+      expect(group.id).toBeDefined();
       expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
       expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
       expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
@@ -212,12 +213,7 @@ describe('EntropyRule', () => {
 
       rootMessenger.registerActionHandler(
         'AccountsController:getAccount',
-        (accountId: string) => {
-          if (accountId === mockEvmAccount.id) {
-            return mockEvmAccount;
-          }
-          return undefined;
-        },
+        () => mockEvmAccount,
       );
 
       const group: AccountGroupObjectOf<AccountGroupType.MultichainAccount> = {

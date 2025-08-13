@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-conditional-in-test */
 import {
   AccountGroupType,
   toAccountGroupId,
@@ -108,12 +107,7 @@ describe('SnapRule', () => {
       // Mock the AccountsController to return an account
       rootMessenger.registerActionHandler(
         'AccountsController:getAccount',
-        (accountId: string) => {
-          if (accountId === MOCK_SNAP_ACCOUNT_1.id) {
-            return MOCK_SNAP_ACCOUNT_1;
-          }
-          return undefined;
-        },
+        () => MOCK_SNAP_ACCOUNT_1,
       );
 
       const group: AccountGroupObjectOf<AccountGroupType.SingleAccount> = {
@@ -200,12 +194,7 @@ describe('SnapRule', () => {
       // Mock SnapController to return snap with proposed name
       rootMessenger.registerActionHandler(
         'SnapController:get',
-        (snapId: string) => {
-          if (snapId === MOCK_SNAP_1.id) {
-            return MOCK_SNAP_1 as unknown as Snap;
-          }
-          return undefined;
-        },
+        () => MOCK_SNAP_1 as unknown as Snap,
       );
 
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {
@@ -240,12 +229,7 @@ describe('SnapRule', () => {
       // Mock SnapController to return snap without proposed name
       rootMessenger.registerActionHandler(
         'SnapController:get',
-        (snapId: string) => {
-          if (snapId === snapWithoutProposedName.id) {
-            return snapWithoutProposedName as unknown as Snap;
-          }
-          return undefined;
-        },
+        () => snapWithoutProposedName as unknown as Snap,
       );
 
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {
