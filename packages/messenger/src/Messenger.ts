@@ -181,6 +181,15 @@ export class Messenger<
   Namespace extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
+  Parent extends Messenger<
+    string,
+    ActionConstraint,
+    EventConstraint,
+    // Use `any` to avoid preventing a parent from having a parent. `any` is harmless in a type
+    // constraint anyway, it's the one totally safe place to use it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  > = never,
 > {
   readonly #namespace: Namespace;
 
@@ -188,7 +197,7 @@ export class Messenger<
    * The parent messenger. All actions/events under this namespace are automatically delegated to
    * the parent messenger.
    */
-  readonly #parent?: DelegatedMessenger<Action, Event>;
+  readonly #parent?: DelegatedMessenger;
 
   readonly #actions = new Map<Action['type'], Action['handler']>();
 
@@ -243,7 +252,11 @@ export class Messenger<
     parent,
   }: {
     namespace: Namespace;
-    parent?: DelegatedMessenger<Action, Event>;
+    parent?: Action['type'] extends MessengerActions<Parent>['type']
+      ? Event['type'] extends MessengerEvents<Parent>['type']
+        ? Parent
+        : never
+      : never;
   }) {
     this.#namespace = namespace;
     this.#parent = parent;
@@ -275,6 +288,8 @@ export class Messenger<
     }
     this.#registerActionHandler(actionType, handler);
     if (this.#parent) {
+      // @ts-expect-error The parent type isn't constructed in a way that proves it supports this
+      // action, but this is OK because it's validated in the constructor.
       this.delegate({ actions: [actionType], messenger: this.#parent });
     }
   }
@@ -424,6 +439,8 @@ export class Messenger<
       this.#parent &&
       !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
     ) {
+      // @ts-expect-error The parent type isn't constructed in a way that proves it supports this
+      // event, but this is OK because it's validated in the constructor.
       this.delegate({ events: [eventType], messenger: this.#parent });
     }
     this.#registerInitialEventPayload({ eventType, getPayload });
@@ -479,6 +496,8 @@ export class Messenger<
       this.#parent &&
       !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
     ) {
+      // @ts-expect-error The parent type isn't constructed in a way that proves it supports this
+      // event, but this is OK because it's validated in the constructor.
       this.delegate({ events: [eventType], messenger: this.#parent });
     }
     this.#publish(eventType, ...payload);
