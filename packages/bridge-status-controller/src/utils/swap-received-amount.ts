@@ -68,6 +68,14 @@ const getReceivedERC20Amount = (
   return null;
 };
 
+/**
+ * Calculate the amount received after a swap transaction based on the txMeta
+ *
+ * @param historyItem - The bridge history item
+ * @param actualGas - The actual gas used for the transaction
+ * @param txMeta - The transaction meta from the TransactionController
+ * @returns The actual amount received for the swap transaction
+ */
 export const getActualSwapReceivedAmount = (
   historyItem: BridgeHistoryItem,
   actualGas: Omit<TokenAmountValues, 'valueInCurrency'> | null,
@@ -102,6 +110,13 @@ export const getActualSwapReceivedAmount = (
   };
 };
 
+/**
+ * Calculate the amount received after a bridge transaction based on the getTxStatus's
+ * amount field
+ *
+ * @param historyItem - The bridge history item
+ * @returns The actual amount received for the bridge transaction
+ */
 export const getActualBridgeReceivedAmount = (
   historyItem: BridgeHistoryItem,
 ): Omit<TokenAmountValues, 'valueInCurrency'> | null => {

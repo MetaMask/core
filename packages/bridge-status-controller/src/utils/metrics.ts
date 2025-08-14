@@ -73,6 +73,15 @@ export const getTxStatusesFromHistory = ({
   };
 };
 
+/**
+ * Calculate the properties for a finalized transaction event based on the txHistory
+ * and txMeta
+ *
+ * @param historyItem - The bridge history item
+ * @param txMeta - The transaction meta from the TransactionController
+ * @param approvalTxMeta - The approval transaction meta from the TransactionController
+ * @returns The properties for the finalized transaction
+ */
 export const getFinalizedTxProperties = (
   historyItem: BridgeHistoryItem,
   txMeta?: TransactionMeta,

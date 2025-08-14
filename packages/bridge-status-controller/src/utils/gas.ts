@@ -107,6 +107,15 @@ const calcGasInHexWei = (gasLimit?: string, gasPrice?: string) => {
     : null;
 };
 
+/**
+ * Calculate the effective gas used for a transaction and its approval tx
+ *
+ * @param bridgeHistoryItem - The bridge history item
+ * @param bridgeHistoryItem.pricingData - pricing data from the submitted quote
+ * @param txReceipt - tx receipt from the txMeta
+ * @param approvalTxReceipt - tx receipt from the approvalTxMeta
+ * @returns The actual gas used for the transaction in Wei and its value in USD
+ */
 export const calcActualGasUsed = (
   { pricingData }: BridgeHistoryItem,
   txReceipt?: TransactionReceipt,
