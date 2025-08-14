@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `JsonRpcEngineV2` ([#6176](https://github.com/MetaMask/core/pull/6176))
-  - This is a complete rewrite of `JsonRpcEngine`. See the readme for details.
+  - This is a complete rewrite of `JsonRpcEngine`, intended to replace the original implementation.
+    See the readme for details.
 
 ### Changed
 
