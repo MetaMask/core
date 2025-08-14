@@ -344,6 +344,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const BALANCE_OF_FUNCTION = 'balanceOf(address)';
 const GET_ETH_BALANCE_FUNCTION = 'getEthBalance';
 const GET_SHARES_FUNCTION = 'getShares';
+const CONVERT_TO_ASSETS_FUNCTION = 'convertToAssets';
 
 // ERC20 balanceOf ABI
 const ERC20_BALANCE_OF_ABI = [
@@ -367,12 +368,19 @@ const MULTICALL3_GET_ETH_BALANCE_ABI = [
   },
 ];
 
-// Staking contract getShares ABI
-const STAKING_GET_SHARES_ABI = [
+// Staking contract ABI with both getShares and convertToAssets
+const STAKING_CONTRACT_ABI = [
   {
     inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
     name: 'getShares',
     outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+    name: 'convertToAssets',
+    outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -455,6 +463,7 @@ const fallback = async (
  * Executes an array of contract calls. If the chain supports multicalls,
  * the calls will be executed in single RPC requests (up to maxCallsPerMulticall).
  * Otherwise the calls will be executed separately in parallel (up to maxCallsParallel).
+ *
  * @param calls - An array of contract calls to execute.
  * @param chainId - The hexadecimal chain id.
  * @param provider - An ethers rpc provider.
@@ -568,14 +577,7 @@ const processBalanceResults = (
     provider,
   );
 
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
-
-  const stakingContract = stakingContractAddress
-    ? new Contract(stakingContractAddress, STAKING_GET_SHARES_ABI, provider)
-    : null;
+  // Staking contracts are now handled separately in two-step process
 
   results.forEach((result, index) => {
     if (result.success) {
@@ -594,15 +596,11 @@ const processBalanceResults = (
         }
         balanceMap[tokenAddress][userAddress] = balance;
       } else if (callType === 'staking') {
-        // For staking contract, decode the getShares result
-        if (stakingContract) {
-          balance = stakingContract.interface.decodeFunctionResult(
-            GET_SHARES_FUNCTION,
-            result.returnData,
-          )[0];
-
-          stakedBalanceMap[userAddress] = balance;
-        }
+        // Staking is now handled separately in two-step process
+        // This case should not occur anymore
+        console.warn(
+          'Staking callType found in main processing - this should not happen',
+        );
       } else {
         // For ERC20 tokens, decode the balanceOf result
         balance = erc20Contract.interface.decodeFunctionResult(
@@ -779,7 +777,7 @@ const getStakedBalancesFallback = async (
   userAddresses.forEach((userAddress) => {
     const contract = new Contract(
       stakingContractAddress,
-      STAKING_GET_SHARES_ABI,
+      STAKING_CONTRACT_ABI,
       provider,
     );
     stakingCalls.push({
@@ -799,6 +797,108 @@ const getStakedBalancesFallback = async (
   });
 
   return stakedBalanceMap;
+};
+
+/**
+ * Get staked balances for multiple addresses using two-step process:
+ * 1. Get shares for all addresses
+ * 2. Convert non-zero shares to assets
+ *
+ * @param userAddresses - Array of user addresses to check
+ * @param chainId - Chain ID as hex string
+ * @param provider - Ethers provider
+ * @returns Promise resolving to map of user address to staked balance
+ */
+export const getStakedBalancesForAddresses = async (
+  userAddresses: string[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<Record<string, BN>> => {
+  const stakingContractAddress =
+    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+    ];
+
+  if (!stakingContractAddress) {
+    return {};
+  }
+
+  const stakingContract = new Contract(
+    stakingContractAddress,
+    STAKING_CONTRACT_ABI,
+    provider,
+  );
+
+  try {
+    // Step 1: Get shares for all addresses
+    const shareCalls: Aggregate3Call[] = userAddresses.map((userAddress) => ({
+      target: stakingContractAddress,
+      allowFailure: true,
+      callData: stakingContract.interface.encodeFunctionData(
+        GET_SHARES_FUNCTION,
+        [userAddress],
+      ),
+    }));
+
+    const shareResults = await aggregate3(shareCalls, chainId, provider);
+
+    // Step 2: For addresses with non-zero shares, convert to assets
+    const nonZeroSharesData: { address: string; shares: BN }[] = [];
+    shareResults.forEach((result, index) => {
+      if (result.success) {
+        const sharesRaw = stakingContract.interface.decodeFunctionResult(
+          GET_SHARES_FUNCTION,
+          result.returnData,
+        )[0];
+        const shares = new BN(sharesRaw.toString());
+
+        if (shares.gt(new BN(0))) {
+          nonZeroSharesData.push({
+            address: userAddresses[index],
+            shares,
+          });
+        }
+      }
+    });
+
+    if (nonZeroSharesData.length === 0) {
+      return {};
+    }
+
+    // Step 3: Convert shares to assets for addresses with non-zero shares
+    const assetCalls: Aggregate3Call[] = nonZeroSharesData.map(
+      ({ shares }) => ({
+        target: stakingContractAddress,
+        allowFailure: true,
+        callData: stakingContract.interface.encodeFunctionData(
+          CONVERT_TO_ASSETS_FUNCTION,
+          [shares.toString()],
+        ),
+      }),
+    );
+
+    const assetResults = await aggregate3(assetCalls, chainId, provider);
+
+    // Step 4: Build final result mapping
+    const result: Record<string, BN> = {};
+    assetResults.forEach((assetResult, index) => {
+      if (assetResult.success) {
+        const assetsRaw = stakingContract.interface.decodeFunctionResult(
+          CONVERT_TO_ASSETS_FUNCTION,
+          assetResult.returnData,
+        )[0];
+        const assets = new BN(assetsRaw.toString());
+
+        const { address } = nonZeroSharesData[index];
+        result[address] = assets;
+      }
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error fetching staked balances:', error);
+    return {};
+  }
 };
 
 /**
@@ -937,37 +1037,7 @@ export const getTokenBalancesForMultipleAddresses = async (
       });
     }
 
-    // Add staking balance calls if requested
-    if (includeStaked) {
-      const stakingContractAddress =
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-          chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-        ];
-
-      if (stakingContractAddress) {
-        const stakingContract = new Contract(
-          stakingContractAddress,
-          STAKING_GET_SHARES_ABI,
-          provider,
-        );
-
-        uniqueUserAddresses.forEach((userAddress) => {
-          allCalls.push({
-            target: stakingContractAddress,
-            allowFailure: true,
-            callData: stakingContract.interface.encodeFunctionData(
-              GET_SHARES_FUNCTION,
-              [userAddress],
-            ),
-          });
-          allCallMapping.push({
-            tokenAddress: stakingContractAddress,
-            userAddress,
-            callType: 'staking',
-          });
-        });
-      }
-    }
+    // Note: Staking balances will be handled separately in two steps after token/native calls
 
     // Execute all calls in batches
     const maxCallsPerBatch = 300; // Limit calls per batch to avoid gas/size limits
@@ -983,14 +1053,31 @@ export const getTokenBalancesForMultipleAddresses = async (
       },
     });
 
+    // Handle staking balances in two steps if requested
+    let stakedBalances: Record<string, BN> = {};
+    if (includeStaked) {
+      stakedBalances = await getStakedBalancesForAddresses(
+        uniqueUserAddresses,
+        chainId,
+        provider,
+      );
+    }
+
     // Process and return results
-    return processBalanceResults(
+    const result = processBalanceResults(
       allResults,
       allCallMapping,
       chainId,
       provider,
-      includeStaked,
+      false, // Don't include staked from main processing
     );
+
+    // Add staked balances to result
+    if (includeStaked && Object.keys(stakedBalances).length > 0) {
+      result.stakedBalances = stakedBalances;
+    }
+
+    return result;
   } catch (error) {
     // Fallback only on revert
     // https://docs.ethers.org/v5/troubleshooting/errors/#help-CALL_EXCEPTION
