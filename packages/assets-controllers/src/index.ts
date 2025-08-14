@@ -215,3 +215,9 @@ export type {
   WalletBalance,
 } from './selectors/balanceSelectors';
 export { balanceSelectors } from './selectors/balanceSelectors';
+export type {
+  AssetsByAccountGroup,
+  AccountGroupAssets,
+  Asset,
+} from './selectors/token-selectors';
+export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';
