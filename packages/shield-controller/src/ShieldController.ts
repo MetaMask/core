@@ -157,6 +157,8 @@ export class ShieldController extends BaseController<
       // changed.
       if (
         !previousTransaction ||
+        // Checking reference equality is sufficient because this object if the
+        // simulation data has changed.
         previousTransaction.simulationData !== transaction.simulationData
       ) {
         this.checkCoverage(transaction).catch(

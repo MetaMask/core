@@ -5,7 +5,7 @@ import {
 } from '@metamask/transaction-controller';
 import { v1 as random } from 'uuid';
 
-import type { CoverageStatus } from '../src/types';
+import { coverageStatuses, type CoverageStatus } from '../src/types';
 
 /**
  * Generate a mock transaction meta.
@@ -36,7 +36,5 @@ export function generateMockTxMeta(): TransactionMeta {
  * @returns A random coverage status.
  */
 export function getRandomCoverageStatus(): CoverageStatus {
-  return ['covered', 'malicious', 'unsupported'][
-    Math.floor(Math.random() * 3)
-  ] as CoverageStatus;
+  return coverageStatuses[Math.floor(Math.random() * coverageStatuses.length)];
 }
