@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 - Add `parent` constructor parameter and type parameter to `Messenger` ([#6142](https://github.com/MetaMask/core/pull/6142))
   - All capabilities registered under this messenger's namespace are delegated to the parent automatically. This is similar to how the `RestrictedMessenger` would automatically delegate all capabilities to the messenger it was created from.
+- Add `MessengerActions` and `MessengerEvents` utility types for extracting actions/events from a `Messenger` type ([#6317](https://github.com/MetaMask/core/pull/6317))
 
 ### Changed
 
