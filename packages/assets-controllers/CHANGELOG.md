@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert releases 502.0.0 and 503.0.0 ([#6320](https://github.com/MetaMask/core/pull/6320))
+- Release/502.0.0 ([#6310](https://github.com/MetaMask/core/pull/6310))
+- Reduce global Jest timeout to 5 seconds ([#6304](https://github.com/MetaMask/core/pull/6304))
+- Release 497.0.0 ([#6291](https://github.com/MetaMask/core/pull/6291))
+- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
+
 ### Added
 
 - Add new utility functions for efficient balance fetching using Multicall3 ([#6212](https://github.com/MetaMask/core/pull/6212))
