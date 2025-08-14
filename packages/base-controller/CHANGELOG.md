@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add experimental `next` export for testing upcoming breaking changes ([#6316](https://github.com/MetaMask/core/pull/6316))
+  - Note that this should generally not be used, and further breaking changes may be made under this export without a corresponding major version bump for this package.
+
 ## [8.1.0]
 
 ### Added
