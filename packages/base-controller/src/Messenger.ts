@@ -121,8 +121,8 @@ type NarrowToAllowed<Name, Allowed extends string> = Name extends {
  * @template Event - A type union of all Event types.
  */
 export class Messenger<
-  Action extends ActionConstraint = never,
-  Event extends EventConstraint = never,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
 > {
   readonly #actions = new Map<Action['type'], unknown>();
 

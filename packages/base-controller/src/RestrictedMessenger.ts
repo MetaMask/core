@@ -47,10 +47,10 @@ export type RestrictedMessengerConstraint<Namespace extends string = string> =
  */
 export class RestrictedMessenger<
   Namespace extends string,
-  Action extends ActionConstraint = never,
-  Event extends EventConstraint = never,
-  AllowedAction extends string = never,
-  AllowedEvent extends string = never,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+  AllowedAction extends string,
+  AllowedEvent extends string,
 > {
   readonly #messenger: Messenger<ActionConstraint, EventConstraint>;
 
