@@ -11,6 +11,7 @@ import {
   KnownCaipNamespace,
   parseCaipAssetType,
   parseCaipChainId,
+  isStrictHexString,
 } from '@metamask/utils';
 
 import type { CurrencyRateState } from './CurrencyRateController';
@@ -40,10 +41,10 @@ export type AllWalletsBalance = {
   userCurrency: string;
 };
 
-export type PortfolioChangePeriod = '1d' | '7d' | '30d';
+export type BalanceChangePeriod = '1d' | '7d' | '30d';
 
 export type AggregatedChangeForAllWallets = {
-  period: PortfolioChangePeriod;
+  period: BalanceChangePeriod;
   currentTotalInUserCurrency: number;
   previousTotalInUserCurrency: number;
   amountChangeInUserCurrency: number;
@@ -58,7 +59,7 @@ const isChainEnabledByMap = (
   if (!map) {
     return true;
   }
-  const isHex = typeof id === 'string' && id.startsWith('0x');
+  const isHex = typeof id === 'string' && isStrictHexString(id);
   if (isHex) {
     const evm = map[String(KnownCaipNamespace.Eip155)];
     return Boolean(evm?.[id as Hex]);
@@ -304,7 +305,7 @@ export function calculateAggregatedChangeForAllWallets(
   tokensState: TokensControllerState,
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
-  period: PortfolioChangePeriod,
+  period: BalanceChangePeriod,
 ): AggregatedChangeForAllWallets {
   let currentTotal = 0;
   let previousTotal = 0;
@@ -318,7 +319,7 @@ export function calculateAggregatedChangeForAllWallets(
   };
 
   const evmPercentField: Record<
-    PortfolioChangePeriod,
+    BalanceChangePeriod,
     keyof ReturnType<() => never> | string
   > = {
     '1d': 'pricePercentChange1d',
@@ -326,7 +327,7 @@ export function calculateAggregatedChangeForAllWallets(
     '30d': 'pricePercentChange30d',
   };
 
-  const nonEvmPercentKey: Record<PortfolioChangePeriod, string> = {
+  const nonEvmPercentKey: Record<BalanceChangePeriod, string> = {
     '1d': 'P1D',
     '7d': 'P7D',
     '30d': 'P30D',
@@ -531,7 +532,7 @@ export function calculateAggregatedChangeForGroup(
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
   groupId: string,
-  period: PortfolioChangePeriod,
+  period: BalanceChangePeriod,
 ): AggregatedChangeForAllWallets {
   let currentTotal = 0;
   let previousTotal = 0;
@@ -544,13 +545,13 @@ export function calculateAggregatedChangeForGroup(
     return isChainEnabledByMap(enabledNetworkMap, chainId);
   };
 
-  const evmPercentField: Record<PortfolioChangePeriod, string> = {
+  const evmPercentField: Record<BalanceChangePeriod, string> = {
     '1d': 'pricePercentChange1d',
     '7d': 'pricePercentChange7d',
     '30d': 'pricePercentChange30d',
   };
 
-  const nonEvmPercentKey: Record<PortfolioChangePeriod, string> = {
+  const nonEvmPercentKey: Record<BalanceChangePeriod, string> = {
     '1d': 'P1D',
     '7d': 'P7D',
     '30d': 'P30D',
