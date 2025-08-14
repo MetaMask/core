@@ -91,24 +91,41 @@ export class ShieldRemoteBackend implements ShieldBackend {
     coverageId: string,
     timeout: number = this.#getCoverageResultTimeout,
     pollInterval: number = this.#getCoverageResultPollInterval,
-  ) {
+  ): Promise<GetCoverageResultResponse> {
     const reqBody: GetCoverageResultRequest = {
       coverageId,
     };
 
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeout) {
-      const res = await fetch(`${BASE_URL}/api/v1/coverage/result`, {
-        method: 'POST',
-        headers: await this.#createHeaders(),
-        body: JSON.stringify(reqBody),
-      });
-      if (res.status === 200) {
-        return (await res.json()) as GetCoverageResultResponse;
-      }
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    }
-    throw new Error('Timeout waiting for coverage result');
+    const headers = await this.#createHeaders();
+    return await new Promise((resolve, reject) => {
+      let timeoutReached = false;
+      setTimeout(() => {
+        timeoutReached = true;
+        reject(new Error('Timeout waiting for coverage result'));
+      }, timeout);
+
+      const poll = async (): Promise<GetCoverageResultResponse> => {
+        // The timeoutReached variable is modified in the timeout callback.
+        // eslint-disable-next-line no-unmodified-loop-condition
+        while (!timeoutReached) {
+          const startTime = Date.now();
+          const res = await fetch(`${BASE_URL}/api/v1/coverage/result`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(reqBody),
+          });
+          if (res.status === 200) {
+            return (await res.json()) as GetCoverageResultResponse;
+          }
+          await sleep(pollInterval - (Date.now() - startTime));
+        }
+        // The following line will not have an effect as the upper level promise
+        // will already be rejected by now.
+        throw new Error('unexpected error');
+      };
+
+      poll().then(resolve).catch(reject);
+    });
   }
 
   async #createHeaders() {
@@ -118,4 +135,14 @@ export class ShieldRemoteBackend implements ShieldBackend {
       Authorization: `Bearer ${accessToken}`,
     };
   }
+}
+
+/**
+ * Sleep for a specified amount of time.
+ *
+ * @param ms - The number of milliseconds to sleep.
+ * @returns A promise that resolves after the specified amount of time.
+ */
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

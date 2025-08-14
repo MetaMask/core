@@ -90,7 +90,7 @@ describe('ShieldRemoteBackend', () => {
     const coverageResult = await backend.checkCoverage(txMeta);
     expect(coverageResult).toStrictEqual({ status });
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(getAccessToken).toHaveBeenCalledTimes(3);
+    expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
 
   it('should throw on init coverage check failure', async () => {
@@ -113,8 +113,9 @@ describe('ShieldRemoteBackend', () => {
   });
 
   it('should throw on check coverage timeout', async () => {
-    const { backend, fetchMock, getAccessToken } = setup({
+    const { backend, fetchMock } = setup({
       getCoverageResultTimeout: 0,
+      getCoverageResultPollInterval: 0,
     });
 
     // Mock init coverage check.
@@ -123,11 +124,19 @@ describe('ShieldRemoteBackend', () => {
       json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
+    // Mock get coverage result: result unavailable.
+    fetchMock.mockResolvedValue({
+      status: 404,
+      json: jest.fn().mockResolvedValue({ status: 'unavailable' }),
+    } as unknown as Response);
+
     const txMeta = generateMockTxMeta();
     await expect(backend.checkCoverage(txMeta)).rejects.toThrow(
       'Timeout waiting for coverage result',
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getAccessToken).toHaveBeenCalledTimes(1);
+
+    // Waiting here ensures coverage of the unexpected error and lets us know
+    // that the polling loop is exited as expected.
+    await new Promise((resolve) => setTimeout(resolve, 10));
   });
 });
