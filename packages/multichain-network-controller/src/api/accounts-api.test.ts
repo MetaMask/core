@@ -99,7 +99,6 @@ describe('toAllowedCaipAccountIds', () => {
   });
 
   it('formats account with Tron scope', () => {
-
     const account = createMockAccount(
       MOCK_ADDRESSES.tron,
       [TrxScope.Mainnet],
