@@ -37,18 +37,23 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #getCoverageResultPollInterval: number;
 
+  readonly #baseUrl: string;
+
   constructor({
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
     getCoverageResultPollInterval = 1000, // milliseconds
+    baseUrl = BASE_URL,
   }: {
     getAccessToken: () => Promise<string>;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;
+    baseUrl?: string;
   }) {
     this.#getAccessToken = getAccessToken;
     this.#getCoverageResultTimeout = getCoverageResultTimeout;
     this.#getCoverageResultPollInterval = getCoverageResultPollInterval;
+    this.#baseUrl = baseUrl;
   }
 
   checkCoverage: (txMeta: TransactionMeta) => Promise<CoverageResult> = async (
@@ -76,7 +81,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
   async #initCoverageCheck(
     reqBody: InitCoverageCheckRequest,
   ): Promise<InitCoverageCheckResponse> {
-    const res = await fetch(`${BASE_URL}/api/v1/coverage/init`, {
+    const res = await fetch(`${this.#baseUrl}/api/v1/coverage/init`, {
       method: 'POST',
       headers: await this.#createHeaders(),
       body: JSON.stringify(reqBody),
@@ -109,7 +114,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
         // eslint-disable-next-line no-unmodified-loop-condition
         while (!timeoutReached) {
           const startTime = Date.now();
-          const res = await fetch(`${BASE_URL}/api/v1/coverage/result`, {
+          const res = await fetch(`${this.#baseUrl}/api/v1/coverage/result`, {
             method: 'POST',
             headers,
             body: JSON.stringify(reqBody),
