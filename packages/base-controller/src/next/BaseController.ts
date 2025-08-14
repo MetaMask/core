@@ -2,11 +2,11 @@ import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type { ActionConstraint, EventConstraint } from './Messenger';
+import type { ActionConstraint, EventConstraint } from '../Messenger';
 import type {
   RestrictedMessenger,
   RestrictedMessengerConstraint,
-} from './RestrictedMessenger';
+} from '../RestrictedMessenger';
 
 enablePatches();
 

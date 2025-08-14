@@ -12,9 +12,9 @@ import {
   getPersistentState,
   isBaseController,
 } from './BaseController';
-import { Messenger } from './Messenger';
-import type { RestrictedMessenger } from './RestrictedMessenger';
-import { JsonRpcEngine } from '../../json-rpc-engine/src';
+import { JsonRpcEngine } from '../../../json-rpc-engine/src';
+import { Messenger } from '../Messenger';
+import type { RestrictedMessenger } from '../RestrictedMessenger';
 
 export const countControllerName = 'CountController';
 
