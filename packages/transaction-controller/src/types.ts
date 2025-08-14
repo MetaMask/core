@@ -201,9 +201,9 @@ export type TransactionMeta = {
   isFirstTimeInteraction?: boolean;
 
   /**
-   * Whether the transaction is sponsored meaning a subsequent transfer is not required.
+   * Whether the transaction is sponsored meaning the user does not pay the gas fee.
    */
-  isSponsored?: boolean;
+  isGasFeeSponsored?: boolean;
 
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;

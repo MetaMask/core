@@ -70,7 +70,6 @@ describe('Gas Fee Tokens Utils', () => {
                     rateWei: '0x7',
                     transferEstimate: '0x7a',
                     serviceFee: '0x7b',
-                    isSponsored: true,
                   },
                   {
                     token: {
@@ -84,7 +83,6 @@ describe('Gas Fee Tokens Utils', () => {
                     rateWei: '0xb',
                     transferEstimate: '0xba',
                     serviceFee: '0xbb',
-                    isSponsored: true,
                   },
                 ],
               },
@@ -92,42 +90,47 @@ describe('Gas Fee Tokens Utils', () => {
             return: '0x',
           },
         ],
+        sponsorship: {
+          isSponsored: true,
+          error: null,
+        },
       });
 
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(result).toStrictEqual([
-        {
-          amount: '0x4',
-          balance: '0x5',
-          decimals: 3,
-          fee: '0x7b',
-          gas: '0x1',
-          gasTransfer: '0x7a',
-          isSponsored: true,
-          maxFeePerGas: '0x2',
-          maxPriorityFeePerGas: '0x3',
-          rateWei: '0x7',
-          recipient: '0x6',
-          symbol: 'TEST1',
-          tokenAddress: TOKEN_ADDRESS_1_MOCK,
-        },
-        {
-          amount: '0x8',
-          balance: '0x9',
-          decimals: 4,
-          fee: '0xbb',
-          gas: '0x1',
-          gasTransfer: '0xba',
-          isSponsored: true,
-          maxFeePerGas: '0x2',
-          maxPriorityFeePerGas: '0x3',
-          rateWei: '0xb',
-          recipient: '0xa',
-          symbol: 'TEST2',
-          tokenAddress: TOKEN_ADDRESS_2_MOCK,
-        },
-      ]);
+      expect(result).toStrictEqual({
+        gasFeeTokens: [
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            fee: '0x7b',
+            gas: '0x1',
+            gasTransfer: '0x7a',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: TOKEN_ADDRESS_1_MOCK,
+          },
+          {
+            amount: '0x8',
+            balance: '0x9',
+            decimals: 4,
+            fee: '0xbb',
+            gas: '0x1',
+            gasTransfer: '0xba',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0xb',
+            recipient: '0xa',
+            symbol: 'TEST2',
+            tokenAddress: TOKEN_ADDRESS_2_MOCK,
+          },
+        ],
+        isGasFeeSponsored: true,
+      });
     });
 
     it('uses first fee level from simulation response', async () => {
@@ -152,7 +155,6 @@ describe('Gas Fee Tokens Utils', () => {
                     rateWei: '0x7',
                     transferEstimate: '0x7a',
                     serviceFee: '0x7b',
-                    isSponsored: true,
                   },
                 ],
               },
@@ -173,7 +175,6 @@ describe('Gas Fee Tokens Utils', () => {
                     rateWei: '0xe',
                     transferEstimate: '0xee',
                     serviceFee: '0xef',
-                    isSponsored: true,
                   },
                 ],
               },
@@ -181,27 +182,33 @@ describe('Gas Fee Tokens Utils', () => {
             return: '0x',
           },
         ],
+        sponsorship: {
+          isSponsored: true,
+          error: null,
+        },
       });
 
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(result).toStrictEqual([
-        {
-          amount: '0x4',
-          balance: '0x5',
-          decimals: 3,
-          fee: '0x7b',
-          gas: '0x1',
-          gasTransfer: '0x7a',
-          isSponsored: true,
-          maxFeePerGas: '0x2',
-          maxPriorityFeePerGas: '0x3',
-          rateWei: '0x7',
-          recipient: '0x6',
-          symbol: 'TEST1',
-          tokenAddress: TOKEN_ADDRESS_1_MOCK,
-        },
-      ]);
+      expect(result).toStrictEqual({
+        gasFeeTokens: [
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            fee: '0x7b',
+            gas: '0x1',
+            gasTransfer: '0x7a',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: TOKEN_ADDRESS_1_MOCK,
+          },
+        ],
+        isGasFeeSponsored: true,
+      });
     });
 
     it('returns empty if error', async () => {
@@ -211,7 +218,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({
+        gasFeeTokens: [],
+        isGasFeeSponsored: false,
+      });
     });
 
     it('with 7702 if isEIP7702GasFeeTokensEnabled and chain supports EIP-7702', async () => {
@@ -223,6 +233,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await getGasFeeTokens(REQUEST_MOCK);
@@ -246,6 +260,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await getGasFeeTokens(REQUEST_MOCK);
@@ -269,6 +287,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await getGasFeeTokens(REQUEST_MOCK);
@@ -297,6 +319,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       const request = cloneDeep(REQUEST_MOCK);

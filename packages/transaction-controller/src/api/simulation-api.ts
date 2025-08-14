@@ -175,9 +175,6 @@ export type SimulationResponseTokenFee = {
   /** Account address that token should be transferred to. */
   feeRecipient: Hex;
 
-  /** Whether the gas fee is sponsored meaning the transfer is not required. */
-  isSponsored?: boolean;
-
   /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
 
@@ -240,9 +237,11 @@ export type SimulationResponseTransaction = {
 export type SimulationResponse = {
   /** Simulation data for each transaction in the request. */
   transactions: SimulationResponseTransaction[];
+
   sponsorship: {
     /** Whether the gas costs are sponsored meaning a transfer is not required. */
     isSponsored: boolean;
+
     /** Error message for the determination of sponsorship. */
     error: string | null;
   };
