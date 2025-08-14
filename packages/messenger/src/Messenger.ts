@@ -179,8 +179,8 @@ type StripNamespace<Namespaced extends NamespacedName> =
  */
 export class Messenger<
   Namespace extends string,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  Action extends ActionConstraint = never,
+  Event extends EventConstraint = never,
   Parent extends Messenger<
     string,
     ActionConstraint,

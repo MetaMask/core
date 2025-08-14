@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add default of `never` to action and event type parameters of `Messenger` and `RestrictedMessenger` ([#6311](https://github.com/MetaMask/core/pull/6311))
+
 ## [8.1.0]
 
 ### Added
