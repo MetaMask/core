@@ -1,6 +1,11 @@
 import nock, { cleanAll, isDone } from 'nock';
 
-import { Env, getEnvUrls, SUBSCRIPTION_PRODUCTS, SubscriptionControllerErrorMessage } from './constants';
+import {
+  Env,
+  getEnvUrls,
+  SUBSCRIPTION_PRODUCTS,
+  SubscriptionControllerErrorMessage,
+} from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
 import type { Subscription, StartSubscriptionRequest } from './types';
@@ -446,7 +451,6 @@ describe('SubscriptionService', () => {
   });
 
   describe('startSubscription', () => {
-
     it('should start subscription successfully', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
@@ -456,7 +460,9 @@ describe('SubscriptionService', () => {
         .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
         .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
 
-      const result = await service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST);
+      const result = await service.startSubscriptionWithCard(
+        MOCK_START_SUBSCRIPTION_REQUEST,
+      );
 
       expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
       expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
@@ -549,9 +555,7 @@ describe('SubscriptionService', () => {
         isTrialRequested: true,
       };
 
-      await expect(
-        service.startSubscriptionWithCard(request),
-      ).rejects.toThrow(
+      await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
     });

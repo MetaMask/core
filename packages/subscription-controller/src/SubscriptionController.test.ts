@@ -568,7 +568,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          mockService.startSubscriptionWithCard.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
 
           const result = await controller.startShieldSubscriptionWithCard();
 
@@ -589,7 +591,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          await expect(controller.startShieldSubscriptionWithCard()).rejects.toThrow(
+          await expect(
+            controller.startShieldSubscriptionWithCard(),
+          ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserAlreadySubscribed,
           );
 
@@ -612,9 +616,9 @@ describe('SubscriptionController', () => {
             new SubscriptionServiceError(errorMessage),
           );
 
-          await expect(controller.startShieldSubscriptionWithCard()).rejects.toThrow(
-            SubscriptionServiceError,
-          );
+          await expect(
+            controller.startShieldSubscriptionWithCard(),
+          ).rejects.toThrow(SubscriptionServiceError);
 
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
             products: ['shield'],
