@@ -4,7 +4,6 @@ import type {
   TxData,
   QuoteMetadata,
   QuoteFetchData,
-  TokenAmountValues,
 } from '@metamask/bridge-controller';
 import {
   type TxStatusData,
@@ -32,7 +31,10 @@ import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { calcActualGasUsed } from './gas';
-import { getActualSwapReceivedAmount } from './swap-received-amount';
+import {
+  getActualBridgeReceivedAmount,
+  getActualSwapReceivedAmount,
+} from './swap-received-amount';
 import type { BridgeHistoryItem } from '../types';
 
 export const getTxStatusesFromHistory = ({
@@ -71,28 +73,6 @@ export const getTxStatusesFromHistory = ({
   };
 };
 
-const calcActualReturn = (
-  historyItem: BridgeHistoryItem,
-  txMeta?: TransactionMeta,
-): Omit<TokenAmountValues, 'valueInCurrency'> => {
-  const { quote, pricingData, status } = historyItem;
-  if (!txMeta) {
-    return {
-      amount: quote.destTokenAmount,
-      usd: pricingData?.quotedReturnInUsd ?? null,
-    };
-  }
-  const usdExchangeRate = pricingData?.quotedReturnInUsd
-    ? new BigNumber(pricingData.quotedReturnInUsd).div(quote.destTokenAmount)
-    : null;
-
-  const actualAmount = status.destChain?.amount ?? '0';
-  return {
-    amount: actualAmount,
-    usd: usdExchangeRate?.multipliedBy(actualAmount).toString(10) ?? null,
-  };
-};
-
 export const getFinalizedTxProperties = (
   historyItem: BridgeHistoryItem,
   txMeta?: TransactionMeta,
@@ -111,9 +91,9 @@ export const getFinalizedTxProperties = (
   );
 
   const actualReturn =
-    txMeta?.type === TransactionType.bridge
-      ? calcActualReturn(historyItem, txMeta)
-      : getActualSwapReceivedAmount(historyItem, actualGas, txMeta);
+    txMeta?.type === TransactionType.swap
+      ? getActualSwapReceivedAmount(historyItem, actualGas, txMeta)
+      : getActualBridgeReceivedAmount(historyItem);
 
   const quotedVsUsedGasRatio =
     historyItem.pricingData?.quotedGasAmount && actualGas?.amount

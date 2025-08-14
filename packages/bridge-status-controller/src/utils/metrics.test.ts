@@ -227,7 +227,7 @@ describe('metrics utils', () => {
   });
 
   describe('getFinalizedTxProperties', () => {
-    it('should calculate correct time and ratios for bridge tx', () => {
+    it('should calculate correct time and ratios for EVM bridge tx', () => {
       const result = getFinalizedTxProperties(
         {
           ...mockHistoryItem,
@@ -357,6 +357,28 @@ describe('metrics utils', () => {
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
           "usd_actual_gas": "0.0000838882380418152",
           "usd_actual_return": 9.082497255348,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for Solana tx', () => {
+      const result = getFinalizedTxProperties({
+        ...mockHistoryItem,
+        pricingData: {
+          amountSent: '3',
+          amountSentInUsd: '2.999439',
+          quotedGasInUsd: '0.00023762029936118124',
+          quotedReturnInUsd: '2.89114367789257129',
+          quotedGasAmount: '5.1901652883e-8',
+        },
+      });
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 1.1251337476231986,
+          "quoted_vs_used_gas_ratio": 0,
+          "usd_actual_gas": 0,
+          "usd_actual_return": 2.5696,
         }
       `);
     });

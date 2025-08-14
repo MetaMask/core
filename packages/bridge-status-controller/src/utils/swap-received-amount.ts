@@ -107,3 +107,21 @@ export const getActualSwapReceivedAmount = (
       : null,
   };
 };
+
+export const getActualBridgeReceivedAmount = (
+  historyItem: BridgeHistoryItem,
+): Omit<TokenAmountValues, 'valueInCurrency'> | null => {
+  const { quote, pricingData, status } = historyItem;
+
+  const usdExchangeRate = pricingData?.quotedReturnInUsd
+    ? new BigNumber(pricingData.quotedReturnInUsd).div(quote.destTokenAmount)
+    : null;
+
+  const actualAmount = status.destChain?.amount;
+  return actualAmount && usdExchangeRate
+    ? {
+        amount: actualAmount,
+        usd: usdExchangeRate.multipliedBy(actualAmount).toString(10),
+      }
+    : null;
+};
