@@ -366,10 +366,7 @@ export function calculateBalanceChangeForAllWallets(
     return isChainEnabledByMap(enabledNetworkMap, chainId);
   };
 
-  const evmPercentField: Record<
-    BalanceChangePeriod,
-    keyof ReturnType<() => never> | string
-  > = {
+  const evmPercentField: Record<BalanceChangePeriod, string> = {
     '1d': 'pricePercentChange1d',
     '7d': 'pricePercentChange7d',
     '30d': 'pricePercentChange30d',
