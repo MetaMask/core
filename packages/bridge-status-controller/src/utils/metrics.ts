@@ -21,13 +21,13 @@ import {
   formatAddressToAssetId,
   MetricsActionType,
   MetricsSwapType,
+  getNativeAssetForChainId,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
   TransactionType,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { calcActualGasUsed } from './gas';
@@ -254,15 +254,21 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     usd_amount_source: 100,
     stx_enabled: false,
     token_address_source:
-      formatAddressToAssetId(
-        transactionMeta.sourceTokenAddress ?? '',
-        transactionMeta.chainId,
-      ) ?? ('' as CaipAssetType),
+      (transactionMeta.sourceTokenAddress
+        ? formatAddressToAssetId(
+            transactionMeta.sourceTokenAddress,
+            transactionMeta.chainId,
+          )
+        : undefined) ??
+      getNativeAssetForChainId(transactionMeta.chainId).assetId,
     token_address_destination:
-      formatAddressToAssetId(
-        transactionMeta.destinationTokenAddress ?? '',
-        transactionMeta.chainId,
-      ) ?? ('' as CaipAssetType),
+      (transactionMeta.destinationTokenAddress
+        ? formatAddressToAssetId(
+            transactionMeta.destinationTokenAddress,
+            transactionMeta.chainId,
+          )
+        : undefined) ??
+      getNativeAssetForChainId(transactionMeta.chainId).assetId,
     custom_slippage: false,
     is_hardware_wallet: false,
     swap_type:
