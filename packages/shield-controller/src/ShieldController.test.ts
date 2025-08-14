@@ -6,15 +6,19 @@ import { createMockMessenger } from '../tests/mocks/messenger';
 import { generateMockTxMeta } from '../tests/utils';
 
 /**
+ * Sets up a ShieldController for testing.
  *
  * @param options - The options for setup.
  * @param options.coverageHistoryLimit - The coverage history limit.
+ * @param options.transactionHistoryLimit - The transaction history limit.
  * @returns Objects that have been created for testing.
  */
 function setup({
   coverageHistoryLimit,
+  transactionHistoryLimit,
 }: {
   coverageHistoryLimit?: number;
+  transactionHistoryLimit?: number;
 } = {}) {
   const backend = createMockBackend();
   const { messenger, baseMessenger } = createMockMessenger();
@@ -22,6 +26,7 @@ function setup({
   const controller = new ShieldController({
     backend,
     coverageHistoryLimit,
+    transactionHistoryLimit,
     messenger,
   });
   controller.start();
@@ -83,6 +88,20 @@ describe('ShieldController', () => {
     await controller.checkCoverage(txMeta);
     expect(controller.state.coverageResults).toHaveProperty(txMeta.id);
     expect(controller.state.coverageResults[txMeta.id].results).toHaveLength(1);
+  });
+
+  it('should purge transaction history when the limit is exceeded', async () => {
+    const { controller } = setup({
+      transactionHistoryLimit: 1,
+    });
+    const txMeta1 = generateMockTxMeta();
+    const txMeta2 = generateMockTxMeta();
+    await controller.checkCoverage(txMeta1);
+    await controller.checkCoverage(txMeta2);
+    expect(controller.state.coverageResults).toHaveProperty(txMeta2.id);
+    expect(controller.state.coverageResults[txMeta2.id].results).toHaveLength(
+      1,
+    );
   });
 
   it('should check coverage when a transaction is simulated', async () => {
