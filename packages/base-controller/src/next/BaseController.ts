@@ -1,12 +1,13 @@
+import type {
+  ActionConstraint,
+  EventConstraint,
+  Messenger,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
-
-import type { ActionConstraint, EventConstraint } from '../Messenger';
-import type {
-  RestrictedMessenger,
-  RestrictedMessengerConstraint,
-} from '../RestrictedMessenger';
 
 enablePatches();
 
@@ -125,7 +126,13 @@ export type StateMetadataConstraint = Record<
  */
 export type BaseControllerInstance = Omit<
   PublicInterface<
-    BaseController<string, StateConstraint, RestrictedMessengerConstraint>
+    BaseController<
+      string,
+      StateConstraint,
+      // Use `any` to allow any parent to be set.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Messenger<string, ActionConstraint, EventConstraint, any>
+    >
   >,
   'metadata'
 > & {
@@ -164,19 +171,37 @@ export type ControllerEvents<
 export class BaseController<
   ControllerName extends string,
   ControllerState extends StateConstraint,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  messenger extends RestrictedMessenger<
+  ControllerMessenger extends Messenger<
     ControllerName,
-    ActionConstraint | ControllerActions<ControllerName, ControllerState>,
-    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
-    string,
-    string
+    ActionConstraint,
+    EventConstraint,
+    // Use `any` to allow any parent to be set. `any` is harmless in a type constraint anyway,
+    // it's the one totally safe place to use it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
   >,
 > {
+  /**
+   * The controller state.
+   */
   #internalState: ControllerState;
 
-  protected messagingSystem: messenger;
+  /**
+   * The controller messenger. This is used to interact with other parts of the application.
+   */
+  protected messagingSystem: ControllerMessenger;
+
+  /**
+   * The controller messenger.
+   *
+   * This is the same as the `messagingSystem` property, but has a type that only lets us use
+   * actions and events that are part of the `BaseController` class.
+   */
+  readonly #messenger: Messenger<
+    ControllerName,
+    ControllerActions<ControllerName, ControllerState>,
+    ControllerEvents<ControllerName, ControllerState>
+  >;
 
   /**
    * The name of the controller.
@@ -191,7 +216,7 @@ export class BaseController<
    * Creates a BaseController instance.
    *
    * @param options - Controller options.
-   * @param options.messenger - Controller messaging system.
+   * @param options.messenger - The controller messenger.
    * @param options.metadata - ControllerState metadata, describing how to "anonymize" the state, and which
    * parts should be persisted.
    * @param options.name - The name of the controller, used as a namespace for events and actions.
@@ -203,11 +228,28 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: messenger;
+    messenger: ControllerActions<
+      ControllerName,
+      ControllerState
+    >['type'] extends MessengerActions<ControllerMessenger>['type']
+      ? ControllerEvents<
+          ControllerName,
+          ControllerState
+        >['type'] extends MessengerEvents<ControllerMessenger>['type']
+        ? ControllerMessenger
+        : never
+      : never;
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
     state: ControllerState;
   }) {
+    // The parameter type validates that the expected actions/events are present
+    // We don't have a way to validate the type property because the type is invariant
+    this.#messenger = messenger as unknown as Messenger<
+      ControllerName,
+      ControllerActions<ControllerName, ControllerState>,
+      ControllerEvents<ControllerName, ControllerState>
+    >;
     this.messagingSystem = messenger;
     this.name = name;
     // Here we use `freeze` from Immer to enforce that the state is deeply
@@ -218,12 +260,9 @@ export class BaseController<
     this.#internalState = freeze(state, true);
     this.metadata = metadata;
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:getState`,
-      () => this.state,
-    );
+    this.#messenger.registerActionHandler(`${name}:getState`, () => this.state);
 
-    this.messagingSystem.registerInitialEventPayload({
+    this.#messenger.registerInitialEventPayload({
       eventType: `${name}:stateChange`,
       getPayload: () => [this.state, []],
     });
@@ -274,8 +313,8 @@ export class BaseController<
     // Protect against unnecessary state updates when there is no state diff.
     if (patches.length > 0) {
       this.#internalState = nextState;
-      this.messagingSystem.publish(
-        `${this.name}:stateChange`,
+      this.#messenger.publish(
+        `${this.name}:stateChange` as const,
         nextState,
         patches,
       );
@@ -294,8 +333,8 @@ export class BaseController<
   protected applyPatches(patches: Patch[]) {
     const nextState = applyPatches(this.#internalState, patches);
     this.#internalState = nextState;
-    this.messagingSystem.publish(
-      `${this.name}:stateChange`,
+    this.#messenger.publish(
+      `${this.name}:stateChange` as const,
       nextState,
       patches,
     );

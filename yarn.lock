@@ -2705,6 +2705,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
+    "@metamask/messenger": "npm:^0.0.0"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
     "@types/sinon": "npm:^9.0.10"
@@ -3733,7 +3734,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/messenger@workspace:packages/messenger":
+"@metamask/messenger@npm:^0.0.0, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
   dependencies:
