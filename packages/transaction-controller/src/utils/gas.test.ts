@@ -1037,6 +1037,10 @@ describe('gas', () => {
         transactions: [
           { gasLimit: GAS_MOCK_1 } as unknown as SimulationResponseTransaction,
         ], // Only one transaction returned
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await expect(
@@ -1058,6 +1062,10 @@ describe('gas', () => {
           { gasLimit: undefined },
           { gasLimit: GAS_MOCK_2 },
         ] as unknown as SimulationResponseTransaction[],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await expect(
@@ -1076,6 +1084,10 @@ describe('gas', () => {
     it('handles empty transactions gracefully', async () => {
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       const result = await simulateGasBatch({

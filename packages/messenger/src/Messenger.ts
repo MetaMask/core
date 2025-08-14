@@ -181,8 +181,23 @@ export class Messenger<
   Namespace extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
+  Parent extends Messenger<
+    string,
+    ActionConstraint,
+    EventConstraint,
+    // Use `any` to avoid preventing a parent from having a parent. `any` is harmless in a type
+    // constraint anyway, it's the one totally safe place to use it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  > = never,
 > {
   readonly #namespace: Namespace;
+
+  /**
+   * The parent messenger. All actions/events under this namespace are automatically delegated to
+   * the parent messenger.
+   */
+  readonly #parent?: DelegatedMessenger;
 
   readonly #actions = new Map<Action['type'], Action['handler']>();
 
@@ -225,11 +240,26 @@ export class Messenger<
   /**
    * Construct a messenger.
    *
+   * If a parent messenger is given, all actions and events under this messenger's namespace will
+   * be delegated to the parent automatically.
+   *
    * @param args - Constructor arguments
    * @param args.namespace - The messenger namespace.
+   * @param args.parent - The parent messenger.
    */
-  constructor({ namespace }: { namespace: Namespace }) {
+  constructor({
+    namespace,
+    parent,
+  }: {
+    namespace: Namespace;
+    parent?: Action['type'] extends MessengerActions<Parent>['type']
+      ? Event['type'] extends MessengerEvents<Parent>['type']
+        ? Parent
+        : never
+      : never;
+  }) {
     this.#namespace = namespace;
+    this.#parent = parent;
   }
 
   /**
@@ -257,6 +287,11 @@ export class Messenger<
       );
     }
     this.#registerActionHandler(actionType, handler);
+    if (this.#parent) {
+      // @ts-expect-error The parent type isn't constructed in a way that proves it supports this
+      // action, but this is OK because it's validated in the constructor.
+      this.delegate({ actions: [actionType], messenger: this.#parent });
+    }
   }
 
   #registerActionHandler<ActionType extends Action['type']>(
@@ -400,6 +435,14 @@ export class Messenger<
         }:'`,
       );
     }
+    if (
+      this.#parent &&
+      !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
+    ) {
+      // @ts-expect-error The parent type isn't constructed in a way that proves it supports this
+      // event, but this is OK because it's validated in the constructor.
+      this.delegate({ events: [eventType], messenger: this.#parent });
+    }
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
 
@@ -448,6 +491,14 @@ export class Messenger<
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
       );
+    }
+    if (
+      this.#parent &&
+      !this.#subscriptionDelegationTargets.get(eventType)?.has(this.#parent)
+    ) {
+      // @ts-expect-error The parent type isn't constructed in a way that proves it supports this
+      // event, but this is OK because it's validated in the constructor.
+      this.delegate({ events: [eventType], messenger: this.#parent });
     }
     this.#publish(eventType, ...payload);
   }
@@ -805,6 +856,9 @@ export class Messenger<
     events?: DelegatedEvents;
     messenger: Delegatee;
   }) {
+    if (messenger === this.#parent) {
+      throw new Error('Cannot revoke from parent');
+    }
     for (const actionType of actions || []) {
       const delegationTargets = this.#actionDelegationTargets.get(actionType);
       if (!delegationTargets || !delegationTargets.has(messenger)) {

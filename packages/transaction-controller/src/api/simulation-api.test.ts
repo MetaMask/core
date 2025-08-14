@@ -45,6 +45,10 @@ const RESPONSE_MOCK: SimulationResponse = {
       },
     },
   ],
+  sponsorship: {
+    isSponsored: false,
+    error: null,
+  },
 };
 
 const RESPONSE_MOCK_NETWORKS = {

@@ -20,6 +20,12 @@ export enum UnifiedSwapBridgeEventName {
   QuoteSelected = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quote Selected`,
 }
 
+export enum AbortReason {
+  NewQuoteRequest = 'New Quote Request',
+  QuoteRequestUpdated = 'Quote Request Updated',
+  ResetState = 'Reset controller state',
+}
+
 /**
  * @deprecated remove this event property
  */
