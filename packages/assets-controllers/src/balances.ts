@@ -652,16 +652,19 @@ export function calculateBalanceChangeForAllWallets(
 }
 
 /**
- * Sum EVM account change for a period (current and previous totals).
+ * Sum EVM account balance changes for a specific period (1d, 7d, 30d).
  *
- * @param account - Internal account to aggregate.
- * @param period - Change period ('1d' | '7d' | '30d').
- * @param tokenBalancesState - Token balances controller state.
- * @param tokensState - Tokens controller state.
- * @param tokenRatesState - Token rates controller state.
- * @param currencyRateState - Currency rate controller state.
- * @param isEvmChainEnabled - Predicate that returns true if the EVM chain is enabled.
- * @returns Object with current and previous totals in user currency.
+ * This function calculates the current and previous portfolio values for EVM tokens
+ * by aggregating balance changes across all enabled chains and tokens.
+ *
+ * @param account - Internal account to calculate changes for
+ * @param period - Time period for the change calculation ('1d', '7d', '30d')
+ * @param tokenBalancesState - Token balances controller state
+ * @param tokensState - Tokens controller state
+ * @param tokenRatesState - Token rates controller state
+ * @param currencyRateState - Currency rate controller state
+ * @param isEvmChainEnabled - Predicate to check if an EVM chain is enabled
+ * @returns Object containing current and previous portfolio values in user currency
  */
 function sumEvmAccountChangeForPeriod(
   account: InternalAccount,
@@ -672,90 +675,154 @@ function sumEvmAccountChangeForPeriod(
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ): { current: number; previous: number } {
-  let current = 0;
-  let previous = 0;
   const accountBalances =
     tokenBalancesState.tokenBalances[account.address as Hex];
   if (!accountBalances) {
-    return { current, previous };
+    return { current: 0, previous: 0 };
   }
-  for (const [chainId, chainBalances] of Object.entries(accountBalances)) {
-    if (!isEvmChainEnabled(chainId as Hex)) {
-      continue;
+
+  /**
+   * Retrieves and filters valid token changes for the account.
+   *
+   * This function:
+   * 1. Filters out disabled chains using the isEvmChainEnabled predicate
+   * 2. Creates a token index for efficient lookups
+   * 3. Maps chain balances to structured token change objects
+   * 4. Filters out invalid tokens and balance data
+   *
+   * @returns Array of valid token change objects with all necessary data for calculation
+   */
+  const getValidTokenChanges = () => {
+    const tokenChanges = Object.entries(accountBalances)
+      .filter(([chainId]) => isEvmChainEnabled(chainId as Hex))
+      .flatMap(([chainId, chainBalances]) => {
+        const chainMarketData = tokenRatesState.marketData[chainId as Hex];
+        const chainTokens = tokensState.allTokens[chainId as Hex];
+        const accountTokens = chainTokens?.[account.address] ?? [];
+
+        // Create efficient token lookup index
+        const tokenIndex: Record<
+          string,
+          { address: string; decimals?: number }
+        > = Object.fromEntries(
+          accountTokens.map((t) => [
+            t.address,
+            { address: t.address, decimals: t.decimals },
+          ]),
+        );
+
+        return Object.entries(chainBalances)
+          .map(([tokenAddress, balance]) => ({
+            chainId: chainId as Hex,
+            tokenAddress: tokenAddress as Hex,
+            balance,
+            token: tokenIndex[tokenAddress],
+            chainMarketData,
+          }))
+          .filter((item) => item.token && typeof item.balance === 'string');
+      });
+
+    return tokenChanges;
+  };
+
+  /**
+   * Calculates the current and previous values for a single token change.
+   *
+   * This function:
+   * 1. Converts balance from hex to token units using proper decimals
+   * 2. Retrieves current market price and percentage change data
+   * 3. Applies currency conversion rates
+   * 4. Calculates both current and previous values using percentage change
+   * 5. Returns early with zeros if any required data is missing
+   *
+   * @param tokenChange - Token change object containing balance, token metadata, and market data
+   * @returns Object with current and previous values, or zeros if calculation fails
+   */
+  const calcTokenChange = (
+    tokenChange: ReturnType<typeof getValidTokenChanges>[number],
+  ) => {
+    const { balance, token, chainMarketData } = tokenChange;
+
+    // Convert balance from hex to token units
+    const decimals =
+      typeof token.decimals === 'number' && !Number.isNaN(token.decimals)
+        ? token.decimals
+        : 18;
+
+    const balanceInSmallestUnit = parseInt(balance, 16);
+    if (Number.isNaN(balanceInSmallestUnit)) {
+      return { current: 0, previous: 0 };
     }
-    const chainMarketData = tokenRatesState.marketData[chainId as Hex];
-    const chainTokens = tokensState.allTokens[chainId as Hex];
-    const accountTokens = chainTokens?.[account.address] ?? [];
-    const tokenIndex: Record<string, { address: string; decimals?: number }> =
-      Object.fromEntries(
-        accountTokens.map((t) => [
-          t.address,
-          { address: t.address, decimals: t.decimals },
-        ]),
-      );
-    for (const [tokenAddress, balance] of Object.entries(chainBalances)) {
-      const token = tokenIndex[tokenAddress];
-      if (!token) {
-        continue;
-      }
 
-      const decimals =
-        typeof token.decimals === 'number' && !Number.isNaN(token.decimals)
-          ? token.decimals
-          : 18;
-      if (typeof balance !== 'string') {
-        continue;
-      }
-      const balanceInSmallestUnit = parseInt(balance, 16);
-      if (Number.isNaN(balanceInSmallestUnit)) {
-        continue;
-      }
-      const balanceInTokenUnits =
-        balanceInSmallestUnit / Math.pow(10, decimals);
+    const balanceInTokenUnits = balanceInSmallestUnit / Math.pow(10, decimals);
 
-      const tokenMarketData = chainMarketData?.[tokenAddress as Hex];
-      const price = tokenMarketData?.price;
-      const percentRaw = getPercentChange(tokenMarketData, period);
+    // Get market data and percentage change
+    const tokenMarketData = chainMarketData?.[token.address as Hex];
+    const price = tokenMarketData?.price;
+    const percentRaw = getPercentChange(tokenMarketData, period);
 
-      if (!isNonNaNNumber(price)) {
-        continue;
-      }
-
-      const nativeCurrency = tokenMarketData?.currency;
-      const nativeToUserRate =
-        nativeCurrency && currencyRateState.currencyRates[nativeCurrency]
-          ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
-          : undefined;
-      if (!isNonNaNNumber(nativeToUserRate) || !isNonNaNNumber(percentRaw)) {
-        continue;
-      }
-
-      const priceInUserCurrency = price * nativeToUserRate;
-      const currentValue = balanceInTokenUnits * priceInUserCurrency;
-      const denom = Number(
-        (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
-      );
-      if (denom === 0) {
-        continue;
-      }
-      const previousValue = currentValue / denom;
-      current += currentValue;
-      previous += previousValue;
+    if (!isNonNaNNumber(price)) {
+      return { current: 0, previous: 0 };
     }
-  }
-  return { current, previous };
+
+    // Apply currency conversion rate
+    const nativeCurrency = tokenMarketData?.currency;
+    const nativeToUserRate =
+      nativeCurrency && currencyRateState.currencyRates[nativeCurrency]
+        ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
+        : undefined;
+
+    if (!isNonNaNNumber(nativeToUserRate) || !isNonNaNNumber(percentRaw)) {
+      return { current: 0, previous: 0 };
+    }
+
+    // Calculate current and previous values
+    const priceInUserCurrency = price * nativeToUserRate;
+    const currentValue = balanceInTokenUnits * priceInUserCurrency;
+    const denom = Number(
+      (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
+    );
+
+    if (denom === 0) {
+      return { current: 0, previous: 0 };
+    }
+
+    const previousValue = currentValue / denom;
+    return { current: currentValue, previous: previousValue };
+  };
+
+  // Execute the functional pipeline:
+  // 1. Get valid token changes (filtered by enabled chains and valid data)
+  // 2. Calculate current/previous values for each token
+  // 3. Aggregate totals across all tokens
+  const tokenChanges = getValidTokenChanges();
+  const totals = tokenChanges.reduce(
+    (acc, tokenChange) => {
+      const change = calcTokenChange(tokenChange);
+      return {
+        current: acc.current + change.current,
+        previous: acc.previous + change.previous,
+      };
+    },
+    { current: 0, previous: 0 },
+  );
+
+  return totals;
 }
 
 /**
- * Sum non-EVM account change for a period (current and previous totals).
+ * Sum non-EVM account balance changes for a specific period (1d, 7d, 30d).
  *
- * @param account - Internal account to aggregate.
- * @param period - Change period ('1d' | '7d' | '30d').
- * @param multichainBalancesState - Multichain balances controller state.
- * @param multichainRatesState - Multichain assets rates controller state.
- * @param isAssetChainEnabled - Predicate that returns true if the asset's chain is enabled.
- * @param nonEvmPercentKey - Map of period to the market data percent-change key (e.g., P1D).
- * @returns Object with current and previous totals in user currency.
+ * This function calculates the current and previous portfolio values for non-EVM assets
+ * by aggregating balance changes across all enabled asset chains.
+ *
+ * @param account - Internal account to calculate changes for
+ * @param period - Time period for the change calculation ('1d', '7d', '30d')
+ * @param multichainBalancesState - Multichain balances controller state
+ * @param multichainRatesState - Multichain assets rates controller state
+ * @param isAssetChainEnabled - Predicate to check if an asset chain is enabled
+ * @param nonEvmPercentKey - Map of period to market data percent-change key (e.g., P1D, P7D, P30D)
+ * @returns Object containing current and previous portfolio values in user currency
  */
 function sumNonEvmAccountChangeForPeriod(
   account: InternalAccount,
@@ -765,59 +832,134 @@ function sumNonEvmAccountChangeForPeriod(
   isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
   nonEvmPercentKey: Record<BalanceChangePeriod, string>,
 ): { current: number; previous: number } {
-  let current = 0;
-  let previous = 0;
   const accountBalances = multichainBalancesState.balances[account.id];
   if (!accountBalances) {
-    return { current, previous };
+    return { current: 0, previous: 0 };
   }
-  for (const [assetId, balanceData] of Object.entries(accountBalances)) {
-    if (!isAssetChainEnabled(assetId as CaipAssetType)) {
-      continue;
-    }
+
+  /**
+   * Retrieves and filters valid asset changes for the account.
+   *
+   * This function:
+   * 1. Filters out disabled asset chains using the isAssetChainEnabled predicate
+   * 2. Maps asset balances to structured asset change objects
+   * 3. Filters out assets with invalid balance amounts or missing rate data
+   * 4. Ensures all required data is available for percentage change calculations
+   *
+   * @returns Array of valid asset change objects with balance data and conversion rates
+   */
+  const getValidAssetChanges = () => {
+    const assetChanges = Object.entries(accountBalances)
+      .filter(([assetId]) => isAssetChainEnabled(assetId as CaipAssetType))
+      .map(([assetId, balanceData]) => ({
+        assetId: assetId as CaipAssetType,
+        balanceData,
+        conversionRate:
+          multichainRatesState.conversionRates[assetId as CaipAssetType],
+      }))
+      .filter((item) => {
+        // Validate balance amount
+        const balanceAmount = parseFloat(item.balanceData.amount);
+        if (Number.isNaN(balanceAmount)) {
+          return false;
+        }
+
+        // Validate conversion rate and percentage change data
+        const rateStr = item.conversionRate?.rate;
+        const percentObj = item.conversionRate?.marketData?.pricePercentChange;
+        const percentRaw = percentObj?.[nonEvmPercentKey[period]];
+
+        const rate =
+          typeof rateStr === 'string' ? parseFloat(rateStr) : undefined;
+        return isNonNaNNumber(rate) && isNonNaNNumber(percentRaw);
+      });
+
+    return assetChanges;
+  };
+
+  /**
+   * Calculates the current and previous values for a single asset change.
+   *
+   * This function:
+   * 1. Parses the balance amount from the asset data
+   * 2. Retrieves the conversion rate and percentage change data
+   * 3. Calculates current value using balance amount and conversion rate
+   * 4. Calculates previous value using percentage change formula
+   * 5. Returns early with zeros if denominator calculation fails
+   *
+   * @param assetChange - Asset change object containing balance data and conversion rate
+   * @returns Object with current and previous values, or zeros if calculation fails
+   */
+  const calcAssetChange = (
+    assetChange: ReturnType<typeof getValidAssetChanges>[number],
+  ) => {
+    const { balanceData, conversionRate } = assetChange;
+
+    // Parse balance and rate data
     const balanceAmount = parseFloat(balanceData.amount);
-    if (Number.isNaN(balanceAmount)) {
-      continue;
-    }
-    const conversionRate =
-      multichainRatesState.conversionRates[assetId as CaipAssetType];
-    const rateStr = conversionRate?.rate;
-    const percentObj = conversionRate?.marketData?.pricePercentChange;
+    const rateStr = conversionRate.rate;
+    const percentObj = conversionRate.marketData?.pricePercentChange;
     const percentRaw = percentObj?.[nonEvmPercentKey[period]];
 
-    const rate = typeof rateStr === 'string' ? parseFloat(rateStr) : undefined;
-    if (!isNonNaNNumber(rate) || !isNonNaNNumber(percentRaw)) {
-      continue;
+    if (!percentRaw) {
+      return { current: 0, previous: 0 };
     }
+
+    // Calculate current value
+    const rate = parseFloat(rateStr);
     const currentValue = balanceAmount * rate;
+
+    // Calculate previous value using percentage change
     const denom = Number(
       (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
     );
+
     if (denom === 0) {
-      continue;
+      return { current: 0, previous: 0 };
     }
+
     const previousValue = currentValue / denom;
-    current += currentValue;
-    previous += previousValue;
-  }
-  return { current, previous };
+    return { current: currentValue, previous: previousValue };
+  };
+
+  // Execute the functional pipeline:
+  // 1. Get valid asset changes (filtered by enabled chains and valid data)
+  // 2. Calculate current/previous values for each asset
+  // 3. Aggregate totals across all assets
+  const assetChanges = getValidAssetChanges();
+  const totals = assetChanges.reduce(
+    (acc, assetChange) => {
+      const change = calcAssetChange(assetChange);
+      return {
+        current: acc.current + change.current,
+        previous: acc.previous + change.previous,
+      };
+    },
+    { current: 0, previous: 0 },
+  );
+
+  return totals;
 }
 
 /**
  * Calculate portfolio value change for a specific account group and period.
  *
- * @param accountTreeState - AccountTreeController state.
- * @param accountsState - AccountsController state.
- * @param tokenBalancesState - TokenBalancesController state.
- * @param tokenRatesState - TokenRatesController state.
- * @param multichainRatesState - MultichainAssetsRatesController state.
- * @param multichainBalancesState - MultichainBalancesController state.
- * @param tokensState - TokensController state.
- * @param currencyRateState - CurrencyRateController state.
- * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
- * @param groupId - Account group ID to compute change for.
- * @param period - Change period ('1d' | '7d' | '30d').
- * @returns Change result including current, previous, delta, percent, and period.
+ * This function aggregates balance changes across all accounts in a specific group,
+ * calculating current and previous portfolio values, amount changes, and percentage changes.
+ * It handles both EVM and non-EVM accounts using their respective calculation strategies.
+ *
+ * @param accountTreeState - AccountTreeController state containing wallet and group structure
+ * @param accountsState - AccountsController state containing account information
+ * @param tokenBalancesState - TokenBalancesController state for EVM token balances
+ * @param tokenRatesState - TokenRatesController state for EVM token market data
+ * @param multichainRatesState - MultichainAssetsRatesController state for non-EVM rates
+ * @param multichainBalancesState - MultichainBalancesController state for non-EVM balances
+ * @param tokensState - TokensController state containing token metadata
+ * @param currencyRateState - CurrencyRateController state for conversion rates
+ * @param enabledNetworkMap - Map of enabled networks for filtering disabled chains
+ * @param groupId - Account group ID to compute changes for
+ * @param period - Change period ('1d', '7d', '30d') for historical comparison
+ * @returns BalanceChangeResult with current, previous, delta, percent, and period information
  */
 export function calculateBalanceChangeForAccountGroup(
   accountTreeState: AccountTreeControllerState,
@@ -832,9 +974,13 @@ export function calculateBalanceChangeForAccountGroup(
   groupId: AccountGroupId,
   period: BalanceChangePeriod,
 ): BalanceChangeResult {
-  let currentTotal = 0;
-  let previousTotal = 0;
-
+  /**
+   * Chain enablement predicates for filtering disabled networks.
+   * These functions determine which chains/assets should be included in calculations.
+   *
+   * @param chainId - Chain identifier to check for enablement
+   * @returns True if the chain is enabled, false otherwise
+   */
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
 
@@ -843,23 +989,33 @@ export function calculateBalanceChangeForAccountGroup(
     return isChainEnabledByMap(enabledNetworkMap, chainId);
   };
 
+  /**
+   * Mapping of balance change periods to non-EVM market data keys.
+   * Non-EVM assets use different field names (P1D, P7D, P30D) compared to EVM tokens.
+   */
   const nonEvmPercentKey: Record<BalanceChangePeriod, string> = {
     '1d': 'P1D',
     '7d': 'P7D',
     '30d': 'P30D',
   };
 
-  const accounts = getInternalAccountsForGroup(
-    accountTreeState,
-    accountsState,
-    groupId,
-  );
-
-  for (const account of accounts) {
+  /**
+   * Calculates balance changes for a single account.
+   *
+   * This function:
+   * 1. Determines account type (EVM vs non-EVM)
+   * 2. Calls appropriate calculation function based on account type
+   * 3. Returns structured change data for aggregation
+   *
+   * @param account - Account to calculate changes for
+   * @returns Object with current and previous values for the account
+   */
+  const calcAccountChange = (account: InternalAccount) => {
     const isEvmAccount = isEvmAccountType(account.type);
 
     if (isEvmAccount) {
-      const { current, previous } = sumEvmAccountChangeForPeriod(
+      // Calculate EVM account changes using token balances and rates
+      return sumEvmAccountChangeForPeriod(
         account,
         period,
         tokenBalancesState,
@@ -868,34 +1024,80 @@ export function calculateBalanceChangeForAccountGroup(
         currencyRateState,
         isEvmChainEnabled,
       );
-      currentTotal += current;
-      previousTotal += previous;
-    } else {
-      const { current, previous } = sumNonEvmAccountChangeForPeriod(
-        account,
-        period,
-        multichainBalancesState,
-        multichainRatesState,
-        isAssetChainEnabled,
-        nonEvmPercentKey,
-      );
-      currentTotal += current;
-      previousTotal += previous;
     }
-  }
 
-  const amountChange = currentTotal - previousTotal;
-  const percentChange =
-    previousTotal !== 0 ? (amountChange / previousTotal) * 100 : 0;
-
-  return {
-    period,
-    currentTotalInUserCurrency: Number(currentTotal.toFixed(DECIMAL_PRECISION)),
-    previousTotalInUserCurrency: Number(
-      previousTotal.toFixed(DECIMAL_PRECISION),
-    ),
-    amountChangeInUserCurrency: Number(amountChange.toFixed(DECIMAL_PRECISION)),
-    percentChange: Number(percentChange.toFixed(DECIMAL_PRECISION)),
-    userCurrency: currencyRateState.currentCurrency,
+    // Calculate non-EVM account changes using multichain data
+    return sumNonEvmAccountChangeForPeriod(
+      account,
+      period,
+      multichainBalancesState,
+      multichainRatesState,
+      isAssetChainEnabled,
+      nonEvmPercentKey,
+    );
   };
+
+  /**
+   * Aggregates balance changes across all accounts in the group.
+   *
+   * This function:
+   * 1. Gets all accounts in the specified group
+   * 2. Calculates changes for each account using the appropriate strategy
+   * 3. Aggregates results into total current and previous values
+   *
+   * @returns Object with aggregated current and previous totals
+   */
+  const getGroupTotals = () => {
+    const accounts = getInternalAccountsForGroup(
+      accountTreeState,
+      accountsState,
+      groupId,
+    );
+
+    return accounts.map(calcAccountChange).reduce(
+      (acc, change) => ({
+        current: acc.current + change.current,
+        previous: acc.previous + change.previous,
+      }),
+      { current: 0, previous: 0 },
+    );
+  };
+
+  /**
+   * Calculates final change metrics from aggregated totals.
+   *
+   * This function:
+   * 1. Computes absolute amount change
+   * 2. Calculates percentage change (handles division by zero)
+   * 3. Rounds all values to DECIMAL_PRECISION for consistency
+   *
+   * @param totals - Aggregated current and previous values
+   * @param totals.current - Current total portfolio value
+   * @param totals.previous - Previous total portfolio value
+   * @returns Complete BalanceChangeResult with all metrics
+   */
+  const calcFinalMetrics = (totals: { current: number; previous: number }) => {
+    const { current, previous } = totals;
+    const amountChange = current - previous;
+    const percentChange = previous !== 0 ? (amountChange / previous) * 100 : 0;
+
+    return {
+      period,
+      currentTotalInUserCurrency: Number(current.toFixed(DECIMAL_PRECISION)),
+      previousTotalInUserCurrency: Number(previous.toFixed(DECIMAL_PRECISION)),
+      amountChangeInUserCurrency: Number(
+        amountChange.toFixed(DECIMAL_PRECISION),
+      ),
+      percentChange: Number(percentChange.toFixed(DECIMAL_PRECISION)),
+      userCurrency: currencyRateState.currentCurrency,
+    };
+  };
+
+  // Execute the functional pipeline:
+  // 1. Get all accounts in the group
+  // 2. Calculate balance changes for each account (EVM vs non-EVM)
+  // 3. Aggregate totals across all accounts
+  // 4. Calculate final metrics and return result
+  const groupTotals = getGroupTotals();
+  return calcFinalMetrics(groupTotals);
 }
