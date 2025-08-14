@@ -98,6 +98,7 @@ export const getFinalizedTxProperties = (
   const quotedVsUsedGasRatio =
     historyItem.pricingData?.quotedGasAmount && actualGas?.amount
       ? new BigNumber(historyItem.pricingData.quotedGasAmount)
+          .multipliedBy(new BigNumber(10).pow(18))
           .div(actualGas.amount)
           .toNumber()
       : 0;

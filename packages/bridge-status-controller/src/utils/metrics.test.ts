@@ -291,10 +291,10 @@ describe('metrics utils', () => {
       expect(result).toMatchInlineSnapshot(`
         Object {
           "actual_time_minutes": 0.016666666666666666,
-          "quote_vs_execution_ratio": 0.9801117498370134,
+          "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
           "usd_actual_gas": "0.00016503472707560328",
-          "usd_actual_return": 2.969104511372795,
+          "usd_actual_return": 2.968939476645719,
         }
       `);
     });

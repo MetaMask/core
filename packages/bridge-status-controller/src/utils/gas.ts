@@ -119,22 +119,23 @@ export const calcActualGasUsed = (
         )
       : null;
 
-  const actualGasInDecEth = calcGasInHexWei(
+  const actualGasInHexWei = calcGasInHexWei(
     txReceipt?.gasUsed,
     txReceipt?.effectiveGasPrice,
-  )
-    ?.plus(
-      calcGasInHexWei(
-        approvalTxReceipt?.gasUsed,
-        approvalTxReceipt?.effectiveGasPrice,
-      ) ?? 0,
-    )
-    .div(new BigNumber(10).pow(18))
+  )?.plus(
+    calcGasInHexWei(
+      approvalTxReceipt?.gasUsed,
+      approvalTxReceipt?.effectiveGasPrice,
+    ) ?? 0,
+  );
+
+  const actualGasInDecEth = actualGasInHexWei
+    ?.div(new BigNumber(10).pow(18))
     .toString(10);
 
-  return actualGasInDecEth
+  return actualGasInHexWei && actualGasInDecEth
     ? {
-        amount: actualGasInDecEth,
+        amount: actualGasInHexWei.toString(10),
         usd:
           usdExchangeRate?.multipliedBy(actualGasInDecEth).toString(10) ?? null,
       }

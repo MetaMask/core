@@ -20,7 +20,7 @@ const getReceivedNativeAmount = (
       .toString(10);
   }
 
-  return actualGas
+  return actualGas && postTxBalance && preTxBalance
     ? new BigNumber(postTxBalance, 16)
         .minus(preTxBalance, 16)
         .minus(actualGas.amount)
