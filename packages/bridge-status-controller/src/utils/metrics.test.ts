@@ -279,9 +279,11 @@ describe('metrics utils', () => {
             quotedReturnInUsd: '2.91005421809056075408',
             quotedGasAmount: '7.5163201268e-8',
           },
+          startTime: 1755199230447 - 60000,
         },
         {
           type: TransactionType.swap,
+          time: 1755199230447,
           postTxBalance: '0x10879421cc05e3',
           preTxBalance: '0xe39c0e2d7de7e',
           txReceipt: { gasUsed: '0x57b05', effectiveGasPrice: '0x1880a' },
@@ -290,7 +292,50 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 1,
+          "quote_vs_execution_ratio": 0.9801662314040546,
+          "quoted_vs_used_gas_ratio": 2.0851258834973363,
+          "usd_actual_gas": "0.00016503472707560328",
+          "usd_actual_return": 2.968939476645719,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ETH tx, using txMeta.time', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '635621722151236',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0000000000000000000000000000000000000000',
+              decimals: 18,
+            },
+          },
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00034411818110125904',
+            quotedReturnInUsd: '2.91005421809056075408',
+            quotedGasAmount: '7.5163201268e-8',
+          },
+          startTime: 1755199230447 - 60000,
+        },
+        {
+          type: TransactionType.swap,
+          postTxBalance: '0x10879421cc05e3',
+          preTxBalance: '0xe39c0e2d7de7e',
+          txReceipt: { gasUsed: '0x57b05', effectiveGasPrice: '0x1880a' },
+          time: 1755199230447,
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
           "usd_actual_gas": "0.00016503472707560328",
@@ -352,7 +397,7 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0.9799999911934969,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
           "usd_actual_gas": "0.0000838882380418152",
@@ -413,7 +458,7 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
           "usd_actual_gas": "0.0000838882380418152",
@@ -453,7 +498,7 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 1,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
           "usd_actual_gas": "0.00016503472707560328",
@@ -516,7 +561,7 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
           "usd_actual_gas": "0.0000838882380418152",
@@ -559,7 +604,7 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
           "usd_actual_gas": "0.0000838882380418152",
@@ -595,7 +640,7 @@ describe('metrics utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         Object {
-          "actual_time_minutes": 0.016666666666666666,
+          "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 0,
           "usd_actual_gas": 0,
@@ -1009,6 +1054,19 @@ describe('metrics utils', () => {
       );
       expect(result.token_address_source).toBe('eip155:1/slip44:60');
       expect(result.token_address_destination).toBe('eip155:1/slip44:60');
+    });
+
+    it('should handle invalid token addresses', () => {
+      const noAddressesTransactionMeta: TransactionMeta = {
+        ...mockTransactionMeta,
+        sourceTokenAddress: 'fsdxfs',
+        destinationTokenAddress: 'fsdxfs',
+      };
+      const result = getEVMTxPropertiesFromTransactionMeta(
+        noAddressesTransactionMeta,
+      );
+      expect(result.token_address_source).toBe('');
+      expect(result.token_address_destination).toBe('');
     });
 
     it('should handle crosschain swap type', () => {
