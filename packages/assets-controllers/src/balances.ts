@@ -59,7 +59,7 @@ const isChainEnabledByMap = (
   if (!map) {
     return true;
   }
-  const isHex = typeof id === 'string' && isStrictHexString(id);
+  const isHex = isStrictHexString(id as string);
   if (isHex) {
     const evm = map[String(KnownCaipNamespace.Eip155)];
     return Boolean(evm?.[id as Hex]);
