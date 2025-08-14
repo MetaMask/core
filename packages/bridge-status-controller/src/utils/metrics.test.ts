@@ -1063,22 +1063,8 @@ describe('metrics utils', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(
         noAddressesTransactionMeta,
       );
-      expect(result.token_address_source).toBe('eip155:1/slip44:60');
-      expect(result.token_address_destination).toBe('eip155:1/slip44:60');
-    });
-
-    it('should handle invalid chainId', async () => {
-      const noAddressesTransactionMeta: TransactionMeta = {
-        ...mockTransactionMeta,
-        chainId: '0x10',
-        sourceTokenAddress: 'fsdxfs',
-        destinationTokenAddress: 'fsdxfs',
-      };
-      expect(() =>
-        getEVMTxPropertiesFromTransactionMeta(noAddressesTransactionMeta),
-      ).toThrowErrorMatchingInlineSnapshot(
-        `"No XChain Swaps native asset found for chainId: 0x10"`,
-      );
+      expect(result.token_address_source).toBe('');
+      expect(result.token_address_destination).toBe('');
     });
 
     it('should handle crosschain swap type', () => {
