@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^0.7.0` to `^0.9.0` ([#6310](https://github.com/MetaMask/core/pull/6310))
 - **BREAKING**: Improved `TokenBalancesController` performance with two-tier balance fetching strategy ([#6232](https://github.com/MetaMask/core/pull/6232))
   - Implements Accounts API as primary fetching method for supported networks (faster, more efficient)
   - Falls back to RPC calls using Multicall3's `aggregate3` for unsupported networks or API failures
