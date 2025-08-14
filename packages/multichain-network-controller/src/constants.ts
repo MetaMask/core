@@ -1,5 +1,10 @@
 import { type StateMetadata } from '@metamask/base-controller';
-import { type CaipChainId, BtcScope, SolScope } from '@metamask/keyring-api';
+import {
+  type CaipChainId,
+  BtcScope,
+  SolScope,
+  TrxScope,
+} from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {
@@ -17,6 +22,9 @@ export const BTC_REGTEST_NATIVE_ASSET = `${BtcScope.Regtest}/slip44:0`;
 export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/slip44:501`;
 export const SOL_TESTNET_NATIVE_ASSET = `${SolScope.Testnet}/slip44:501`;
 export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
+export const TRX_NATIVE_ASSET = `${TrxScope.Mainnet}/slip44:195`;
+export const TRX_NILE_NATIVE_ASSET = `${TrxScope.Nile}/slip44:195`;
+export const TRX_SHASTA_NATIVE_ASSET = `${TrxScope.Shasta}/slip44:195`;
 
 /**
  * Supported networks by the MultichainNetworkController
@@ -73,6 +81,24 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     nativeCurrency: SOL_DEVNET_NATIVE_ASSET,
     isEvm: false,
   },
+  [TrxScope.Mainnet]: {
+    chainId: TrxScope.Mainnet,
+    name: 'Tron',
+    nativeCurrency: TRX_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [TrxScope.Nile]: {
+    chainId: TrxScope.Nile,
+    name: 'Tron Nile',
+    nativeCurrency: TRX_NILE_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [TrxScope.Shasta]: {
+    chainId: TrxScope.Shasta,
+    name: 'Tron Shasta',
+    nativeCurrency: TRX_SHASTA_NATIVE_ASSET,
+    isEvm: false,
+  },
 };
 
 /**
@@ -87,6 +113,8 @@ export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   BtcScope.Regtest,
   SolScope.Testnet,
   SolScope.Devnet,
+  TrxScope.Nile,
+  TrxScope.Shasta,
 ];
 
 /**
@@ -98,6 +126,10 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
     status: NetworkStatus.Available,
   },
   [SolScope.Mainnet]: {
+    features: [],
+    status: NetworkStatus.Available,
+  },
+  [TrxScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
@@ -144,6 +176,9 @@ export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
   [SolScope.Mainnet]: 'SOL',
   [SolScope.Testnet]: 'tSOL',
   [SolScope.Devnet]: 'dSOL',
+  [TrxScope.Mainnet]: 'TRX',
+  [TrxScope.Nile]: 'tTRX',
+  [TrxScope.Shasta]: 'sTRX',
 } as const;
 
 /**
@@ -159,4 +194,7 @@ export const MULTICHAIN_NETWORK_DECIMAL_PLACES: Record<CaipChainId, number> = {
   [SolScope.Mainnet]: 5,
   [SolScope.Testnet]: 5,
   [SolScope.Devnet]: 5,
+  [TrxScope.Mainnet]: 6,
+  [TrxScope.Nile]: 6,
+  [TrxScope.Shasta]: 6,
 } as const;

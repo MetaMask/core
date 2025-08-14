@@ -1,4 +1,4 @@
-import { BtcScope, SolScope, EthScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, EthScope, TrxScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { type Infer, array, object } from '@metamask/superstruct';
 import { CaipAccountIdStruct, parseCaipAccountId } from '@metamask/utils';
@@ -58,6 +58,9 @@ export const MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES = [
   String(EthScope.Mainnet),
   String(EthScope.Testnet),
   String(EthScope.Eoa),
+  String(TrxScope.Mainnet),
+  String(TrxScope.Nile),
+  String(TrxScope.Shasta),
 ];
 
 /**
