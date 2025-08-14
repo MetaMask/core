@@ -283,7 +283,7 @@ export class EarnController extends BaseController<
 > {
   #earnSDK: EarnSdk | null = null;
 
-  #selectedNetworkClientId: string;
+  #selectedNetworkClientId: () => string;
 
   readonly #earnApiService: EarnApiService;
 
@@ -303,7 +303,7 @@ export class EarnController extends BaseController<
     messenger: EarnControllerMessenger;
     state?: Partial<EarnControllerState>;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
-    selectedNetworkClientId: string;
+    selectedNetworkClientId: () => string;
     env?: EarnEnvironments;
   }) {
     super({
@@ -329,7 +329,7 @@ export class EarnController extends BaseController<
 
     this.#selectedNetworkClientId = selectedNetworkClientId;
 
-    this.#initializeSDK(selectedNetworkClientId).catch(console.error);
+    this.#initializeSDK(selectedNetworkClientId()).catch(console.error);
     this.refreshPooledStakingData().catch(console.error);
     this.refreshLendingData().catch(console.error);
 
@@ -338,9 +338,9 @@ export class EarnController extends BaseController<
       'NetworkController:networkDidChange',
       (networkControllerState) => {
         this.#selectedNetworkClientId =
-          networkControllerState.selectedNetworkClientId;
+          () => networkControllerState.selectedNetworkClientId;
 
-        this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
+        this.#initializeSDK(this.#selectedNetworkClientId()).catch(console.error);
 
         // refresh pooled staking data
         this.refreshPooledStakingVaultMetadata().catch(console.error);
@@ -917,7 +917,7 @@ export class EarnController extends BaseController<
     if (!transactionData) {
       throw new Error('Transaction data not found');
     }
-    if (!this.#selectedNetworkClientId) {
+    if (!this.#selectedNetworkClientId()) {
       throw new Error('Selected network client id not found');
     }
 
@@ -934,7 +934,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: this.#selectedNetworkClientId(),
       },
     );
 
@@ -989,7 +989,7 @@ export class EarnController extends BaseController<
       throw new Error('Transaction data not found');
     }
 
-    if (!this.#selectedNetworkClientId) {
+    if (!this.#selectedNetworkClientId()) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1006,7 +1006,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: this.#selectedNetworkClientId(),
       },
     );
 
@@ -1061,7 +1061,7 @@ export class EarnController extends BaseController<
       throw new Error('Transaction data not found');
     }
 
-    if (!this.#selectedNetworkClientId) {
+    if (!this.#selectedNetworkClientId()) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1078,7 +1078,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: this.#selectedNetworkClientId(),
       },
     );
 

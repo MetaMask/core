@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
 
+### Fixed
+
+- **BREAKING:** Convert `selectedNetworkClientId` parameter from string to function to prevent stale values after reinitialization ([#6312](https://github.com/MetaMask/core/pull/6312))
+
 ## [5.0.0]
 
 ### Added

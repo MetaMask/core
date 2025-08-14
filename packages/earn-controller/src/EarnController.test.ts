@@ -666,14 +666,14 @@ const setupController = async ({
   })),
 
   addTransactionFn = jest.fn(),
-  selectedNetworkClientId = '1',
+  selectedNetworkClientId = () => '1',
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
   mockGetNetworkClientById?: jest.Mock;
   mockGetNetworkControllerState?: jest.Mock;
   mockGetSelectedAccount?: jest.Mock;
   addTransactionFn?: jest.Mock;
-  selectedNetworkClientId?: string;
+  selectedNetworkClientId?: () => string;
 } = {}) => {
   const messenger = buildMessenger();
 
@@ -1967,7 +1967,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          selectedNetworkClientId: () => '',
         });
 
         await expect(
@@ -2140,7 +2140,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          selectedNetworkClientId: () => '',
         });
 
         await expect(
@@ -2313,7 +2313,7 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          selectedNetworkClientId: () => '',
         });
 
         await expect(
