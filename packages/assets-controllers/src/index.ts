@@ -213,11 +213,8 @@ export type {
   AllWalletsBalance,
 } from './balances';
 export { calculateBalanceForAllWallets } from './balances';
-export type {
-  BalanceChangePeriod,
-  AggregatedChangeForAllWallets,
-} from './balances';
+export type { BalanceChangePeriod, BalanceChangeResult } from './balances';
 export {
-  calculateAggregatedChangeForAllWallets,
-  calculateAggregatedChangeForGroup,
+  calculateBalanceChangeForAllWallets,
+  calculateBalanceChangeForAccountGroup,
 } from './balances';

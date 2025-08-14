@@ -3,8 +3,8 @@ import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
 import {
   calculateBalanceForAllWallets,
-  calculateAggregatedChangeForAllWallets,
-  calculateAggregatedChangeForGroup,
+  calculateBalanceChangeForAllWallets,
+  calculateBalanceChangeForAccountGroup,
 } from './balances';
 
 const createBaseMockState = (userCurrency = 'USD') => ({
@@ -511,7 +511,7 @@ describe('calculateBalanceForAllWallets', () => {
     expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
   });
 
-  describe('calculateAggregatedChangeForAllWallets', () => {
+  describe('calculateBalanceChangeForAllWallets', () => {
     it('computes 1d change for EVM tokens', () => {
       const state = createMobileMockState('USD');
       // Inject percent change into market data for one token to exercise change calc
@@ -519,7 +519,7 @@ describe('calculateBalanceForAllWallets', () => {
         '0x1'
       ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -552,7 +552,7 @@ describe('calculateBalanceForAllWallets', () => {
         eip155: { '0x1': false, '0x89': true, '0xa4b1': true },
       } as Record<string, Record<string, boolean>>;
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -616,7 +616,7 @@ describe('calculateBalanceForAllWallets', () => {
         conversionTime: 0,
       };
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -654,7 +654,7 @@ describe('calculateBalanceForAllWallets', () => {
         .marketData['0x1']['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1']
         .pricePercentChange1d;
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -727,7 +727,7 @@ describe('calculateBalanceForAllWallets', () => {
         conversionTime: 0,
       };
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -754,7 +754,7 @@ describe('calculateBalanceForAllWallets', () => {
       ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d =
         -100;
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -811,7 +811,7 @@ describe('calculateBalanceForAllWallets', () => {
         conversionTime: 0,
       };
 
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -836,7 +836,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState as any
       ).AccountTreeController.accountTree.wallets['undefined:wallet'] =
         undefined;
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -867,7 +867,7 @@ describe('calculateBalanceForAllWallets', () => {
         price: 1.0,
         pricePercentChange1d: 5,
       } as any;
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -898,7 +898,7 @@ describe('calculateBalanceForAllWallets', () => {
         price: 1.0,
         pricePercentChange1d: 5,
       } as any;
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -928,7 +928,7 @@ describe('calculateBalanceForAllWallets', () => {
         currency: 'ETH',
         pricePercentChange1d: 5,
       } as any;
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -961,7 +961,7 @@ describe('calculateBalanceForAllWallets', () => {
       } as any;
       delete (state.engine.backgroundState as any).CurrencyRateController
         .currencyRates.ETH;
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -995,7 +995,7 @@ describe('calculateBalanceForAllWallets', () => {
       ).AccountTreeController.accountTree.wallets[
         'entropy:entropy-source-1'
       ].groups['entropy:entropy-source-1/0'].accounts.push('account-10');
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1046,7 +1046,7 @@ describe('calculateBalanceForAllWallets', () => {
       const enabledNetworkMap = {
         solana: { 'solana:mainnet': false },
       } as Record<string, Record<string, boolean>>;
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1094,7 +1094,7 @@ describe('calculateBalanceForAllWallets', () => {
         marketData: { pricePercentChange: { P1D: 10 } },
         conversionTime: 0,
       };
-      const out = calculateAggregatedChangeForAllWallets(
+      const out = calculateBalanceChangeForAllWallets(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1259,7 +1259,7 @@ describe('calculateBalanceForAllWallets', () => {
     });
   });
 
-  describe('calculateAggregatedChangeForGroup', () => {
+  describe('calculateBalanceChangeForAccountGroup', () => {
     it('eVM path computes previous/current (denom > 0) for group with balances', () => {
       const state = createMobileMockState('USD');
       // Ensure group 1 contains an account with EVM balances (account-2)
@@ -1274,7 +1274,7 @@ describe('calculateBalanceForAllWallets', () => {
         '0x1'
       ]['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
 
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1305,7 +1305,7 @@ describe('calculateBalanceForAllWallets', () => {
         price: 0.00041,
         pricePercentChange1d: 10,
       };
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1338,7 +1338,7 @@ describe('calculateBalanceForAllWallets', () => {
         price: 1.25,
         pricePercentChange1d: 15,
       };
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1388,7 +1388,7 @@ describe('calculateBalanceForAllWallets', () => {
         marketData: { pricePercentChange: { P1D: 5 } },
         conversionTime: 0,
       };
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1407,7 +1407,7 @@ describe('calculateBalanceForAllWallets', () => {
 
     it('returns zeros when group has no accounts', () => {
       const state = createMobileMockState('USD');
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1428,7 +1428,7 @@ describe('calculateBalanceForAllWallets', () => {
 
     it('returns zeros when group wallet is missing', () => {
       const state = createMobileMockState('USD');
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1460,7 +1460,7 @@ describe('calculateBalanceForAllWallets', () => {
         price: 1.0,
         pricePercentChange1d: 5,
       } as any;
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1484,7 +1484,7 @@ describe('calculateBalanceForAllWallets', () => {
       ).TokenBalancesController.tokenBalances[
         '0x1234567890123456789012345678901234567890'
       ]['0x1']['0xC0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'] = '0xZZZ';
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1510,7 +1510,7 @@ describe('calculateBalanceForAllWallets', () => {
         currency: 'ETH',
         pricePercentChange1d: 10,
       } as any;
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1538,7 +1538,7 @@ describe('calculateBalanceForAllWallets', () => {
       } as any;
       delete (state.engine.backgroundState as any).CurrencyRateController
         .currencyRates.ETH;
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1572,7 +1572,7 @@ describe('calculateBalanceForAllWallets', () => {
       ).AccountTreeController.accountTree.wallets[
         'entropy:entropy-source-1'
       ].groups['entropy:entropy-source-1/0'].accounts.push('account-sol4');
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1619,7 +1619,7 @@ describe('calculateBalanceForAllWallets', () => {
       const enabledNetworkMap = {
         solana: { 'solana:mainnet': false },
       } as Record<string, Record<string, boolean>>;
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
@@ -1670,7 +1670,7 @@ describe('calculateBalanceForAllWallets', () => {
       ).MultichainAssetsRatesController.conversionRates[
         'solana:mainnet/asset:T'
       ] = { rate: '10', marketData: { pricePercentChange: { P1D: -100 } } };
-      const res = calculateAggregatedChangeForGroup(
+      const res = calculateBalanceChangeForAccountGroup(
         state.engine.backgroundState.AccountTreeController as any,
         state.engine.backgroundState.AccountsController as any,
         state.engine.backgroundState.TokenBalancesController as any,
