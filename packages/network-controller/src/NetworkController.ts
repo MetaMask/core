@@ -1648,7 +1648,7 @@ export class NetworkController extends BaseController<
    */
   async lookupNetwork(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      await this.#lookupGivenNetwork(networkClientId);
+      await this.lookupNetworkByNetworkClientId(networkClientId);
     } else {
       await this.#lookupSelectedNetwork();
     }
@@ -1664,8 +1664,10 @@ export class NetworkController extends BaseController<
    * whether it does not, or whether it is unknown
    *
    * @param networkClientId - The ID of the network client to inspect.
+   * @deprecated Please use `lookupNetwork` and pass a network client ID
+   * instead. This method will be removed in a future major version.
    */
-  async #lookupGivenNetwork(networkClientId: NetworkClientId) {
+  async lookupNetworkByNetworkClientId(networkClientId: NetworkClientId) {
     const { networkStatus, isEIP1559Compatible } =
       await this.#determineNetworkMetadata(networkClientId);
     this.#updateMetadataForNetwork(
