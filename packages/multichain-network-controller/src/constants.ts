@@ -113,6 +113,8 @@ export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   BtcScope.Regtest,
   SolScope.Testnet,
   SolScope.Devnet,
+  TrxScope.Nile,
+  TrxScope.Shasta,
 ];
 
 /**
@@ -124,6 +126,10 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
     status: NetworkStatus.Available,
   },
   [SolScope.Mainnet]: {
+    features: [],
+    status: NetworkStatus.Available,
+  },
+  [TrxScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
