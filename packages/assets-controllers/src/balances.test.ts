@@ -1438,7 +1438,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
-        'missing-wallet/0',
+        'entropy:missing-wallet/0',
         '1d',
       );
       expect(res.currentTotalInUserCurrency).toBe(0);
