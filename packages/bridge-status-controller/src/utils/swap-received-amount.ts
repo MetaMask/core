@@ -1,5 +1,5 @@
 import type { TokenAmountValues } from '@metamask/bridge-controller';
-import { isNativeAddress, isSolanaChainId } from '@metamask/bridge-controller';
+import { isNativeAddress } from '@metamask/bridge-controller';
 import { type TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
@@ -23,7 +23,7 @@ const getReceivedNativeAmount = (
   return actualGas
     ? new BigNumber(postTxBalance, 16)
         .minus(preTxBalance, 16)
-        .minus(actualGas?.amount)
+        .minus(actualGas.amount)
         .div(10 ** historyItem.quote.destAsset.decimals)
     : null;
 };
@@ -64,6 +64,7 @@ const getReceivedERC20Amount = (
       new BigNumber(10).pow(quote.destAsset.decimals),
     );
   }
+
   return null;
 };
 
@@ -73,17 +74,9 @@ export const getActualSwapReceivedAmount = (
   txMeta?: TransactionMeta,
 ) => {
   const { pricingData } = historyItem;
-  const { quotedReturnInUsd } = pricingData ?? {};
   const quotedReturnAmount = historyItem.quote.destTokenAmount;
 
-  if (isSolanaChainId(historyItem.quote.srcChainId)) {
-    return {
-      amount: quotedReturnAmount,
-      usd: quotedReturnInUsd,
-    };
-  }
-
-  if (!txMeta?.txReceipt || !historyItem) {
+  if (!txMeta?.txReceipt) {
     return null;
   }
 
@@ -94,17 +87,18 @@ export const getActualSwapReceivedAmount = (
     : getReceivedERC20Amount(historyItem, txMeta);
 
   const returnUsdExchangeRate =
-    quotedReturnInUsd && quotedReturnAmount
-      ? new BigNumber(quotedReturnInUsd)
+    pricingData?.quotedReturnInUsd && quotedReturnAmount
+      ? new BigNumber(pricingData.quotedReturnInUsd)
           .div(quotedReturnAmount)
           .multipliedBy(10 ** historyItem.quote.destAsset.decimals)
       : null;
 
   return {
     amount: actualReturnAmount,
-    usd: actualReturnAmount
-      ? returnUsdExchangeRate?.multipliedBy(actualReturnAmount)
-      : null,
+    usd:
+      actualReturnAmount && returnUsdExchangeRate
+        ? returnUsdExchangeRate.multipliedBy(actualReturnAmount)
+        : null,
   };
 };
 

@@ -361,6 +361,249 @@ describe('metrics utils', () => {
       `);
     });
 
+    it('should calculate correct time and ratios for swap to ERC0 tx, incomplete pricingData', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            logs: [
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000009a13f98cb987694c9f086b1f5eb990eea8264ec3',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                ],
+              },
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                  '0x00000000000000000000000030e8ccad5a980bdf30447f8c2c48e70989d9d294',
+                ],
+              },
+            ],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ETH tx, missing preTxBalance', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '635621722151236',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0000000000000000000000000000000000000000',
+              decimals: 18,
+            },
+          },
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00034411818110125904',
+            quotedReturnInUsd: '2.91005421809056075408',
+            quotedGasAmount: '7.5163201268e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          postTxBalance: '0x10879421cc05e3',
+          txReceipt: { gasUsed: '0x57b05', effectiveGasPrice: '0x1880a' },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 1,
+          "quoted_vs_used_gas_ratio": 2.0851258834973363,
+          "usd_actual_gas": "0.00016503472707560328",
+          "usd_actual_return": 2.910054218090561,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ERC0 tx with 0x0 status', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            status: '0x0',
+            logs: [
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000009a13f98cb987694c9f086b1f5eb990eea8264ec3',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                ],
+              },
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                  '0x00000000000000000000000030e8ccad5a980bdf30447f8c2c48e70989d9d294',
+                ],
+              },
+            ],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ERC0 tx with incomplete log data', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            logs: [],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap tx without txMeta', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        { type: TransactionType.swap } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 0,
+          "usd_actual_gas": 0,
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
     it('should calculate correct time and ratios for Solana tx', () => {
       const result = getFinalizedTxProperties({
         ...mockHistoryItem,
