@@ -32,6 +32,7 @@ import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { calcActualGasUsed } from './gas';
+import { getActualSwapReceivedAmount } from './swap-received-amount';
 import type { BridgeHistoryItem } from '../types';
 
 export const getTxStatusesFromHistory = ({
@@ -85,18 +86,10 @@ const calcActualReturn = (
     ? new BigNumber(pricingData.quotedReturnInUsd).div(quote.destTokenAmount)
     : null;
 
-  const { type } = txMeta;
-  if (type === TransactionType.bridge) {
-    const actualAmount = status.destChain?.amount ?? '0';
-    return {
-      amount: actualAmount,
-      usd: usdExchangeRate?.multipliedBy(actualAmount).toString(10) ?? null,
-    };
-  }
-
+  const actualAmount = status.destChain?.amount ?? '0';
   return {
-    amount: quote.destTokenAmount, // TODO get this from swap transfer logs
-    usd: null,
+    amount: actualAmount,
+    usd: usdExchangeRate?.multipliedBy(actualAmount).toString(10) ?? null,
   };
 };
 
@@ -111,12 +104,16 @@ export const getFinalizedTxProperties = (
     historyItem.startTime;
   const completionTime = historyItem.completionTime ?? txMeta?.time;
 
-  const actualReturn = calcActualReturn(historyItem, txMeta);
   const actualGas = calcActualGasUsed(
     historyItem,
     txMeta?.txReceipt,
     approvalTxMeta?.txReceipt,
   );
+
+  const actualReturn =
+    txMeta?.type === TransactionType.bridge
+      ? calcActualReturn(historyItem, txMeta)
+      : getActualSwapReceivedAmount(historyItem, actualGas, txMeta);
 
   const quotedVsUsedGasRatio =
     historyItem.pricingData?.quotedGasAmount && actualGas?.amount
@@ -126,7 +123,7 @@ export const getFinalizedTxProperties = (
       : 0;
 
   const quoteVsExecutionRatio =
-    historyItem.pricingData?.quotedReturnInUsd && actualReturn.usd
+    historyItem.pricingData?.quotedReturnInUsd && actualReturn?.usd
       ? new BigNumber(historyItem.pricingData.quotedReturnInUsd)
           .div(actualReturn.usd)
           .toNumber()
@@ -135,7 +132,7 @@ export const getFinalizedTxProperties = (
   return {
     actual_time_minutes:
       completionTime && startTime ? (completionTime - startTime) / 60000 : 0,
-    usd_actual_return: Number(actualReturn.usd ?? 0),
+    usd_actual_return: Number(actualReturn?.usd ?? 0),
     usd_actual_gas: actualGas?.usd ?? 0,
     quote_vs_execution_ratio: quoteVsExecutionRatio,
     quoted_vs_used_gas_ratio: quotedVsUsedGasRatio,
