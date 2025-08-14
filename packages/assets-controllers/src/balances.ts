@@ -20,26 +20,38 @@ import type { TokenRatesControllerState } from './TokenRatesController';
 import type { TokensControllerState } from './TokensController';
 
 export type AccountGroupBalance = {
-  walletId: AccountWalletId;
-  groupId: AccountGroupId;
+  walletId: string;
+  groupId: string;
   totalBalanceInUserCurrency: number;
   userCurrency: string;
 };
 
 export type WalletBalance = {
-  walletId: AccountWalletId;
-  groups: Record<AccountGroupId, AccountGroupBalance>;
+  walletId: string;
+  groups: Record<string, AccountGroupBalance>;
   totalBalanceInUserCurrency: number;
   userCurrency: string;
 };
 
 export type AllWalletsBalance = {
-  wallets: Record<AccountWalletId, WalletBalance>;
+  wallets: Record<string, WalletBalance>;
   totalBalanceInUserCurrency: number;
   userCurrency: string;
 };
 
 export type BalanceChangePeriod = '1d' | '7d' | '30d';
+
+const evmRatePropertiesRecord = {
+  '1d': 'pricePercentChange1d',
+  '7d': 'pricePercentChange7d',
+  '30d': 'pricePercentChange30d',
+} as const;
+
+const nonEvmRatePropertiesRecord = {
+  '1d': 'P1D',
+  '7d': 'P7D',
+  '30d': 'P30D',
+};
 
 export type BalanceChangeResult = {
   period: BalanceChangePeriod;
@@ -50,31 +62,6 @@ export type BalanceChangeResult = {
   userCurrency: string;
 };
 
-// Constants for decimal precision and calculations
-const DECIMAL_PRECISION = 8;
-const PERCENT_DIVISOR = 100;
-
-/**
- * Type-safe access to percent change fields from MarketDataDetails
- *
- * @param marketData - Market data object containing percent change fields
- * @param period - Time period for the percent change ('1d', '7d', '30d')
- * @returns The percent change value for the specified period, or undefined if not available
- */
-const getPercentChange = (
-  marketData: { [key: string]: unknown } | undefined,
-  period: BalanceChangePeriod,
-): number | undefined => {
-  const fieldMap: Record<BalanceChangePeriod, string> = {
-    '1d': 'pricePercentChange1d',
-    '7d': 'pricePercentChange7d',
-    '30d': 'pricePercentChange30d',
-  };
-  const field = fieldMap[period];
-  const value = marketData?.[field];
-  return typeof value === 'number' && !Number.isNaN(value) ? value : undefined;
-};
-
 const isChainEnabledByMap = (
   map: Record<string, Record<string, boolean>> | undefined,
   id: Hex | CaipChainId,
@@ -82,30 +69,28 @@ const isChainEnabledByMap = (
   if (!map) {
     return true;
   }
-  const isHex = isStrictHexString(id);
-  if (isHex) {
-    const evm = map[String(KnownCaipNamespace.Eip155)];
-    return Boolean(evm?.[id]);
+  if (isStrictHexString(id)) {
+    return Boolean(map[KnownCaipNamespace.Eip155]?.[id]);
   }
   const { namespace } = parseCaipChainId(id);
   return Boolean(map[namespace]?.[id]);
 };
 
-const getWalletIdFromGroupId = (groupId: AccountGroupId): AccountWalletId => {
+const getWalletIdFromGroupId = (groupId: string): AccountWalletId => {
   return groupId.split('/')[0] as AccountWalletId;
 };
 
 const getInternalAccountsForGroup = (
   accountTreeState: AccountTreeControllerState,
   accountsState: AccountsControllerState,
-  groupId: AccountGroupId,
+  groupId: string,
 ): InternalAccount[] => {
   const walletId = getWalletIdFromGroupId(groupId);
   const wallet = accountTreeState.accountTree.wallets[walletId];
   if (!wallet) {
     return [];
   }
-  const group = wallet.groups[groupId];
+  const group = wallet.groups[groupId as AccountGroupId];
   if (!group) {
     return [];
   }
@@ -116,40 +101,132 @@ const getInternalAccountsForGroup = (
     .filter(Boolean);
 };
 
-/**
- * Build a flattened list of { groupId, account } rows for a given wallet.
- *
- * @param accountTreeState - AccountTreeController state.
- * @param accountsState - AccountsController state.
- * @param walletId - Wallet identifier containing groups/accounts to flatten.
- * @returns Array of rows with groupId and account.
- */
-function getGroupAccountRows(
-  accountTreeState: AccountTreeControllerState,
-  accountsState: AccountsControllerState,
-  walletId: AccountWalletId,
-): { groupId: AccountGroupId; account: InternalAccount }[] {
-  const wallet = accountTreeState.accountTree.wallets[walletId];
-  if (!wallet) {
-    return [];
-  }
-  const groupIds = Object.keys(wallet.groups || {}) as AccountGroupId[];
-  const rows: { groupId: AccountGroupId; account: InternalAccount }[] = [];
-  for (const groupId of groupIds) {
-    const accounts = getInternalAccountsForGroup(
-      accountTreeState,
-      accountsState,
-      groupId as AccountGroupId,
-    );
-    for (const account of accounts) {
-      rows.push({ groupId, account });
-    }
-  }
-  return rows;
-}
-
 const isNonNaNNumber = (value: unknown): value is number =>
   typeof value === 'number' && !Number.isNaN(value);
+
+/**
+ * Combined function that gets valid token balances with calculation data
+ *
+ * @param account - Internal account.
+ * @param tokenBalancesState - Token balances state.
+ * @param tokensState - Tokens state.
+ * @param tokenRatesState - Token rates state.
+ * @param currencyRateState - Currency rate state.
+ * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
+ * @returns token calculation data
+ */
+function getEvmTokenBalances(
+  account: InternalAccount,
+  tokenBalancesState: TokenBalancesControllerState,
+  tokensState: TokensControllerState,
+  tokenRatesState: TokenRatesControllerState,
+  currencyRateState: CurrencyRateState,
+  isEvmChainEnabled: (chainId: Hex) => boolean,
+) {
+  const accountBalances =
+    tokenBalancesState.tokenBalances[account.address as Hex] ?? {};
+
+  return Object.entries(accountBalances)
+    .filter(([chainId]) => isEvmChainEnabled(chainId as Hex))
+    .flatMap(([chainId, chainBalances]) =>
+      Object.entries(chainBalances).map(([tokenAddress, balance]) => ({
+        chainId: chainId as Hex,
+        tokenAddress: tokenAddress as Hex,
+        balance,
+      })),
+    )
+    .map((tokenBalance) => {
+      const { chainId, tokenAddress, balance } = tokenBalance;
+
+      // Get Token Info
+      const accountTokens =
+        tokensState?.allTokens?.[chainId]?.[account.address];
+      const token = accountTokens?.find((t) => t.address === tokenAddress);
+      if (!token) {
+        return null;
+      }
+
+      // Get market data
+      const tokenMarketData =
+        tokenRatesState?.marketData?.[chainId]?.[tokenAddress];
+      if (!tokenMarketData?.price) {
+        return null;
+      }
+
+      // Get conversion rate
+      const nativeToUserRate =
+        currencyRateState.currencyRates[tokenMarketData.currency]
+          ?.conversionRate;
+      if (!nativeToUserRate) {
+        return null;
+      }
+
+      // Calculate values
+      const decimals = isNonNaNNumber(token.decimals) ? token.decimals : 18;
+      const decimalBalance = parseInt(balance, 16);
+      if (!isNonNaNNumber(decimalBalance)) {
+        return null;
+      }
+
+      const userCurrencyValue =
+        (decimalBalance / Math.pow(10, decimals)) *
+        tokenMarketData.price *
+        nativeToUserRate;
+
+      return {
+        userCurrencyValue,
+        tokenMarketData, // Only needed for change calculations
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+}
+
+/**
+ * Combined function that gets valid non-EVM asset balances with calculation data
+ *
+ * @param account - Internal account.
+ * @param multichainBalancesState - Multichain balances state.
+ * @param multichainRatesState - Multichain rates state.
+ * @param isAssetChainEnabled - Predicate to check asset chain enablement.
+ * @returns token calculation data
+ */
+function getNonEvmAssetBalances(
+  account: InternalAccount,
+  multichainBalancesState: MultichainBalancesControllerState,
+  multichainRatesState: MultichainAssetsRatesControllerState,
+  isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
+) {
+  const accountBalances = multichainBalancesState.balances[account.id] ?? {};
+
+  return Object.entries(accountBalances)
+    .filter(([assetId]) => isAssetChainEnabled(assetId as CaipAssetType))
+    .map(([assetId, balanceData]) => {
+      const balanceAmount = parseFloat(balanceData.amount);
+      if (Number.isNaN(balanceAmount)) {
+        return null;
+      }
+
+      const conversionRate =
+        multichainRatesState.conversionRates[assetId as CaipAssetType];
+      if (!conversionRate) {
+        return null;
+      }
+
+      const conversionRateValue = parseFloat(conversionRate.rate);
+      if (Number.isNaN(conversionRateValue)) {
+        return null;
+      }
+
+      const userCurrencyValue = balanceAmount * conversionRateValue;
+
+      return {
+        assetId: assetId as CaipAssetType,
+        userCurrencyValue,
+        conversionRate, // Only needed for change calculations
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+}
 
 /**
  * Sum EVM account token balances in user currency.
@@ -170,65 +247,15 @@ function sumEvmAccountBalanceInUserCurrency(
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ): number {
-  const getValidTokenBalances = () => {
-    const accountBalances =
-      tokenBalancesState.tokenBalances[account.address as Hex] ?? {};
-    const tokenBalances = Object.entries(accountBalances)
-      .filter(([chainId]) => isEvmChainEnabled(chainId as Hex))
-      .flatMap(([chainId, chainBalances]) =>
-        Object.entries(chainBalances).map(([tokenAddress, balance]) => ({
-          chainId: chainId as Hex,
-          tokenAddress: tokenAddress as Hex,
-          balance,
-        })),
-      );
-    return tokenBalances;
-  };
-
-  const calcTokenValue = (
-    tokenBalance: ReturnType<typeof getValidTokenBalances>[number],
-  ) => {
-    const { chainId, tokenAddress, balance } = tokenBalance;
-
-    // Get Token Info
-    const chainTokens = tokensState.allTokens[chainId];
-    const accountTokens = chainTokens?.[account.address];
-    const token = accountTokens?.find((t) => t.address === tokenAddress);
-    if (!token) {
-      return 0;
-    }
-
-    // Get market data
-    const chainMarketData = tokenRatesState.marketData[chainId as Hex];
-    const tokenMarketData = chainMarketData?.[tokenAddress as Hex];
-    if (!tokenMarketData?.price) {
-      return 0;
-    }
-
-    // Get conversion rate
-    const nativeToUserRate =
-      currencyRateState.currencyRates[tokenMarketData.currency]?.conversionRate;
-    if (!nativeToUserRate) {
-      return 0;
-    }
-
-    // Calculate value
-    const decimals = isNonNaNNumber(token.decimals) ? token.decimals : 18;
-    const balanceInSmallestUnit = parseInt(balance, 16);
-    if (!isNonNaNNumber(balanceInSmallestUnit)) {
-      return 0;
-    }
-
-    return (
-      (balanceInSmallestUnit / Math.pow(10, decimals)) *
-      tokenMarketData.price *
-      nativeToUserRate
-    );
-  };
-
-  const tokenBalances = getValidTokenBalances();
-  const total = tokenBalances.reduce((a, b) => a + calcTokenValue(b), 0);
-  return total;
+  const tokenBalances = getEvmTokenBalances(
+    account,
+    tokenBalancesState,
+    tokensState,
+    tokenRatesState,
+    currencyRateState,
+    isEvmChainEnabled,
+  );
+  return tokenBalances.reduce((a, b) => a + b.userCurrencyValue, 0);
 }
 
 /**
@@ -246,68 +273,14 @@ function sumNonEvmAccountBalanceInUserCurrency(
   multichainRatesState: MultichainAssetsRatesControllerState,
   isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
 ): number {
-  /**
-   * Retrieves and filters valid asset balances for the account.
-   *
-   * This function:
-   * 1. Gets account balances from the multichain balances state
-   * 2. Filters out disabled asset chains using the isAssetChainEnabled predicate
-   * 3. Returns structured objects with assetId and balanceData
-   *
-   * @returns Array of valid asset balance objects for enabled chains
-   */
-  const getValidAssetBalances = () => {
-    const accountBalances = multichainBalancesState.balances[account.id] ?? {};
-    const assetBalances = Object.entries(accountBalances)
-      .filter(([assetId]) => isAssetChainEnabled(assetId as CaipAssetType))
-      .map(([assetId, balanceData]) => ({
-        assetId: assetId as CaipAssetType,
-        balanceData,
-      }));
-    return assetBalances;
-  };
+  const assetBalances = getNonEvmAssetBalances(
+    account,
+    multichainBalancesState,
+    multichainRatesState,
+    isAssetChainEnabled,
+  );
 
-  /**
-   * Calculates the USD value of a single asset balance.
-   *
-   * This function:
-   * 1. Parses the balance amount from the asset data
-   * 2. Retrieves the conversion rate for the asset
-   * 3. Calculates final USD value using balance amount and conversion rate
-   *
-   * @param assetBalance - Asset balance object containing assetId and balanceData
-   * @returns USD value of the asset balance, or 0 if calculation fails
-   */
-  const calcAssetValue = (
-    assetBalance: ReturnType<typeof getValidAssetBalances>[number],
-  ) => {
-    const { assetId, balanceData } = assetBalance;
-
-    const balanceAmount = parseFloat(balanceData.amount);
-    if (Number.isNaN(balanceAmount)) {
-      return 0;
-    }
-
-    const conversionRate = multichainRatesState.conversionRates[assetId];
-    if (!conversionRate?.rate) {
-      return 0;
-    }
-
-    const rate = parseFloat(conversionRate.rate);
-    if (Number.isNaN(rate)) {
-      return 0;
-    }
-
-    return balanceAmount * rate;
-  };
-
-  // Execute the functional pipeline:
-  // 1. Get valid asset balances (filtered by enabled chains)
-  // 2. Calculate USD value for each asset
-  // 3. Sum all values to get total account balance
-  const assetBalances = getValidAssetBalances();
-  const total = assetBalances.reduce((a, b) => a + calcAssetValue(b), 0);
-  return total;
+  return assetBalances.reduce((a, b) => a + b.userCurrencyValue, 0);
 }
 
 /**
@@ -368,7 +341,7 @@ export function calculateBalanceForAllWallets(
           const accounts = getInternalAccountsForGroup(
             accountTreeState,
             accountsState,
-            groupId as AccountGroupId,
+            groupId,
           );
 
           return accounts.map((account) => ({
@@ -395,19 +368,17 @@ export function calculateBalanceForAllWallets(
 
   const getWalletBalances = (
     flatAccountBalances: ReturnType<typeof getFlatAccountBalances>,
-  ): Record<AccountWalletId, WalletBalance> => {
-    const wallets: Record<AccountWalletId, WalletBalance> = {};
-    const defaultWalletBalance = (
-      walletId: AccountWalletId,
-    ): WalletBalance => ({
+  ): Record<string, WalletBalance> => {
+    const wallets: Record<string, WalletBalance> = {};
+    const defaultWalletBalance = (walletId: string): WalletBalance => ({
       walletId,
       groups: {},
       totalBalanceInUserCurrency: 0,
       userCurrency: currencyRateState.currentCurrency,
     });
     const defaultGroupBalance = (
-      walletId: AccountWalletId,
-      groupId: AccountGroupId,
+      walletId: string,
+      groupId: string,
     ): AccountGroupBalance => ({
       walletId,
       groupId,
@@ -417,19 +388,13 @@ export function calculateBalanceForAllWallets(
 
     flatAccountBalances.forEach((flatAccount) => {
       const { walletId, groupId, balance } = flatAccount;
-      wallets[walletId as AccountWalletId] ??= defaultWalletBalance(
-        walletId as AccountWalletId,
+      wallets[walletId] ??= defaultWalletBalance(walletId);
+      wallets[walletId].groups[groupId] ??= defaultGroupBalance(
+        walletId,
+        groupId,
       );
-      wallets[walletId as AccountWalletId].groups[groupId as AccountGroupId] ??=
-        defaultGroupBalance(
-          walletId as AccountWalletId,
-          groupId as AccountGroupId,
-        );
-      wallets[walletId as AccountWalletId].groups[
-        groupId as AccountGroupId
-      ].totalBalanceInUserCurrency += balance;
-      wallets[walletId as AccountWalletId].totalBalanceInUserCurrency +=
-        balance;
+      wallets[walletId].groups[groupId].totalBalanceInUserCurrency += balance;
+      wallets[walletId].totalBalanceInUserCurrency += balance;
     });
 
     // Ensure all groups (including empty ones) are represented
@@ -438,15 +403,11 @@ export function calculateBalanceForAllWallets(
         if (!wallet) {
           return;
         }
-        wallets[walletId as AccountWalletId] ??= defaultWalletBalance(
-          walletId as AccountWalletId,
-        );
+        wallets[walletId] ??= defaultWalletBalance(walletId);
         Object.keys(wallet.groups || {}).forEach((groupId) => {
-          wallets[walletId as AccountWalletId].groups[
-            groupId as AccountGroupId
-          ] ??= defaultGroupBalance(
-            walletId as AccountWalletId,
-            groupId as AccountGroupId,
+          wallets[walletId].groups[groupId] ??= defaultGroupBalance(
+            walletId,
+            groupId,
           );
         });
       },
@@ -494,7 +455,6 @@ export function calculateBalanceChangeForAllWallets(
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
   period: BalanceChangePeriod,
 ): BalanceChangeResult {
-  // Chain enablement predicates for filtering disabled networks
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
 
@@ -503,19 +463,9 @@ export function calculateBalanceChangeForAllWallets(
     return isChainEnabledByMap(enabledNetworkMap, chainId);
   };
 
-  // Mapping of balance change periods to non-EVM market data keys
-  const nonEvmPercentKey: Record<BalanceChangePeriod, string> = {
-    '1d': 'P1D',
-    '7d': 'P7D',
-    '30d': 'P30D',
-  };
-
-  // Calculate balance changes for a single account
-  const calcAccountChange = (account: InternalAccount) => {
-    const isEvmAccount = isEvmAccountType(account.type);
-
-    if (isEvmAccount) {
-      return sumEvmAccountChangeForPeriod(
+  const getAccountChange = {
+    evm: (account: InternalAccount) =>
+      sumEvmAccountChangeForPeriod(
         account,
         period,
         tokenBalancesState,
@@ -523,88 +473,91 @@ export function calculateBalanceChangeForAllWallets(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
-      );
-    }
-
-    return sumNonEvmAccountChangeForPeriod(
-      account,
-      period,
-      multichainBalancesState,
-      multichainRatesState,
-      isAssetChainEnabled,
-      nonEvmPercentKey,
-    );
+      ),
+    nonEvm: (account: InternalAccount) =>
+      sumNonEvmAccountChangeForPeriod(
+        account,
+        period,
+        multichainBalancesState,
+        multichainRatesState,
+        isAssetChainEnabled,
+      ),
   };
 
-  // Get all accounts across all wallets and groups
-  const getAllAccounts = () => {
-    const walletIds: AccountWalletId[] = Object.keys(
-      accountTreeState.accountTree.wallets,
-    ) as AccountWalletId[];
-
-    return walletIds
-      .map((walletId) =>
-        getGroupAccountRows(accountTreeState, accountsState, walletId),
+  const getFlatAccountChanges = () =>
+    Object.entries(accountTreeState.accountTree.wallets ?? {})
+      .flatMap(([walletId, wallet]) =>
+        Object.keys(wallet?.groups || {}).flatMap((groupId) => {
+          const accounts = getInternalAccountsForGroup(
+            accountTreeState,
+            accountsState,
+            groupId,
+          );
+          return accounts.map((account) => ({
+            walletId,
+            groupId,
+            account,
+            isEvm: isEvmAccountType(account.type),
+          }));
+        }),
       )
-      .flat()
-      .map(({ account }) => account);
-  };
+      .map((flatAccount) => {
+        const flatAccountWithChange = flatAccount as typeof flatAccount & {
+          current: number;
+          previous: number;
+        };
 
-  // Aggregate balance changes across all accounts
-  const getTotalChanges = () => {
-    const accounts = getAllAccounts();
+        const change = flatAccount.isEvm
+          ? getAccountChange.evm(flatAccount.account)
+          : getAccountChange.nonEvm(flatAccount.account);
 
-    return accounts.map(calcAccountChange).reduce(
-      (acc, change) => ({
-        current: acc.current + change.current,
-        previous: acc.previous + change.previous,
-      }),
+        flatAccountWithChange.current = change.current;
+        flatAccountWithChange.previous = change.previous;
+        return flatAccountWithChange;
+      });
+
+  const getAggregatedTotals = (
+    flatAccountChanges: ReturnType<typeof getFlatAccountChanges>,
+  ) => {
+    return flatAccountChanges.reduce(
+      (totals, account) => {
+        totals.current += account.current;
+        totals.previous += account.previous;
+        return totals;
+      },
       { current: 0, previous: 0 },
     );
   };
 
-  // Calculate final change metrics from aggregated totals
-  const calcFinalMetrics = (totals: { current: number; previous: number }) => {
-    const { current, previous } = totals;
-    const amountChange = current - previous;
-    const percentChange =
-      previous !== 0 ? (amountChange / previous) * PERCENT_DIVISOR : 0;
+  const flatAccountChanges = getFlatAccountChanges();
+  const aggregatedTotals = getAggregatedTotals(flatAccountChanges);
+  const amountChange = aggregatedTotals.current - aggregatedTotals.previous;
+  const percentChange =
+    aggregatedTotals.previous !== 0
+      ? (amountChange / aggregatedTotals.previous) * 100
+      : 0;
 
-    return {
-      period,
-      currentTotalInUserCurrency: Number(current.toFixed(DECIMAL_PRECISION)),
-      previousTotalInUserCurrency: Number(previous.toFixed(DECIMAL_PRECISION)),
-      amountChangeInUserCurrency: Number(
-        amountChange.toFixed(DECIMAL_PRECISION),
-      ),
-      percentChange: Number(percentChange.toFixed(DECIMAL_PRECISION)),
-      userCurrency: currencyRateState.currentCurrency,
-    };
+  return {
+    period,
+    currentTotalInUserCurrency: Number(aggregatedTotals.current.toFixed(8)),
+    previousTotalInUserCurrency: Number(aggregatedTotals.previous.toFixed(8)),
+    amountChangeInUserCurrency: Number(amountChange.toFixed(8)),
+    percentChange: Number(percentChange.toFixed(8)),
+    userCurrency: currencyRateState.currentCurrency,
   };
-
-  // Execute the functional pipeline:
-  // 1. Get all accounts across all wallets and groups
-  // 2. Calculate balance changes for each account (EVM vs non-EVM)
-  // 3. Aggregate totals across all accounts
-  // 4. Calculate final metrics and return result
-  const totalChanges = getTotalChanges();
-  return calcFinalMetrics(totalChanges);
 }
 
 /**
- * Sum EVM account balance changes for a specific period (1d, 7d, 30d).
+ * Sum EVM account change for a period (current and previous totals).
  *
- * This function calculates the current and previous portfolio values for EVM tokens
- * by aggregating balance changes across all enabled chains and tokens.
- *
- * @param account - Internal account to calculate changes for
- * @param period - Time period for the change calculation ('1d', '7d', '30d')
- * @param tokenBalancesState - Token balances controller state
- * @param tokensState - Tokens controller state
- * @param tokenRatesState - Token rates controller state
- * @param currencyRateState - Currency rate controller state
- * @param isEvmChainEnabled - Predicate to check if an EVM chain is enabled
- * @returns Object containing current and previous portfolio values in user currency
+ * @param account - Internal account to aggregate.
+ * @param period - Change period ('1d' | '7d' | '30d').
+ * @param tokenBalancesState - Token balances controller state.
+ * @param tokensState - Tokens controller state.
+ * @param tokenRatesState - Token rates controller state.
+ * @param currencyRateState - Currency rate controller state.
+ * @param isEvmChainEnabled - Predicate that returns true if the EVM chain is enabled.
+ * @returns Object with current and previous totals in user currency.
  */
 function sumEvmAccountChangeForPeriod(
   account: InternalAccount,
@@ -615,124 +568,53 @@ function sumEvmAccountChangeForPeriod(
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ): { current: number; previous: number } {
-  const accountBalances =
-    tokenBalancesState.tokenBalances[account.address as Hex];
-  if (!accountBalances) {
-    return { current: 0, previous: 0 };
-  }
+  const tokenBalances = getEvmTokenBalances(
+    account,
+    tokenBalancesState,
+    tokensState,
+    tokenRatesState,
+    currencyRateState,
+    isEvmChainEnabled,
+  );
 
-  // Execute the functional pipeline:
-  // 1. Get valid token changes (filtered by enabled chains and valid data)
-  // 2. Calculate current/previous values for each token
-  // 3. Aggregate totals across all tokens
-  const totals = Object.entries(accountBalances)
-    .filter(([chainId]) => isEvmChainEnabled(chainId as Hex))
-    .flatMap(([chainId, chainBalances]) => {
-      const chainMarketData = tokenRatesState.marketData[chainId as Hex];
-      const chainTokens = tokensState.allTokens[chainId as Hex];
-      const accountTokens = chainTokens?.[account.address] ?? [];
+  const tokenChanges = tokenBalances
+    .map((token) => {
+      const percentRaw = token.tokenMarketData[evmRatePropertiesRecord[period]];
+      if (!isNonNaNNumber(percentRaw)) {
+        return null;
+      }
 
-      // Create efficient token lookup index
-      const tokenIndex: Record<string, { address: string; decimals?: number }> =
-        Object.fromEntries(
-          accountTokens.map((t) => [
-            t.address,
-            { address: t.address, decimals: t.decimals },
-          ]),
-        );
+      const denom = Number((1 + percentRaw / 100).toFixed(8));
+      if (denom === 0) {
+        return null;
+      }
 
-      return Object.entries(chainBalances)
-        .map(([tokenAddress, balance]) => ({
-          chainId: chainId as Hex,
-          tokenAddress: tokenAddress as Hex,
-          balance,
-          token: tokenIndex[tokenAddress],
-          chainMarketData,
-        }))
-        .filter((item) => item.token && typeof item.balance === 'string')
-        .map((tokenChange) => {
-          const {
-            balance,
-            token,
-            chainMarketData: tokenChainMarketData,
-          } = tokenChange;
-
-          // Convert balance from hex to token units
-          const decimals =
-            typeof token.decimals === 'number' && !Number.isNaN(token.decimals)
-              ? token.decimals
-              : 18;
-
-          const balanceInSmallestUnit = parseInt(balance, 16);
-          if (Number.isNaN(balanceInSmallestUnit)) {
-            return { current: 0, previous: 0 };
-          }
-
-          const balanceInTokenUnits =
-            balanceInSmallestUnit / Math.pow(10, decimals);
-
-          // Get market data and percentage change
-          const tokenMarketData = tokenChainMarketData?.[token.address as Hex];
-          const price = tokenMarketData?.price;
-          const percentRaw = getPercentChange(tokenMarketData, period);
-
-          if (!isNonNaNNumber(price)) {
-            return { current: 0, previous: 0 };
-          }
-
-          // Apply currency conversion rate
-          const nativeCurrency = tokenMarketData?.currency;
-          const nativeToUserRate =
-            nativeCurrency && currencyRateState.currencyRates[nativeCurrency]
-              ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
-              : undefined;
-
-          if (
-            !isNonNaNNumber(nativeToUserRate) ||
-            !isNonNaNNumber(percentRaw)
-          ) {
-            return { current: 0, previous: 0 };
-          }
-
-          // Calculate current and previous values
-          const priceInUserCurrency = price * nativeToUserRate;
-          const currentValue = balanceInTokenUnits * priceInUserCurrency;
-          const denom = Number(
-            (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
-          );
-
-          if (denom === 0) {
-            return { current: 0, previous: 0 };
-          }
-
-          const previousValue = currentValue / denom;
-          return { current: currentValue, previous: previousValue };
-        });
+      return {
+        current: token.userCurrencyValue,
+        previous: token.userCurrencyValue / denom,
+      };
     })
-    .reduce(
-      (acc, change) => ({
-        current: acc.current + change.current,
-        previous: acc.previous + change.previous,
-      }),
-      { current: 0, previous: 0 },
-    );
+    .filter((change): change is NonNullable<typeof change> => change !== null);
 
-  return totals;
+  return tokenChanges.reduce(
+    (totals, change) => {
+      totals.current += change.current;
+      totals.previous += change.previous;
+      return totals;
+    },
+    { current: 0, previous: 0 },
+  );
 }
 
 /**
- * Sum non-EVM account balance changes for a specific period (1d, 7d, 30d).
+ * Sum non-EVM account change for a period (current and previous totals).
  *
- * This function calculates the current and previous portfolio values for non-EVM assets
- * by aggregating balance changes across all enabled asset chains.
- *
- * @param account - Internal account to calculate changes for
- * @param period - Time period for the change calculation ('1d', '7d', '30d')
- * @param multichainBalancesState - Multichain balances controller state
- * @param multichainRatesState - Multichain assets rates controller state
- * @param isAssetChainEnabled - Predicate to check if an asset chain is enabled
- * @param nonEvmPercentKey - Map of period to market data percent-change key (e.g., P1D, P7D, P30D)
- * @returns Object containing current and previous portfolio values in user currency
+ * @param account - Internal account to aggregate.
+ * @param period - Change period ('1d' | '7d' | '30d').
+ * @param multichainBalancesState - Multichain balances controller state.
+ * @param multichainRatesState - Multichain assets rates controller state.
+ * @param isAssetChainEnabled - Predicate that returns true if the asset's chain is enabled.
+ * @returns Object with current and previous totals in user currency.
  */
 function sumNonEvmAccountChangeForPeriod(
   account: InternalAccount,
@@ -740,115 +622,63 @@ function sumNonEvmAccountChangeForPeriod(
   multichainBalancesState: MultichainBalancesControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
-  nonEvmPercentKey: Record<BalanceChangePeriod, string>,
 ): { current: number; previous: number } {
-  const accountBalances = multichainBalancesState.balances[account.id];
-  if (!accountBalances) {
-    return { current: 0, previous: 0 };
-  }
-
-  // Retrieves and filters valid asset changes for the account
-  const getValidAssetChanges = () => {
-    const assetChanges = Object.entries(accountBalances)
-      .filter(([assetId]) => isAssetChainEnabled(assetId as CaipAssetType))
-      .map(([assetId, balanceData]) => ({
-        assetId: assetId as CaipAssetType,
-        balanceData,
-        conversionRate:
-          multichainRatesState.conversionRates[assetId as CaipAssetType],
-      }))
-      .filter((item) => {
-        // Validate balance amount
-        const balanceAmount = parseFloat(item.balanceData.amount);
-        if (Number.isNaN(balanceAmount)) {
-          return false;
-        }
-
-        // Validate conversion rate and percentage change data
-        const rateStr = item.conversionRate?.rate;
-        const percentObj = item.conversionRate?.marketData?.pricePercentChange;
-        const percentRaw = percentObj?.[nonEvmPercentKey[period]];
-
-        const rate =
-          typeof rateStr === 'string' ? parseFloat(rateStr) : undefined;
-        return isNonNaNNumber(rate) && isNonNaNNumber(percentRaw);
-      });
-
-    return assetChanges;
-  };
-
-  // Calculates the current and previous values for a single asset change
-  const calcAssetChange = (
-    assetChange: ReturnType<typeof getValidAssetChanges>[number],
-  ) => {
-    const { balanceData, conversionRate } = assetChange;
-
-    // Parse balance and rate data
-    const balanceAmount = parseFloat(balanceData.amount);
-    const rateStr = conversionRate.rate;
-    const percentObj = conversionRate.marketData?.pricePercentChange;
-    const percentRaw = percentObj?.[nonEvmPercentKey[period]];
-
-    // Only filter out undefined/null, not 0 (which is a valid percentage change)
-    if (percentRaw === undefined || percentRaw === null) {
-      return { current: 0, previous: 0 };
-    }
-
-    // Calculate current value
-    const rate = parseFloat(rateStr);
-    const currentValue = balanceAmount * rate;
-
-    // Calculate previous value using percentage change
-    const denom = Number(
-      (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
-    );
-
-    if (denom === 0) {
-      return { current: 0, previous: 0 };
-    }
-
-    const previousValue = currentValue / denom;
-    return { current: currentValue, previous: previousValue };
-  };
-
-  // Execute the functional pipeline:
-  // 1. Get valid asset changes (filtered by enabled chains and valid data)
-  // 2. Calculate current/previous values for each asset
-  // 3. Aggregate totals across all assets
-  const assetChanges = getValidAssetChanges();
-  const totals = assetChanges.reduce(
-    (acc, assetChange) => {
-      const change = calcAssetChange(assetChange);
-      return {
-        current: acc.current + change.current,
-        previous: acc.previous + change.previous,
-      };
-    },
-    { current: 0, previous: 0 },
+  const assetBalances = getNonEvmAssetBalances(
+    account,
+    multichainBalancesState,
+    multichainRatesState,
+    isAssetChainEnabled,
   );
 
-  return totals;
+  const assetChanges = assetBalances
+    .map((asset) => {
+      const percentObj = (
+        asset.conversionRate as unknown as {
+          marketData?: { pricePercentChange?: Record<string, number> };
+        }
+      )?.marketData?.pricePercentChange;
+      const percentRaw = percentObj?.[nonEvmRatePropertiesRecord[period]];
+
+      if (!isNonNaNNumber(percentRaw)) {
+        return null;
+      }
+
+      const denom = Number((1 + percentRaw / 100).toFixed(8));
+      if (denom === 0) {
+        return null;
+      }
+
+      return {
+        current: asset.userCurrencyValue,
+        previous: asset.userCurrencyValue / denom,
+      };
+    })
+    .filter((change): change is NonNullable<typeof change> => change !== null);
+
+  return assetChanges.reduce(
+    (totals, change) => ({
+      current: totals.current + change.current,
+      previous: totals.previous + change.previous,
+    }),
+    { current: 0, previous: 0 },
+  );
 }
 
 /**
  * Calculate portfolio value change for a specific account group and period.
  *
- * This function aggregates balance changes across all accounts in a specific group,
- * calculating current and previous portfolio values, amount changes, and percentage changes.
- * It handles both EVM and non-EVM accounts using their respective calculation strategies.
- *
- * @param accountTreeState - AccountTreeController state containing wallet and group structure
- * @param accountsState - AccountsController state containing account information
- * @param tokenBalancesState - TokenBalancesController state for EVM token balances
- * @param tokenRatesState - TokenRatesController state for EVM token market data
- * @param multichainRatesState - MultichainAssetsRatesController state for non-EVM rates
- * @param multichainBalancesState - MultichainBalancesController state for non-EVM balances
- * @param tokensState - TokensController state containing token metadata
- * @param currencyRateState - CurrencyRateController state for conversion rates
- * @param enabledNetworkMap - Map of enabled networks for filtering disabled chains
- * @param groupId - Account group ID to compute changes for
- * @param period - Change period ('1d', '7d', '30d') for historical comparison
- * @returns BalanceChangeResult with current, previous, delta, percent, and period information
+ * @param accountTreeState - AccountTreeController state.
+ * @param accountsState - AccountsController state.
+ * @param tokenBalancesState - TokenBalancesController state.
+ * @param tokenRatesState - TokenRatesController state.
+ * @param multichainRatesState - MultichainAssetsRatesController state.
+ * @param multichainBalancesState - MultichainBalancesController state.
+ * @param tokensState - TokensController state.
+ * @param currencyRateState - CurrencyRateController state.
+ * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
+ * @param groupId - Account group ID to compute change for.
+ * @param period - Change period ('1d' | '7d' | '30d').
+ * @returns Change result including current, previous, delta, percent, and period.
  */
 export function calculateBalanceChangeForAccountGroup(
   accountTreeState: AccountTreeControllerState,
@@ -860,7 +690,7 @@ export function calculateBalanceChangeForAccountGroup(
   tokensState: TokensControllerState,
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
-  groupId: AccountGroupId,
+  groupId: string,
   period: BalanceChangePeriod,
 ): BalanceChangeResult {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
@@ -871,23 +701,9 @@ export function calculateBalanceChangeForAccountGroup(
     return isChainEnabledByMap(enabledNetworkMap, chainId);
   };
 
-  /**
-   * Mapping of balance change periods to non-EVM market data keys.
-   * Non-EVM assets use different field names (P1D, P7D, P30D) compared to EVM tokens.
-   */
-  const nonEvmPercentKey: Record<BalanceChangePeriod, string> = {
-    '1d': 'P1D',
-    '7d': 'P7D',
-    '30d': 'P30D',
-  };
-
-  // Calculate balance changes for a single account
-  const calcAccountChange = (account: InternalAccount) => {
-    const isEvmAccount = isEvmAccountType(account.type);
-
-    if (isEvmAccount) {
-      // Calculate EVM account changes using token balances and rates
-      return sumEvmAccountChangeForPeriod(
+  const getAccountChange = {
+    evm: (account: InternalAccount) =>
+      sumEvmAccountChangeForPeriod(
         account,
         period,
         tokenBalancesState,
@@ -895,61 +711,60 @@ export function calculateBalanceChangeForAccountGroup(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
-      );
-    }
-
-    // Calculate non-EVM account changes using multichain data
-    return sumNonEvmAccountChangeForPeriod(
-      account,
-      period,
-      multichainBalancesState,
-      multichainRatesState,
-      isAssetChainEnabled,
-      nonEvmPercentKey,
-    );
+      ),
+    nonEvm: (account: InternalAccount) =>
+      sumNonEvmAccountChangeForPeriod(
+        account,
+        period,
+        multichainBalancesState,
+        multichainRatesState,
+        isAssetChainEnabled,
+      ),
   };
 
-  // Aggregate balance changes across all accounts in the group
-  const getGroupTotals = () => {
+  const getFlatAccountChanges = () => {
     const accounts = getInternalAccountsForGroup(
       accountTreeState,
       accountsState,
       groupId,
     );
+    return accounts.map((account) => ({
+      account,
+      isEvm: isEvmAccountType(account.type),
+    }));
+  };
 
-    return accounts.map(calcAccountChange).reduce(
-      (acc, change) => ({
-        current: acc.current + change.current,
-        previous: acc.previous + change.previous,
-      }),
+  const getAggregatedTotals = (
+    flatAccountChanges: ReturnType<typeof getFlatAccountChanges>,
+  ) => {
+    return flatAccountChanges.reduce(
+      (totals, { account, isEvm }) => {
+        const change = isEvm
+          ? getAccountChange.evm(account)
+          : getAccountChange.nonEvm(account);
+        totals.current += change.current;
+        totals.previous += change.previous;
+        return totals;
+      },
       { current: 0, previous: 0 },
     );
   };
 
-  // Calculate final change metrics from aggregated totals
-  const calcFinalMetrics = (totals: { current: number; previous: number }) => {
-    const { current, previous } = totals;
-    const amountChange = current - previous;
-    const percentChange =
-      previous !== 0 ? (amountChange / previous) * PERCENT_DIVISOR : 0;
+  const flatAccountChanges = getFlatAccountChanges();
+  const aggregatedTotals = getAggregatedTotals(flatAccountChanges);
 
-    return {
-      period,
-      currentTotalInUserCurrency: Number(current.toFixed(DECIMAL_PRECISION)),
-      previousTotalInUserCurrency: Number(previous.toFixed(DECIMAL_PRECISION)),
-      amountChangeInUserCurrency: Number(
-        amountChange.toFixed(DECIMAL_PRECISION),
-      ),
-      percentChange: Number(percentChange.toFixed(DECIMAL_PRECISION)),
-      userCurrency: currencyRateState.currentCurrency,
-    };
+  const amountChange = aggregatedTotals.current - aggregatedTotals.previous;
+  const percentChange =
+    aggregatedTotals.previous !== 0
+      ? (amountChange / aggregatedTotals.previous) * 100
+      : 0;
+
+  return {
+    period,
+    currentTotalInUserCurrency: Number(aggregatedTotals.current.toFixed(8)),
+    previousTotalInUserCurrency: Number(aggregatedTotals.previous.toFixed(8)),
+    amountChangeInUserCurrency: Number(amountChange.toFixed(8)),
+    percentChange: Number(percentChange.toFixed(8)),
+    userCurrency: currencyRateState.currentCurrency,
   };
-
-  // Execute the functional pipeline:
-  // 1. Get all accounts in the group
-  // 2. Calculate balance changes for each account (EVM vs non-EVM)
-  // 3. Aggregate totals across all accounts
-  // 4. Calculate final metrics and return result
-  const groupTotals = getGroupTotals();
-  return calcFinalMetrics(groupTotals);
 }
