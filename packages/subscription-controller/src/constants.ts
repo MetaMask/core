@@ -22,6 +22,13 @@ const ENV_URLS: Record<Env, EnvUrlsEntry> = {
   },
 };
 
+export const SUBSCRIPTION_PRODUCTS = {
+  SHIELD: 'shield',
+} as const;
+
+export type SubscriptionProduct =
+  (typeof SUBSCRIPTION_PRODUCTS)[keyof typeof SUBSCRIPTION_PRODUCTS];
+
 /**
  * Validates and returns correct environment endpoints
  *
@@ -39,4 +46,5 @@ export function getEnvUrls(env: Env): EnvUrlsEntry {
 export enum SubscriptionControllerErrorMessage {
   UserAlreadySubscribed = `${controllerName} - User is already subscribed`,
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
+  SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
 }
