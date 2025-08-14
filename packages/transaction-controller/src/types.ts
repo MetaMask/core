@@ -1910,3 +1910,11 @@ export type AssetsFiatValues = {
    */
   sending?: string;
 };
+
+/**
+ * Parameters for the transaction simulation API.
+ */
+export type GetSimulationConfig = (url: string) => Promise<{
+  newUrl?: string;
+  authorization?: string;
+}>;
