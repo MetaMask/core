@@ -12,11 +12,16 @@ import { controllerName } from './constants';
 import { projectLogger as log } from './logger';
 import type { CoverageResult, ShieldBackend } from './types';
 
+export type CoverageResultRecordEntry = {
+  results: CoverageResult[]; // history of coverage results, latest first
+};
+
 export type ShieldControllerState = {
   coverageResults: Record<
     string, // txId
-    { results: CoverageResult[] } // history of coverage results, latest first
+    CoverageResultRecordEntry
   >;
+  orderedTransactionHistory: string[]; // List of txIds ordered by time, latest first
 };
 
 /**
@@ -27,6 +32,7 @@ export type ShieldControllerState = {
 function getDefaultShieldControllerState(): ShieldControllerState {
   return {
     coverageResults: {},
+    orderedTransactionHistory: [],
   };
 }
 
@@ -87,12 +93,17 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  orderedTransactionHistory: {
+    persist: true,
+    anonymous: false,
+  },
 };
 
 export type ShieldControllerOptions = {
   messenger: ShieldControllerMessenger;
   state?: Partial<ShieldControllerState>;
   backend: ShieldBackend;
+  transactionHistoryLimit?: number;
   coverageHistoryLimit?: number;
 };
 
@@ -105,13 +116,21 @@ export class ShieldController extends BaseController<
 
   readonly #coverageHistoryLimit: number;
 
+  readonly #transactionHistoryLimit: number;
+
   readonly #transactionControllerStateChangeHandler: (
     transactions: TransactionMeta[],
     previousTransactions: TransactionMeta[] | undefined,
   ) => void;
 
   constructor(options: ShieldControllerOptions) {
-    const { messenger, state, backend, coverageHistoryLimit = 10 } = options;
+    const {
+      messenger,
+      state,
+      backend,
+      transactionHistoryLimit = 100,
+      coverageHistoryLimit = 10,
+    } = options;
     super({
       name: controllerName,
       metadata,
@@ -124,6 +143,7 @@ export class ShieldController extends BaseController<
 
     this.#backend = backend;
     this.#coverageHistoryLimit = coverageHistoryLimit;
+    this.#transactionHistoryLimit = transactionHistoryLimit;
     this.#transactionControllerStateChangeHandler =
       this.#handleTransactionControllerStateChange.bind(this);
   }
@@ -191,8 +211,10 @@ export class ShieldController extends BaseController<
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
     // Read state
+    let newEntry = false;
     let coverageResultEntry = this.state.coverageResults[txId];
     if (!coverageResultEntry) {
+      newEntry = true;
       coverageResultEntry = {
         results: [],
       };
@@ -204,15 +226,34 @@ export class ShieldController extends BaseController<
       };
     }
 
-    // Update state
+    // Trim coverage history if necessary
     if (coverageResultEntry.results.length >= this.#coverageHistoryLimit) {
       coverageResultEntry.results.pop();
     }
+
+    // Add new result
     coverageResultEntry.results.unshift(coverageResult);
+
+    // Add to history if new entry
+    const orderedTransactionHistory = [...this.state.orderedTransactionHistory];
+    let removedTxId: string | undefined;
+    if (newEntry) {
+      // Trim state if necessary
+      if (orderedTransactionHistory.length >= this.#transactionHistoryLimit) {
+        removedTxId = orderedTransactionHistory.pop();
+      }
+      orderedTransactionHistory.unshift(txId);
+    }
 
     // Write state
     this.update((draft) => {
       draft.coverageResults[txId] = coverageResultEntry;
+      draft.orderedTransactionHistory = orderedTransactionHistory;
+
+      // Optionally remove coverage result entry.
+      if (removedTxId) {
+        delete draft.coverageResults[removedTxId];
+      }
     });
   }
 }
