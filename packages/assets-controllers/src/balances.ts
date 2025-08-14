@@ -681,131 +681,101 @@ function sumEvmAccountChangeForPeriod(
     return { current: 0, previous: 0 };
   }
 
-  /**
-   * Retrieves and filters valid token changes for the account.
-   *
-   * This function:
-   * 1. Filters out disabled chains using the isEvmChainEnabled predicate
-   * 2. Creates a token index for efficient lookups
-   * 3. Maps chain balances to structured token change objects
-   * 4. Filters out invalid tokens and balance data
-   *
-   * @returns Array of valid token change objects with all necessary data for calculation
-   */
-  const getValidTokenChanges = () => {
-    const tokenChanges = Object.entries(accountBalances)
-      .filter(([chainId]) => isEvmChainEnabled(chainId as Hex))
-      .flatMap(([chainId, chainBalances]) => {
-        const chainMarketData = tokenRatesState.marketData[chainId as Hex];
-        const chainTokens = tokensState.allTokens[chainId as Hex];
-        const accountTokens = chainTokens?.[account.address] ?? [];
+  // Execute the functional pipeline:
+  // 1. Get valid token changes (filtered by enabled chains and valid data)
+  // 2. Calculate current/previous values for each token
+  // 3. Aggregate totals across all tokens
+  const totals = Object.entries(accountBalances)
+    .filter(([chainId]) => isEvmChainEnabled(chainId as Hex))
+    .flatMap(([chainId, chainBalances]) => {
+      const chainMarketData = tokenRatesState.marketData[chainId as Hex];
+      const chainTokens = tokensState.allTokens[chainId as Hex];
+      const accountTokens = chainTokens?.[account.address] ?? [];
 
-        // Create efficient token lookup index
-        const tokenIndex: Record<
-          string,
-          { address: string; decimals?: number }
-        > = Object.fromEntries(
+      // Create efficient token lookup index
+      const tokenIndex: Record<string, { address: string; decimals?: number }> =
+        Object.fromEntries(
           accountTokens.map((t) => [
             t.address,
             { address: t.address, decimals: t.decimals },
           ]),
         );
 
-        return Object.entries(chainBalances)
-          .map(([tokenAddress, balance]) => ({
-            chainId: chainId as Hex,
-            tokenAddress: tokenAddress as Hex,
+      return Object.entries(chainBalances)
+        .map(([tokenAddress, balance]) => ({
+          chainId: chainId as Hex,
+          tokenAddress: tokenAddress as Hex,
+          balance,
+          token: tokenIndex[tokenAddress],
+          chainMarketData,
+        }))
+        .filter((item) => item.token && typeof item.balance === 'string')
+        .map((tokenChange) => {
+          const {
             balance,
-            token: tokenIndex[tokenAddress],
-            chainMarketData,
-          }))
-          .filter((item) => item.token && typeof item.balance === 'string');
-      });
+            token,
+            chainMarketData: tokenChainMarketData,
+          } = tokenChange;
 
-    return tokenChanges;
-  };
+          // Convert balance from hex to token units
+          const decimals =
+            typeof token.decimals === 'number' && !Number.isNaN(token.decimals)
+              ? token.decimals
+              : 18;
 
-  /**
-   * Calculates the current and previous values for a single token change.
-   *
-   * This function:
-   * 1. Converts balance from hex to token units using proper decimals
-   * 2. Retrieves current market price and percentage change data
-   * 3. Applies currency conversion rates
-   * 4. Calculates both current and previous values using percentage change
-   * 5. Returns early with zeros if any required data is missing
-   *
-   * @param tokenChange - Token change object containing balance, token metadata, and market data
-   * @returns Object with current and previous values, or zeros if calculation fails
-   */
-  const calcTokenChange = (
-    tokenChange: ReturnType<typeof getValidTokenChanges>[number],
-  ) => {
-    const { balance, token, chainMarketData } = tokenChange;
+          const balanceInSmallestUnit = parseInt(balance, 16);
+          if (Number.isNaN(balanceInSmallestUnit)) {
+            return { current: 0, previous: 0 };
+          }
 
-    // Convert balance from hex to token units
-    const decimals =
-      typeof token.decimals === 'number' && !Number.isNaN(token.decimals)
-        ? token.decimals
-        : 18;
+          const balanceInTokenUnits =
+            balanceInSmallestUnit / Math.pow(10, decimals);
 
-    const balanceInSmallestUnit = parseInt(balance, 16);
-    if (Number.isNaN(balanceInSmallestUnit)) {
-      return { current: 0, previous: 0 };
-    }
+          // Get market data and percentage change
+          const tokenMarketData = tokenChainMarketData?.[token.address as Hex];
+          const price = tokenMarketData?.price;
+          const percentRaw = getPercentChange(tokenMarketData, period);
 
-    const balanceInTokenUnits = balanceInSmallestUnit / Math.pow(10, decimals);
+          if (!isNonNaNNumber(price)) {
+            return { current: 0, previous: 0 };
+          }
 
-    // Get market data and percentage change
-    const tokenMarketData = chainMarketData?.[token.address as Hex];
-    const price = tokenMarketData?.price;
-    const percentRaw = getPercentChange(tokenMarketData, period);
+          // Apply currency conversion rate
+          const nativeCurrency = tokenMarketData?.currency;
+          const nativeToUserRate =
+            nativeCurrency && currencyRateState.currencyRates[nativeCurrency]
+              ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
+              : undefined;
 
-    if (!isNonNaNNumber(price)) {
-      return { current: 0, previous: 0 };
-    }
+          if (
+            !isNonNaNNumber(nativeToUserRate) ||
+            !isNonNaNNumber(percentRaw)
+          ) {
+            return { current: 0, previous: 0 };
+          }
 
-    // Apply currency conversion rate
-    const nativeCurrency = tokenMarketData?.currency;
-    const nativeToUserRate =
-      nativeCurrency && currencyRateState.currencyRates[nativeCurrency]
-        ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
-        : undefined;
+          // Calculate current and previous values
+          const priceInUserCurrency = price * nativeToUserRate;
+          const currentValue = balanceInTokenUnits * priceInUserCurrency;
+          const denom = Number(
+            (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
+          );
 
-    if (!isNonNaNNumber(nativeToUserRate) || !isNonNaNNumber(percentRaw)) {
-      return { current: 0, previous: 0 };
-    }
+          if (denom === 0) {
+            return { current: 0, previous: 0 };
+          }
 
-    // Calculate current and previous values
-    const priceInUserCurrency = price * nativeToUserRate;
-    const currentValue = balanceInTokenUnits * priceInUserCurrency;
-    const denom = Number(
-      (1 + percentRaw / PERCENT_DIVISOR).toFixed(DECIMAL_PRECISION),
-    );
-
-    if (denom === 0) {
-      return { current: 0, previous: 0 };
-    }
-
-    const previousValue = currentValue / denom;
-    return { current: currentValue, previous: previousValue };
-  };
-
-  // Execute the functional pipeline:
-  // 1. Get valid token changes (filtered by enabled chains and valid data)
-  // 2. Calculate current/previous values for each token
-  // 3. Aggregate totals across all tokens
-  const tokenChanges = getValidTokenChanges();
-  const totals = tokenChanges.reduce(
-    (acc, tokenChange) => {
-      const change = calcTokenChange(tokenChange);
-      return {
+          const previousValue = currentValue / denom;
+          return { current: currentValue, previous: previousValue };
+        });
+    })
+    .reduce(
+      (acc, change) => ({
         current: acc.current + change.current,
         previous: acc.previous + change.previous,
-      };
-    },
-    { current: 0, previous: 0 },
-  );
+      }),
+      { current: 0, previous: 0 },
+    );
 
   return totals;
 }
