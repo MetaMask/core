@@ -91,7 +91,10 @@ export const getFinalizedTxProperties = (
     approvalTxMeta?.submittedTime ??
     txMeta?.submittedTime ??
     historyItem.startTime;
-  const completionTime = txMeta?.time ?? historyItem.completionTime;
+  const completionTime =
+    txMeta?.type === TransactionType.swap
+      ? txMeta?.time
+      : historyItem.completionTime;
 
   const actualGas = calcActualGasUsed(
     historyItem,
