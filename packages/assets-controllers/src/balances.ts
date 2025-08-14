@@ -632,12 +632,11 @@ function sumNonEvmAccountChangeForPeriod(
 
   const assetChanges = assetBalances
     .map((asset) => {
-      const percentObj = (
-        asset.conversionRate as unknown as {
-          marketData?: { pricePercentChange?: Record<string, number> };
-        }
-      )?.marketData?.pricePercentChange;
-      const percentRaw = percentObj?.[nonEvmRatePropertiesRecord[period]];
+      // Safely access the percent change data with proper type checking
+      const marketData = asset.conversionRate?.marketData;
+      const pricePercentChange = marketData?.pricePercentChange;
+      const percentRaw =
+        pricePercentChange?.[nonEvmRatePropertiesRecord[period]];
 
       if (!isNonNaNNumber(percentRaw)) {
         return null;
