@@ -102,7 +102,7 @@ describe('toAllowedCaipAccountIds', () => {
     const account = createMockAccount(
       MOCK_ADDRESSES.tron,
       [TrxScope.Mainnet],
-      TrxAccountType.DataAccount,
+      TrxAccountType.Eoa,
     );
 
     const result = toAllowedCaipAccountIds(account);
