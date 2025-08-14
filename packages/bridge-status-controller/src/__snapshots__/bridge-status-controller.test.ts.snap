@@ -5,7 +5,9 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "attempts": undefined,
     "batchId": undefined,
+    "completionTime": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -13,7 +15,8 @@ Object {
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasInUsd": undefined,
+      "quotedGasAmount": ".00055",
+      "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
     "quote": Object {
@@ -109,8 +112,24 @@ Object {
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": Object {
+      "destChain": Object {
+        "chainId": 10,
+        "token": Object {},
+      },
       "srcChain": Object {
+        "amount": "991250000000000",
         "chainId": 42161,
+        "token": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2518.47",
+          "symbol": "ETH",
+        },
         "txHash": "0xsrcTxHash1",
       },
       "status": "PENDING",
@@ -144,6 +163,9 @@ Array [
     "0xaccount1",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
@@ -159,9 +181,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -174,7 +196,7 @@ Array [
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -194,7 +216,8 @@ Object {
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasInUsd": undefined,
+      "quotedGasAmount": ".00055",
+      "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
     "quote": Object {
@@ -312,6 +335,9 @@ Array [
     "0xaccount1",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
@@ -327,9 +353,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -342,7 +368,7 @@ Array [
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -364,6 +390,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -380,7 +410,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -504,7 +535,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -585,6 +616,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -601,7 +636,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -725,7 +761,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -804,6 +840,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -820,7 +860,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -994,7 +1035,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1033,6 +1074,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1049,7 +1094,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1173,7 +1219,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1251,6 +1297,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1267,7 +1317,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1391,7 +1442,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1472,6 +1523,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1488,7 +1543,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1727,7 +1783,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1799,6 +1855,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1815,7 +1875,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -1984,7 +2045,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2037,6 +2098,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -2053,7 +2118,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -2222,7 +2288,7 @@ Array [
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2288,7 +2354,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2348,7 +2414,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2401,7 +2467,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -2600,7 +2667,7 @@ Array [
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2677,7 +2744,8 @@ Object {
   "pricingData": Object {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasInUsd": undefined,
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
@@ -2801,7 +2869,7 @@ Array [
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2987,6 +3055,7 @@ Object {
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
+    "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
@@ -3234,6 +3303,9 @@ Array [
     "0x123...",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
@@ -3249,9 +3321,9 @@ Array [
       "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 5,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -3261,8 +3333,8 @@ Array [
       "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
-      "usd_actual_gas": 5,
-      "usd_actual_return": 1000,
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 1000,
@@ -3277,7 +3349,7 @@ Object {
   "chainId": "0x416edef1601be",
   "destinationChainId": "0x416edef1601be",
   "destinationTokenAddress": "0x...",
-  "destinationTokenAmount": "0.5",
+  "destinationTokenAmount": "500000000000000000s",
   "destinationTokenDecimals": 18,
   "destinationTokenSymbol": "USDC",
   "hash": "signature",
@@ -3313,6 +3385,7 @@ Object {
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
+    "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
@@ -3328,7 +3401,7 @@ Object {
       "symbol": "USDC",
     },
     "destChainId": 1151111081099710,
-    "destTokenAmount": "0.5",
+    "destTokenAmount": "500000000000000000s",
     "feeData": Object {
       "metabridge": Object {
         "amount": "1000000",
@@ -3497,6 +3570,9 @@ Array [
     "0xaccount1",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
@@ -3513,9 +3589,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -3559,9 +3635,9 @@ Array [
     "is_hardware_wallet": false,
     "price_impact": 0,
     "provider": "lifi_across",
-    "quote_vs_execution_ratio": 1,
+    "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0.25,
-    "quoted_vs_used_gas_ratio": 1,
+    "quoted_vs_used_gas_ratio": 0,
     "security_warnings": Array [],
     "slippage_limit": 0,
     "source_transaction": "COMPLETE",
@@ -3574,7 +3650,7 @@ Array [
     "usd_actual_gas": 0,
     "usd_actual_return": 0,
     "usd_amount_source": 0,
-    "usd_quoted_gas": 0,
+    "usd_quoted_gas": 2.5778,
     "usd_quoted_return": 0,
   },
 ]
@@ -3659,6 +3735,9 @@ Array [
     "0xaccount1",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
@@ -3675,9 +3754,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",

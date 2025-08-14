@@ -1,6 +1,5 @@
 import { StatusTypes, BridgeAssetSchema } from '@metamask/bridge-controller';
 import {
-  object,
   string,
   boolean,
   number,
@@ -14,7 +13,7 @@ import {
 
 const ChainIdSchema = number();
 
-const EmptyObjectSchema = object({});
+const EmptyObjectSchema = type({});
 
 const SrcChainStatusSchema = type({
   chainId: ChainIdSchema,
