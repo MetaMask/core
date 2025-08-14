@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [39.1.0]
 
-### Uncategorized
-
-- Revert releases 502.0.0 and 503.0.0 ([#6320](https://github.com/MetaMask/core/pull/6320))
-- Release/503.0.0 ([#6315](https://github.com/MetaMask/core/pull/6315))
-
 ### Fixed
 
 - Ignore error messages thrown when quote requests are cancelled. This prevents the `QuoteError` event from being published when an error is expected ([#6299](https://github.com/MetaMask/core/pull/6299))
