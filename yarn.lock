@@ -3614,7 +3614,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/snaps-controllers": ^14.0.0
+    "@metamask/snaps-controllers": ^14.0.1
   languageName: unknown
   linkType: soft
 

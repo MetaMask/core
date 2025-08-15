@@ -67,7 +67,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/snaps-controllers": "^14.0.0"
+    "@metamask/snaps-controllers": "^14.0.1"
   },
   "engines": {
     "node": "^18.18 || >=20"

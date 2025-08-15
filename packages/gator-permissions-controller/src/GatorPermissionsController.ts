@@ -28,12 +28,24 @@ import {
   serializeGatorPermissionsMap,
 } from './utils';
 
+// === GENERAL ===
+
 // Unique name for the controller
 const controllerName = 'GatorPermissionsController';
 
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
   '@metamask/gator-permissions-snap' as SnapId;
+
+const defaultGatorPermissionsMap: GatorPermissionsMap = {
+  'native-token-stream': {},
+  'native-token-periodic': {},
+  'erc20-token-stream': {},
+  'erc20-token-periodic': {},
+  other: {},
+};
+
+// === STATE ===
 
 /**
  * State shape for GatorPermissionsController
@@ -54,9 +66,15 @@ export type GatorPermissionsControllerState = {
    * This is used to show a loading spinner in the UI
    */
   isFetchingGatorPermissions: boolean;
+
+  /**
+   * The ID of the Snap of the gator permissions provider snap
+   * Default value is `@metamask/gator-permissions-snap`
+   */
+  gatorPermissionsProviderSnapId: SnapId;
 };
 
-const metadata: StateMetadata<GatorPermissionsControllerState> = {
+const gatorPermissionsControllerMetadata = {
   isGatorPermissionsEnabled: {
     persist: true,
     anonymous: false,
@@ -69,63 +87,87 @@ const metadata: StateMetadata<GatorPermissionsControllerState> = {
     persist: false,
     anonymous: false,
   },
-};
+  gatorPermissionsProviderSnapId: {
+    persist: false,
+    anonymous: false,
+  },
+} satisfies StateMetadata<GatorPermissionsControllerState>;
 
-const defaultGatorPermissionsMap: GatorPermissionsMap = {
-  'native-token-stream': {},
-  'native-token-periodic': {},
-  'erc20-token-stream': {},
-  'erc20-token-periodic': {},
-  other: {},
-};
-
-export const defaultState: GatorPermissionsControllerState = {
-  isGatorPermissionsEnabled: false,
-  gatorPermissionsMapSerialized: serializeGatorPermissionsMap(
-    defaultGatorPermissionsMap,
-  ),
-  isFetchingGatorPermissions: false,
-};
-
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof GatorPermissionsController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: GatorPermissionsController[K];
+/**
+ * Constructs the default {@link GatorPermissionsController} state. This allows
+ * consumers to provide a partial state object when initializing the controller
+ * and also helps in constructing complete state objects for this controller in
+ * tests.
+ *
+ * @returns The default {@link GatorPermissionsController} state.
+ */
+export function getDefaultGatorPermissionsControllerState(): GatorPermissionsControllerState {
+  return {
+    isGatorPermissionsEnabled: false,
+    gatorPermissionsMapSerialized: serializeGatorPermissionsMap(
+      defaultGatorPermissionsMap,
+    ),
+    isFetchingGatorPermissions: false,
+    gatorPermissionsProviderSnapId: defaultGatorPermissionsProviderSnapId,
   };
-};
-type ActionsObj = CreateActionsObj<
-  | 'fetchAndUpdateGatorPermissions'
-  | 'enableGatorPermissions'
-  | 'disableGatorPermissions'
->;
+}
 
+// === MESSENGER ===
+
+/**
+ * The action which can be used to retrieve the state of the
+ * {@link GatorPermissionsController}.
+ */
 export type GatorPermissionsControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   GatorPermissionsControllerState
 >;
 
-// Messenger Actions
-export type GatorPermissionsControllerActions =
-  | ActionsObj[keyof ActionsObj]
-  | GatorPermissionsControllerGetStateAction;
-
-export type GatorPermissionsControllerFetchAndUpdateGatorPermissions =
-  ActionsObj['fetchAndUpdateGatorPermissions'];
-
-export type GatorPermissionsControllerEnableGatorPermissions =
-  ActionsObj['enableGatorPermissions'];
-
-export type GatorPermissionsControllerDisableGatorPermissions =
-  ActionsObj['disableGatorPermissions'];
+/**
+ * The action which can be used to fetch and update gator permissions.
+ */
+export type GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction = {
+  type: `${typeof controllerName}:fetchAndUpdateGatorPermissions`;
+  handler: GatorPermissionsController['fetchAndUpdateGatorPermissions'];
+};
 
 /**
- * Actions that this controller is allowed to call.
+ * The action which can be used to enable gator permissions.
  */
-export type AllowedActions =
-  // Snap Requests
-  HandleSnapRequest | HasSnap;
+export type GatorPermissionsControllerEnableGatorPermissionsAction = {
+  type: `${typeof controllerName}:enableGatorPermissions`;
+  handler: GatorPermissionsController['enableGatorPermissions'];
+};
 
+/**
+ * The action which can be used to disable gator permissions.
+ */
+export type GatorPermissionsControllerDisableGatorPermissionsAction = {
+  type: `${typeof controllerName}:disableGatorPermissions`;
+  handler: GatorPermissionsController['disableGatorPermissions'];
+};
+
+/**
+ * All actions that {@link GatorPermissionsController} registers, to be called
+ * externally.
+ */
+export type GatorPermissionsControllerActions =
+  | GatorPermissionsControllerGetStateAction
+  | GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction
+  | GatorPermissionsControllerEnableGatorPermissionsAction
+  | GatorPermissionsControllerDisableGatorPermissionsAction;
+
+/**
+ * All actions that {@link GatorPermissionsController} calls internally.
+ *
+ * SnapsController:handleRequest and SnapsController:has are allowed to be called
+ * internally because they are used to fetch gator permissions from the Snap.
+ */
+type AllowedActions = HandleSnapRequest | HasSnap;
+
+/**
+ * The event that {@link GatorPermissionsController} publishes when updating state.
+ */
 export type GatorPermissionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
@@ -133,15 +175,16 @@ export type GatorPermissionsControllerStateChangeEvent =
   >;
 
 /**
- * Events emitted by GatorPermissionsController.
+ * All events that {@link GatorPermissionsController} publishes, to be subscribed to
+ * externally.
  */
-export type GatorPermissionsControllerActionsEvents =
+export type GatorPermissionsControllerEvents =
   GatorPermissionsControllerStateChangeEvent;
 
 /**
- * Events that this controller is allowed to subscribe to.
+ * Events that {@link GatorPermissionsController} is allowed to subscribe to internally.
  */
-export type AllowedEvents = GatorPermissionsControllerStateChangeEvent;
+type AllowedEvents = GatorPermissionsControllerStateChangeEvent;
 
 /**
  * Messenger type for the GatorPermissionsController.
@@ -149,22 +192,10 @@ export type AllowedEvents = GatorPermissionsControllerStateChangeEvent;
 export type GatorPermissionsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   GatorPermissionsControllerActions | AllowedActions,
-  GatorPermissionsControllerActionsEvents | AllowedEvents,
+  GatorPermissionsControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-/**
- * Configuration for the GatorPermissionsController.
- * Default value is `{ gatorPermissionsProviderSnapId: '@metamask/gator-permissions-snap' }`
- * when no config is provided.
- */
-export type GatorPermissionsControllerConfig = {
-  /**
-   * The ID of the Snap of the gator permissions provider snap
-   */
-  gatorPermissionsProviderSnapId: SnapId;
-};
 
 /**
  * Controller that manages gator permissions by reading from profile sync
@@ -174,38 +205,32 @@ export default class GatorPermissionsController extends BaseController<
   GatorPermissionsControllerState,
   GatorPermissionsControllerMessenger
 > {
-  private readonly gatorPermissionsProviderSnapId: SnapId;
-
   /**
    * Creates a GatorPermissionsController instance.
    *
    * @param args - The arguments to this function.
    * @param args.messenger - Messenger used to communicate with BaseV2 controller.
    * @param args.state - Initial state to set on this controller.
-   * @param args.config - Configuration for the GatorPermissionsController.
    */
   constructor({
     messenger,
     state,
-    config,
   }: {
     messenger: GatorPermissionsControllerMessenger;
     state?: Partial<GatorPermissionsControllerState>;
-    config?: GatorPermissionsControllerConfig;
   }) {
     super({
-      messenger,
-      metadata,
       name: controllerName,
-      state: { ...defaultState, ...state },
+      metadata: gatorPermissionsControllerMetadata,
+      messenger,
+      state: {
+        ...getDefaultGatorPermissionsControllerState(),
+        ...state,
+        isFetchingGatorPermissions: false,
+      },
     });
 
-    this.gatorPermissionsProviderSnapId =
-      config?.gatorPermissionsProviderSnapId ??
-      defaultGatorPermissionsProviderSnapId;
-
     this.#registerMessageHandlers();
-    this.#clearLoadingStates();
   }
 
   #setIsFetchingGatorPermissions(isFetchingGatorPermissions: boolean) {
@@ -235,12 +260,6 @@ export default class GatorPermissionsController extends BaseController<
       `${controllerName}:disableGatorPermissions`,
       this.disableGatorPermissions.bind(this),
     );
-  }
-
-  #clearLoadingStates(): void {
-    this.update((state) => {
-      state.isFetchingGatorPermissions = false;
-    });
   }
 
   /**
@@ -400,7 +419,7 @@ export default class GatorPermissionsController extends BaseController<
    * @returns The gator permissions provider snap id.
    */
   get permissionsProviderSnapId(): SnapId {
-    return this.gatorPermissionsProviderSnapId;
+    return this.state.gatorPermissionsProviderSnapId;
   }
 
   /**
@@ -435,7 +454,7 @@ export default class GatorPermissionsController extends BaseController<
 
       const permissionsData =
         await this.#handleSnapRequestToGatorPermissionsProvider({
-          snapId: this.gatorPermissionsProviderSnapId,
+          snapId: this.state.gatorPermissionsProviderSnapId,
         });
 
       const gatorPermissionsMap =
