@@ -309,8 +309,6 @@ export class MultichainAccountWallet<
 
   async alignGroups(): Promise<void> {
     const groups = this.getMultichainAccountGroups();
-    for (const group of groups) {
-      await group.align();
-    }
+    await Promise.all(groups.map((g) => g.align()));
   }
 }

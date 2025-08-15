@@ -190,13 +190,17 @@ export class MultichainAccountGroup<
   }
 
   async align(): Promise<void> {
-    for (const provider of this.#providers) {
-      if (this.#providerToAccounts.get(provider)?.length === 0) {
-        await provider.createAccounts({
-          entropySource: this.wallet.entropySource,
-          groupIndex: this.groupIndex,
-        });
-      }
-    }
+    await Promise.all(
+      this.#providers.map((provider) => {
+        const accounts = this.#providerToAccounts.get(provider);
+        if (!accounts || accounts.length === 0) {
+          return provider.createAccounts({
+            entropySource: this.wallet.entropySource,
+            groupIndex: this.groupIndex,
+          });
+        }
+        return Promise.resolve();
+      }),
+    );
   }
 }
