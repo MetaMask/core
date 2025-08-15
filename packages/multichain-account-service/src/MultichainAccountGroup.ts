@@ -14,8 +14,9 @@ import type { MultichainAccountWallet } from './MultichainAccountWallet';
 /**
  * A multichain account group that holds multiple accounts.
  */
-export class MultichainAccountGroup<Account extends Bip44Account<KeyringAccount>>
-  implements MultichainAccountGroupDefinition<Account>
+export class MultichainAccountGroup<
+  Account extends Bip44Account<KeyringAccount>,
+> implements MultichainAccountGroupDefinition<Account>
 {
   readonly #id: MultichainAccountGroupId;
 
