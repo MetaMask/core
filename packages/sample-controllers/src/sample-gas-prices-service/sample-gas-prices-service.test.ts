@@ -221,27 +221,6 @@ type UnrestrictedMessenger = Messenger<
 >;
 
 /**
- * Constructs a SampleGasPricesService based on the given options, and calls the
- * given function with that service.
- *
- * @param options - The options that SampleGasPricesService takes.
- * @returns The constructed service.
- */
-function buildService(
-  options: Partial<
-    ConstructorParameters<typeof SampleGasPricesService>[0]
-  > = {},
-): SampleGasPricesService {
-  const unrestrictedMessenger = buildUnrestrictedMessenger();
-  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
-  return new SampleGasPricesService({
-    fetch,
-    messenger: restrictedMessenger,
-    ...options,
-  });
-}
-
-/**
  * Constructs the unrestricted messenger for these tests. This is where all
  * actions and events will ultimately be registered.
  *
@@ -266,5 +245,26 @@ function buildRestrictedMessenger(
     name: 'SampleGasPricesService',
     allowedActions: [],
     allowedEvents: [],
+  });
+}
+
+/**
+ * Constructs a SampleGasPricesService based on the given options, and calls the
+ * given function with that service.
+ *
+ * @param options - The options that SampleGasPricesService takes.
+ * @returns The constructed service.
+ */
+function buildService(
+  options: Partial<
+    ConstructorParameters<typeof SampleGasPricesService>[0]
+  > = {},
+): SampleGasPricesService {
+  const unrestrictedMessenger = buildUnrestrictedMessenger();
+  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
+  return new SampleGasPricesService({
+    fetch,
+    messenger: restrictedMessenger,
+    ...options,
   });
 }

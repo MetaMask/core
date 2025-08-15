@@ -174,6 +174,14 @@ describe('SamplePetnamesController', () => {
 });
 
 /**
+ * The type of the messenger where all actions and events will be registered.
+ */
+type UnrestrictedMessenger = Messenger<
+  ExtractAvailableAction<SamplePetnamesControllerMessenger>,
+  ExtractAvailableEvent<SamplePetnamesControllerMessenger>
+>;
+
+/**
  * The callback that `withController` calls.
  */
 type WithControllerCallback<ReturnValue> = ({
@@ -197,37 +205,6 @@ type WithControllerOptions = Partial<
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
   | [WithControllerOptions, WithControllerCallback<ReturnValue>];
-
-/**
- * The type of the messenger where all actions and events will be registered.
- */
-type UnrestrictedMessenger = Messenger<
-  ExtractAvailableAction<SamplePetnamesControllerMessenger>,
-  ExtractAvailableEvent<SamplePetnamesControllerMessenger>
->;
-
-/**
- * Constructs a SamplePetnamesController based on the given options, and calls
- * the given function with that controller.
- *
- * @param args - Either a function, or an options bag + a function. The options
- * bag is equivalent to the options that the controller takes, but `messenger`
- * is filled in if not given. The function will be called with the built
- * controller, unrestricted messenger, and restricted messenger.
- * @returns The same return value as the given callback.
- */
-async function withController<ReturnValue>(
-  ...args: WithControllerArgs<ReturnValue>
-): Promise<ReturnValue> {
-  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const unrestrictedMessenger = buildUnrestrictedMessenger();
-  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
-  const controller = new SamplePetnamesController({
-    messenger: restrictedMessenger,
-    ...rest,
-  });
-  return await fn({ controller, unrestrictedMessenger, restrictedMessenger });
-}
 
 /**
  * Constructs the unrestricted messenger for these tests. This is where all
@@ -255,4 +232,27 @@ function buildRestrictedMessenger(
     allowedActions: [],
     allowedEvents: [],
   });
+}
+
+/**
+ * Constructs a SamplePetnamesController based on the given options, and calls
+ * the given function with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the options that the controller takes, but `messenger`
+ * is filled in if not given. The function will be called with the built
+ * controller, unrestricted messenger, and restricted messenger.
+ * @returns The same return value as the given callback.
+ */
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const unrestrictedMessenger = buildUnrestrictedMessenger();
+  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
+  const controller = new SamplePetnamesController({
+    messenger: restrictedMessenger,
+    ...rest,
+  });
+  return await fn({ controller, unrestrictedMessenger, restrictedMessenger });
 }
