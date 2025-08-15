@@ -57,7 +57,30 @@ export type TransactionMeta = {
   /**
    * Additional transactions that must also be submitted in a batch.
    */
-  batchTransactions?: NestedTransactionMetadata[];
+  batchTransactions?: BatchTransaction[];
+
+  /**
+   * Optional configuration when processing `batchTransactions`.
+   */
+  batchTransactionsOptions?: {
+    /**
+     * Whether to disable batch transaction processing via an EIP-7702 upgraded account.
+     * Defaults to `true` if no options object, `false` otherwise.
+     */
+    disable7702?: boolean;
+
+    /**
+     * Whether to disable batch transaction via the `publishBatch` hook.
+     * Defaults to `false`.
+     */
+    disableHook?: boolean;
+
+    /**
+     * Whether to disable batch transaction via sequential transactions.
+     * Defaults to `true` if no options object, `false` otherwise.
+     */
+    disableSequential?: boolean;
+  };
 
   /**
    * Number of the block where the transaction has been included.
@@ -1587,6 +1610,20 @@ export type BatchTransactionParams = {
 /** Metadata for a nested transaction within a standard transaction. */
 export type NestedTransactionMetadata = BatchTransactionParams & {
   /** Type of the nested transaction. */
+  type?: TransactionType;
+};
+
+/**
+ * An additional transaction dynamically added to a standard single transaction to form a batch.
+ */
+export type BatchTransaction = BatchTransactionParams & {
+  /**
+   * Whether the transaction is executed after the main transaction.
+   * Defaults to `true`.
+   */
+  isAfter?: boolean;
+
+  /** Type of the batch transaction. */
   type?: TransactionType;
 };
 
