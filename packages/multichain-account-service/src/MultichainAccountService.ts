@@ -355,4 +355,9 @@ export class MultichainAccountService {
     const wallets = this.getMultichainAccountWallets();
     await Promise.all(wallets.map((w) => w.alignGroups()));
   }
+
+  async alignWallet(entropySource: EntropySourceId): Promise<void> {
+    const wallet = this.getMultichainAccountWallet({ entropySource });
+    await wallet.alignGroups();
+  }
 }

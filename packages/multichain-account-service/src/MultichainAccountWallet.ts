@@ -311,4 +311,11 @@ export class MultichainAccountWallet<
     const groups = this.getMultichainAccountGroups();
     await Promise.all(groups.map((g) => g.align()));
   }
+
+  async alignGroup(groupIndex: number): Promise<void> {
+    const group = this.getMultichainAccountGroup(groupIndex);
+    if (group) {
+      await group.align();
+    }
+  }
 }
