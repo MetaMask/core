@@ -5,6 +5,7 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "noEmit": true,
+    "noErrorTruncation": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
