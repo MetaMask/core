@@ -3,7 +3,11 @@ import type {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from '@metamask/controller-utils';
-import { createServicePolicy } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  fromHex,
+  HttpError,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
@@ -143,14 +147,53 @@ export class SampleGasPricesService {
   }
 
   /**
-   * Listens for when the request is retried due to failures.
+   * Registers a handler that will be called after a request returns a non-500
+   * response, causing a retry. Primarily useful in tests where timers are being
+   * mocked.
    *
-   * @param listener - The callback to be called when the retry occurs.
-   * @returns The same value that {@link ServicePolicy.onRetry} returns.
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
   onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
     return this.#policy.onRetry(listener);
+  }
+
+  /**
+   * Registers a handler that will be called after a set number of retry rounds
+   * prove that requests to an RPC endpoint consistently return a 5xx response.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
+  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
+    return this.#policy.onBreak(listener);
+  }
+
+  /* eslint-disable jsdoc/check-indentation */
+  /**
+   * Registers a handler that will be called under one of two circumstances:
+   *
+   * 1. After a set number of retries prove that requests to an RPC endpoint
+   * consistently result in one of the following failures:
+   *    1. A connection initiation error
+   *    2. A connection reset error
+   *    3. A timeout error
+   *    4. A non-JSON response
+   *    5. A 502, 503, or 504 response
+   * 2. After a successful request is made to the RPC endpoint, but the response
+   * takes longer than a set duration to return.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   */
+  /* eslint-enable jsdoc/check-indentation */
+  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
+    return this.#policy.onDegraded(listener);
   }
 
   /**
@@ -160,20 +203,25 @@ export class SampleGasPricesService {
    * @param chainId - The chain ID for which you want to fetch gas prices.
    * @returns The gas prices for the given chain.
    */
-  async fetchGasPrices(chainId: Hex) {
-    return await this.#policy.execute(async () => {
-      const response = await this.#fetch(
-        `https://example.com/gas-prices/${chainId}.json`,
-      );
-      if (response.ok) {
-        // Type assertion: We have to assume the shape of the response data.
-        const gasPricesResponse =
-          (await response.json()) as unknown as GasPricesResponse;
-        return gasPricesResponse.data;
+  async fetchGasPrices(chainId: Hex): Promise<GasPricesResponse['data']> {
+    const response = await this.#policy.execute(async () => {
+      const url = new URL('https://api.example.com/gas-prices');
+      url.searchParams.append('chainId', `eip155:${fromHex(chainId)}`);
+      const localResponse = await this.#fetch(url);
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+        );
       }
-      throw new Error(
-        `Error fetching gas prices (HTTP status ${response.status})`,
-      );
+      return localResponse;
     });
+    const jsonResponse = await response.json();
+
+    // Type assertion: We assume that if the request is successful, the response
+    // body always follows a certain shape.
+    const gasPricesResponse = jsonResponse as GasPricesResponse;
+
+    return gasPricesResponse.data;
   }
 }
