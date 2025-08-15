@@ -385,7 +385,7 @@ export default class NotificationServicesController extends BaseController<
         },
         [],
       );
-      return allKeyringAccounts;
+      return allKeyringAccounts.length > 0 ? allKeyringAccounts : null;
     },
 
     /**
