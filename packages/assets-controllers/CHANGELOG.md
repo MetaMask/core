@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert releases 502.0.0 and 503.0.0 ([#6320](https://github.com/MetaMask/core/pull/6320))
-- Release/502.0.0 ([#6310](https://github.com/MetaMask/core/pull/6310))
-- Reduce global Jest timeout to 5 seconds ([#6304](https://github.com/MetaMask/core/pull/6304))
-- Release 497.0.0 ([#6291](https://github.com/MetaMask/core/pull/6291))
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-
 ### Added
 
 - Implement balance change calculator and network filtering ([#6285](https://github.com/MetaMask/core/pull/6285))
@@ -34,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides comprehensive network coverage with graceful degradation when services are unavailable
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Reduce global Jest timeout to 5 seconds ([#6304](https://github.com/MetaMask/core/pull/6304))
+- Release 497.0.0 ([#6291](https://github.com/MetaMask/core/pull/6291))
+- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
 
 ## [73.1.0]
 
