@@ -28,9 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides comprehensive network coverage with graceful degradation when services are unavailable
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
-- Reduce global Jest timeout to 5 seconds ([#6304](https://github.com/MetaMask/core/pull/6304))
-- Release 497.0.0 ([#6291](https://github.com/MetaMask/core/pull/6291))
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/transaction-controller` from `^59.1.0` to `^59.2.0` ([#6291](https://github.com/MetaMask/core/pull/6291))
+- Bump `@metamask/account-tree-controller` from `^0.7.0` to `^0.8.0` ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/accounts-controller` from `^32.0.1` to `^32.0.2` ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/keyring-controller` from `^22.1.0` to `^22.1.1` ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/multichain-account-service` from `^0.3.0` to `^0.4.0` ([#6273](https://github.com/MetaMask/core/pull/6273))
 
 ## [73.1.0]
 
