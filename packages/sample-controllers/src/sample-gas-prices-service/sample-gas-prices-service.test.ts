@@ -22,7 +22,7 @@ describe('SampleGasPricesService', () => {
     clock.restore();
   });
 
-  describe('fetchGasPrices', () => {
+  describe('SampleGasPricesService:fetchGasPrices', () => {
     it('returns a slightly cleaned up version of the successful response from the API', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
@@ -34,9 +34,12 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const service = buildService();
+      const { unrestrictedMessenger } = buildService();
 
-      const gasPricesResponse = await service.fetchGasPrices('0x1');
+      const gasPricesResponse = await unrestrictedMessenger.call(
+        'SampleGasPricesService:fetchGasPrices',
+        '0x1',
+      );
 
       expect(gasPricesResponse).toStrictEqual({
         low: 5,
@@ -59,11 +62,14 @@ describe('SampleGasPricesService', () => {
             },
           };
         });
-      const service = buildService();
+      const { service, unrestrictedMessenger } = buildService();
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await service.fetchGasPrices('0x1');
+      await unrestrictedMessenger.call(
+        'SampleGasPricesService:fetchGasPrices',
+        '0x1',
+      );
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
@@ -82,13 +88,16 @@ describe('SampleGasPricesService', () => {
             },
           };
         });
-      const service = buildService({
+      const { service, unrestrictedMessenger } = buildService({
         policyOptions: { degradedThreshold: 500 },
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await service.fetchGasPrices('0x1');
+      await unrestrictedMessenger.call(
+        'SampleGasPricesService:fetchGasPrices',
+        '0x1',
+      );
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
@@ -99,12 +108,17 @@ describe('SampleGasPricesService', () => {
         .query({ chainId: 'eip155:1' })
         .times(4)
         .reply(500);
-      const service = buildService();
+      const { service, unrestrictedMessenger } = buildService();
       service.onRetry(async () => {
         await clock.nextAsync();
       });
 
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
     });
@@ -115,14 +129,19 @@ describe('SampleGasPricesService', () => {
         .query({ chainId: 'eip155:1' })
         .times(4)
         .reply(500);
-      const service = buildService();
+      const { service, unrestrictedMessenger } = buildService();
       service.onRetry(async () => {
         await clock.nextAsync();
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       expect(onDegradedListener).toHaveBeenCalled();
@@ -134,7 +153,7 @@ describe('SampleGasPricesService', () => {
         .query({ chainId: 'eip155:1' })
         .times(12)
         .reply(500);
-      const service = buildService();
+      const { service, unrestrictedMessenger } = buildService();
       service.onRetry(async () => {
         await clock.nextAsync();
       });
@@ -142,20 +161,40 @@ describe('SampleGasPricesService', () => {
       service.onBreak(onBreakListener);
 
       // Should make 4 requests
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       // Should make 4 requests
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       // Should make 4 requests
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       // Should not make an additional request (we only mocked 12 requests
       // above)
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
       expect(onBreakListener).toHaveBeenCalledWith({
@@ -182,27 +221,71 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const service = buildService({
+      const { service, unrestrictedMessenger } = buildService({
         policyOptions: { circuitBreakDuration },
       });
       service.onRetry(async () => {
         await clock.nextAsync();
       });
 
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
-      await expect(service.fetchGasPrices('0x1')).rejects.toThrow(
+      await expect(
+        unrestrictedMessenger.call(
+          'SampleGasPricesService:fetchGasPrices',
+          '0x1',
+        ),
+      ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
       await clock.tickAsync(circuitBreakDuration);
       const gasPricesResponse = await service.fetchGasPrices('0x1');
+      expect(gasPricesResponse).toStrictEqual({
+        low: 5,
+        average: 10,
+        high: 15,
+      });
+    });
+  });
+
+  describe('fetchGasPrices', () => {
+    it('does the same thing as the messenger action', async () => {
+      nock('https://api.example.com')
+        .get('/gas-prices')
+        .query({ chainId: 'eip155:1' })
+        .reply(200, {
+          data: {
+            low: 5,
+            average: 10,
+            high: 15,
+          },
+        });
+      const { service } = buildService();
+
+      const gasPricesResponse = await service.fetchGasPrices('0x1');
+
       expect(gasPricesResponse).toStrictEqual({
         low: 5,
         average: 10,
@@ -216,8 +299,8 @@ describe('SampleGasPricesService', () => {
  * The type of the messenger where all actions and events will be registered.
  */
 type UnrestrictedMessenger = Messenger<
-  ExtractAvailableAction<SampleGasPricesService>,
-  ExtractAvailableEvent<SampleGasPricesService>
+  ExtractAvailableAction<SampleGasPricesServiceMessenger>,
+  ExtractAvailableEvent<SampleGasPricesServiceMessenger>
 >;
 
 /**
@@ -227,8 +310,7 @@ type UnrestrictedMessenger = Messenger<
  * @returns The unrestricted messenger.
  */
 function buildUnrestrictedMessenger(): UnrestrictedMessenger {
-  const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
-  return unrestrictedMessenger;
+  return new Messenger();
 }
 
 /**
@@ -259,12 +341,18 @@ function buildService(
   options: Partial<
     ConstructorParameters<typeof SampleGasPricesService>[0]
   > = {},
-): SampleGasPricesService {
+): {
+  service: SampleGasPricesService;
+  unrestrictedMessenger: UnrestrictedMessenger;
+  restrictedMessenger: SampleGasPricesServiceMessenger;
+} {
   const unrestrictedMessenger = buildUnrestrictedMessenger();
   const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
-  return new SampleGasPricesService({
+  const service = new SampleGasPricesService({
     fetch,
     messenger: restrictedMessenger,
     ...options,
   });
+
+  return { service, unrestrictedMessenger, restrictedMessenger };
 }

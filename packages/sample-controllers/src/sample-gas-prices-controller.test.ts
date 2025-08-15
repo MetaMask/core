@@ -2,7 +2,6 @@ import { Messenger } from '@metamask/base-controller';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
-import type { SampleGasPricesControllerUpdateGasPricesAction } from './sample-gas-prices-controller-method-action-types';
 import { flushPromises } from '../../../tests/helpers';
 import type {
   ExtractAvailableAction,
@@ -217,31 +216,7 @@ describe('SampleGasPricesController', () => {
     });
   });
 
-  describe.each([
-    {
-      description: 'updateGasPrices',
-      updateGasPrices: ({
-        controller,
-        args,
-      }: {
-        controller: SampleGasPricesController;
-        args: Parameters<SampleGasPricesController['updateGasPrices']>;
-      }) => controller.updateGasPrices(...args),
-    },
-    {
-      description: 'SampleGasPricesController:updateGasPrices',
-      updateGasPrices: ({
-        messenger,
-        args,
-      }: {
-        messenger: UnrestrictedMessenger;
-        args: Parameters<
-          SampleGasPricesControllerUpdateGasPricesAction['handler']
-        >;
-      }) =>
-        messenger.call('SampleGasPricesController:updateGasPrices', ...args),
-    },
-  ])('$description', ({ updateGasPrices }) => {
+  describe('SampleGasPricesController:updateGasPrices', () => {
     beforeEach(() => {
       jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
     });
@@ -272,11 +247,58 @@ describe('SampleGasPricesController', () => {
       await withController(
         { messenger: buildRestrictedMessenger(unrestrictedMessenger) },
         async ({ controller }) => {
-          await updateGasPrices({
-            controller,
-            messenger: unrestrictedMessenger,
-            args: [{ chainId }],
+          await unrestrictedMessenger.call(
+            'SampleGasPricesController:updateGasPrices',
+            { chainId },
+          );
+
+          expect(controller.state).toStrictEqual({
+            gasPricesByChainId: {
+              [chainId]: {
+                low: 5,
+                average: 10,
+                high: 15,
+                fetchedDate: '2024-01-02T00:00:00.000Z',
+              },
+            },
           });
+        },
+      );
+    });
+  });
+
+  describe('updateGasPrices', () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('does the same thing as the messenger action', async () => {
+      const chainId = '0x42';
+      const unrestrictedMessenger = buildUnrestrictedMessenger();
+      unrestrictedMessenger.registerActionHandler(
+        'SampleGasPricesService:fetchGasPrices',
+        async (givenChainId) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (givenChainId === chainId) {
+            return {
+              low: 5,
+              average: 10,
+              high: 15,
+            };
+          }
+
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+        },
+      );
+
+      await withController(
+        { messenger: buildRestrictedMessenger(unrestrictedMessenger) },
+        async ({ controller }) => {
+          await controller.updateGasPrices({ chainId });
 
           expect(controller.state).toStrictEqual({
             gasPricesByChainId: {
@@ -334,8 +356,7 @@ type WithControllerArgs<ReturnValue> =
  * @returns The unrestricted messenger.
  */
 function buildUnrestrictedMessenger(): UnrestrictedMessenger {
-  const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
-  return unrestrictedMessenger;
+  return new Messenger();
 }
 
 /**

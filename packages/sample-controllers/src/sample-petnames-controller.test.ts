@@ -2,7 +2,6 @@ import { Messenger } from '@metamask/base-controller';
 
 import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
-import type { SamplePetnamesControllerAssignPetnameAction } from './sample-petnames-controller-method-action-types';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
@@ -37,40 +36,18 @@ describe('SamplePetnamesController', () => {
     });
   });
 
-  describe.each([
-    {
-      description: 'assignPetname',
-      assignPetname: ({
-        controller,
-        args,
-      }: {
-        controller: SamplePetnamesController;
-        args: Parameters<SamplePetnamesController['assignPetname']>;
-      }) => controller.assignPetname(...args),
-    },
-    {
-      description: 'SamplePetnamesController:assignPetname',
-      assignPetname: ({
-        messenger,
-        args,
-      }: {
-        messenger: UnrestrictedMessenger;
-        args: Parameters<
-          SamplePetnamesControllerAssignPetnameAction['handler']
-        >;
-      }) => messenger.call('SamplePetnamesController:assignPetname', ...args),
-    },
-  ])('$description', ({ assignPetname }) => {
+  describe('SamplePetnamesController:assignPetname', () => {
     for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
       it(`throws if given a chainId of "${blockedKey}"`, async () => {
-        await withController(({ controller, unrestrictedMessenger }) => {
+        await withController(({ unrestrictedMessenger }) => {
           expect(() =>
-            assignPetname({
-              controller,
-              messenger: unrestrictedMessenger,
+            unrestrictedMessenger.call(
+              'SamplePetnamesController:assignPetname',
               // @ts-expect-error We are intentionally passing bad input.
-              args: [blockedKey, '0xbbbbbb', 'Account 2'],
-            }),
+              blockedKey,
+              '0xbbbbbb',
+              'Account 2',
+            ),
           ).toThrow('Invalid chain ID');
         });
       });
@@ -88,11 +65,12 @@ describe('SamplePetnamesController', () => {
           },
         },
         async ({ controller, unrestrictedMessenger }) => {
-          assignPetname({
-            controller,
-            messenger: unrestrictedMessenger,
-            args: ['0x1', '0xbbbbbb', 'Account 2'],
-          });
+          unrestrictedMessenger.call(
+            'SamplePetnamesController:assignPetname',
+            '0x1',
+            '0xbbbbbb',
+            'Account 2',
+          );
 
           expect(controller.state).toStrictEqual({
             namesByChainIdAndAddress: {
@@ -108,11 +86,12 @@ describe('SamplePetnamesController', () => {
 
     it("creates a new group for the chain if it doesn't already exist", async () => {
       await withController(async ({ controller, unrestrictedMessenger }) => {
-        assignPetname({
-          controller,
-          messenger: unrestrictedMessenger,
-          args: ['0x1', '0xaaaaaa', 'My Account'],
-        });
+        unrestrictedMessenger.call(
+          'SamplePetnamesController:assignPetname',
+          '0x1',
+          '0xaaaaaa',
+          'My Account',
+        );
 
         expect(controller.state).toStrictEqual({
           namesByChainIdAndAddress: {
@@ -136,11 +115,12 @@ describe('SamplePetnamesController', () => {
           },
         },
         async ({ controller, unrestrictedMessenger }) => {
-          assignPetname({
-            controller,
-            messenger: unrestrictedMessenger,
-            args: ['0x1', '0xaaaaaa', 'Old Account'],
-          });
+          unrestrictedMessenger.call(
+            'SamplePetnamesController:assignPetname',
+            '0x1',
+            '0xaaaaaa',
+            'Old Account',
+          );
 
           expect(controller.state).toStrictEqual({
             namesByChainIdAndAddress: {
@@ -155,11 +135,12 @@ describe('SamplePetnamesController', () => {
 
     it('lowercases the given address before registering it to avoid duplicate entries', async () => {
       await withController(async ({ controller, unrestrictedMessenger }) => {
-        assignPetname({
-          controller,
-          messenger: unrestrictedMessenger,
-          args: ['0x1', '0xAAAAAA', 'Account 1'],
-        });
+        unrestrictedMessenger.call(
+          'SamplePetnamesController:assignPetname',
+          '0x1',
+          '0xAAAAAA',
+          'Account 1',
+        );
 
         expect(controller.state).toStrictEqual({
           namesByChainIdAndAddress: {
@@ -169,6 +150,34 @@ describe('SamplePetnamesController', () => {
           },
         });
       });
+    });
+  });
+
+  describe('assignPetname', () => {
+    it('does the same thing as the messenger action', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          controller.assignPetname('0x1', '0xbbbbbb', 'Account 2');
+
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+                '0xbbbbbb': 'Account 2',
+              },
+            },
+          });
+        },
+      );
     });
   });
 });
@@ -213,8 +222,7 @@ type WithControllerArgs<ReturnValue> =
  * @returns The unrestricted messenger.
  */
 function buildUnrestrictedMessenger(): UnrestrictedMessenger {
-  const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
-  return unrestrictedMessenger;
+  return new Messenger();
 }
 
 /**
