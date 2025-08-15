@@ -28,10 +28,6 @@
     "import-x/namespace": 9,
     "jest/no-conditional-in-test": 6
   },
-  "packages/assets-controllers/src/NftController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 46
-  },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
     "import-x/order": 4

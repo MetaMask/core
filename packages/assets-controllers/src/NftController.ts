@@ -83,25 +83,35 @@ type SuggestedNftMeta = {
 };
 
 /**
- * @type Nft
+ * Nft
  *
  * NFT representation
- * @property address - Hex address of a ERC721 contract
- * @property description - The NFT description
- * @property image - URI of custom NFT image associated with this tokenId
- * @property name - Name associated with this tokenId and contract address
- * @property tokenId - The NFT identifier
- * @property numberOfSales - Number of sales
- * @property backgroundColor - The background color to be displayed with the item
- * @property imagePreview - URI of a smaller image associated with this NFT
- * @property imageThumbnail - URI of a thumbnail image associated with this NFT
- * @property imageOriginal - URI of the original image associated with this NFT
- * @property animation - URI of a animation associated with this NFT
- * @property animationOriginal - URI of the original animation associated with this NFT
- * @property externalLink - External link containing additional information
- * @property creator - The NFT owner information object
- * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
- * @property transactionId - Transaction Id associated with the NFT
+ *
+ * address - Hex address of a ERC721 contract
+ *
+ * description - The NFT description
+ *
+ * image - URI of custom NFT image associated with this tokenId
+ *
+ * name - Name associated with this tokenId and contract address
+ *
+ * tokenId - The NFT identifier
+ *
+ * numberOfSales - Number of sales
+ *
+ * backgroundColor - The background color to be displayed with the item
+ *
+ * imagePreview - URI of a smaller image associated with this NFT
+ *
+ * imageThumbnail - URI of a thumbnail image associated with this NFT
+ *
+ * imageOriginal - URI of the original image associated with this NFT
+ * animation - URI of a animation associated with this NFT
+ * animationOriginal - URI of the original animation associated with this NFT
+ * externalLink - External link containing additional information
+ * creator - The NFT owner information object
+ * isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
+ * transactionId - Transaction Id associated with the NFT
  */
 export type Nft = {
   tokenId: string;
@@ -115,19 +125,29 @@ type NftUpdate = {
 };
 
 /**
- * @type NftContract
+ * NftContract
  *
  * NFT contract information representation
- * @property name - Contract name
- * @property logo - Contract logo
- * @property address - Contract address
- * @property symbol - Contract symbol
- * @property description - Contract description
- * @property totalSupply - Total supply of NFTs
- * @property assetContractType - The NFT type, it could be `semi-fungible` or `non-fungible`
- * @property createdDate - Creation date
- * @property schemaName - The schema followed by the contract, it could be `ERC721` or `ERC1155`
- * @property externalLink - External link containing additional information
+ *
+ * name - Contract name
+ *
+ * logo - Contract logo
+ *
+ * address - Contract address
+ *
+ * symbol - Contract symbol
+ *
+ * description - Contract description
+ *
+ * totalSupply - Total supply of NFTs
+ *
+ * assetContractType - The NFT type, it could be `semi-fungible` or `non-fungible`
+ *
+ * createdDate - Creation date
+ *
+ * schemaName - The schema followed by the contract, it could be `ERC721` or `ERC1155`
+ *
+ * externalLink - External link containing additional information
  */
 export type NftContract = {
   name?: string;
@@ -143,22 +163,32 @@ export type NftContract = {
 };
 
 /**
- * @type NftMetadata
+ * NftMetadata
  *
  * NFT custom information
- * @property name - NFT custom name
- * @property description - The NFT description
- * @property numberOfSales - Number of sales
- * @property backgroundColor - The background color to be displayed with the item
- * @property image - Image custom image URI
- * @property imagePreview - URI of a smaller image associated with this NFT
- * @property imageThumbnail - URI of a thumbnail image associated with this NFT
- * @property imageOriginal - URI of the original image associated with this NFT
- * @property animation - URI of a animation associated with this NFT
- * @property animationOriginal - URI of the original animation associated with this NFT
- * @property externalLink - External link containing additional information
- * @property creator - The NFT owner information object
- * @property standard - NFT standard name for the NFT, e.g., ERC-721 or ERC-1155
+ *
+ * name - NFT custom name
+ *
+ * description - The NFT description
+ *
+ * numberOfSales - Number of sales
+ *
+ * backgroundColor - The background color to be displayed with the item
+ *
+ * image - Image custom image URI
+ *
+ * imagePreview - URI of a smaller image associated with this NFT
+ *
+ * imageThumbnail - URI of a thumbnail image associated with this NFT
+ *
+ * imageOriginal - URI of the original image associated with this NFT
+ *
+ * animation - URI of a animation associated with this NFT
+ *
+ * animationOriginal - URI of the original animation associated with this NFT
+ * externalLink - External link containing additional information
+ * creator - The NFT owner information object
+ * standard - NFT standard name for the NFT, e.g., ERC-721 or ERC-1155
  */
 export type NftMetadata = {
   name: string | null;
@@ -187,12 +217,15 @@ export type NftMetadata = {
 };
 
 /**
- * @type NftControllerState
+ * NftControllerState
  *
  * NFT controller state
- * @property allNftContracts - Object containing NFT contract information
- * @property allNfts - Object containing NFTs per account and network
- * @property ignoredNfts - List of NFTs that should be ignored
+ *
+ * allNftContracts - Object containing NFT contract information
+ *
+ * allNfts - Object containing NFTs per account and network
+ *
+ * ignoredNfts - List of NFTs that should be ignored
  */
 export type NftControllerState = {
   allNftContracts: {
@@ -290,18 +323,13 @@ export class NftController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  /**
-   * Optional API key to use with opensea
-   */
-  openSeaApiKey?: string;
-
   #selectedAccountId: string;
 
   #ipfsGateway: string;
 
-  #openSeaEnabled: boolean;
+  #displayNftMedia: boolean;
 
-  #useIpfsSubdomains: boolean;
+  readonly #useIpfsSubdomains: boolean;
 
   #isIpfsGatewayEnabled: boolean;
 
@@ -318,7 +346,7 @@ export class NftController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.ipfsGateway - The configured IPFS gateway.
-   * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param options.displayNftMedia - Controls whether the NFT API is used.
    * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
    * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
@@ -328,7 +356,7 @@ export class NftController extends BaseController<
    */
   constructor({
     ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
-    openSeaEnabled = false,
+    displayNftMedia = false,
     useIpfsSubdomains = true,
     isIpfsGatewayEnabled = true,
     onNftAdded,
@@ -336,7 +364,7 @@ export class NftController extends BaseController<
     state = {},
   }: {
     ipfsGateway?: string;
-    openSeaEnabled?: boolean;
+    displayNftMedia?: boolean;
     useIpfsSubdomains?: boolean;
     isIpfsGatewayEnabled?: boolean;
     onNftAdded?: (data: {
@@ -363,7 +391,7 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     ).id;
     this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
+    this.#displayNftMedia = displayNftMedia;
     this.#useIpfsSubdomains = useIpfsSubdomains;
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
     this.#onNftAdded = onNftAdded;
@@ -371,14 +399,14 @@ export class NftController extends BaseController<
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       this.#onPreferencesControllerStateChange.bind(this),
     );
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       this.#onSelectedAccountChange.bind(this),
     );
   }
@@ -388,12 +416,12 @@ export class NftController extends BaseController<
    *
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.ipfsGateway - The configured IPFS gateway.
-   * @param preferencesState.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param preferencesState.displayNftMedia - Controls whether the NFT API is used.
    * @param preferencesState.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    */
   async #onPreferencesControllerStateChange({
     ipfsGateway,
-    openSeaEnabled,
+    displayNftMedia,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
     const selectedAccount = this.messagingSystem.call(
@@ -403,14 +431,14 @@ export class NftController extends BaseController<
     // Get current state values
     if (
       this.#ipfsGateway !== ipfsGateway ||
-      this.#openSeaEnabled !== openSeaEnabled ||
+      this.#displayNftMedia !== displayNftMedia ||
       this.#isIpfsGatewayEnabled !== isIpfsGatewayEnabled
     ) {
       this.#ipfsGateway = ipfsGateway;
-      this.#openSeaEnabled = openSeaEnabled;
+      this.#displayNftMedia = displayNftMedia;
       this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
       const needsUpdateNftMetadata =
-        (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || displayNftMedia;
 
       if (needsUpdateNftMetadata && selectedAccount) {
         await this.#updateNftUpdateForAccount(selectedAccount);
@@ -429,7 +457,7 @@ export class NftController extends BaseController<
 
     const needsUpdateNftMetadata =
       ((this.#isIpfsGatewayEnabled && this.#ipfsGateway !== '') ||
-        this.#openSeaEnabled) &&
+        this.#displayNftMedia) &&
       oldSelectedAccountId !== internalAccount.id;
 
     if (needsUpdateNftMetadata) {
@@ -439,7 +467,7 @@ export class NftController extends BaseController<
 
   getNftApi() {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
@@ -484,7 +512,7 @@ export class NftController extends BaseController<
 
   #getNftCollectionApi(): string {
     // False negative.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
     return `${NFT_API_BASE_URL}/collections`;
   }
 
@@ -631,7 +659,7 @@ export class NftController extends BaseController<
       };
     }
 
-    const isDisplayNFTMediaToggleEnabled = this.#openSeaEnabled;
+    const isDisplayNFTMediaToggleEnabled = this.#displayNftMedia;
     if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
       return {
         image: null,
@@ -771,7 +799,7 @@ export class NftController extends BaseController<
           networkClientId,
         ),
       ),
-      this.#openSeaEnabled && chainId === '0x1'
+      this.#displayNftMedia && chainId === '0x1'
         ? safelyExecute(() =>
             this.#getNftInformationFromApi(contractAddress, tokenId),
           )
@@ -859,12 +887,12 @@ export class NftController extends BaseController<
         address: contractAddress,
         ...blockchainContractData,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         schema_name: nftMetadataFromApi?.standard ?? null,
         collection: {
           name: null,
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
+
           image_url:
             nftMetadataFromApi?.collection?.image ??
             nftMetadataFromApi?.collection?.imageUrl ??
@@ -880,24 +908,24 @@ export class NftController extends BaseController<
     return {
       address: contractAddress,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       asset_contract_type: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       created_date: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       schema_name: null,
       symbol: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       total_supply: null,
       description: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       external_link: null,
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+
       collection: { name: null, image_url: null },
     };
   }
@@ -1052,21 +1080,21 @@ export class NftController extends BaseController<
       );
       const {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         asset_contract_type,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         created_date,
         symbol,
         description,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         external_link,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         schema_name,
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         collection: { name, image_url, tokenCount },
       } = contractInformation;
 
@@ -1242,7 +1270,7 @@ export class NftController extends BaseController<
     if (type !== ERC721 && type !== ERC1155) {
       throw rpcErrors.invalidParams(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
         `Non NFT asset type ${type} not supported by watchNft`,
       );
     }
@@ -1354,15 +1382,6 @@ export class NftController extends BaseController<
   }
 
   /**
-   * Sets an OpenSea API key to retrieve NFT information.
-   *
-   * @param openSeaApiKey - OpenSea API key.
-   */
-  setApiKey(openSeaApiKey: string) {
-    this.openSeaApiKey = openSeaApiKey;
-  }
-
-  /**
    * Checks the ownership of a ERC-721 or ERC-1155 NFT for a given address.
    *
    * @param ownerAddress - User public address.
@@ -1386,7 +1405,6 @@ export class NftController extends BaseController<
         networkClientId,
       );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
-      // eslint-disable-next-line no-empty
     } catch {
       // Ignore ERC-721 contract error
     }
@@ -1401,7 +1419,6 @@ export class NftController extends BaseController<
         networkClientId,
       );
       return !balance.isZero();
-      // eslint-disable-next-line no-empty
     } catch {
       // Ignore ERC-1155 contract error
     }
