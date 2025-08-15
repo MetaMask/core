@@ -350,4 +350,11 @@ export class MultichainAccountService {
       groupIndex,
     );
   }
+
+  async alignWallets(): Promise<void> {
+    const wallets = this.getMultichainAccountWallets();
+    for (const wallet of wallets) {
+      await wallet.alignGroups();
+    }
+  }
 }

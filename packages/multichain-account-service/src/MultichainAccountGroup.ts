@@ -14,9 +14,8 @@ import type { MultichainAccountWallet } from './MultichainAccountWallet';
 /**
  * A multichain account group that holds multiple accounts.
  */
-export class MultichainAccountGroup<
-  Account extends Bip44Account<KeyringAccount>,
-> implements MultichainAccountGroupDefinition<Account>
+export class MultichainAccountGroup<Account extends Bip44Account<KeyringAccount>>
+  implements MultichainAccountGroupDefinition<Account>
 {
   readonly #id: MultichainAccountGroupId;
 
@@ -187,5 +186,16 @@ export class MultichainAccountGroup<
    */
   select(selector: AccountSelector<Account>): Account[] {
     return select(this.getAccounts(), selector);
+  }
+
+  async align(): Promise<void> {
+    for (const provider of this.#providers) {
+      if (this.#providerToAccounts.get(provider)?.length === 0) {
+        await provider.createAccounts({
+          entropySource: this.wallet.entropySource,
+          groupIndex: this.groupIndex,
+        });
+      }
+    }
   }
 }

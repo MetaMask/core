@@ -306,4 +306,10 @@ export class MultichainAccountWallet<
   > {
     return this.createMultichainAccountGroup(this.getNextGroupIndex());
   }
+
+  async alignGroups(): Promise<void> {
+    for (const group of this.#accountGroups.values()) {
+      await group.align();
+    }
+  }
 }
