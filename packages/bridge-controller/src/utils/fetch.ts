@@ -70,7 +70,7 @@ export async function fetchBridgeTokens(
  */
 export async function fetchBridgeQuotes(
   request: GenericQuoteRequest,
-  signal: AbortSignal,
+  signal: AbortSignal | null,
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
@@ -91,6 +91,15 @@ export async function fetchBridgeQuotes(
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
+  }
+  if (request.noFee !== undefined) {
+    normalizedRequest.noFee = request.noFee;
+  }
+  if (request.aggIds && request.aggIds.length > 0) {
+    normalizedRequest.aggIds = request.aggIds;
+  }
+  if (request.bridgeIds && request.bridgeIds.length > 0) {
+    normalizedRequest.bridgeIds = request.bridgeIds;
   }
 
   const queryParams = new URLSearchParams();

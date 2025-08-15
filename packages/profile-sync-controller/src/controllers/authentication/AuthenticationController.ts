@@ -21,7 +21,7 @@ import type {
   LoginResponse,
   SRPInterface,
   UserProfile,
-  UserProfileMetaMetrics,
+  UserProfileLineage,
 } from '../../sdk';
 import {
   assertMessageStartsWithMetamask,
@@ -68,7 +68,7 @@ type ActionsObj = CreateActionsObj<
   | 'performSignOut'
   | 'getBearerToken'
   | 'getSessionProfile'
-  | 'getUserProfileMetaMetrics'
+  | 'getUserProfileLineage'
   | 'isSignedIn'
 >;
 export type Actions =
@@ -85,8 +85,8 @@ export type AuthenticationControllerGetBearerToken =
   ActionsObj['getBearerToken'];
 export type AuthenticationControllerGetSessionProfile =
   ActionsObj['getSessionProfile'];
-export type AuthenticationControllerGetUserProfileMetaMetrics =
-  ActionsObj['getUserProfileMetaMetrics'];
+export type AuthenticationControllerGetUserProfileLineage =
+  ActionsObj['getUserProfileLineage'];
 export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
@@ -238,8 +238,8 @@ export default class AuthenticationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'AuthenticationController:getUserProfileMetaMetrics',
-      this.getUserProfileMetaMetrics.bind(this),
+      'AuthenticationController:getUserProfileLineage',
+      this.getUserProfileLineage.bind(this),
     );
   }
 
@@ -342,9 +342,9 @@ export default class AuthenticationController extends BaseController<
     return await this.#auth.getUserProfile(entropySourceId);
   }
 
-  public async getUserProfileMetaMetrics(): Promise<UserProfileMetaMetrics> {
-    this.#assertIsUnlocked('getUserProfileMetaMetrics');
-    return await this.#auth.getUserProfileMetaMetrics();
+  public async getUserProfileLineage(): Promise<UserProfileLineage> {
+    this.#assertIsUnlocked('getUserProfileLineage');
+    return await this.#auth.getUserProfileLineage();
   }
 
   public isSignedIn(): boolean {

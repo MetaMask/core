@@ -3,6 +3,7 @@ import type {
   QuoteResponse,
   TxData,
   QuoteMetadata,
+  QuoteFetchData,
 } from '@metamask/bridge-controller';
 import {
   type TxStatusData,
@@ -27,9 +28,14 @@ import {
   type TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
-import type { BridgeHistoryItem } from 'src/types';
+import { BigNumber } from 'bignumber.js';
 
-import type { QuoteFetchData } from '../../../bridge-controller/src/utils/metrics/types';
+import { calcActualGasUsed } from './gas';
+import {
+  getActualBridgeReceivedAmount,
+  getActualSwapReceivedAmount,
+} from './swap-received-amount';
+import type { BridgeHistoryItem } from '../types';
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -67,16 +73,59 @@ export const getTxStatusesFromHistory = ({
   };
 };
 
-export const getFinalizedTxProperties = (historyItem: BridgeHistoryItem) => {
+/**
+ * Calculate the properties for a finalized transaction event based on the txHistory
+ * and txMeta
+ *
+ * @param historyItem - The bridge history item
+ * @param txMeta - The transaction meta from the TransactionController
+ * @param approvalTxMeta - The approval transaction meta from the TransactionController
+ * @returns The properties for the finalized transaction
+ */
+export const getFinalizedTxProperties = (
+  historyItem: BridgeHistoryItem,
+  txMeta?: TransactionMeta,
+  approvalTxMeta?: TransactionMeta,
+) => {
+  const startTime =
+    approvalTxMeta?.submittedTime ??
+    txMeta?.submittedTime ??
+    historyItem.startTime;
+  const completionTime = historyItem.completionTime ?? txMeta?.time;
+
+  const actualGas = calcActualGasUsed(
+    historyItem,
+    txMeta?.txReceipt,
+    approvalTxMeta?.txReceipt,
+  );
+
+  const actualReturn =
+    txMeta?.type === TransactionType.swap
+      ? getActualSwapReceivedAmount(historyItem, actualGas, txMeta)
+      : getActualBridgeReceivedAmount(historyItem);
+
+  const quotedVsUsedGasRatio =
+    historyItem.pricingData?.quotedGasAmount && actualGas?.amount
+      ? new BigNumber(historyItem.pricingData.quotedGasAmount)
+          .multipliedBy(new BigNumber(10).pow(18))
+          .div(actualGas.amount)
+          .toNumber()
+      : 0;
+
+  const quoteVsExecutionRatio =
+    historyItem.pricingData?.quotedReturnInUsd && actualReturn?.usd
+      ? new BigNumber(historyItem.pricingData.quotedReturnInUsd)
+          .div(actualReturn.usd)
+          .toNumber()
+      : 0;
+
   return {
     actual_time_minutes:
-      historyItem.completionTime && historyItem.startTime
-        ? (historyItem.completionTime - historyItem.startTime) / 60000
-        : 0,
-    usd_actual_return: Number(historyItem.pricingData?.quotedReturnInUsd ?? 0), // TODO calculate based on USD price at completion time
-    usd_actual_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0), // TODO calculate based on USD price at completion time
-    quote_vs_execution_ratio: 1, // TODO calculate based on USD price at completion time
-    quoted_vs_used_gas_ratio: 1, // TODO calculate based on USD price at completion time
+      completionTime && startTime ? (completionTime - startTime) / 60000 : 0,
+    usd_actual_return: Number(actualReturn?.usd ?? 0),
+    usd_actual_gas: actualGas?.usd ?? 0,
+    quote_vs_execution_ratio: quoteVsExecutionRatio,
+    quoted_vs_used_gas_ratio: quotedVsUsedGasRatio,
   };
 };
 
@@ -97,7 +146,7 @@ export const getTradeDataFromQuote = (
   quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
 ): TradeData => {
   return {
-    usd_quoted_gas: Number(quoteResponse.gasFee?.usd ?? 0),
+    usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
     gas_included: quoteResponse.quote.gasIncluded ?? false,
     provider: formatProviderLabel(quoteResponse.quote),
     quoted_time_minutes: Number(

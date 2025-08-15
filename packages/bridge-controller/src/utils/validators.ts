@@ -25,6 +25,10 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
+export enum FeatureId {
+  PERPS = 'perps',
+}
+
 export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
@@ -85,10 +89,27 @@ export const ChainConfigurationSchema = type({
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
 });
 
+export const PriceImpactThresholdSchema = type({
+  gasless: number(),
+  normal: number(),
+});
+
+const GenericQuoteRequestSchema = type({
+  aggIds: optional(array(string())),
+  bridgeIds: optional(array(string())),
+  noFee: optional(boolean()),
+});
+
+const FeatureIdSchema = enums(Object.values(FeatureId));
+
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
+  priceImpactThreshold: optional(PriceImpactThresholdSchema),
+  quoteRequestOverrides: optional(
+    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+  ),
   minimumVersion: string(),
   refreshRate: number(),
   maxRefreshCount: number(),
@@ -184,6 +205,7 @@ export const TxDataSchema = type({
   value: HexStringSchema,
   data: HexStringSchema,
   gasLimit: nullable(number()),
+  effectiveGas: optional(number()),
 });
 
 export const QuoteResponseSchema = type({

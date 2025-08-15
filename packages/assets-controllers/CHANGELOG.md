@@ -7,8 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement balance change calculator and network filtering ([#6285](https://github.com/MetaMask/core/pull/6285))
+  - Add core balance change calculators with period support (1d/7d/30d), network filtering, and group-level computation
+- Add new utility functions for efficient balance fetching using Multicall3 ([#6212](https://github.com/MetaMask/core/pull/6212))
+  - Added `aggregate3` function for direct access to Multicall3's aggregate3 method with individual failure handling
+  - Added `getTokenBalancesForMultipleAddresses` function to efficiently batch ERC20 and native token balance queries for multiple addresses
+  - Supports up to 300 calls per batch with automatic fallback to individual calls on unsupported chains
+  - Returns organized balance data as nested maps for easy consumption by client applications
+
 ### Changed
 
+- **BREAKING**: Improved `TokenBalancesController` performance with two-tier balance fetching strategy ([#6232](https://github.com/MetaMask/core/pull/6232))
+  - Implements Accounts API as primary fetching method for supported networks (faster, more efficient)
+  - Falls back to RPC calls using Multicall3's `aggregate3` for unsupported networks or API failures
+  - Significantly reduces RPC calls from N individual requests to batched calls of up to 300 operations
+  - Provides comprehensive network coverage with graceful degradation when services are unavailable
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [73.1.0]
+
+### Added
+
+- Comprehensive balance selectors for multichain account groups and wallets ([#6235](https://github.com/MetaMask/core/pull/6235))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
+### Fixed
+
+- Correct the polling rate for the DeFiPositionsController from 1 minute to 10 minutes. ([#6242](https://github.com/MetaMask/core/pull/6242))
+- Fix `AccountTrackerController` to force block number update to avoid stale cached native balances ([#6250](https://github.com/MetaMask/core/pull/6250))
+
+## [73.0.2]
+
+### Fixed
+
+- Use a narrow selector when listening to `CurrencyRateController:stateChange` ([#6217](https://github.com/MetaMask/core/pull/6217))
+- Fixed an issue where attempting to fetch asset conversions for accounts without assets would crash the snap ([#6207](https://github.com/MetaMask/core/pull/6207))
+
+## [73.0.1]
+
+### Changed
+
+- Improved `AccountTrackerController` RPC performance by batching addresses using a multicall contract ([#6099](https://github.com/MetaMask/core/pull/6099))
+  - Fallbacks to single address RPC calls on chains that do not have a multicall contract.
+- Improved `AssetsContractController` RPC performance by batching addresses using a multicall contract ([#6099](https://github.com/MetaMask/core/pull/6099))
+  - Fallbacks to single address RPC calls on chains that do not have a multicall contract.
+
+### Fixed
+
+- Fix `TokenBalancesController` to force block number update to avoid stale cached balances ([#6197](https://github.com/MetaMask/core/pull/6197))
+
+## [73.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
 - Improved `TokenDetectionController` token handling flow ([#6012](https://github.com/MetaMask/core/pull/6012))
   - Detected tokens are now implicitly added directly to `allTokens` instead of being added to `allDetectedTokens` first
   - This simplifies the token import flow and improves performance by eliminating the manual UI import step
@@ -1787,7 +1846,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.1.0...HEAD
+[73.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.2...@metamask/assets-controllers@73.1.0
+[73.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.1...@metamask/assets-controllers@73.0.2
+[73.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.0...@metamask/assets-controllers@73.0.1
+[73.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@72.0.0...@metamask/assets-controllers@73.0.0
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@71.0.0...@metamask/assets-controllers@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.1...@metamask/assets-controllers@71.0.0
 [70.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@70.0.0...@metamask/assets-controllers@70.0.1
