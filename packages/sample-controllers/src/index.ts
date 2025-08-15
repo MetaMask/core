@@ -1,4 +1,11 @@
 export type {
+  SampleGasPricesServiceActions,
+  SampleGasPricesServiceEvents,
+  SampleGasPricesServiceMessenger,
+} from './sample-gas-prices-service/sample-gas-prices-service';
+export type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-prices-service/sample-gas-prices-service-method-action-types';
+export { SampleGasPricesService } from './sample-gas-prices-service/sample-gas-prices-service';
+export type {
   SampleGasPricesControllerActions,
   SampleGasPricesControllerEvents,
   SampleGasPricesControllerGetStateAction,
@@ -7,9 +14,10 @@ export type {
   SampleGasPricesControllerStateChangeEvent,
 } from './sample-gas-prices-controller';
 export {
-  getDefaultSampleGasPricesControllerState,
   SampleGasPricesController,
+  getDefaultSampleGasPricesControllerState,
 } from './sample-gas-prices-controller';
+export type { SampleGasPricesControllerUpdateGasPricesAction } from './sample-gas-prices-controller-method-action-types';
 export type {
   SamplePetnamesControllerActions,
   SamplePetnamesControllerEvents,
@@ -18,8 +26,8 @@ export type {
   SamplePetnamesControllerState,
   SamplePetnamesControllerStateChangeEvent,
 } from './sample-petnames-controller';
-export { SamplePetnamesController } from './sample-petnames-controller';
 export {
-  SampleGasPricesService,
-  type SampleAbstractGasPricesService,
-} from './sample-gas-prices-service';
+  SamplePetnamesController,
+  getDefaultPetnamesControllerState,
+} from './sample-petnames-controller';
+export type { SamplePetnamesControllerAssignPetnameAction } from './sample-petnames-controller-method-action-types';

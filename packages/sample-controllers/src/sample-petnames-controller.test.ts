@@ -10,7 +10,7 @@ import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
   describe('constructor', () => {
-    it('uses all of the given state properties to initialize state', () => {
+    it('uses all of the given state properties to initialize state', async () => {
       const givenState = {
         namesByChainIdAndAddress: {
           '0x1': {
@@ -19,162 +19,248 @@ describe('SamplePetnamesController', () => {
           },
         },
       };
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: givenState,
-      });
 
-      expect(controller.state).toStrictEqual(givenState);
+      await withController({ state: givenState }, ({ controller }) => {
+        expect(controller.state).toStrictEqual(givenState);
+      });
     });
 
-    it('fills in missing state properties with default values', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
+    it('fills in missing state properties with default values', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state).toMatchInlineSnapshot(`
+          Object {
+            "namesByChainIdAndAddress": Object {},
+          }
+        `);
       });
+    });
+  });
 
-      expect(controller.state).toMatchInlineSnapshot(`
-        Object {
-          "namesByChainIdAndAddress": Object {},
-        }
-      `);
+  describe('SamplePetnamesController:assignPetname', () => {
+    for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
+      it(`throws if given a chainId of "${blockedKey}"`, async () => {
+        await withController(({ unrestrictedMessenger }) => {
+          expect(() =>
+            unrestrictedMessenger.call(
+              'SamplePetnamesController:assignPetname',
+              // @ts-expect-error We are intentionally passing bad input.
+              blockedKey,
+              '0xbbbbbb',
+              'Account 2',
+            ),
+          ).toThrow('Invalid chain ID');
+        });
+      });
+    }
+
+    it('registers the given pet name in state with the given chain ID and address', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
+            },
+          },
+        },
+        async ({ controller, unrestrictedMessenger }) => {
+          unrestrictedMessenger.call(
+            'SamplePetnamesController:assignPetname',
+            '0x1',
+            '0xbbbbbb',
+            'Account 2',
+          );
+
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+                '0xbbbbbb': 'Account 2',
+              },
+            },
+          });
+        },
+      );
+    });
+
+    it("creates a new group for the chain if it doesn't already exist", async () => {
+      await withController(async ({ controller, unrestrictedMessenger }) => {
+        unrestrictedMessenger.call(
+          'SamplePetnamesController:assignPetname',
+          '0x1',
+          '0xaaaaaa',
+          'My Account',
+        );
+
+        expect(controller.state).toStrictEqual({
+          namesByChainIdAndAddress: {
+            '0x1': {
+              '0xaaaaaa': 'My Account',
+            },
+          },
+        });
+      });
+    });
+
+    it('overwrites any existing pet name for the address', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
+            },
+          },
+        },
+        async ({ controller, unrestrictedMessenger }) => {
+          unrestrictedMessenger.call(
+            'SamplePetnamesController:assignPetname',
+            '0x1',
+            '0xaaaaaa',
+            'Old Account',
+          );
+
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Old Account',
+              },
+            },
+          });
+        },
+      );
+    });
+
+    it('lowercases the given address before registering it to avoid duplicate entries', async () => {
+      await withController(async ({ controller, unrestrictedMessenger }) => {
+        unrestrictedMessenger.call(
+          'SamplePetnamesController:assignPetname',
+          '0x1',
+          '0xAAAAAA',
+          'Account 1',
+        );
+
+        expect(controller.state).toStrictEqual({
+          namesByChainIdAndAddress: {
+            '0x1': {
+              '0xaaaaaa': 'Account 1',
+            },
+          },
+        });
+      });
     });
   });
 
   describe('assignPetname', () => {
-    for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
-      it(`throws if given a chainId of "${blockedKey}"`, () => {
-        const controller = new SamplePetnamesController({
-          messenger: getMessenger(),
-        });
-
-        expect(() =>
-          // @ts-expect-error We are intentionally passing bad input.
-          controller.assignPetname(blockedKey, '0xbbbbbb', 'Account 2'),
-        ).toThrow('Invalid chain ID');
-      });
-    }
-
-    it('registers the given pet name in state with the given chain ID and address', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: {
-          namesByChainIdAndAddress: {
-            '0x1': {
-              '0xaaaaaa': 'Account 1',
+    it('does the same thing as the messenger action', async () => {
+      await withController(
+        {
+          state: {
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+              },
             },
           },
         },
-      });
+        async ({ controller }) => {
+          controller.assignPetname('0x1', '0xbbbbbb', 'Account 2');
 
-      controller.assignPetname('0x1', '0xbbbbbb', 'Account 2');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'Account 1',
-            '0xbbbbbb': 'Account 2',
-          },
-        },
-      });
-    });
-
-    it("creates a new group for the chain if it doesn't already exist", () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-      });
-
-      controller.assignPetname('0x1', '0xaaaaaa', 'My Account');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'My Account',
-          },
-        },
-      });
-    });
-
-    it('overwrites any existing pet name for the address', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: {
-          namesByChainIdAndAddress: {
-            '0x1': {
-              '0xaaaaaa': 'Account 1',
+          expect(controller.state).toStrictEqual({
+            namesByChainIdAndAddress: {
+              '0x1': {
+                '0xaaaaaa': 'Account 1',
+                '0xbbbbbb': 'Account 2',
+              },
             },
-          },
+          });
         },
-      });
-
-      controller.assignPetname('0x1', '0xaaaaaa', 'Old Account');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'Old Account',
-          },
-        },
-      });
-    });
-
-    it('lowercases the given address before registering it to avoid duplicate entries', () => {
-      const controller = new SamplePetnamesController({
-        messenger: getMessenger(),
-        state: {
-          namesByChainIdAndAddress: {
-            '0x1': {
-              '0xaaaaaa': 'Account 1',
-            },
-          },
-        },
-      });
-
-      controller.assignPetname('0x1', '0xAAAAAA', 'Old Account');
-
-      expect(controller.state).toStrictEqual({
-        namesByChainIdAndAddress: {
-          '0x1': {
-            '0xaaaaaa': 'Old Account',
-          },
-        },
-      });
+      );
     });
   });
 });
 
 /**
- * The union of actions that the root messenger allows.
+ * The type of the messenger where all actions and events will be registered.
  */
-type RootAction = ExtractAvailableAction<SamplePetnamesControllerMessenger>;
+type UnrestrictedMessenger = Messenger<
+  ExtractAvailableAction<SamplePetnamesControllerMessenger>,
+  ExtractAvailableEvent<SamplePetnamesControllerMessenger>
+>;
 
 /**
- * The union of events that the root messenger allows.
+ * The callback that `withController` calls.
  */
-type RootEvent = ExtractAvailableEvent<SamplePetnamesControllerMessenger>;
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: SamplePetnamesController;
+  unrestrictedMessenger: UnrestrictedMessenger;
+  restrictedMessenger: SamplePetnamesControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
- * publish events within the tests for this controller.
+ * The options that `withController` take.
+ */
+type WithControllerOptions = Partial<
+  ConstructorParameters<typeof SamplePetnamesController>[0]
+>;
+
+/**
+ * The arguments that `withController` takes.
+ */
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Constructs the unrestricted messenger for these tests. This is where all
+ * actions and events will ultimately be registered.
  *
- * @returns The unrestricted messenger suited for SamplePetnamesController.
+ * @returns The unrestricted messenger.
  */
-function getRootMessenger(): Messenger<RootAction, RootEvent> {
-  return new Messenger<RootAction, RootEvent>();
+function buildUnrestrictedMessenger(): UnrestrictedMessenger {
+  return new Messenger();
 }
 
 /**
- * Constructs the messenger which is restricted to relevant SamplePetnamesController
- * actions and events.
+ * Constructs the messenger suited for SamplePetnamesController.
  *
- * @param rootMessenger - The root messenger to restrict.
+ * @param unrestrictedMessenger - The messenger from which the controller
+ * messenger will be derived.
  * @returns The restricted messenger.
  */
-function getMessenger(
-  rootMessenger = getRootMessenger(),
+function buildRestrictedMessenger(
+  unrestrictedMessenger = buildUnrestrictedMessenger(),
 ): SamplePetnamesControllerMessenger {
-  return rootMessenger.getRestricted({
+  return unrestrictedMessenger.getRestricted({
     name: 'SamplePetnamesController',
     allowedActions: [],
     allowedEvents: [],
   });
+}
+
+/**
+ * Constructs a SamplePetnamesController based on the given options, and calls
+ * the given function with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the options that the controller takes, but `messenger`
+ * is filled in if not given. The function will be called with the built
+ * controller, unrestricted messenger, and restricted messenger.
+ * @returns The same return value as the given callback.
+ */
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const unrestrictedMessenger = buildUnrestrictedMessenger();
+  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
+  const controller = new SamplePetnamesController({
+    messenger: restrictedMessenger,
+    ...rest,
+  });
+  return await fn({ controller, unrestrictedMessenger, restrictedMessenger });
 }
