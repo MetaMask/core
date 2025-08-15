@@ -373,11 +373,19 @@ export default class NotificationServicesController extends BaseController<
       const { keyrings } = this.messagingSystem.call(
         'KeyringController:getState',
       );
-      const firstHDKeyring = keyrings.find(
+      const hdKeyrings = keyrings.filter(
         (k) => k.type === KeyringTypes.hd.toString(),
       );
-      const keyringAccounts = firstHDKeyring?.accounts ?? null;
-      return keyringAccounts;
+      const allKeyringAccounts = hdKeyrings.reduce<string[]>(
+        (accounts, keyring) => {
+          if (keyring.accounts && keyring.accounts.length > 0) {
+            return [...accounts, ...keyring.accounts];
+          }
+          return accounts;
+        },
+        [],
+      );
+      return allKeyringAccounts;
     },
 
     /**
