@@ -90,7 +90,7 @@ export class EntropyRule
     return `Wallet ${entropySourceIndex + 1}`; // Use human indexing (starts at 1).
   }
 
-  getDefaultAccountGroupName(
+  getComputedAccountGroupName(
     group: AccountGroupObjectOf<AccountGroupType.MultichainAccount>,
   ): string {
     let candidate = '';
@@ -108,5 +108,9 @@ export class EntropyRule
     }
 
     return candidate;
+  }
+
+  getDefaultAccountGroupName(index: number): string {
+    return `Account ${index + 1}`;
   }
 }

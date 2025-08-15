@@ -12,6 +12,7 @@ export type {
   RequestParams,
   RequestMetadata,
   TxStatusData,
+  QuoteFetchData,
 } from './utils/metrics/types';
 
 export {

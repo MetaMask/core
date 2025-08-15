@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 
+### Fixed
+
+- Add fallback naming for account groups when rule-based naming fails ([#6246](https://github.com/MetaMask/core/pull/6246))
+  - Implements "indexes per wallet" strategy (Wallet 1 → Account 1, Account 2; Wallet 2 → Account 1, Account 2)
+  - Ensures new groups get proper sequential names within each wallet
+
 ## [0.8.0]
 
 ### Added
