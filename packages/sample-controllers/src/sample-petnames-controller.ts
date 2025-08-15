@@ -171,7 +171,7 @@ export class SamplePetnamesController extends BaseController<
   /**
    * Constructs a new {@link SamplePetnamesController}.
    *
-   * @param args - The arguments to the controller.
+   * @param args - The arguments to this controller.
    * @param args.messenger - The messenger suited for this controller.
    * @param args.state - The desired state with which to initialize this
    * controller. Missing properties will be filled in with defaults.

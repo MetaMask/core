@@ -220,7 +220,7 @@ export class SampleGasPricesController extends BaseController<
   /**
    * Constructs a new {@link SampleGasPricesController}.
    *
-   * @param args - The arguments to the controller.
+   * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this controller.
    * @param args.state - The desired state with which to initialize this
    * controller. Missing properties will be filled in with defaults.

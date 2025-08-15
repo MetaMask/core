@@ -76,29 +76,6 @@ type GasPricesResponse = {
 };
 
 /**
- * Options for the SampleGasPricesService constructor.
- */
-export type SampleGasPricesServiceOptions = {
-  /**
-   * The messenger suited for the SampleGasPricesService.
-   */
-  messenger: SampleGasPricesServiceMessenger;
-  /**
-   * A function that can be used to make an HTTP request. If your JavaScript
-   * environment supports `fetch` natively, you'll probably want to pass that;
-   * otherwise you can pass an equivalent (such as `fetch` via `node-fetch`).
-   */
-  fetch: typeof fetch;
-  /**
-   * Options to pass to `createServicePolicy`, which is used to wrap each
-   * request.
-   *
-   * @see {@link CreateServicePolicyOptions}
-   */
-  policyOptions?: CreateServicePolicyOptions;
-};
-
-/**
  * This service object is responsible for fetching gas prices via an API.
  *
  * @example
@@ -119,12 +96,16 @@ export class SampleGasPricesService {
   /**
    * The messenger suited for this service.
    */
-  readonly #messenger: SampleGasPricesServiceOptions['messenger'];
+  readonly #messenger: ConstructorParameters<
+    typeof SampleGasPricesService
+  >[0]['messenger'];
 
   /**
    * A function that can be used to make an HTTP request.
    */
-  readonly #fetch: SampleGasPricesServiceOptions['fetch'];
+  readonly #fetch: ConstructorParameters<
+    typeof SampleGasPricesService
+  >[0]['fetch'];
 
   /**
    * The policy that wraps the request.
@@ -136,11 +117,24 @@ export class SampleGasPricesService {
   /**
    * Constructs a new SampleGasPricesService object.
    *
-   * @param options - The options. See {@link SampleGasPricesServiceOptions}.
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this service.
+   * @param args.fetch - A function that can be used to make an HTTP request. If
+   * your JavaScript environment supports `fetch` natively, you'll probably want
+   * to pass that; otherwise you can pass an equivalent (such as `fetch` via
+   * `node-fetch`).
+   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
+   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
-  constructor(options: SampleGasPricesServiceOptions) {
-    const { messenger, fetch: fetchFunction, policyOptions = {} } = options;
-
+  constructor({
+    messenger,
+    fetch: fetchFunction,
+    policyOptions = {},
+  }: {
+    messenger: SampleGasPricesServiceMessenger;
+    fetch: typeof fetch;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
