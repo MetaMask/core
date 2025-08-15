@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump peer dependency on `@metamask/network-controller` to `^24.0.0` ([#519](https://github.com/MetaMask/smart-transactions-controller/pull/519))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/transaction-controller` to `^58.0.0` ([#519](https://github.com/MetaMask/smart-transactions-controller/pull/519))
+  - The `confirmExternalTransaction` constructor option now expects to match `TransactionController` from this version
+  - The `getNonceLock` constructor option now expects to match `TransactionController` from this version
+  - The `getTransactions` constructor option now returns an object that matches `TransactionMeta` from this version
+  - The `updateTransaction` constructor option now expects an object that matches `TransactionMeta` from this version
+  - The `transactionMeta` option of the `submitSignedTransactions` method now expects an object that matches `TransactionMeta` from this version
+  - The `txParams` option of the `submitSignedTransactions` method now expects an object that matches `TransactionParams` from this version
 
 ## [16.5.0]
 
