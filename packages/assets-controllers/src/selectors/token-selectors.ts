@@ -14,7 +14,7 @@ import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
 
-export type AssetsByAccountGroup = {
+type AssetsByAccountGroup = {
   [accountGroupId: AccountGroupId]: AccountGroupAssets;
 };
 
@@ -25,7 +25,7 @@ export type AccountGroupAssets = {
 export type Asset = (
   | {
       type: 'evm';
-      assetId: Hex; // TODO: This is the address for EVM tokens
+      assetId: Hex; // This is also the address for EVM tokens
       address: Hex;
       chainId: Hex;
     }
@@ -39,47 +39,31 @@ export type Asset = (
   name: string;
   symbol: string;
   decimals: number;
-  balance: string | undefined; // TODO: Change to number for consistency
-  fiatBalance: string | undefined; // TODO: Change to number as it's being converted anyway before displaying
+  // TODO: Since this is not the raw balance, but decimal one, we need to decide whether we want this as a number so that it can be formatted later
+  balance: string | undefined;
+  fiat:
+    | {
+        balance: number;
+        currency: string;
+        conversionRate: number;
+      }
+    | undefined;
+  // TODO: Potentially add accountId
 };
 
-const selectAllEvmTokens = (state: TokensControllerState) => state.allTokens;
-
-const selectIgnoredEvmTokens = (state: TokensControllerState) =>
-  state.allIgnoredTokens;
-
-const selectAllMultichainTokens = (state: MultichainAssetsControllerState) =>
-  state.accountsAssets;
-
-const selectAllMultichainAssetsMetadata = (
-  state: MultichainAssetsControllerState,
-) => state.assetsMetadata;
-
-const selectAccountTree = (state: AccountTreeControllerState) =>
-  state.accountTree;
-
-// TODO: We would not need internalAccounts if evmTokens state had the accountId
-const selectInternalAccounts = (state: AccountsControllerState) =>
-  state.internalAccounts;
-
-const selectTokenBalances = (state: TokenBalancesControllerState) =>
-  state.tokenBalances;
-
-const selectMarketData = (state: TokenRatesControllerState) => state.marketData;
-
-const selectMultichainBalances = (state: MultichainBalancesControllerState) =>
-  state.balances;
-
-const selectMultichainConversionRates = (
-  state: MultichainAssetsRatesControllerState,
-) => state.conversionRates;
-
-const selectCurrencyRates = (state: CurrencyRateState) => state.currencyRates;
-
-const selectCurrentCurrency = (state: CurrencyRateState) =>
-  state.currentCurrency;
-
-const selectEvmAccountNativeBalances = (state: {
+export type AssetListState = {
+  accountTree: AccountTreeControllerState['accountTree'];
+  internalAccounts: AccountsControllerState['internalAccounts'];
+  allTokens: TokensControllerState['allTokens'];
+  allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
+  tokenBalances: TokenBalancesControllerState['tokenBalances'];
+  marketData: TokenRatesControllerState['marketData'];
+  currencyRates: CurrencyRateState['currencyRates'];
+  accountsAssets: MultichainAssetsControllerState['accountsAssets'];
+  assetsMetadata: MultichainAssetsControllerState['assetsMetadata'];
+  balances: MultichainBalancesControllerState['balances'];
+  conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
+  currentCurrency: CurrencyRateState['currentCurrency'];
   accountsByChainId: Record<
     Hex,
     Record<
@@ -89,10 +73,12 @@ const selectEvmAccountNativeBalances = (state: {
       }
     >
   >;
-}) => state.accountsByChainId;
+};
 
-export const selectAccountsToGroupIdMap = createSelector(
-  [selectAccountTree, selectInternalAccounts],
+const createAssetListSelector = createSelector.withTypes<AssetListState>();
+
+const selectAccountsToGroupIdMap = createAssetListSelector(
+  [(state) => state.accountTree, (state) => state.internalAccounts],
   (accountTree, internalAccounts) => {
     const accountsMap: Record<string, AccountGroupId> = {};
     for (const { groups } of Object.values(accountTree.wallets)) {
@@ -114,14 +100,22 @@ export const selectAccountsToGroupIdMap = createSelector(
   },
 );
 
-const selectAllEvmAccountNativeBalances = createSelector(
+// TODO: This will not be needed once the native balances are part of the evm tokens state
+const selectAllEvmAccountNativeBalances = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
-    selectEvmAccountNativeBalances,
-    selectMarketData,
-    selectCurrencyRates,
+    (state) => state.accountsByChainId,
+    (state) => state.marketData,
+    (state) => state.currencyRates,
+    (state) => state.currentCurrency,
   ],
-  (accountsMap, accountsByChainId, marketData, currencyRates) => {
+  (
+    accountsMap,
+    accountsByChainId,
+    marketData,
+    currencyRates,
+    currentCurrency,
+  ) => {
     const groupAssets: AssetsByAccountGroup = {};
 
     for (const [chainId, chainAccounts] of Object.entries(
@@ -148,7 +142,7 @@ const selectAllEvmAccountNativeBalances = createSelector(
 
         const rawBalance = accountBalance.balance || undefined;
 
-        // TODO: This should not be hardcoded, but fetched from the network config
+        // TODO: This is just a bad placeholder that will be removed once this whole selector is removed
         const nativeToken = {
           address: '0x0000000000000000000000000000000000000000' as Hex,
           decimals: 18,
@@ -157,7 +151,7 @@ const selectAllEvmAccountNativeBalances = createSelector(
           symbol: 'ETH',
         };
 
-        const fiatBalance = getFiatBalanceForEvmToken(
+        const fiatData = getFiatBalanceForEvmToken(
           rawBalance,
           nativeToken.decimals,
           marketData,
@@ -180,7 +174,13 @@ const selectAllEvmAccountNativeBalances = createSelector(
                 nativeToken.decimals,
               )
             : undefined,
-          fiatBalance,
+          fiat: fiatData
+            ? {
+                balance: fiatData.balance,
+                currency: currentCurrency,
+                conversionRate: fiatData.conversionRate,
+              }
+            : undefined,
           chainId,
         });
       }
@@ -190,15 +190,15 @@ const selectAllEvmAccountNativeBalances = createSelector(
   },
 );
 
-const selectAllEvmAssets = createSelector(
+const selectAllEvmAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
-    selectAllEvmTokens,
-    selectIgnoredEvmTokens,
-    selectTokenBalances,
-    selectMarketData,
-    selectCurrencyRates,
-    selectCurrentCurrency,
+    (state) => state.allTokens,
+    (state) => state.allIgnoredTokens,
+    (state) => state.tokenBalances,
+    (state) => state.marketData,
+    (state) => state.currencyRates,
+    (state) => state.currentCurrency,
   ],
   (
     accountsMap,
@@ -207,6 +207,7 @@ const selectAllEvmAssets = createSelector(
     tokenBalances,
     marketData,
     currencyRates,
+    currentCurrency,
   ) => {
     const groupAssets: AssetsByAccountGroup = {};
 
@@ -253,7 +254,7 @@ const selectAllEvmAssets = createSelector(
             groupAssets[accountGroupId][chainId] = groupChainAssets;
           }
 
-          const fiatBalance = getFiatBalanceForEvmToken(
+          const fiatData = getFiatBalanceForEvmToken(
             rawBalance,
             token.decimals,
             marketData,
@@ -271,26 +272,31 @@ const selectAllEvmAssets = createSelector(
             symbol: token.symbol,
             decimals: token.decimals,
             balance: displayBalance,
-            fiatBalance,
+            fiat: fiatData
+              ? {
+                  balance: fiatData.balance,
+                  currency: currentCurrency,
+                  conversionRate: fiatData.conversionRate,
+                }
+              : undefined,
             chainId,
           });
         }
       }
     }
 
-    console.log('EVMASSETS FROM SELECTOR', groupAssets);
     return groupAssets;
   },
 );
 
-const selectAllMultichainAssets = createSelector(
+const selectAllMultichainAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
-    selectAllMultichainTokens,
-    selectAllMultichainAssetsMetadata,
-    selectMultichainBalances,
-    selectMultichainConversionRates,
-    selectCurrencyRates,
+    (state) => state.accountsAssets,
+    (state) => state.assetsMetadata,
+    (state) => state.balances,
+    (state) => state.conversionRates,
+    (state) => state.currentCurrency,
   ],
   (
     accountsMap,
@@ -298,7 +304,7 @@ const selectAllMultichainAssets = createSelector(
     multichainAssetsMetadata,
     multichainBalances,
     multichainConversionRates,
-    _currencyRates,
+    currentCurrency,
   ) => {
     const groupAssets: AssetsByAccountGroup = {};
 
@@ -334,7 +340,7 @@ const selectAllMultichainAssets = createSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
-        const fiatBalance = getFiatBalanceForMultichainAsset(
+        const fiatData = getFiatBalanceForMultichainAsset(
           balance,
           multichainConversionRates,
           assetId,
@@ -354,7 +360,13 @@ const selectAllMultichainAssets = createSelector(
                 unit.symbol === assetMetadata.symbol,
             )?.decimals ?? 0,
           balance: balance ? balance.amount : undefined,
-          fiatBalance,
+          fiat: fiatData
+            ? {
+                balance: fiatData.balance,
+                currency: currentCurrency,
+                conversionRate: fiatData.conversionRate,
+              }
+            : undefined,
           chainId,
         });
       }
@@ -364,7 +376,7 @@ const selectAllMultichainAssets = createSelector(
   },
 );
 
-export const selectAllAssets = createSelector(
+const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,
@@ -383,6 +395,18 @@ export const selectAllAssets = createSelector(
   },
 );
 
+export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
+  [selectAllAssets, (state) => state.accountTree],
+  (groupAssets, accountTree) => {
+    const { selectedAccountGroup } = accountTree;
+    if (!selectedAccountGroup) {
+      return {};
+    }
+    return groupAssets[selectedAccountGroup] || {};
+  },
+);
+
+// TODO: Once native assets are part of the evm tokens state, this function can be simplified as chains will always be unique
 /**
  * Merges the new assets into the existing assets
  *
@@ -417,18 +441,6 @@ function mergeAssets(
   }
 }
 
-export const selectAssetsBySelectedAccountGroup = createSelector(
-  [selectAllAssets, selectAccountTree],
-  (groupAssets, accountTree) => {
-    const { selectedAccountGroup } = accountTree;
-    if (!selectedAccountGroup) {
-      return {};
-    }
-    console.log('ALL ASSETS', groupAssets);
-    return groupAssets[selectedAccountGroup] || {};
-  },
-);
-
 /**
  * @param rawBalance - The balance of the token
  * @param decimals - The decimals of the token
@@ -441,8 +453,8 @@ export const selectAssetsBySelectedAccountGroup = createSelector(
 function getFiatBalanceForEvmToken(
   rawBalance: Hex | undefined,
   decimals: number,
-  marketData: ReturnType<typeof selectMarketData>,
-  currencyRates: ReturnType<typeof selectCurrencyRates>,
+  marketData: TokenRatesControllerState['marketData'],
+  currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
 ) {
@@ -462,11 +474,15 @@ function getFiatBalanceForEvmToken(
     return undefined;
   }
 
-  return (
+  const fiatBalance =
     (convertHexToDecimal(rawBalance) / 10 ** decimals) *
     tokenMarketData.price *
-    currencyRate.conversionRate
-  ).toString();
+    currencyRate.conversionRate;
+
+  return {
+    balance: fiatBalance,
+    conversionRate: currencyRate.conversionRate,
+  };
 }
 
 /**
@@ -479,7 +495,7 @@ function getFiatBalanceForEvmToken(
  */
 function getFiatBalanceForMultichainAsset(
   balance: { amount: string; unit: string } | undefined,
-  multichainConversionRates: ReturnType<typeof selectMultichainConversionRates>,
+  multichainConversionRates: MultichainAssetsRatesControllerState['conversionRates'],
   assetId: `${string}:${string}/${string}:${string}`,
 ) {
   if (!balance) {
@@ -492,5 +508,8 @@ function getFiatBalanceForMultichainAsset(
     return undefined;
   }
 
-  return (Number(balance.amount) * Number(assetMarketData.rate)).toString();
+  return {
+    balance: Number(balance.amount) * Number(assetMarketData.rate),
+    conversionRate: Number(assetMarketData.rate),
+  };
 }
