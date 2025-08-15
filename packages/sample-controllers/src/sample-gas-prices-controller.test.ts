@@ -2,7 +2,7 @@ import { Messenger } from '@metamask/base-controller';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
-import type { SampleGasPricesControllerUpdateGasPricesAction } from './sample-gas-prices-controller';
+import type { SampleGasPricesControllerUpdateGasPricesAction } from './sample-gas-prices-controller-method-action-types';
 import { flushPromises } from '../../../tests/helpers';
 import type {
   ExtractAvailableAction,

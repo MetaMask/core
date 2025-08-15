@@ -12,7 +12,8 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-prices-service/sample-gas-prices-service';
+import type { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types';
+import type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-prices-service/sample-gas-prices-service-method-action-types';
 
 // === GENERAL ===
 
@@ -85,6 +86,8 @@ export function getDefaultSampleGasPricesControllerState(): SampleGasPricesContr
 
 // === MESSENGER ===
 
+const MESSENGER_EXPOSED_METHODS = ['updateGasPrices'] as const;
+
 /**
  * Retrieves the state of the {@link SampleGasPricesController}.
  */
@@ -94,23 +97,11 @@ export type SampleGasPricesControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Fetches the latest gas prices for the given chain and persists them to
- * state.
- *
- * @param args - The arguments to the function.
- * @param args.chainId - The chain ID for which to fetch gas prices.
- */
-export type SampleGasPricesControllerUpdateGasPricesAction = {
-  type: `${typeof controllerName}:updateGasPrices`;
-  handler: SampleGasPricesController['updateGasPrices'];
-};
-
-/**
  * Actions that {@link SampleGasPricesMessenger} exposes to other consumers.
  */
 export type SampleGasPricesControllerActions =
   | SampleGasPricesControllerGetStateAction
-  | SampleGasPricesControllerUpdateGasPricesAction;
+  | SampleGasPricesControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
@@ -242,9 +233,9 @@ export class SampleGasPricesController extends BaseController<
       },
     });
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:updateGasPrices`,
-      this.updateGasPrices.bind(this),
+    this.messagingSystem.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
     this.messagingSystem.subscribe(

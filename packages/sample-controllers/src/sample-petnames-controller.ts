@@ -8,6 +8,8 @@ import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
+import type { SamplePetnamesControllerMethodActions } from './sample-petnames-controller-method-action-types';
+
 // === GENERAL ===
 
 /**
@@ -60,6 +62,8 @@ export function getDefaultPetnamesControllerState(): SamplePetnamesControllerSta
 
 // === MESSENGER ===
 
+const MESSENGER_EXPOSED_METHODS = ['assignPetname'] as const;
+
 /**
  * Retrieves the state of the {@link SamplePetnamesController}.
  */
@@ -69,24 +73,11 @@ export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Registers the given name with the given address (relative to the given
- * chain).
- *
- * @param chainId - The chain ID that the address belongs to.
- * @param address - The account address to name.
- * @param name - The name to assign to the address.
- */
-export type SamplePetnamesControllerAssignPetnameAction = {
-  type: `${typeof controllerName}:assignPetname`;
-  handler: SamplePetnamesController['assignPetname'];
-};
-
-/**
  * Actions that {@link SampleGasPricesMessenger} exposes to other consumers.
  */
 export type SamplePetnamesControllerActions =
   | SamplePetnamesControllerGetStateAction
-  | SamplePetnamesControllerAssignPetnameAction;
+  | SamplePetnamesControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
@@ -193,9 +184,9 @@ export class SamplePetnamesController extends BaseController<
       },
     });
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:assignPetname`,
-      this.assignPetname.bind(this),
+    this.messagingSystem.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

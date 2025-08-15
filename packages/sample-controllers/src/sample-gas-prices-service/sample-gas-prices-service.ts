@@ -6,33 +6,24 @@ import type {
 import { createServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
+import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
+
 // === GENERAL ===
 
 /**
  * The name of the {@link SampleGasPricesService}, used to namespace the
  * service's actions and events.
  */
-export const SERVICE_NAME = 'SampleGasPricesService';
+export const serviceName = 'SampleGasPricesService';
 
 // === MESSENGER ===
-
-/**
- * Fetches the latest gas prices for the given chain and persists them to
- * state.
- *
- * @param args - The arguments to the function.
- * @param args.chainId - The chain ID for which to fetch gas prices.
- */
-export type SampleGasPricesServiceFetchGasPricesAction = {
-  type: `${typeof SERVICE_NAME}:fetchGasPrices`;
-  handler: SampleGasPricesService['fetchGasPrices'];
-};
+//
+const MESSENGER_EXPOSED_METHODS = ['fetchGasPrices'] as const;
 
 /**
  * Actions that {@link SampleGasPricesService} exposes to other consumers.
  */
-export type SampleGasPricesServiceActions =
-  SampleGasPricesServiceFetchGasPricesAction;
+export type SampleGasPricesServiceActions = SampleGasPricesServiceMethodActions;
 
 /**
  * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
@@ -55,7 +46,7 @@ type AllowedEvents = never;
  * {@link SampleGasPricesService}.
  */
 export type SampleGasPricesServiceMessenger = RestrictedMessenger<
-  typeof SERVICE_NAME,
+  typeof serviceName,
   SampleGasPricesServiceActions | AllowedActions,
   SampleGasPricesServiceEvents | AllowedEvents,
   AllowedActions['type'],
@@ -93,6 +84,11 @@ type GasPricesResponse = {
  * ```
  */
 export class SampleGasPricesService {
+  /**
+   * The name of the service.
+   */
+  readonly name: typeof serviceName;
+
   /**
    * The messenger suited for this service.
    */
@@ -135,13 +131,14 @@ export class SampleGasPricesService {
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
   }) {
+    this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
 
-    this.#messenger.registerActionHandler(
-      `${SERVICE_NAME}:fetchGasPrices`,
-      this.fetchGasPrices.bind(this),
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

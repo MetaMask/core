@@ -1,10 +1,8 @@
 import { Messenger } from '@metamask/base-controller';
 
-import type {
-  SamplePetnamesControllerAssignPetnameAction,
-  SamplePetnamesControllerMessenger,
-} from './sample-petnames-controller';
+import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
+import type { SamplePetnamesControllerAssignPetnameAction } from './sample-petnames-controller-method-action-types';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
