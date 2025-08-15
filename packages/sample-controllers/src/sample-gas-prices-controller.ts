@@ -21,7 +21,7 @@ import type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-pr
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const CONTROLLER_NAME = 'SampleGasPricesController';
+export const controllerName = 'SampleGasPricesController';
 
 // === STATE ===
 
@@ -89,7 +89,7 @@ export function getDefaultSampleGasPricesControllerState(): SampleGasPricesContr
  * Retrieves the state of the {@link SampleGasPricesController}.
  */
 export type SampleGasPricesControllerGetStateAction = ControllerGetStateAction<
-  typeof CONTROLLER_NAME,
+  typeof controllerName,
   SampleGasPricesControllerState
 >;
 
@@ -101,7 +101,7 @@ export type SampleGasPricesControllerGetStateAction = ControllerGetStateAction<
  * @param args.chainId - The chain ID for which to fetch gas prices.
  */
 export type SampleGasPricesControllerUpdateGasPricesAction = {
-  type: `${typeof CONTROLLER_NAME}:updateGasPrices`;
+  type: `${typeof controllerName}:updateGasPrices`;
   handler: SampleGasPricesController['updateGasPrices'];
 };
 
@@ -124,7 +124,7 @@ type AllowedActions =
  */
 export type SampleGasPricesControllerStateChangeEvent =
   ControllerStateChangeEvent<
-    typeof CONTROLLER_NAME,
+    typeof controllerName,
     SampleGasPricesControllerState
   >;
 
@@ -145,7 +145,7 @@ type AllowedEvents = NetworkControllerStateChangeEvent;
  * {@link SampleGasPricesController}.
  */
 export type SampleGasPricesControllerMessenger = RestrictedMessenger<
-  typeof CONTROLLER_NAME,
+  typeof controllerName,
   SampleGasPricesControllerActions | AllowedActions,
   SampleGasPricesControllerEvents | AllowedEvents,
   AllowedActions['type'],
@@ -208,7 +208,7 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  * ```
  */
 export class SampleGasPricesController extends BaseController<
-  typeof CONTROLLER_NAME,
+  typeof controllerName,
   SampleGasPricesControllerState,
   SampleGasPricesControllerMessenger
 > {
@@ -235,7 +235,7 @@ export class SampleGasPricesController extends BaseController<
     super({
       messenger,
       metadata: gasPricesControllerMetadata,
-      name: CONTROLLER_NAME,
+      name: controllerName,
       state: {
         ...getDefaultSampleGasPricesControllerState(),
         ...state,
@@ -243,7 +243,7 @@ export class SampleGasPricesController extends BaseController<
     });
 
     this.messagingSystem.registerActionHandler(
-      `${CONTROLLER_NAME}:updateGasPrices`,
+      `${controllerName}:updateGasPrices`,
       this.updateGasPrices.bind(this),
     );
 

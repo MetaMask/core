@@ -15,7 +15,7 @@ import type { Hex } from '@metamask/utils';
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const CONTROLLER_NAME = 'SamplePetnamesController';
+export const controllerName = 'SamplePetnamesController';
 
 // === STATE ===
 
@@ -64,7 +64,7 @@ export function getDefaultPetnamesControllerState(): SamplePetnamesControllerSta
  * Retrieves the state of the {@link SamplePetnamesController}.
  */
 export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
-  typeof CONTROLLER_NAME,
+  typeof controllerName,
   SamplePetnamesControllerState
 >;
 
@@ -77,7 +77,7 @@ export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
  * @param name - The name to assign to the address.
  */
 export type SamplePetnamesControllerAssignPetnameAction = {
-  type: `${typeof CONTROLLER_NAME}:assignPetname`;
+  type: `${typeof controllerName}:assignPetname`;
   handler: SamplePetnamesController['assignPetname'];
 };
 
@@ -98,7 +98,7 @@ type AllowedActions = never;
  */
 export type SamplePetnamesControllerStateChangeEvent =
   ControllerStateChangeEvent<
-    typeof CONTROLLER_NAME,
+    typeof controllerName,
     SamplePetnamesControllerState
   >;
 
@@ -119,7 +119,7 @@ type AllowedEvents = never;
  * {@link SamplePetnamesController}.
  */
 export type SamplePetnamesControllerMessenger = RestrictedMessenger<
-  typeof CONTROLLER_NAME,
+  typeof controllerName,
   SamplePetnamesControllerActions | AllowedActions,
   SamplePetnamesControllerEvents | AllowedEvents,
   AllowedActions['type'],
@@ -164,7 +164,7 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  * ```
  */
 export class SamplePetnamesController extends BaseController<
-  typeof CONTROLLER_NAME,
+  typeof controllerName,
   SamplePetnamesControllerState,
   SamplePetnamesControllerMessenger
 > {
@@ -186,7 +186,7 @@ export class SamplePetnamesController extends BaseController<
     super({
       messenger,
       metadata: samplePetnamesControllerMetadata,
-      name: CONTROLLER_NAME,
+      name: controllerName,
       state: {
         ...getDefaultPetnamesControllerState(),
         ...state,
@@ -194,7 +194,7 @@ export class SamplePetnamesController extends BaseController<
     });
 
     this.messagingSystem.registerActionHandler(
-      `${CONTROLLER_NAME}:assignPetname`,
+      `${controllerName}:assignPetname`,
       this.assignPetname.bind(this),
     );
   }
