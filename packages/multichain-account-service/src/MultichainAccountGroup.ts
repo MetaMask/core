@@ -189,6 +189,11 @@ export class MultichainAccountGroup<
     return select(this.getAccounts(), selector);
   }
 
+  /**
+   * Align the multichain account group.
+   *
+   * This will create accounts for providers that don't have any accounts yet.
+   */
   async align(): Promise<void> {
     await Promise.all(
       this.#providers.map((provider) => {
