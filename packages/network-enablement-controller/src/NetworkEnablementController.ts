@@ -5,7 +5,6 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
@@ -65,9 +64,7 @@ export type NetworkEnablementControllerDisableNetworkAction = {
 /**
  * All actions that {@link NetworkEnablementController} calls internally.
  */
-export type AllowedActions =
-  | NetworkControllerGetStateAction
-  | MultichainNetworkControllerGetStateAction;
+export type AllowedActions = NetworkControllerGetStateAction;
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
@@ -100,17 +97,16 @@ export type NetworkEnablementControllerMessenger = RestrictedMessenger<
 >;
 
 /**
- * Gets the default state for the NetworkEnablementController.
+ * Gets the initial default state for the NetworkEnablementController.
+ * This provides a minimal state to avoid race conditions during initialization.
  *
- * @returns The default state with pre-enabled networks.
+ * @returns The initial default state with basic network enablement.
  */
 const getDefaultNetworkEnablementControllerState =
   (): NetworkEnablementControllerState => ({
     enabledNetworkMap: {
       [KnownCaipNamespace.Eip155]: {
         [ChainId[BuiltInNetworkName.Mainnet]]: true,
-        [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-        [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
@@ -170,6 +166,43 @@ export class NetworkEnablementController extends BaseController<
 
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
+    });
+  }
+
+  /**
+   * Initializes the NetworkEnablementController by reading from NetworkController
+   * state to populate enabled networks. Solana mainnet is always enabled by default.
+   * This method should be called after NetworkController is initialized to avoid race conditions.
+   */
+  init(): void {
+    // Create enabled map from controller states
+    const enabledNetworkMap: EnabledMap = {
+      [KnownCaipNamespace.Eip155]: {},
+      [KnownCaipNamespace.Solana]: {
+        [SolScope.Mainnet]: true, // Always enable Solana mainnet
+      },
+    };
+
+    // Get networks from NetworkController state
+    try {
+      const networkControllerState = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      Object.keys(
+        networkControllerState.networkConfigurationsByChainId,
+      ).forEach((chainId) => {
+        enabledNetworkMap[KnownCaipNamespace.Eip155][chainId as Hex] = true;
+      });
+    } catch {
+      // Fallback: Keep Ethereum mainnet enabled if NetworkController is not available
+      enabledNetworkMap[KnownCaipNamespace.Eip155][
+        ChainId[BuiltInNetworkName.Mainnet]
+      ] = true;
+    }
+
+    // Update the state with networks from controller configurations
+    this.update((state) => {
+      state.enabledNetworkMap = enabledNetworkMap;
     });
   }
 

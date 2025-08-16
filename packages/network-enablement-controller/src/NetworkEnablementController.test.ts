@@ -30,10 +30,7 @@ const setupController = ({
   const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
     messenger.getRestricted({
       name: 'NetworkEnablementController',
-      allowedActions: [
-        'NetworkController:getState',
-        'MultichainNetworkController:getState',
-      ],
+      allowedActions: ['NetworkController:getState'],
       allowedEvents: [
         'NetworkController:networkAdded',
         'NetworkController:networkRemoved',
@@ -45,6 +42,14 @@ const setupController = ({
     jest.fn().mockImplementation(() => ({
       networkConfigurationsByChainId: {
         '0x1': {
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{}],
+        },
+        '0xe708': {
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{}],
+        },
+        '0x2105': {
           defaultRpcEndpointIndex: 0,
           rpcEndpoints: [{}],
         },
@@ -63,6 +68,17 @@ const setupController = ({
   };
 };
 
+// Helper function to setup controller with init() called
+const setupInitializedController = (
+  config?: Partial<
+    ConstructorParameters<typeof NetworkEnablementController>[0]
+  >,
+) => {
+  const setup = setupController({ config });
+  setup.controller.init();
+  return setup;
+};
+
 describe('NetworkEnablementController', () => {
   let clock: sinon.SinonFakeTimers;
 
@@ -74,15 +90,13 @@ describe('NetworkEnablementController', () => {
     clock.restore();
   });
 
-  it('initializes with default state', () => {
+  it('initializes with minimal default state to avoid race conditions', () => {
     const { controller } = setupController();
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
           [ChainId[BuiltInNetworkName.Mainnet]]: true,
-          [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-          [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -91,8 +105,120 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  it('properly initializes networks from controller states when init() is called', () => {
+    const { controller } = setupController();
+
+    // Call init to populate from controller states
+    controller.init();
+
+    expect(controller.state).toStrictEqual({
+      enabledNetworkMap: {
+        [KnownCaipNamespace.Eip155]: {
+          '0x1': true, // Ethereum Mainnet
+          '0xe708': true, // Linea Mainnet
+          '0x2105': true, // Base Mainnet
+        },
+        [KnownCaipNamespace.Solana]: {
+          [SolScope.Mainnet]: true,
+        },
+      },
+    });
+  });
+
+  describe('init', () => {
+    it('populates enabled networks from NetworkController state', () => {
+      const { controller } = setupController();
+
+      // Before init, only minimal state
+      expect(
+        Object.keys(
+          controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
+        ),
+      ).toHaveLength(1);
+
+      controller.init();
+
+      // After init, all networks from NetworkController
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
+      ).toStrictEqual({
+        '0x1': true,
+        '0xe708': true,
+        '0x2105': true,
+      });
+    });
+
+    it('always enables Solana mainnet by default', () => {
+      const { controller } = setupController();
+
+      controller.init();
+
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Solana],
+      ).toStrictEqual({
+        [SolScope.Mainnet]: true,
+      });
+    });
+
+    it('handles NetworkController not being available gracefully', () => {
+      // Create a fresh messenger to avoid handler conflicts
+      const messenger = new Messenger<
+        NetworkEnablementControllerActions | AllowedActions,
+        NetworkEnablementControllerEvents | AllowedEvents
+      >();
+
+      const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
+        messenger.getRestricted({
+          name: 'NetworkEnablementController',
+          allowedActions: ['NetworkController:getState'],
+          allowedEvents: [
+            'NetworkController:networkAdded',
+            'NetworkController:networkRemoved',
+          ],
+        });
+
+      // Mock NetworkController to throw error
+      messenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockImplementation(() => {
+          throw new Error('NetworkController not available');
+        }),
+      );
+
+      const controller = new NetworkEnablementController({
+        messenger: networkEnablementControllerMessenger,
+      });
+
+      expect(() => controller.init()).not.toThrow();
+
+      // Should fallback to Ethereum mainnet and keep Solana mainnet
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
+      ).toStrictEqual({
+        [ChainId[BuiltInNetworkName.Mainnet]]: true,
+      });
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Solana],
+      ).toStrictEqual({
+        [SolScope.Mainnet]: true,
+      });
+    });
+
+    it('can be called multiple times safely', () => {
+      const { controller } = setupController();
+
+      controller.init();
+      const firstState = { ...controller.state };
+
+      controller.init();
+      const secondState = { ...controller.state };
+
+      expect(firstState).toStrictEqual(secondState);
+    });
+  });
+
   it('subscribes to NetworkController:networkAdded', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger } = setupInitializedController();
 
     // Publish an update with avax network added
     messenger.publish('NetworkController:networkAdded', {
@@ -115,9 +241,9 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          [ChainId[BuiltInNetworkName.Mainnet]]: true,
-          [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-          [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+          '0x1': true, // Ethereum Mainnet
+          '0xe708': true, // Linea Mainnet
+          '0x2105': true, // Base Mainnet
           '0xa86a': true, // Avalanche network enabled
         },
         [KnownCaipNamespace.Solana]: {
@@ -128,11 +254,11 @@ describe('NetworkEnablementController', () => {
   });
 
   it('subscribes to NetworkController:networkRemoved', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger } = setupInitializedController();
 
     // Publish an update with linea network removed
     messenger.publish('NetworkController:networkRemoved', {
-      chainId: ChainId[BuiltInNetworkName.LineaMainnet],
+      chainId: '0xe708', // Linea Mainnet
       blockExplorerUrls: [],
       defaultRpcEndpointIndex: 0,
       name: 'Linea',
@@ -151,8 +277,8 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          [ChainId[BuiltInNetworkName.Mainnet]]: true,
-          [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+          '0x1': true, // Ethereum Mainnet
+          '0x2105': true, // Base Mainnet (Linea removed)
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -162,15 +288,15 @@ describe('NetworkEnablementController', () => {
   });
 
   it('does fallback to ethereum when removing the last enabled network', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger } = setupInitializedController();
 
     // disable all networks except linea
-    controller.disableNetwork(ChainId[BuiltInNetworkName.Mainnet]);
-    controller.disableNetwork(ChainId[BuiltInNetworkName.BaseMainnet]);
+    controller.disableNetwork('0x1'); // Ethereum Mainnet
+    controller.disableNetwork('0x2105'); // Base Mainnet
 
     // Publish an update with linea network removed
     messenger.publish('NetworkController:networkRemoved', {
-      chainId: ChainId[BuiltInNetworkName.LineaMainnet],
+      chainId: '0xe708', // Linea Mainnet
       blockExplorerUrls: [],
       defaultRpcEndpointIndex: 0,
       name: 'Linea',
@@ -189,8 +315,8 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          [ChainId[BuiltInNetworkName.Mainnet]]: true,
-          [ChainId[BuiltInNetworkName.BaseMainnet]]: false,
+          '0x1': true, // Ethereum Mainnet (fallback enabled)
+          '0x2105': false, // Base Mainnet (still disabled)
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -201,7 +327,7 @@ describe('NetworkEnablementController', () => {
 
   describe('enableNetwork', () => {
     it('enables a popular network without clearing others', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Disable a popular network (Ethereum Mainnet)
       controller.disableNetwork('0x1');
@@ -209,9 +335,9 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: false,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+            '0x1': false, // Ethereum Mainnet (disabled)
+            '0xe708': true, // Linea Mainnet
+            '0x2105': true, // Base Mainnet
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -225,9 +351,9 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: true,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+            '0x1': true, // Ethereum Mainnet (re-enabled)
+            '0xe708': true, // Linea Mainnet
+            '0x2105': true, // Base Mainnet
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -237,7 +363,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables a non-popular network and clears all others', async () => {
-      const { controller, messenger } = setupController();
+      const { controller, messenger } = setupInitializedController();
 
       // Add a non-popular network
       messenger.publish('NetworkController:networkAdded', {
@@ -260,9 +386,9 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: false,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: false,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: false,
+            '0x1': false,
+            '0xe708': false,
+            '0x2105': false,
             '0x2': true,
           },
           [KnownCaipNamespace.Solana]: {
@@ -271,17 +397,17 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the popular network again
-      controller.enableNetwork(ChainId[BuiltInNetworkName.Mainnet]);
-      controller.enableNetwork(ChainId[BuiltInNetworkName.LineaMainnet]);
-      controller.enableNetwork(ChainId[BuiltInNetworkName.BaseMainnet]);
+      // Enable the popular networks again
+      controller.enableNetwork('0x1');
+      controller.enableNetwork('0xe708');
+      controller.enableNetwork('0x2105');
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: true,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+            '0x1': true,
+            '0xe708': true,
+            '0x2105': true,
             '0x2': false,
           },
           [KnownCaipNamespace.Solana]: {
@@ -296,9 +422,9 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: false,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: false,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: false,
+            '0x1': false,
+            '0xe708': false,
+            '0x2105': false,
             '0x2': true,
           },
           [KnownCaipNamespace.Solana]: {
@@ -326,8 +452,6 @@ describe('NetworkEnablementController', () => {
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -362,8 +486,6 @@ describe('NetworkEnablementController', () => {
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -378,17 +500,17 @@ describe('NetworkEnablementController', () => {
 
   describe('disableNetwork', () => {
     it('disables an EVM network using hex chain ID', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
-      // Enable a popular network (Ethereum Mainnet)
-      controller.disableNetwork('0x1');
+      // Disable a network (but not the last one)
+      controller.disableNetwork('0xe708'); // Linea Mainnet
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: false,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
+            '0x1': true,
+            '0xe708': false,
+            '0x2105': true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -407,18 +529,18 @@ describe('NetworkEnablementController', () => {
     });
 
     it('prevents disabling the last active network for an EVM namespace', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // disable all networks except one
-      controller.disableNetwork(ChainId[BuiltInNetworkName.LineaMainnet]);
-      controller.disableNetwork(ChainId[BuiltInNetworkName.BaseMainnet]);
+      controller.disableNetwork('0xe708'); // Linea Mainnet
+      controller.disableNetwork('0x2105'); // Base Mainnet
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            [ChainId[BuiltInNetworkName.Mainnet]]: true,
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: false,
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: false,
+            '0x1': true,
+            '0xe708': false,
+            '0x2105': false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -451,7 +573,7 @@ describe('NetworkEnablementController', () => {
 
   describe('isNetworkEnabled', () => {
     it('returns true for enabled networks using hex chain ID', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Test default enabled networks
       expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum Mainnet
@@ -460,11 +582,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('returns false for disabled networks using hex chain ID', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Disable a network and test
-      controller.disableNetwork('0x1');
-      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      controller.disableNetwork('0xe708'); // Linea Mainnet (not the last one)
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
 
       // Test networks that were never enabled
       expect(controller.isNetworkEnabled('0x89')).toBe(false); // Polygon
@@ -472,7 +594,7 @@ describe('NetworkEnablementController', () => {
     });
 
     it('returns true for enabled networks using CAIP chain ID', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Test EVM networks with CAIP format
       expect(controller.isNetworkEnabled('eip155:1')).toBe(true); // Ethereum Mainnet
@@ -486,11 +608,11 @@ describe('NetworkEnablementController', () => {
     });
 
     it('returns false for disabled networks using CAIP chain ID', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Disable a network using hex and test with CAIP
-      controller.disableNetwork('0x1');
-      expect(controller.isNetworkEnabled('eip155:1')).toBe(false);
+      controller.disableNetwork('0xe708'); // Linea Mainnet (not the last one)
+      expect(controller.isNetworkEnabled('eip155:59144')).toBe(false);
 
       // Test networks that were never enabled
       expect(controller.isNetworkEnabled('eip155:137')).toBe(false); // Polygon
@@ -521,22 +643,22 @@ describe('NetworkEnablementController', () => {
     });
 
     it('works correctly after enabling/disabling networks', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Initially enabled
-      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
 
-      // Disable and check
-      controller.disableNetwork('0x1');
-      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      // Disable and check (not the last network)
+      controller.disableNetwork('0xe708');
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
 
       // Re-enable and check
-      controller.enableNetwork('0x1');
-      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      controller.enableNetwork('0xe708');
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
     });
 
     it('maintains consistency between hex and CAIP formats for same network', () => {
-      const { controller } = setupController();
+      const { controller } = setupInitializedController();
 
       // Both formats should return the same result for the same network
       expect(controller.isNetworkEnabled('0x1')).toBe(
@@ -549,12 +671,12 @@ describe('NetworkEnablementController', () => {
         controller.isNetworkEnabled('eip155:8453'),
       );
 
-      // Test after disabling
-      controller.disableNetwork('0x1');
-      expect(controller.isNetworkEnabled('0x1')).toBe(
-        controller.isNetworkEnabled('eip155:1'),
+      // Test after disabling (not the last network)
+      controller.disableNetwork('0xe708');
+      expect(controller.isNetworkEnabled('0xe708')).toBe(
+        controller.isNetworkEnabled('eip155:59144'),
       );
-      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
     });
 
     it('works with dynamically added networks', async () => {
