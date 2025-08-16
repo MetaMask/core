@@ -2,9 +2,13 @@ export type { CoverageStatus } from './types';
 export type {
   ShieldControllerActions,
   ShieldControllerEvents,
-  AllowedActions as ShieldControllerAllowedActions,
-  AllowedEvents as ShieldControllerAllowedEvents,
   ShieldControllerMessenger,
   ShieldControllerState,
+  ShieldControllerCheckCoverageAction,
+  ShieldControllerCoverageResultReceivedEvent,
+  ShieldControllerStateChangeEvent,
 } from './ShieldController';
-export { ShieldController } from './ShieldController';
+export {
+  ShieldController,
+  getDefaultShieldControllerState,
+} from './ShieldController';

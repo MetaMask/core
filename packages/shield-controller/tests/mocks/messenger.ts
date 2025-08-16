@@ -1,10 +1,13 @@
 import { Messenger } from '@metamask/base-controller';
 
 import type {
-  ShieldControllerActions,
-  ShieldControllerEvents,
-  ShieldControllerAllowedActions,
-  ShieldControllerAllowedEvents,
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
+import type { ShieldControllerActions } from '../../src';
+import {
+  type ShieldControllerEvents,
+  type ShieldControllerMessenger,
 } from '../../src';
 import { controllerName } from '../../src/constants';
 
@@ -15,8 +18,8 @@ import { controllerName } from '../../src/constants';
  */
 export function createMockMessenger() {
   const baseMessenger = new Messenger<
-    ShieldControllerActions | ShieldControllerAllowedActions,
-    ShieldControllerEvents | ShieldControllerAllowedEvents
+    ShieldControllerActions | ExtractAvailableAction<ShieldControllerMessenger>,
+    ShieldControllerEvents | ExtractAvailableEvent<ShieldControllerMessenger>
   >();
   const messenger = baseMessenger.getRestricted({
     name: controllerName,

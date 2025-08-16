@@ -9,8 +9,10 @@ import type {
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
-import { projectLogger as log } from './logger';
+import { projectLogger, createModuleLogger } from './logger';
 import type { CoverageResult, ShieldBackend } from './types';
+
+const log = createModuleLogger(projectLogger, 'ShieldController');
 
 export type CoverageResultRecordEntry = {
   results: CoverageResult[]; // history of coverage results, latest first
@@ -29,7 +31,7 @@ export type ShieldControllerState = {
  *
  * @returns The default state for the ShieldController.
  */
-function getDefaultShieldControllerState(): ShieldControllerState {
+export function getDefaultShieldControllerState(): ShieldControllerState {
   return {
     coverageResults: {},
     orderedTransactionHistory: [],
@@ -66,12 +68,12 @@ export type ShieldControllerEvents =
 /**
  * The external actions available to the ShieldController.
  */
-export type AllowedActions = never;
+type AllowedActions = never;
 
 /**
  * The external events available to the ShieldController.
  */
-export type AllowedEvents = TransactionControllerStateChangeEvent;
+type AllowedEvents = TransactionControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link ShieldController}.
@@ -177,8 +179,8 @@ export class ShieldController extends BaseController<
       // changed.
       if (
         !previousTransaction ||
-        // Checking reference equality is sufficient because this object if the
-        // simulation data has changed.
+        // Checking reference equality is sufficient because this object is
+        // replaced if the simulation data has changed.
         previousTransaction.simulationData !== transaction.simulationData
       ) {
         this.checkCoverage(transaction).catch(
@@ -189,6 +191,12 @@ export class ShieldController extends BaseController<
     }
   }
 
+  /**
+   * Checks the coverage of a transaction.
+   *
+   * @param txMeta - The transaction to check coverage for.
+   * @returns The coverage result.
+   */
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
     const coverageResult = await this.#fetchCoverageResult(txMeta);
@@ -210,49 +218,42 @@ export class ShieldController extends BaseController<
   }
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
-    // Read state
-    let newEntry = false;
-    let coverageResultEntry = this.state.coverageResults[txId];
-    if (!coverageResultEntry) {
-      newEntry = true;
-      coverageResultEntry = {
-        results: [],
-      };
-    } else {
-      // Clone object to avoid mutation
-      coverageResultEntry = {
-        ...coverageResultEntry,
-        results: [...coverageResultEntry.results],
-      };
-    }
-
-    // Trim coverage history if necessary
-    if (coverageResultEntry.results.length >= this.#coverageHistoryLimit) {
-      coverageResultEntry.results.pop();
-    }
-
-    // Add new result
-    coverageResultEntry.results.unshift(coverageResult);
-
-    // Add to history if new entry
-    const orderedTransactionHistory = [...this.state.orderedTransactionHistory];
-    let removedTxId: string | undefined;
-    if (newEntry) {
-      // Trim state if necessary
-      if (orderedTransactionHistory.length >= this.#transactionHistoryLimit) {
-        removedTxId = orderedTransactionHistory.pop();
-      }
-      orderedTransactionHistory.unshift(txId);
-    }
-
-    // Write state
     this.update((draft) => {
-      draft.coverageResults[txId] = coverageResultEntry;
-      draft.orderedTransactionHistory = orderedTransactionHistory;
+      // Fetch coverage result entry.
+      let newEntry = false;
+      let coverageResultEntry = draft.coverageResults[txId];
 
-      // Optionally remove coverage result entry.
-      if (removedTxId) {
-        delete draft.coverageResults[removedTxId];
+      // Create new entry if necessary.
+      if (!coverageResultEntry) {
+        newEntry = true;
+        coverageResultEntry = {
+          results: [],
+        };
+        draft.coverageResults[txId] = coverageResultEntry;
+      }
+
+      // Trim coverage history if necessary.
+      if (coverageResultEntry.results.length >= this.#coverageHistoryLimit) {
+        coverageResultEntry.results.pop();
+      }
+
+      // Add new result.
+      coverageResultEntry.results.unshift(coverageResult);
+
+      // Add to history if new entry.
+      const { orderedTransactionHistory } = draft;
+      let removedTxId: string | undefined;
+      if (newEntry) {
+        // Trim transaction history if necessary.
+        if (orderedTransactionHistory.length >= this.#transactionHistoryLimit) {
+          removedTxId = orderedTransactionHistory.pop();
+          // Delete corresponding coverage result entry.
+          if (removedTxId) {
+            delete draft.coverageResults[removedTxId];
+          }
+        }
+        // Add to history.
+        orderedTransactionHistory.unshift(txId);
       }
     });
   }
