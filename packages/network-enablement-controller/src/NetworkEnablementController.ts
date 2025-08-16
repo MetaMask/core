@@ -5,6 +5,7 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
@@ -64,7 +65,9 @@ export type NetworkEnablementControllerDisableNetworkAction = {
 /**
  * All actions that {@link NetworkEnablementController} calls internally.
  */
-export type AllowedActions = NetworkControllerGetStateAction;
+export type AllowedActions =
+  | NetworkControllerGetStateAction
+  | MultichainNetworkControllerGetStateAction;
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction

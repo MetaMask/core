@@ -30,7 +30,10 @@ const setupController = ({
   const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
     messenger.getRestricted({
       name: 'NetworkEnablementController',
-      allowedActions: ['NetworkController:getState'],
+      allowedActions: [
+        'NetworkController:getState',
+        'MultichainNetworkController:getState',
+      ],
       allowedEvents: [
         'NetworkController:networkAdded',
         'NetworkController:networkRemoved',
