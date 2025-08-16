@@ -33,30 +33,30 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withCreateAccount(async (createAccount) => {
-      // Create account without any confirmation nor selecting it.
-      // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
-      // type once ready.
-      const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-      const account = await createAccount({
-        entropySource,
-        derivationPath,
-      });
+    const createAccount = await this.getRestrictedSnapAccountCreator();
 
-      // Solana Snap does not use BIP-44 typed options for the moment
-      // so we "inject" them (the `AccountsController` does a similar thing
-      // for the moment).
-      account.options.entropy = {
-        type: KeyringAccountEntropyTypeOption.Mnemonic,
-        id: entropySource,
-        groupIndex,
-        derivationPath,
-      };
-
-      assertIsBip44Account(account);
-
-      return [account];
+    // Create account without any confirmation nor selecting it.
+    // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
+    // type once ready.
+    const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+    const account = await createAccount({
+      entropySource,
+      derivationPath,
     });
+
+    // Solana Snap does not use BIP-44 typed options for the moment
+    // so we "inject" them (the `AccountsController` does a similar thing
+    // for the moment).
+    account.options.entropy = {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: entropySource,
+      groupIndex,
+      derivationPath,
+    };
+
+    assertIsBip44Account(account);
+
+    return [account];
   }
 
   async discoverAndCreateAccounts(_: {
