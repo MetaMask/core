@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.1.0]
+
+### Changed
+
+- Add `quotedGasAmount` to txHistory ([#6299](https://github.com/MetaMask/core/pull/6299))
+
+### Fixed
+
+- Parse destination amount from Swap EVM tx receipt and use it to calculate finalized tx event properties ([#6299](https://github.com/MetaMask/core/pull/6299))
+- Use `status.destChain.amount` from getTxStatus response to calculate actual bridged amount ([#6299](https://github.com/MetaMask/core/pull/6299))
+
 ## [38.0.1]
 
 ### Changed
@@ -466,7 +477,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.1.0...HEAD
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.0.1...@metamask/bridge-status-controller@38.1.0
 [38.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.0.0...@metamask/bridge-status-controller@38.0.1
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@37.0.1...@metamask/bridge-status-controller@38.0.0
 [37.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@37.0.0...@metamask/bridge-status-controller@37.0.1

@@ -433,6 +433,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         amountSentInUsd: quoteResponse.sentAmount.usd ?? undefined,
         quotedGasInUsd: quoteResponse.gasFee.effective?.usd ?? undefined,
         quotedReturnInUsd: quoteResponse.toTokenAmount.usd ?? undefined,
+        quotedGasAmount: quoteResponse.gasFee.effective?.amount ?? undefined,
       },
       initialDestAssetBalance,
       targetContractAddress,
@@ -1176,6 +1177,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.account,
     );
 
+    const { transactions } = this.messagingSystem.call(
+      'TransactionController:getState',
+    );
+    const txMeta = transactions?.find(({ id }) => id === txMetaId);
+    const approvalTxMeta = transactions?.find(
+      ({ id }) => id === historyItem.approvalTxId,
+    );
+
     const requiredEventProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
       ...(eventProperties ?? {}),
@@ -1183,7 +1192,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),
       ...getTradeDataFromHistory(historyItem),
       ...getTxStatusesFromHistory(historyItem),
-      ...getFinalizedTxProperties(historyItem),
+      ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(historyItem.quote),
     };
 
