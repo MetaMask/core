@@ -176,36 +176,48 @@ export class NetworkEnablementController extends BaseController<
    * Initializes the NetworkEnablementController by reading from NetworkController
    * state to populate enabled networks. Solana mainnet is always enabled by default.
    * This method should be called after NetworkController is initialized to avoid race conditions.
+   *
+   * This method preserves existing user preferences and only adds missing networks.
    */
   init(): void {
-    // Create enabled map from controller states
-    const enabledNetworkMap: EnabledMap = {
-      [KnownCaipNamespace.Eip155]: {},
-      [KnownCaipNamespace.Solana]: {
-        [SolScope.Mainnet]: true, // Always enable Solana mainnet
-      },
-    };
-
-    // Get networks from NetworkController state
-    try {
-      const networkControllerState = this.messagingSystem.call(
-        'NetworkController:getState',
-      );
-      Object.keys(
-        networkControllerState.networkConfigurationsByChainId,
-      ).forEach((chainId) => {
-        enabledNetworkMap[KnownCaipNamespace.Eip155][chainId as Hex] = true;
-      });
-    } catch {
-      // Fallback: Keep Ethereum mainnet enabled if NetworkController is not available
-      enabledNetworkMap[KnownCaipNamespace.Eip155][
-        ChainId[BuiltInNetworkName.Mainnet]
-      ] = true;
-    }
-
-    // Update the state with networks from controller configurations
     this.update((state) => {
-      state.enabledNetworkMap = enabledNetworkMap;
+      // Ensure required namespaces exist in the current state
+      this.#ensureNamespaceBucket(state, KnownCaipNamespace.Eip155);
+      this.#ensureNamespaceBucket(state, KnownCaipNamespace.Solana);
+
+      // Always ensure Solana mainnet is enabled
+      state.enabledNetworkMap[KnownCaipNamespace.Solana][SolScope.Mainnet] =
+        true;
+
+      // Get networks from NetworkController state and add missing ones
+      try {
+        const networkControllerState = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+        Object.keys(
+          networkControllerState.networkConfigurationsByChainId,
+        ).forEach((chainId) => {
+          // Only add the network if it doesn't already exist in state
+          if (
+            !(chainId in state.enabledNetworkMap[KnownCaipNamespace.Eip155])
+          ) {
+            state.enabledNetworkMap[KnownCaipNamespace.Eip155][chainId as Hex] =
+              true;
+          }
+        });
+      } catch {
+        // Fallback: Ensure Ethereum mainnet is enabled if NetworkController is not available
+        // Only add if it doesn't already exist in state
+        const mainnetChainId = ChainId[BuiltInNetworkName.Mainnet];
+        if (
+          !(
+            mainnetChainId in state.enabledNetworkMap[KnownCaipNamespace.Eip155]
+          )
+        ) {
+          state.enabledNetworkMap[KnownCaipNamespace.Eip155][mainnetChainId] =
+            true;
+        }
+      }
     });
   }
 

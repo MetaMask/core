@@ -218,6 +218,67 @@ describe('NetworkEnablementController', () => {
 
       expect(firstState).toStrictEqual(secondState);
     });
+
+    it('adds mainnet when NetworkController unavailable and mainnet not in state', () => {
+      // Create a fresh messenger to avoid handler conflicts
+      const messenger = new Messenger<
+        NetworkEnablementControllerActions | AllowedActions,
+        NetworkEnablementControllerEvents | AllowedEvents
+      >();
+
+      const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
+        messenger.getRestricted({
+          name: 'NetworkEnablementController',
+          allowedActions: ['NetworkController:getState'],
+          allowedEvents: [
+            'NetworkController:networkAdded',
+            'NetworkController:networkRemoved',
+          ],
+        });
+
+      // Mock NetworkController to throw error
+      messenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn().mockImplementation(() => {
+          throw new Error('NetworkController not available');
+        }),
+      );
+
+      // Create controller with custom state that has Eip155 namespace but no mainnet
+      const controller = new NetworkEnablementController({
+        messenger: networkEnablementControllerMessenger,
+        state: {
+          enabledNetworkMap: {
+            [KnownCaipNamespace.Eip155]: {
+              '0x89': true, // Polygon, but no mainnet
+            },
+            [KnownCaipNamespace.Solana]: {
+              [SolScope.Mainnet]: true,
+            },
+          },
+        },
+      });
+
+      // Verify mainnet is not present initially
+      expect(
+        ChainId[BuiltInNetworkName.Mainnet] in
+          controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
+      ).toBe(false);
+
+      controller.init();
+
+      // Should add mainnet as fallback
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155][
+          ChainId[BuiltInNetworkName.Mainnet]
+        ],
+      ).toBe(true);
+
+      // Should preserve existing networks
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155]['0x89'],
+      ).toBe(true);
+    });
   });
 
   it('subscribes to NetworkController:networkAdded', async () => {
