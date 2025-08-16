@@ -22,6 +22,12 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
+    // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
+    // we have to use the `SnapKeyring` instance to be able to create Solana account
+    // without triggering UI confirmation.
+    // Also, creating account that way won't invalidate the Snap keyring state. The
+    // account will get created and persisted properly with the Snap account creation
+    // flow "asynchronously" (with `notify:accountCreated`).
     const createAccount = await this.withKeyring<
       SnapKeyring,
       SnapKeyring['createAccount']
