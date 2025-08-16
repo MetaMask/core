@@ -146,4 +146,38 @@ describe('MultichainAccount', () => {
       expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
     });
   });
+
+  describe('align', () => {
+    it('creates missing accounts only for providers with no accounts', async () => {
+      const groupIndex = 0;
+      const { group, providers, wallet } = setup({
+        groupIndex,
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT], // provider[0] already has group 0
+          [], // provider[1] missing group 0
+        ],
+      });
+
+      await group.align();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex,
+      });
+    });
+
+    it('does nothing when already aligned', async () => {
+      const groupIndex = 0;
+      const { group, providers } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      await group.align();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+    });
+  });
 });
