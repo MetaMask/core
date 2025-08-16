@@ -25,7 +25,7 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import { assert, hasProperty } from '@metamask/utils';
+import { assert, hasProperty, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
@@ -83,10 +83,28 @@ export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * The action that can be performed to update multiple native token balances in batch.
+ */
+export type AccountTrackerUpdateNativeBalancesAction = {
+  type: `${typeof controllerName}:updateNativeBalances`;
+  handler: AccountTrackerController['updateNativeBalances'];
+};
+
+/**
+ * The action that can be performed to update multiple staked balances in batch.
+ */
+export type AccountTrackerUpdateStakedBalancesAction = {
+  type: `${typeof controllerName}:updateStakedBalances`;
+  handler: AccountTrackerController['updateStakedBalances'];
+};
+
+/**
  * The actions that can be performed using the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerActions =
-  AccountTrackerControllerGetStateAction;
+  | AccountTrackerControllerGetStateAction
+  | AccountTrackerUpdateNativeBalancesAction
+  | AccountTrackerUpdateStakedBalancesAction;
 
 /**
  * The messenger of the {@link AccountTrackerController} for communication.
@@ -210,6 +228,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       },
       (event): string => event.address,
     );
+
+    this.#registerMessageHandlers();
   }
 
   private syncAccounts(newChainIds: string[]) {
@@ -546,6 +566,78 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         };
       }, {});
     });
+  }
+
+  /**
+   * Updates the balances of multiple native tokens in a single batch operation.
+   * This is more efficient than calling updateNativeToken multiple times as it
+   * triggers only one state update.
+   *
+   * @param balances - Array of balance updates, each containing address, chainId, and balance.
+   */
+  updateNativeBalances(
+    balances: { address: string; chainId: Hex; balance: string }[],
+  ) {
+    this.update((state) => {
+      balances.forEach(({ address, chainId, balance }) => {
+        // Ensure the chainId exists in the state
+        if (!state.accountsByChainId[chainId]) {
+          state.accountsByChainId[chainId] = {};
+        }
+
+        // Ensure the address exists for this chain
+        if (!state.accountsByChainId[chainId][address]) {
+          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        }
+
+        // Update the balance
+        state.accountsByChainId[chainId][address].balance = balance;
+      });
+    });
+  }
+
+  /**
+   * Updates the staked balances of multiple accounts in a single batch operation.
+   * This is more efficient than updating staked balances individually as it
+   * triggers only one state update.
+   *
+   * @param stakedBalances - Array of staked balance updates, each containing address, chainId, and stakedBalance.
+   */
+  updateStakedBalances(
+    stakedBalances: {
+      address: string;
+      chainId: Hex;
+      stakedBalance: StakedBalance;
+    }[],
+  ) {
+    this.update((state) => {
+      stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
+        // Ensure the chainId exists in the state
+        if (!state.accountsByChainId[chainId]) {
+          state.accountsByChainId[chainId] = {};
+        }
+
+        // Ensure the address exists for this chain
+        if (!state.accountsByChainId[chainId][address]) {
+          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        }
+
+        // Update the staked balance
+        state.accountsByChainId[chainId][address].stakedBalance = stakedBalance;
+      });
+    });
+  }
+
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateNativeBalances` as const,
+      this.updateNativeBalances.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateStakedBalances` as const,
+      this.updateStakedBalances.bind(this),
+    );
   }
 }
 
