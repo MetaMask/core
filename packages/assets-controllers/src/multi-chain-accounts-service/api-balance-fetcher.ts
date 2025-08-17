@@ -295,7 +295,20 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
         let value: BN | undefined;
         try {
-          value = new BN((parseFloat(b.balance) * 10 ** b.decimals).toFixed(0));
+          // Convert string balance to BN avoiding floating point precision issues
+          const { balance: balanceStr, decimals } = b;
+
+          // Split the balance string into integer and decimal parts
+          const [integerPart = '0', decimalPart = ''] = balanceStr.split('.');
+
+          // Pad or truncate decimal part to match token decimals
+          const paddedDecimalPart = decimalPart
+            .padEnd(decimals, '0')
+            .slice(0, decimals);
+
+          // Combine and create BN
+          const fullIntegerStr = integerPart + paddedDecimalPart;
+          value = new BN(fullIntegerStr);
         } catch {
           value = undefined;
         }
