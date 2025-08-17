@@ -552,7 +552,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
       expect(result).toHaveLength(3); // 2 tokens + native token guarantee
 
-      // DAI with 18 decimals: 123.456789 -> using string-based conversion  
+      // DAI with 18 decimals: 123.456789 -> using string-based conversion
       // Convert received hex value to decimal to get the correct expected value
       const expectedDaiValue = new BN('6b14e9f7e4f5a5000', 16);
       expect(result[0]).toStrictEqual({
