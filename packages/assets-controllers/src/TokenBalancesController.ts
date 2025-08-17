@@ -8,11 +8,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import {
-  isValidHexAddress,
-  safelyExecuteWithTimeout,
-  toHex,
-} from '@metamask/controller-utils';
+import { isValidHexAddress, toHex } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -156,7 +152,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     interval = DEFAULT_INTERVAL_MS,
     state = {},
     queryMultipleAccounts = true,
-    useAccountsAPI = true,
+    useAccountsAPI = false,
     allowExternalServices = () => true,
   }: TokenBalancesControllerOptions) {
     super({
@@ -264,20 +260,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       if (!supportedChains.length) {
         continue;
       }
-
       try {
-        const balances = await safelyExecuteWithTimeout(
-          async () => {
-            return await fetcher.fetch({
-              chainIds: supportedChains,
-              queryAllAccounts: this.#queryAllAccounts,
-              selectedAccount: selected as ChecksumAddress,
-              allAccounts,
-            });
-          },
-          false,
-          this.getIntervalLength(),
-        );
+        const balances = await Promise.race([
+          fetcher.fetch({
+            chainIds: supportedChains,
+            queryAllAccounts: this.#queryAllAccounts,
+            selectedAccount: selected as ChecksumAddress,
+            allAccounts,
+          }),
+          new Promise<never>((_resolve, reject) =>
+            setTimeout(() => {
+              reject(new Error('timeout'));
+            }, this.getIntervalLength()),
+          ),
+        ]);
 
         if (balances && balances.length > 0) {
           aggregated.push(...balances);
