@@ -552,10 +552,9 @@ describe('AccountsApiBalanceFetcher', () => {
 
       expect(result).toHaveLength(3); // 2 tokens + native token guarantee
 
-      // DAI with 18 decimals: 123.456789 * 10^18 (with floating point precision)
-      const expectedDaiValue = new BN(
-        (parseFloat('123.456789') * 10 ** 18).toFixed(0),
-      );
+      // DAI with 18 decimals: 123.456789 -> using string-based conversion  
+      // Convert received hex value to decimal to get the correct expected value
+      const expectedDaiValue = new BN('6b14e9f7e4f5a5000', 16);
       expect(result[0]).toStrictEqual({
         success: true,
         value: expectedDaiValue,
@@ -1490,6 +1489,339 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(addr2Balance).toBeDefined();
       expect(addr2Balance?.success).toBe(true);
       expect(addr2Balance?.value).toStrictEqual(new BN('0'));
+    });
+  });
+
+  describe('precision handling in balance conversion', () => {
+    beforeEach(() => {
+      balanceFetcher = new AccountsApiBalanceFetcher('extension');
+    });
+
+    it('should correctly handle high precision balances like PEPE token case', async () => {
+      const highPrecisionResponse: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x25d887ce7a35172c62febfd67a1856f20faebb00',
+            symbol: 'PEPE',
+            name: 'Pepe',
+            decimals: 18,
+            chainId: 42161,
+            balance: '568013.300780982071882412',
+            accountAddress:
+              'eip155:42161:0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(highPrecisionResponse);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: ['0xa4b1' as ChainIdHex], // Arbitrum
+        queryAllAccounts: false,
+        selectedAccount:
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045' as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(result).toHaveLength(2); // PEPE token + native token guarantee
+
+      const pepeBalance = result.find(
+        (r) => r.token === '0x25d887ce7a35172c62febfd67a1856f20faebb00',
+      );
+      expect(pepeBalance).toBeDefined();
+      expect(pepeBalance?.success).toBe(true);
+
+      // Expected: 568013.300780982071882412 with 18 decimals
+      // = 568013300780982071882412 (no precision loss)
+      expect(pepeBalance?.value).toStrictEqual(
+        new BN('568013300780982071882412'),
+      );
+    });
+
+    it('should handle balances with fewer decimal places than token decimals', async () => {
+      const responseWithShortDecimals: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+            symbol: 'DAI',
+            name: 'Dai',
+            decimals: 18,
+            chainId: 1,
+            balance: '100.5', // Only 1 decimal place, needs padding
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(
+        responseWithShortDecimals,
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const daiBalance = result.find(
+        (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+      );
+      expect(daiBalance?.success).toBe(true);
+
+      // Expected: 100.5 with 18 decimals = 100500000000000000000
+      expect(daiBalance?.value).toStrictEqual(new BN('100500000000000000000'));
+    });
+
+    it('should handle balances with no decimal places', async () => {
+      const responseWithIntegerBalance: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+            chainId: 1,
+            balance: '1000', // No decimal point
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(
+        responseWithIntegerBalance,
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const usdcBalance = result.find(
+        (r) => r.token === '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
+      );
+      expect(usdcBalance?.success).toBe(true);
+
+      // Expected: 1000 with 6 decimals = 1000000000
+      expect(usdcBalance?.value).toStrictEqual(new BN('1000000000'));
+    });
+
+    it('should handle balances with more decimal places than token decimals', async () => {
+      const responseWithExtraDecimals: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+            chainId: 1,
+            balance: '100.1234567890123', // 13 decimal places, token has 6
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(
+        responseWithExtraDecimals,
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const usdcBalance = result.find(
+        (r) => r.token === '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
+      );
+      expect(usdcBalance?.success).toBe(true);
+
+      // Expected: 100.1234567890123 truncated to 6 decimals = 100.123456 = 100123456
+      expect(usdcBalance?.value).toStrictEqual(new BN('100123456'));
+    });
+
+    it('should handle very large numbers with high precision', async () => {
+      const responseWithLargeNumber: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+            symbol: 'SHIB',
+            name: 'Shiba Inu',
+            decimals: 18,
+            chainId: 1,
+            balance: '123456789123456789.123456789123456789', // Very large with high precision
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(responseWithLargeNumber);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const shibBalance = result.find(
+        (r) => r.token === '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+      );
+      expect(shibBalance?.success).toBe(true);
+
+      // Expected: 123456789123456789.123456789123456789 with 18 decimals
+      // = 123456789123456789123456789123456789
+      expect(shibBalance?.value).toStrictEqual(
+        new BN('123456789123456789123456789123456789'),
+      );
+    });
+
+    it('should handle zero balances correctly', async () => {
+      const responseWithZeroBalance: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+            symbol: 'DAI',
+            name: 'Dai',
+            decimals: 18,
+            chainId: 1,
+            balance: '0',
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(responseWithZeroBalance);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const daiBalance = result.find(
+        (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+      );
+      expect(daiBalance?.success).toBe(true);
+      expect(daiBalance?.value).toStrictEqual(new BN('0'));
+    });
+
+    it('should handle balance starting with decimal point', async () => {
+      const responseWithDecimalStart: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+            symbol: 'DAI',
+            name: 'Dai',
+            decimals: 18,
+            chainId: 1,
+            balance: '.123456789', // Starts with decimal point
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(responseWithDecimalStart);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const daiBalance = result.find(
+        (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+      );
+      expect(daiBalance?.success).toBe(true);
+
+      // Expected: .123456789 with 18 decimals = 0.123456789000000000 = 123456789000000000
+      expect(daiBalance?.value).toStrictEqual(new BN('123456789000000000'));
+    });
+
+    it('should maintain precision compared to old floating-point method', async () => {
+      // This test demonstrates that the new method maintains precision where the old method would fail
+      const precisionTestResponse: GetBalancesResponse = {
+        count: 1,
+        balances: [
+          {
+            object: 'token',
+            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+            symbol: 'DAI',
+            name: 'Dai',
+            decimals: 18,
+            chainId: 1,
+            balance: '1234567890123456.123456789012345678', // High precision that would cause floating-point issues
+            accountAddress:
+              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          },
+        ],
+        unprocessedNetworks: [],
+      };
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue(precisionTestResponse);
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const daiBalance = result.find(
+        (r) => r.token === '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+      );
+      expect(daiBalance?.success).toBe(true);
+
+      // New method: 1234567890123456.123456789012345678 with 18 decimals
+      // = 1234567890123456 + 123456789012345678 = 1234567890123456123456789012345678
+      expect(daiBalance?.value).toStrictEqual(
+        new BN('1234567890123456123456789012345678'),
+      );
+
+      // Old method would have precision loss due to JavaScript floating-point limitations
+      const oldMethodCalculation =
+        parseFloat('1234567890123456.123456789012345678') * 10 ** 18;
+
+      // The new method should maintain all digits precisely, while old method loses precision
+      // We can verify this by checking that our result has the expected exact digits
+      expect(daiBalance?.value?.toString()).toBe(
+        '1234567890123456123456789012345678',
+      );
+
+      // And verify that the old method would produce different (less precise) results
+      expect(oldMethodCalculation.toString()).toContain('e+'); // Should be in scientific notation
     });
   });
 });
