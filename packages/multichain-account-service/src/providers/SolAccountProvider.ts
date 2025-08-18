@@ -9,7 +9,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { assertIsBip44Account } from './BaseAccountProvider';
+import { assertAreBip44Accounts } from './BaseAccountProvider';
 import { SnapAccountProvider } from './SnapAccountProvider';
 
 export class SolAccountProvider extends SnapAccountProvider {
@@ -54,9 +54,10 @@ export class SolAccountProvider extends SnapAccountProvider {
       derivationPath,
     };
 
-    assertIsBip44Account(account);
+    const accounts = [account];
+    assertAreBip44Accounts(accounts);
 
-    return [account];
+    return accounts;
   }
 
   async discoverAndCreateAccounts(_: {
