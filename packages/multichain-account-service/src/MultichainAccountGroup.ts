@@ -195,7 +195,7 @@ export class MultichainAccountGroup<
    * This will create accounts for providers that don't have any accounts yet.
    */
   async align(): Promise<void> {
-    await Promise.all(
+    const results = await Promise.allSettled(
       this.#providers.map((provider) => {
         const accounts = this.#providerToAccounts.get(provider);
         if (!accounts || accounts.length === 0) {
@@ -207,5 +207,11 @@ export class MultichainAccountGroup<
         return Promise.resolve();
       }),
     );
+
+    if (results.some((result) => result.status === 'rejected')) {
+      console.warn(
+        `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`,
+      );
+    }
   }
 }
