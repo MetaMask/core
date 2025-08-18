@@ -1,6 +1,10 @@
 import { Messenger } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { RpcEndpointType } from '@metamask/network-controller';
+import {
+  TransactionStatus,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
@@ -37,6 +41,7 @@ const setupController = ({
       allowedEvents: [
         'NetworkController:networkAdded',
         'NetworkController:networkRemoved',
+        'TransactionController:transactionSubmitted',
       ],
     });
 
@@ -71,14 +76,13 @@ const setupController = ({
   };
 };
 
-// Helper function to setup controller with init() called
+// Helper function to setup controller with default state (no init needed)
 const setupInitializedController = (
   config?: Partial<
     ConstructorParameters<typeof NetworkEnablementController>[0]
   >,
 ) => {
   const setup = setupController({ config });
-  setup.controller.init();
   return setup;
 };
 
@@ -93,191 +97,20 @@ describe('NetworkEnablementController', () => {
     clock.restore();
   });
 
-  it('initializes with minimal default state to avoid race conditions', () => {
+  it('initializes with default state', () => {
     const { controller } = setupController();
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
           [ChainId[BuiltInNetworkName.Mainnet]]: true,
+          [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+          [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
         },
       },
-    });
-  });
-
-  it('properly initializes networks from controller states when init() is called', () => {
-    const { controller } = setupController();
-
-    // Call init to populate from controller states
-    controller.init();
-
-    expect(controller.state).toStrictEqual({
-      enabledNetworkMap: {
-        [KnownCaipNamespace.Eip155]: {
-          '0x1': true, // Ethereum Mainnet
-          '0xe708': true, // Linea Mainnet
-          '0x2105': true, // Base Mainnet
-        },
-        [KnownCaipNamespace.Solana]: {
-          [SolScope.Mainnet]: true,
-        },
-      },
-    });
-  });
-
-  describe('init', () => {
-    it('populates enabled networks from NetworkController state', () => {
-      const { controller } = setupController();
-
-      // Before init, only minimal state
-      expect(
-        Object.keys(
-          controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
-        ),
-      ).toHaveLength(1);
-
-      controller.init();
-
-      // After init, all networks from NetworkController
-      expect(
-        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
-      ).toStrictEqual({
-        '0x1': true,
-        '0xe708': true,
-        '0x2105': true,
-      });
-    });
-
-    it('always enables Solana mainnet by default', () => {
-      const { controller } = setupController();
-
-      controller.init();
-
-      expect(
-        controller.state.enabledNetworkMap[KnownCaipNamespace.Solana],
-      ).toStrictEqual({
-        [SolScope.Mainnet]: true,
-      });
-    });
-
-    it('handles NetworkController not being available gracefully', () => {
-      // Create a fresh messenger to avoid handler conflicts
-      const messenger = new Messenger<
-        NetworkEnablementControllerActions | AllowedActions,
-        NetworkEnablementControllerEvents | AllowedEvents
-      >();
-
-      const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
-        messenger.getRestricted({
-          name: 'NetworkEnablementController',
-          allowedActions: ['NetworkController:getState'],
-          allowedEvents: [
-            'NetworkController:networkAdded',
-            'NetworkController:networkRemoved',
-          ],
-        });
-
-      // Mock NetworkController to throw error
-      messenger.registerActionHandler(
-        'NetworkController:getState',
-        jest.fn().mockImplementation(() => {
-          throw new Error('NetworkController not available');
-        }),
-      );
-
-      const controller = new NetworkEnablementController({
-        messenger: networkEnablementControllerMessenger,
-      });
-
-      expect(() => controller.init()).not.toThrow();
-
-      // Should fallback to Ethereum mainnet and keep Solana mainnet
-      expect(
-        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
-      ).toStrictEqual({
-        [ChainId[BuiltInNetworkName.Mainnet]]: true,
-      });
-      expect(
-        controller.state.enabledNetworkMap[KnownCaipNamespace.Solana],
-      ).toStrictEqual({
-        [SolScope.Mainnet]: true,
-      });
-    });
-
-    it('can be called multiple times safely', () => {
-      const { controller } = setupController();
-
-      controller.init();
-      const firstState = { ...controller.state };
-
-      controller.init();
-      const secondState = { ...controller.state };
-
-      expect(firstState).toStrictEqual(secondState);
-    });
-
-    it('adds mainnet when NetworkController unavailable and mainnet not in state', () => {
-      // Create a fresh messenger to avoid handler conflicts
-      const messenger = new Messenger<
-        NetworkEnablementControllerActions | AllowedActions,
-        NetworkEnablementControllerEvents | AllowedEvents
-      >();
-
-      const networkEnablementControllerMessenger: NetworkEnablementControllerMessenger =
-        messenger.getRestricted({
-          name: 'NetworkEnablementController',
-          allowedActions: ['NetworkController:getState'],
-          allowedEvents: [
-            'NetworkController:networkAdded',
-            'NetworkController:networkRemoved',
-          ],
-        });
-
-      // Mock NetworkController to throw error
-      messenger.registerActionHandler(
-        'NetworkController:getState',
-        jest.fn().mockImplementation(() => {
-          throw new Error('NetworkController not available');
-        }),
-      );
-
-      // Create controller with custom state that has Eip155 namespace but no mainnet
-      const controller = new NetworkEnablementController({
-        messenger: networkEnablementControllerMessenger,
-        state: {
-          enabledNetworkMap: {
-            [KnownCaipNamespace.Eip155]: {
-              '0x89': true, // Polygon, but no mainnet
-            },
-            [KnownCaipNamespace.Solana]: {
-              [SolScope.Mainnet]: true,
-            },
-          },
-        },
-      });
-
-      // Verify mainnet is not present initially
-      expect(
-        ChainId[BuiltInNetworkName.Mainnet] in
-          controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155],
-      ).toBe(false);
-
-      controller.init();
-
-      // Should add mainnet as fallback
-      expect(
-        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155][
-          ChainId[BuiltInNetworkName.Mainnet]
-        ],
-      ).toBe(true);
-
-      // Should preserve existing networks
-      expect(
-        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155]['0x89'],
-      ).toBe(true);
     });
   });
 
@@ -305,9 +138,9 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          '0x1': true, // Ethereum Mainnet
-          '0xe708': true, // Linea Mainnet
-          '0x2105': true, // Base Mainnet
+          [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
+          [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
+          [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
           '0xa86a': true, // Avalanche network enabled
         },
         [KnownCaipNamespace.Solana]: {
@@ -341,14 +174,114 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          '0x1': true, // Ethereum Mainnet
-          '0x2105': true, // Base Mainnet (Linea removed)
+          [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
+          [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet (Linea removed)
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
         },
       },
     });
+  });
+
+  it('subscribes to TransactionController:transactionSubmitted and enables network', async () => {
+    const { controller, messenger } = setupInitializedController();
+
+    // Initially disable Polygon network (it should not exist)
+    expect(controller.isNetworkEnabled('0x89')).toBe(false);
+
+    // Publish a transaction submitted event with Polygon chainId
+    messenger.publish('TransactionController:transactionSubmitted', {
+      transactionMeta: {
+        chainId: '0x89', // Polygon
+        networkClientId: 'polygon-network',
+        id: 'test-tx-id',
+        status: TransactionStatus.submitted,
+        time: Date.now(),
+        txParams: {
+          from: '0x123',
+          to: '0x456',
+          value: '0x0',
+        },
+      } as TransactionMeta, // Simplified structure for testing
+    });
+
+    await advanceTime({ clock, duration: 1 });
+
+    // The Polygon network should now be enabled
+    expect(controller.isNetworkEnabled('0x89')).toBe(true);
+  });
+
+  it('handles TransactionController:transactionSubmitted with missing chainId gracefully', async () => {
+    const { controller, messenger } = setupInitializedController();
+
+    const initialState = { ...controller.state };
+
+    // Publish a transaction submitted event without chainId
+    messenger.publish('TransactionController:transactionSubmitted', {
+      transactionMeta: {
+        networkClientId: 'test-network',
+        id: 'test-tx-id',
+        status: TransactionStatus.submitted,
+        time: Date.now(),
+        txParams: {
+          from: '0x123',
+          to: '0x456',
+          value: '0x0',
+        },
+        // chainId is missing
+      } as TransactionMeta, // Simplified structure for testing
+    });
+
+    await advanceTime({ clock, duration: 1 });
+
+    // State should remain unchanged
+    expect(controller.state).toStrictEqual(initialState);
+  });
+
+  it('handles TransactionController:transactionSubmitted with malformed structure gracefully', async () => {
+    const { controller, messenger } = setupInitializedController();
+
+    const initialState = { ...controller.state };
+
+    // Publish a transaction submitted event with malformed structure
+    // @ts-expect-error - Testing runtime safety for malformed payload
+    messenger.publish('TransactionController:transactionSubmitted', {
+      // Missing transactionMeta entirely
+    });
+
+    await advanceTime({ clock, duration: 1 });
+
+    // State should remain unchanged
+    expect(controller.state).toStrictEqual(initialState);
+  });
+
+  it('handles TransactionController:transactionSubmitted with null/undefined transactionMeta gracefully', async () => {
+    const { controller, messenger } = setupInitializedController();
+
+    const initialState = { ...controller.state };
+
+    // Test with null transactionMeta
+    messenger.publish('TransactionController:transactionSubmitted', {
+      // @ts-expect-error - Testing runtime safety for null transactionMeta
+      transactionMeta: null,
+    });
+
+    await advanceTime({ clock, duration: 1 });
+
+    // State should remain unchanged
+    expect(controller.state).toStrictEqual(initialState);
+
+    // Test with undefined transactionMeta
+    messenger.publish('TransactionController:transactionSubmitted', {
+      // @ts-expect-error - Testing runtime safety for undefined transactionMeta
+      transactionMeta: undefined,
+    });
+
+    await advanceTime({ clock, duration: 1 });
+
+    // State should still remain unchanged
+    expect(controller.state).toStrictEqual(initialState);
   });
 
   it('does fallback to ethereum when removing the last enabled network', async () => {
@@ -379,8 +312,8 @@ describe('NetworkEnablementController', () => {
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: {
-          '0x1': true, // Ethereum Mainnet (fallback enabled)
-          '0x2105': false, // Base Mainnet (still disabled)
+          [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (fallback enabled)
+          [ChainId[BuiltInNetworkName.BaseMainnet]]: false, // Base Mainnet (still disabled)
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -415,9 +348,9 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            '0x1': true, // Ethereum Mainnet (re-enabled)
-            '0xe708': true, // Linea Mainnet
-            '0x2105': true, // Base Mainnet
+            [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (re-enabled)
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -516,6 +449,8 @@ describe('NetworkEnablementController', () => {
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true,
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -550,6 +485,8 @@ describe('NetworkEnablementController', () => {
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true,
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,

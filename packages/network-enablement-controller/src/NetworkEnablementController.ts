@@ -12,6 +12,7 @@ import type {
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
+import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
@@ -89,7 +90,8 @@ export type NetworkEnablementControllerEvents =
 export type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 export type NetworkEnablementControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -100,16 +102,17 @@ export type NetworkEnablementControllerMessenger = RestrictedMessenger<
 >;
 
 /**
- * Gets the initial default state for the NetworkEnablementController.
- * This provides a minimal state to avoid race conditions during initialization.
+ * Gets the default state for the NetworkEnablementController.
  *
- * @returns The initial default state with basic network enablement.
+ * @returns The default state with pre-enabled networks.
  */
 const getDefaultNetworkEnablementControllerState =
   (): NetworkEnablementControllerState => ({
     enabledNetworkMap: {
       [KnownCaipNamespace.Eip155]: {
         [ChainId[BuiltInNetworkName.Mainnet]]: true,
+        [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
+        [ChainId[BuiltInNetworkName.BaseMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
@@ -170,55 +173,18 @@ export class NetworkEnablementController extends BaseController<
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
     });
-  }
 
-  /**
-   * Initializes the NetworkEnablementController by reading from NetworkController
-   * state to populate enabled networks. Solana mainnet is always enabled by default.
-   * This method should be called after NetworkController is initialized to avoid race conditions.
-   *
-   * This method preserves existing user preferences and only adds missing networks.
-   */
-  init(): void {
-    this.update((state) => {
-      // Ensure required namespaces exist in the current state
-      this.#ensureNamespaceBucket(state, KnownCaipNamespace.Eip155);
-      this.#ensureNamespaceBucket(state, KnownCaipNamespace.Solana);
-
-      // Always ensure Solana mainnet is enabled
-      state.enabledNetworkMap[KnownCaipNamespace.Solana][SolScope.Mainnet] =
-        true;
-
-      // Get networks from NetworkController state and add missing ones
-      try {
-        const networkControllerState = this.messagingSystem.call(
-          'NetworkController:getState',
-        );
-        Object.keys(
-          networkControllerState.networkConfigurationsByChainId,
-        ).forEach((chainId) => {
-          // Only add the network if it doesn't already exist in state
-          if (
-            !(chainId in state.enabledNetworkMap[KnownCaipNamespace.Eip155])
-          ) {
-            state.enabledNetworkMap[KnownCaipNamespace.Eip155][chainId as Hex] =
-              true;
-          }
-        });
-      } catch {
-        // Fallback: Ensure Ethereum mainnet is enabled if NetworkController is not available
-        // Only add if it doesn't already exist in state
-        const mainnetChainId = ChainId[BuiltInNetworkName.Mainnet];
-        if (
-          !(
-            mainnetChainId in state.enabledNetworkMap[KnownCaipNamespace.Eip155]
-          )
-        ) {
-          state.enabledNetworkMap[KnownCaipNamespace.Eip155][mainnetChainId] =
-            true;
+    // Listen for confirmed staking transactions
+    messenger.subscribe(
+      'TransactionController:transactionSubmitted',
+      (transactionMeta) => {
+        if (transactionMeta?.transactionMeta?.chainId) {
+          this.enableNetwork(
+            transactionMeta.transactionMeta.chainId as Hex | CaipChainId,
+          );
         }
-      }
-    });
+      },
+    );
   }
 
   /**
