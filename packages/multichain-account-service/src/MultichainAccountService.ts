@@ -105,6 +105,14 @@ export class MultichainAccountService {
       'MultichainAccountService:createMultichainAccountGroup',
       (...args) => this.createMultichainAccountGroup(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:alignWallets',
+      (...args) => this.alignWallets(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:alignWallet',
+      (...args) => this.alignWallet(...args),
+    );
   }
 
   /**
