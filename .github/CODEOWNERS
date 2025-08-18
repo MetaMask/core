@@ -74,8 +74,8 @@
 /packages/announcement-controller      @MetaMask/wallet-ux
 
 ## Web3Auth Team
-/packages/seedless-onboarding-controller    @MetaMask/web3auth
-/packages/shield-controller                 @MetaMask/web3auth
+/packages/seedless-onboarding-controller @MetaMask/web3auth
+/packages/shield-controller              @MetaMask/web3auth
 
 ## Joint team ownership
 /packages/eth-json-rpc-provider        @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
