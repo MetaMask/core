@@ -29,6 +29,7 @@ function setup({
     getAccessToken,
     getCoverageResultTimeout,
     getCoverageResultPollInterval,
+    fetch,
   });
 
   return {
