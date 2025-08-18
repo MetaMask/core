@@ -6,12 +6,12 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { BaseAccountProvider } from './providers/BaseAccountProvider';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -21,11 +21,9 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions<
-  Account extends Bip44Account<KeyringAccount>,
-> = {
+type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: AccountProvider<Account>[];
+  providers?: BaseAccountProvider[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -40,7 +38,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
+  readonly #providers: BaseAccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -66,13 +64,11 @@ export class MultichainAccountService {
    * @param options.providers - Optional list of account
    * providers.
    */
-  constructor({
-    messenger,
-    providers = [],
-  }: MultichainAccountServiceOptions<Bip44Account<KeyringAccount>>) {
+  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
+
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
@@ -104,6 +100,10 @@ export class MultichainAccountService {
     this.#messenger.registerActionHandler(
       'MultichainAccountService:createMultichainAccountGroup',
       (...args) => this.createMultichainAccountGroup(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:setBasicFunctionality',
+      (...args) => this.setBasicFunctionality(...args),
     );
   }
 
@@ -349,5 +349,53 @@ export class MultichainAccountService {
     return await this.#getWallet(entropySource).createMultichainAccountGroup(
       groupIndex,
     );
+  }
+
+  /**
+   * Set basic functionality state and trigger alignment if enabled.
+   * When basic functionality is disabled, non-EVM providers are disabled.
+   * When enabled, all providers are enabled and wallet alignment is triggered.
+   *
+   * @param options - Options.
+   * @param options.enabled - Whether basic functionality is enabled.
+   */
+  async setBasicFunctionality({
+    enabled,
+  }: {
+    enabled: boolean;
+  }): Promise<void> {
+    console.log(
+      `MultichainAccountService: Setting basic functionality ${enabled ? 'enabled' : 'disabled'}`,
+    );
+
+    // Loop through all providers and set their disabled state
+    for (const provider of this.#providers) {
+      // When basic functionality is disabled, disable all providers.
+      provider.setDisabled(!enabled);
+    }
+
+    // Trigger alignment only when basic functionality is enabled
+    if (enabled) {
+      console.log('Triggered wallet alignment...');
+      await this.alignWallets();
+    }
+  }
+
+  /**
+   * Align all multichain account wallets by forcing a sync.
+   * This will cause wallets to re-sync with their providers and create any missing account groups.
+   * When Hassan's PR #6326 is merged, this can be updated to use the proper alignment methods.
+   */
+  private async alignWallets(): Promise<void> {
+    console.log('Syncing all multichain account wallets...');
+    const wallets = this.getMultichainAccountWallets();
+
+    // Force sync all wallets - this will cause them to re-scan providers
+    // and create any missing multichain account groups
+    for (const wallet of wallets) {
+      wallet.sync();
+    }
+
+    console.log(`Synced ${wallets.length} multichain account wallets`);
   }
 }

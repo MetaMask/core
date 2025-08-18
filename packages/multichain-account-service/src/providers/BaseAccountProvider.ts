@@ -42,8 +42,23 @@ export abstract class BaseAccountProvider
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
+  protected isDisabled: boolean = false;
+
   constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
+  }
+
+  /**
+   * Set the disabled state for this provider.
+   * When disabled, the provider should not create new accounts.
+   *
+   * @param disabled - Whether the provider should be disabled.
+   */
+  setDisabled(disabled: boolean): void {
+    this.isDisabled = disabled;
+    console.log(
+      `Provider ${this.constructor.name} ${disabled ? 'disabled' : 'enabled'}`,
+    );
   }
 
   #getAccounts(

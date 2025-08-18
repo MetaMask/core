@@ -33,6 +33,13 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
+    // Check if provider is disabled
+    if (this.isDisabled) {
+      console.log(
+        `${this.constructor.name} is disabled - skipping account creation`,
+      );
+      return [];
+    }
     return this.withCreateAccount(async (createAccount) => {
       // Create account without any confirmation nor selecting it.
       // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
