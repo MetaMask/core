@@ -4023,6 +4023,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/multichain-network-controller": "npm:^0.11.1"
     "@metamask/network-controller": "npm:^24.1.0"
+    "@metamask/transaction-controller": "npm:^59.2.0"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -4036,6 +4037,7 @@ __metadata:
   peerDependencies:
     "@metamask/multichain-network-controller": ^0.11.0
     "@metamask/network-controller": ^24.0.0
+    "@metamask/transaction-controller": ^59.0.0
   languageName: unknown
   linkType: soft
 
