@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import * as controllerUtils from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -1794,27 +1795,26 @@ describe('TokenBalancesController', () => {
       // Spy on console.warn
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      // Mock the RPC balance fetcher to throw an error
-      const mockMulticall = jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockRejectedValue(mockError);
+      const { controller } = setupController();
 
-      const { controller } = setupController({
-        config: { useAccountsAPI: false }, // Force use of RPC fetcher only
-        tokens: {
-          allTokens: {
-            [chainId]: {
-              '0x1234567890123456789012345678901234567890': [
-                {
-                  address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-                  symbol: 'DAI',
-                  decimals: 18,
-                },
-              ],
-            },
-          },
-          allDetectedTokens: {},
-        },
+      // Mock safelyExecuteWithTimeout to simulate the scenario where the error
+      // bypasses it and reaches the catch block directly (line 289-292)
+      const safelyExecuteSpy = jest
+        .spyOn(controllerUtils, 'safelyExecuteWithTimeout')
+        .mockImplementation(async () => {
+          // Instead of swallowing the error, throw it to reach the catch block
+          throw mockError;
+        });
+
+      // Mock a fetcher that supports the chain
+      const mockFetcher = {
+        supports: jest.fn().mockReturnValue(true),
+        fetch: jest.fn(),
+      };
+
+      Object.defineProperty(controller, '#balanceFetchers', {
+        value: [mockFetcher],
+        writable: true,
       });
 
       await controller.updateBalances({ chainIds: [chainId] });
@@ -1825,7 +1825,7 @@ describe('TokenBalancesController', () => {
       );
 
       // Restore mocks
-      mockMulticall.mockRestore();
+      safelyExecuteSpy.mockRestore();
       consoleWarnSpy.mockRestore();
     });
 

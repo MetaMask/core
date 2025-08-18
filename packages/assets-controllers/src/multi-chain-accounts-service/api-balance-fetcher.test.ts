@@ -456,23 +456,6 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(result.length).toBeGreaterThan(3);
     });
 
-    it('should handle API errors gracefully', async () => {
-      mockSafelyExecute.mockResolvedValue(undefined);
-
-      const result = await balanceFetcher.fetch({
-        chainIds: [MOCK_CHAIN_ID],
-        queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
-        allAccounts: MOCK_INTERNAL_ACCOUNTS,
-      });
-
-      // Should still have native token guarantee even with API error
-      expect(result).toHaveLength(1);
-      expect(result[0].token).toBe(ZERO_ADDRESS);
-      expect(result[0].success).toBe(true);
-      expect(result[0].value).toStrictEqual(new BN('0'));
-    });
-
     it('should handle missing account address in response', async () => {
       const responseWithMissingAccount: GetBalancesResponse = {
         count: 1,
@@ -1100,7 +1083,6 @@ describe('AccountsApiBalanceFetcher', () => {
     });
 
     it('should test checksum and toCaipAccount helper functions indirectly', async () => {
-      // This test covers lines 47 and 52 by calling methods that use these helpers
       mockToChecksumHexAddress.mockReturnValue('0xCHECKSUMMED');
       mockAccountAddressToCaipReference.mockReturnValue(
         'eip155:1:0xCHECKSUMMED',
@@ -1489,6 +1471,68 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(addr2Balance).toBeDefined();
       expect(addr2Balance?.success).toBe(true);
       expect(addr2Balance?.value).toStrictEqual(new BN('0'));
+    });
+  });
+
+  describe('API error handling and recovery', () => {
+    beforeEach(() => {
+      balanceFetcher = new AccountsApiBalanceFetcher('extension');
+    });
+
+    it('should not throw error when API fails but staked balances succeed', async () => {
+      // Mock console.error to suppress error logging
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Setup successful staking contract
+      const mockShares = {
+        toString: () => '1000000000000000000',
+        gt: jest.fn().mockReturnValue(true),
+      };
+      const mockAssets = {
+        toString: () => '2000000000000000000',
+      };
+
+      const localMockContract = {
+        getShares: jest.fn().mockResolvedValue(mockShares),
+        convertToAssets: jest.fn().mockResolvedValue(mockAssets),
+      };
+
+      const mockContractConstructor = jest.requireMock(
+        '@ethersproject/contracts',
+      ).Contract;
+      mockContractConstructor.mockImplementation(() => localMockContract);
+
+      const mockProvider = { call: jest.fn() };
+      const mockGetProvider = jest.fn().mockReturnValue(mockProvider);
+
+      const fetcherWithProvider = new AccountsApiBalanceFetcher(
+        'extension',
+        mockGetProvider,
+      );
+
+      // Make API fail but staking succeed
+      mockFetchMultiChainBalancesV4.mockRejectedValue(new Error('API failure'));
+
+      try {
+        const result = await fetcherWithProvider.fetch({
+          chainIds: [MOCK_CHAIN_ID],
+          queryAllAccounts: false,
+          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          allAccounts: MOCK_INTERNAL_ACCOUNTS,
+        });
+
+        // Should have mixed results: failed API entries + successful staked balance
+        const successfulEntries = result.filter((r) => r.success);
+        const errorEntries = result.filter((r) => !r.success);
+
+        expect(successfulEntries.length).toBeGreaterThan(0); // Staked balance succeeded
+        expect(errorEntries.length).toBeGreaterThan(0); // API entries failed
+
+        // Should not throw since we have some successful results
+        expect(result.length).toBeGreaterThan(0);
+      } finally {
+        consoleSpy.mockRestore();
+      }
     });
   });
 
