@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
 - Bump `@metamask/transaction-controller` from `^59.1.0` to `^59.2.0` ([#6291](https://github.com/MetaMask/core/pull/6291))
+- Bump `@metamask/account-tree-controller` from `^0.7.0` to `^0.9.0` ([#6331](https://github.com/MetaMask/core/pull/6331))
 - Bump `@metamask/accounts-controller` from `^32.0.1` to `^32.0.2` ([#6273](https://github.com/MetaMask/core/pull/6273))
 - Bump `@metamask/keyring-controller` from `^22.1.0` to `^22.1.1` ([#6273](https://github.com/MetaMask/core/pull/6273))
 - Bump `@metamask/multichain-account-service` from `^0.3.0` to `^0.4.0` ([#6273](https://github.com/MetaMask/core/pull/6273))
