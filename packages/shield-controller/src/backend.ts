@@ -122,10 +122,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
           const res = await this.#fetch(
             `${this.#baseUrl}/api/v1/coverage/result`,
             {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody),
-          });
+              method: 'POST',
+              headers,
+              body: JSON.stringify(reqBody),
+            },
+          );
           if (res.status === 200) {
             return (await res.json()) as GetCoverageResultResponse;
           }
