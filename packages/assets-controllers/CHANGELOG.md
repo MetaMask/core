@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/account-tree-controller` devDependency from `^0.8.0` to `^0.9.0`
-
 ## [73.2.0]
 
 ### Added
