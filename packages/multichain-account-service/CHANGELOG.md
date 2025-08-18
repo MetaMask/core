@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Allow for multichain account group alignment through the `align` method ([#6326](https://github.com/MetaMask/core/pull/6326))
-  - You can now call alignment from the group, wallet and service levels. 
+  - You can now call alignment from the group, wallet and service levels.
 
 ### Changed
 
