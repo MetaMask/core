@@ -699,5 +699,55 @@ describe('MultichainAccountService', () => {
       expect(firstGroup.getAccounts()).toHaveLength(1);
       expect(firstGroup.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
     });
+
+    it('aligns a multichain account wallet with MultichainAccountService:alignWallet', async () => {
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const { messenger, mocks } = setup({
+        accounts: [mockEvmAccount1, mockSolAccount1],
+      });
+
+      await messenger.call(
+        'MultichainAccountService:alignWallet',
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+      expect(mocks.EvmAccountProvider.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('aligns all multichain account wallets with MultichainAccountService:alignWallets', async () => {
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_2.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const { messenger, mocks } = setup({
+        accounts: [mockEvmAccount1, mockSolAccount1],
+      });
+
+      await messenger.call('MultichainAccountService:alignWallets');
+
+      expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        entropySource: MOCK_HD_KEYRING_2.metadata.id,
+        groupIndex: 0,
+      });
+      expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+    });
   });
 });
