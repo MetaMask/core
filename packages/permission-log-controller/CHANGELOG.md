@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Stop persisting `permissionActivityLog` state ([#6156](https://github.com/MetaMask/core/pull/6156))
+  - This will require a migration to delete existing persisted state.
+- Bump `@metamask/utils` from `^11.1.0` to `^11.4.2` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054))
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
 
 ## [3.0.3]
@@ -97,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.3...@metamask/permission-log-controller@4.0.0
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.2...@metamask/permission-log-controller@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.1...@metamask/permission-log-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.0...@metamask/permission-log-controller@3.0.1

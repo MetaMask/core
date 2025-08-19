@@ -211,6 +211,19 @@ function getNormalizedEndpointUrl(endpointUrlOrUrlString: URL | string): URL {
 }
 
 /**
+ * Strips username and password from a URL.
+ *
+ * @param url - The URL to strip credentials from.
+ * @returns A new URL object with credentials removed.
+ */
+function stripCredentialsFromUrl(url: URL): URL {
+  const strippedUrl = new URL(url.toString());
+  strippedUrl.username = '';
+  strippedUrl.password = '';
+  return strippedUrl;
+}
+
+/**
  * This class is responsible for making a request to an endpoint that implements
  * the JSON-RPC protocol. It is designed to gracefully handle network and server
  * failures, retrying requests using exponential backoff. It also offers a hook
@@ -259,12 +272,13 @@ export class RpcService implements AbstractRpcService {
     } = options;
 
     this.#fetch = givenFetch;
-    this.endpointUrl = getNormalizedEndpointUrl(endpointUrl);
+    const normalizedUrl = getNormalizedEndpointUrl(endpointUrl);
     this.#fetchOptions = this.#getDefaultFetchOptions(
-      this.endpointUrl,
+      normalizedUrl,
       fetchOptions,
       givenBtoa,
     );
+    this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#failoverService = failoverService;
 
     const policy = createServicePolicy({
@@ -347,8 +361,8 @@ export class RpcService implements AbstractRpcService {
       { endpointUrl: string }
     >,
   ) {
-    return this.#policy.onDegraded(() => {
-      listener({ endpointUrl: this.endpointUrl.toString() });
+    return this.#policy.onDegraded((data) => {
+      listener({ ...(data ?? {}), endpointUrl: this.endpointUrl.toString() });
     });
   }
 

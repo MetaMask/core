@@ -1,23 +1,17 @@
+export type { AccountWalletObject } from './wallet';
+export type { AccountGroupObject } from './group';
+
 export type {
   AccountTreeControllerState,
   AccountTreeControllerGetStateAction,
   AccountTreeControllerActions,
+  AccountTreeControllerSetSelectedAccountGroupAction,
+  AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
-  AccountWallet,
-  AccountWalletId,
-  AccountWalletMetadata,
-  AccountWalletCategory,
-  AccountGroup,
-  AccountGroupId,
-  AccountGroupMetadata,
-  toAccountGroupId,
-  toAccountWalletId,
-  toDefaultAccountGroupId,
-  DEFAULT_ACCOUNT_GROUP_NAME,
-  DEFAULT_ACCOUNT_GROUP_UNIQUE_ID,
-} from './AccountTreeController';
+} from './types';
+
 export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,

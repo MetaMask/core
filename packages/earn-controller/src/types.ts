@@ -1,4 +1,4 @@
-export type RefreshStakingEligibilityOptions = {
+export type RefreshEarnEligibilityOptions = {
   address?: string;
 };
 
@@ -11,7 +11,12 @@ export type RefreshPooledStakesOptions = {
 export type RefreshPooledStakingDataOptions = {
   resetCache?: boolean;
   address?: string;
+};
+
+export type RefreshPooledStakingVaultDailyApysOptions = {
   chainId?: number;
+  days?: number;
+  order?: 'asc' | 'desc';
 };
 
 export type RefreshLendingPositionsOptions = {

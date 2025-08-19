@@ -1,4 +1,9 @@
-import type { AccessToken, ErrorMessage, UserProfile } from './types';
+import type {
+  AccessToken,
+  ErrorMessage,
+  UserProfile,
+  UserProfileLineage,
+} from './types';
 import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
@@ -24,6 +29,9 @@ export const SRP_LOGIN_URL = (env: Env) =>
 
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
+
+export const PROFILE_LINEAGE_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -250,5 +258,44 @@ export async function authenticate(
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
     throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
+  }
+}
+
+/**
+ * Service to get the Profile Lineage
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns Profile Lineage information.
+ */
+export async function getUserProfileLineage(
+  env: Env,
+  accessToken: string,
+): Promise<UserProfileLineage> {
+  const profileLineageUrl = new URL(PROFILE_LINEAGE_URL(env));
+
+  try {
+    const response = await fetch(profileLineageUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const responseBody = (await response.json()) as ErrorMessage;
+      throw new Error(
+        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      );
+    }
+
+    const profileJson: UserProfileLineage = await response.json();
+
+    return profileJson;
+  } catch (e) {
+    /* istanbul ignore next */
+    const errorMessage =
+      e instanceof Error ? e.message : JSON.stringify(e ?? '');
+    throw new SignInError(`failed to get profile lineage: ${errorMessage}`);
   }
 }

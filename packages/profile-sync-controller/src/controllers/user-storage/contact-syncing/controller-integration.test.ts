@@ -121,7 +121,7 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       .spyOn(ContactSyncingUtils, 'canPerformContactSyncing')
       .mockImplementation(() => false);
 
-    const mockList = jest.fn();
+    const mockList = jest.fn().mockReturnValue([]); // Return empty array instead of undefined
     options.getMessenger().call = mockList;
 
     await ContactSyncingControllerIntegrationModule.syncContactsWithUserStorage(

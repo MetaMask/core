@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@metamask/network-controller` from `^24.0.1` to `^24.1.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+## [1.1.0]
+
+### Added
+
+- Added `getCaip25PermissionFromLegacyPermissions` and `requestPermittedChainsPermissionIncremental` misc functions. ([#6225](https://github.com/MetaMask/core/pull/6225))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/network-controller` from `^24.0.0` to `^24.0.1` ([#6148](https://github.com/MetaMask/core/pull/6148))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
 ## [1.0.0]
 
 ### Changed
@@ -110,7 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.0.0...@metamask/chain-agnostic-permission@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.8.0...@metamask/chain-agnostic-permission@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.7.1...@metamask/chain-agnostic-permission@0.8.0
 [0.7.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.7.0...@metamask/chain-agnostic-permission@0.7.1

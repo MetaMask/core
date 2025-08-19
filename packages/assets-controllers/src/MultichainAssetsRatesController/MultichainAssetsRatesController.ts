@@ -20,14 +20,18 @@ import type {
   SnapId,
   AssetConversion,
   OnAssetsConversionArguments,
-  OnAssetsConversionResponse,
   OnAssetHistoricalPriceArguments,
   OnAssetHistoricalPriceResponse,
   HistoricalPriceIntervals,
+  OnAssetsMarketDataArguments,
+  OnAssetsMarketDataResponse,
+  FungibleAssetMarketData,
+  OnAssetsConversionResponse,
 } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
+import { cloneDeep } from 'lodash';
 
 import { MAP_CAIP_CURRENCIES } from './constant';
 import type {
@@ -59,7 +63,7 @@ type HistoricalPrice = {
  * State used by the MultichainAssetsRatesController to cache token conversion rates.
  */
 export type MultichainAssetsRatesControllerState = {
-  conversionRates: Record<CaipAssetType, AssetConversion>;
+  conversionRates: Record<CaipAssetType, UnifiedAssetConversion>;
   historicalPrices: Record<CaipAssetType, Record<string, HistoricalPrice>>; // string being the current currency we fetched historical prices for
 };
 
@@ -78,6 +82,10 @@ export type MultichainAssetsRatesControllerGetStateAction =
 export type MultichainAssetsRatesControllerUpdateRatesAction = {
   type: `${typeof controllerName}:updateAssetsRates`;
   handler: MultichainAssetsRatesController['updateAssetsRates'];
+};
+
+type UnifiedAssetConversion = AssetConversion & {
+  marketData?: FungibleAssetMarketData;
 };
 
 /**
@@ -156,6 +164,13 @@ const metadata = {
   historicalPrices: { persist: false, anonymous: true },
 };
 
+export type ConversionRatesWithMarketData = {
+  conversionRates: Record<
+    CaipAssetType,
+    Record<CaipAssetType, UnifiedAssetConversion | null>
+  >;
+};
+
 /**
  * Controller that manages multichain token conversion rates.
  *
@@ -221,10 +236,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      async (currencyRatesState: CurrencyRateState) => {
-        this.#currentCurrency = currencyRatesState.currentCurrency;
+      async (currentCurrency: string) => {
+        this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
       },
+      (currencyRateControllerState) =>
+        currencyRateControllerState.currentCurrency,
     );
 
     this.messagingSystem.subscribe(
@@ -326,26 +343,55 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   async #getUpdatedRatesFor(
     account: InternalAccount,
     assets: CaipAssetType[],
-  ): Promise<Record<string, AssetConversion & { currency: CaipAssetType }>> {
+  ): Promise<
+    Record<string, UnifiedAssetConversion & { currency: CaipAssetType }>
+  > {
+    // Do not attempt to retrieve rates from Snap if there are no assets
+    if (!assets.length) {
+      return {};
+    }
+
     // Build the conversions array
     const conversions = this.#buildConversions(assets);
 
     // Retrieve rates from Snap
-    const accountRates: OnAssetsConversionResponse =
-      (await this.#handleSnapRequest({
-        snapId: account?.metadata.snap?.id as SnapId,
-        handler: HandlerType.OnAssetsConversion,
-        params: {
-          ...conversions,
-          includeMarketData: true,
-        },
-      })) as OnAssetsConversionResponse;
+    const accountRatesResponse = (await this.#handleSnapRequest({
+      snapId: account?.metadata.snap?.id as SnapId,
+      handler: HandlerType.OnAssetsConversion,
+      params: conversions,
+    })) as OnAssetsConversionResponse | null;
+
+    // If the snap request failed, return empty rates
+    if (!accountRatesResponse) {
+      return {};
+    }
+
+    // Prepare assets param for onAssetsMarketData
+    const currentCurrencyCaip =
+      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
+    const assetsParam = {
+      assets: assets.map((asset) => ({ asset, unit: currentCurrencyCaip })),
+    };
+
+    // Retrieve Market Data from Snap
+    const marketDataResponse = (await this.#handleSnapRequest({
+      snapId: account?.metadata.snap?.id as SnapId,
+      handler: HandlerType.OnAssetsMarketData,
+      params: assetsParam as OnAssetsMarketDataArguments,
+    })) as OnAssetsMarketDataResponse | null;
+
+    // Merge market data into conversion rates if available
+    const mergedRates = this.#mergeMarketDataIntoConversionRates(
+      accountRatesResponse,
+      marketDataResponse,
+    );
 
     // Flatten nested rates if needed
-    const flattenedRates = this.#flattenRates(accountRates);
+    const flattenedRates = this.#flattenRates(mergedRates);
 
     // Build the updatedRates object for these assets
     const updatedRates = this.#buildUpdatedRates(assets, flattenedRates);
+
     return updatedRates;
   }
 
@@ -383,14 +429,22 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
           'AccountsController:getSelectedMultichainAccount',
         );
       try {
-        const historicalPricesResponse = await this.#handleSnapRequest({
-          snapId: selectedAccount?.metadata.snap?.id as SnapId,
-          handler: HandlerType.OnAssetHistoricalPrice,
-          params: {
-            from: asset,
-            to: currentCaipCurrency,
+        const historicalPricesResponse = await this.messagingSystem.call(
+          'SnapController:handleRequest',
+          {
+            snapId: selectedAccount?.metadata.snap?.id as SnapId,
+            origin: 'metamask',
+            handler: HandlerType.OnAssetHistoricalPrice,
+            request: {
+              jsonrpc: '2.0',
+              method: HandlerType.OnAssetHistoricalPrice,
+              params: {
+                from: asset,
+                to: currentCaipCurrency,
+              },
+            },
           },
-        });
+        );
 
         // skip state update if no historical prices are returned
         if (!historicalPricesResponse) {
@@ -438,7 +492,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       }
       const allNewRates: Record<
         string,
-        { rate: string | null; conversionTime: number | null }
+        UnifiedAssetConversion & { currency: CaipAssetType }
       > = {};
 
       for (const { accountId, assets } of accounts) {
@@ -510,8 +564,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns A flattened rates object.
    */
   #flattenRates(
-    assetsConversionResponse: OnAssetsConversionResponse,
-  ): Record<CaipAssetType, AssetConversion | null> {
+    assetsConversionResponse: ConversionRatesWithMarketData | null,
+  ): Record<CaipAssetType, UnifiedAssetConversion | null> {
+    if (!assetsConversionResponse?.conversionRates) {
+      return {};
+    }
+
     const { conversionRates } = assetsConversionResponse;
 
     return Object.fromEntries(
@@ -533,17 +591,17 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    */
   #buildUpdatedRates(
     assets: CaipAssetType[],
-    flattenedRates: Record<CaipAssetType, AssetConversion | null>,
-  ): Record<string, AssetConversion & { currency: CaipAssetType }> {
+    flattenedRates: Record<CaipAssetType, UnifiedAssetConversion | null>,
+  ): Record<string, UnifiedAssetConversion & { currency: CaipAssetType }> {
     const updatedRates: Record<
       CaipAssetType,
-      AssetConversion & { currency: CaipAssetType }
+      UnifiedAssetConversion & { currency: CaipAssetType }
     > = {};
 
     for (const asset of assets) {
       if (flattenedRates[asset]) {
         updatedRates[asset] = {
-          ...(flattenedRates[asset] as AssetConversion),
+          ...(flattenedRates[asset] as UnifiedAssetConversion),
           currency:
             MAP_CAIP_CURRENCIES[this.#currentCurrency] ??
             MAP_CAIP_CURRENCIES.usd,
@@ -554,14 +612,14 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
-   * Merges the new rates into the controller’s state.
+   * Merges the new rates into the controller's state.
    *
    * @param updatedRates - The new rates to merge.
    */
   #applyUpdatedRates(
     updatedRates: Record<
       string,
-      { rate: string | null; conversionTime: number | null }
+      UnifiedAssetConversion & { currency: CaipAssetType }
     >,
   ): void {
     if (Object.keys(updatedRates).length === 0) {
@@ -591,17 +649,81 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }: {
     snapId: SnapId;
     handler: HandlerType;
-    params: OnAssetsConversionArguments | OnAssetHistoricalPriceArguments;
-  }): Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse> {
-    return this.messagingSystem.call('SnapController:handleRequest', {
-      snapId,
-      origin: 'metamask',
-      handler,
-      request: {
-        jsonrpc: '2.0',
-        method: handler,
+    params:
+      | OnAssetsConversionArguments
+      | OnAssetHistoricalPriceArguments
+      | OnAssetsMarketDataArguments;
+  }): Promise<
+    | OnAssetsConversionResponse
+    | OnAssetHistoricalPriceResponse
+    | OnAssetsMarketDataResponse
+    | undefined
+  > {
+    try {
+      return (await this.messagingSystem.call('SnapController:handleRequest', {
+        snapId,
+        origin: 'metamask',
+        handler,
+        request: {
+          jsonrpc: '2.0',
+          method: handler,
+          params,
+        },
+      })) as
+        | OnAssetsConversionResponse
+        | OnAssetHistoricalPriceResponse
+        | OnAssetsMarketDataResponse
+        | undefined;
+    } catch (error) {
+      console.error(`Snap request failed for ${handler}:`, {
+        snapId,
+        handler,
+        message: (error as Error).message,
         params,
-      },
-    }) as Promise<OnAssetsConversionResponse | OnAssetHistoricalPriceResponse>;
+      });
+      // Ignore
+      return undefined;
+    }
+  }
+
+  #mergeMarketDataIntoConversionRates(
+    accountRatesResponse: OnAssetsConversionResponse,
+    marketDataResponse: OnAssetsMarketDataResponse | null,
+  ): ConversionRatesWithMarketData {
+    // Early return if no market data to merge
+    if (!marketDataResponse?.marketData) {
+      return accountRatesResponse;
+    }
+
+    const result: ConversionRatesWithMarketData =
+      cloneDeep(accountRatesResponse);
+    const { conversionRates } = result;
+    const { marketData } = marketDataResponse;
+
+    // Iterate through each asset in market data
+    for (const [assetId, currencyData] of Object.entries(marketData)) {
+      const typedAssetId = assetId as CaipAssetType;
+
+      // Iterate through each currency for this asset
+      for (const [currency, marketDataForCurrency] of Object.entries(
+        currencyData,
+      )) {
+        const typedCurrency = currency as CaipAssetType;
+
+        // Check if this currency exists in conversion rates for this asset
+        const existingRate = conversionRates[typedAssetId][typedCurrency];
+        if (!existingRate) {
+          continue;
+        }
+
+        // Merge market data into the existing conversion rate
+        conversionRates[typedAssetId][typedCurrency] = {
+          ...existingRate,
+          marketData: marketDataForCurrency ?? undefined,
+        };
+      }
+    }
+
+    return result;
   }
 }

@@ -47,11 +47,14 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
+- [`@metamask/messenger`](packages/messenger)
+- [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
+- [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
@@ -64,6 +67,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
+- [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -104,11 +108,14 @@ linkStyle default opacity:0.5
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
+  messenger(["@metamask/messenger"]);
+  multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
+  network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
@@ -121,6 +128,7 @@ linkStyle default opacity:0.5
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
+  shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -162,7 +170,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> base_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
-  bridge_status_controller --> user_operation_controller;
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> gas_fee_controller;
@@ -200,6 +207,9 @@ linkStyle default opacity:0.5
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  multichain_account_service --> base_controller;
+  multichain_account_service --> accounts_controller;
+  multichain_account_service --> keyring_controller;
   multichain_api_middleware --> chain_agnostic_permission;
   multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;
@@ -222,6 +232,10 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
+  network_enablement_controller --> base_controller;
+  network_enablement_controller --> controller_utils;
+  network_enablement_controller --> multichain_network_controller;
+  network_enablement_controller --> network_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -243,7 +257,6 @@ linkStyle default opacity:0.5
   profile_sync_controller --> base_controller;
   profile_sync_controller --> accounts_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> network_controller;
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;

@@ -1,5 +1,3 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type nock from 'nock';
 
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
@@ -12,13 +10,10 @@ import {
   mockEndpointDeleteUserStorage,
   mockEndpointBatchDeleteUserStorage,
 } from './__fixtures__/mockServices';
-import { waitFor } from './__fixtures__/test-utils';
 import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__fixtures__/test-utils';
 import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
-import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
-import { type UserStorageBaseOptions } from './types';
 import UserStorageController, { defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
@@ -36,40 +31,6 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
     });
 
     expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-  });
-
-  it('should call startNetworkSyncing', async () => {
-    // Arrange Mock Syncing
-    const mockStartNetworkSyncing = jest.spyOn(
-      NetworkSyncIntegrationModule,
-      'startNetworkSyncing',
-    );
-    const storageConfig: UserStorageBaseOptions | null = null;
-    let isSyncingBlocked: boolean | null = null;
-
-    mockStartNetworkSyncing.mockImplementation(
-      ({ isMutationSyncBlocked, getUserStorageControllerInstance }) => {
-        isSyncingBlocked = isMutationSyncBlocked();
-        // eslint-disable-next-line no-void
-        void getUserStorageControllerInstance();
-      },
-    );
-
-    const { messengerMocks } = arrangeMocks();
-    new UserStorageController({
-      messenger: messengerMocks.messenger,
-      env: {
-        isNetworkSyncingEnabled: true,
-      },
-      state: {
-        ...defaultState,
-        hasNetworkSyncingSyncedAtLeastOnce: true,
-      },
-    });
-
-    // Assert Syncing Properties
-    await waitFor(() => expect(storageConfig).toBeDefined());
-    expect(isSyncingBlocked).toBe(false);
   });
 });
 
@@ -767,125 +728,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 });
 
-describe('user-storage/user-storage-controller - saveInternalAccountToUserStorage() tests', () => {
-  const arrangeMocks = () => {
-    const messengerMocks = mockUserStorageMessengerForAccountSyncing();
-    const mockSaveInternalAccountToUserStorage = jest.spyOn(
-      AccountSyncControllerIntegrationModule,
-      'saveInternalAccountToUserStorage',
-    );
-    return {
-      messenger: messengerMocks.messenger,
-      mockSaveInternalAccountToUserStorage,
-    };
-  };
-
-  // NOTE the actual testing of the implementation is done in `controller-integration.ts` file.
-  // See relevant unit tests to see how this feature works and is tested
-  it('should invoke syncing from the integration module', async () => {
-    const { messenger, mockSaveInternalAccountToUserStorage } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger,
-      // We're only verifying that calling this controller method will call the integration module
-      // The actual implementation is tested in the integration tests
-      // This is done to prevent creating unnecessary nock instances in this test
-    });
-
-    mockSaveInternalAccountToUserStorage.mockImplementation(
-      async (
-        _internalAccount,
-        {
-          getMessenger = jest.fn(),
-          getUserStorageControllerInstance = jest.fn(),
-        },
-      ) => {
-        getMessenger();
-        getUserStorageControllerInstance();
-        return undefined;
-      },
-    );
-
-    await controller.saveInternalAccountToUserStorage({
-      id: '1',
-    } as InternalAccount);
-
-    expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalled();
-  });
-});
-
-describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
-  const arrangeMocks = () => {
-    const messengerMocks = mockUserStorageMessenger();
-    const mockPerformMainNetworkSync = jest.spyOn(
-      NetworkSyncIntegrationModule,
-      'performMainNetworkSync',
-    );
-    return {
-      messenger: messengerMocks.messenger,
-      mockPerformMainNetworkSync,
-      mockGetSessionProfile: messengerMocks.mockAuthGetSessionProfile,
-    };
-  };
-
-  it('should not be invoked if the feature is not enabled', async () => {
-    const { messenger, mockGetSessionProfile, mockPerformMainNetworkSync } =
-      arrangeMocks();
-    const controller = new UserStorageController({
-      messenger,
-      env: {
-        isNetworkSyncingEnabled: false,
-      },
-    });
-
-    await controller.syncNetworks();
-
-    expect(mockGetSessionProfile).not.toHaveBeenCalled();
-    expect(mockPerformMainNetworkSync).not.toHaveBeenCalled();
-  });
-
-  // NOTE the actual testing of the implementation is done in `controller-integration.ts` file.
-  // See relevant unit tests to see how this feature works and is tested
-  it('should invoke syncing if feature is enabled', async () => {
-    const { messenger, mockGetSessionProfile, mockPerformMainNetworkSync } =
-      arrangeMocks();
-    const controller = new UserStorageController({
-      messenger,
-      env: {
-        isNetworkSyncingEnabled: true,
-      },
-      config: {
-        networkSyncing: {
-          onNetworkAdded: jest.fn(),
-          onNetworkRemoved: jest.fn(),
-          onNetworkUpdated: jest.fn(),
-        },
-      },
-    });
-
-    // For test-coverage, we will simulate calling the analytic callback events
-    // This has been correctly tested in `controller-integration.test.ts`
-    mockPerformMainNetworkSync.mockImplementation(
-      async ({
-        onNetworkAdded,
-        onNetworkRemoved,
-        onNetworkUpdated,
-        getUserStorageControllerInstance,
-      }) => {
-        onNetworkAdded?.('0x1');
-        onNetworkRemoved?.('0x1');
-        onNetworkUpdated?.('0x1');
-        getUserStorageControllerInstance();
-      },
-    );
-
-    await controller.syncNetworks();
-
-    expect(mockGetSessionProfile).toHaveBeenCalled();
-    expect(mockPerformMainNetworkSync).toHaveBeenCalled();
-    expect(controller.state.hasNetworkSyncingSyncedAtLeastOnce).toBe(true);
-  });
-});
-
 describe('user-storage/user-storage-controller - error handling edge cases', () => {
   const arrangeMocks = () => {
     const messengerMocks = mockUserStorageMessenger();
@@ -959,38 +801,6 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
 
     expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
     expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
-  });
-
-  it('handles saveInternalAccountToUserStorage when disabled', async () => {
-    const messengerMocks = mockUserStorageMessenger();
-
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-    });
-
-    await controller.setIsBackupAndSyncFeatureEnabled(
-      BACKUPANDSYNC_FEATURES.accountSyncing,
-      false,
-    );
-
-    const mockSetStorage = jest.spyOn(controller, 'performSetStorage');
-
-    // Create mock account
-    const mockAccount = {
-      id: '123',
-      address: '0x123',
-      metadata: {
-        name: 'Test',
-        nameLastUpdatedAt: Date.now(),
-        keyring: {
-          type: KeyringTypes.hd,
-        },
-      },
-    } as InternalAccount;
-
-    await controller.saveInternalAccountToUserStorage(mockAccount);
-
-    expect(mockSetStorage).not.toHaveBeenCalled();
   });
 });
 

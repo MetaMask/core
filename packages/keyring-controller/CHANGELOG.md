@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+## [22.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^20.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146)), ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/keyring-internal-api` from `^6.2.0` to `^8.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146)), ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+## [22.1.0]
+
 ### Added
 
 - Add method `exportEncryptionKey` ([#5984](https://github.com/MetaMask/core/pull/5984))
@@ -804,7 +821,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...HEAD
+[22.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.0...@metamask/keyring-controller@22.1.1
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...@metamask/keyring-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...@metamask/keyring-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...@metamask/keyring-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...@metamask/keyring-controller@22.0.0

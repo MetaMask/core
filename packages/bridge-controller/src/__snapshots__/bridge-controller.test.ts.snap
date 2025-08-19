@@ -55,7 +55,6 @@ Array [
   Array [
     "Unified SwapBridge Completed",
     Object {
-      "action_type": "crosschain-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
       "chain_id_destination": "eip155:10",
@@ -92,11 +91,10 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
       "approval_transaction": "PENDING",
-      "can_submit": true,
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -132,8 +130,7 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
-      "can_submit": true,
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
@@ -169,7 +166,7 @@ Array [
   Array [
     "Unified SwapBridge Snap Confirmation Page Viewed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
@@ -194,8 +191,7 @@ Array [
   Array [
     "Unified SwapBridge Submitted",
     Object {
-      "action_type": "crosschain-v1",
-      "can_submit": true,
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
@@ -230,7 +226,7 @@ Array [
   Array [
     "Unified SwapBridge All Quotes Opened",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "can_submit": true,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
@@ -258,7 +254,7 @@ Array [
   Array [
     "Unified SwapBridge All Quotes Sorted",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
       "chain_id_destination": null,
@@ -288,7 +284,7 @@ Array [
   Array [
     "Unified SwapBridge Button Clicked",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "location": "Main View",
@@ -306,7 +302,7 @@ Array [
   Array [
     "Unified SwapBridge Source Destination Flipped",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "security_warnings": Array [
@@ -327,7 +323,7 @@ Array [
     "Unified SwapBridge Page Viewed",
     Object {
       "abc": 1,
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "token_address_destination": null,
@@ -342,9 +338,9 @@ Array [
   Array [
     "Unified SwapBridge Quote Selected",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": true,
+      "can_submit": false,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
@@ -373,7 +369,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Received",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
       "chain_id_destination": null,
@@ -407,39 +403,39 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "token_destination",
-      "value": "eip155:10/erc20:0x123",
+      "input_value": "eip155:10/erc20:0x123",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -460,9 +456,9 @@ Array [
   Array [
     "Unified SwapBridge Quotes Received",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": false,
+      "can_submit": true,
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -554,6 +550,32 @@ Array [
         "params": Object {
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAIEnLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHz7U6VQBhniAZG564p5JhG+y5+5uEABjxPtimE61bsqsz4TFeaDdmFmlW16xBf2qhUAUla7cIQjqp3HfLznM1aZqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVZ0EED+QHqrBQRqB+cbMfYZjXZcTe9r+CfdbguirL8P49t1pWG6qWtPmFmciR1xbrt4IW+b1nNcz2N5abYbCcsDgByJFz/oyJeNAhYJfn7erTZs6xJHjnuAV0v/cuH6iQNCzB1ajK9lOERjgtFNI8XDODau1kgDlDaRIGFfFNP09KMWgsU3Ye36HzgEdq38sqvZDFOifcDzPxfPOcDxeZgLShtMST0fB39lSGQI7f01fZv+JVg5S4qIF2zdmCAhSAAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAACMlyWPTiSJ8bs9ECkUjg2DC1oTmdr/EIQEjnvY2+n4WQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKkEedVb8jHAbu50xW7OaBUH/bGy3qP0jlECsc2iVrwTj1E+LF26QsO9gzDavYNO6ZflUDWJ+gBV9eCQ5OcuzAMStD/6J/XX9kp0wJsfKVh53ksJqzbfyd1RSzIap7OM5egJanTpAxnCBLW4j9Mn+DAuluhVY4cEgRJ9Pah1VqYQXzWdRJXp28EMpR0GPlVtcnRtTGlBHjaRvhFYLMMzzMD6CQoABQLAXBUACgAJA0ANAwAAAAAACwYAAQIbDA0ACwYAAwAcDA0BAQwCAAMMAgAAAFBGFTsAAAAADQEDAREOKQ0PAAMEBQEcGw4OEA4dDx4SBAYTFBUNBxYICQ4fDwYFFxgZGiAhIiMNKMEgmzNB1pyBAwIAAAAaZAABOGQBAlBGFTsAAAAAP4hnBwAAAABkAAANAwMAAAEJEQUAAgEbDLwBj+v8wtNahk0AAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOCjcXQcAAAAAAAAAAAAAAACUXhgAAAAAABb1AwAAAAAAGABuuH/gY8j1t421m3ekiET/qFVeKhVA3SJVS5OH/NW+oQMAAAAAAAAAAAAAAABCAAAAAAAAAAAAAAAAAAAAAAAAQrPV80YDAAAACwLaZwAAAAAAAAAAAAAAAAAAAAClqm4hcbQW4dJ+xTyowT2z+RqJzQADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAARE9whapJMxiYg1Y/S9bROWrjXfldZCFcyME/snbeFkkhAUXFisYKQMaKiVZfTkrqqg0GkW+iGFAaIHEbhkRX4YCBLoWvHI1OH2T2gSmTlKhBREUDA0H",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
         },
       },
       "snapId": "npm:@metamask/solana-snap",
@@ -717,6 +739,7 @@ Object {
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
@@ -745,6 +768,7 @@ Object {
   "quoteRequest": Object {
     "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     "destTokenAddress": "123d1",
+    "destWalletAddress": "SolanaWalletAddres1234",
     "insufficientBal": false,
     "slippage": 0.5,
     "srcChainId": "0x1",
@@ -763,39 +787,39 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "token_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -816,7 +840,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -837,7 +861,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -858,7 +882,7 @@ Array [
   Array [
     "Unified SwapBridge Quote Error",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -880,7 +904,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -904,9 +928,9 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -914,15 +938,15 @@ Array [
     Object {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
 ]

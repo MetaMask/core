@@ -9,8 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^8.0.0` to `^8.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.4.2` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054))
 - Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
-- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+- Bump `@metamask/controller-utils` to `^11.11.0` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
 
 ## [12.0.1]
 
@@ -372,7 +382,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...@metamask/message-manager@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.0...@metamask/message-manager@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.3...@metamask/message-manager@12.0.0
 [11.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.2...@metamask/message-manager@11.0.3

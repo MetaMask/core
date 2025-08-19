@@ -244,7 +244,6 @@ describe('MultichainAssetsRatesController', () => {
               to: 'swift:0/iso4217:USD',
             },
           ],
-          includeMarketData: true,
         },
       },
       snapId: 'test-snap',
@@ -407,12 +406,26 @@ describe('MultichainAssetsRatesController', () => {
         },
       })
       .mockResolvedValueOnce({
+        marketData: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+            'swift:0/iso4217:USD': fakeMarketData,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
             'swift:0/iso4217:USD': {
               rate: '200',
               conversionTime: 1738539923277,
             },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        marketData: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token1:501': {
+            'swift:0/iso4217:USD': fakeMarketData,
           },
         },
       });
@@ -490,6 +503,31 @@ describe('MultichainAssetsRatesController', () => {
     expect(controller.state.conversionRates).toStrictEqual({});
   });
 
+  it('does not make snap requests when updateAssetsRatesForNewAssets is called with no new assets', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapSpy = jest.fn().mockResolvedValue(fakeAccountRates);
+    messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
+
+    // Publish accountAssetListUpdated event with accounts that have no new assets (empty added arrays)
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [], // No new assets added
+          removed: [],
+        },
+      },
+    });
+
+    // Wait for the asynchronous subscriber to process the event
+    await Promise.resolve();
+
+    // Verify no snap requests were made since there are no new assets to process
+    expect(snapSpy).not.toHaveBeenCalled();
+    // Verify state remains empty
+    expect(controller.state.conversionRates).toStrictEqual({});
+  });
+
   it('updates state when currency is updated', async () => {
     const { controller, messenger } = setupController();
 
@@ -511,6 +549,166 @@ describe('MultichainAssetsRatesController', () => {
     );
 
     expect(updateSpy).toHaveBeenCalled();
+  });
+
+  describe('error handling in snap requests', () => {
+    it('handles JSON-RPC parameter validation errors gracefully', async () => {
+      const { controller, messenger } = setupController();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const paramValidationError = new Error(
+        'Invalid request params: At path: conversions.0.from -- Expected a value of type `CaipAssetType`, but received: `"swift:0/test-asset"`.',
+      );
+
+      const snapHandler = jest.fn().mockRejectedValue(paramValidationError);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the error with detailed context
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsConversion:',
+        expect.objectContaining({
+          snapId: 'test-snap',
+          handler: 'onAssetsConversion',
+          message: expect.stringContaining('Invalid request params'),
+          params: expect.objectContaining({
+            conversions: expect.arrayContaining([
+              expect.objectContaining({
+                from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+                to: 'swift:0/iso4217:USD',
+              }),
+            ]),
+          }),
+        }),
+      );
+
+      // Should not update state when snap request fails
+      expect(controller.state.conversionRates).toStrictEqual({});
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles generic snap request errors gracefully', async () => {
+      const { controller, messenger } = setupController();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const genericError = new Error('Network timeout');
+
+      const snapHandler = jest.fn().mockRejectedValue(genericError);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the error with detailed context
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsConversion:',
+        expect.objectContaining({
+          snapId: 'test-snap',
+          handler: 'onAssetsConversion',
+          message: 'Network timeout',
+          params: expect.any(Object),
+        }),
+      );
+
+      // Should not update state when snap request fails
+      expect(controller.state.conversionRates).toStrictEqual({});
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles mixed success and failure scenarios', async () => {
+      const { controller, messenger } = setupController({
+        accountsAssets: [fakeNonEvmAccount, fakeEvmAccount2],
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Mock different responses for different calls
+      const snapHandler = jest
+        .fn()
+        .mockResolvedValueOnce(fakeAccountRates) // First call succeeds (onAssetsConversion)
+        .mockResolvedValueOnce({
+          marketData: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              'swift:0/iso4217:USD': fakeMarketData,
+            },
+          },
+        }) // Second call succeeds (onAssetsMarketData)
+        .mockRejectedValueOnce(new Error('Snap request failed')) // Third call fails (onAssetsConversion)
+        .mockResolvedValueOnce(null); // Fourth call returns null (onAssetsMarketData)
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the error for the failed request
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsConversion:',
+        expect.objectContaining({
+          message: 'Snap request failed',
+        }),
+      );
+
+      // Should still update state for the successful request
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD',
+          marketData: fakeMarketData,
+        },
+      });
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('handles market data request errors independently', async () => {
+      const { controller, messenger } = setupController();
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Mock onAssetsConversion to succeed but onAssetsMarketData to fail
+      const snapHandler = jest
+        .fn()
+        .mockResolvedValueOnce(fakeAccountRates) // onAssetsConversion succeeds
+        .mockRejectedValueOnce(new Error('Market data unavailable')); // onAssetsMarketData fails
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      await controller.updateAssetsRates();
+
+      // Should have logged the market data error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Snap request failed for onAssetsMarketData:',
+        expect.objectContaining({
+          message: 'Market data unavailable',
+        }),
+      );
+
+      // Should still update state with conversion rates (without market data)
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD',
+        },
+      });
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('fetchHistoricalPricesForAsset', () => {
@@ -681,6 +879,156 @@ describe('MultichainAssetsRatesController', () => {
       await controller.fetchHistoricalPricesForAsset(testAsset);
 
       expect(snapHandler).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('line 331 coverage - skip accounts with no assets', () => {
+    it('should skip accounts that have no assets (empty array) and continue processing', async () => {
+      const accountWithNoAssets: InternalAccount = {
+        id: 'account1', // This account will have no assets
+        type: 'solana:data-account',
+        address: '0xNoAssets',
+        metadata: {
+          name: 'Account With No Assets',
+          // @ts-expect-error-next-line
+          snap: { id: 'test-snap', enabled: true },
+        },
+        scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        options: {},
+        methods: [],
+      };
+
+      const accountWithAssets: InternalAccount = {
+        id: 'account2', // This account will have assets
+        type: 'solana:data-account',
+        address: '0xWithAssets',
+        metadata: {
+          name: 'Account With Assets',
+          // @ts-expect-error-next-line
+          snap: { id: 'test-snap', enabled: true },
+        },
+        scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        options: {},
+        methods: [],
+      };
+
+      // Set up controller with custom accounts and assets configuration
+      const messenger = new Messenger<AllowedActions, AllowedEvents>();
+
+      // Mock MultichainAssetsController state with one account having no assets
+      messenger.registerActionHandler(
+        'MultichainAssetsController:getState',
+        () => ({
+          accountsAssets: {
+            account1: [], // Empty array - should trigger line 331 continue
+            account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'], // Has assets
+          },
+          assetsMetadata: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              name: 'Solana',
+              symbol: 'SOL',
+              fungible: true,
+              iconUrl: 'https://example.com/solana.png',
+              units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
+            },
+          },
+        }),
+      );
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [accountWithNoAssets, accountWithAssets], // Both accounts in the list
+      );
+
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedMultichainAccount',
+        () => accountWithAssets,
+      );
+
+      messenger.registerActionHandler(
+        'CurrencyRateController:getState',
+        () => ({
+          currentCurrency: 'USD',
+          currencyRates: {},
+        }),
+      );
+
+      // Track Snap calls to verify only the account with assets gets processed
+      const snapHandler = jest.fn().mockResolvedValue({
+        conversionRates: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+            USD: {
+              rate: '100.50',
+              conversionTime: Date.now(),
+            },
+          },
+        },
+      });
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      const controller = new MultichainAssetsRatesController({
+        messenger: messenger.getRestricted({
+          name: 'MultichainAssetsRatesController',
+          allowedActions: [
+            'MultichainAssetsController:getState',
+            'AccountsController:listMultichainAccounts',
+            'AccountsController:getSelectedMultichainAccount',
+            'CurrencyRateController:getState',
+            'SnapController:handleRequest',
+          ],
+          allowedEvents: [
+            'KeyringController:lock',
+            'KeyringController:unlock',
+            'AccountsController:accountAdded',
+            'CurrencyRateController:stateChange',
+            'MultichainAssetsController:accountAssetListUpdated',
+          ],
+        }),
+      });
+
+      await controller.updateAssetsRates();
+
+      // The snap handler gets called for both conversion rates and market data
+      // But we only care about the conversion rates call for this test
+      const conversionCalls = snapHandler.mock.calls.filter(
+        (call) => call[0].handler === 'onAssetsConversion',
+      );
+
+      // Verify that the conversion snap was called only once (for the account with assets)
+      // This confirms that the account with no assets was skipped via line 331 continue
+      expect(conversionCalls).toHaveLength(1);
+
+      // Verify that the conversion call was made with the correct structure
+      expect(snapHandler).toHaveBeenCalledWith({
+        handler: 'onAssetsConversion',
+        origin: 'metamask',
+        snapId: 'test-snap',
+        request: {
+          jsonrpc: '2.0',
+          method: 'onAssetsConversion',
+          params: {
+            conversions: [
+              {
+                from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+                to: 'swift:0/iso4217:USD',
+              },
+            ],
+          },
+        },
+      });
+
+      // Verify that conversion rates were updated only for the account with assets
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '100.50',
+          conversionTime: expect.any(Number),
+          currency: 'swift:0/iso4217:USD',
+        },
+      });
     });
   });
 });

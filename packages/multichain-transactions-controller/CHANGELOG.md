@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+## [4.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/keyring-internal-api` from `^7.0.0` to `^8.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/keyring-snap-client` from `^6.0.0` to `^7.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^31.0.0` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^9.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^11.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/keyring-internal-api` from `^6.2.0` to `^7.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/keyring-snap-client` from `^5.0.0` to `^6.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
 ## [3.0.0]
 
 ### Changed
@@ -150,7 +178,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@4.0.0...@metamask/multichain-transactions-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@3.0.0...@metamask/multichain-transactions-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@2.0.0...@metamask/multichain-transactions-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@1.0.0...@metamask/multichain-transactions-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.11.0...@metamask/multichain-transactions-controller@1.0.0

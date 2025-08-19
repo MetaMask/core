@@ -1,6 +1,10 @@
 import { getAmount, formatAmount } from './get-notification-data';
-import type { Types } from '../../NotificationServicesController';
-import { Constants } from '../../NotificationServicesController';
+import type {
+  NOTIFICATION_CHAINS_IDS,
+  Types,
+} from '../../NotificationServicesController';
+import type { Constants } from '../../NotificationServicesController';
+import { NOTIFICATION_NETWORK_CURRENCY_SYMBOL } from '../../NotificationServicesController/ui';
 
 export type TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => string;
@@ -235,7 +239,11 @@ export const createOnChainPushNotificationMessages = (
  * @returns The symbol associated with the chain ID, or null if not found.
  */
 function getChainSymbol(chainId: number) {
-  return Constants.CHAIN_SYMBOLS[chainId] ?? null;
+  return (
+    NOTIFICATION_NETWORK_CURRENCY_SYMBOL[
+      chainId.toString() as NOTIFICATION_CHAINS_IDS
+    ] ?? null
+  );
 }
 
 /**

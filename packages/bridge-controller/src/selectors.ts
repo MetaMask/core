@@ -38,6 +38,7 @@ import {
   calcAdjustedReturn,
   calcCost,
   calcEstimatedAndMaxTotalGasFee,
+  calcIncludedTxFees,
   calcRelayerFee,
   calcSentAmount,
   calcSolanaTotalNetworkFee,
@@ -166,10 +167,17 @@ const getExchangeRateByChainIdAndAddress = (
   const evmTokenExchangeRateForAddress = isStrictHexString(address)
     ? evmTokenExchangeRates?.[address]
     : null;
-  if (evmTokenExchangeRateForAddress) {
+  const nativeCurrencyRate = evmTokenExchangeRateForAddress
+    ? currencyRates[evmTokenExchangeRateForAddress?.currency]
+    : undefined;
+  if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
     return {
-      exchangeRate: evmTokenExchangeRateForAddress?.price.toString(),
-      usdExchangeRate: undefined,
+      exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
+        .toString(),
+      usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
+        .toString(),
     };
   }
 
@@ -258,14 +266,27 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
       const toTokenAmount = calcToAmount(quote.quote, destTokenExchangeRate);
 
-      let totalEstimatedNetworkFee, gasFee, totalMaxNetworkFee, relayerFee;
+      const includedTxFees = calcIncludedTxFees(
+        quote.quote,
+        srcTokenExchangeRate,
+        destTokenExchangeRate,
+      );
+
+      let totalEstimatedNetworkFee,
+        totalMaxNetworkFee,
+        relayerFee,
+        gasFee: QuoteMetadata['gasFee'];
 
       if (isSolanaChainId(quote.quote.srcChainId)) {
         totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
           quote,
           nativeExchangeRate,
         );
-        gasFee = totalEstimatedNetworkFee;
+        gasFee = {
+          effective: totalEstimatedNetworkFee,
+          total: totalEstimatedNetworkFee,
+          max: totalEstimatedNetworkFee,
+        };
         totalMaxNetworkFee = totalEstimatedNetworkFee;
       } else {
         relayerFee = calcRelayerFee(quote, nativeExchangeRate);
@@ -274,6 +295,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
           ...bridgeFeesPerGas,
           ...nativeExchangeRate,
         });
+        // Uses effectiveGasFee to calculate the total estimated network fee
         totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(
           gasFee,
           relayerFee,
@@ -284,6 +306,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
       const adjustedReturn = calcAdjustedReturn(
         toTokenAmount,
         totalEstimatedNetworkFee,
+        quote.quote,
       );
       const cost = calcCost(adjustedReturn, sentAmount);
 
@@ -298,6 +321,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         gasFee,
         adjustedReturn,
         cost,
+        includedTxFees,
       };
     });
 

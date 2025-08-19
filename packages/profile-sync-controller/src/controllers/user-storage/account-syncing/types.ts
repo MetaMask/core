@@ -1,3 +1,5 @@
+import type { TraceCallback } from '@metamask/controller-utils';
+
 import type {
   USER_STORAGE_VERSION_KEY,
   USER_STORAGE_VERSION,
@@ -24,4 +26,5 @@ export type UserStorageAccount = {
 export type AccountSyncingOptions = {
   getUserStorageControllerInstance: () => UserStorageController;
   getMessenger: () => UserStorageControllerMessenger;
+  trace?: TraceCallback;
 };

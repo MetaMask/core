@@ -246,13 +246,14 @@ async function getNestedTransactionMeta(
   ethQuery: EthQuery,
 ): Promise<NestedTransactionMetadata> {
   const { from } = request;
-  const { params } = singleRequest;
+  const { params, type: requestedType } = singleRequest;
 
-  const { type } = await determineTransactionType(
+  const { type: determinedType } = await determineTransactionType(
     { from, ...params },
     ethQuery,
   );
 
+  const type = requestedType ?? determinedType;
   return {
     ...params,
     type,
@@ -409,11 +410,13 @@ async function addTransactionBatchWithHook(
   const {
     from,
     networkClientId,
+    origin,
     requireApproval,
-    transactions: nestedTransactions,
+    transactions: requestedTransactions,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
+  let isSequentialBatchHook = false;
 
   log('Adding transaction batch using hook', userRequest);
 
@@ -435,10 +438,11 @@ async function addTransactionBatchWithHook(
 
   let publishBatchHook = null;
 
-  if (!disableHook) {
+  if (!disableHook && requestPublishBatchHook) {
     publishBatchHook = requestPublishBatchHook;
   } else if (!disableSequential) {
     publishBatchHook = sequentialPublishBatchHook.getHook();
+    isSequentialBatchHook = true;
   }
 
   if (!publishBatchHook) {
@@ -452,6 +456,10 @@ async function addTransactionBatchWithHook(
 
   let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
+  const nestedTransactions = requestedTransactions.map((tx) => ({
+    ...tx,
+    origin,
+  }));
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
@@ -488,17 +496,21 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[index],
     }));
 
-    log('Calling publish batch hook', { from, networkClientId, transactions });
+    const hookParams = { from, networkClientId, transactions };
 
-    const result = await publishBatchHook({
-      from,
-      networkClientId,
-      transactions,
-    });
+    log('Calling publish batch hook', hookParams);
+
+    let result = await publishBatchHook(hookParams);
 
     log('Publish batch hook result', result);
 
-    if (!result) {
+    if (!result && !isSequentialBatchHook && !disableSequential) {
+      log('Fallback to sequential publish batch hook due to empty results');
+      const sequentialBatchHook = sequentialPublishBatchHook.getHook();
+      result = await sequentialBatchHook(hookParams);
+    }
+
+    if (!result?.results?.length) {
       throw new Error('Publish batch hook did not return a result');
     }
 
@@ -544,7 +556,8 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, params } = nestedTransaction;
+  const { assetsFiatValues, existingTransaction, params, type } =
+    nestedTransaction;
 
   const {
     addTransaction,
@@ -553,7 +566,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId } = userRequest;
+  const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish, signedTransaction } = existingTransaction;
@@ -595,11 +608,14 @@ async function processTransactionWithHook(
   const { transactionMeta } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
+      assetsFiatValues,
       batchId,
       disableGasBuffer: true,
       networkClientId,
+      origin,
       publishHook,
       requireApproval: false,
+      type,
     },
   );
 
@@ -620,11 +636,16 @@ async function processTransactionWithHook(
     value,
   };
 
-  log('Processed new transaction with hook', { id, params: newParams });
+  log('Processed new transaction with hook', {
+    id,
+    params: newParams,
+    type,
+  });
 
   return {
     id,
     params: newParams,
+    type,
   };
 }
 

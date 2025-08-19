@@ -1,3 +1,5 @@
+import type { TokenAmountValues, TxData } from '@metamask/bridge-controller';
+import { toHex } from '@metamask/controller-utils';
 import type {
   GasFeeEstimates,
   GasFeeState,
@@ -5,8 +7,15 @@ import type {
 import type {
   FeeMarketGasFeeEstimates,
   TransactionController,
+  TransactionReceipt,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
+
+import type {
+  BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
+} from '../types';
 
 const getTransaction1559GasFeeEstimates = (
   txGasFeeEstimates: FeeMarketGasFeeEstimates,
@@ -49,4 +58,95 @@ export const getTxGasEstimates = ({
     txGasFeeEstimates as unknown as FeeMarketGasFeeEstimates,
     estimatedBaseFee,
   );
+};
+
+export const calculateGasFees = async (
+  disable7702: boolean,
+  messagingSystem: BridgeStatusControllerMessenger,
+  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee,
+  { chainId: _, gasLimit, ...trade }: TxData,
+  networkClientId: string,
+  chainId: Hex,
+  txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
+) => {
+  if (!disable7702) {
+    return {};
+  }
+  if (txFee) {
+    return { ...txFee, gas: gasLimit?.toString() };
+  }
+  const transactionParams = {
+    ...trade,
+    gas: gasLimit?.toString(),
+    data: trade.data as `0x${string}`,
+    to: trade.to as `0x${string}`,
+    value: trade.value as `0x${string}`,
+  };
+  const { gasFeeEstimates } = messagingSystem.call('GasFeeController:getState');
+  const { estimates: txGasFeeEstimates } = await estimateGasFeeFn({
+    transactionParams,
+    chainId,
+    networkClientId,
+  });
+  const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
+    networkGasFeeEstimates: gasFeeEstimates,
+    txGasFeeEstimates,
+  });
+  const maxGasLimit = toHex(transactionParams.gas ?? 0);
+
+  return {
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    gas: maxGasLimit,
+  };
+};
+
+const calcGasInHexWei = (gasLimit?: string, gasPrice?: string) => {
+  return gasLimit && gasPrice
+    ? new BigNumber(gasLimit, 16).times(new BigNumber(gasPrice, 16))
+    : null;
+};
+
+/**
+ * Calculate the effective gas used for a transaction and its approval tx
+ *
+ * @param bridgeHistoryItem - The bridge history item
+ * @param bridgeHistoryItem.pricingData - pricing data from the submitted quote
+ * @param txReceipt - tx receipt from the txMeta
+ * @param approvalTxReceipt - tx receipt from the approvalTxMeta
+ * @returns The actual gas used for the transaction in Wei and its value in USD
+ */
+export const calcActualGasUsed = (
+  { pricingData }: BridgeHistoryItem,
+  txReceipt?: TransactionReceipt,
+  approvalTxReceipt?: TransactionReceipt,
+): Omit<TokenAmountValues, 'valueInCurrency'> | null => {
+  const usdExchangeRate =
+    pricingData?.quotedGasInUsd && pricingData?.quotedGasAmount
+      ? new BigNumber(pricingData?.quotedGasInUsd).div(
+          pricingData.quotedGasAmount,
+        )
+      : null;
+
+  const actualGasInHexWei = calcGasInHexWei(
+    txReceipt?.gasUsed,
+    txReceipt?.effectiveGasPrice,
+  )?.plus(
+    calcGasInHexWei(
+      approvalTxReceipt?.gasUsed,
+      approvalTxReceipt?.effectiveGasPrice,
+    ) ?? 0,
+  );
+
+  const actualGasInDecEth = actualGasInHexWei
+    ?.div(new BigNumber(10).pow(18))
+    .toString(10);
+
+  return actualGasInHexWei && actualGasInDecEth
+    ? {
+        amount: actualGasInHexWei.toString(10),
+        usd:
+          usdExchangeRate?.multipliedBy(actualGasInDecEth).toString(10) ?? null,
+      }
+    : null;
 };

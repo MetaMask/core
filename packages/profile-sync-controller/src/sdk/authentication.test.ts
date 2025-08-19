@@ -166,12 +166,16 @@ describe('Authentication - constructor()', () => {
   });
 });
 
-describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () => {
+describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUserProfileMetaMetrics()', () => {
   it('the SRP signIn success', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
 
-    const { mockNonceUrl, mockSrpLoginUrl, mockOAuth2TokenUrl } =
-      arrangeAuthAPIs();
+    const {
+      mockNonceUrl,
+      mockSrpLoginUrl,
+      mockOAuth2TokenUrl,
+      mockUserProfileLineageUrl,
+    } = arrangeAuthAPIs();
 
     // Token
     const accessToken = await auth.getAccessToken();
@@ -181,10 +185,15 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
     const profileResponse = await auth.getUserProfile();
     expect(profileResponse).toBeDefined();
 
+    // User Profile Lineage
+    const userProfileLineage = await auth.getUserProfileLineage();
+    expect(userProfileLineage).toBeDefined();
+
     // API
     expect(mockNonceUrl.isDone()).toBe(true);
     expect(mockSrpLoginUrl.isDone()).toBe(true);
     expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(mockUserProfileLineageUrl.isDone()).toBe(true);
   });
 
   it('the SRP signIn failed: nonce error', async () => {

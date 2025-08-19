@@ -154,7 +154,7 @@ describe('ComposableController', () => {
     sinon.restore();
   });
 
-  describe('BaseControllerV2', () => {
+  describe('BaseController', () => {
     it('should compose controller state', () => {
       type ComposableControllerState = {
         FooController: FooControllerState;
@@ -250,7 +250,7 @@ describe('ComposableController', () => {
     });
   });
 
-  it('should notify listeners of BaseControllerV2 state change', () => {
+  it('should notify listeners of BaseController state change', () => {
     type ComposableControllerState = {
       QuzController: QuzControllerState;
       FooController: FooControllerState;

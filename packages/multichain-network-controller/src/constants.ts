@@ -1,5 +1,10 @@
 import { type StateMetadata } from '@metamask/base-controller';
-import { type CaipChainId, BtcScope, SolScope } from '@metamask/keyring-api';
+import {
+  type CaipChainId,
+  BtcScope,
+  SolScope,
+  TrxScope,
+} from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {
@@ -11,10 +16,15 @@ import type {
 
 export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
 export const BTC_TESTNET_NATIVE_ASSET = `${BtcScope.Testnet}/slip44:0`;
+export const BTC_TESTNET4_NATIVE_ASSET = `${BtcScope.Testnet4}/slip44:0`;
 export const BTC_SIGNET_NATIVE_ASSET = `${BtcScope.Signet}/slip44:0`;
+export const BTC_REGTEST_NATIVE_ASSET = `${BtcScope.Regtest}/slip44:0`;
 export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/slip44:501`;
 export const SOL_TESTNET_NATIVE_ASSET = `${SolScope.Testnet}/slip44:501`;
 export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
+export const TRX_NATIVE_ASSET = `${TrxScope.Mainnet}/slip44:195`;
+export const TRX_NILE_NATIVE_ASSET = `${TrxScope.Nile}/slip44:195`;
+export const TRX_SHASTA_NATIVE_ASSET = `${TrxScope.Shasta}/slip44:195`;
 
 /**
  * Supported networks by the MultichainNetworkController
@@ -35,10 +45,22 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     nativeCurrency: BTC_TESTNET_NATIVE_ASSET,
     isEvm: false,
   },
+  [BtcScope.Testnet4]: {
+    chainId: BtcScope.Testnet4,
+    name: 'Bitcoin Testnet4',
+    nativeCurrency: BTC_TESTNET4_NATIVE_ASSET,
+    isEvm: false,
+  },
   [BtcScope.Signet]: {
     chainId: BtcScope.Signet,
-    name: 'Bitcoin Signet',
+    name: 'Bitcoin Mutinynet',
     nativeCurrency: BTC_SIGNET_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [BtcScope.Regtest]: {
+    chainId: BtcScope.Regtest,
+    name: 'Bitcoin Regtest',
+    nativeCurrency: BTC_REGTEST_NATIVE_ASSET,
     isEvm: false,
   },
   [SolScope.Mainnet]: {
@@ -59,6 +81,24 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     nativeCurrency: SOL_DEVNET_NATIVE_ASSET,
     isEvm: false,
   },
+  [TrxScope.Mainnet]: {
+    chainId: TrxScope.Mainnet,
+    name: 'Tron',
+    nativeCurrency: TRX_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [TrxScope.Nile]: {
+    chainId: TrxScope.Nile,
+    name: 'Tron Nile',
+    nativeCurrency: TRX_NILE_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [TrxScope.Shasta]: {
+    chainId: TrxScope.Shasta,
+    name: 'Tron Shasta',
+    nativeCurrency: TRX_SHASTA_NATIVE_ASSET,
+    isEvm: false,
+  },
 };
 
 /**
@@ -68,9 +108,13 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
  */
 export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   BtcScope.Testnet,
+  BtcScope.Testnet4,
   BtcScope.Signet,
+  BtcScope.Regtest,
   SolScope.Testnet,
   SolScope.Devnet,
+  TrxScope.Nile,
+  TrxScope.Shasta,
 ];
 
 /**
@@ -82,6 +126,10 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
     status: NetworkStatus.Available,
   },
   [SolScope.Mainnet]: {
+    features: [],
+    status: NetworkStatus.Available,
+  },
+  [TrxScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
@@ -122,10 +170,15 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
 export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
   [BtcScope.Mainnet]: 'BTC',
   [BtcScope.Testnet]: 'tBTC',
+  [BtcScope.Testnet4]: 'tBTC',
   [BtcScope.Signet]: 'sBTC',
+  [BtcScope.Regtest]: 'rBTC',
   [SolScope.Mainnet]: 'SOL',
   [SolScope.Testnet]: 'tSOL',
   [SolScope.Devnet]: 'dSOL',
+  [TrxScope.Mainnet]: 'TRX',
+  [TrxScope.Nile]: 'tTRX',
+  [TrxScope.Shasta]: 'sTRX',
 } as const;
 
 /**
@@ -135,8 +188,13 @@ export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
 export const MULTICHAIN_NETWORK_DECIMAL_PLACES: Record<CaipChainId, number> = {
   [BtcScope.Mainnet]: 8,
   [BtcScope.Testnet]: 8,
+  [BtcScope.Testnet4]: 8,
   [BtcScope.Signet]: 8,
+  [BtcScope.Regtest]: 8,
   [SolScope.Mainnet]: 5,
   [SolScope.Testnet]: 5,
   [SolScope.Devnet]: 5,
+  [TrxScope.Mainnet]: 6,
+  [TrxScope.Nile]: 6,
+  [TrxScope.Shasta]: 6,
 } as const;

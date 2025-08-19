@@ -7,11 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.1.0]
+
+### Added
+
+- The object in the `NetworkController:rpcEndpointDegraded` event payload now includes an `error` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - This `error` property will be `undefined` if the degraded event merely represents a slow request
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [24.0.1]
+
 ### Changed
 
 - Requests to an RPC endpoint that returns a 502 response ("bad gateway") will now be retried ([#5923](https://github.com/MetaMask/core/pull/5923))
 - All JSON-RPC errors that represent 4xx and 5xx responses from RPC endpoints now include the HTTP status code under `data.httpStatus` ([#5923](https://github.com/MetaMask/core/pull/5923))
 - 3xx responses from RPC endpoints are no longer treated as errors ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 
 ### Fixed
 
@@ -21,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If an RPC endpoint returns a 402, 404, or 5xx response, it is now represented as a JSON-RPC error with code -32002 (resource unavailable error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
 - If an RPC endpoint returns a 4xx response besides 401, 402, 404, 405, or 429, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
 - Improve detection of partial JSON responses from RPC endpoints ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Fix "Request cannot be constructed from a URL that includes credentials" error when using RPC endpoints with embedded credentials ([#6116](https://github.com/MetaMask/core/pull/6116))
 
 ## [24.0.0]
 
@@ -900,7 +917,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...HEAD
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1

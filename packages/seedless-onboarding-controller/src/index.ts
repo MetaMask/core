@@ -1,6 +1,6 @@
 export {
   SeedlessOnboardingController,
-  getDefaultSeedlessOnboardingControllerState,
+  getInitialSeedlessOnboardingControllerStateWithDefaults as getDefaultSeedlessOnboardingControllerState,
 } from './SeedlessOnboardingController';
 export type {
   AuthenticatedUserDetails,
@@ -21,4 +21,5 @@ export {
   AuthConnection,
   SecretType,
 } from './constants';
+export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError } from './errors';

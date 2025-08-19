@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action
+  - This callback needs to be wired to client specific selectors in order to fetch the value of the feature flag dynamically
+  - If `true`, Account syncing will stop pushing new data to the user storage and only act as an account restoration method that will be fired before multichain account syncing for legacy compatibility
+  - This is done because `AccountTreeController` will become responsible for Multichain Account syncing
+
+### Changed
+
+- Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
+- Bump `@noble/ciphers` from `^0.5.2` to `^1.3.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+### Removed
+
+- Unused `UserStorageController:saveInternalAccountToUserStorage` public method
+
+## [23.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `AuthenticationController:getUserProfileMetaMetrics` to `AuthenticationController:getUserProfileLineage` ([#6211](https://github.com/MetaMask/core/pull/6211))
+  - Rename API endpoint from `/api/v2/profile/metametrics` to `/api/v2/profile/lineage`
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^31.0.0` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+
+## [21.0.0]
+
+### Added
+
+- Add performance tracing to user storage syncing operations (contacts and accounts) ([#6050](https://github.com/MetaMask/core/pull/6050))
+- Add `env` options in both `AuthenticationController` and `UserStorageController`'s `config` constructor param ([#6082](https://github.com/MetaMask/core/pull/6082))
+  - This will let consumers choose to use prod, dev or UAT environments for Identity operations
+
+### Removed
+
+- **BREAKING**: Remove schema enforcement for user storage paths ([#6075](https://github.com/MetaMask/core/pull/6075))
+  - This will improve DX by preventing developers from having to update the schema before using the SDK or Controllers for their features.
+- **BREAKING**: Remove network syncing code ([#6081](https://github.com/MetaMask/core/pull/6081))
+  - This code has never been used in production, and won't likely be used in the future
+  - Remove `@metamask/network-controller` dependency and peerDependency
+
+## [20.0.0]
+
+### Added
+
+- Add new `AuthenticationController:getUserProfileMetaMetrics` method ([#6068](https://github.com/MetaMask/core/pull/6068))
+  - This method fetches data using the Authentication API, returning all MetaMetrics sessions related to the currently authenticated user, in the form of `typeof UserProfileMetaMetrics`
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^9.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^11.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+
 ## [19.0.0]
 
 ### Changed
@@ -638,7 +700,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@22.0.0...@metamask/profile-sync-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@21.0.0...@metamask/profile-sync-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...@metamask/profile-sync-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...@metamask/profile-sync-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@18.0.0...@metamask/profile-sync-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.1.0...@metamask/profile-sync-controller@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@17.0.0...@metamask/profile-sync-controller@17.1.0

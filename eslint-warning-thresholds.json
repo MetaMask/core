@@ -17,16 +17,6 @@
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
     "import-x/namespace": 2
   },
-  "packages/assets-controllers/src/AccountTrackerController.ts": {
-    "jsdoc/check-tag-names": 5
-  },
-  "packages/assets-controllers/src/AssetsContractController.test.ts": {
-    "import-x/order": 3
-  },
-  "packages/assets-controllers/src/AssetsContractController.ts": {
-    "jsdoc/check-tag-names": 2,
-    "jsdoc/tag-lines": 1
-  },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 1
@@ -63,15 +53,13 @@
     "import-x/order": 1
   },
   "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
-    "prettier/prettier": 1
+    "jest/no-commented-out-tests": 1
+  },
+  "packages/assets-controllers/src/Standards/NftStandards/ERC1155/ERC1155Standard.test.ts": {
+    "import-x/no-named-as-default-member": 1
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
     "prettier/prettier": 1
-  },
-  "packages/assets-controllers/src/TokenBalancesController.ts": {
-    "@typescript-eslint/prefer-readonly": 4,
-    "jsdoc/check-tag-names": 4,
-    "jsdoc/tag-lines": 11
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
     "import-x/namespace": 11,
@@ -112,14 +100,8 @@
   "packages/assets-controllers/src/assetsUtil.ts": {
     "jsdoc/tag-lines": 2
   },
-  "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.ts": {
-    "jsdoc/tag-lines": 2
-  },
   "packages/assets-controllers/src/multicall.test.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 2
-  },
-  "packages/assets-controllers/src/multicall.ts": {
-    "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/token-prices-service/codefi-v2.test.ts": {
     "jsdoc/require-returns": 1
@@ -127,17 +109,11 @@
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
     "jsdoc/tag-lines": 2
   },
-  "packages/base-controller/src/BaseControllerV2.test.ts": {
+  "packages/base-controller/src/BaseController.test.ts": {
     "import-x/namespace": 16
   },
-  "packages/base-controller/src/BaseControllerV2.ts": {
+  "packages/base-controller/src/BaseController.ts": {
     "jsdoc/check-tag-names": 2
-  },
-  "packages/base-controller/src/Messenger.test.ts": {
-    "import-x/namespace": 33
-  },
-  "packages/base-controller/src/RestrictedMessenger.test.ts": {
-    "import-x/namespace": 31
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
@@ -165,7 +141,6 @@
   },
   "packages/controller-utils/src/util.test.ts": {
     "import-x/no-named-as-default": 1,
-    "import-x/order": 1,
     "jest/no-conditional-in-test": 1,
     "promise/param-names": 2
   },

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+### Deprecated
+
+- Deprecate preference `smartAccountOptInForAccounts` and function `setSmartAccountOptInForAccounts` ([#6087](https://github.com/MetaMask/core/pull/6087))
+
+## [18.4.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+
+## [18.4.0]
+
+### Changed
+
+- Initialise preference smartAccountOptIn with true value ([#6040](https://github.com/MetaMask/core/pull/6040))
+
+## [18.3.0]
+
+### Added
+
+- Add `smartAccountOptIn`, `smartAccountOptInForAccounts` preferences ([#6036](https://github.com/MetaMask/core/pull/6036))
+
 ## [18.2.0]
 
 ### Added
@@ -382,7 +410,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...HEAD
+[18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
+[18.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.3.0...@metamask/preferences-controller@18.4.0
+[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.2.0...@metamask/preferences-controller@18.3.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.1.0...@metamask/preferences-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.0.0...@metamask/preferences-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@17.0.0...@metamask/preferences-controller@18.0.0

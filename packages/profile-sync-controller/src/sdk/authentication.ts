@@ -6,7 +6,11 @@ import {
   getNonce,
   pairIdentifiers,
 } from './authentication-jwt-bearer/services';
-import type { UserProfile, Pair } from './authentication-jwt-bearer/types';
+import type {
+  UserProfile,
+  Pair,
+  UserProfileLineage,
+} from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import { PairError, UnsupportedAuthTypeError } from './errors';
 import type { Env } from '../shared/env';
@@ -70,6 +74,10 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
   async getIdentifier(entropySourceId?: string): Promise<string> {
     return await this.#sdk.getIdentifier(entropySourceId);
+  }
+
+  async getUserProfileLineage(): Promise<UserProfileLineage> {
+    return await this.#sdk.getUserProfileLineage();
   }
 
   async signMessage(

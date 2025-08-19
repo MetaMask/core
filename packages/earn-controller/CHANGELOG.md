@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+## [5.0.0]
+
+### Added
+
+- **BREAKING:** Added mandatory parameter `selectedNetworkClientId` to `EarnController` constructor ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Added mandatory `chainId` parameter to `executeLendingTokenApprove`, `executeLendingWithdraw`, `executeLendingDeposit`, `getLendingMarketDailyApysAndAverages` and `getLendingPositionHistory` methods ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** Changed `refreshPooledStakingVaultDailyApys` to accept an options object with `chainId`, `days`, and `order` properties, where `chainId` is a new option, instead of separate parameters `days` and `order` ([#6153](https://github.com/MetaMask/core/pull/6153))
+- Added optional `chainId` parameter to `refreshPooledStakingVaultApyAverages`, `refreshPooledStakingVaultMetadata` and `refreshPooledStakes` (defaults to Ethereum) ([#6153](https://github.com/MetaMask/core/pull/6153))
+
+### Changed
+
+- **BREAKING:** Removed usages of `NetworkController:getState` for GNS removal. ([#6153](https://github.com/MetaMask/core/pull/6153))
+- **BREAKING:** `EarnController` messenger must now allow `NetworkController:networkDidChange` and must not allow `NetworkController:getState` and `NetworkController:stateChange` ([#6153](https://github.com/MetaMask/core/pull/6153))
+- `refreshPooledStakingData` now refreshes for all supported chains, not just global chain ([#6153](https://github.com/MetaMask/core/pull/6153))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
+
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Removed `chainId` parameter from `refreshPooledStakingVaultMetadata`, `refreshPooledStakingVaultDailyApys`, `refreshPooledStakingVaultApyAverages`, and `refreshPooledStakes` methods. ([#6106](https://github.com/MetaMask/core/pull/6106))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+
+## [2.0.1]
+
+### Changed
+
+- Changes `EarnController.addTransaction` gasLimit logic in several methods such that the param can be set undefined through contract method param `gasOptions.gasLimit` being set to `none` ([#6038](https://github.com/MetaMask/core/pull/6038))
+  - `executeLendingDeposit`
+  - `executeLendingWithdraw`
+  - `executeLendingTokenApprove`
+
 ## [2.0.0]
 
 ### Changed
@@ -210,7 +252,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@4.0.0...@metamask/earn-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@3.0.0...@metamask/earn-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.1...@metamask/earn-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@2.0.0...@metamask/earn-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.1...@metamask/earn-controller@2.0.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.1.0...@metamask/earn-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@1.0.0...@metamask/earn-controller@1.1.0

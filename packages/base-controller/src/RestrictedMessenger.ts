@@ -106,7 +106,7 @@ export class RestrictedMessenger<
    *
    * The action type this handler is registered under *must* be in the current namespace.
    *
-   * @param action - The action type. This is a unqiue identifier for this action.
+   * @param action - The action type. This is a unique identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw if an action handler that is not in the current namespace is being registered.
@@ -124,6 +124,22 @@ export class RestrictedMessenger<
       );
     }
     this.#messenger.registerActionHandler(action, handler);
+  }
+
+  /**
+   * Registers action handlers for a list of methods on a messenger client
+   *
+   * @param messengerClient - The object that is expected to make use of the messenger.
+   * @param methodNames - The names of the methods on the messenger client to register as action
+   * handlers.
+   * @template MessengerClient - The type expected to make use of the messenger.
+   * @template MethodNames - The type union of method names to register as action handlers.
+   */
+  registerMethodActionHandlers<
+    MessengerClient extends { name: string },
+    MethodNames extends keyof MessengerClient & string,
+  >(messengerClient: MessengerClient, methodNames: readonly MethodNames[]) {
+    this.#messenger.registerMethodActionHandlers(messengerClient, methodNames);
   }
 
   /**
@@ -159,7 +175,7 @@ export class RestrictedMessenger<
    *
    * The action type being called must be on the action allowlist.
    *
-   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unique identifier for this action.
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
@@ -194,6 +210,7 @@ export class RestrictedMessenger<
    * @param args - The arguments to this function
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
+   * @template EventType - A type union of Event type strings.
    */
   registerInitialEventPayload<
     EventType extends Event['type'] & NamespacedName<Namespace>,
@@ -299,7 +316,9 @@ export class RestrictedMessenger<
     SelectorReturnValue,
   >(
     event: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
     selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ) {
     if (!this.#isAllowedEvent(event)) {
@@ -309,7 +328,10 @@ export class RestrictedMessenger<
     if (selector) {
       return this.#messenger.subscribe(event, handler, selector);
     }
-    return this.#messenger.subscribe(event, handler);
+    return this.#messenger.subscribe(
+      event,
+      handler as ExtractEventHandler<Event, EventType>,
+    );
   }
 
   /**
@@ -323,12 +345,19 @@ export class RestrictedMessenger<
    * @param handler - The event handler to unregister.
    * @throws Will throw if the given event is not an allowed event for this messenger.
    * @template EventType - A type union of allowed Event type strings.
+   * @template SelectorReturnValue - The selector return value.
    */
   unsubscribe<
     EventType extends
       | AllowedEvent
       | (Event['type'] & NamespacedName<Namespace>),
-  >(event: EventType, handler: ExtractEventHandler<Event, EventType>) {
+    SelectorReturnValue = unknown,
+  >(
+    event: EventType,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
+  ) {
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }

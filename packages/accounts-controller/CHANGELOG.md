@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+  - Bump `@metamask/eth-snap-keyring` from `^16.0.0` to `^16.1.0`
+
+## [32.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^19.0.0` to `^20.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/keyring-internal-api` from `^7.0.0` to `^8.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/eth-snap-keyring` from `^14.0.0` to `^16.0.0` ([#6248](https://github.com/MetaMask/core/pull/6248))
+
+### Fixed
+
+- Stop updating `selectedAccount` unnecesarily ([#6218](https://github.com/MetaMask/core/pull/6218))
+
+## [32.0.1]
+
+### Fixed
+
+- Allow extra `options` properties when detecting BIP-44 Snap account ([#6189](https://github.com/MetaMask/core/pull/6189))
+
+## [32.0.0]
+
+### Added
+
+- Use new typed `KeyringAccount.options` for BIP-44 compatible accounts ([#6122](https://github.com/MetaMask/core/pull/6122)), ([#6147](https://github.com/MetaMask/core/pull/6147))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-sdk` from `^7.1.0` to `^9.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/snaps-utils` from `^9.4.0` to `^11.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^19.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/keyring-internal-api` from `^6.2.0` to `^7.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/keyring-utils` from `^3.0.0` to `^3.1.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/eth-snap-keyring` from `^13.0.0` to `^14.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
 ## [31.0.0]
 
 ### Changed
@@ -555,7 +598,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@32.0.2...HEAD
+[32.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@32.0.1...@metamask/accounts-controller@32.0.2
+[32.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@32.0.0...@metamask/accounts-controller@32.0.1
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@31.0.0...@metamask/accounts-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@30.0.0...@metamask/accounts-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.1...@metamask/accounts-controller@30.0.0
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@29.0.0...@metamask/accounts-controller@29.0.1
