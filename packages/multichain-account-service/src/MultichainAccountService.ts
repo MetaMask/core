@@ -5,13 +5,13 @@ import {
 import type {
   MultichainAccountWalletId,
   Bip44Account,
+  AccountProvider,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { BaseAccountProvider } from './providers/BaseAccountProvider';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -23,7 +23,7 @@ export const serviceName = 'MultichainAccountService';
  */
 type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: BaseAccountProvider[];
+  providers?: AccountProvider<Bip44Account<KeyringAccount>>[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -38,7 +38,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: BaseAccountProvider[];
+  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
