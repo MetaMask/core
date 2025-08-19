@@ -12,6 +12,14 @@ export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
 ) => Promise<KeyringAccount>;
 
+export const isSnapAccountProvider = (
+  provider: unknown,
+): provider is SnapAccountProvider => {
+  return (
+    provider !== null && typeof provider === 'object' && 'snapId' in provider
+  );
+};
+
 export abstract class SnapAccountProvider extends BaseAccountProvider {
   readonly snapId: SnapId;
 
@@ -34,6 +42,33 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
     console.log(
       `Snap provider ${this.constructor.name} ${disabled ? 'disabled' : 'enabled'}`,
     );
+  }
+
+  /**
+   * Override getAccounts to return empty array when disabled.
+   *
+   * @returns The array of accounts, or empty array if disabled.
+   */
+  getAccounts(): Bip44Account<KeyringAccount>[] {
+    if (this.isDisabled) {
+      return [];
+    }
+    return super.getAccounts();
+  }
+
+  /**
+   * Override getAccount to throw error when disabled.
+   *
+   * @param id - The account ID to retrieve.
+   * @returns The account with the specified ID.
+   */
+  getAccount(
+    id: Bip44Account<KeyringAccount>['id'],
+  ): Bip44Account<KeyringAccount> {
+    if (this.isDisabled) {
+      throw new Error(`${this.constructor.name} is disabled`);
+    }
+    return super.getAccount(id);
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<

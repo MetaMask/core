@@ -13,7 +13,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import type { SnapAccountProvider } from './providers/SnapAccountProvider';
+import { isSnapAccountProvider } from './providers/SnapAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -67,7 +67,10 @@ export class MultichainAccountService {
    * @param options.providers - Optional list of account
    * providers.
    */
-  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
+  constructor({
+    messenger,
+    providers = [],
+  }: MultichainAccountServiceOptions<Bip44Account<KeyringAccount>>) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
@@ -377,8 +380,8 @@ export class MultichainAccountService {
 
     // Loop through providers and disable only snap-based ones when basic functionality is disabled
     for (const provider of this.#providers) {
-      if ('snapId' in provider) {
-        (provider as SnapAccountProvider).setDisabled(!enabled);
+      if (isSnapAccountProvider(provider)) {
+        provider.setDisabled(!enabled);
       }
       // Regular providers (like EVM) are never disabled for basic functionality
     }
