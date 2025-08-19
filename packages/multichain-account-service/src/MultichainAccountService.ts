@@ -22,9 +22,11 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions = {
+type MultichainAccountServiceOptions<
+  Account extends Bip44Account<KeyringAccount>,
+> = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: AccountProvider<Bip44Account<KeyringAccount>>[];
+  providers?: AccountProvider<Account>[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */

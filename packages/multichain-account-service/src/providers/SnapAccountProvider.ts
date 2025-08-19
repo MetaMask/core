@@ -36,7 +36,16 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
     );
   }
 
-  protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
+  protected async getRestrictedSnapAccountCreator(): Promise<
+    RestrictedSnapKeyringCreateAccount | []
+  > {
+    if (this.isDisabled) {
+      console.log(
+        `${this.constructor.name} is disabled - skipping account creation`,
+      );
+      return [];
+    }
+
     // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
     // we have to use the `SnapKeyring` instance to be able to create Solana account
     // without triggering UI confirmation.

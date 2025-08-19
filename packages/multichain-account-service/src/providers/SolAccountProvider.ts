@@ -33,12 +33,6 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    if (this.isDisabled) {
-      console.log(
-        `${this.constructor.name} is disabled - skipping account creation`,
-      );
-      return [];
-    }
     const createAccount = await this.getRestrictedSnapAccountCreator();
 
     // Create account without any confirmation nor selecting it.
