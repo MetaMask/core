@@ -149,6 +149,10 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
       },
     },
   ],
+  sponsorship: {
+    isSponsored: false,
+    error: null,
+  },
 };
 
 /**
@@ -174,6 +178,10 @@ function createEventResponseMock(
 ): SimulationResponse {
   return {
     transactions: [{ ...defaultResponseTx, callTrace: { calls: [], logs } }],
+    sponsorship: {
+      isSponsored: false,
+      error: null,
+    },
   };
 }
 
@@ -847,6 +855,10 @@ describe('Simulation Utils', () => {
               defaultResponseTx,
               { ...defaultResponseTx, return: RAW_BALANCE_AFTER },
             ],
+            sponsorship: {
+              isSponsored: false,
+              error: null,
+            },
           });
 
         const result = await getBalanceChanges(REQUEST_MOCK);
@@ -930,6 +942,10 @@ describe('Simulation Utils', () => {
               return: '0x',
             },
           ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
         });
 
         const result = await getBalanceChanges(REQUEST_MOCK);
@@ -951,6 +967,10 @@ describe('Simulation Utils', () => {
               return: '0x',
             },
           ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
         });
 
         const result = await getBalanceChanges(REQUEST_MOCK);

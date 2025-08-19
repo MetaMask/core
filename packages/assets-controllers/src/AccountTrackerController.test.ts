@@ -953,3 +953,365 @@ async function withController<ReturnValue>(
     refresh,
   });
 }
+
+describe('AccountTrackerController batch update methods', () => {
+  describe('updateNativeBalances', () => {
+    it('should update multiple native token balances in a single operation', async () => {
+      await withController({}, async ({ controller }) => {
+        const balanceUpdates = [
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000', // 2 ETH
+          },
+          {
+            address: CHECKSUM_ADDRESS_2,
+            chainId: '0x1' as const,
+            balance: '0x38d7ea4c68000', // 1 ETH
+          },
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x89' as const, // Polygon
+            balance: '0x56bc75e2d630eb20', // 6.25 MATIC
+          },
+        ];
+
+        controller.updateNativeBalances(balanceUpdates);
+
+        expect(controller.state.accountsByChainId).toStrictEqual({
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x1bc16d674ec80000' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x38d7ea4c68000' },
+          },
+          '0x89': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x56bc75e2d630eb20' },
+          },
+        });
+      });
+    });
+
+    it('should create new chain entries when updating balances for new chains', async () => {
+      await withController({}, async ({ controller }) => {
+        const balanceUpdates = [
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0xa4b1' as const, // Arbitrum
+            balance: '0x2386f26fc10000', // 0.01 ETH
+          },
+        ];
+
+        controller.updateNativeBalances(balanceUpdates);
+
+        expect(controller.state.accountsByChainId['0xa4b1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x2386f26fc10000' },
+        });
+      });
+    });
+
+    it('should create new account entries when updating balances for new addresses', async () => {
+      await withController({}, async ({ controller }) => {
+        // First set an existing balance
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000',
+          },
+        ]);
+
+        // Then add a new address on the same chain
+        const newAddress = '0x1234567890123456789012345678901234567890';
+        controller.updateNativeBalances([
+          {
+            address: newAddress,
+            chainId: '0x1' as const,
+            balance: '0x38d7ea4c68000',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x1bc16d674ec80000' },
+          [newAddress]: { balance: '0x38d7ea4c68000' },
+        });
+      });
+    });
+
+    it('should update existing balances without affecting other properties', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x0',
+                    stakedBalance: '0x5',
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          // Update only native balance
+          controller.updateNativeBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              balance: '0x1bc16d674ec80000',
+            },
+          ]);
+
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1],
+          ).toStrictEqual({
+            balance: '0x1bc16d674ec80000',
+            stakedBalance: '0x5', // Should remain unchanged
+          });
+        },
+      );
+    });
+
+    it('should handle empty balance updates array', async () => {
+      await withController({}, async ({ controller }) => {
+        const initialState = controller.state.accountsByChainId;
+
+        controller.updateNativeBalances([]);
+
+        expect(controller.state.accountsByChainId).toStrictEqual(initialState);
+      });
+    });
+
+    it('should handle zero balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x0',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+        });
+      });
+    });
+  });
+
+  describe('updateStakedBalances', () => {
+    it('should update multiple staked balances in a single operation', async () => {
+      await withController({}, async ({ controller }) => {
+        const stakedBalanceUpdates = [
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x1bc16d674ec80000', // 2 ETH staked
+          },
+          {
+            address: CHECKSUM_ADDRESS_2,
+            chainId: '0x1' as const,
+            stakedBalance: '0x38d7ea4c68000', // 1 ETH staked
+          },
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x89' as const, // Polygon
+            stakedBalance: '0x56bc75e2d630eb20', // 6.25 MATIC staked
+          },
+        ];
+
+        controller.updateStakedBalances(stakedBalanceUpdates);
+
+        expect(controller.state.accountsByChainId).toStrictEqual({
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x0',
+              stakedBalance: '0x1bc16d674ec80000',
+            },
+            [CHECKSUM_ADDRESS_2]: {
+              balance: '0x0',
+              stakedBalance: '0x38d7ea4c68000',
+            },
+          },
+          '0x89': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x0',
+              stakedBalance: '0x56bc75e2d630eb20',
+            },
+          },
+        });
+      });
+    });
+
+    it('should handle undefined staked balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: undefined,
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x0', stakedBalance: undefined },
+        });
+      });
+    });
+
+    it('should create new chain and account entries for staked balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0xa4b1' as const, // Arbitrum
+            stakedBalance: '0x2386f26fc10000',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0xa4b1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: {
+            balance: '0x0',
+            stakedBalance: '0x2386f26fc10000',
+          },
+        });
+      });
+    });
+
+    it('should update staked balances without affecting native balances', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x1bc16d674ec80000',
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          // Update only staked balance
+          controller.updateStakedBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              stakedBalance: '0x38d7ea4c68000',
+            },
+          ]);
+
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1],
+          ).toStrictEqual({
+            balance: '0x1bc16d674ec80000', // Should remain unchanged
+            stakedBalance: '0x38d7ea4c68000',
+          });
+        },
+      );
+    });
+
+    it('should handle zero staked balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x0',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x0', stakedBalance: '0x0' },
+        });
+      });
+    });
+
+    it('should handle empty staked balance updates array', async () => {
+      await withController({}, async ({ controller }) => {
+        const initialState = controller.state.accountsByChainId;
+
+        controller.updateStakedBalances([]);
+
+        expect(controller.state.accountsByChainId).toStrictEqual(initialState);
+      });
+    });
+  });
+
+  describe('combined native and staked balance updates', () => {
+    it('should handle both native and staked balance updates for the same account', async () => {
+      await withController({}, async ({ controller }) => {
+        // Update native balance first
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000',
+          },
+        ]);
+
+        // Then update staked balance
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x38d7ea4c68000',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: {
+            balance: '0x1bc16d674ec80000',
+            stakedBalance: '0x38d7ea4c68000',
+          },
+        });
+      });
+    });
+
+    it('should maintain independent state for different chains', async () => {
+      await withController({}, async ({ controller }) => {
+        // Update balances on mainnet
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000',
+          },
+        ]);
+
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x38d7ea4c68000',
+          },
+        ]);
+
+        // Update balances on polygon
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x89' as const,
+            balance: '0x56bc75e2d630eb20',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId).toStrictEqual({
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x1bc16d674ec80000',
+              stakedBalance: '0x38d7ea4c68000',
+            },
+          },
+          '0x89': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x56bc75e2d630eb20',
+            },
+          },
+        });
+      });
+    });
+  });
+});
