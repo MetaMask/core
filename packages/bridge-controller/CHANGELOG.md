@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
   - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+- Bump `@metamask/assets-controller` from `^73.1.0` to `^73.2.0` ([#6322](https://github.com/MetaMask/core/pull/6322))
+
+## [39.1.0]
 
 ### Fixed
 
@@ -497,7 +500,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.1.0...HEAD
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.0.1...@metamask/bridge-controller@39.1.0
 [39.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.0.0...@metamask/bridge-controller@39.0.1
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@38.0.0...@metamask/bridge-controller@39.0.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@37.2.0...@metamask/bridge-controller@38.0.0
