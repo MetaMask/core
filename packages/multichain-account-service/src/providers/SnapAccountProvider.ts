@@ -15,10 +15,25 @@ export type RestrictedSnapKeyringCreateAccount = (
 export abstract class SnapAccountProvider extends BaseAccountProvider {
   readonly snapId: SnapId;
 
+  protected isDisabled: boolean = false;
+
   constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
     super(messenger);
 
     this.snapId = snapId;
+  }
+
+  /**
+   * Set the disabled state for this snap provider.
+   * When disabled, the provider should not create new accounts.
+   *
+   * @param disabled - Whether the provider should be disabled.
+   */
+  setDisabled(disabled: boolean): void {
+    this.isDisabled = disabled;
+    console.log(
+      `Snap provider ${this.constructor.name} ${disabled ? 'disabled' : 'enabled'}`,
+    );
   }
 
   protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {

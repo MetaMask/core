@@ -69,7 +69,15 @@ export class SolAccountProvider extends SnapAccountProvider {
   async discoverAndCreateAccounts(_: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    // Check if provider is disabled
+    if (this.isDisabled) {
+      console.log(
+        `${this.constructor.name} is disabled - skipping account discovery`,
+      );
+      return [];
+    }
+
     return []; // TODO: Implement account discovery.
   }
 }

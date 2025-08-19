@@ -13,6 +13,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
+import type { SnapAccountProvider } from './providers/SnapAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -361,25 +362,23 @@ export class MultichainAccountService {
 
   /**
    * Set basic functionality state and trigger alignment if enabled.
-   * When basic functionality is disabled, non-EVM providers are disabled.
-   * When enabled, all providers are enabled and wallet alignment is triggered.
+   * When basic functionality is disabled, snap-based providers are disabled.
+   * When enabled, all snap providers are enabled and wallet alignment is triggered.
+   * EVM providers are never disabled as they're required for basic wallet functionality.
    *
-   * @param options - Options.
-   * @param options.enabled - Whether basic functionality is enabled.
+   * @param enabled - Whether basic functionality is enabled.
    */
-  async setBasicFunctionality({
-    enabled,
-  }: {
-    enabled: boolean;
-  }): Promise<void> {
+  async setBasicFunctionality(enabled: boolean): Promise<void> {
     console.log(
       `MultichainAccountService: Setting basic functionality ${enabled ? 'enabled' : 'disabled'}`,
     );
 
-    // Loop through all providers and set their disabled state
+    // Loop through providers and disable only snap-based ones when basic functionality is disabled
     for (const provider of this.#providers) {
-      // When basic functionality is disabled, disable all providers.
-      provider.setDisabled(!enabled);
+      if ('snapId' in provider) {
+        (provider as SnapAccountProvider).setDisabled(!enabled);
+      }
+      // Regular providers (like EVM) are never disabled for basic functionality
     }
 
     // Trigger alignment only when basic functionality is enabled
