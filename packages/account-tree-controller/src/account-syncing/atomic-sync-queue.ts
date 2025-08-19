@@ -16,12 +16,12 @@ export class AtomicSyncQueue {
   #isProcessingInProgress = false;
 
   /**
-   * Debug logging configuration.
+   * Debug logging configuration function.
    */
-  readonly #enableDebugLogging: boolean;
+  readonly #getEnableDebugLogging: () => boolean;
 
-  constructor(enableDebugLogging = false) {
-    this.#enableDebugLogging = enableDebugLogging;
+  constructor(getEnableDebugLogging: () => boolean = () => false) {
+    this.#getEnableDebugLogging = getEnableDebugLogging;
   }
 
   /**
@@ -49,7 +49,7 @@ export class AtomicSyncQueue {
     // Process queue asynchronously without blocking
     setTimeout(() => {
       this.process().catch((error) => {
-        if (this.#enableDebugLogging) {
+        if (this.#getEnableDebugLogging()) {
           console.error('Error processing atomic sync queue:', error);
         }
       });
@@ -82,7 +82,7 @@ export class AtomicSyncQueue {
         try {
           await event.execute();
         } catch (error) {
-          if (this.#enableDebugLogging) {
+          if (this.#getEnableDebugLogging()) {
             console.error(
               `Failed to process atomic sync event ${event.id}`,
               error,

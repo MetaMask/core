@@ -1,5 +1,7 @@
 import type {
+  AccountGroupId,
   AccountGroupType,
+  AccountWalletId,
   AccountWalletType,
 } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
@@ -68,10 +70,12 @@ export type AccountSyncingContext = {
   controller: AccountTreeController;
   controllerStateUpdateFn: AccountTreeController['update'];
   traceFn: TraceCallback;
+  groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
   emitAnalyticsEventFn: (
     event: MultichainAccountSyncingEmitAnalyticsEventParams,
   ) => void;
   enableDebugLogging: boolean;
+  disableMultichainAccountSyncing: boolean;
 };
 
 export type LegacyAccountSyncingContext = {
