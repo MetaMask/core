@@ -258,10 +258,20 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       return [];
     }
 
-    const [balances, stakedBalances] = await Promise.all([
-      safelyExecute(() => this.#fetchBalances(caipAddrs)),
-      this.#fetchStakedBalances(caipAddrs),
-    ]);
+    // Don't use safelyExecute here - let real errors propagate
+    let balances;
+    let apiError = false;
+
+    try {
+      balances = await this.#fetchBalances(caipAddrs);
+    } catch (error) {
+      // Mark that we had an API error so we don't add fake zero balances
+      apiError = true;
+      console.error('Failed to fetch balances from API:', error);
+      balances = undefined;
+    }
+
+    const stakedBalances = await this.#fetchStakedBalances(caipAddrs);
 
     const results: ProcessedBalance[] = [];
 
@@ -295,7 +305,20 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
         let value: BN | undefined;
         try {
-          value = new BN((parseFloat(b.balance) * 10 ** b.decimals).toFixed(0));
+          // Convert string balance to BN avoiding floating point precision issues
+          const { balance: balanceStr, decimals } = b;
+
+          // Split the balance string into integer and decimal parts
+          const [integerPart = '0', decimalPart = ''] = balanceStr.split('.');
+
+          // Pad or truncate decimal part to match token decimals
+          const paddedDecimalPart = decimalPart
+            .padEnd(decimals, '0')
+            .slice(0, decimals);
+
+          // Combine and create BN
+          const fullIntegerStr = integerPart + paddedDecimalPart;
+          value = new BN(fullIntegerStr);
         } catch {
           value = undefined;
         }
@@ -318,27 +341,47 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       results.push(...apiBalances);
     }
 
-    // Ensure native token entries exist for all addresses/chains, even if not returned by API
-    addressChainMap.forEach((chains, address) => {
-      chains.forEach((chainId) => {
-        const key = `${address}-${chainId}`;
-        const existingBalance = nativeBalancesFromAPI.get(key);
+    // Only add zero native balance entries if API succeeded but didn't return balances
+    // Don't add fake zero balances if the API failed entirely
+    if (!apiError) {
+      addressChainMap.forEach((chains, address) => {
+        chains.forEach((chainId) => {
+          const key = `${address}-${chainId}`;
+          const existingBalance = nativeBalancesFromAPI.get(key);
 
-        if (!existingBalance) {
-          // Add zero native balance entry if API didn't return one
+          if (!existingBalance) {
+            // Add zero native balance entry if API succeeded but didn't return one
+            results.push({
+              success: true,
+              value: new BN('0'),
+              account: address as ChecksumAddress,
+              token: ZERO_ADDRESS,
+              chainId,
+            });
+          }
+        });
+      });
+    } else {
+      // If API failed, add error entries for all requested addresses/chains
+      addressChainMap.forEach((chains, address) => {
+        chains.forEach((chainId) => {
           results.push({
-            success: true,
-            value: new BN('0'),
+            success: false,
             account: address as ChecksumAddress,
             token: ZERO_ADDRESS,
             chainId,
           });
-        }
+        });
       });
-    });
+    }
 
     // Add staked balances
     results.push(...stakedBalances);
+
+    // If we had an API error and no successful results, throw the error
+    if (apiError && results.every((r) => !r.success)) {
+      throw new Error('Failed to fetch any balance data due to API error');
+    }
 
     return results;
   }
