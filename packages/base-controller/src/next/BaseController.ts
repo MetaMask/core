@@ -50,9 +50,7 @@ export type StateConstraint = Record<string, Json>;
  * @param patches - A list of patches describing any changes (see here for more
  * information: https://immerjs.github.io/immer/docs/patches)
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export type Listener<T> = (state: T, patches: Patch[]) => void;
+export type StateChangeListener<T> = (state: T, patches: Patch[]) => void;
 
 /**
  * An function to derive state.

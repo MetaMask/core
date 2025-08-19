@@ -1,6 +1,6 @@
 export type {
   BaseControllerInstance,
-  Listener as ListenerV2,
+  StateChangeListener,
   StateConstraint,
   StateDeriver,
   StateDeriverConstraint,
