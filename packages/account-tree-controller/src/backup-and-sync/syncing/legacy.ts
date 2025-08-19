@@ -1,17 +1,17 @@
-import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import { getProfileId } from '../authentication/utils';
 import { getLocalEntropyWallets } from '../controller-utils';
-import type { AccountSyncingContext } from '../types';
+import type { BackupAndSyncContext } from '../types';
 import { pushWalletToUserStorage } from '../user-storage';
 
 /**
  * Performs legacy account syncing.
  *
- * @param context - The account syncing context containing controller and messenger
+ * @param context - The backup and sync context containing controller and messenger
  * @returns Promise that resolves to true if multichain syncing should continue, false otherwise.
  */
 export const performLegacyAccountSyncing = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
 ): Promise<void> => {
   await context.messenger.call(
     'UserStorageController:syncInternalAccountsWithUserStorage',
@@ -19,7 +19,7 @@ export const performLegacyAccountSyncing = async (
 
   const primarySrpProfileId = await getProfileId(context);
   context.emitAnalyticsEventFn({
-    action: MultichainAccountSyncingAnalyticsEvents.LEGACY_SYNCING_DONE,
+    action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
     profileId: primarySrpProfileId,
   });
 };
@@ -28,11 +28,11 @@ export const performLegacyAccountSyncing = async (
  * Disables legacy account syncing for all local wallets by pushing them to user storage
  * with the `isLegacyAccountSyncingDisabled` flag set to true.
  *
- * @param context - The account syncing context containing controller and messenger.
+ * @param context - The backup and sync context containing controller and messenger.
  * @returns Promise that resolves when all wallets have been updated.
  */
 export const disableLegacyAccountSyncingForAllWallets = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
 ): Promise<void> => {
   const allLocalEntropyWallets = getLocalEntropyWallets(context);
   await Promise.all(

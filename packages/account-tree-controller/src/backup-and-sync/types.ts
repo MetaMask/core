@@ -15,7 +15,7 @@ import {
   type Struct,
 } from '@metamask/superstruct';
 
-import type { MultichainAccountSyncingEmitAnalyticsEventParams } from './analytics';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics';
 import type { AccountTreeController } from '../AccountTreeController';
 import type {
   AccountGroupMultichainAccountObject,
@@ -65,15 +65,13 @@ export const UserStorageSyncedWalletGroupSchema = object({
   groupIndex: number(),
 });
 
-export type AccountSyncingContext = {
+export type BackupAndSyncContext = {
   messenger: AccountTreeControllerMessenger;
   controller: AccountTreeController;
   controllerStateUpdateFn: AccountTreeController['update'];
   traceFn: TraceCallback;
   groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
-  emitAnalyticsEventFn: (
-    event: MultichainAccountSyncingEmitAnalyticsEventParams,
-  ) => void;
+  emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
   enableDebugLogging: boolean;
   disableMultichainAccountSyncing: boolean;
 };

@@ -27,11 +27,11 @@ import type {
 import type { UserStorageControllerPerformGetStorageAllFeatureEntries } from '@metamask/profile-sync-controller/user-storage';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
-import type { MultichainAccountSyncingAnalyticsEventPayload } from './account-syncing/analytics';
 import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
+import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import type {
   AccountGroupObject,
   AccountTreeGroupPersistedMetadata,
@@ -61,7 +61,7 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
-  isAccountSyncingInProgress: boolean;
+  isBackupAndSyncInProgress: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
   accountGroupsMetadata: Record<
     AccountGroupId,
@@ -133,10 +133,8 @@ export type AccountTreeControllerMessenger = RestrictedMessenger<
 
 export type AccountTreeControllerConfig = {
   trace?: TraceCallback;
-  accountSyncing?: {
-    onAccountSyncingEvent?: (
-      event: MultichainAccountSyncingAnalyticsEventPayload,
-    ) => void;
+  backupAndSync?: {
+    onBackupAndSyncEvent?: (event: BackupAndSyncAnalyticsEventPayload) => void;
     enableDebugLogging?: boolean;
   };
 };

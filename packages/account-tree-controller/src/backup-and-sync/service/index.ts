@@ -1,32 +1,32 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 
-import { TraceName } from './analytics';
 import { AtomicSyncQueue } from './atomic-sync-queue';
-import { getProfileId } from './authentication';
-import type { StateSnapshot } from './controller-utils';
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountTreeControllerState } from '../../types';
+import { TraceName } from '../analytics';
+import { getProfileId } from '../authentication';
+import type { StateSnapshot } from '../controller-utils';
 import {
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
-} from './controller-utils';
+} from '../controller-utils';
 import {
   createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
   syncGroupsMetadata,
   syncSingleGroupMetadata,
   syncWalletMetadata,
-} from './syncing';
-import type { AccountSyncingContext } from './types';
+} from '../syncing';
+import type { BackupAndSyncContext } from '../types';
 import {
   getAllGroupsFromUserStorage,
   getGroupFromUserStorage,
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
-} from './user-storage';
-import type { AccountGroupMultichainAccountObject } from '../group';
-import type { AccountTreeControllerState } from '../types';
+} from '../user-storage';
 
 /**
  * Service responsible for managing all backup and sync operations.
@@ -38,14 +38,14 @@ import type { AccountTreeControllerState } from '../types';
  * - Sync state management
  */
 export class BackupAndSyncService {
-  readonly #context: AccountSyncingContext;
+  readonly #context: BackupAndSyncContext;
 
   /**
    * Queue manager for atomic sync operations.
    */
   readonly #atomicSyncQueue: AtomicSyncQueue;
 
-  constructor(context: AccountSyncingContext) {
+  constructor(context: BackupAndSyncContext) {
     this.#context = context;
 
     // Initialize with debug logging from context
@@ -60,7 +60,7 @@ export class BackupAndSyncService {
    * @returns True if syncing is in progress.
    */
   get isInProgress(): boolean {
-    return this.#context.controller.state.isAccountSyncingInProgress;
+    return this.#context.controller.state.isBackupAndSyncInProgress;
   }
 
   /**
@@ -133,7 +133,7 @@ export class BackupAndSyncService {
       try {
         this.#context.controllerStateUpdateFn(
           (state: AccountTreeControllerState) => {
-            state.isAccountSyncingInProgress = true;
+            state.isBackupAndSyncInProgress = true;
           },
         );
 
@@ -298,7 +298,7 @@ export class BackupAndSyncService {
       } finally {
         this.#context.controllerStateUpdateFn(
           (state: AccountTreeControllerState) => {
-            state.isAccountSyncingInProgress = false;
+            state.isBackupAndSyncInProgress = false;
           },
         );
       }

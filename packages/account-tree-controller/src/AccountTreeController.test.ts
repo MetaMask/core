@@ -724,8 +724,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
-        isAccountSyncingInProgress: false,
-        walletsForWhichLegacyAccountSyncingIsDisabled: {},
+        isBackupAndSyncInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -763,8 +762,6 @@ describe('AccountTreeController', () => {
       );
 
       expect(controller.state).toStrictEqual({
-        isAccountSyncingInProgress: false,
-        walletsForWhichLegacyAccountSyncingIsDisabled: {},
         accountTree: {
           wallets: {
             [walletId1]: {
@@ -797,6 +794,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        isBackupAndSyncInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -903,8 +901,7 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
-        isAccountSyncingInProgress: false,
-        walletsForWhichLegacyAccountSyncingIsDisabled: {},
+        isBackupAndSyncInProgress: false,
       } as AccountTreeControllerState);
     });
 
@@ -1020,8 +1017,7 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
-        isAccountSyncingInProgress: false,
-        walletsForWhichLegacyAccountSyncingIsDisabled: {},
+        isBackupAndSyncInProgress: false,
       } as AccountTreeControllerState);
     });
   });

@@ -1,12 +1,12 @@
-import type { MultichainAccountSyncingAnalyticsEvent } from '../analytics';
-import type { AccountSyncingContext } from '../types';
+import type { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { BackupAndSyncContext } from '../types';
 
 /**
  * Compares metadata between local and user storage, applying the most recent version.
  * Automatically validates user storage data based on the local metadata type.
  *
  * @param options - Configuration object for metadata comparison.
- * @param options.context - The account syncing context containing controller and messenger.
+ * @param options.context - The backup and sync context containing controller and messenger.
  * @param options.localMetadata - The local metadata object.
  * @param options.localMetadata.value - The local metadata value.
  * @param options.localMetadata.lastUpdatedAt - The local metadata timestamp.
@@ -26,12 +26,12 @@ export async function compareAndSyncMetadata<T>({
   applyLocalUpdate,
   analytics,
 }: {
-  context: AccountSyncingContext;
+  context: BackupAndSyncContext;
   localMetadata?: { value?: T; lastUpdatedAt?: number };
   userStorageMetadata?: { value?: T; lastUpdatedAt?: number };
   applyLocalUpdate: (value: T) => Promise<void> | void;
   analytics?: {
-    event: MultichainAccountSyncingAnalyticsEvent;
+    event: BackupAndSyncAnalyticsEvent;
     profileId: string;
   };
 }): Promise<boolean> {

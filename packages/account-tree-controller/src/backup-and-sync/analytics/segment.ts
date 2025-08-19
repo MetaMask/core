@@ -1,4 +1,4 @@
-export const MultichainAccountSyncingAnalyticsEvents = {
+export const BackupAndSyncAnalyticsEvents = {
   WALLET_RENAMED: 'wallet_renamed',
   GROUP_ADDED: 'group_added',
   GROUP_RENAMED: 'group_renamed',
@@ -7,21 +7,20 @@ export const MultichainAccountSyncingAnalyticsEvents = {
   LEGACY_SYNCING_DONE: 'legacy_syncing_done',
 } as const;
 
-const MULTICHAIN_ACCOUNT_SYNCING_EVENT_FEATURE_NAME =
-  'Multichain Account Syncing';
+const BACKUP_AND_SYNC_EVENT_FEATURE_NAME = 'Multichain Account Syncing';
 
-export type MultichainAccountSyncingAnalyticsEvent =
-  (typeof MultichainAccountSyncingAnalyticsEvents)[keyof typeof MultichainAccountSyncingAnalyticsEvents];
+export type BackupAndSyncAnalyticsEvent =
+  (typeof BackupAndSyncAnalyticsEvents)[keyof typeof BackupAndSyncAnalyticsEvents];
 
-export type MultichainAccountSyncingEmitAnalyticsEventParams = {
-  action: MultichainAccountSyncingAnalyticsEvent;
+export type BackupAndSyncEmitAnalyticsEventParams = {
+  action: BackupAndSyncAnalyticsEvent;
   profileId: string;
   additionalDescription?: string;
 };
 
-export type MultichainAccountSyncingAnalyticsEventPayload = {
-  feature_name: typeof MULTICHAIN_ACCOUNT_SYNCING_EVENT_FEATURE_NAME;
-  action: MultichainAccountSyncingAnalyticsEvent;
+export type BackupAndSyncAnalyticsEventPayload = {
+  feature_name: typeof BACKUP_AND_SYNC_EVENT_FEATURE_NAME;
+  action: BackupAndSyncAnalyticsEvent;
   profile_id: string;
   additional_description?: string;
 };
@@ -40,9 +39,9 @@ export const formatAnalyticsEvent = ({
   action,
   profileId,
   additionalDescription = '',
-}: MultichainAccountSyncingEmitAnalyticsEventParams): MultichainAccountSyncingAnalyticsEventPayload => {
+}: BackupAndSyncEmitAnalyticsEventParams): BackupAndSyncAnalyticsEventPayload => {
   return {
-    feature_name: MULTICHAIN_ACCOUNT_SYNCING_EVENT_FEATURE_NAME,
+    feature_name: BACKUP_AND_SYNC_EVENT_FEATURE_NAME,
     action,
     profile_id: profileId,
     additional_description: additionalDescription,

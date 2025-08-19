@@ -7,13 +7,13 @@ import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountSyncingEmitAnalyticsEventParams } from './account-syncing/analytics';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
 import {
   formatAnalyticsEvent,
   traceFallback,
-} from './account-syncing/analytics';
-import { BackupAndSyncService } from './account-syncing/multichain-account-syncing-service';
-import type { AccountSyncingContext } from './account-syncing/types';
+} from './backup-and-sync/analytics';
+import { BackupAndSyncService } from './backup-and-sync/service';
+import type { BackupAndSyncContext } from './backup-and-sync/types';
 import type { AccountGroupObject } from './group';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -34,7 +34,7 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
-    isAccountSyncingInProgress: {
+    isBackupAndSyncInProgress: {
       persist: false,
       anonymous: false,
     },
@@ -59,7 +59,7 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
-    isAccountSyncingInProgress: false,
+    isBackupAndSyncInProgress: false,
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
   };
@@ -100,9 +100,9 @@ export class AccountTreeController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  readonly #accountSyncingConfig: {
-    emitAccountSyncingEvent: (
-      event: MultichainAccountSyncingEmitAnalyticsEventParams,
+  readonly #backupAndSyncConfig: {
+    emitBackupAndSyncEvent: (
+      event: BackupAndSyncEmitAnalyticsEventParams,
     ) => void;
     enableDebugLogging: boolean;
   };
@@ -146,7 +146,7 @@ export class AccountTreeController extends BaseController<
 
     // Initialize the syncing service
     this.#syncingService = new BackupAndSyncService(
-      this.#createAccountSyncingContext(),
+      this.#createBackupAndSyncContext(),
     );
 
     // Rules to apply to construct the wallets tree.
@@ -161,14 +161,14 @@ export class AccountTreeController extends BaseController<
 
     this.#trace = config?.trace ?? traceFallback;
 
-    this.#accountSyncingConfig = {
-      emitAccountSyncingEvent: (
-        event: MultichainAccountSyncingEmitAnalyticsEventParams,
+    this.#backupAndSyncConfig = {
+      emitBackupAndSyncEvent: (
+        event: BackupAndSyncEmitAnalyticsEventParams,
       ) => {
         const formattedEvent = formatAnalyticsEvent(event);
-        return config?.accountSyncing?.onAccountSyncingEvent?.(formattedEvent);
+        return config?.backupAndSync?.onBackupAndSyncEvent?.(formattedEvent);
       },
-      enableDebugLogging: config?.accountSyncing?.enableDebugLogging ?? false,
+      enableDebugLogging: config?.backupAndSync?.enableDebugLogging ?? false,
     };
 
     this.messagingSystem.subscribe(
@@ -857,20 +857,20 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Creates an account syncing context for sync operations.
+   * Creates an backup and sync context for sync operations.
    * Used by the syncing service.
    *
-   * @returns The account syncing context.
+   * @returns The backup and sync context.
    */
-  #createAccountSyncingContext(): AccountSyncingContext {
+  #createBackupAndSyncContext(): BackupAndSyncContext {
     return {
       controller: this,
       messenger: this.messagingSystem,
       controllerStateUpdateFn: this.update.bind(this),
       traceFn: this.#trace.bind(this),
       emitAnalyticsEventFn:
-        this.#accountSyncingConfig.emitAccountSyncingEvent.bind(this),
-      enableDebugLogging: this.#accountSyncingConfig.enableDebugLogging,
+        this.#backupAndSyncConfig.emitBackupAndSyncEvent.bind(this),
+      enableDebugLogging: this.#backupAndSyncConfig.enableDebugLogging,
       disableMultichainAccountSyncing: this.#disableMultichainAccountSyncing,
       groupIdToWalletId: this.#groupIdToWalletId,
     };

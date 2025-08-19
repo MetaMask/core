@@ -4,16 +4,16 @@ import type { AccountWalletId } from '@metamask/account-api';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import type { AccountSyncingContext } from '../types';
+import type { BackupAndSyncContext } from '../types';
 
 /**
  * Gets all local entropy wallets that can be synced.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @returns Array of entropy wallet objects.
  */
 export function getLocalEntropyWallets(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
 ): AccountWalletEntropyObject[] {
   return Object.values(context.controller.state.accountTree.wallets).filter(
     (wallet) => wallet.type === AccountWalletType.Entropy,
@@ -23,12 +23,12 @@ export function getLocalEntropyWallets(
 /**
  * Gets all groups for a specific entropy wallet.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param walletId - The wallet ID to get groups for.
  * @returns Array of multichain account group objects.
  */
 export function getLocalGroupsForEntropyWallet(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   walletId: AccountWalletId,
 ): AccountGroupMultichainAccountObject[] {
   const wallet = context.controller.state.accountTree.wallets[walletId];
@@ -57,11 +57,11 @@ export type StateSnapshot = {
  * Creates a snapshot of the current controller state for rollback purposes.
  * Captures all state including the account tree structure.
  *
- * @param context - The account syncing context containing controller and messenger.
+ * @param context - The backup and sync context containing controller and messenger.
  * @returns A deep copy of relevant state that can be restored later.
  */
 export function createStateSnapshot(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
 ): StateSnapshot {
   return {
     accountGroupsMetadata: JSON.parse(
@@ -83,11 +83,11 @@ export function createStateSnapshot(
  * Restores both persisted metadata and the complete account tree structure.
  * Uses the controller's init() method to rebuild internal maps correctly.
  *
- * @param context - The account syncing context containing controller and messenger.
+ * @param context - The backup and sync context containing controller and messenger.
  * @param snapshot - The state snapshot to restore.
  */
 export function restoreStateFromSnapshot(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   snapshot: StateSnapshot,
 ): void {
   context.controllerStateUpdateFn((state) => {

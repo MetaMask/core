@@ -1,7 +1,7 @@
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
-import type { AccountSyncingContext, UserStorageSyncedWallet } from '../types';
+import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
 
 /**
@@ -13,7 +13,7 @@ import { pushWalletToUserStorage } from '../user-storage/network-operations';
  * @param profileId - The profile ID for analytics.
  */
 export async function syncWalletMetadata(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   wallet: AccountWalletEntropyObject,
   walletFromUserStorage: UserStorageSyncedWallet | null,
   profileId: string,
@@ -56,7 +56,7 @@ export async function syncWalletMetadata(
       context.controller.setAccountWalletName(wallet.id, name);
     },
     analytics: {
-      event: MultichainAccountSyncingAnalyticsEvents.WALLET_RENAMED,
+      event: BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
       profileId,
     },
   });

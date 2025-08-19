@@ -15,7 +15,7 @@ import { executeWithRetry } from './network-utils';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
-  AccountSyncingContext,
+  BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
   UserStorageWalletExtendedMetadata,
@@ -24,12 +24,12 @@ import type {
 /**
  * Retrieves the wallet from user storage.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID.
  * @returns The wallet from user storage or null if not found or invalid.
  */
 export const getWalletFromUserStorage = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   entropySourceId: string,
 ): Promise<UserStorageSyncedWallet | null> => {
   return executeWithRetry(async () => {
@@ -58,13 +58,13 @@ export const getWalletFromUserStorage = async (
 /**
  * Pushes the wallet to user storage.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param wallet - The wallet to push to user storage.
  * @param extendedMetadata - Optional extended metadata to include in the wallet.
  * @returns A promise that resolves when the operation is complete.
  */
 export const pushWalletToUserStorage = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   wallet: AccountWalletEntropyObject,
   extendedMetadata?: UserStorageWalletExtendedMetadata,
 ): Promise<void> => {
@@ -88,12 +88,12 @@ export const pushWalletToUserStorage = async (
 /**
  * Retrieves all groups from user storage.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID.
  * @returns An array of groups from user storage.
  */
 export const getAllGroupsFromUserStorage = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   entropySourceId: string,
 ): Promise<UserStorageSyncedWalletGroup[]> => {
   return executeWithRetry(async () => {
@@ -126,13 +126,13 @@ export const getAllGroupsFromUserStorage = async (
 /**
  * Retrieves a single group from user storage by group index.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID.
  * @param groupIndex - The group index to retrieve.
  * @returns The group from user storage or null if not found or invalid.
  */
 export const getGroupFromUserStorage = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   entropySourceId: string,
   groupIndex: number,
 ): Promise<UserStorageSyncedWalletGroup | null> => {
@@ -162,13 +162,13 @@ export const getGroupFromUserStorage = async (
 /**
  * Pushes a group to user storage.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param group - The group to push to user storage.
  * @param entropySourceId - The entropy source ID.
  * @returns A promise that resolves when the operation is complete.
  */
 export const pushGroupToUserStorage = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   group: AccountGroupMultichainAccountObject,
   entropySourceId: string,
 ): Promise<void> => {
@@ -187,13 +187,13 @@ export const pushGroupToUserStorage = async (
 /**
  * Pushes a batch of groups to user storage.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param groups - The groups to push to user storage.
  * @param entropySourceId - The entropy source ID.
  * @returns A promise that resolves when the operation is complete.
  */
 export const pushGroupToUserStorageBatch = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   groups: AccountGroupMultichainAccountObject[],
   entropySourceId: string,
 ): Promise<void> => {
@@ -218,12 +218,12 @@ export const pushGroupToUserStorageBatch = async (
 /**
  * Retrieves legacy user storage data for a specific entropy source ID.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID to retrieve data for.
  * @returns A promise that resolves with the legacy user storage data.
  */
 export const getLegacyUserStorageData = async (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   entropySourceId: string,
 ): Promise<
   {

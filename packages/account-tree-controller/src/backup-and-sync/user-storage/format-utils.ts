@@ -5,7 +5,7 @@ import {
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
-  AccountSyncingContext,
+  BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
   UserStorageWalletExtendedMetadata,
@@ -16,13 +16,13 @@ import type {
  * This function extracts the necessary metadata from the wallet
  * and formats it according to the user storage requirements.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param wallet - The wallet object to format.
  * @param extendedMetadata - Optional extended metadata to include in the formatted wallet.
  * @returns The formatted wallet for user storage.
  */
 export const formatWalletForUserStorageUsage = (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   wallet: AccountWalletEntropyObject,
   extendedMetadata?: UserStorageWalletExtendedMetadata,
 ): UserStorageSyncedWallet => {
@@ -39,12 +39,12 @@ export const formatWalletForUserStorageUsage = (
  * This function extracts the necessary metadata from the group
  * and formats it according to the user storage requirements.
  *
- * @param context - The account syncing context.
+ * @param context - The backup and sync context.
  * @param group - The group object to format.
  * @returns The formatted group for user storage.
  */
 export const formatGroupForUserStorageUsage = (
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   group: AccountGroupMultichainAccountObject,
 ): UserStorageSyncedWalletGroup => {
   const persistedGroupMetadata =

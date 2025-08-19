@@ -1,4 +1,4 @@
-import type { AtomicSyncEvent } from './types';
+import type { AtomicSyncEvent } from '../types';
 
 /**
  * Manages atomic sync operations in a queue to prevent concurrent execution

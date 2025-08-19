@@ -1,10 +1,10 @@
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import { getLocalGroupsForEntropyWallet } from '../controller-utils';
 import type {
-  AccountSyncingContext,
+  BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
 } from '../types';
 import {
@@ -21,7 +21,7 @@ import {
  * @param profileId - The profile ID for analytics.
  */
 export async function createLocalGroupsFromUserStorage(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   groupsFromUserStorage: UserStorageSyncedWalletGroup[],
   entropySourceId: string,
   profileId: string,
@@ -65,7 +65,7 @@ export async function createLocalGroupsFromUserStorage(
       );
 
       context.emitAnalyticsEventFn({
-        action: MultichainAccountSyncingAnalyticsEvents.GROUP_ADDED,
+        action: BackupAndSyncAnalyticsEvents.GROUP_ADDED,
         profileId,
       });
     } catch (error) {
@@ -91,7 +91,7 @@ export async function createLocalGroupsFromUserStorage(
  * @returns A promise that resolves to true if the group needs to be pushed to user storage.
  */
 async function syncGroupMetadataAndCheckIfPushNeeded(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   localGroup: AccountGroupMultichainAccountObject,
   groupFromUserStorage: UserStorageSyncedWalletGroup,
   profileId: string,
@@ -118,7 +118,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
       context.controller.setAccountGroupName(localGroup.id, name);
     },
     analytics: {
-      event: MultichainAccountSyncingAnalyticsEvents.GROUP_RENAMED,
+      event: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
       profileId,
     },
   });
@@ -134,8 +134,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
       context.controller.setAccountGroupPinned(localGroup.id, pinned);
     },
     analytics: {
-      event:
-        MultichainAccountSyncingAnalyticsEvents.GROUP_PINNED_STATUS_CHANGED,
+      event: BackupAndSyncAnalyticsEvents.GROUP_PINNED_STATUS_CHANGED,
       profileId,
     },
   });
@@ -151,8 +150,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
       context.controller.setAccountGroupHidden(localGroup.id, hidden);
     },
     analytics: {
-      event:
-        MultichainAccountSyncingAnalyticsEvents.GROUP_HIDDEN_STATUS_CHANGED,
+      event: BackupAndSyncAnalyticsEvents.GROUP_HIDDEN_STATUS_CHANGED,
       profileId,
     },
   });
@@ -172,7 +170,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
  * @param profileId - The profile ID for analytics.
  */
 export async function syncSingleGroupMetadata(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   localGroup: AccountGroupMultichainAccountObject,
   groupFromUserStorage: UserStorageSyncedWalletGroup | null,
   entropySourceId: string,
@@ -206,7 +204,7 @@ export async function syncSingleGroupMetadata(
  * @param profileId - The profile ID for analytics.
  */
 export async function syncGroupsMetadata(
-  context: AccountSyncingContext,
+  context: BackupAndSyncContext,
   wallet: AccountWalletEntropyObject,
   groupsFromUserStorage: UserStorageSyncedWalletGroup[],
   entropySourceId: string,
