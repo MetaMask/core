@@ -13,9 +13,7 @@ import {
   BaseController,
   getAnonymizedState,
   getPersistentState,
-  isBaseController,
 } from './BaseController';
-import { JsonRpcEngine } from '../../../json-rpc-engine/src';
 
 export const countControllerName = 'CountController';
 
@@ -152,24 +150,6 @@ class MessagesController extends BaseController<
     super.destroy();
   }
 }
-
-describe('isBaseController', () => {
-  it('should return true if passed a V2 controller', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: countControllerName,
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    expect(isBaseController(controller)).toBe(true);
-  });
-
-  it('should return false if passed a non-controller', () => {
-    const notController = new JsonRpcEngine();
-    expect(isBaseController(notController)).toBe(false);
-  });
-});
 
 describe('BaseController', () => {
   afterEach(() => {

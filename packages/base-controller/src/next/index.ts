@@ -15,5 +15,4 @@ export {
   BaseController,
   getAnonymizedState,
   getPersistentState,
-  isBaseController,
 } from './BaseController';
