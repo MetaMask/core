@@ -144,6 +144,20 @@ export class AccountTreeController extends BaseController<
     // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
 
+    // Initialize trace function before syncing service
+    this.#trace = config?.trace ?? traceFallback;
+
+    // Initialize backup and sync config before syncing service
+    this.#backupAndSyncConfig = {
+      emitBackupAndSyncEvent: (
+        event: BackupAndSyncEmitAnalyticsEventParams,
+      ) => {
+        const formattedEvent = formatAnalyticsEvent(event);
+        return config?.backupAndSync?.onBackupAndSyncEvent?.(formattedEvent);
+      },
+      enableDebugLogging: config?.backupAndSync?.enableDebugLogging ?? false,
+    };
+
     // Initialize the syncing service
     this.#syncingService = new BackupAndSyncService(
       this.#createBackupAndSyncContext(),
@@ -158,18 +172,6 @@ export class AccountTreeController extends BaseController<
       // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
       new KeyringRule(this.messagingSystem),
     ];
-
-    this.#trace = config?.trace ?? traceFallback;
-
-    this.#backupAndSyncConfig = {
-      emitBackupAndSyncEvent: (
-        event: BackupAndSyncEmitAnalyticsEventParams,
-      ) => {
-        const formattedEvent = formatAnalyticsEvent(event);
-        return config?.backupAndSync?.onBackupAndSyncEvent?.(formattedEvent);
-      },
-      enableDebugLogging: config?.backupAndSync?.enableDebugLogging ?? false,
-    };
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',

@@ -17,7 +17,7 @@ export function getLocalEntropyWallets(
 ): AccountWalletEntropyObject[] {
   return Object.values(context.controller.state.accountTree.wallets).filter(
     (wallet) => wallet.type === AccountWalletType.Entropy,
-  );
+  ) as AccountWalletEntropyObject[];
 }
 
 /**

@@ -534,6 +534,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
+        isBackupAndSyncInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -815,6 +816,7 @@ describe('AccountTreeController', () => {
       expect(controller.state).toStrictEqual({
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
+        isBackupAndSyncInProgress: false,
         accountTree: {
           // No wallets should be present.
           wallets: {},
@@ -956,7 +958,7 @@ describe('AccountTreeController', () => {
         walletId2,
         mockHdAccount2.options.entropy.groupIndex,
       );
-      expect(controller.state.accountTree).toStrictEqual({
+      expect(controller.state).toStrictEqual({
         accountTree: {
           wallets: {
             [walletId1]: {

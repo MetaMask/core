@@ -320,6 +320,15 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   async #performSingleWalletSync(walletId: AccountWalletId): Promise<void> {
+    if (this.#context.disableMultichainAccountSyncing) {
+      if (this.#context.enableDebugLogging) {
+        console.warn(
+          'Multichain account syncing is disabled. Skipping sync operation.',
+        );
+      }
+      return;
+    }
+
     try {
       const wallet =
         this.#context.controller.state.accountTree.wallets[walletId];
@@ -357,6 +366,15 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   async #performSingleGroupSync(groupId: AccountGroupId): Promise<void> {
+    if (this.#context.disableMultichainAccountSyncing) {
+      if (this.#context.enableDebugLogging) {
+        console.warn(
+          'Multichain account syncing is disabled. Skipping sync operation.',
+        );
+      }
+      return;
+    }
+
     try {
       const walletId = this.#context.groupIdToWalletId.get(groupId);
       if (!walletId) {
