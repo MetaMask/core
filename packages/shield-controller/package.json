@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/network-enablement-controller",
-  "version": "0.1.1",
-  "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
+  "name": "@metamask/shield-controller",
+  "version": "0.0.0",
+  "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/network-enablement-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/shield-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,39 +37,37 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/network-enablement-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-enablement-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/shield-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/shield-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
-  },
-  "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/multichain-network-controller": "^0.11.1",
-    "@metamask/network-controller": "^24.1.0",
-    "@metamask/transaction-controller": "^59.2.0",
-    "@types/jest": "^27.4.1",
-    "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
-    "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
     "@metamask/base-controller": "^8.1.0",
-    "@metamask/controller-utils": "^11.12.0",
-    "@metamask/utils": "^11.4.2",
-    "reselect": "^5.1.1"
+    "@metamask/utils": "^11.4.2"
+  },
+  "devDependencies": {
+    "@babel/runtime": "^7.23.9",
+    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/preinstall-always-fail": "^2.1.0",
+    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/transaction-controller": "^59.2.0",
+    "@ts-bridge/cli": "^0.6.1",
+    "@types/jest": "^27.4.1",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~5.2.2",
+    "uuid": "^8.3.2"
   },
   "peerDependencies": {
-    "@metamask/multichain-network-controller": "^0.11.0",
-    "@metamask/network-controller": "^24.0.0",
-    "@metamask/transaction-controller": "^59.0.0"
+    "@metamask/transaction-controller": "^59.2.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
@@ -77,5 +75,10 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/allow-scripts>@lavamoat/preinstall-always-fail": false
+    }
   }
 }
