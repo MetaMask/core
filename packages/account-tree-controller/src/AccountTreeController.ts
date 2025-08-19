@@ -13,6 +13,7 @@ import {
   traceFallback,
   TraceName,
 } from './account-syncing/analytics';
+import { AtomicSyncQueue } from './account-syncing/atomic-sync-queue';
 import { getProfileId } from './account-syncing/authentication';
 import type { StateSnapshot } from './account-syncing/controller-utils';
 import {
@@ -29,10 +30,7 @@ import {
   syncSingleGroupMetadata,
   syncWalletMetadata,
 } from './account-syncing/syncing';
-import type {
-  AccountSyncingContext,
-  AtomicSyncEvent,
-} from './account-syncing/types';
+import type { AccountSyncingContext } from './account-syncing/types';
 import {
   getAllGroupsFromUserStorage,
   getGroupFromUserStorage,
@@ -117,14 +115,9 @@ export class AccountTreeController extends BaseController<
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
 
   /**
-   * Queue for atomic sync events that need to be processed asynchronously.
+   * Queue manager for atomic sync operations.
    */
-  readonly #atomicSyncQueue: AtomicSyncEvent[] = [];
-
-  /**
-   * Flag to prevent multiple atomic sync queue processing operations from running concurrently.
-   */
-  #isAtomicSyncQueueInProgress = false;
+  readonly #atomicSyncQueue: AtomicSyncQueue;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
@@ -173,6 +166,11 @@ export class AccountTreeController extends BaseController<
 
     // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
+
+    // Initialize atomic sync queue
+    this.#atomicSyncQueue = new AtomicSyncQueue(
+      config?.accountSyncing?.enableDebugLogging ?? false,
+    );
 
     // Rules to apply to construct the wallets tree.
     this.#rules = [
@@ -491,7 +489,10 @@ export class AccountTreeController extends BaseController<
 
       // Trigger atomic sync for new wallet (only for entropy wallets)
       if (wallet.type === AccountWalletType.Entropy) {
-        this.#enqueueAtomicSync(() => this.#syncWalletToUserStorage(walletId));
+        this.#atomicSyncQueue.enqueue(
+          () => this.#syncWalletToUserStorage(walletId),
+          this.state.isAccountSyncingInProgress,
+        );
       }
     }
 
@@ -517,7 +518,10 @@ export class AccountTreeController extends BaseController<
 
       // Trigger atomic sync for new group (only for entropy wallets)
       if (wallet.type === AccountWalletType.Entropy) {
-        this.#enqueueAtomicSync(() => this.#syncGroupToUserStorage(groupId));
+        this.#atomicSyncQueue.enqueue(
+          () => this.#syncGroupToUserStorage(groupId),
+          this.state.isAccountSyncingInProgress,
+        );
       }
     } else {
       group.accounts.push(account.id);
@@ -770,7 +774,10 @@ export class AccountTreeController extends BaseController<
     });
 
     // Trigger atomic sync for group rename
-    this.#enqueueAtomicSync(() => this.#syncGroupToUserStorage(groupId));
+    this.#atomicSyncQueue.enqueue(
+      () => this.#syncGroupToUserStorage(groupId),
+      this.state.isAccountSyncingInProgress,
+    );
   }
 
   /**
@@ -797,7 +804,10 @@ export class AccountTreeController extends BaseController<
     });
 
     // Trigger atomic sync for wallet rename
-    this.#enqueueAtomicSync(() => this.#syncWalletToUserStorage(walletId));
+    this.#atomicSyncQueue.enqueue(
+      () => this.#syncWalletToUserStorage(walletId),
+      this.state.isAccountSyncingInProgress,
+    );
   }
 
   /**
@@ -926,7 +936,7 @@ export class AccountTreeController extends BaseController<
         });
 
         // Clear stale atomic syncs - big sync supersedes them
-        this.#atomicSyncQueue.length = 0;
+        this.#atomicSyncQueue.clear();
 
         // 1. Identifies all local entropy wallets that can be synchronized
         const localSyncableWallets = getLocalEntropyWallets(context);
@@ -1094,74 +1104,6 @@ export class AccountTreeController extends BaseController<
       },
       bigSyncFn,
     );
-  }
-
-  /**
-   * Enqueues an atomic sync function for processing.
-   *
-   * @param syncFunction - The sync function to enqueue.
-   */
-  #enqueueAtomicSync(syncFunction: () => Promise<void>): void {
-    // Block enqueueing if big sync is running
-    if (this.state.isAccountSyncingInProgress) {
-      return;
-    }
-
-    const syncEvent: AtomicSyncEvent = {
-      id: `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      execute: syncFunction,
-    };
-
-    this.#atomicSyncQueue.push(syncEvent);
-
-    // Process queue asynchronously without blocking
-    setTimeout(() => {
-      this.#processAtomicSyncQueue().catch((error) => {
-        if (this.#accountSyncingConfig.enableDebugLogging) {
-          console.error('Error processing atomic sync queue:', error);
-        }
-      });
-    }, 0);
-  }
-
-  /**
-   * Processes the atomic sync queue.
-   */
-  async #processAtomicSyncQueue(): Promise<void> {
-    if (
-      this.#isAtomicSyncQueueInProgress ||
-      this.state.isAccountSyncingInProgress
-    ) {
-      return;
-    }
-
-    if (this.#atomicSyncQueue.length === 0) {
-      return;
-    }
-
-    this.#isAtomicSyncQueueInProgress = true;
-
-    try {
-      while (this.#atomicSyncQueue.length > 0) {
-        const event = this.#atomicSyncQueue.shift();
-        if (!event) {
-          break;
-        }
-
-        try {
-          await event.execute();
-        } catch (error) {
-          if (this.#accountSyncingConfig.enableDebugLogging) {
-            console.error(
-              `Failed to process atomic sync event ${event.id}`,
-              error,
-            );
-          }
-        }
-      }
-    } finally {
-      this.#isAtomicSyncQueueInProgress = false;
-    }
   }
 
   /**
