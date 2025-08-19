@@ -10,6 +10,7 @@ import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
 import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
+import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
@@ -21,6 +22,12 @@ type AssetsByAccountGroup = {
 export type AccountGroupAssets = {
   [network: string]: Asset[];
 };
+
+// If this gets out of hand with other chains, we should probably have a permanent object that defines them
+const MULTICHAIN_NATIVE_ASSET_IDS = [
+  `bip122:000000000019d6689c085ae165831e93/slip44:0`,
+  `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`,
+];
 
 export type Asset = (
   | {
@@ -35,12 +42,12 @@ export type Asset = (
       chainId: `${string}:${string}`;
     }
 ) & {
-  image: string; // TODO: This should also allow undefined at this stage for evm tokens, but it improves compatibility with FE types for now
+  image: string;
   name: string;
   symbol: string;
   decimals: number;
-  // TODO: Since this is not the raw balance, but decimal one, we need to decide whether we want this as a number so that it can be formatted later
-  balance: string | undefined;
+  isNative: boolean;
+  balance: string;
   fiat:
     | {
         balance: number;
@@ -48,7 +55,6 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
-  // TODO: Potentially add accountId
 };
 
 export type AssetListState = {
@@ -64,6 +70,9 @@ export type AssetListState = {
   balances: MultichainBalancesControllerState['balances'];
   conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
   currentCurrency: CurrencyRateState['currentCurrency'];
+  // This is the state from AccountTrackerController. The state is different on mobile and extension
+  // accountsByChainId with a balance is the only field that both clients have in common
+  // This field could be removed once TokenBalancesController returns native balances
   accountsByChainId: Record<
     Hex,
     Record<
@@ -100,7 +109,7 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
   },
 );
 
-// TODO: This will not be needed once the native balances are part of the evm tokens state
+// TODO: This selector will not be needed once the native balances are part of the evm tokens state
 const selectAllEvmAccountNativeBalances = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
@@ -126,7 +135,6 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
       )) {
         const accountGroupId = accountsMap[accountAddress];
         if (!accountGroupId) {
-          // TODO: This should not happen and we should log an error
           continue;
         }
 
@@ -140,13 +148,14 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           groupAssets[accountGroupId][chainId] = groupChainAssets;
         }
 
-        const rawBalance = accountBalance.balance || undefined;
+        const rawBalance = accountBalance.balance || '0x0';
 
-        // TODO: This is just a bad placeholder that will be removed once this whole selector is removed
+        // TODO: This is just a placeholder that will be removed once this whole selector is removed
         const nativeToken = {
-          address: '0x0000000000000000000000000000000000000000' as Hex,
+          address: getNativeTokenAddress(chainId),
           decimals: 18,
-          image: './images/eth_logo.svg',
+          // These fields need to be filled at client level for now
+          image: '',
           name: 'Ethereum',
           symbol: 'ETH',
         };
@@ -163,17 +172,16 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         groupChainAssets.push({
           type: 'evm',
           assetId: nativeToken.address,
+          isNative: true,
           address: nativeToken.address,
           image: nativeToken.image,
           name: nativeToken.name,
           symbol: nativeToken.symbol,
           decimals: nativeToken.decimals,
-          balance: rawBalance
-            ? stringifyBalanceWithDecimals(
-                hexToBigInt(rawBalance),
-                nativeToken.decimals,
-              )
-            : undefined,
+          balance: stringifyBalanceWithDecimals(
+            hexToBigInt(rawBalance),
+            nativeToken.decimals,
+          ),
           fiat: fiatData
             ? {
                 balance: fiatData.balance,
@@ -222,7 +230,6 @@ const selectAllEvmAssets = createAssetListSelector(
           const tokenAddress = token.address as Hex;
           const accountGroupId = accountsMap[accountAddress];
           if (!accountGroupId) {
-            // TODO: This should not happen and we should log an error
             continue;
           }
 
@@ -238,11 +245,6 @@ const selectAllEvmAssets = createAssetListSelector(
           if (!rawBalance) {
             continue;
           }
-
-          const displayBalance = stringifyBalanceWithDecimals(
-            hexToBigInt(rawBalance),
-            token.decimals,
-          );
 
           if (!groupAssets[accountGroupId]) {
             groupAssets[accountGroupId] = {};
@@ -266,12 +268,16 @@ const selectAllEvmAssets = createAssetListSelector(
           groupChainAssets.push({
             type: 'evm',
             assetId: tokenAddress,
+            isNative: false,
             address: tokenAddress,
             image: token.image ?? '',
             name: token.name ?? token.symbol,
             symbol: token.symbol,
             decimals: token.decimals,
-            balance: displayBalance,
+            balance: stringifyBalanceWithDecimals(
+              hexToBigInt(rawBalance),
+              token.decimals,
+            ),
             fiat: fiatData
               ? {
                   balance: fiatData.balance,
@@ -319,7 +325,6 @@ const selectAllMultichainAssets = createAssetListSelector(
         const accountGroupId = accountsMap[accountId];
         const assetMetadata = multichainAssetsMetadata[assetId];
         if (!accountGroupId || !assetMetadata) {
-          // TODO: This should not happen and we should log an error
           continue;
         }
 
@@ -340,6 +345,10 @@ const selectAllMultichainAssets = createAssetListSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
+        if (!balance) {
+          continue;
+        }
+
         const fiatData = getFiatBalanceForMultichainAsset(
           balance,
           multichainConversionRates,
@@ -350,16 +359,17 @@ const selectAllMultichainAssets = createAssetListSelector(
         groupChainAssets.push({
           type: 'multichain',
           assetId,
+          isNative: MULTICHAIN_NATIVE_ASSET_IDS.includes(assetId),
           image: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
-          symbol: assetMetadata.symbol ?? '',
+          symbol: assetMetadata.symbol ?? asset,
           decimals:
             assetMetadata.units.find(
               (unit) =>
                 unit.name === assetMetadata.name &&
                 unit.symbol === assetMetadata.symbol,
             )?.decimals ?? 0,
-          balance: balance ? balance.amount : undefined,
+          balance: balance.amount,
           fiat: fiatData
             ? {
                 balance: fiatData.balance,
@@ -448,20 +458,16 @@ function mergeAssets(
  * @param currencyRates - The currency rates for the token
  * @param chainId - The chain id of the token
  * @param tokenAddress - The address of the token
- * @returns The price and currency of the token in the current currency
+ * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the market data or currency rates.
  */
 function getFiatBalanceForEvmToken(
-  rawBalance: Hex | undefined,
+  rawBalance: Hex,
   decimals: number,
   marketData: TokenRatesControllerState['marketData'],
   currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
 ) {
-  if (!rawBalance) {
-    return undefined;
-  }
-
   const tokenMarketData = marketData[chainId]?.[tokenAddress];
 
   if (!tokenMarketData) {
@@ -491,17 +497,13 @@ function getFiatBalanceForEvmToken(
  * @param balance.unit - The unit of the balance
  * @param multichainConversionRates - The conversion rates for the multichain asset
  * @param assetId - The asset id of the asset
- * @returns The price and currency of the token in the current currency
+ * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the conversion rates.
  */
 function getFiatBalanceForMultichainAsset(
-  balance: { amount: string; unit: string } | undefined,
+  balance: { amount: string; unit: string },
   multichainConversionRates: MultichainAssetsRatesControllerState['conversionRates'],
   assetId: `${string}:${string}/${string}:${string}`,
 ) {
-  if (!balance) {
-    return undefined;
-  }
-
   const assetMarketData = multichainConversionRates[assetId];
 
   if (!assetMarketData?.rate) {

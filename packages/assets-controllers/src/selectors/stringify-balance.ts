@@ -30,15 +30,15 @@ export function stringifyBalanceWithDecimals(
     decimalIndex = 1;
   }
 
-  const whole = bal.substr(0, len - decimals);
+  const whole = bal.slice(0, len - decimals);
 
   if (balanceDecimals === 0) {
     return whole;
   }
 
-  const fractional = bal.substr(decimalIndex, balanceDecimals);
+  const fractional = bal.slice(decimalIndex, decimalIndex + balanceDecimals);
   if (/0+$/u.test(fractional)) {
-    let withOnlySigZeroes = bal.substr(decimalIndex).replace(/0+$/u, '');
+    let withOnlySigZeroes = bal.slice(decimalIndex).replace(/0+$/u, '');
     if (withOnlySigZeroes.length > 0) {
       withOnlySigZeroes = `.${withOnlySigZeroes}`;
     }
