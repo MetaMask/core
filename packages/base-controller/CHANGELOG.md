@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add experimental `next` export for testing upcoming breaking changes ([#6316](https://github.com/MetaMask/core/pull/6316))
   - Note that this should generally not be used, and further breaking changes may be made under this export without a corresponding major version bump for this package.
+  - Changes:
+    - Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318))
+
+### Changed
+
+- Add dependency on `@metamask/messenger` ([#6318](https://github.com/MetaMask/core/pull/6318))
+  - This is only used by the experimental `next` export for now.
 
 ## [8.1.0]
 
