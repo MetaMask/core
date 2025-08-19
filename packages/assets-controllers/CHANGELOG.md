@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/504.0.0 ([#6331](https://github.com/MetaMask/core/pull/6331))
+
 ### Changed
 
 - Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
