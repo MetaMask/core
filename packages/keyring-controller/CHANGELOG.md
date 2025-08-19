@@ -14,6 +14,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
   - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
 
+### Removed
+
+- **BREAKING:** Removed QR keyring methods ([#6031](https://github.com/MetaMask/core/pull/6031))
+  - The following methods have been removed:
+    - `cancelQRSignRequest`
+    - `cancelQRSynchronization`
+    - `connectQRHardware`
+    - `forgetQRDevice`
+    - `getOrAddQRKeyring`
+    - `getQRKeyring`
+    - `getQRKeyringState`
+    - `resetQRKeyringState`
+    - `restoreQRKeyring`
+    - `submitQRCryptoHDKey`
+    - `submitQRCryptoAccount`
+    - `submitQRSignature`
+    - `unlockQRHardwareWalletAccount`
+  - Consumers can use the `withKeyring` method to select a QR keyring and execute a callback with it as argument.
+- **BREAKING:** Removed `KeyringController:qrKeyringStateChange` event ([#6031](https://github.com/MetaMask/core/pull/6031))
+
 ## [22.1.1]
 
 ### Changed
