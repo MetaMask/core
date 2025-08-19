@@ -53,6 +53,16 @@ export type MultichainAccountServiceSetBasicFunctionalityAction = {
   handler: MultichainAccountService['setBasicFunctionality'];
 };
 
+export type MultichainAccountServiceAlignWalletAction = {
+  type: `${typeof serviceName}:alignWallet`;
+  handler: MultichainAccountService['alignWallet'];
+};
+
+export type MultichainAccountServiceAlignWalletsAction = {
+  type: `${typeof serviceName}:alignWallets`;
+  handler: MultichainAccountService['alignWallets'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -64,7 +74,9 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceGetMultichainAccountWalletsAction
   | MultichainAccountServiceCreateNextMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
-  | MultichainAccountServiceSetBasicFunctionalityAction;
+  | MultichainAccountServiceSetBasicFunctionalityAction
+  | MultichainAccountServiceAlignWalletAction
+  | MultichainAccountServiceAlignWalletsAction;
 
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules

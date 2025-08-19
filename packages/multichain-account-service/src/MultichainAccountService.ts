@@ -105,6 +105,14 @@ export class MultichainAccountService {
       'MultichainAccountService:setBasicFunctionality',
       (...args) => this.setBasicFunctionality(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:alignWallets',
+      (...args) => this.alignWallets(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:alignWallet',
+      (...args) => this.alignWallet(...args),
+    );
   }
 
   /**
@@ -382,20 +390,20 @@ export class MultichainAccountService {
   }
 
   /**
-   * Align all multichain account wallets by forcing a sync.
-   * This will cause wallets to re-sync with their providers and create any missing account groups.
-   * When Hassan's PR #6326 is merged, this can be updated to use the proper alignment methods.
+   * Align all multichain account wallets.
    */
-  private async alignWallets(): Promise<void> {
-    console.log('Syncing all multichain account wallets...');
+  async alignWallets(): Promise<void> {
     const wallets = this.getMultichainAccountWallets();
+    await Promise.all(wallets.map((w) => w.alignGroups()));
+  }
 
-    // Force sync all wallets - this will cause them to re-scan providers
-    // and create any missing multichain account groups
-    for (const wallet of wallets) {
-      wallet.sync();
-    }
-
-    console.log(`Synced ${wallets.length} multichain account wallets`);
+  /**
+   * Align a specific multichain account wallet.
+   *
+   * @param entropySource - The entropy source of the multichain account wallet.
+   */
+  async alignWallet(entropySource: EntropySourceId): Promise<void> {
+    const wallet = this.getMultichainAccountWallet({ entropySource });
+    await wallet.alignGroups();
   }
 }
