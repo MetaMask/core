@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a token selector that returns list of tokens and balances for evm and multichain assets based on the selected account group ([#6226](https://github.com/MetaMask/core/pull/6226))
+
 ## [73.3.0]
 
 ### Changed
