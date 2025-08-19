@@ -1,89 +1,58 @@
+import { assert, StructError } from '@metamask/superstruct';
+
 import type {
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
+import {
+  UserStorageSyncedWalletSchema,
+  UserStorageSyncedWalletGroupSchema,
+} from '../types';
 
 /**
- * Validates if user storage wallet data is properly structured and safe to use.
+ * Validates and asserts user storage wallet data, throwing detailed errors if invalid.
  *
  * @param walletData - The wallet data from user storage to validate.
- * @returns True if the wallet data is valid, false otherwise.
+ * @throws StructError if the wallet data is invalid.
  */
-export function isValidUserStorageWallet(
+export function assertValidUserStorageWallet(
   walletData: unknown,
-): walletData is UserStorageSyncedWallet {
-  if (!walletData || typeof walletData !== 'object') {
-    return false;
-  }
-
-  const wallet = walletData as Record<string, unknown>;
-
-  // Check if name metadata exists and is valid
-  if (wallet.name && typeof wallet.name === 'object') {
-    const nameData = wallet.name as Record<string, unknown>;
-    if (
-      typeof nameData.value !== 'string' ||
-      typeof nameData.lastUpdatedAt !== 'number'
-    ) {
-      return false;
+): asserts walletData is UserStorageSyncedWallet {
+  try {
+    assert(walletData, UserStorageSyncedWalletSchema);
+  } catch (error) {
+    if (error instanceof StructError) {
+      const validationFailures = error
+        .failures()
+        .map(({ path, message }) => `[${path.join('.')}] ${message}`)
+        .join(', ');
+      throw new Error(
+        `Invalid user storage wallet data: ${validationFailures}`,
+      );
     }
+    throw error;
   }
-
-  return true;
 }
 
 /**
- * Validates if user storage group data is properly structured and safe to use.
+ * Validates and asserts user storage group data, throwing detailed errors if invalid.
  *
  * @param groupData - The group data from user storage to validate.
- * @returns True if the group data is valid, false otherwise.
+ * @throws StructError if the group data is invalid.
  */
-export function isValidUserStorageGroup(
+export function assertValidUserStorageGroup(
   groupData: unknown,
-): groupData is UserStorageSyncedWalletGroup {
-  if (!groupData || typeof groupData !== 'object') {
-    return false;
-  }
-
-  const group = groupData as Record<string, unknown>;
-
-  // Validate required groupIndex
-  if (typeof group.groupIndex !== 'number' || group.groupIndex < 0) {
-    return false;
-  }
-
-  // Check if name metadata exists and is valid
-  if (group.name && typeof group.name === 'object') {
-    const nameData = group.name as Record<string, unknown>;
-    if (
-      typeof nameData.value !== 'string' ||
-      typeof nameData.lastUpdatedAt !== 'number'
-    ) {
-      return false;
+): asserts groupData is UserStorageSyncedWalletGroup {
+  try {
+    assert(groupData, UserStorageSyncedWalletGroupSchema);
+  } catch (error) {
+    if (error instanceof StructError) {
+      const validationFailures = error
+        .failures()
+        .map(({ path, message }) => `[${path.join('.')}] ${message}`)
+        .join(', ');
+      throw new Error(`Invalid user storage group data: ${validationFailures}`);
     }
+    throw error;
   }
-
-  // Check if pinned metadata exists and is valid
-  if (group.pinned && typeof group.pinned === 'object') {
-    const pinnedData = group.pinned as Record<string, unknown>;
-    if (
-      typeof pinnedData.value !== 'boolean' ||
-      typeof pinnedData.lastUpdatedAt !== 'number'
-    ) {
-      return false;
-    }
-  }
-
-  // Check if hidden metadata exists and is valid
-  if (group.hidden && typeof group.hidden === 'object') {
-    const hiddenData = group.hidden as Record<string, unknown>;
-    if (
-      typeof hiddenData.value !== 'boolean' ||
-      typeof hiddenData.lastUpdatedAt !== 'number'
-    ) {
-      return false;
-    }
-  }
-
-  return true;
 }

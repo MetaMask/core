@@ -1,3 +1,7 @@
+import {
+  assertValidUserStorageWallet,
+  assertValidUserStorageGroup,
+} from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
@@ -60,13 +64,14 @@ export const formatGroupForUserStorageUsage = (
  *
  * @param wallet - The wallet data in string format.
  * @returns The parsed UserStorageSyncedWallet object.
- * @throws If the wallet data is not in valid JSON format.
+ * @throws If the wallet data is not in valid JSON format or fails validation.
  */
 export const parseWalletFromUserStorageResponse = (
   wallet: string,
 ): UserStorageSyncedWallet => {
   try {
-    const walletData = JSON.parse(wallet) as UserStorageSyncedWallet;
+    const walletData = JSON.parse(wallet);
+    assertValidUserStorageWallet(walletData);
     return walletData;
   } catch (error: unknown) {
     throw new Error(
@@ -82,13 +87,14 @@ export const parseWalletFromUserStorageResponse = (
  *
  * @param group - The group data in string format.
  * @returns The parsed UserStorageSyncedWalletGroup object.
- * @throws If the group data is not in valid JSON format.
+ * @throws If the group data is not in valid JSON format or fails validation.
  */
 export const parseGroupFromUserStorageResponse = (
   group: string,
 ): UserStorageSyncedWalletGroup => {
   try {
     const groupData = JSON.parse(group);
+    assertValidUserStorageGroup(groupData);
     return groupData;
   } catch (error: unknown) {
     throw new Error(

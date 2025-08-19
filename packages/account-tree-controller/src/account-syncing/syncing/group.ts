@@ -8,7 +8,6 @@ import type {
   UserStorageSyncedWalletGroup,
 } from '../types';
 import { pushGroupToUserStorageBatch } from '../user-storage/network-operations';
-import { isValidUserStorageGroup } from '../user-storage/validation';
 
 /**
  * Creates local groups from user storage groups.
@@ -24,35 +23,11 @@ export async function createLocalGroupsFromUserStorage(
   entropySourceId: string,
   profileId: string,
 ): Promise<void> {
-  // Validate all groups before processing
-  const validGroups = groupsFromUserStorage.filter((group) => {
-    if (!isValidUserStorageGroup(group)) {
-      if (context.enableDebugLogging) {
-        console.warn(
-          `Invalid group data from user storage for entropy ${entropySourceId}, skipping group`,
-          group,
-        );
-      }
-      return false;
-    }
-    return true;
-  });
-
-  if (validGroups.length !== groupsFromUserStorage.length) {
-    if (context.enableDebugLogging) {
-      console.warn(
-        `Filtered out ${
-          groupsFromUserStorage.length - validGroups.length
-        } invalid groups from user storage`,
-      );
-    }
-  }
-
   // Sort groups from user storage by groupIndex in ascending order
-  validGroups.sort((a, b) => a.groupIndex - b.groupIndex);
+  groupsFromUserStorage.sort((a, b) => a.groupIndex - b.groupIndex);
 
   let previousGroupIndex = -1;
-  for (const groupFromUserStorage of validGroups) {
+  for (const groupFromUserStorage of groupsFromUserStorage) {
     const { groupIndex } = groupFromUserStorage;
 
     if (typeof groupIndex !== 'number' || groupIndex < 0) {

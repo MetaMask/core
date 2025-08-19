@@ -26,7 +26,7 @@ import type {
  *
  * @param context - The account syncing context.
  * @param entropySourceId - The entropy source ID.
- * @returns The wallet from user storage or null if not found.
+ * @returns The wallet from user storage or null if not found or invalid.
  */
 export const getWalletFromUserStorage = async (
   context: AccountSyncingContext,
@@ -42,7 +42,16 @@ export const getWalletFromUserStorage = async (
       return null;
     }
 
-    return parseWalletFromUserStorageResponse(walletData);
+    try {
+      return parseWalletFromUserStorageResponse(walletData);
+    } catch (error) {
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return null;
+    }
   });
 };
 
@@ -97,9 +106,20 @@ export const getAllGroupsFromUserStorage = async (
       return [];
     }
 
-    return groupData.map((groupStringifiedJSON) =>
-      parseGroupFromUserStorageResponse(groupStringifiedJSON),
-    );
+    return groupData
+      .map((groupStringifiedJSON) => {
+        try {
+          return parseGroupFromUserStorageResponse(groupStringifiedJSON);
+        } catch (error) {
+          if (context.enableDebugLogging) {
+            console.warn(
+              `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+          return null;
+        }
+      })
+      .filter((group): group is UserStorageSyncedWalletGroup => group !== null);
   });
 };
 

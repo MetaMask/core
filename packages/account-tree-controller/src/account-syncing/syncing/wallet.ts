@@ -3,7 +3,6 @@ import type { AccountWalletEntropyObject } from '../../wallet';
 import { MultichainAccountSyncingAnalyticsEvents } from '../analytics';
 import type { AccountSyncingContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
-import { isValidUserStorageWallet } from '../user-storage/validation';
 
 /**
  * Syncs wallet metadata with user storage.
@@ -26,10 +25,10 @@ export async function syncWalletMetadata(
   }
 
   // Validate user storage data before processing
-  if (!isValidUserStorageWallet(walletFromUserStorage)) {
+  if (walletFromUserStorage === null) {
     if (context.enableDebugLogging) {
       console.warn(
-        `Invalid wallet data from user storage for wallet ${wallet.id}, pushing local data`,
+        `Wallet data from user storage is null for wallet ${wallet.id}, pushing local wallet`,
       );
     }
     await pushWalletToUserStorage(context, wallet);
