@@ -416,11 +416,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       targetContractAddress,
       approvalTxId,
       isStxEnabled,
-      accountAddress,
+      accountAddress: selectedAddress,
     } = startPollingForBridgeTxStatusArgs;
 
-    const selectedAddress =
-      accountAddress ?? this.#getMultichainSelectedAccount()?.address ?? '';
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {

@@ -309,6 +309,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     swapRate: '1.234',
     cost: { valueInCurrency: null, usd: null },
   },
+  accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
   initialDestAssetBalance: undefined,

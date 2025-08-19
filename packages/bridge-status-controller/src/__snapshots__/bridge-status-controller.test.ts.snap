@@ -156,9 +156,6 @@ Array [
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 Array [
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -327,9 +324,6 @@ Object {
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
 Array [
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -3871,12 +3865,6 @@ Array [
 
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 Array [
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
   Array [
     "NetworkController:getState",
   ],
