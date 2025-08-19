@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
   - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
 
+### Fixed
+
+- Fix precision loss in AccountsApiBalanceFetcher causing incorrect token balance conversion ([#6330](https://github.com/MetaMask/core/pull/6330))
+  - Replaced floating-point arithmetic with string-based precision conversion to avoid JavaScript precision limitations
+
 ## [73.2.0]
 
 ### Added
