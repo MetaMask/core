@@ -134,9 +134,6 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         chainAccounts,
       )) {
         const accountGroupId = accountsMap[accountAddress];
-        if (!accountGroupId) {
-          continue;
-        }
 
         if (!groupAssets[accountGroupId]) {
           groupAssets[accountGroupId] = {};
@@ -229,9 +226,6 @@ const selectAllEvmAssets = createAssetListSelector(
         for (const token of addressTokens) {
           const tokenAddress = token.address as Hex;
           const accountGroupId = accountsMap[accountAddress];
-          if (!accountGroupId) {
-            continue;
-          }
 
           if (
             ignoredEvmTokens[chainId]?.[accountAddress]?.includes(tokenAddress)
@@ -323,8 +317,9 @@ const selectAllMultichainAssets = createAssetListSelector(
         ];
 
         const accountGroupId = accountsMap[accountId];
+
         const assetMetadata = multichainAssetsMetadata[assetId];
-        if (!accountGroupId || !assetMetadata) {
+        if (!assetMetadata) {
           continue;
         }
 
