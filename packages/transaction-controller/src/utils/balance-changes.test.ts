@@ -18,6 +18,7 @@ import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
+import type { GetSimulationConfig } from '../types';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('../api/simulation-api');
@@ -1147,6 +1148,25 @@ describe('Simulation Utils', () => {
           }),
         );
       });
+    });
+
+    it('forwards simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await getBalanceChanges(request);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          getSimulationConfig: getSimulationConfigMock,
+        }),
+      );
     });
   });
 });

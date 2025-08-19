@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
+import type { GetSimulationConfig } from 'src';
 
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
@@ -116,6 +117,37 @@ describe('Simulation API Utils', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
         expect.any(Object),
+      );
+    });
+
+    it('uses simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest
+        .fn()
+        .mockResolvedValue({
+          authorization: 'Bearer test',
+          newUrl: 'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
+        });
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await simulateTransactions(CHAIN_ID_MOCK, request);
+
+      expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationConfigMock).toHaveBeenCalledWith(
+        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test',
+          }),
+        }),
       );
     });
 

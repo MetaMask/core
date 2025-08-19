@@ -4,7 +4,11 @@ import { doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
 import { getGasFeeTokens } from './gas-fee-tokens';
-import type { TransactionControllerMessenger, TransactionMeta } from '..';
+import type {
+  GetSimulationConfig,
+  TransactionControllerMessenger,
+  TransactionMeta,
+} from '..';
 import { simulateTransactions } from '../api/simulation-api';
 
 jest.mock('../api/simulation-api');
@@ -348,6 +352,25 @@ describe('Gas Fee Tokens Utils', () => {
               ],
             }),
           ],
+        }),
+      );
+    });
+
+    it('forwards simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await getGasFeeTokens(request);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          getSimulationConfig: getSimulationConfigMock,
         }),
       );
     });
