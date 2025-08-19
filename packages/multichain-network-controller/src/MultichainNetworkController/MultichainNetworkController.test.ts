@@ -10,6 +10,7 @@ import {
   type KeyringAccountType,
   type CaipChainId,
   EthScope,
+  TrxAccountType,
 } from '@metamask/keyring-api';
 import type {
   NetworkControllerGetStateAction,
@@ -212,6 +213,7 @@ function setupController({
       [BtcAccountType.P2wpkh]: 'bc1q4degm5k044n9xv3ds7d8l6hfavydte6wn6sesw',
       [BtcAccountType.P2tr]:
         'bc1pxfxst7zrkw39vzh0pchq5ey0q7z6u739cudhz5vmg89wa4kyyp9qzrf5sp',
+      [TrxAccountType.Eoa]: 'TYvuLYQvTZp56urTbkeM3vDqU2YipJ7eDk',
     };
     const mockAccountAddress = mockAccountAddressByAccountType[accountType];
 

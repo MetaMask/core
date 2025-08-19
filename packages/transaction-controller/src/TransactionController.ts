@@ -2047,6 +2047,7 @@ export class TransactionController extends BaseController<
    * @param params.gasPrice - Price per gas for legacy transactions.
    * @param params.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
    * @param params.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @param params.updateType - Whether to update the transaction type. Defaults to `true`.
    * @param params.to - Address to send the transaction to.
    * @param params.value - Value associated with the transaction.
    * @returns The updated transaction metadata.
@@ -2062,6 +2063,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       maxPriorityFeePerGas,
       to,
+      updateType,
       value,
     }: {
       containerTypes?: TransactionContainerType[];
@@ -2072,6 +2074,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas?: string;
       maxPriorityFeePerGas?: string;
       to?: string;
+      updateType?: boolean;
       value?: string;
     },
   ) {
@@ -2108,12 +2111,14 @@ export class TransactionController extends BaseController<
     const provider = this.#getProvider({ networkClientId });
     const ethQuery = new EthQuery(provider);
 
-    const { type } = await determineTransactionType(
-      updatedTransaction.txParams,
-      ethQuery,
-    );
+    if (updateType !== false) {
+      const { type } = await determineTransactionType(
+        updatedTransaction.txParams,
+        ethQuery,
+      );
 
-    updatedTransaction.type = type;
+      updatedTransaction.type = type;
+    }
 
     if (containerTypes) {
       updatedTransaction.containerTypes = containerTypes;
@@ -4151,6 +4156,7 @@ export class TransactionController extends BaseController<
     };
 
     let gasFeeTokens: GasFeeToken[] = [];
+    let isGasFeeSponsored = false;
 
     const isBalanceChangesSkipped =
       this.#skipSimulationTransactionIds.has(transactionId);
@@ -4179,13 +4185,15 @@ export class TransactionController extends BaseController<
         };
       }
 
-      gasFeeTokens = await getGasFeeTokens({
+      const gasFeeTokensResponse = await getGasFeeTokens({
         chainId,
         isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
         messenger: this.messagingSystem,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
       });
+      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
+      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
 
     const latestTransactionMeta = this.#getTransaction(transactionId);
@@ -4209,6 +4217,7 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
+        txMeta.isGasFeeSponsored = isGasFeeSponsored;
 
         if (!isBalanceChangesSkipped) {
           txMeta.simulationData = simulationData;
