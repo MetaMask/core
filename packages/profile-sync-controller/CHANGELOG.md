@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-- chore: bump accounts dependencies ([#6248](https://github.com/MetaMask/core/pull/6248))
-- feat: add multichain account syncing checks & logic branches ([#6215](https://github.com/MetaMask/core/pull/6215))
-
 ### Added
 
 - `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action
