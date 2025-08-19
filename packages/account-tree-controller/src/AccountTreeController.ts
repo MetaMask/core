@@ -26,11 +26,16 @@ import {
   disableLegacyAccountSyncingForAllWallets,
   performLegacyAccountSyncing,
   syncGroupsMetadata,
+  syncSingleGroupMetadata,
   syncWalletMetadata,
 } from './account-syncing/syncing';
-import type { AccountSyncingContext } from './account-syncing/types';
+import type {
+  AccountSyncingContext,
+  AtomicSyncEvent,
+} from './account-syncing/types';
 import {
   getAllGroupsFromUserStorage,
+  getGroupFromUserStorage,
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
 } from './account-syncing/user-storage';
@@ -110,6 +115,16 @@ export class AccountTreeController extends BaseController<
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
+
+  /**
+   * Queue for atomic sync events that need to be processed asynchronously.
+   */
+  readonly #atomicSyncQueue: AtomicSyncEvent[] = [];
+
+  /**
+   * Flag to prevent multiple atomic sync queue processing operations from running concurrently.
+   */
+  #isAtomicSyncQueueInProgress = false;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
@@ -473,6 +488,11 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
+
+      // Trigger atomic sync for new wallet (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#enqueueAtomicSync(() => this.#syncWalletToUserStorage(walletId));
+      }
     }
 
     const groupId = result.group.id;
@@ -494,6 +514,11 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
+
+      // Trigger atomic sync for new group (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#enqueueAtomicSync(() => this.#syncGroupToUserStorage(groupId));
+      }
     } else {
       group.accounts.push(account.id);
     }
@@ -743,6 +768,9 @@ export class AccountTreeController extends BaseController<
           name;
       }
     });
+
+    // Trigger atomic sync for group rename
+    this.#enqueueAtomicSync(() => this.#syncGroupToUserStorage(groupId));
   }
 
   /**
@@ -767,6 +795,9 @@ export class AccountTreeController extends BaseController<
       // Update tree node directly
       state.accountTree.wallets[walletId].metadata.name = name;
     });
+
+    // Trigger atomic sync for wallet rename
+    this.#enqueueAtomicSync(() => this.#syncWalletToUserStorage(walletId));
   }
 
   /**
@@ -879,15 +910,10 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const context: AccountSyncingContext = {
-      controller: this,
-      messenger: this.messagingSystem,
-      controllerStateUpdateFn: this.update.bind(this),
-      traceFn: this.#trace.bind(this),
-      emitAnalyticsEventFn:
-        this.#accountSyncingConfig.emitAccountSyncingEvent.bind(this),
-      enableDebugLogging: this.#accountSyncingConfig.enableDebugLogging,
-    };
+    const context = this.#createAccountSyncingContext();
+    if (!context) {
+      return;
+    }
 
     // Encapsulate the sync logic in a function to allow tracing
     const bigSyncFn = async () => {
@@ -898,6 +924,9 @@ export class AccountTreeController extends BaseController<
         this.update((state) => {
           state.isAccountSyncingInProgress = true;
         });
+
+        // Clear stale atomic syncs - big sync supersedes them
+        this.#atomicSyncQueue.length = 0;
 
         // 1. Identifies all local entropy wallets that can be synchronized
         const localSyncableWallets = getLocalEntropyWallets(context);
@@ -1065,5 +1094,187 @@ export class AccountTreeController extends BaseController<
       },
       bigSyncFn,
     );
+  }
+
+  /**
+   * Enqueues an atomic sync function for processing.
+   *
+   * @param syncFunction - The sync function to enqueue.
+   */
+  #enqueueAtomicSync(syncFunction: () => Promise<void>): void {
+    // Block enqueueing if big sync is running
+    if (this.state.isAccountSyncingInProgress) {
+      return;
+    }
+
+    const syncEvent: AtomicSyncEvent = {
+      id: `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      execute: syncFunction,
+    };
+
+    this.#atomicSyncQueue.push(syncEvent);
+
+    // Process queue asynchronously without blocking
+    setTimeout(() => {
+      this.#processAtomicSyncQueue().catch((error) => {
+        if (this.#accountSyncingConfig.enableDebugLogging) {
+          console.error('Error processing atomic sync queue:', error);
+        }
+      });
+    }, 0);
+  }
+
+  /**
+   * Processes the atomic sync queue.
+   */
+  async #processAtomicSyncQueue(): Promise<void> {
+    if (
+      this.#isAtomicSyncQueueInProgress ||
+      this.state.isAccountSyncingInProgress
+    ) {
+      return;
+    }
+
+    if (this.#atomicSyncQueue.length === 0) {
+      return;
+    }
+
+    this.#isAtomicSyncQueueInProgress = true;
+
+    try {
+      while (this.#atomicSyncQueue.length > 0) {
+        const event = this.#atomicSyncQueue.shift();
+        if (!event) {
+          break;
+        }
+
+        try {
+          await event.execute();
+        } catch (error) {
+          if (this.#accountSyncingConfig.enableDebugLogging) {
+            console.error(
+              `Failed to process atomic sync event ${event.id}`,
+              error,
+            );
+          }
+        }
+      }
+    } finally {
+      this.#isAtomicSyncQueueInProgress = false;
+    }
+  }
+
+  /**
+   * Creates an account syncing context for sync operations.
+   *
+   * @returns The account syncing context or null if syncing is disabled.
+   */
+  #createAccountSyncingContext(): AccountSyncingContext | null {
+    if (this.#disableMultichainAccountSyncing) {
+      return null;
+    }
+
+    return {
+      controller: this,
+      messenger: this.messagingSystem,
+      controllerStateUpdateFn: this.update.bind(this),
+      traceFn: this.#trace.bind(this),
+      emitAnalyticsEventFn:
+        this.#accountSyncingConfig.emitAccountSyncingEvent.bind(this),
+      enableDebugLogging: this.#accountSyncingConfig.enableDebugLogging,
+    };
+  }
+
+  /**
+   * Syncs a single wallet's metadata to user storage.
+   *
+   * @param walletId - The wallet ID to sync.
+   */
+  async #syncWalletToUserStorage(walletId: AccountWalletId): Promise<void> {
+    const context = this.#createAccountSyncingContext();
+    if (!context) {
+      return;
+    }
+
+    try {
+      const wallet = this.state.accountTree.wallets[walletId];
+      if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+        return; // Only sync entropy wallets
+      }
+
+      const entropySourceId = wallet.metadata.entropy.id;
+      const walletProfileId = await getProfileId(context, entropySourceId);
+      const walletFromUserStorage = await getWalletFromUserStorage(
+        context,
+        entropySourceId,
+      );
+
+      await syncWalletMetadata(
+        context,
+        wallet,
+        walletFromUserStorage,
+        walletProfileId,
+      );
+    } catch (error) {
+      if (context.enableDebugLogging) {
+        console.error(
+          `Error syncing wallet ${walletId} to user storage:`,
+          error,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Syncs a single group's metadata to user storage.
+   *
+   * @param groupId - The group ID to sync.
+   */
+  async #syncGroupToUserStorage(groupId: AccountGroupId): Promise<void> {
+    const context = this.#createAccountSyncingContext();
+    if (!context) {
+      return;
+    }
+
+    try {
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (!walletId) {
+        return;
+      }
+
+      const wallet = this.state.accountTree.wallets[walletId];
+      if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+        return; // Only sync entropy wallets
+      }
+
+      const group = wallet.groups[groupId];
+      if (!group) {
+        return;
+      }
+
+      const entropySourceId = wallet.metadata.entropy.id;
+      const walletProfileId = await getProfileId(context, entropySourceId);
+
+      // Get the specific group from user storage
+      const groupFromUserStorage = await getGroupFromUserStorage(
+        context,
+        entropySourceId,
+        group.metadata.entropy.groupIndex,
+      );
+
+      await syncSingleGroupMetadata(
+        context,
+        group,
+        groupFromUserStorage,
+        entropySourceId,
+        walletProfileId,
+      );
+    } catch (error) {
+      if (context.enableDebugLogging) {
+        console.error(`Error syncing group ${groupId} to user storage:`, error);
+      }
+      throw error;
+    }
   }
 }

@@ -124,21 +124,56 @@ export const getAllGroupsFromUserStorage = async (
 };
 
 /**
+ * Retrieves a single group from user storage by group index.
+ *
+ * @param context - The account syncing context.
+ * @param entropySourceId - The entropy source ID.
+ * @param groupIndex - The group index to retrieve.
+ * @returns The group from user storage or null if not found or invalid.
+ */
+export const getGroupFromUserStorage = async (
+  context: AccountSyncingContext,
+  entropySourceId: string,
+  groupIndex: number,
+): Promise<UserStorageSyncedWalletGroup | null> => {
+  return executeWithRetry(async () => {
+    const groupData = await context.messenger.call(
+      'UserStorageController:performGetStorage',
+      `${USER_STORAGE_GROUPS_FEATURE_KEY}.${groupIndex}`,
+      entropySourceId,
+    );
+    if (!groupData) {
+      return null;
+    }
+
+    try {
+      return parseGroupFromUserStorageResponse(groupData);
+    } catch (error) {
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return null;
+    }
+  });
+};
+
+/**
  * Pushes a group to user storage.
  *
  * @param context - The account syncing context.
  * @param group - The group to push to user storage.
+ * @param entropySourceId - The entropy source ID.
  * @returns A promise that resolves when the operation is complete.
  */
 export const pushGroupToUserStorage = async (
   context: AccountSyncingContext,
   group: AccountGroupMultichainAccountObject,
+  entropySourceId: string,
 ): Promise<void> => {
   return executeWithRetry(async () => {
     const formattedGroup = formatGroupForUserStorageUsage(context, group);
-    // entropySourceId can be derived from the group ID, assuming it follows a specific format.
-    // Group ID looks like: `entropy:${string}/${string}`
-    const entropySourceId = group.id.split('/')[0].replace('entropy:', '');
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',

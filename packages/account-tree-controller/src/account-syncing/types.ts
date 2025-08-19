@@ -87,3 +87,8 @@ export type LegacyAccountSyncingContext = {
       | undefined;
   };
 };
+
+export type AtomicSyncEvent = {
+  id: string;
+  execute: () => Promise<void>;
+};
