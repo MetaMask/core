@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 - Add `parent` constructor parameter and type parameter to `Messenger` ([#6142](https://github.com/MetaMask/core/pull/6142))
   - All capabilities registered under this messenger's namespace are delegated to the parent automatically. This is similar to how the `RestrictedMessenger` would automatically delegate all capabilities to the messenger it was created from.
+- Add `MessengerActions` and `MessengerEvents` utility types for extracting actions/events from a `Messenger` type ([#6317](https://github.com/MetaMask/core/pull/6317))
 
 ### Changed
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All published events and registered actions should fall under the given namespace. Typically the namespace is the controller or service name. This is the equivalent to the `Namespace` parameter from the old `RestrictedMessenger` class.
 - **BREAKING:** The `type` property of `ActionConstraint` and `EventConstraint` is now a `NamespacedName` rather than a string ([#6132](https://github.com/MetaMask/core/pull/6132))
 - Add default for `ReturnHandler` type parameter of `SelectorEventHandler` and `SelectorFunction` ([#6262](https://github.com/MetaMask/core/pull/6262), [#6264](https://github.com/MetaMask/core/pull/6264))
+- Add default of `never` to action and event type parameters of `Messenger` ([#6311](https://github.com/MetaMask/core/pull/6311))
 
 ### Removed
 

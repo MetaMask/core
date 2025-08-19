@@ -12,6 +12,7 @@ import type {
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
+import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
@@ -89,7 +90,8 @@ export type NetworkEnablementControllerEvents =
 export type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 export type NetworkEnablementControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -171,6 +173,18 @@ export class NetworkEnablementController extends BaseController<
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
     });
+
+    // Listen for confirmed staking transactions
+    messenger.subscribe(
+      'TransactionController:transactionSubmitted',
+      (transactionMeta) => {
+        if (transactionMeta?.transactionMeta?.chainId) {
+          this.enableNetwork(
+            transactionMeta.transactionMeta.chainId as Hex | CaipChainId,
+          );
+        }
+      },
+    );
   }
 
   /**
