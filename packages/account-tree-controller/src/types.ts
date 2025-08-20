@@ -56,7 +56,7 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
-  isBackupAndSyncInProgress: boolean;
+  isAccountTreeSyncingInProgress: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
   accountGroupsMetadata: Record<
     AccountGroupId,

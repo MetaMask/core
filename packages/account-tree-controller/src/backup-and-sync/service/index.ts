@@ -60,7 +60,7 @@ export class BackupAndSyncService {
    * @returns True if syncing is in progress.
    */
   get isInProgress(): boolean {
-    return this.#context.controller.state.isBackupAndSyncInProgress;
+    return this.#context.controller.state.isAccountTreeSyncingInProgress;
   }
 
   getIsMultichainAccountsRemoteFeatureFlagEnabled(): boolean {
@@ -119,7 +119,7 @@ export class BackupAndSyncService {
     if (this.#context.disableMultichainAccountSyncing) {
       if (this.#context.enableDebugLogging) {
         console.warn(
-          'Multichain account syncing is disabled. Skipping sync operation.',
+          'Multichain account syncing is disabled. Skipping full sync operation.',
         );
       }
       return;
@@ -139,7 +139,7 @@ export class BackupAndSyncService {
       try {
         this.#context.controllerStateUpdateFn(
           (state: AccountTreeControllerState) => {
-            state.isBackupAndSyncInProgress = true;
+            state.isAccountTreeSyncingInProgress = true;
           },
         );
 
@@ -301,7 +301,7 @@ export class BackupAndSyncService {
       } finally {
         this.#context.controllerStateUpdateFn(
           (state: AccountTreeControllerState) => {
-            state.isBackupAndSyncInProgress = false;
+            state.isAccountTreeSyncingInProgress = false;
           },
         );
       }
@@ -328,7 +328,7 @@ export class BackupAndSyncService {
     ) {
       if (this.#context.enableDebugLogging) {
         console.warn(
-          'Multichain account syncing is disabled. Skipping sync operation.',
+          'Multichain account syncing is disabled. Skipping single wallet sync operation.',
         );
       }
       return;
@@ -377,7 +377,7 @@ export class BackupAndSyncService {
     ) {
       if (this.#context.enableDebugLogging) {
         console.warn(
-          'Multichain account syncing is disabled. Skipping sync operation.',
+          'Multichain account syncing is disabled. Skipping single group sync operation.',
         );
       }
       return;

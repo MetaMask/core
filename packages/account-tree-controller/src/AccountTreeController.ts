@@ -39,7 +39,7 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
     },
-    isBackupAndSyncInProgress: {
+    isAccountTreeSyncingInProgress: {
       persist: false,
       anonymous: false,
     },
@@ -64,7 +64,7 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
-    isBackupAndSyncInProgress: false,
+    isAccountTreeSyncingInProgress: false,
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
   };
@@ -118,7 +118,7 @@ export class AccountTreeController extends BaseController<
 
   // Temporary: ensures we can release updates to AccountTreeController without
   // breaking changes while we transition to the new multichain syncing approach.
-  readonly #disableMultichainAccountSyncing: boolean = true;
+  readonly #disableMultichainAccountSyncing: boolean = false;
 
   /**
    * Constructor for AccountTreeController.

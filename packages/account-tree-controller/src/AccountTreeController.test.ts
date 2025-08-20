@@ -524,7 +524,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
-        isBackupAndSyncInProgress: false,
+        isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -821,7 +821,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
-        isBackupAndSyncInProgress: false,
+        isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -890,7 +890,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
-        isBackupAndSyncInProgress: false,
+        isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -911,7 +911,7 @@ describe('AccountTreeController', () => {
       expect(controller.state).toStrictEqual({
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
-        isBackupAndSyncInProgress: false,
+        isAccountTreeSyncingInProgress: false,
         accountTree: {
           // No wallets should be present.
           wallets: {},
@@ -997,7 +997,7 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
-        isBackupAndSyncInProgress: false,
+        isAccountTreeSyncingInProgress: false,
       } as AccountTreeControllerState);
     });
 
@@ -1111,7 +1111,7 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
-        isBackupAndSyncInProgress: false,
+        isAccountTreeSyncingInProgress: false,
       } as AccountTreeControllerState);
     });
   });

@@ -6,6 +6,7 @@ import type {
 } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Infer } from '@metamask/superstruct';
 import {
   object,
   string,
@@ -25,23 +26,13 @@ import type { RuleResult } from '../rule';
 import type { AccountTreeControllerMessenger } from '../types';
 import type { AccountTreeWalletPersistedMetadata } from '../wallet';
 
-export type UserStorageWalletExtendedMetadata = {
-  isLegacyAccountSyncingDisabled?: boolean;
-};
-export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata &
-  UserStorageWalletExtendedMetadata;
-
-export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
-  groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];
-};
-
 /**
  * Schema for an updatable field with value and timestamp.
  *
  * @param valueSchema - The schema for the value field.
  * @returns A superstruct schema for an updatable field.
  */
-export const UpdatableFieldSchema = <T>(valueSchema: Struct<T>) =>
+const UpdatableFieldSchema = <T>(valueSchema: Struct<T>) =>
   object({
     value: valueSchema,
     lastUpdatedAt: number(),
@@ -64,6 +55,17 @@ export const UserStorageSyncedWalletGroupSchema = object({
   hidden: optional(UpdatableFieldSchema(boolean())),
   groupIndex: number(),
 });
+
+export type UserStorageWalletExtendedMetadata = {
+  isLegacyAccountSyncingDisabled?: boolean;
+};
+export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata &
+  UserStorageWalletExtendedMetadata &
+  Infer<typeof UserStorageSyncedWalletSchema>;
+
+export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
+  groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];
+} & Infer<typeof UserStorageSyncedWalletGroupSchema>;
 
 export type BackupAndSyncContext = {
   messenger: AccountTreeControllerMessenger;
