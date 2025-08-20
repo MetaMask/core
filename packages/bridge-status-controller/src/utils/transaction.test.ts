@@ -1279,7 +1279,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     beforeEach(() => {
-      mockMessagingSystem = createMockMessagingSystem();
+      mockMessagingSystem = createMockMessagingSystem() as unknown as BridgeStatusControllerMessenger;
     });
 
     it('should handle gasless7702 flag set to true', async () => {
@@ -1405,7 +1405,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -1448,7 +1448,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -1480,7 +1480,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swapApproval]: '0xapprovalData',
@@ -1515,7 +1515,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.bridge]: '0xswapData',
@@ -1556,7 +1556,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -1583,7 +1583,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.bridge]: '0xbridgeData',
