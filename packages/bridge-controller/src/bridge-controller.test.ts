@@ -32,6 +32,7 @@ import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
   MetaMetricsSwapsEventSource,
+  MetricsActionType,
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -1831,21 +1832,19 @@ describe('BridgeController', function () {
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
-          quoteRequest: {
-            srcChainId: SolScope.Mainnet,
-            destChainId: '0xa',
-            srcTokenAddress: 'NATIVE',
-            destTokenAddress: '0x1234',
-            srcTokenAmount: '1000000',
-            walletAddress: '0x123',
-            slippage: 0.5,
-          },
-          quotes: mockBridgeQuotesSolErc20 as never,
+          ...EMPTY_INIT_STATE,
         },
       });
       controller.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         {
+          action_type: MetricsActionType.SWAPBRIDGE_V1,
+          swap_type: MetricsSwapType.CROSSCHAIN,
+          chain_id_source: formatChainIdToCaip(ChainId.SOLANA),
+          chain_id_destination: formatChainIdToCaip(1),
+          custom_slippage: false,
+          is_hardware_wallet: false,
+          slippage_limit: 0.5,
           usd_quoted_gas: 1,
           gas_included: false,
           quoted_time_minutes: 2,
@@ -1867,6 +1866,7 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         {
+          action_type: MetricsActionType.SWAPBRIDGE_V1,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,
           destination_transaction: StatusTypes.PENDING,
@@ -1892,7 +1892,6 @@ describe('BridgeController', function () {
           chain_id_destination: formatChainIdToCaip(10),
           token_symbol_destination: 'USDC',
           token_address_destination: getNativeAssetForChainId(10).assetId,
-          security_warnings: [],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

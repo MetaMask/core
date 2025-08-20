@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Calculate `actual_time_minutes` event property based on `txMeta.time` if available ([#6314](https://github.com/MetaMask/core/pull/6314))
+- Parse event properties from the quote request if an event needs to be published prior to tx submission (i.e., Failed, Submitted) ([#6314](https://github.com/MetaMask/core/pull/6314))
+
 ## [39.0.0]
 
 ### Changed
