@@ -271,6 +271,22 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AssetDetailTooltipClicked event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Asset Detail Tooltip Clicked",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id": "1",
+      "chain_name": "Ethereum",
+      "token_contract": "0x123",
+      "token_name": "ETH",
+      "token_symbol": "ETH",
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the ButtonClicked event 1`] = `
 Array [
   Array [

@@ -1790,6 +1790,22 @@ describe('BridgeController', function () {
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
+
+    it('should track the AssetDetailTooltipClicked event', () => {
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.AssetDetailTooltipClicked,
+        {
+          token_name: 'ETH',
+          token_symbol: 'ETH',
+          token_contract: '0x123',
+          chain_name: 'Ethereum',
+          chain_id: '1',
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
   });
 
   describe('trackUnifiedSwapBridgeEvent bridge-status-controller calls', () => {

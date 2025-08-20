@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `UnifiedSwapBridgeEventName.AssetDetailTooltipClicked` event ([#6352](https://github.com/MetaMask/core/pull/6352))
+
 ## [41.0.0]
 
 ### Added
