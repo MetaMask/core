@@ -255,6 +255,7 @@ export const getAddTransactionBatchParams = async ({
     quote: {
       feeData: { txFee },
       gasIncluded,
+      gasless7702,
     },
     sentAmount,
     toTokenAmount,
@@ -286,8 +287,9 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // 7702 enables gasless txs for smart accounts, so we disable it for now
-  const disable7702 = true;
+  // When an active quote has gasless7702 set to true, 
+  // enable 7702 gasless txs for smart accounts
+  const disable7702 = gasless7702 !== true;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
