@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318))
     - Rename `ListenerV2` type export to `StateChangeListener` ([#6339](https://github.com/MetaMask/core/pull/6339))
     - Rename `messagingSystem` protected instance variable to `messenger` ([#6337](https://github.com/MetaMask/core/pull/6337))
+    - Remove `isBaseController` ([#6341](https://github.com/MetaMask/core/pull/6341))
 
 ### Changed
 

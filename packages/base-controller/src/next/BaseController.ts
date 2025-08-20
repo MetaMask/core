@@ -12,27 +12,6 @@ import type { Draft, Patch } from 'immer';
 enablePatches();
 
 /**
- * Determines if the given controller is an instance of `BaseController`
- *
- * @param controller - Controller instance to check
- * @returns True if the controller is an instance of `BaseController`
- */
-export function isBaseController(
-  controller: unknown,
-): controller is BaseControllerInstance {
-  return (
-    typeof controller === 'object' &&
-    controller !== null &&
-    'name' in controller &&
-    typeof controller.name === 'string' &&
-    'state' in controller &&
-    typeof controller.state === 'object' &&
-    'metadata' in controller &&
-    typeof controller.metadata === 'object'
-  );
-}
-
-/**
  * A type that constrains the state of all controllers.
  *
  * In other words, the narrowest supertype encompassing all controller state.
