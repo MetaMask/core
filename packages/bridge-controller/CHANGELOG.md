@@ -14,9 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^73.3.0` to `^74.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - **BREAKING:** Bump peer dependency `@metamask/transaction-controller` from `^59.2.0` to `^60.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
-
-### Changed
-
 - Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
   - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
 - Bump `@metamask/assets-controller` from `^73.2.0` to `^73.3.0` ([#6334](https://github.com/MetaMask/core/pull/6334))
