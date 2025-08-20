@@ -276,6 +276,7 @@ Array [
   Array [
     "Unified SwapBridge Asset Detail Tooltip Clicked",
     Object {
+      "action_type": "swapbridge-v1",
       "chain_id": "1",
       "chain_name": "Ethereum",
       "token_contract": "0x123",
