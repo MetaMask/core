@@ -17,6 +17,7 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
+import type { AuthenticationControllerGetSessionProfile } from '@metamask/profile-sync-controller/auth';
 import type {
   UserStorageControllerGetIsMultichainAccountSyncingEnabled,
   UserStorageControllerPerformBatchSetStorage,
@@ -40,7 +41,6 @@ import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
-import type { AuthenticationControllerGetSessionProfile } from '../../profile-sync-controller/dist/controllers/authentication/AuthenticationController.cjs';
 
 // Backward compatibility aliases using indexed access types
 /**

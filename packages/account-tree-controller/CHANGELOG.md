@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add backup and sync capabilities ([#6344](https://github.com/MetaMask/core/pull/6344))
+  - New `syncWithUserStorage()` method for manual sync triggers, replacing `UserStorageController:syncInternalAccountsWithUserStorage` usage in clients
+  - `BackupAndSyncService` with full and atomic sync operations for account tree data persistence
+  - Bidirectional metadata synchronization for wallets and groups with user storage
+  - Automatic sync triggers on metadata changes (rename, pin/hide operations)
+  - New `isBackupAndSyncInProgress` state property to track sync status
+  - Analytics event tracking and performance tracing for sync operations
+  - Rollback mechanism for failed sync operations with state snapshot/restore capabilities
+  - Support for entropy-based wallets with multichain account syncing
+  - Legacy account syncing compatibility for seamless migration
+  - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options
+- Add new dependencies for sync functionality
+  - `@metamask/superstruct` for data validation
+  - `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies
+
 ## [0.9.0]
 
 ### Changed
