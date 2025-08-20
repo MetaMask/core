@@ -7,6 +7,7 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
+import { ProviderWrapper } from './providers/ProviderWrapper';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
 import {
@@ -772,6 +773,127 @@ describe('MultichainAccountService', () => {
 
       // This tests the simplified parameter signature
       expect(await service.setBasicFunctionality(false)).toBeUndefined();
+    });
+  });
+
+  describe('ProviderWrapper disabled behavior', () => {
+    let mockProvider: MockAccountProvider;
+    let wrapper: ProviderWrapper;
+
+    beforeEach(() => {
+      const { mocks } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      mockProvider = mocks.SolAccountProvider;
+      wrapper = new ProviderWrapper(mockProvider);
+    });
+
+    it('returns empty array when getAccounts() is disabled', () => {
+      // Enable first - should work normally
+      mockProvider.getAccounts.mockReturnValue([MOCK_HD_ACCOUNT_1]);
+      expect(wrapper.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+
+      // Disable - should return empty array
+      wrapper.setDisabled(true);
+      expect(wrapper.getAccounts()).toStrictEqual([]);
+    });
+
+    it('throws error when getAccount() is disabled', () => {
+      // Enable first - should work normally
+      mockProvider.getAccount.mockReturnValue(MOCK_HD_ACCOUNT_1);
+      expect(wrapper.getAccount('test-id')).toStrictEqual(MOCK_HD_ACCOUNT_1);
+
+      // Disable - should throw error
+      wrapper.setDisabled(true);
+      expect(() => wrapper.getAccount('test-id')).toThrow(
+        'Provider Object is disabled',
+      );
+    });
+
+    it('returns empty array when createAccounts() is disabled', async () => {
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      // Enable first - should work normally
+      mockProvider.createAccounts.mockResolvedValue([MOCK_HD_ACCOUNT_1]);
+      expect(await wrapper.createAccounts(options)).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      // Disable - should return empty array and not call underlying provider
+      wrapper.setDisabled(true);
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const result = await wrapper.createAccounts(options);
+      expect(result).toStrictEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Provider Object is disabled - skipping account creation',
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('returns empty array when discoverAndCreateAccounts() is disabled', async () => {
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      // Enable first - should work normally
+      mockProvider.discoverAndCreateAccounts.mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+      expect(await wrapper.discoverAndCreateAccounts(options)).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      // Disable - should return empty array
+      wrapper.setDisabled(true);
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const result = await wrapper.discoverAndCreateAccounts(options);
+      expect(result).toStrictEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Provider Object is disabled - skipping account discovery',
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('proxies isAccountCompatible() correctly', () => {
+      // Test when provider has the method
+      const providerWithMethod = mockProvider as MockAccountProvider & {
+        isAccountCompatible: jest.Mock;
+      };
+      jest
+        .spyOn(providerWithMethod, 'isAccountCompatible')
+        .mockImplementation()
+        .mockReturnValue(true);
+      expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(true);
+      expect(providerWithMethod.isAccountCompatible).toHaveBeenCalledWith(
+        MOCK_HD_ACCOUNT_1,
+      );
+
+      // Test when provider doesn't have the method (fallback to true)
+      const providerWithoutMethod = { ...mockProvider };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (providerWithoutMethod as any).isAccountCompatible = undefined;
+      const wrapperWithoutMethod = new ProviderWrapper(providerWithoutMethod);
+      expect(wrapperWithoutMethod.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(
+        true,
+      );
+    });
+
+    it('logs properly when setDisabled() is called', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      wrapper.setDisabled(true);
+      expect(consoleSpy).toHaveBeenCalledWith('Provider Object disabled');
+
+      wrapper.setDisabled(false);
+      expect(consoleSpy).toHaveBeenCalledWith('Provider Object enabled');
+
+      consoleSpy.mockRestore();
     });
   });
 });

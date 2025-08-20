@@ -13,7 +13,10 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { isSnapAccountProvider } from './providers/SnapAccountProvider';
+import {
+  ProviderWrapper,
+  isProviderWrapper,
+} from './providers/ProviderWrapper';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -41,7 +44,10 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
+  readonly #providers: (
+    | AccountProvider<Bip44Account<KeyringAccount>>
+    | ProviderWrapper
+  )[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -78,7 +84,7 @@ export class MultichainAccountService {
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
-      new SolAccountProvider(this.#messenger),
+      new ProviderWrapper(new SolAccountProvider(this.#messenger)),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
@@ -378,9 +384,9 @@ export class MultichainAccountService {
       `MultichainAccountService: Setting basic functionality ${enabled ? 'enabled' : 'disabled'}`,
     );
 
-    // Loop through providers and disable only snap-based ones when basic functionality is disabled
+    // Loop through providers and disable only wrapped ones when basic functionality is disabled
     for (const provider of this.#providers) {
-      if (isSnapAccountProvider(provider)) {
+      if (isProviderWrapper(provider)) {
         provider.setDisabled(!enabled);
       }
       // Regular providers (like EVM) are never disabled for basic functionality

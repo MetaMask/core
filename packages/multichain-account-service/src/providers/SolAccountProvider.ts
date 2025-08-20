@@ -35,11 +35,6 @@ export class SolAccountProvider extends SnapAccountProvider {
   }): Promise<Bip44Account<KeyringAccount>[]> {
     const createAccount = await this.getRestrictedSnapAccountCreator();
 
-    // If disabled, return empty array
-    if (Array.isArray(createAccount)) {
-      return [];
-    }
-
     // Create account without any confirmation nor selecting it.
     // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
     // type once ready.
@@ -68,7 +63,7 @@ export class SolAccountProvider extends SnapAccountProvider {
   async discoverAndCreateAccounts(_: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
+  }): Promise<Bip44Account<KeyringAccount>[]> {
     return []; // TODO: Implement account discovery.
   }
 }
