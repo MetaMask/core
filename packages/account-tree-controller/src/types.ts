@@ -17,15 +17,10 @@ import {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
-import type { AuthenticationControllerGetSessionProfile } from '@metamask/profile-sync-controller/auth';
 import type {
-  UserStorageControllerGetIsMultichainAccountSyncingEnabled,
-  UserStorageControllerPerformBatchSetStorage,
-  UserStorageControllerPerformGetStorage,
-  UserStorageControllerPerformSetStorage,
-  UserStorageControllerSyncInternalAccountsWithUserStorage,
-} from '@metamask/profile-sync-controller/user-storage';
-import type { UserStorageControllerPerformGetStorageAllFeatureEntries } from '@metamask/profile-sync-controller/user-storage';
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import type {
@@ -101,13 +96,13 @@ export type AllowedActions =
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
   | SnapControllerGetSnap
-  | UserStorageControllerPerformGetStorage
-  | UserStorageControllerPerformGetStorageAllFeatureEntries
-  | UserStorageControllerPerformSetStorage
-  | UserStorageControllerPerformBatchSetStorage
-  | UserStorageControllerSyncInternalAccountsWithUserStorage
-  | UserStorageControllerGetIsMultichainAccountSyncingEnabled
-  | AuthenticationControllerGetSessionProfile
+  | UserStorageController.UserStorageControllerPerformGetStorage
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntries
+  | UserStorageController.UserStorageControllerPerformSetStorage
+  | UserStorageController.UserStorageControllerPerformBatchSetStorage
+  | UserStorageController.UserStorageControllerSyncInternalAccountsWithUserStorage
+  | UserStorageController.UserStorageControllerGetIsMultichainAccountSyncingEnabled
+  | AuthenticationController.AuthenticationControllerGetSessionProfile
   | MultichainAccountServiceCreateMultichainAccountGroupAction;
 
 export type AccountTreeControllerActions =

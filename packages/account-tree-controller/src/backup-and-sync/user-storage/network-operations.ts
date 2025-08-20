@@ -1,4 +1,4 @@
-import { USER_STORAGE_FEATURE_NAMES } from '@metamask/profile-sync-controller/sdk';
+import { SDK } from '@metamask/profile-sync-controller';
 
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
@@ -235,7 +235,7 @@ export const getLegacyUserStorageData = async (
   return executeWithRetry(async () => {
     const rawAccountsListResponse = await context.messenger.call(
       'UserStorageController:performGetStorageAllFeatureEntries',
-      USER_STORAGE_FEATURE_NAMES.accounts,
+      SDK.USER_STORAGE_FEATURE_NAMES.accounts,
       entropySourceId,
     );
 
