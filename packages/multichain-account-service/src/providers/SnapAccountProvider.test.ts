@@ -1,5 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import { isSnapAccountProvider } from './SnapAccountProvider';
 
 describe('SnapAccountProvider', () => {
