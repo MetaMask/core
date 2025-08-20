@@ -226,7 +226,7 @@ export class SampleGasPricesController extends BaseController<
 
     this.#gasPricesService = gasPricesService;
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateGasPrices`,
       this.updateGasPrices.bind(this),
     );
@@ -237,7 +237,7 @@ export class SampleGasPricesController extends BaseController<
    * state.
    */
   async updateGasPrices() {
-    const { chainId } = this.messagingSystem.call('NetworkController:getState');
+    const { chainId } = this.messenger.call('NetworkController:getState');
     const gasPricesResponse =
       await this.#gasPricesService.fetchGasPrices(chainId);
     this.update((state) => {
