@@ -1154,11 +1154,13 @@ describe('BridgeStatusController', () => {
 
   describe('getBridgeTransactionByTxMetaId', () => {
     it('returns the bridge transaction when it exists', async () => {
-      const { bridgeStatusController } = await executePollingWithPendingStatus();
-      
+      const { bridgeStatusController } =
+        await executePollingWithPendingStatus();
+
       const txMetaId = 'bridgeTxMetaId1';
-      const bridgeTransaction = bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
-      
+      const bridgeTransaction =
+        bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
+
       expect(bridgeTransaction).toBeDefined();
       expect(bridgeTransaction?.quote.srcChainId).toBe(42161);
       expect(bridgeTransaction?.quote.destChainId).toBe(10);
@@ -1166,11 +1168,13 @@ describe('BridgeStatusController', () => {
     });
 
     it('returns undefined when the transaction does not exist', async () => {
-      const { bridgeStatusController } = await executePollingWithPendingStatus();
-      
+      const { bridgeStatusController } =
+        await executePollingWithPendingStatus();
+
       const txMetaId = 'nonExistentTxId';
-      const bridgeTransaction = bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
-      
+      const bridgeTransaction =
+        bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
+
       expect(bridgeTransaction).toBeUndefined();
     });
 
@@ -1185,10 +1189,11 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         state: EMPTY_INIT_STATE,
       });
-      
+
       const txMetaId = 'anyTxId';
-      const bridgeTransaction = bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
-      
+      const bridgeTransaction =
+        bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
+
       expect(bridgeTransaction).toBeUndefined();
     });
 
@@ -1203,19 +1208,19 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         state: {
           txHistory: {
-            'bridgeTxMetaId1': {
-              ...MockTxHistory.getPending()['bridgeTxMetaId1'],
+            bridgeTxMetaId1: {
+              ...MockTxHistory.getPending().bridgeTxMetaId1,
               quote: {
-                ...MockTxHistory.getPending()['bridgeTxMetaId1'].quote,
+                ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
                 srcChainId: 10,
                 destChainId: 137,
               },
             },
-            'anotherTxId': {
-              ...MockTxHistory.getPending()['bridgeTxMetaId1'],
+            anotherTxId: {
+              ...MockTxHistory.getPending().bridgeTxMetaId1,
               txMetaId: 'anotherTxId',
               quote: {
-                ...MockTxHistory.getPending()['bridgeTxMetaId1'].quote,
+                ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
                 srcChainId: 1,
                 destChainId: 42161,
               },
@@ -1223,14 +1228,18 @@ describe('BridgeStatusController', () => {
           },
         },
       });
-      
+
       // Get the first transaction
-      const firstTransaction = bridgeStatusController.getBridgeTransactionByTxMetaId('bridgeTxMetaId1');
+      const firstTransaction =
+        bridgeStatusController.getBridgeTransactionByTxMetaId(
+          'bridgeTxMetaId1',
+        );
       expect(firstTransaction?.quote.srcChainId).toBe(10);
       expect(firstTransaction?.quote.destChainId).toBe(137);
-      
+
       // Get the second transaction
-      const secondTransaction = bridgeStatusController.getBridgeTransactionByTxMetaId('anotherTxId');
+      const secondTransaction =
+        bridgeStatusController.getBridgeTransactionByTxMetaId('anotherTxId');
       expect(secondTransaction?.quote.srcChainId).toBe(1);
       expect(secondTransaction?.quote.destChainId).toBe(42161);
     });

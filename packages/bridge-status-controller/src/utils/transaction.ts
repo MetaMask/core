@@ -288,7 +288,7 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // When an active quote has gasless7702 set to true, 
+  // When an active quote has gasless7702 set to true,
   // enable 7702 gasless txs for smart accounts
   const disable7702 = gasless7702 !== true;
   const transactions: TransactionBatchSingleRequest[] = [];
@@ -387,29 +387,34 @@ export const findAndUpdateTransactionsInBatch = ({
       if (tx.batchId !== batchId) {
         return false;
       }
-      
+
       // For 7702 delegated transactions, check for delegation-specific fields
       // These transactions might have authorizationList or delegationAddress
-      const is7702Transaction = tx.txParams.authorizationList || tx.delegationAddress;
-      
+      const is7702Transaction =
+        tx.txParams.authorizationList || tx.delegationAddress;
+
       if (is7702Transaction) {
         // For 7702 transactions, we need to match based on transaction type
         // since the data field might be different (batch execute call)
-        if (txType === TransactionType.swap && 
-            tx.type === TransactionType.batch) {
+        if (
+          txType === TransactionType.swap &&
+          tx.type === TransactionType.batch
+        ) {
           return true;
         }
         // Also check if it's an approval transaction for 7702
-        if (txType === TransactionType.swapApproval && 
-            tx.txParams.data === txData) {
+        if (
+          txType === TransactionType.swapApproval &&
+          tx.txParams.data === txData
+        ) {
           return true;
         }
       }
-      
+
       // Default matching logic for non-7702 transactions
       return tx.txParams.data === txData;
     });
-    
+
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
       updateTransactionFn(updatedTx, `Update tx type to ${txType}`);

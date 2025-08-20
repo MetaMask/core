@@ -12,6 +12,8 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
+import { LINEA_DELAY_MS } from '../constants';
+import type { BridgeStatusControllerMessenger } from '../types';
 import {
   getStatusRequestParams,
   getTxMetaFields,
@@ -23,7 +25,6 @@ import {
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
 } from './transaction';
-import { LINEA_DELAY_MS } from '../constants';
 
 describe('Bridge Status Controller Transaction Utils', () => {
   describe('getStatusRequestParams', () => {
@@ -1162,7 +1163,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
   });
 
   describe('getAddTransactionBatchParams', () => {
-    let mockMessagingSystem: any;
+    let mockMessagingSystem: BridgeStatusControllerMessenger;
     const mockAccount = {
       id: 'test-account-id',
       address: '0xUserAddress',
@@ -1171,73 +1172,77 @@ describe('Bridge Status Controller Transaction Utils', () => {
       },
     };
 
-    const createMockQuoteResponse = (overrides: {
-      gasIncluded?: boolean;
-      gasless7702?: boolean;
-      includeApproval?: boolean;
-      includeResetApproval?: boolean;
-    } = {}): QuoteResponse & QuoteMetadata => ({
-      quote: {
-        bridgeId: 'bridge1',
-        bridges: ['bridge1'],
-        srcChainId: ChainId.ETH,
-        destChainId: ChainId.POLYGON,
-        srcTokenAmount: '1000000000000000000',
-        destTokenAmount: '2000000000000000000',
-        srcAsset: {
-          address: '0x0000000000000000000000000000000000000000',
-          decimals: 18,
-          symbol: 'ETH',
-        },
-        destAsset: {
-          address: '0x0000000000000000000000000000000000000000',
-          decimals: 18,
-          symbol: 'MATIC',
-        },
-        steps: ['step1'],
-        feeData: {
-          [FeeType.METABRIDGE]: {
-            amount: '100000000000000000',
+    const createMockQuoteResponse = (
+      overrides: {
+        gasIncluded?: boolean;
+        gasless7702?: boolean;
+        includeApproval?: boolean;
+        includeResetApproval?: boolean;
+      } = {},
+    ): QuoteResponse &
+      QuoteMetadata & { approval?: TxData; resetApproval?: TxData } =>
+      ({
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.ETH,
+          destChainId: ChainId.POLYGON,
+          srcTokenAmount: '1000000000000000000',
+          destTokenAmount: '2000000000000000000',
+          srcAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'ETH',
           },
-          txFee: '50000000000000000',
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'MATIC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000000000000',
+            },
+            txFee: '50000000000000000',
+          },
+          gasIncluded: overrides.gasIncluded ?? false,
+          gasless7702: overrides.gasless7702 ?? false,
         },
-        gasIncluded: overrides.gasIncluded ?? false,
-        gasless7702: overrides.gasless7702 ?? false,
-      },
-      estimatedProcessingTimeInSeconds: 300,
-      trade: {
-        value: '0x1000',
-        gasLimit: 21000,
-        to: '0xBridgeContract',
-        data: '0xbridgeData',
-        from: '0xUserAddress',
-        chainId: ChainId.ETH,
-      },
-      ...(overrides.includeApproval && {
-        approval: {
-          to: '0xTokenContract',
-          data: '0xapprovalData',
+        estimatedProcessingTimeInSeconds: 300,
+        trade: {
+          value: '0x1000',
+          gasLimit: 21000,
+          to: '0xBridgeContract',
+          data: '0xbridgeData',
           from: '0xUserAddress',
+          chainId: ChainId.ETH,
         },
-      }),
-      ...(overrides.includeResetApproval && {
-        resetApproval: {
-          to: '0xTokenContract',
-          data: '0xresetData',
-          from: '0xUserAddress',
+        ...(overrides.includeApproval && {
+          approval: {
+            to: '0xTokenContract',
+            data: '0xapprovalData',
+            from: '0xUserAddress',
+          },
+        }),
+        ...(overrides.includeResetApproval && {
+          resetApproval: {
+            to: '0xTokenContract',
+            data: '0xresetData',
+            from: '0xUserAddress',
+          },
+        }),
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '100',
+          usd: '100',
         },
-      }),
-      sentAmount: {
-        amount: '1.0',
-        valueInCurrency: '100',
-        usd: '100',
-      },
-      toTokenAmount: {
-        amount: '2.0',
-        valueInCurrency: '200',
-        usd: '200',
-      },
-    } as never);
+        toTokenAmount: {
+          amount: '2.0',
+          valueInCurrency: '200',
+          usd: '200',
+        },
+      }) as never;
 
     const createMockMessagingSystem = () => ({
       call: jest.fn().mockImplementation((method: string) => {
@@ -1253,9 +1258,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
         if (method === 'GasFeeController:getState') {
           return {
             gasFeeEstimates: {
-              low: { suggestedMaxFeePerGas: '20', suggestedMaxPriorityFeePerGas: '1' },
-              medium: { suggestedMaxFeePerGas: '30', suggestedMaxPriorityFeePerGas: '2' },
-              high: { suggestedMaxFeePerGas: '40', suggestedMaxPriorityFeePerGas: '3' },
+              low: {
+                suggestedMaxFeePerGas: '20',
+                suggestedMaxPriorityFeePerGas: '1',
+              },
+              medium: {
+                suggestedMaxFeePerGas: '30',
+                suggestedMaxPriorityFeePerGas: '2',
+              },
+              high: {
+                suggestedMaxFeePerGas: '40',
+                suggestedMaxPriorityFeePerGas: '3',
+              },
             },
           };
         }
@@ -1278,13 +1292,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messagingSystem: mockMessagingSystem,
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
-        approval: (mockQuoteResponse as any).approval,
+        approval: mockQuoteResponse.approval,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       // Should enable 7702 (disable7702 = false) when gasless7702 is true
       expect(result.disable7702).toBe(false);
-      
+
       // Should use txFee for gas calculation when gasless7702 is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
@@ -1306,7 +1320,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should disable 7702 when gasless7702 is false
       expect(result.disable7702).toBe(true);
-      
+
       // Should not use txFee for gas calculation when both gasIncluded and gasless7702 are false
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].type).toBe(TransactionType.swap);
@@ -1324,13 +1338,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messagingSystem: mockMessagingSystem,
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
-        resetApproval: (mockQuoteResponse as any).resetApproval,
+        resetApproval: mockQuoteResponse.resetApproval,
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       // Should disable 7702 when gasless7702 is not true
       expect(result.disable7702).toBe(true);
-      
+
       // Should use txFee for gas calculation when gasIncluded is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
@@ -1341,7 +1355,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
   describe('findAndUpdateTransactionsInBatch', () => {
     const mockUpdateTransactionFn = jest.fn();
     const batchId = 'test-batch-id';
-    let mockMessagingSystem: any;
+    let mockMessagingSystem: BridgeStatusControllerMessenger;
 
     const createMockTransaction = (overrides: {
       id: string;
@@ -1355,14 +1369,20 @@ describe('Bridge Status Controller Transaction Utils', () => {
       batchId: overrides.batchId ?? batchId,
       txParams: {
         data: overrides.data ?? '0xdefaultData',
-        ...(overrides.authorizationList && { authorizationList: overrides.authorizationList }),
+        ...(overrides.authorizationList && {
+          authorizationList: overrides.authorizationList,
+        }),
       },
-      ...(overrides.delegationAddress && { delegationAddress: overrides.delegationAddress }),
+      ...(overrides.delegationAddress && {
+        delegationAddress: overrides.delegationAddress,
+      }),
       ...(overrides.type && { type: overrides.type }),
     });
 
     // Helper function to create mock messaging system with transactions
-    const createMockMessagingSystemWithTxs = (txs: any[]) => ({
+    const createMockMessagingSystemWithTxs = (
+      txs: ReturnType<typeof createMockTransaction>[],
+    ) => ({
       call: jest.fn().mockReturnValue({ transactions: txs }),
     });
 
