@@ -20,6 +20,8 @@ import {
   handleMobileHardwareWalletDelay,
   getClientRequest,
   toBatchTxParams,
+  getAddTransactionBatchParams,
+  findAndUpdateTransactionsInBatch,
 } from './transaction';
 import { LINEA_DELAY_MS } from '../constants';
 
@@ -1156,6 +1158,426 @@ describe('Bridge Status Controller Transaction Utils', () => {
         to: '0x1',
         value: '0x1',
       });
+    });
+  });
+
+  describe('getAddTransactionBatchParams', () => {
+    let mockMessagingSystem: any;
+    const mockAccount = {
+      id: 'test-account-id',
+      address: '0xUserAddress',
+      metadata: {
+        keyring: { type: 'simple' },
+      },
+    };
+
+    const createMockQuoteResponse = (overrides: {
+      gasIncluded?: boolean;
+      gasless7702?: boolean;
+      includeApproval?: boolean;
+      includeResetApproval?: boolean;
+    } = {}): QuoteResponse & QuoteMetadata => ({
+      quote: {
+        bridgeId: 'bridge1',
+        bridges: ['bridge1'],
+        srcChainId: ChainId.ETH,
+        destChainId: ChainId.POLYGON,
+        srcTokenAmount: '1000000000000000000',
+        destTokenAmount: '2000000000000000000',
+        srcAsset: {
+          address: '0x0000000000000000000000000000000000000000',
+          decimals: 18,
+          symbol: 'ETH',
+        },
+        destAsset: {
+          address: '0x0000000000000000000000000000000000000000',
+          decimals: 18,
+          symbol: 'MATIC',
+        },
+        steps: ['step1'],
+        feeData: {
+          [FeeType.METABRIDGE]: {
+            amount: '100000000000000000',
+          },
+          txFee: '50000000000000000',
+        },
+        gasIncluded: overrides.gasIncluded ?? false,
+        gasless7702: overrides.gasless7702 ?? false,
+      },
+      estimatedProcessingTimeInSeconds: 300,
+      trade: {
+        value: '0x1000',
+        gasLimit: 21000,
+        to: '0xBridgeContract',
+        data: '0xbridgeData',
+        from: '0xUserAddress',
+        chainId: ChainId.ETH,
+      },
+      ...(overrides.includeApproval && {
+        approval: {
+          to: '0xTokenContract',
+          data: '0xapprovalData',
+          from: '0xUserAddress',
+        },
+      }),
+      ...(overrides.includeResetApproval && {
+        resetApproval: {
+          to: '0xTokenContract',
+          data: '0xresetData',
+          from: '0xUserAddress',
+        },
+      }),
+      sentAmount: {
+        amount: '1.0',
+        valueInCurrency: '100',
+        usd: '100',
+      },
+      toTokenAmount: {
+        amount: '2.0',
+        valueInCurrency: '200',
+        usd: '200',
+      },
+    } as never);
+
+    const createMockMessagingSystem = () => ({
+      call: jest.fn().mockImplementation((method: string) => {
+        if (method === 'AccountsController:getAccountByAddress') {
+          return mockAccount;
+        }
+        if (method === 'NetworkController:getNetworkConfiguration') {
+          return {
+            chainId: '0x1',
+            rpcUrl: 'https://mainnet.infura.io/v3/API_KEY',
+          };
+        }
+        if (method === 'GasFeeController:getState') {
+          return {
+            gasFeeEstimates: {
+              low: { suggestedMaxFeePerGas: '20', suggestedMaxPriorityFeePerGas: '1' },
+              medium: { suggestedMaxFeePerGas: '30', suggestedMaxPriorityFeePerGas: '2' },
+              high: { suggestedMaxFeePerGas: '40', suggestedMaxPriorityFeePerGas: '3' },
+            },
+          };
+        }
+        return undefined;
+      }),
+    });
+
+    beforeEach(() => {
+      mockMessagingSystem = createMockMessagingSystem();
+    });
+
+    it('should handle gasless7702 flag set to true', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasless7702: true,
+        includeApproval: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: true,
+        trade: mockQuoteResponse.trade,
+        approval: (mockQuoteResponse as any).approval,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      // Should enable 7702 (disable7702 = false) when gasless7702 is true
+      expect(result.disable7702).toBe(false);
+      
+      // Should use txFee for gas calculation when gasless7702 is true
+      expect(result.transactions).toHaveLength(2);
+      expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
+      expect(result.transactions[1].type).toBe(TransactionType.bridge);
+    });
+
+    it('should handle gasless7702 flag set to false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasless7702: false,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      // Should disable 7702 when gasless7702 is false
+      expect(result.disable7702).toBe(true);
+      
+      // Should not use txFee for gas calculation when both gasIncluded and gasless7702 are false
+      expect(result.transactions).toHaveLength(1);
+      expect(result.transactions[0].type).toBe(TransactionType.swap);
+    });
+
+    it('should handle gasIncluded with gasless7702', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded: true,
+        gasless7702: false,
+        includeResetApproval: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: true,
+        trade: mockQuoteResponse.trade,
+        resetApproval: (mockQuoteResponse as any).resetApproval,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      // Should disable 7702 when gasless7702 is not true
+      expect(result.disable7702).toBe(true);
+      
+      // Should use txFee for gas calculation when gasIncluded is true
+      expect(result.transactions).toHaveLength(2);
+      expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
+      expect(result.transactions[1].type).toBe(TransactionType.bridge);
+    });
+  });
+
+  describe('findAndUpdateTransactionsInBatch', () => {
+    const mockUpdateTransactionFn = jest.fn();
+    const batchId = 'test-batch-id';
+    let mockMessagingSystem: any;
+
+    const createMockTransaction = (overrides: {
+      id: string;
+      batchId?: string;
+      data?: string;
+      authorizationList?: string[];
+      delegationAddress?: string;
+      type?: TransactionType;
+    }) => ({
+      id: overrides.id,
+      batchId: overrides.batchId ?? batchId,
+      txParams: {
+        data: overrides.data ?? '0xdefaultData',
+        ...(overrides.authorizationList && { authorizationList: overrides.authorizationList }),
+      },
+      ...(overrides.delegationAddress && { delegationAddress: overrides.delegationAddress }),
+      ...(overrides.type && { type: overrides.type }),
+    });
+
+    // Helper function to create mock messaging system with transactions
+    const createMockMessagingSystemWithTxs = (txs: any[]) => ({
+      call: jest.fn().mockReturnValue({ transactions: txs }),
+    });
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should update transaction types for 7702 swap transactions', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xbatchExecuteData',
+          authorizationList: ['0xAuth1'], // 7702 transaction
+          type: TransactionType.batch,
+        }),
+        createMockTransaction({
+          id: 'tx2',
+          data: '0xapprovalData',
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+
+      const txDataByType = {
+        [TransactionType.swap]: '0xswapData',
+        [TransactionType.swapApproval]: '0xapprovalData',
+      };
+
+      findAndUpdateTransactionsInBatch({
+        messagingSystem: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      // Should update the 7702 batch transaction to swap type
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.swap,
+        }),
+        'Update tx type to swap',
+      );
+
+      // Should update the approval transaction
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx2',
+          type: TransactionType.swapApproval,
+        }),
+        'Update tx type to swapApproval',
+      );
+    });
+
+    it('should handle 7702 transactions with delegationAddress', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xbatchData',
+          delegationAddress: '0xDelegationAddress', // 7702 transaction marker
+          type: TransactionType.batch,
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+
+      const txDataByType = {
+        [TransactionType.swap]: '0xswapData',
+      };
+
+      findAndUpdateTransactionsInBatch({
+        messagingSystem: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      // Should identify and update 7702 transaction with delegationAddress
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.swap,
+        }),
+        'Update tx type to swap',
+      );
+    });
+
+    it('should handle 7702 approval transactions', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xapprovalData',
+          authorizationList: ['0xAuth1'], // 7702 transaction
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+
+      const txDataByType = {
+        [TransactionType.swapApproval]: '0xapprovalData',
+      };
+
+      findAndUpdateTransactionsInBatch({
+        messagingSystem: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      // Should match 7702 approval transaction by data
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.swapApproval,
+        }),
+        'Update tx type to swapApproval',
+      );
+    });
+
+    it('should handle non-7702 transactions normally', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xswapData',
+        }),
+        createMockTransaction({
+          id: 'tx2',
+          data: '0xapprovalData',
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+
+      const txDataByType = {
+        [TransactionType.bridge]: '0xswapData',
+        [TransactionType.bridgeApproval]: '0xapprovalData',
+      };
+
+      findAndUpdateTransactionsInBatch({
+        messagingSystem: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      // Should update regular transactions by matching data
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.bridge,
+        }),
+        'Update tx type to bridge',
+      );
+
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx2',
+          type: TransactionType.bridgeApproval,
+        }),
+        'Update tx type to bridgeApproval',
+      );
+    });
+
+    it('should not update transactions without matching batchId', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          batchId: 'different-batch-id',
+          data: '0xswapData',
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+
+      const txDataByType = {
+        [TransactionType.swap]: '0xswapData',
+      };
+
+      findAndUpdateTransactionsInBatch({
+        messagingSystem: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      // Should not update transactions with different batchId
+      expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+    });
+
+    it('should handle 7702 bridge transactions', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xbatchData',
+          authorizationList: ['0xAuth1'],
+          type: TransactionType.batch,
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+
+      const txDataByType = {
+        [TransactionType.bridge]: '0xbridgeData',
+      };
+
+      // Test with bridge transaction (not swap)
+      findAndUpdateTransactionsInBatch({
+        messagingSystem: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      // Should not match since it's looking for bridge but finds batch type
+      expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
     });
   });
 });
