@@ -4,6 +4,7 @@ import type {
   AccountWalletObject,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import { selectAssetsBySelectedAccountGroup } from './token-selectors';
@@ -491,6 +492,20 @@ const mockMultichainAssetsRatesControllerState = {
   },
 } as unknown as MultichainAssetsRatesControllerState;
 
+const mockNetworkControllerState = {
+  networkConfigurationsByChainId: {
+    '0x1': {
+      nativeCurrency: 'ETH',
+    },
+    '0xa': {
+      nativeCurrency: 'ETH',
+    },
+    '0x89': {
+      nativeCurrency: 'POL',
+    },
+  },
+} as unknown as NetworkState;
+
 const mockAccountsTrackerControllerState: {
   accountsByChainId: Record<
     Hex,
@@ -516,6 +531,11 @@ const mockAccountsTrackerControllerState: {
         balance: '0xDE0B6B3A7640000', // 1000000000000000000 (1 - 18 decimals)
       },
     },
+    '0x89': {
+      '0x0413078b85a6cb85f8f75181ad1a23d265d49202': {
+        balance: '0x8AC7230489E80000', // 10000000000000000000 (10 - 18 decimals)
+      },
+    },
   },
 };
 
@@ -529,6 +549,7 @@ const mockedMergedState = {
   ...mockCurrencyRateControllerState,
   ...mockMultichainBalancesControllerState,
   ...mockMultichainAssetsRatesControllerState,
+  ...mockNetworkControllerState,
   ...mockAccountsTrackerControllerState,
 };
 
@@ -658,6 +679,32 @@ describe('token-selectors', () => {
         name: 'Pudgy Penguins',
         symbol: 'PENGU',
         type: 'multichain',
+      });
+    });
+
+    it('extracts native currency names from network configuration', () => {
+      const result = selectAssetsBySelectedAccountGroup({
+        ...mockedMergedState,
+        accountTree: {
+          ...mockedMergedState.accountTree,
+          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
+        },
+      });
+
+      const nativeToken = result['0x89'].find((asset) => asset.isNative);
+
+      expect(nativeToken).toStrictEqual({
+        assetId: '0x0000000000000000000000000000000000001010',
+        address: '0x0000000000000000000000000000000000001010',
+        chainId: '0x89',
+        name: 'POL',
+        symbol: 'POL',
+        image: '',
+        isNative: true,
+        decimals: 18,
+        balance: '10',
+        fiat: undefined,
+        type: 'evm',
       });
     });
 

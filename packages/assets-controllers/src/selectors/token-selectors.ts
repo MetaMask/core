@@ -2,6 +2,7 @@ import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
@@ -70,6 +71,7 @@ export type AssetListState = {
   balances: MultichainBalancesControllerState['balances'];
   conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
   currentCurrency: CurrencyRateState['currentCurrency'];
+  networkConfigurationsByChainId: NetworkState['networkConfigurationsByChainId'];
   // This is the state from AccountTrackerController. The state is different on mobile and extension
   // accountsByChainId with a balance is the only field that both clients have in common
   // This field could be removed once TokenBalancesController returns native balances
@@ -117,6 +119,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     (state) => state.marketData,
     (state) => state.currencyRates,
     (state) => state.currentCurrency,
+    (state) => state.networkConfigurationsByChainId,
   ],
   (
     accountsMap,
@@ -124,6 +127,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     marketData,
     currencyRates,
     currentCurrency,
+    networkConfigurationsByChainId,
   ) => {
     const groupAssets: AssetsByAccountGroup = {};
 
@@ -140,14 +144,16 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
 
         const rawBalance = accountBalance.balance || '0x0';
 
-        // TODO: This is just a placeholder that will be removed once this whole selector is removed
+        const nativeCurrency =
+          networkConfigurationsByChainId[chainId]?.nativeCurrency || 'NATIVE';
+
         const nativeToken = {
           address: getNativeTokenAddress(chainId),
           decimals: 18,
-          // These fields need to be filled at client level for now
+          name: nativeCurrency === 'ETH' ? 'Ethereum' : nativeCurrency,
+          symbol: nativeCurrency,
+          // This field need to be filled at client level for now
           image: '',
-          name: 'Ethereum',
-          symbol: 'ETH',
         };
 
         const fiatData = getFiatBalanceForEvmToken(
@@ -309,9 +315,8 @@ const selectAllMultichainAssets = createAssetListSelector(
         const asset = `${caipAsset.assetNamespace}:${caipAsset.assetReference}`;
 
         const accountGroupId = accountsMap[accountId];
-
         const assetMetadata = multichainAssetsMetadata[assetId];
-        if (!assetMetadata) {
+        if (!accountGroupId || !assetMetadata) {
           continue;
         }
 
