@@ -55,6 +55,11 @@ export type SimulationRequest = {
   };
 
   /**
+   * Optional function to modify the simulation request.
+   */
+  getSimulationConfig?: GetSimulationConfig;
+
+  /**
    * Overrides to the state of the blockchain, keyed by address.
    */
   overrides?: {
@@ -112,11 +117,6 @@ export type SimulationRequest = {
    * Defaults to false.
    */
   withLogs?: boolean;
-
-  /**
-   * Optional function to modify the simulation request.
-   */
-  getSimulationConfig?: GetSimulationConfig;
 };
 
 /** Raw event log emitted by a simulated transaction. */

@@ -840,6 +840,7 @@ export class TransactionController extends BaseController<
       getNetworkState,
       getPermittedAccounts,
       getSavedGasFees,
+      getSimulationConfig,
       hooks,
       incomingTransactions = {},
       isAutomaticGasFeeUpdateEnabled,
@@ -851,7 +852,6 @@ export class TransactionController extends BaseController<
       publicKeyEIP7702,
       securityProviderRequest,
       sign,
-      getSimulationConfig,
       state,
       testGasFeeFlows,
       trace,
@@ -4206,9 +4206,9 @@ export class TransactionController extends BaseController<
             blockTime,
             chainId,
             ethQuery: this.#getEthQuery({ networkClientId }),
+            getSimulationConfig: this.#getSimulationConfig,
             nestedTransactions,
             txParams,
-            getSimulationConfig: this.#getSimulationConfig,
           }),
       );
 
@@ -4225,11 +4225,11 @@ export class TransactionController extends BaseController<
 
       const gasFeeTokensResponse = await getGasFeeTokens({
         chainId,
+        getSimulationConfig: this.#getSimulationConfig,
         isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
         messenger: this.messagingSystem,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
-        getSimulationConfig: this.#getSimulationConfig,
       });
       gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
       isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
