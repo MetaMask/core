@@ -189,6 +189,13 @@ export type RequiredEventContextFromClient = {
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];
   };
+  [UnifiedSwapBridgeEventName.AssetDetailTooltipClicked]: {
+    token_name: string;
+    token_symbol: string;
+    token_contract: string;
+    chain_name: string;
+    chain_id: string;
+  };
 };
 
 /**
@@ -242,6 +249,7 @@ export type EventPropertiesFromControllerState = {
     RequestMetadata &
     QuoteFetchData &
     TradeData;
+  [UnifiedSwapBridgeEventName.AssetDetailTooltipClicked]: null;
 };
 
 /**
