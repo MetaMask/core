@@ -43,6 +43,10 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       persist: false,
       anonymous: false,
     },
+    hasAccountTreeSyncingSyncedAtLeastOnce: {
+      persist: true,
+      anonymous: false,
+    },
     accountGroupsMetadata: {
       persist: true,
       anonymous: false,
@@ -65,6 +69,7 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       selectedAccountGroup: '',
     },
     isAccountTreeSyncingInProgress: false,
+    hasAccountTreeSyncingSyncedAtLeastOnce: false,
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
   };
@@ -1052,6 +1057,13 @@ export class AccountTreeController extends BaseController<
 
     // Trigger atomic sync for group hiding
     this.#syncingService.enqueueSingleGroupSync(groupId);
+  }
+
+  clearPersistedMetadata(): void {
+    this.update((state) => {
+      state.accountGroupsMetadata = {};
+      state.accountWalletsMetadata = {};
+    });
   }
 
   /**

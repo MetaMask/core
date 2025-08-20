@@ -26,10 +26,12 @@ export const formatWalletForUserStorageUsage = (
   wallet: AccountWalletEntropyObject,
   extendedMetadata?: UserStorageWalletExtendedMetadata,
 ): UserStorageSyncedWallet => {
+  // This can be null if the user has not manually set a name
   const persistedWalletMetadata =
     context.controller.state.accountWalletsMetadata[wallet.id];
+
   return {
-    name: persistedWalletMetadata.name,
+    ...(persistedWalletMetadata ?? {}),
     ...extendedMetadata,
   };
 };
@@ -47,12 +49,12 @@ export const formatGroupForUserStorageUsage = (
   context: BackupAndSyncContext,
   group: AccountGroupMultichainAccountObject,
 ): UserStorageSyncedWalletGroup => {
+  // This can be null if the user has not manually set a name, pinned or hidden the group
   const persistedGroupMetadata =
     context.controller.state.accountGroupsMetadata[group.id];
+
   return {
-    name: persistedGroupMetadata.name,
-    hidden: persistedGroupMetadata.hidden,
-    pinned: persistedGroupMetadata.pinned,
+    ...(persistedGroupMetadata ?? {}),
     groupIndex: group.metadata.entropy.groupIndex,
   };
 };

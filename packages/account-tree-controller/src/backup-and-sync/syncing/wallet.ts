@@ -1,59 +1,59 @@
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
+import {
+  UserStorageSyncedWalletSchema,
+  type BackupAndSyncContext,
+  type UserStorageSyncedWallet,
+} from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
 
 /**
- * Syncs wallet metadata with user storage.
+ * Syncs wallet metadata fields and determines if the wallet needs to be pushed to user storage.
  *
  * @param context - The sync context containing controller and messenger.
- * @param wallet - The local wallet to sync.
+ * @param localWallet - The local wallet to sync.
  * @param walletFromUserStorage - The wallet data from user storage, if any.
  * @param profileId - The profile ID for analytics.
+ * @returns Promise resolving to true if the wallet should be pushed to user storage.
  */
-export async function syncWalletMetadata(
+export async function syncWalletMetadataAndCheckIfPushNeeded(
   context: BackupAndSyncContext,
-  wallet: AccountWalletEntropyObject,
-  walletFromUserStorage: UserStorageSyncedWallet | null,
+  localWallet: AccountWalletEntropyObject,
+  walletFromUserStorage: UserStorageSyncedWallet | null | undefined,
   profileId: string,
-): Promise<void> {
-  // If wallet data does not exist in user storage, push the local wallet
+): Promise<boolean> {
+  const walletPersistedMetadata =
+    context.controller.state.accountWalletsMetadata[localWallet.id];
+
   if (!walletFromUserStorage) {
-    await pushWalletToUserStorage(context, wallet);
-    return;
-  }
-
-  // Validate user storage data before processing
-  if (walletFromUserStorage === null) {
+    if (walletPersistedMetadata) {
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Wallet ${localWallet.id} does not exist in user storage, but has local metadata. Uploading it.`,
+        );
+      }
+      return true; // If wallet does not exist in user storage, we need to push it
+    }
     if (context.enableDebugLogging) {
       console.warn(
-        `Wallet data from user storage is null for wallet ${wallet.id}, pushing local wallet`,
+        `Wallet ${localWallet.id} does not exist in user storage and has no local metadata, skipping sync`,
       );
     }
-    await pushWalletToUserStorage(context, wallet);
-    return;
+    return false; // No metadata to sync, nothing to push
   }
-
-  const persistedMetadata =
-    context.controller.state.accountWalletsMetadata[wallet.id];
-
-  if (!persistedMetadata) {
-    if (context.enableDebugLogging) {
-      console.warn(
-        `No persisted metadata found for wallet ${wallet.id}, skipping sync`,
-      );
-    }
-    return;
-  }
+  // Track if we need to push this wallet to user storage
+  let shouldPushWallet = false;
 
   // Compare and sync name metadata
-  const shouldPushToUserStorage = await compareAndSyncMetadata({
+  const shouldPushForName = await compareAndSyncMetadata({
     context,
-    localMetadata: persistedMetadata?.name,
+    localMetadata: walletPersistedMetadata?.name,
     userStorageMetadata: walletFromUserStorage.name,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletSchema.schema.name.schema.value.is(value),
     applyLocalUpdate: (name: string) => {
-      context.controller.setAccountWalletName(wallet.id, name);
+      context.controller.setAccountWalletName(localWallet.id, name);
     },
     analytics: {
       event: BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
@@ -61,8 +61,33 @@ export async function syncWalletMetadata(
     },
   });
 
+  shouldPushWallet ||= shouldPushForName;
+
+  return shouldPushWallet;
+}
+
+/**
+ * Syncs wallet metadata and pushes it to user storage if needed.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param localWallet - The local wallet to sync.
+ * @param walletFromUserStorage - The wallet data from user storage, if any.
+ * @param profileId - The profile ID for analytics.
+ */
+export async function syncWalletMetadata(
+  context: BackupAndSyncContext,
+  localWallet: AccountWalletEntropyObject,
+  walletFromUserStorage: UserStorageSyncedWallet | null | undefined,
+  profileId: string,
+): Promise<void> {
+  const shouldPushToUserStorage = await syncWalletMetadataAndCheckIfPushNeeded(
+    context,
+    localWallet,
+    walletFromUserStorage,
+    profileId,
+  );
+
   if (shouldPushToUserStorage) {
-    // Local name is more recent, push it to user storage
-    await pushWalletToUserStorage(context, wallet);
+    await pushWalletToUserStorage(context, localWallet);
   }
 }

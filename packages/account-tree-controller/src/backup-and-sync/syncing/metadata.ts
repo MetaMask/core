@@ -3,7 +3,6 @@ import type { BackupAndSyncContext } from '../types';
 
 /**
  * Compares metadata between local and user storage, applying the most recent version.
- * Automatically validates user storage data based on the local metadata type.
  *
  * @param options - Configuration object for metadata comparison.
  * @param options.context - The backup and sync context containing controller and messenger.
@@ -14,6 +13,7 @@ import type { BackupAndSyncContext } from '../types';
  * @param options.userStorageMetadata.value - The user storage metadata value.
  * @param options.userStorageMetadata.lastUpdatedAt - The user storage metadata timestamp.
  * @param options.applyLocalUpdate - Function to apply the user storage value locally.
+ * @param options.validateUserStorageValue - Function to validate user storage data.
  * @param options.analytics - Optional analytics configuration for tracking updates.
  * @param options.analytics.event - The analytics event to emit when updating from user storage.
  * @param options.analytics.profileId - The profile ID for analytics.
@@ -24,12 +24,14 @@ export async function compareAndSyncMetadata<T>({
   localMetadata,
   userStorageMetadata,
   applyLocalUpdate,
+  validateUserStorageValue,
   analytics,
 }: {
   context: BackupAndSyncContext;
   localMetadata?: { value?: T; lastUpdatedAt?: number };
   userStorageMetadata?: { value?: T; lastUpdatedAt?: number };
   applyLocalUpdate: (value: T) => Promise<void> | void;
+  validateUserStorageValue: (value: T | undefined) => boolean;
   analytics?: {
     event: BackupAndSyncAnalyticsEvent;
     profileId: string;
@@ -51,13 +53,10 @@ export async function compareAndSyncMetadata<T>({
     userStorageTimestamp &&
     localTimestamp < userStorageTimestamp;
 
-  // Auto-detect validation based on local metadata type
-  const isUserStorageValueValid =
-    typeof localValue === 'string'
-      ? typeof userStorageValue === 'string' && userStorageValue.length > 0
-      : typeof userStorageValue === typeof localValue;
+  // Validate user storage value using the provided validator
+  const isUserStorageValueValid = validateUserStorageValue(userStorageValue);
 
-  if (isUserStorageMoreRecent && isUserStorageValueValid) {
+  if ((isUserStorageMoreRecent || !localMetadata) && isUserStorageValueValid) {
     // User storage is more recent and valid, apply it locally
     await applyLocalUpdate(userStorageValue as T);
 

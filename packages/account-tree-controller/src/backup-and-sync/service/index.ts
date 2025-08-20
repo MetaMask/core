@@ -75,6 +75,12 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
+    if (
+      !this.#context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
+    ) {
+      return;
+    }
+
     this.#atomicSyncQueue.enqueue(
       () => this.#performSingleWalletSync(walletId),
       this.isInProgress,
@@ -87,6 +93,12 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
+    if (
+      !this.#context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
+    ) {
+      return;
+    }
+
     this.#atomicSyncQueue.enqueue(
       () => this.#performSingleGroupSync(groupId),
       this.isInProgress,
@@ -302,6 +314,7 @@ export class BackupAndSyncService {
         this.#context.controllerStateUpdateFn(
           (state: AccountTreeControllerState) => {
             state.isAccountTreeSyncingInProgress = false;
+            state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
           },
         );
       }

@@ -524,6 +524,7 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
@@ -822,6 +823,7 @@ describe('AccountTreeController', () => {
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
         isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -891,6 +893,7 @@ describe('AccountTreeController', () => {
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
         isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -912,6 +915,7 @@ describe('AccountTreeController', () => {
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountTree: {
           // No wallets should be present.
           wallets: {},
@@ -998,6 +1002,7 @@ describe('AccountTreeController', () => {
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
     });
 
@@ -1112,6 +1117,7 @@ describe('AccountTreeController', () => {
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
     });
   });

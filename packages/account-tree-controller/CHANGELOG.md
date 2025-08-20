@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `syncWithUserStorage()` method for manual sync triggers, replacing `UserStorageController:syncInternalAccountsWithUserStorage` usage in clients
   - `BackupAndSyncService` with full and atomic sync operations for account tree data persistence
   - Bidirectional metadata synchronization for wallets and groups with user storage
-  - Automatic sync triggers on metadata changes (rename, pin/hide operations)
+  - Automatic sync triggers on metadata changes (rename, pin/hide operations) with superstruct validation
   - New `isBackupAndSyncInProgress` state property to track sync status
   - Analytics event tracking and performance tracing for sync operations
   - Rollback mechanism for failed sync operations with state snapshot/restore capabilities

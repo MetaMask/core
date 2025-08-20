@@ -3,9 +3,10 @@ import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import { getLocalGroupsForEntropyWallet } from '../controller-utils';
-import type {
-  BackupAndSyncContext,
-  UserStorageSyncedWalletGroup,
+import {
+  UserStorageSyncedWalletGroupSchema,
+  type BackupAndSyncContext,
+  type UserStorageSyncedWalletGroup,
 } from '../types';
 import {
   pushGroupToUserStorage,
@@ -93,17 +94,28 @@ export async function createLocalGroupsFromUserStorage(
 async function syncGroupMetadataAndCheckIfPushNeeded(
   context: BackupAndSyncContext,
   localGroup: AccountGroupMultichainAccountObject,
-  groupFromUserStorage: UserStorageSyncedWalletGroup,
+  groupFromUserStorage: UserStorageSyncedWalletGroup | null | undefined,
   profileId: string,
 ): Promise<boolean> {
   const groupPersistedMetadata =
     context.controller.state.accountGroupsMetadata[localGroup.id];
 
-  if (!groupPersistedMetadata) {
-    if (context.enableDebugLogging) {
-      console.warn(`No persisted metadata found for group ${localGroup.id}`);
+  if (!groupFromUserStorage) {
+    if (groupPersistedMetadata) {
+      if (context.enableDebugLogging) {
+        console.warn(
+          `Group ${localGroup.id} does not exist in user storage, but has local metadata. Uploading it.`,
+        );
+      }
+      return true; // If group does not exist in user storage, we need to push it
     }
-    return true; // Push group if no metadata found
+    if (context.enableDebugLogging) {
+      console.warn(
+        `Group ${localGroup.id} does not exist in user storage and has no local metadata, skipping sync`,
+      );
+    }
+
+    return false; // No metadata to sync, nothing to push
   }
 
   // Track if we need to push this group to user storage
@@ -112,8 +124,10 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
   // Compare and sync name metadata
   const shouldPushForName = await compareAndSyncMetadata({
     context,
-    localMetadata: groupPersistedMetadata.name,
+    localMetadata: groupPersistedMetadata?.name,
     userStorageMetadata: groupFromUserStorage.name,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletGroupSchema.schema.name.schema.value.is(value),
     applyLocalUpdate: (name: string) => {
       context.controller.setAccountGroupName(localGroup.id, name);
     },
@@ -128,8 +142,10 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
   // Compare and sync pinned metadata
   const shouldPushForPinned = await compareAndSyncMetadata({
     context,
-    localMetadata: groupPersistedMetadata.pinned,
+    localMetadata: groupPersistedMetadata?.pinned,
     userStorageMetadata: groupFromUserStorage.pinned,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletGroupSchema.schema.pinned.schema.value.is(value),
     applyLocalUpdate: (pinned: boolean) => {
       context.controller.setAccountGroupPinned(localGroup.id, pinned);
     },
@@ -144,8 +160,10 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
   // Compare and sync hidden metadata
   const shouldPushForHidden = await compareAndSyncMetadata({
     context,
-    localMetadata: groupPersistedMetadata.hidden,
+    localMetadata: groupPersistedMetadata?.hidden,
     userStorageMetadata: groupFromUserStorage.hidden,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletGroupSchema.schema.hidden.schema.value.is(value),
     applyLocalUpdate: (hidden: boolean) => {
       context.controller.setAccountGroupHidden(localGroup.id, hidden);
     },
@@ -176,12 +194,6 @@ export async function syncSingleGroupMetadata(
   entropySourceId: string,
   profileId: string,
 ): Promise<void> {
-  if (!groupFromUserStorage) {
-    // If the group does not exist in user storage, push it
-    await pushGroupToUserStorage(context, localGroup, entropySourceId);
-    return;
-  }
-
   const shouldPushGroup = await syncGroupMetadataAndCheckIfPushNeeded(
     context,
     localGroup,
@@ -223,12 +235,6 @@ export async function syncGroupsMetadata(
       (group) =>
         group.groupIndex === localSyncableGroup.metadata.entropy.groupIndex,
     );
-
-    if (!groupFromUserStorage) {
-      // If the group does not exist in user storage, we need to push it
-      localSyncableGroupsToBePushedToUserStorage.push(localSyncableGroup);
-      continue;
-    }
 
     const shouldPushGroup = await syncGroupMetadataAndCheckIfPushNeeded(
       context,
