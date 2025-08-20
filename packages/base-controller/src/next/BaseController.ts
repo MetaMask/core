@@ -187,7 +187,7 @@ export class BaseController<
   /**
    * The controller messenger. This is used to interact with other parts of the application.
    */
-  protected messagingSystem: ControllerMessenger;
+  protected messenger: ControllerMessenger;
 
   /**
    * The controller messenger.
@@ -248,7 +248,7 @@ export class BaseController<
       ControllerActions<ControllerName, ControllerState>,
       ControllerEvents<ControllerName, ControllerState>
     >;
-    this.messagingSystem = messenger;
+    this.messenger = messenger;
     this.name = name;
     // Here we use `freeze` from Immer to enforce that the state is deeply
     // immutable. Note that this is a runtime check, not a compile-time check.
@@ -348,7 +348,7 @@ export class BaseController<
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
+    this.messenger.clearEventSubscriptions(`${this.name}:stateChange`);
   }
 }
 
