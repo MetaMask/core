@@ -344,7 +344,7 @@ class FooController extends BaseController<
   }
 
   doSomething() {
-    this.messagingSystem.publish('FooController:someEvent');
+    this.messenger.publish('FooController:someEvent');
   }
 }
 
@@ -1309,7 +1309,7 @@ class TokensController extends BaseController</* ... */> {
     // Now TokensController no longer needs an instance of AccountsController to
     // access the list of active accounts, which is good...
     const tokens = getTokens(
-      this.messagingSystem.call('AccountsController:getActiveAccounts'),
+      this.messenger.call('AccountsController:getActiveAccounts'),
     );
     // ... do something with tokens ...
   }
@@ -1401,7 +1401,7 @@ class TokensController extends BaseController</* ... */> {
 
   fetchTokens() {
     // Now TokensController can use the selector in combination with the state
-    const tokensControllerState = this.messagingSystem.call(
+    const tokensControllerState = this.messenger.call(
       'AccountsController:getState',
     );
     const accounts = accountsControllerSelectors.selectActiveAccounts(
