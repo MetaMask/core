@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Uncategorized
 
 - Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
@@ -706,7 +708,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...@metamask/profile-sync-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@22.0.0...@metamask/profile-sync-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@21.0.0...@metamask/profile-sync-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...@metamask/profile-sync-controller@21.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Uncategorized
 
 - Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
@@ -528,7 +530,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@16.0.0...@metamask/notification-services-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@15.0.0...@metamask/notification-services-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@14.0.0...@metamask/notification-services-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@13.0.0...@metamask/notification-services-controller@14.0.0
