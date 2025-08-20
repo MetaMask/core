@@ -11,7 +11,6 @@ import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { 
   WebSocketService,
-  WebSocketService,
 } from './websocket-service';
 import type { 
   Transaction,
@@ -19,13 +18,11 @@ import type {
 
 const SERVICE_NAME = 'AccountActivityService';
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
-const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
 /**
  * Account subscription options
  */
 export type AccountSubscription = {
-  address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
   address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
 };
 
@@ -66,20 +63,13 @@ type IncomingTransactionWithBalanceUpdate = {
 // Action types for the messaging system
 export type AccountActivityServiceSubscribeAccountsAction = {
   type: `AccountActivityService:subscribeAccounts`;
-  type: `AccountActivityService:subscribeAccounts`;
   handler: AccountActivityService['subscribeAccounts'];
 };
 
 export type AccountActivityServiceUnsubscribeAccountsAction = {
   type: `AccountActivityService:unsubscribeAccounts`;
-  type: `AccountActivityService:unsubscribeAccounts`;
   handler: AccountActivityService['unsubscribeAccounts'];
 };
-
-
-
-
-
 
 
 export type AccountActivityServiceActions = 
@@ -89,25 +79,19 @@ export type AccountActivityServiceActions =
 type AllowedActions = 
   | { type: 'AccountsController:listMultichainAccounts'; handler: (chainId?: string) => InternalAccount[] }
   | { type: 'AccountsController:getAccountByAddress'; handler: (address: string) => InternalAccount | undefined };
-type AllowedActions = 
-  | { type: 'AccountsController:listMultichainAccounts'; handler: (chainId?: string) => InternalAccount[] }
-  | { type: 'AccountsController:getAccountByAddress'; handler: (address: string) => InternalAccount | undefined };
 
 // Event types for the messaging system
 export type AccountActivityServiceAccountSubscribedEvent = {
-  type: `AccountActivityService:accountSubscribed`;
   type: `AccountActivityService:accountSubscribed`;
   payload: [{ addresses: string[] }];
 };
 
 export type AccountActivityServiceAccountUnsubscribedEvent = {
   type: `AccountActivityService:accountUnsubscribed`;
-  type: `AccountActivityService:accountUnsubscribed`;
   payload: [{ addresses: string[] }];
 };
 
 export type AccountActivityServiceTransactionUpdatedEvent = {
-  type: `AccountActivityService:transactionUpdated`;
   type: `AccountActivityService:transactionUpdated`;
   payload: [Transaction];
 };
@@ -119,7 +103,6 @@ export type AccountActivityServiceBalanceUpdatedEvent = {
 
 export type AccountActivityServiceSubscriptionErrorEvent = {
   type: `AccountActivityService:subscriptionError`;
-  type: `AccountActivityService:subscriptionError`;
   payload: [{ addresses: string[]; error: string; operation: string }];
 };
 
@@ -130,15 +113,6 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceSubscriptionErrorEvent;
 
-type AllowedEvents = 
-  | { type: 'AccountsController:accountAdded'; payload: [InternalAccount] }
-  | { type: 'AccountsController:accountRemoved'; payload: [string] }
-  | { type: 'AccountsController:listMultichainAccounts'; payload: [string] }
-  | AccountActivityServiceAccountSubscribedEvent
-  | AccountActivityServiceAccountUnsubscribedEvent
-  | AccountActivityServiceTransactionUpdatedEvent
-  | AccountActivityServiceBalanceUpdatedEvent
-  | AccountActivityServiceSubscriptionErrorEvent;
 type AllowedEvents = 
   | { type: 'AccountsController:accountAdded'; payload: [InternalAccount] }
   | { type: 'AccountsController:accountRemoved'; payload: [string] }
@@ -288,8 +262,6 @@ export class AccountActivityService {
       
       this.#messenger.publish(`AccountActivityService:subscriptionError`, {
         addresses: [subscription.address],
-      this.#messenger.publish(`AccountActivityService:subscriptionError`, {
-        addresses: [subscription.address],
         error: errorMessage,
         operation: 'subscribe',
       });
@@ -304,7 +276,6 @@ export class AccountActivityService {
    * Unsubscribe from account activity for specified address
    * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    */
-  async unsubscribeAccounts(address: string): Promise<void> {
   async unsubscribeAccounts(address: string): Promise<void> {
     try {
       // Find channel for the specified address
@@ -323,15 +294,11 @@ export class AccountActivityService {
 
       this.#messenger.publish(`AccountActivityService:accountUnsubscribed`, {
         addresses: [address],
-      this.#messenger.publish(`AccountActivityService:accountUnsubscribed`, {
-        addresses: [address],
       });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown unsubscription error';
       
-      this.#messenger.publish(`AccountActivityService:subscriptionError`, {
-        addresses: [address],
       this.#messenger.publish(`AccountActivityService:subscriptionError`, {
         addresses: [address],
         error: errorMessage,
@@ -372,12 +339,10 @@ export class AccountActivityService {
   #registerActionHandlers(): void {
     this.#messenger.registerActionHandler(
       `AccountActivityService:subscribeAccounts`,
-      `AccountActivityService:subscribeAccounts`,
       this.subscribeAccounts.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `AccountActivityService:unsubscribeAccounts`,
       `AccountActivityService:unsubscribeAccounts`,
       this.unsubscribeAccounts.bind(this),
     );

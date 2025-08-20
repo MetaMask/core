@@ -50,6 +50,3 @@ export type TransactionWithKeyringBalanceUpdate = {
    */
   postBalances: AccountBalancesUpdatedEventPayload;
 };
-
-  postBalances: AccountBalancesUpdatedEventPayload;
-};

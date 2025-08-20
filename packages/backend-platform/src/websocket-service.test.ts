@@ -39,7 +39,6 @@ describe('WebSocketService', () => {
         url: 'wss://test.example.com',
         timeout: 5000,
         maxReconnectAttempts: 5,
-        authToken: 'test-token',
       });
 
       const connectionInfo = service.getConnectionInfo();

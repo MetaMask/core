@@ -67,12 +67,6 @@ export type ClientRequestMessage = {
     channels?: string[];
     [key: string]: unknown;
   };
-  event: string;
-  data: {
-    requestId: string;
-    channels?: string[];
-    [key: string]: unknown;
-  };
 };
 
 /**
@@ -89,14 +83,6 @@ export type ServerResponseMessage = {
     failed?: string[];
     [key: string]: unknown;
   };
-  event: string;
-  data: {
-    requestId: string;
-    subscriptionId?: string;
-    succeeded?: string[];
-    failed?: string[];
-    [key: string]: unknown;
-  };
 };
 
 /**
@@ -105,10 +91,6 @@ export type ServerResponseMessage = {
  * Used when server sends unsolicited data to client
  */
 export type ServerNotificationMessage = {
-  event: string;
-  subscriptionId: string;
-  channel: string;
-  data: Record<string, unknown>;
   event: string;
   subscriptionId: string;
   channel: string;
@@ -173,9 +155,7 @@ export type WebSocketConnectionInfo = {
   lastError?: string;
   connectedAt?: number;
   sessionId?: string;
-  sessionId?: string;
 };
-
 
 
 // Action types for the messaging system
@@ -184,37 +164,27 @@ export type WebSocketServiceInitAction = {
   handler: WebSocketService['init'];
 };
 
-export type WebSocketServiceInitAction = {
-  type: `WebSocketService:init`;
-  handler: WebSocketService['init'];
-};
-
 export type WebSocketServiceConnectAction = {
-  type: `WebSocketService:connect`;
   type: `WebSocketService:connect`;
   handler: WebSocketService['connect'];
 };
 
 export type WebSocketServiceDisconnectAction = {
   type: `WebSocketService:disconnect`;
-  type: `WebSocketService:disconnect`;
   handler: WebSocketService['disconnect'];
 };
 
 export type WebSocketServiceSendMessageAction = {
-  type: `WebSocketService:sendMessage`;
   type: `WebSocketService:sendMessage`;
   handler: WebSocketService['sendMessage'];
 };
 
 export type WebSocketServiceSendRequestAction = {
   type: `WebSocketService:sendRequest`;
-  type: `WebSocketService:sendRequest`;
   handler: WebSocketService['sendRequest'];
 };
 
 export type WebSocketServiceGetConnectionInfoAction = {
-  type: `WebSocketService:getConnectionInfo`;
   type: `WebSocketService:getConnectionInfo`;
   handler: WebSocketService['getConnectionInfo'];
 };
@@ -355,12 +325,6 @@ export class WebSocketService {
     reject: (error: Error) => void;
     timeout: NodeJS.Timeout;
   }> = [];
-  #requestQueue: Array<{
-    message: ClientRequestMessage;
-    resolve: (value: unknown) => void;
-    reject: (error: Error) => void;
-    timeout: NodeJS.Timeout;
-  }> = [];
   #lastError: string | null = null;
   #connectedAt: number | null = null;
   #sessionId: string | null = null;
@@ -405,35 +369,25 @@ export class WebSocketService {
 
     this.#messenger.registerActionHandler(
       `WebSocketService:connect`,
-      `WebSocketService:init`,
-      this.init.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `WebSocketService:connect`,
       this.connect.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:disconnect`,
       `WebSocketService:disconnect`,
       this.disconnect.bind(this),
     );
 
     this.#messenger.registerActionHandler(
       `WebSocketService:sendMessage`,
-      `WebSocketService:sendMessage`,
       this.sendMessage.bind(this),
     );
 
     this.#messenger.registerActionHandler(
       `WebSocketService:sendRequest`,
-      `WebSocketService:sendRequest`,
       this.sendRequest.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:getConnectionInfo`,
       `WebSocketService:getConnectionInfo`,
       this.getConnectionInfo.bind(this),
     );
@@ -636,25 +590,12 @@ export class WebSocketService {
         requestId,
         ...message.data,
       },
-      event: message.event,
-      data: {
-        requestId,
-        ...message.data,
-      },
     };
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // Remove from pending requests
-        // Remove from pending requests
         this.#pendingRequests.delete(requestId);
-        
-        // Remove from request queue if still there
-        const queueIndex = this.#requestQueue.findIndex(req => req.message.data.requestId === requestId);
-        if (queueIndex !== -1) {
-          this.#requestQueue.splice(queueIndex, 1);
-        }
-        
         
         // Remove from request queue if still there
         const queueIndex = this.#requestQueue.findIndex(req => req.message.data.requestId === requestId);
@@ -986,11 +927,9 @@ export class WebSocketService {
     });
 
     if (!subscriptionResponse?.subscriptionId) {
-    if (!subscriptionResponse?.subscriptionId) {
       throw new Error('Invalid subscription response: missing subscription ID');
     }
 
-    const subscriptionId = subscriptionResponse.subscriptionId;
     const subscriptionId = subscriptionResponse.subscriptionId;
 
     // Check for failures
@@ -1003,8 +942,6 @@ export class WebSocketService {
       try {
         // Send unsubscribe request first
         await this.sendRequest({
-          event: 'unsubscribe',
-          data: {
           event: 'unsubscribe',
           data: {
             subscription: subscriptionId,
@@ -1088,11 +1025,8 @@ export class WebSocketService {
         this.#setState(WebSocketState.CONNECTED);
         this.#connectedAt = Date.now();
         
-        const wasReconnecting = this.#reconnectAttempts > 0;
-        const hadExistingSession = this.#sessionId !== null;
         
         // Reset reconnect attempts on successful connection
-        
         const wasReconnecting = this.#reconnectAttempts > 0;
         const hadExistingSession = this.#sessionId !== null;
         
@@ -1219,15 +1153,9 @@ export class WebSocketService {
 
     // Handle server responses (correlated with requests)
     if ('data' in message && message.data && typeof message.data === 'object' && 'requestId' in message.data) {
-    if ('data' in message && message.data && typeof message.data === 'object' && 'requestId' in message.data) {
       const responseMessage = message as ServerResponseMessage;
       const requestId = responseMessage.data.requestId;
-      
-      if (this.#pendingRequests.has(requestId)) {
-        const request = this.#pendingRequests.get(requestId)!;
-        this.#pendingRequests.delete(requestId);
-      const requestId = responseMessage.data.requestId;
-      
+            
       if (this.#pendingRequests.has(requestId)) {
         const request = this.#pendingRequests.get(requestId)!;
         this.#pendingRequests.delete(requestId);
@@ -1236,11 +1164,7 @@ export class WebSocketService {
         // Check if the response indicates failure
         if (responseMessage.data.failed && responseMessage.data.failed.length > 0) {
           request.reject(new Error(`Request failed: ${responseMessage.data.failed.join(', ')}`));
-        // Check if the response indicates failure
-        if (responseMessage.data.failed && responseMessage.data.failed.length > 0) {
-          request.reject(new Error(`Request failed: ${responseMessage.data.failed.join(', ')}`));
         } else {
-          request.resolve(responseMessage.data);
           request.resolve(responseMessage.data);
         }
         return;
@@ -1484,34 +1408,9 @@ export class WebSocketService {
 
   /**
    * Processes any requests that were queued while disconnected
-   * Processes any requests that were queued while disconnected
    * 
    * @private
    */
-  #processQueuedRequests(): void {
-    const queuedRequestCount = this.#requestQueue.length;
-    
-    if (queuedRequestCount > 0) {
-      console.log(`Processing ${queuedRequestCount} queued requests`);
-    }
-    
-    // Process queued requests
-    while (this.#requestQueue.length > 0) {
-      const queuedRequest = this.#requestQueue.shift()!;
-      const requestId = queuedRequest.message.data.requestId;
-      
-      // Move to pending requests for response correlation
-      this.#pendingRequests.set(requestId, {
-        resolve: queuedRequest.resolve,
-        reject: queuedRequest.reject,
-        timeout: queuedRequest.timeout,
-      });
-      
-      // Send the request
-      this.sendMessage(queuedRequest.message).catch((error) => {
-        this.#pendingRequests.delete(requestId);
-        clearTimeout(queuedRequest.timeout);
-        queuedRequest.reject(error);
   #processQueuedRequests(): void {
     const queuedRequestCount = this.#requestQueue.length;
     
