@@ -272,6 +272,7 @@ export const getAddTransactionBatchParams = async ({
   resetApproval?: TxData;
   requireApproval?: boolean;
 }) => {
+  const isGasless = gasIncluded || gasless7702;
   const selectedAccount = messagingSystem.call(
     'AccountsController:getAccountByAddress',
     trade.from,
@@ -299,7 +300,7 @@ export const getAddTransactionBatchParams = async ({
       resetApproval,
       networkClientId,
       hexChainId,
-      gasIncluded ? txFee : undefined,
+      isGasless ? txFee : undefined,
     );
     transactions.push({
       type: isBridgeTx
@@ -316,7 +317,7 @@ export const getAddTransactionBatchParams = async ({
       approval,
       networkClientId,
       hexChainId,
-      gasIncluded ? txFee : undefined,
+      isGasless ? txFee : undefined,
     );
     transactions.push({
       type: isBridgeTx
@@ -332,7 +333,7 @@ export const getAddTransactionBatchParams = async ({
     trade,
     networkClientId,
     hexChainId,
-    gasIncluded ? txFee : undefined,
+    isGasless ? txFee : undefined,
   );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
