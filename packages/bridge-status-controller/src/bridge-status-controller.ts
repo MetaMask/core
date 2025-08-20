@@ -360,6 +360,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
+   * Gets a bridge history item from the history by its transaction meta ID
+   *
+   * @param txMetaId - The transaction meta ID to look up
+   * @returns The bridge history item if found, undefined otherwise
+   */
+  getBridgeHistoryItemByTxMetaId = (
+    txMetaId: string,
+  ): BridgeHistoryItem | undefined => {
+    return this.state.txHistory[txMetaId];
+  };
+
+  /**
    * Restart polling for txs that are not in a final state
    * This is called during initialization
    */
@@ -1061,7 +1073,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () => {
-          if (isStxEnabledOnClient) {
+          if (isStxEnabledOnClient || quoteResponse.quote.gasless7702) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,

@@ -1152,6 +1152,99 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('getBridgeHistoryItemByTxMetaId', () => {
+    it('returns the bridge history item when it exists', async () => {
+      const { bridgeStatusController } =
+        await executePollingWithPendingStatus();
+
+      const txMetaId = 'bridgeTxMetaId1';
+      const bridgeHistoryItem =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
+
+      expect(bridgeHistoryItem).toBeDefined();
+      expect(bridgeHistoryItem?.quote.srcChainId).toBe(42161);
+      expect(bridgeHistoryItem?.quote.destChainId).toBe(10);
+      expect(bridgeHistoryItem?.status.status).toBe(StatusTypes.PENDING);
+    });
+
+    it('returns undefined when the transaction does not exist', async () => {
+      const { bridgeStatusController } =
+        await executePollingWithPendingStatus();
+
+      const txMetaId = 'nonExistentTxId';
+      const bridgeHistoryItem =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
+
+      expect(bridgeHistoryItem).toBeUndefined();
+    });
+
+    it('handles the case when txHistory is empty', () => {
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+        state: EMPTY_INIT_STATE,
+      });
+
+      const txMetaId = 'anyTxId';
+      const bridgeHistoryItem =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
+
+      expect(bridgeHistoryItem).toBeUndefined();
+    });
+
+    it('returns the correct transaction when multiple transactions exist', () => {
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionFn: jest.fn(),
+        addTransactionBatchFn: jest.fn(),
+        updateTransactionFn: jest.fn(),
+        estimateGasFeeFn: jest.fn(),
+        state: {
+          txHistory: {
+            bridgeTxMetaId1: {
+              ...MockTxHistory.getPending().bridgeTxMetaId1,
+              quote: {
+                ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
+                srcChainId: 10,
+                destChainId: 137,
+              },
+            },
+            anotherTxId: {
+              ...MockTxHistory.getPending().bridgeTxMetaId1,
+              txMetaId: 'anotherTxId',
+              quote: {
+                ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
+                srcChainId: 1,
+                destChainId: 42161,
+              },
+            },
+          },
+        },
+      });
+
+      // Get the first transaction
+      const firstTransaction =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+          'bridgeTxMetaId1',
+        );
+      expect(firstTransaction?.quote.srcChainId).toBe(10);
+      expect(firstTransaction?.quote.destChainId).toBe(137);
+
+      // Get the second transaction
+      const secondTransaction =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId('anotherTxId');
+      expect(secondTransaction?.quote.srcChainId).toBe(1);
+      expect(secondTransaction?.quote.destChainId).toBe(42161);
+    });
+  });
+
   describe('wipeBridgeStatus', () => {
     it('wipes the bridge status for the given address', async () => {
       // Setup

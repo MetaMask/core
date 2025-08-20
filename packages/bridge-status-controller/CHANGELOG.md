@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getBridgeHistoryItemByTxMetaId` method to retrieve bridge history items by their transaction meta ID ([#6346](https://github.com/MetaMask/core/pull/6346))
+- Add support for EIP-7702 gasless transactions in transaction batch handling ([#6346](https://github.com/MetaMask/core/pull/6346))
+
 ### Changed
 
 - Calculate `actual_time_minutes` event property based on `txMeta.time` if available ([#6314](https://github.com/MetaMask/core/pull/6314))
 - Parse event properties from the quote request if an event needs to be published prior to tx submission (i.e., Failed, Submitted) ([#6314](https://github.com/MetaMask/core/pull/6314))
+- Update transaction batch handling to conditionally enable EIP-7702 based on quote's `gasless7702` flag ([#6346](https://github.com/MetaMask/core/pull/6346))
 
 ## [39.0.0]
 
