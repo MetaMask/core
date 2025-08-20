@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getBridgeTransactionByTxMetaId` method to retrieve bridge transactions by their transaction meta ID ([#6346](https://github.com/MetaMask/core/pull/6346))
+- Add `getBridgeHistoryItemByTxMetaId` method to retrieve bridge history items by their transaction meta ID ([#6346](https://github.com/MetaMask/core/pull/6346))
 - Add support for EIP-7702 gasless transactions in transaction batch handling ([#6346](https://github.com/MetaMask/core/pull/6346))
 
 ### Changed

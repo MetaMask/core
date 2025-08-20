@@ -1152,19 +1152,19 @@ describe('BridgeStatusController', () => {
     });
   });
 
-  describe('getBridgeTransactionByTxMetaId', () => {
-    it('returns the bridge transaction when it exists', async () => {
+  describe('getBridgeHistoryItemByTxMetaId', () => {
+    it('returns the bridge history item when it exists', async () => {
       const { bridgeStatusController } =
         await executePollingWithPendingStatus();
 
       const txMetaId = 'bridgeTxMetaId1';
-      const bridgeTransaction =
-        bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
+      const bridgeHistoryItem =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
 
-      expect(bridgeTransaction).toBeDefined();
-      expect(bridgeTransaction?.quote.srcChainId).toBe(42161);
-      expect(bridgeTransaction?.quote.destChainId).toBe(10);
-      expect(bridgeTransaction?.status.status).toBe(StatusTypes.PENDING);
+      expect(bridgeHistoryItem).toBeDefined();
+      expect(bridgeHistoryItem?.quote.srcChainId).toBe(42161);
+      expect(bridgeHistoryItem?.quote.destChainId).toBe(10);
+      expect(bridgeHistoryItem?.status.status).toBe(StatusTypes.PENDING);
     });
 
     it('returns undefined when the transaction does not exist', async () => {
@@ -1172,10 +1172,10 @@ describe('BridgeStatusController', () => {
         await executePollingWithPendingStatus();
 
       const txMetaId = 'nonExistentTxId';
-      const bridgeTransaction =
-        bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
+      const bridgeHistoryItem =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
 
-      expect(bridgeTransaction).toBeUndefined();
+      expect(bridgeHistoryItem).toBeUndefined();
     });
 
     it('handles the case when txHistory is empty', () => {
@@ -1191,10 +1191,10 @@ describe('BridgeStatusController', () => {
       });
 
       const txMetaId = 'anyTxId';
-      const bridgeTransaction =
-        bridgeStatusController.getBridgeTransactionByTxMetaId(txMetaId);
+      const bridgeHistoryItem =
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
 
-      expect(bridgeTransaction).toBeUndefined();
+      expect(bridgeHistoryItem).toBeUndefined();
     });
 
     it('returns the correct transaction when multiple transactions exist', () => {
@@ -1231,7 +1231,7 @@ describe('BridgeStatusController', () => {
 
       // Get the first transaction
       const firstTransaction =
-        bridgeStatusController.getBridgeTransactionByTxMetaId(
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId(
           'bridgeTxMetaId1',
         );
       expect(firstTransaction?.quote.srcChainId).toBe(10);
@@ -1239,7 +1239,7 @@ describe('BridgeStatusController', () => {
 
       // Get the second transaction
       const secondTransaction =
-        bridgeStatusController.getBridgeTransactionByTxMetaId('anotherTxId');
+        bridgeStatusController.getBridgeHistoryItemByTxMetaId('anotherTxId');
       expect(secondTransaction?.quote.srcChainId).toBe(1);
       expect(secondTransaction?.quote.destChainId).toBe(42161);
     });

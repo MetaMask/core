@@ -360,12 +360,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
-   * Gets a bridge transaction from the history by its transaction meta ID
+   * Gets a bridge history item from the history by its transaction meta ID
    *
    * @param txMetaId - The transaction meta ID to look up
    * @returns The bridge history item if found, undefined otherwise
    */
-  getBridgeTransactionByTxMetaId = (
+  getBridgeHistoryItemByTxMetaId = (
     txMetaId: string,
   ): BridgeHistoryItem | undefined => {
     return this.state.txHistory[txMetaId];
