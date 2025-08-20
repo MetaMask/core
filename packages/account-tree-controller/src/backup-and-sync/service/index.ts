@@ -63,6 +63,12 @@ export class BackupAndSyncService {
     return this.#context.controller.state.isBackupAndSyncInProgress;
   }
 
+  getIsMultichainAccountsRemoteFeatureFlagEnabled(): boolean {
+    return this.#context.messenger.call(
+      'UserStorageController:getIsMultichainAccountSyncingEnabled',
+    );
+  }
+
   /**
    * Enqueues a single wallet sync operation.
    *
@@ -180,11 +186,7 @@ export class BackupAndSyncService {
               await performLegacyAccountSyncing(this.#context);
               hasLegacyAccountSyncingBeenPerformed = true;
 
-              const isMultichainAccountSyncingEnabled =
-                this.#context.messenger.call(
-                  'UserStorageController:getIsMultichainAccountSyncingEnabled',
-                );
-              if (!isMultichainAccountSyncingEnabled) {
+              if (!this.getIsMultichainAccountsRemoteFeatureFlagEnabled()) {
                 // If multichain account syncing is disabled, we can stop here
                 // and not perform any further syncing.
                 if (this.#context.enableDebugLogging) {
@@ -320,7 +322,10 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   async #performSingleWalletSync(walletId: AccountWalletId): Promise<void> {
-    if (this.#context.disableMultichainAccountSyncing) {
+    if (
+      this.#context.disableMultichainAccountSyncing ||
+      !this.getIsMultichainAccountsRemoteFeatureFlagEnabled()
+    ) {
       if (this.#context.enableDebugLogging) {
         console.warn(
           'Multichain account syncing is disabled. Skipping sync operation.',
@@ -366,7 +371,10 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   async #performSingleGroupSync(groupId: AccountGroupId): Promise<void> {
-    if (this.#context.disableMultichainAccountSyncing) {
+    if (
+      this.#context.disableMultichainAccountSyncing ||
+      !this.getIsMultichainAccountsRemoteFeatureFlagEnabled()
+    ) {
       if (this.#context.enableDebugLogging) {
         console.warn(
           'Multichain account syncing is disabled. Skipping sync operation.',
