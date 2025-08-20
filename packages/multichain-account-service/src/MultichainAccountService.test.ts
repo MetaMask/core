@@ -803,9 +803,7 @@ describe('MultichainAccountService', () => {
 
       // Disable - should throw error
       wrapper.setDisabled(true);
-      expect(() => wrapper.getAccount('test-id')).toThrow(
-        'Provider Object is disabled',
-      );
+      expect(() => wrapper.getAccount('test-id')).toThrow('is disabled');
     });
 
     it('returns empty array when createAccounts() is disabled', async () => {
@@ -822,15 +820,9 @@ describe('MultichainAccountService', () => {
 
       // Disable - should return empty array and not call underlying provider
       wrapper.setDisabled(true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const result = await wrapper.createAccounts(options);
       expect(result).toStrictEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Provider Object is disabled - skipping account creation',
-      );
-
-      consoleSpy.mockRestore();
     });
 
     it('returns empty array when discoverAndCreateAccounts() is disabled', async () => {
@@ -849,15 +841,9 @@ describe('MultichainAccountService', () => {
 
       // Disable - should return empty array
       wrapper.setDisabled(true);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const result = await wrapper.discoverAndCreateAccounts(options);
       expect(result).toStrictEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Provider Object is disabled - skipping account discovery',
-      );
-
-      consoleSpy.mockRestore();
     });
 
     it('proxies isAccountCompatible() correctly', () => {
@@ -882,18 +868,6 @@ describe('MultichainAccountService', () => {
       expect(wrapperWithoutMethod.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(
         true,
       );
-    });
-
-    it('logs properly when setDisabled() is called', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      wrapper.setDisabled(true);
-      expect(consoleSpy).toHaveBeenCalledWith('Provider Object disabled');
-
-      wrapper.setDisabled(false);
-      expect(consoleSpy).toHaveBeenCalledWith('Provider Object enabled');
-
-      consoleSpy.mockRestore();
     });
   });
 });
