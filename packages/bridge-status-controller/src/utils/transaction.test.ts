@@ -13,8 +13,6 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { LINEA_DELAY_MS } from '../constants';
-import type { BridgeStatusControllerMessenger } from '../types';
 import {
   getStatusRequestParams,
   getTxMetaFields,
@@ -26,6 +24,8 @@ import {
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
 } from './transaction';
+import { LINEA_DELAY_MS } from '../constants';
+import type { BridgeStatusControllerMessenger } from '../types';
 
 describe('Bridge Status Controller Transaction Utils', () => {
   describe('getStatusRequestParams', () => {
@@ -1279,7 +1279,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     beforeEach(() => {
-      mockMessagingSystem = createMockMessagingSystem() as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem =
+        createMockMessagingSystem() as unknown as BridgeStatusControllerMessenger;
     });
 
     it('should handle gasless7702 flag set to true', async () => {
@@ -1405,7 +1406,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -1448,7 +1451,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -1480,7 +1485,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swapApproval]: '0xapprovalData',
@@ -1515,7 +1522,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.bridge]: '0xswapData',
@@ -1556,7 +1565,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -1583,7 +1594,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(txs) as unknown as BridgeStatusControllerMessenger;
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
 
       const txDataByType = {
         [TransactionType.bridge]: '0xbridgeData',
