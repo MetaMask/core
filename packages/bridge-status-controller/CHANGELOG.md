@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [39.1.0]
+## [40.0.0]
 
 ### Added
 
@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^40.0.0` to `^41.0.0` ([#6350](https://github.com/MetaMask/core/pull/6350))
 - Calculate `actual_time_minutes` event property based on `txMeta.time` if available ([#6314](https://github.com/MetaMask/core/pull/6314))
 - Parse event properties from the quote request if an event needs to be published prior to tx submission (i.e., Failed, Submitted) ([#6314](https://github.com/MetaMask/core/pull/6314))
 - Update transaction batch handling to conditionally enable EIP-7702 based on quote's `gasless7702` flag ([#6346](https://github.com/MetaMask/core/pull/6346))
@@ -500,8 +501,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@39.1.0...HEAD
-[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@39.0.0...@metamask/bridge-status-controller@39.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.0.0...HEAD
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@39.0.0...@metamask/bridge-status-controller@40.0.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.1.0...@metamask/bridge-status-controller@39.0.0
 [38.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.0.1...@metamask/bridge-status-controller@38.1.0
 [38.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.0.0...@metamask/bridge-status-controller@38.0.1

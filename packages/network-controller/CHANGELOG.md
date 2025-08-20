@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+  - This effectively changes the `onDegraded` property on `AbstractRpcService` so that the event listener payload may be an object with either a `endpointUrl` property, `error` + `endpointUrl` properties, or `value` + `endpointUrl` properties
+  - **NOTE:** Although `error` and `value` are new, optional properties, this change makes an inadvertent breaking change to the signature of the event listener due to how TypeScript compares function types. We have conciously decided not to re-release this change under a major version, so be advised.
 
 ## [24.0.1]
 
