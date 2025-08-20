@@ -22,6 +22,7 @@
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "./packages/foundryup/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
+    { "path": "./packages/gator-permissions-controller/tsconfig.build.json" },
     { "path": "./packages/json-rpc-engine/tsconfig.build.json" },
     { "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json" },
     { "path": "./packages/keyring-controller/tsconfig.build.json" },
