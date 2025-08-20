@@ -1080,7 +1080,7 @@ describe('getPersistentState', () => {
 
       onVisit = ({ visitors }: VisitorControllerState) => {
         if (visitors.length > this.state.maxVisitors) {
-          this.messagingSystem.call('VisitorController:clear');
+          this.messenger.call('VisitorController:clear');
         }
       };
 

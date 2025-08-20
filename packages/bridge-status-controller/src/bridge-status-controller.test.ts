@@ -309,6 +309,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     swapRate: '1.234',
     cost: { valueInCurrency: null, usd: null },
   },
+  accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
   initialDestAssetBalance: undefined,
@@ -1600,13 +1601,12 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
 
     it('should successfully submit a transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockResolvedValueOnce('signature');
-      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -1625,10 +1625,10 @@ describe('BridgeStatusController', () => {
     it('should throw error when snap ID is missing', async () => {
       const accountWithoutSnap = {
         ...mockSolanaAccount,
-        metadata: { snap: undefined },
+        metadata: { keyring: { type: 'any' }, snap: undefined },
       };
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
-      mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -1658,6 +1658,7 @@ describe('BridgeStatusController', () => {
 
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -1800,17 +1801,14 @@ describe('BridgeStatusController', () => {
       mockMessengerCall = jest.fn();
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
 
     it('should successfully submit a transaction', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockResolvedValueOnce({
         signature: 'signature',
       });
-
-      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
-      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockReturnValueOnce({
         transactions: [],
       });
@@ -1829,9 +1827,10 @@ describe('BridgeStatusController', () => {
     it('should throw error when snap ID is missing', async () => {
       const accountWithoutSnap = {
         ...mockSolanaAccount,
-        metadata: { snap: undefined },
+        metadata: { keyring: { type: 'any' }, snap: undefined },
       };
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -1862,6 +1861,7 @@ describe('BridgeStatusController', () => {
 
     it('should handle snap controller errors', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -1982,8 +1982,12 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
       jest.spyOn(Math, 'random').mockReturnValue(0.456);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
+
+    const setupEventTrackingMocks = (mockCall: jest.Mock) => {
+      mockCall.mockReturnValueOnce(mockSelectedAccount);
+      mockCall.mockImplementationOnce(jest.fn()); // track event
+    };
 
     const setupApprovalMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
@@ -2045,6 +2049,7 @@ describe('BridgeStatusController', () => {
     };
 
     it('should successfully submit an EVM bridge transaction with approval', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
@@ -2061,6 +2066,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -2096,6 +2102,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       setupBridgeStxMocks(mockMessengerCall);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
@@ -2117,6 +2124,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw an error if account is not found', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -2135,6 +2143,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should reset USDT allowance', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockIsEthUsdt.mockReturnValueOnce(true);
 
       // USDT approval reset
@@ -2161,6 +2170,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions with USDT reset', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       // USDT approval reset
       mockIsEthUsdt.mockReturnValueOnce(true);
       mockMessengerCall.mockReturnValueOnce('1');
@@ -2205,6 +2215,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw an error if approval tx fails', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
@@ -2226,6 +2237,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw an error if approval tx meta does not exist', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockReturnValueOnce({
@@ -2263,6 +2275,7 @@ describe('BridgeStatusController', () => {
         .fn()
         .mockImplementation((_p, callback) => callback());
 
+      setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
@@ -2310,6 +2323,7 @@ describe('BridgeStatusController', () => {
           },
         },
       });
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
@@ -2341,6 +2355,7 @@ describe('BridgeStatusController', () => {
         .fn()
         .mockImplementation((_p, callback) => callback());
 
+      setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
@@ -2382,6 +2397,7 @@ describe('BridgeStatusController', () => {
           },
         },
       });
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
@@ -2496,15 +2512,20 @@ describe('BridgeStatusController', () => {
         },
       },
     };
-    const mockMessengerCall = jest.fn();
+    let mockMessengerCall: jest.Mock;
 
     beforeEach(() => {
       jest.clearAllMocks();
+      mockMessengerCall = jest.fn();
       jest.spyOn(Date, 'now').mockReturnValue(1234567890);
       jest.spyOn(Math, 'random').mockReturnValue(0.456);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
     });
+
+    const setupEventTrackingMocks = (mockCall: jest.Mock) => {
+      mockCall.mockReturnValueOnce(mockSelectedAccount);
+      mockCall.mockImplementationOnce(jest.fn()); // track event
+    };
 
     const setupApprovalMocks = () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
@@ -2544,6 +2565,7 @@ describe('BridgeStatusController', () => {
     };
 
     it('should successfully submit an EVM swap transaction with approval', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks();
       setupBridgeMocks();
 
@@ -2561,6 +2583,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle a gasless swap transaction with approval', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       addTransactionBatchFn.mockResolvedValueOnce({
@@ -2609,6 +2632,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should successfully submit an EVM swap transaction with no approval', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       setupBridgeMocks();
 
       const { controller, startPollingForBridgeTxStatusSpy } =
@@ -2644,6 +2668,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -2676,11 +2701,8 @@ describe('BridgeStatusController', () => {
     });
 
     it('should throw error if account is not found', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -2695,10 +2717,11 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).not.toHaveBeenCalled();
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).not.toHaveBeenCalled();
-      expect(mockMessengerCall).toHaveBeenCalledTimes(3);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(4);
     });
 
     it('should throw error if batched tx is not found', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       mockMessengerCall.mockReturnValueOnce({
@@ -2729,7 +2752,7 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(2);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(7);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(8);
     });
   });
 

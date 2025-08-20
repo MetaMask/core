@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Update the implementation of `UnifiedSwapBridgeEventName.Submitted` to require event publishers to provide all properties. This is in needed because the Submitted event can be published after the BridgeController's state has been reset ([#6314](https://github.com/MetaMask/core/pull/6314))
+
 ## [40.0.0]
 
 ### Changed
