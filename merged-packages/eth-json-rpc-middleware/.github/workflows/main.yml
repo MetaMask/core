@@ -38,6 +38,11 @@ jobs:
     name: Build, lint, and test
     uses: ./.github/workflows/build-lint-test.yml
 
+  compatibility-test:
+    name: Compatibility test
+    uses: ./.github/workflows/compatibility-test.yml
+    if: ${{ github.ref == 'refs/heads/main' }}
+
   all-jobs-completed:
     name: All jobs completed
     runs-on: ubuntu-latest

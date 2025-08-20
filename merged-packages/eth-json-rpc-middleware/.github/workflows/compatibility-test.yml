@@ -1,0 +1,25 @@
+name: Compatibility Test
+
+on:
+  workflow_call:
+
+jobs:
+  compatibility-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    steps:
+      - uses: MetaMask/action-checkout-and-setup@v1
+        with:
+          is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
+      - run: rm yarn.lock && YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
+      - run: yarn test
+      - run: git restore yarn.lock
+      - shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
