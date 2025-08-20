@@ -32,13 +32,16 @@ import {
   type KeyringControllerUnlockEvent,
   type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+// import { assert } from '@metamask/superstruct';
 
 import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
+// import { MultichainAccountsFeatureFlagSchema } from './types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -260,7 +263,9 @@ export type AllowedActions =
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
   | AddressBookControllerDeleteAction
-  | AddressBookControllerActions;
+  | AddressBookControllerActions
+  // Remote Feature Flag
+  | RemoteFeatureFlagControllerGetStateAction;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -629,6 +634,19 @@ export default class UserStorageController extends BaseController<
       this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
       false
     );
+
+    // TODO: should we do the following instead?
+
+    // const multichainAccountsFeatureFlags = this.messagingSystem.call(
+    //   'RemoteFeatureFlagController:getState',
+    // )?.remoteFeatureFlags?.enableMultichainAccounts;
+
+    // assert(multichainAccountsFeatureFlags, MultichainAccountsFeatureFlagSchema);
+
+    // return (
+    //   multichainAccountsFeatureFlags.enabled &&
+    //   multichainAccountsFeatureFlags.featureVersion === '2'
+    // );
   }
 
   /**
