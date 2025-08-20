@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.1.1` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+
 ## [2.6.0]
 
 ### Added

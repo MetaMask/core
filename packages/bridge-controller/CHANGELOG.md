@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [40.0.0]
 
-### Uncategorized
+### Changed
 
-- Release/503.0.0 ([#6322](https://github.com/MetaMask/core/pull/6322))
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^73.3.0` to `^74.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` from `^59.2.0` to `^60.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 
 ### Changed
 

@@ -9,21 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.0]
 
-### Uncategorized
-
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-- Revert recent releases ([#6085](https://github.com/MetaMask/core/pull/6085))
-- Release/461.0.0 ([#6083](https://github.com/MetaMask/core/pull/6083))
-- chore: Remove preference smartAccountOptInForAccounts as it is not going to be used ([#6079](https://github.com/MetaMask/core/pull/6079))
-
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.1.1` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
 
-### Deprecated
+### Removed 
 
-- Deprecate preference `smartAccountOptInForAccounts` and function `setSmartAccountOptInForAccounts` ([#6087](https://github.com/MetaMask/core/pull/6087))
+- **BREAKING:** Remove `smartAccountOptInForAccounts` from `PreferencesState` and `setSmartAccountOptInForAccounts` method ([#6079](https://github.com/MetaMask/core/pull/6079))
 
 ## [18.4.1]
 

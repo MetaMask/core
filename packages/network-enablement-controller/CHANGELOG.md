@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0]
 
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` from `^59.2.0` to `^60.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+
 ## [0.2.0]
 
 ### Added
