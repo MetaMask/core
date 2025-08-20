@@ -27,7 +27,7 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
+import type { GetSimulationConfig, TransactionControllerState } from '..';
 import {
   determineTransactionType,
   GasFeeEstimateLevel,
@@ -80,6 +80,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  getSimulationConfig: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -748,10 +749,11 @@ async function prepareApprovalData({
     messenger,
     request: userRequest,
     isSimulationEnabled,
-    getGasFeeEstimates,
-    update,
-    getEthQuery,
     getChainId,
+    getEthQuery,
+    getGasFeeEstimates,
+    getSimulationConfig,
+    update,
   } = request;
 
   const {
@@ -774,6 +776,7 @@ async function prepareApprovalData({
   const { gasLimit } = await simulateGasBatch({
     chainId,
     from,
+    getSimulationConfig,
     transactions: nestedTransactions,
   });
 

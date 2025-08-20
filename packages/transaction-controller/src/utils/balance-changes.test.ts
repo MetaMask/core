@@ -64,6 +64,7 @@ const REQUEST_MOCK: GetBalanceChangesRequest = {
   ethQuery: {
     sendAsync: jest.fn(),
   } as EthQuery,
+  getSimulationConfig: jest.fn(),
   txParams: {
     data: '0x123',
     from: USER_ADDRESS_MOCK,
@@ -671,6 +672,7 @@ describe('Simulation Utils', () => {
           2,
           REQUEST_MOCK.chainId,
           {
+            getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
             transactions: [
               // ERC-20 balance before minting.
               {

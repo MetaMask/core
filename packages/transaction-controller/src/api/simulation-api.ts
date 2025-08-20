@@ -55,9 +55,9 @@ export type SimulationRequest = {
   };
 
   /**
-   * Optional function to modify the simulation request.
+   * Function to get the simulation configuration.
    */
-  getSimulationConfig?: GetSimulationConfig;
+  getSimulationConfig: GetSimulationConfig;
 
   /**
    * Overrides to the state of the blockchain, keyed by address.
@@ -283,7 +283,7 @@ export async function simulateTransactions(
   let url = await getSimulationUrl(chainId);
 
   const { newUrl, authorization } =
-    (await request.getSimulationConfig?.(url)) || {};
+    (await request.getSimulationConfig(url)) || {};
   if (newUrl) {
     url = newUrl;
   }

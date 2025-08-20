@@ -354,6 +354,11 @@ export type TransactionControllerOptions = {
   /** Gets the saved gas fee config. */
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
 
+  /**
+   * Gets the transaction simulation configuration.
+   */
+  getSimulationConfig?: GetSimulationConfig;
+
   /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
     /** @deprecated Ignored as Etherscan no longer used. */
@@ -451,11 +456,6 @@ export type TransactionControllerOptions = {
     ) => Promise<{ transactionHash: string }>;
     publishBatch?: PublishBatchHook;
   };
-
-  /**
-   * Optional parameters for the transaction simulation.
-   */
-  getSimulationConfig?: GetSimulationConfig;
 };
 
 /**
@@ -759,6 +759,8 @@ export class TransactionController extends BaseController<
 
   readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
+  readonly #getSimulationConfig: GetSimulationConfig;
+
   readonly #incomingTransactionHelper: IncomingTransactionHelper;
 
   readonly #incomingTransactionOptions: IncomingTransactionOptions & {
@@ -803,8 +805,6 @@ export class TransactionController extends BaseController<
   readonly #publishBatchHook?: PublishBatchHook;
 
   readonly #securityProviderRequest?: SecurityProviderRequest;
-
-  readonly #getSimulationConfig?: GetSimulationConfig;
 
   readonly #sign?: (
     transaction: TypedTransaction,
@@ -891,6 +891,8 @@ export class TransactionController extends BaseController<
     this.#getNetworkState = getNetworkState;
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
+    this.#getSimulationConfig =
+      getSimulationConfig ?? (() => Promise.resolve({}));
     this.#incomingTransactionOptions = incomingTransactions;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
@@ -908,7 +910,6 @@ export class TransactionController extends BaseController<
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
     this.#publishBatchHook = hooks?.publishBatch;
     this.#securityProviderRequest = securityProviderRequest;
-    this.#getSimulationConfig = getSimulationConfig;
     this.#sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
@@ -1070,6 +1071,7 @@ export class TransactionController extends BaseController<
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getGasFeeEstimates: this.#getGasFeeEstimates,
       getInternalAccounts: this.#getInternalAccounts.bind(this),
+      getSimulationConfig: this.#getSimulationConfig.bind(this),
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           provider: this.#getProvider({ networkClientId }),
@@ -1617,6 +1619,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txParams: transaction,
     });
@@ -1645,6 +1648,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txParams: transaction,
     });
@@ -4388,6 +4392,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txMeta: transactionMeta,
     });

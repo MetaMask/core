@@ -24,6 +24,7 @@ const UPGRADE_CONTRACT_ADDRESS_MOCK =
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: jest.fn().mockResolvedValue(true),
+  getSimulationConfig: jest.fn(),
   messenger: {} as TransactionControllerMessenger,
   publicKeyEIP7702: '0x123',
   transactionMeta: {

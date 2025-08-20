@@ -26,10 +26,10 @@ export type GetGasFeeTokensRequest = {
   isEIP7702GasFeeTokensEnabled: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
+  getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
   transactionMeta: TransactionMeta;
-  getSimulationConfig?: GetSimulationConfig;
 };
 
 /**
@@ -85,6 +85,7 @@ export async function getGasFeeTokens({
 
   try {
     const response = await simulateTransactions(chainId, {
+      getSimulationConfig,
       transactions: [
         {
           authorizationList,
@@ -99,7 +100,6 @@ export async function getGasFeeTokens({
         withFeeTransfer: true,
         with7702,
       },
-      getSimulationConfig,
     });
 
     log('Response', response);

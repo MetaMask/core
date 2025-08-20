@@ -1251,6 +1251,7 @@ describe('TransactionController', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: expect.anything(),
         isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
         messenger: expect.anything(),
         txParams: transactionParamsMock,
       });
@@ -2056,6 +2057,7 @@ describe('TransactionController', () => {
         ethQuery: expect.any(Object),
         isCustomNetwork: false,
         isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
         messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
@@ -2465,6 +2467,7 @@ describe('TransactionController', () => {
           blockTime: undefined,
           chainId: MOCK_NETWORK.chainId,
           ethQuery: expect.any(Object),
+          getSimulationConfig: expect.any(Function),
           nestedTransactions: undefined,
           txParams: {
             data: undefined,
@@ -7587,6 +7590,7 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
         ethQuery: expect.any(Object),
+        getSimulationConfig: expect.any(Function),
         nestedTransactions: undefined,
         txParams: {
           data: undefined,
@@ -7627,6 +7631,7 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
         ethQuery: expect.any(Object),
+        getSimulationConfig: expect.any(Function),
         nestedTransactions: undefined,
         txParams: {
           data: undefined,

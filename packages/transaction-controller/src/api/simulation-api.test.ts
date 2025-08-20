@@ -10,8 +10,12 @@ const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error Message';
+const GET_SIMULATION_CONFIG_MOCK: GetSimulationConfig = jest
+  .fn()
+  .mockResolvedValue({});
 
 const REQUEST_MOCK: SimulationRequest = {
+  getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
   transactions: [{ from: '0x1', to: '0x2', value: '0x1' }],
   overrides: {
     '0x1': {
@@ -100,7 +104,9 @@ describe('Simulation API Utils', () => {
       const requestBodyRaw = (request.body as BodyInit).toString();
       const requestBody = JSON.parse(requestBodyRaw);
 
-      expect(requestBody.params[0]).toStrictEqual(REQUEST_MOCK);
+      // JSON.stringify strips functions, so we apply it here.
+      const expectedRequest = JSON.parse(JSON.stringify(REQUEST_MOCK));
+      expect(requestBody.params[0]).toStrictEqual(expectedRequest);
     });
 
     it('throws if chain ID not supported', async () => {

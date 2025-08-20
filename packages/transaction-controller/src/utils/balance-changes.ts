@@ -50,9 +50,9 @@ export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
   ethQuery: EthQuery;
+  getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
-  getSimulationConfig?: GetSimulationConfig;
 };
 
 type ParsedEvent = {
@@ -694,7 +694,8 @@ async function baseRequest({
   before?: SimulationRequestTransaction[];
   after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, chainId, ethQuery, txParams } = request;
+  const { blockTime, chainId, ethQuery, getSimulationConfig, txParams } =
+    request;
   const { authorizationList } = txParams;
   const from = txParams.from as Hex;
 
@@ -732,10 +733,9 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  const { getSimulationConfig } = request;
-
   return await simulateTransactions(chainId, {
     ...params,
+    getSimulationConfig,
     transactions,
     withGas: true,
     withDefaultBlockOverrides: true,
@@ -754,7 +754,6 @@ async function baseRequest({
         },
       },
     }),
-    getSimulationConfig,
   });
 }
 
