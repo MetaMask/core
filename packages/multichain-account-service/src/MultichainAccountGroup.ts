@@ -188,4 +188,30 @@ export class MultichainAccountGroup<
   select(selector: AccountSelector<Account>): Account[] {
     return select(this.getAccounts(), selector);
   }
+
+  /**
+   * Align the multichain account group.
+   *
+   * This will create accounts for providers that don't have any accounts yet.
+   */
+  async align(): Promise<void> {
+    const results = await Promise.allSettled(
+      this.#providers.map((provider) => {
+        const accounts = this.#providerToAccounts.get(provider);
+        if (!accounts || accounts.length === 0) {
+          return provider.createAccounts({
+            entropySource: this.wallet.entropySource,
+            groupIndex: this.groupIndex,
+          });
+        }
+        return Promise.resolve();
+      }),
+    );
+
+    if (results.some((result) => result.status === 'rejected')) {
+      console.warn(
+        `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`,
+      );
+    }
+  }
 }

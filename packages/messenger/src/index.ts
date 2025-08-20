@@ -8,6 +8,8 @@ export type {
   SelectorFunction,
   ActionConstraint,
   EventConstraint,
+  MessengerActions,
+  MessengerEvents,
   NamespacedBy,
   NotNamespacedBy,
   NamespacedName,

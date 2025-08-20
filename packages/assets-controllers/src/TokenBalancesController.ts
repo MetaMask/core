@@ -156,7 +156,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     interval = DEFAULT_INTERVAL_MS,
     state = {},
     queryMultipleAccounts = true,
-    useAccountsAPI = true,
+    useAccountsAPI = false,
     allowExternalServices = () => true,
   }: TokenBalancesControllerOptions) {
     super({
