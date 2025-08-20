@@ -6,7 +6,7 @@ import type {
   ControllerStateChangeEvent,
   BaseControllerInstance as ControllerInstance,
 } from '@metamask/base-controller';
-import { BaseController, isBaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 
 export const controllerName = 'ComposableController';
 
@@ -185,6 +185,27 @@ export class ComposableController<
       console.error(`${name} - ${String(error)}`);
     }
   }
+}
+
+/**
+ * Determines if the given controller is an instance of `BaseController`
+ *
+ * @param controller - Controller instance to check
+ * @returns True if the controller is an instance of `BaseController`
+ */
+function isBaseController(
+  controller: unknown,
+): controller is ControllerInstance {
+  return (
+    typeof controller === 'object' &&
+    controller !== null &&
+    'name' in controller &&
+    typeof controller.name === 'string' &&
+    'state' in controller &&
+    typeof controller.state === 'object' &&
+    'metadata' in controller &&
+    typeof controller.metadata === 'object'
+  );
 }
 
 export default ComposableController;
