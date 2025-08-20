@@ -379,9 +379,34 @@ export const findAndUpdateTransactionsInBatch = ({
   // This is a workaround to update the tx type after the tx is signed
   // TODO: remove this once the tx type for batch txs is preserved in the tx controller
   Object.entries(txDataByType).forEach(([txType, txData]) => {
-    const txMeta = txs.find(
-      (tx) => tx.batchId === batchId && tx.txParams.data === txData,
-    );
+    // Find transaction by batchId and either matching data or delegation characteristics
+    const txMeta = txs.find((tx) => {
+      if (tx.batchId !== batchId) {
+        return false;
+      }
+      
+      // For 7702 delegated transactions, check for delegation-specific fields
+      // These transactions might have authorizationList or delegationAddress
+      const is7702Transaction = tx.txParams.authorizationList || tx.delegationAddress;
+      
+      if (is7702Transaction) {
+        // For 7702 transactions, we need to match based on transaction type
+        // since the data field might be different (batch execute call)
+        if ((txType === TransactionType.bridge || txType === TransactionType.swap) && 
+            tx.type === TransactionType.batch) {
+          return true;
+        }
+        // Also check if it's an approval transaction for 7702
+        if ((txType === TransactionType.bridgeApproval || txType === TransactionType.swapApproval) && 
+            tx.txParams.data === txData) {
+          return true;
+        }
+      }
+      
+      // Default matching logic for non-7702 transactions
+      return tx.txParams.data === txData;
+    });
+    
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
       updateTransactionFn(updatedTx, `Update tx type to ${txType}`);
