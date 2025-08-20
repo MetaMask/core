@@ -14,11 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [39.0.0]
 
+### Added
+
+- Add `getBridgeTransactionByTxMetaId` method to retrieve bridge transactions by their transaction meta ID ([#6346](https://github.com/MetaMask/core/pull/6346))
+- Add support for EIP-7702 gasless transactions in transaction batch handling ([#6346](https://github.com/MetaMask/core/pull/6346))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^39.0.0` to `^40.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - **BREAKING:** Bump peer dependency `@metamask/transaction-controller` from `^59.0.0` to `^60.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- Update transaction batch handling to conditionally enable EIP-7702 based on quote's `gasless7702` flag ([#6346](https://github.com/MetaMask/core/pull/6346))
 - Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
   - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
 

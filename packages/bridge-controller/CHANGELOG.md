@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [40.0.0]
 
+### Added
+
+- Add `gasless7702` field to QuoteRequest and Quote types to support EIP-7702 delegated gasless execution ([#6346](https://github.com/MetaMask/core/pull/6346))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
