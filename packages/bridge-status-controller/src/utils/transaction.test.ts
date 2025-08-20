@@ -1,10 +1,11 @@
-import type { QuoteResponse, TxData } from '@metamask/bridge-controller';
-import { ChainId } from '@metamask/bridge-controller';
 import {
-  formatChainIdToHex,
-  type QuoteMetadata,
+  ChainId,
   FeeType,
   formatChainIdToCaip,
+  formatChainIdToHex,
+  type QuoteMetadata,
+  type QuoteResponse,
+  type TxData,
 } from '@metamask/bridge-controller';
 import { SolScope } from '@metamask/keyring-api';
 import {
