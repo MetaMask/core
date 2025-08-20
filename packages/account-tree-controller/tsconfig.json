@@ -15,6 +15,9 @@
     },
     {
       "path": "../multichain-account-service"
+    },
+    {
+      "path": "../profile-sync-controller"
     }
   ],
   "include": ["../../types", "./src"]
