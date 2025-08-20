@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
-- Release/476.0.0 ([#6171](https://github.com/MetaMask/core/pull/6171))
-
 ### Changed
 
 - Bump `@metamask/chain-agnostic-permission` from `1.0.0` to `1.1.1` ([#6241](https://github.com/MetaMask/core/pull/6241), [#6345](https://github.com/MetaMask/core/pull/6241))
