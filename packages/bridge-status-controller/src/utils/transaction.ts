@@ -391,7 +391,9 @@ export const findAndUpdateTransactionsInBatch = ({
       // For 7702 delegated transactions, check for delegation-specific fields
       // These transactions might have authorizationList or delegationAddress
       const is7702Transaction =
-        tx.txParams.authorizationList || tx.delegationAddress;
+        (Array.isArray(tx.txParams.authorizationList) &&
+          tx.txParams.authorizationList.length > 0) ||
+        Boolean(tx.delegationAddress);
 
       if (is7702Transaction) {
         // For 7702 transactions, we need to match based on transaction type
