@@ -20,6 +20,12 @@ export enum UnifiedSwapBridgeEventName {
   QuoteSelected = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quote Selected`,
 }
 
+export enum AbortReason {
+  NewQuoteRequest = 'New Quote Request',
+  QuoteRequestUpdated = 'Quote Request Updated',
+  ResetState = 'Reset controller state',
+}
+
 /**
  * @deprecated remove this event property
  */
@@ -29,6 +35,9 @@ export enum MetaMetricsSwapsEventSource {
 }
 
 export enum MetricsActionType {
+  /**
+   * @deprecated new events should use SWAPBRIDGE_V1 instead
+   */
   CROSSCHAIN_V1 = 'crosschain-v1',
   SWAPBRIDGE_V1 = 'swapbridge-v1',
 }

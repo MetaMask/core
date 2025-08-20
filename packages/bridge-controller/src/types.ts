@@ -118,7 +118,14 @@ export type QuoteMetadata = {
    * If gas is included, this is the value of the src or dest token that was used to pay for the gas
    */
   includedTxFees?: TokenAmountValues | null;
-  gasFee: TokenAmountValues;
+  /**
+   * The gas fee for the bridge transaction.
+   * effective is the gas fee that is shown to the user. If this value is not
+   * included in the trade, the calculation falls back to the gasLimit (total)
+   * total is the gas fee that is spent by the user, including refunds.
+   * max is the max gas fee that will be used by the transaction.
+   */
+  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**

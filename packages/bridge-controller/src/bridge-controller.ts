@@ -48,10 +48,13 @@ import {
 } from './utils/caip-formatters';
 import { getBridgeFeatureFlags } from './utils/feature-flags';
 import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
-import { UnifiedSwapBridgeEventName } from './utils/metrics/constants';
+import {
+  AbortReason,
+  MetricsActionType,
+  UnifiedSwapBridgeEventName,
+} from './utils/metrics/constants';
 import {
   formatProviderLabel,
-  getActionTypeFromQuoteRequest,
   getRequestParams,
   getSwapTypeFromQuote,
   isCustomSlippage,
@@ -111,8 +114,6 @@ const metadata: StateMetadata<BridgeControllerState> = {
     anonymous: false,
   },
 };
-
-const RESET_STATE_ABORT_MESSAGE = 'Reset controller state';
 
 /**
  * The input to start polling for the {@link BridgeController}
@@ -251,7 +252,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
-    this.#abortController?.abort('Quote request updated');
+    this.#abortController?.abort(AbortReason.QuoteRequestUpdated);
 
     this.#trackInputChangedEvents(paramsToUpdate);
 
@@ -468,13 +469,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  stopPollingForQuotes = (reason?: string) => {
+  stopPollingForQuotes = (reason?: AbortReason) => {
     this.stopAllPolling();
     this.#abortController?.abort(reason);
   };
 
   resetState = () => {
-    this.stopPollingForQuotes(RESET_STATE_ABORT_MESSAGE);
+    this.stopPollingForQuotes(AbortReason.ResetState);
 
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
@@ -566,15 +567,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
-      const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
-      if (isAbortedDueToReset || isAbortError) {
-        // Exit the function early to avoid other state updates
+      if (
+        isAbortError ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+        ].includes(error as AbortReason)
+      ) {
+        // Exit the function early to prevent other state updates
         return;
       }
 
       this.update((state) => {
         state.quoteFetchError =
-          error instanceof Error ? error.message : 'Unknown error';
+          error instanceof Error ? error.message : (error?.toString() ?? null);
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
@@ -800,10 +807,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getQuoteFetchData = (): Omit<
     QuoteFetchData,
-    'best_quote_provider' | 'price_impact'
+    'best_quote_provider' | 'price_impact' | 'can_submit'
   > => {
     return {
-      can_submit: !this.state.quoteRequest.insufficientBal, // TODO check if balance is sufficient for network fees
       quotes_count: this.state.quotes.length,
       quotes_list: this.state.quotes.map(({ quote }) =>
         formatProviderLabel(quote),
@@ -820,8 +826,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
   ): CrossChainSwapsEventProperties<T> => {
     const baseProperties = {
-      action_type: getActionTypeFromQuoteRequest(this.state.quoteRequest),
       ...propertiesFromClient,
+      action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
@@ -906,7 +912,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           UnifiedSwapBridgeEventName.InputChanged,
           {
             input: inputKey,
-            value: inputValue,
+            input_value: inputValue,
           },
         );
       }

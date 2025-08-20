@@ -881,4 +881,154 @@ describe('MultichainAssetsRatesController', () => {
       expect(snapHandler).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('line 331 coverage - skip accounts with no assets', () => {
+    it('should skip accounts that have no assets (empty array) and continue processing', async () => {
+      const accountWithNoAssets: InternalAccount = {
+        id: 'account1', // This account will have no assets
+        type: 'solana:data-account',
+        address: '0xNoAssets',
+        metadata: {
+          name: 'Account With No Assets',
+          // @ts-expect-error-next-line
+          snap: { id: 'test-snap', enabled: true },
+        },
+        scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        options: {},
+        methods: [],
+      };
+
+      const accountWithAssets: InternalAccount = {
+        id: 'account2', // This account will have assets
+        type: 'solana:data-account',
+        address: '0xWithAssets',
+        metadata: {
+          name: 'Account With Assets',
+          // @ts-expect-error-next-line
+          snap: { id: 'test-snap', enabled: true },
+        },
+        scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        options: {},
+        methods: [],
+      };
+
+      // Set up controller with custom accounts and assets configuration
+      const messenger = new Messenger<AllowedActions, AllowedEvents>();
+
+      // Mock MultichainAssetsController state with one account having no assets
+      messenger.registerActionHandler(
+        'MultichainAssetsController:getState',
+        () => ({
+          accountsAssets: {
+            account1: [], // Empty array - should trigger line 331 continue
+            account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'], // Has assets
+          },
+          assetsMetadata: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+              name: 'Solana',
+              symbol: 'SOL',
+              fungible: true,
+              iconUrl: 'https://example.com/solana.png',
+              units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
+            },
+          },
+        }),
+      );
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [accountWithNoAssets, accountWithAssets], // Both accounts in the list
+      );
+
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedMultichainAccount',
+        () => accountWithAssets,
+      );
+
+      messenger.registerActionHandler(
+        'CurrencyRateController:getState',
+        () => ({
+          currentCurrency: 'USD',
+          currencyRates: {},
+        }),
+      );
+
+      // Track Snap calls to verify only the account with assets gets processed
+      const snapHandler = jest.fn().mockResolvedValue({
+        conversionRates: {
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+            USD: {
+              rate: '100.50',
+              conversionTime: Date.now(),
+            },
+          },
+        },
+      });
+
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      const controller = new MultichainAssetsRatesController({
+        messenger: messenger.getRestricted({
+          name: 'MultichainAssetsRatesController',
+          allowedActions: [
+            'MultichainAssetsController:getState',
+            'AccountsController:listMultichainAccounts',
+            'AccountsController:getSelectedMultichainAccount',
+            'CurrencyRateController:getState',
+            'SnapController:handleRequest',
+          ],
+          allowedEvents: [
+            'KeyringController:lock',
+            'KeyringController:unlock',
+            'AccountsController:accountAdded',
+            'CurrencyRateController:stateChange',
+            'MultichainAssetsController:accountAssetListUpdated',
+          ],
+        }),
+      });
+
+      await controller.updateAssetsRates();
+
+      // The snap handler gets called for both conversion rates and market data
+      // But we only care about the conversion rates call for this test
+      const conversionCalls = snapHandler.mock.calls.filter(
+        (call) => call[0].handler === 'onAssetsConversion',
+      );
+
+      // Verify that the conversion snap was called only once (for the account with assets)
+      // This confirms that the account with no assets was skipped via line 331 continue
+      expect(conversionCalls).toHaveLength(1);
+
+      // Verify that the conversion call was made with the correct structure
+      expect(snapHandler).toHaveBeenCalledWith({
+        handler: 'onAssetsConversion',
+        origin: 'metamask',
+        snapId: 'test-snap',
+        request: {
+          jsonrpc: '2.0',
+          method: 'onAssetsConversion',
+          params: {
+            conversions: [
+              {
+                from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+                to: 'swift:0/iso4217:USD',
+              },
+            ],
+          },
+        },
+      });
+
+      // Verify that conversion rates were updated only for the account with assets
+      expect(controller.state.conversionRates).toMatchObject({
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: '100.50',
+          conversionTime: expect.any(Number),
+          currency: 'swift:0/iso4217:USD',
+        },
+      });
+    });
+  });
 });

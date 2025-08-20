@@ -106,7 +106,7 @@ export async function getGasFeeTokens({
     return result;
   } catch (error) {
     log('Failed to gas fee tokens', error);
-    return [];
+    return { gasFeeTokens: [], isGasFeeSponsored: false };
   }
 }
 
@@ -114,28 +114,36 @@ export async function getGasFeeTokens({
  * Extract gas fee tokens from a simulation response.
  *
  * @param response - The simulation response.
- * @returns An array of gas fee tokens.
+ * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored
  */
-function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
+function parseGasFeeTokens(response: SimulationResponse): {
+  gasFeeTokens: GasFeeToken[];
+  isGasFeeSponsored: boolean;
+} {
   const feeLevel = response.transactions?.[0]
     ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
+  const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
+
   const tokenFees = feeLevel?.tokenFees ?? [];
 
-  return tokenFees.map((tokenFee) => ({
-    amount: tokenFee.balanceNeededToken,
-    balance: tokenFee.currentBalanceToken,
-    decimals: tokenFee.token.decimals,
-    fee: tokenFee.serviceFee,
-    gas: feeLevel.gas,
-    gasTransfer: tokenFee.transferEstimate,
-    maxFeePerGas: feeLevel.maxFeePerGas,
-    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
-    rateWei: tokenFee.rateWei,
-    recipient: tokenFee.feeRecipient,
-    symbol: tokenFee.token.symbol,
-    tokenAddress: tokenFee.token.address,
-  }));
+  return {
+    gasFeeTokens: tokenFees.map((tokenFee) => ({
+      amount: tokenFee.balanceNeededToken,
+      balance: tokenFee.currentBalanceToken,
+      decimals: tokenFee.token.decimals,
+      fee: tokenFee.serviceFee,
+      gas: feeLevel.gas,
+      gasTransfer: tokenFee.transferEstimate,
+      maxFeePerGas: feeLevel.maxFeePerGas,
+      maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+      rateWei: tokenFee.rateWei,
+      recipient: tokenFee.feeRecipient,
+      symbol: tokenFee.token.symbol,
+      tokenAddress: tokenFee.token.address,
+    })),
+    isGasFeeSponsored,
+  };
 }
 
 /**

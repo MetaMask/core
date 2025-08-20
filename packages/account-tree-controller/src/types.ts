@@ -89,6 +89,11 @@ export type AccountTreeControllerGetSelectedAccountGroupAction = {
   handler: AccountTreeController['getSelectedAccountGroup'];
 };
 
+export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
+  type: `${typeof controllerName}:getAccountsFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -108,7 +113,8 @@ export type AllowedActions =
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
   | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetSelectedAccountGroupAction;
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,

@@ -470,6 +470,7 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
     {
       chainId: Hex;
       endpointUrl: string;
+      error: unknown;
     },
   ];
 };

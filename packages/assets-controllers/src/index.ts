@@ -6,6 +6,8 @@ export type {
   AccountTrackerControllerGetStateAction,
   AccountTrackerControllerStateChangeEvent,
   AccountTrackerControllerEvents,
+  AccountTrackerUpdateNativeBalancesAction,
+  AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
 export type {
@@ -72,10 +74,11 @@ export type {
 } from './NftDetectionController';
 export { NftDetectionController } from './NftDetectionController';
 export type {
-  TokenBalancesControllerMessenger,
   TokenBalancesControllerActions,
   TokenBalancesControllerGetStateAction,
   TokenBalancesControllerEvents,
+  TokenBalancesControllerMessenger,
+  TokenBalancesControllerOptions,
   TokenBalancesControllerStateChangeEvent,
   TokenBalancesControllerState,
 } from './TokenBalancesController';
@@ -207,3 +210,14 @@ export type {
   DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
+export type {
+  AccountGroupBalance,
+  WalletBalance,
+  AllWalletsBalance,
+} from './balances';
+export { calculateBalanceForAllWallets } from './balances';
+export type { BalanceChangePeriod, BalanceChangeResult } from './balances';
+export {
+  calculateBalanceChangeForAllWallets,
+  calculateBalanceChangeForAccountGroup,
+} from './balances';

@@ -100,6 +100,7 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import * as transactionTypeUtils from './utils/transaction-type';
 import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -2529,7 +2530,10 @@ describe('TransactionController', () => {
 
     describe('updates gas fee tokens', () => {
       it('by default', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
 
         const { controller } = setupController();
 
@@ -2551,7 +2555,10 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
 
         const { controller } = setupController();
 
@@ -2565,6 +2572,76 @@ describe('TransactionController', () => {
 
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].gasFeeTokens).toBeUndefined();
+      });
+    });
+
+    describe('updates isGasFeeSponsored', () => {
+      it('sets isGasFeeSponsored to true when transaction is sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+      });
+
+      it('sets isGasFeeSponsored to false when transaction is not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
+      });
+
+      it('defaults isGasFeeSponsored to false when gas fee tokens are disabled', async () => {
+        const { controller } = setupController({
+          options: {
+            isEIP7702GasFeeTokensEnabled: () => Promise.resolve(false),
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
       });
     });
 
@@ -7073,6 +7150,7 @@ describe('TransactionController', () => {
       networkClientId: NETWORK_CLIENT_ID_MOCK,
       status: TransactionStatus.unapproved as const,
       time: 123456789,
+      type: TransactionType.contractInteraction,
       txParams: {
         data: 'originalData',
         gas: '50000',
@@ -7188,6 +7266,54 @@ describe('TransactionController', () => {
       expect(updatedTransaction?.containerTypes).toStrictEqual([
         TransactionContainerType.EnforcedSimulations,
       ]);
+    });
+
+    it('updates transaction type', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      jest
+        .spyOn(transactionTypeUtils, 'determineTransactionType')
+        .mockResolvedValue({ type: TransactionType.tokenMethodTransfer });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.type).toStrictEqual(
+        TransactionType.tokenMethodTransfer,
+      );
+    });
+
+    it('does not update transaction type if disabled', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      jest
+        .spyOn(transactionTypeUtils, 'determineTransactionType')
+        .mockResolvedValue({ type: TransactionType.tokenMethodTransfer });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        { ...params, updateType: false },
+      );
+
+      expect(updatedTransaction?.type).toStrictEqual(
+        TransactionType.contractInteraction,
+      );
     });
 
     it('throws an error if no transaction metadata is found', async () => {

@@ -177,6 +177,24 @@ export const handleLineaDelay = async (
   }
 };
 
+/**
+ * Adds a delay for hardware wallet transactions on mobile to fix an issue
+ * where the Ledger does not get prompted for the 2nd approval.
+ * Extension does not have this issue.
+ *
+ * @param requireApproval - Whether the delay should be applied
+ */
+export const handleMobileHardwareWalletDelay = async (
+  requireApproval: boolean,
+) => {
+  if (requireApproval) {
+    const mobileHardwareWalletDelay = new Promise((resolve) =>
+      setTimeout(resolve, 1000),
+    );
+    await mobileHardwareWalletDelay;
+  }
+};
+
 export const getClientRequest = (
   quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
@@ -238,6 +256,8 @@ export const getAddTransactionBatchParams = async ({
       feeData: { txFee },
       gasIncluded,
     },
+    sentAmount,
+    toTokenAmount,
   },
   requireApproval = false,
   estimateGasFeeFn,
@@ -315,6 +335,10 @@ export const getAddTransactionBatchParams = async ({
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
     params: toBatchTxParams(disable7702, trade, gasFees),
+    assetsFiatValues: {
+      sending: sentAmount?.valueInCurrency?.toString(),
+      receiving: toTokenAmount?.valueInCurrency?.toString(),
+    },
   });
   const transactionParams: Parameters<
     TransactionController['addTransactionBatch']

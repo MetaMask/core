@@ -60,8 +60,6 @@ export class EntropyRule
         metadata: {
           entropy: {
             id: entropySource,
-            // QUESTION: Should we re-compute the index everytime instead?
-            index: entropySourceIndex,
           },
         },
       },
@@ -83,10 +81,16 @@ export class EntropyRule
   getDefaultAccountWalletName(
     wallet: AccountWalletObjectOf<AccountWalletType.Entropy>,
   ): string {
-    return `Wallet ${wallet.metadata.entropy.index + 1}`; // Use human indexing (starts at 1).
+    // NOTE: We have checked during the rule matching, so we can safely assume it will
+    // well-defined here.
+    const entropySourceIndex = this.getEntropySourceIndex(
+      wallet.metadata.entropy.id,
+    );
+
+    return `Wallet ${entropySourceIndex + 1}`; // Use human indexing (starts at 1).
   }
 
-  getDefaultAccountGroupName(
+  getComputedAccountGroupName(
     group: AccountGroupObjectOf<AccountGroupType.MultichainAccount>,
   ): string {
     let candidate = '';
@@ -104,5 +108,9 @@ export class EntropyRule
     }
 
     return candidate;
+  }
+
+  getDefaultAccountGroupName(index: number): string {
+    return `Account ${index + 1}`;
   }
 }

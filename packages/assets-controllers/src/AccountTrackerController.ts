@@ -17,7 +17,6 @@ import {
   safelyExecuteWithTimeout,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
@@ -26,7 +25,7 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import { assert, hasProperty } from '@metamask/utils';
+import { assert, hasProperty, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
@@ -84,10 +83,28 @@ export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * The action that can be performed to update multiple native token balances in batch.
+ */
+export type AccountTrackerUpdateNativeBalancesAction = {
+  type: `${typeof controllerName}:updateNativeBalances`;
+  handler: AccountTrackerController['updateNativeBalances'];
+};
+
+/**
+ * The action that can be performed to update multiple staked balances in batch.
+ */
+export type AccountTrackerUpdateStakedBalancesAction = {
+  type: `${typeof controllerName}:updateStakedBalances`;
+  handler: AccountTrackerController['updateStakedBalances'];
+};
+
+/**
  * The actions that can be performed using the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerActions =
-  AccountTrackerControllerGetStateAction;
+  | AccountTrackerControllerGetStateAction
+  | AccountTrackerUpdateNativeBalancesAction
+  | AccountTrackerUpdateStakedBalancesAction;
 
 /**
  * The messenger of the {@link AccountTrackerController} for communication.
@@ -211,6 +228,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       },
       (event): string => event.address,
     );
+
+    this.#registerMessageHandlers();
   }
 
   private syncAccounts(newChainIds: string[]) {
@@ -280,11 +299,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param networkClientId - Optional networkClientId to fetch a network client with
    * @returns network client config
    */
-  #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
-    chainId: string;
-    provider: SafeEventEmitterProvider;
-    ethQuery?: EthQuery;
-  } {
+  #getCorrectNetworkClient(networkClientId?: NetworkClientId) {
     const selectedNetworkClientId =
       networkClientId ??
       this.messagingSystem.call('NetworkController:getState')
@@ -292,6 +307,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const {
       configuration: { chainId },
       provider,
+      blockTracker,
     } = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
@@ -301,6 +317,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       chainId,
       provider,
       ethQuery: new EthQuery(provider),
+      blockTracker,
     };
   }
 
@@ -357,7 +374,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       // Create an array of promises for each networkClientId
       const updatePromises = networkClientIds.map(async (networkClientId) => {
-        const { chainId, ethQuery, provider } =
+        const { chainId, ethQuery, provider, blockTracker } =
           this.#getCorrectNetworkClient(networkClientId);
         const { accountsByChainId } = this.state;
         const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
@@ -369,6 +386,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
           : [toChecksumHexAddress(selectedAccount.address)];
 
         const accountsForChain = { ...accountsByChainId[chainId] };
+
+        // Force fresh block data before multicall
+        // TODO: This is a temporary fix to ensure that the block number is up to date.
+        // We should remove this once we have a better solution for this on the block tracker controller.
+        await safelyExecuteWithTimeout(() =>
+          blockTracker?.checkForLatestBlock?.(),
+        );
 
         const stakedBalancesPromise = this.#includeStakedAssets
           ? this.#getStakedBalanceForChain(accountsToUpdate, networkClientId)
@@ -385,15 +409,22 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
             new Web3Provider(provider),
           );
 
-          const nativeBalances = await contract.balances(accountsToUpdate, [
-            '0x0000000000000000000000000000000000000000',
-          ]);
+          const nativeBalances = await safelyExecuteWithTimeout(
+            () =>
+              contract.balances(accountsToUpdate, [
+                '0x0000000000000000000000000000000000000000',
+              ]) as Promise<BigNumber[]>,
+            false,
+            3_000, // 3s max call for multicall contract call
+          );
 
-          accountsToUpdate.forEach((address, index) => {
-            accountsForChain[address] = {
-              balance: (nativeBalances[index] as BigNumber).toHexString(),
-            };
-          });
+          if (nativeBalances) {
+            accountsToUpdate.forEach((address, index) => {
+              accountsForChain[address] = {
+                balance: nativeBalances[index].toHexString(),
+              };
+            });
+          }
         } else {
           // Process accounts in batches using reduceInBatchesSerially
           await reduceInBatchesSerially<string, void>({
@@ -421,17 +452,19 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
           });
         }
 
-        const stakedBalanceResult = (await stakedBalancesPromise) as Record<
-          string,
-          StakedBalance
-        >;
+        const stakedBalanceResult = await safelyExecuteWithTimeout(
+          async () =>
+            (await stakedBalancesPromise) as Record<string, StakedBalance>,
+        );
 
-        Object.entries(stakedBalanceResult).forEach(([address, balance]) => {
-          accountsForChain[address] = {
-            ...accountsForChain[address],
-            stakedBalance: balance,
-          };
-        });
+        Object.entries(stakedBalanceResult ?? {}).forEach(
+          ([address, balance]) => {
+            accountsForChain[address] = {
+              ...accountsForChain[address],
+              stakedBalance: balance,
+            };
+          },
+        );
 
         // After all batches are processed, return the updated data
         return { chainId, accountsForChain };
@@ -533,6 +566,78 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         };
       }, {});
     });
+  }
+
+  /**
+   * Updates the balances of multiple native tokens in a single batch operation.
+   * This is more efficient than calling updateNativeToken multiple times as it
+   * triggers only one state update.
+   *
+   * @param balances - Array of balance updates, each containing address, chainId, and balance.
+   */
+  updateNativeBalances(
+    balances: { address: string; chainId: Hex; balance: string }[],
+  ) {
+    this.update((state) => {
+      balances.forEach(({ address, chainId, balance }) => {
+        // Ensure the chainId exists in the state
+        if (!state.accountsByChainId[chainId]) {
+          state.accountsByChainId[chainId] = {};
+        }
+
+        // Ensure the address exists for this chain
+        if (!state.accountsByChainId[chainId][address]) {
+          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        }
+
+        // Update the balance
+        state.accountsByChainId[chainId][address].balance = balance;
+      });
+    });
+  }
+
+  /**
+   * Updates the staked balances of multiple accounts in a single batch operation.
+   * This is more efficient than updating staked balances individually as it
+   * triggers only one state update.
+   *
+   * @param stakedBalances - Array of staked balance updates, each containing address, chainId, and stakedBalance.
+   */
+  updateStakedBalances(
+    stakedBalances: {
+      address: string;
+      chainId: Hex;
+      stakedBalance: StakedBalance;
+    }[],
+  ) {
+    this.update((state) => {
+      stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
+        // Ensure the chainId exists in the state
+        if (!state.accountsByChainId[chainId]) {
+          state.accountsByChainId[chainId] = {};
+        }
+
+        // Ensure the address exists for this chain
+        if (!state.accountsByChainId[chainId][address]) {
+          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        }
+
+        // Update the staked balance
+        state.accountsByChainId[chainId][address].stakedBalance = stakedBalance;
+      });
+    });
+  }
+
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateNativeBalances` as const,
+      this.updateNativeBalances.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateStakedBalances` as const,
+      this.updateStakedBalances.bind(this),
+    );
   }
 }
 
