@@ -134,16 +134,9 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         chainAccounts,
       )) {
         const accountGroupId = accountsMap[accountAddress];
-
-        if (!groupAssets[accountGroupId]) {
-          groupAssets[accountGroupId] = {};
-        }
-
-        let groupChainAssets = groupAssets[accountGroupId][chainId];
-        if (!groupChainAssets) {
-          groupChainAssets = [];
-          groupAssets[accountGroupId][chainId] = groupChainAssets;
-        }
+        groupAssets[accountGroupId] ??= {};
+        groupAssets[accountGroupId][chainId] ??= [];
+        const groupChainAssets = groupAssets[accountGroupId][chainId];
 
         const rawBalance = accountBalance.balance || '0x0';
 
@@ -240,15 +233,9 @@ const selectAllEvmAssets = createAssetListSelector(
             continue;
           }
 
-          if (!groupAssets[accountGroupId]) {
-            groupAssets[accountGroupId] = {};
-          }
-
-          let groupChainAssets = groupAssets[accountGroupId][chainId];
-          if (!groupChainAssets) {
-            groupChainAssets = [];
-            groupAssets[accountGroupId][chainId] = groupChainAssets;
-          }
+          groupAssets[accountGroupId] ??= {};
+          groupAssets[accountGroupId][chainId] ??= [];
+          const groupChainAssets = groupAssets[accountGroupId][chainId];
 
           const fiatData = getFiatBalanceForEvmToken(
             rawBalance,
@@ -323,15 +310,9 @@ const selectAllMultichainAssets = createAssetListSelector(
           continue;
         }
 
-        if (!groupAssets[accountGroupId]) {
-          groupAssets[accountGroupId] = {};
-        }
-
-        let groupChainAssets = groupAssets[accountGroupId][chainId];
-        if (!groupChainAssets) {
-          groupChainAssets = [];
-          groupAssets[accountGroupId][chainId] = groupChainAssets;
-        }
+        groupAssets[accountGroupId] ??= {};
+        groupAssets[accountGroupId][chainId] ??= [];
+        const groupChainAssets = groupAssets[accountGroupId][chainId];
 
         const balance:
           | {
@@ -433,14 +414,8 @@ function mergeAssets(
     } else {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
         const existingNetworkAssets = existingAccountGroupAssets[network];
-        if (!existingNetworkAssets) {
-          existingAccountGroupAssets[network] = chainAssets;
-        } else {
-          existingAccountGroupAssets[network] = [
-            ...existingNetworkAssets,
-            ...chainAssets,
-          ];
-        }
+        existingAccountGroupAssets[network] ??= [];
+        existingAccountGroupAssets[network].push(...chainAssets);
       }
     }
   }
