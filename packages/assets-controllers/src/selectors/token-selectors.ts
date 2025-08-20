@@ -2,7 +2,7 @@ import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { hexToBigInt, type Hex } from '@metamask/utils';
+import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import { stringifyBalanceWithDecimals } from './stringify-balance';
@@ -297,11 +297,16 @@ const selectAllMultichainAssets = createAssetListSelector(
 
     for (const [accountId, accountAssets] of Object.entries(multichainTokens)) {
       for (const assetId of accountAssets) {
-        // TODO: We need a safe way to extract each part of the id (in case of multiple / characters)
-        const [chainId, asset] = assetId.split('/') as [
-          `${string}:${string}`,
-          `${string}:${string}`,
-        ];
+        let caipAsset: ReturnType<typeof parseCaipAssetType>;
+        try {
+          caipAsset = parseCaipAssetType(assetId);
+        } catch {
+          // TODO: We should log this error when we have the ability to inject a logger from the client
+          continue;
+        }
+
+        const { chainId } = caipAsset;
+        const asset = `${caipAsset.assetNamespace}:${caipAsset.assetReference}`;
 
         const accountGroupId = accountsMap[accountId];
 
@@ -413,7 +418,6 @@ function mergeAssets(
       existingAssets[accountGroupId] = accountAssets;
     } else {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
-        const existingNetworkAssets = existingAccountGroupAssets[network];
         existingAccountGroupAssets[network] ??= [];
         existingAccountGroupAssets[network].push(...chainAssets);
       }
