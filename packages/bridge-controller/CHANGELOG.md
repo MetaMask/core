@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.0.0]
+
 ### Added
 
 - Add `gasless7702` field to QuoteRequest and Quote types to support EIP-7702 delegated gasless execution ([#6346](https://github.com/MetaMask/core/pull/6346))
 
 ### Fixed
 
-- Update the implementation of `UnifiedSwapBridgeEventName.Submitted` to require event publishers to provide all properties. This is in needed because the Submitted event can be published after the BridgeController's state has been reset ([#6314](https://github.com/MetaMask/core/pull/6314))
+- **BREAKING** Update the implementation of `UnifiedSwapBridgeEventName.Submitted` to require event publishers to provide all properties. This is in needed because the Submitted event can be published after the BridgeController's state has been reset ([#6314](https://github.com/MetaMask/core/pull/6314))
 
 ## [40.0.0]
 
@@ -513,7 +515,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@40.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.0.0...HEAD
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@40.0.0...@metamask/bridge-controller@41.0.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.1.0...@metamask/bridge-controller@40.0.0
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.0.1...@metamask/bridge-controller@39.1.0
 [39.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.0.0...@metamask/bridge-controller@39.0.1
