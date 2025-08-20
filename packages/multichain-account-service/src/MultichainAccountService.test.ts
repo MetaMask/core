@@ -750,6 +750,24 @@ describe('MultichainAccountService', () => {
         groupIndex: 0,
       });
     });
+
+    it('sets basic functionality with MultichainAccountService:setBasicFunctionality', async () => {
+      const { messenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      // This tests the action handler registration
+      expect(
+        await messenger.call(
+          'MultichainAccountService:setBasicFunctionality',
+          true,
+        ),
+      ).toBeUndefined();
+      expect(
+        await messenger.call(
+          'MultichainAccountService:setBasicFunctionality',
+          false,
+        ),
+      ).toBeUndefined();
+    });
   });
 
   describe('setBasicFunctionality', () => {
