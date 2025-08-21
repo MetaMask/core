@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1]
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
@@ -129,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.1...HEAD
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.1.0...@metamask/chain-agnostic-permission@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.0.0...@metamask/chain-agnostic-permission@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.8.0...@metamask/chain-agnostic-permission@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.7.1...@metamask/chain-agnostic-permission@0.8.0

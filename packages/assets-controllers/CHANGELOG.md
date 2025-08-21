@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.0.0]
+
+### Added
+
+- Added a token selector that returns list of tokens and balances for evm and multichain assets based on the selected account group ([#6226](https://github.com/MetaMask/core/pull/6226))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/preferences-controller` from `^18.0.0` to `^19.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` from `^59.0.0` to `^60.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+
 ## [73.3.0]
 
 ### Changed
@@ -1866,7 +1879,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.0.0...HEAD
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.3.0...@metamask/assets-controllers@74.0.0
 [73.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.2.0...@metamask/assets-controllers@73.3.0
 [73.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.1.0...@metamask/assets-controllers@73.2.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.2...@metamask/assets-controllers@73.1.0

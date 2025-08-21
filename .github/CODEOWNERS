@@ -28,6 +28,9 @@
 /packages/transaction-controller            @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
+## Delegation Team
+/packages/gator-permissions-controller @MetaMask/delegation
+
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 ## Notifications Team
@@ -115,6 +118,8 @@
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
+/packages/gator-permissions-controller/package.json @MetaMask/delegation @MetaMask/core-platform
+/packages/gator-permissions-controller/CHANGELOG.md @MetaMask/delegation @MetaMask/core-platform
 /packages/keyring-controller/package.json         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/logging-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform

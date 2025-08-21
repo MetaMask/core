@@ -1,6 +1,6 @@
 export type {
   BaseControllerInstance,
-  Listener as ListenerV2,
+  StateChangeListener,
   StateConstraint,
   StateDeriver,
   StateDeriverConstraint,
@@ -15,5 +15,4 @@ export {
   BaseController,
   getAnonymizedState,
   getPersistentState,
-  isBaseController,
 } from './BaseController';
