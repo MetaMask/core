@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Ensure that the evm addresses used for an internal mapping are always lowercase to avoid mismatches with client format ([#6358](https://github.com/MetaMask/core/pull/6358)).
+- Prevents mutation of memoized fields, which was causing issues ([#6358](https://github.com/MetaMask/core/pull/6358)).
 
 ## [74.0.0]
 
