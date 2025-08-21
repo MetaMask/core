@@ -185,6 +185,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
       this.restartPollingForFailedAttempts.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
+      this.getBridgeHistoryItemByTxMetaId.bind(this),
+    );
 
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
