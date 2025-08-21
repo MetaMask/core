@@ -110,7 +110,7 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')
-              ? internalAccount.address.toLowerCase()
+              ? internalAccount.address
               : accountId
           ] = { accountGroupId, type: internalAccount.type };
         }
@@ -240,7 +240,7 @@ const selectAllEvmAssets = createAssetListSelector(
       ) as [Hex, Token[]][]) {
         for (const token of addressTokens) {
           const tokenAddress = token.address as Hex;
-          const account = accountsMap[accountAddress.toLowerCase()];
+          const account = accountsMap[accountAddress];
           if (!account) {
             continue;
           }
@@ -298,6 +298,8 @@ const selectAllEvmAssets = createAssetListSelector(
         }
       }
     }
+
+    console.log('EVMMM', JSON.stringify(groupAssets, null, 2));
 
     return groupAssets;
   },
@@ -443,7 +445,10 @@ function mergeAssets(
     const existingAccountGroupAssets = existingAssets[accountGroupId];
 
     if (!existingAccountGroupAssets) {
-      existingAssets[accountGroupId] = accountAssets;
+      existingAssets[accountGroupId] = {};
+      for (const [network, chainAssets] of Object.entries(accountAssets)) {
+        existingAssets[accountGroupId][network] = [...chainAssets];
+      }
     } else {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
         existingAccountGroupAssets[network] ??= [];
