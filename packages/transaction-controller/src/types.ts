@@ -200,6 +200,11 @@ export type TransactionMeta = {
    */
   isFirstTimeInteraction?: boolean;
 
+  /**
+   * Whether the transaction is sponsored meaning the user does not pay the gas fee.
+   */
+  isGasFeeSponsored?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -700,6 +705,11 @@ export enum TransactionType {
    * A transaction that withdraws tokens from a lending contract.
    */
   lendingWithdraw = 'lendingWithdraw',
+
+  /**
+   * Deposit funds to be available for trading via Perps.
+   */
+  perpsDeposit = 'perpsDeposit',
 
   /**
    * A transaction for personal sign.

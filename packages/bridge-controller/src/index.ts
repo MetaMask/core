@@ -12,12 +12,12 @@ export type {
   RequestParams,
   RequestMetadata,
   TxStatusData,
+  QuoteFetchData,
 } from './utils/metrics/types';
 
 export {
   formatProviderLabel,
   getRequestParams,
-  getActionType,
   getSwapType,
   isHardwareWallet,
   isCustomSlippage,

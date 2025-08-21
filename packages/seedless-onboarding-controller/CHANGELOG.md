@@ -17,6 +17,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed `revokeRefreshToken` method ([#6272](https://github.com/MetaMask/core/pull/6272))
 
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+
+## [2.6.0]
+
+### Added
+
+- Added new persisted state value, `isSeedlessOnboardingUserAuthenticated`. ([#6288](https://github.com/MetaMask/core/pull/6288))
+  - This is for the UI state in the clients, to avoid querying sensistive controller state data to determine the social login authentication state.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+
+### Fixed
+
+- Set `anonymous` to `false` for sensitive fields in the controller state. ([#6283](https://github.com/MetaMask/core/pull/6283))
+
 ## [2.5.1]
 
 ### Changed
@@ -144,7 +165,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.6.0...@metamask/seedless-onboarding-controller@3.0.0
+[2.6.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.1...@metamask/seedless-onboarding-controller@2.6.0
 [2.5.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.5.0...@metamask/seedless-onboarding-controller@2.5.1
 [2.5.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.4.0...@metamask/seedless-onboarding-controller@2.5.0
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@2.3.0...@metamask/seedless-onboarding-controller@2.4.0

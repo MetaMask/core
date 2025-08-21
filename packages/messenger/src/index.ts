@@ -8,10 +8,10 @@ export type {
   SelectorFunction,
   ActionConstraint,
   EventConstraint,
+  MessengerActions,
+  MessengerEvents,
   NamespacedBy,
   NotNamespacedBy,
   NamespacedName,
 } from './Messenger';
 export { Messenger } from './Messenger';
-export type { RestrictedMessengerConstraint } from './RestrictedMessenger';
-export { RestrictedMessenger } from './RestrictedMessenger';

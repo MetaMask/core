@@ -28,6 +28,9 @@
 /packages/transaction-controller            @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
+## Delegation Team
+/packages/gator-permissions-controller @MetaMask/delegation
+
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 ## Notifications Team
@@ -75,6 +78,7 @@
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
+/packages/shield-controller              @MetaMask/web3auth
 
 ## Joint team ownership
 /packages/eth-json-rpc-provider        @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
@@ -114,6 +118,8 @@
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
+/packages/gator-permissions-controller/package.json @MetaMask/delegation @MetaMask/core-platform
+/packages/gator-permissions-controller/CHANGELOG.md @MetaMask/delegation @MetaMask/core-platform
 /packages/keyring-controller/package.json         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/logging-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
@@ -158,5 +164,7 @@
 /packages/foundryup/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
 /packages/seedless-onboarding-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
+/packages/shield-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
+/packages/shield-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
 /packages/network-enablement-controller/package.json @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/network-enablement-controller/CHANGELOG.md @MetaMask/metamask-assets @MetaMask/core-platform

@@ -5,7 +5,9 @@ Object {
   "bridgeTxMetaId1": Object {
     "account": "0xaccount1",
     "approvalTxId": undefined,
+    "attempts": undefined,
     "batchId": undefined,
+    "completionTime": undefined,
     "estimatedProcessingTimeInSeconds": 15,
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
@@ -13,7 +15,8 @@ Object {
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasInUsd": undefined,
+      "quotedGasAmount": ".00055",
+      "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
     "quote": Object {
@@ -109,8 +112,24 @@ Object {
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": Object {
+      "destChain": Object {
+        "chainId": 10,
+        "token": Object {},
+      },
       "srcChain": Object {
+        "amount": "991250000000000",
         "chainId": 42161,
+        "token": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2518.47",
+          "symbol": "ETH",
+        },
         "txHash": "0xsrcTxHash1",
       },
       "status": "PENDING",
@@ -137,17 +156,17 @@ Array [
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 Array [
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 105213.34261666666,
       "allowance_reset_transaction": undefined,
       "approval_transaction": undefined,
@@ -159,9 +178,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -174,7 +193,7 @@ Array [
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -194,7 +213,8 @@ Object {
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
-      "quotedGasInUsd": undefined,
+      "quotedGasAmount": ".00055",
+      "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
     "quote": Object {
@@ -305,17 +325,17 @@ Object {
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
 Array [
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 105213.34261666666,
       "allowance_reset_transaction": undefined,
       "approval_transaction": undefined,
@@ -327,9 +347,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -342,9 +362,238 @@ Array [
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": Object {
+    "bridgeId": "lifi",
+    "bridges": Array [
+      "across",
+    ],
+    "destAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 10,
+    "destTokenAmount": "990654755978612",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "8750000000000",
+        "asset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+    },
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": Object {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 3`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "gas_included": false,
+      "is_hardware_wallet": true,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 4`] = `
+Array [
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
   ],
 ]
 `;
@@ -364,6 +613,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -379,9 +632,10 @@ Object {
   "isStxEnabled": false,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -493,18 +747,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:59144",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -535,9 +798,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -583,6 +843,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -598,9 +862,10 @@ Object {
   "isStxEnabled": true,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -735,6 +1000,10 @@ Array [
       "requireApproval": false,
       "transactions": Array [
         Object {
+          "assetsFiatValues": Object {
+            "receiving": "2.9999",
+            "sending": "2.00",
+          },
           "params": Object {
             "data": "0xdata",
             "from": "0xaccount1",
@@ -758,18 +1027,217 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": true,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": Object {
+    "bridgeId": "lifi",
+    "bridges": Array [
+      "across",
+    ],
+    "destAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 10,
+    "destTokenAmount": "990654755978612",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "8750000000000",
+        "asset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+    },
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": Object {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 3`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -788,7 +1256,272 @@ Array [
     "TransactionController:getState",
   ],
   Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 4`] = `
+Array [
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 1`] = `
+Object {
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": Object {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
+Object {
+  "account": "0xaccount1",
+  "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "pricingData": Object {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": Object {
+    "bridgeId": "lifi",
+    "bridges": Array [
+      "across",
+    ],
+    "destAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 10,
+    "destTokenAmount": "990654755978612",
+    "feeData": Object {
+      "metabridge": Object {
+        "amount": "8750000000000",
+        "asset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+    },
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": Array [
+      Object {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": Object {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": Object {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": Object {
+    "srcChain": Object {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 3`] = `
+Array [
+  Array [
+    "BridgeController:stopPollingForQuotes",
+  ],
+  Array [
     "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "gas_included": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  Array [
+    "GasFeeController:getState",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 4`] = `
+Array [
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+  Array [
+    Object {
+      "data": Object {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
   ],
 ]
 `;
@@ -808,6 +1541,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -823,9 +1560,10 @@ Object {
   "isStxEnabled": false,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -1052,18 +1790,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1114,9 +1861,6 @@ Array [
   Array [
     "TransactionController:getState",
   ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
 ]
 `;
 
@@ -1135,6 +1879,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1150,9 +1898,10 @@ Object {
   "isStxEnabled": false,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -1309,18 +2058,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1352,9 +2110,6 @@ Array [
   Array [
     "TransactionController:getState",
   ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
 ]
 `;
 
@@ -1373,6 +2128,10 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
+  "txReceipt": Object {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
   "type": "bridge",
 }
 `;
@@ -1388,9 +2147,10 @@ Object {
   "isStxEnabled": false,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -1547,18 +2307,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1575,9 +2344,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -1613,18 +2379,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1673,18 +2448,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1727,7 +2511,7 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
 Object {
-  "account": "",
+  "account": "0xaccount1",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
@@ -1736,9 +2520,10 @@ Object {
   "isStxEnabled": true,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -1898,6 +2683,10 @@ Array [
           "type": "swapApproval",
         },
         Object {
+          "assetsFiatValues": Object {
+            "receiving": "2.9999",
+            "sending": "2.00",
+          },
           "params": Object {
             "data": "0xdata",
             "from": "0xaccount1",
@@ -1921,18 +2710,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
       "stx_enabled": true,
+      "swap_type": "single_chain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -1952,9 +2750,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -2008,9 +2803,10 @@ Object {
   "isStxEnabled": false,
   "pricingData": Object {
     "amountSent": "1.234",
-    "amountSentInUsd": undefined,
-    "quotedGasInUsd": undefined,
-    "quotedReturnInUsd": undefined,
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "quote": Object {
     "bridgeId": "lifi",
@@ -2122,18 +2918,27 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
-      "usd_amount_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
   ],
@@ -2151,9 +2956,6 @@ Array [
   Array [
     "TransactionController:getState",
   ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
 ]
 `;
 
@@ -2163,23 +2965,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -2205,12 +3013,18 @@ Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Snap error",
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2227,23 +3041,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -2264,9 +3084,6 @@ Array [
       },
       "snapId": "test-snap",
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -2319,6 +3136,7 @@ Object {
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
+    "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
@@ -2412,14 +3230,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2428,18 +3255,21 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2456,23 +3286,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -2498,12 +3334,18 @@ Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Snap error",
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2520,23 +3362,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -2559,46 +3407,11 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0x123...",
   ],
   Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Completed",
-    Object {
-      "action_type": "swapbridge-v1",
-      "actual_time_minutes": 0,
-      "allowance_reset_transaction": undefined,
-      "approval_transaction": undefined,
-      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "custom_slippage": true,
-      "destination_transaction": "PENDING",
-      "gas_included": false,
-      "is_hardware_wallet": true,
-      "price_impact": 0,
-      "provider": "test-bridge_undefined",
-      "quote_vs_execution_ratio": 1,
-      "quoted_time_minutes": 5,
-      "quoted_vs_used_gas_ratio": 1,
-      "security_warnings": Array [],
-      "slippage_limit": 0,
-      "source_transaction": "COMPLETE",
-      "stx_enabled": false,
-      "swap_type": "single_chain",
-      "token_address_destination": "eip155:1399811149/slip44:501",
-      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "SOL",
-      "usd_actual_gas": 5,
-      "usd_actual_return": 1000,
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 5,
-      "usd_quoted_return": 1000,
-    },
+    "TransactionController:getState",
   ],
 ]
 `;
@@ -2609,7 +3422,7 @@ Object {
   "chainId": "0x416edef1601be",
   "destinationChainId": "0x416edef1601be",
   "destinationTokenAddress": "0x...",
-  "destinationTokenAmount": "0.5",
+  "destinationTokenAmount": "500000000000000000s",
   "destinationTokenDecimals": 18,
   "destinationTokenSymbol": "USDC",
   "hash": "signature",
@@ -2645,6 +3458,7 @@ Object {
   "pricingData": Object {
     "amountSent": "1",
     "amountSentInUsd": "100",
+    "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
@@ -2660,7 +3474,7 @@ Object {
       "symbol": "USDC",
     },
     "destChainId": 1151111081099710,
-    "destTokenAmount": "0.5",
+    "destTokenAmount": "500000000000000000s",
     "feeData": Object {
       "metabridge": Object {
         "amount": "1000000",
@@ -2736,40 +3550,7 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Submitted",
-    Object {
-      "gas_included": false,
-      "price_impact": 0,
-      "provider": "test-bridge_undefined",
-      "quoted_time_minutes": 5,
-      "stx_enabled": false,
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "SOL",
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 5,
-      "usd_quoted_return": 985,
-    },
-  ],
-  Array [
     "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Failed",
-    Object {
-      "error_message": "Failed to submit cross-chain swap transaction: undefined multichain account",
-      "gas_included": false,
-      "price_impact": 0,
-      "provider": "test-bridge_undefined",
-      "quoted_time_minutes": 5,
-      "stx_enabled": false,
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "SOL",
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 5,
-      "usd_quoted_return": 985,
-    },
   ],
 ]
 `;
@@ -2780,14 +3561,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2796,18 +3586,21 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2829,6 +3622,9 @@ Array [
     "0xaccount1",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     Object {
@@ -2845,9 +3641,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -2891,9 +3687,9 @@ Array [
     "is_hardware_wallet": false,
     "price_impact": 0,
     "provider": "lifi_across",
-    "quote_vs_execution_ratio": 1,
+    "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0.25,
-    "quoted_vs_used_gas_ratio": 1,
+    "quoted_vs_used_gas_ratio": 0,
     "security_warnings": Array [],
     "slippage_limit": 0,
     "source_transaction": "COMPLETE",
@@ -2906,7 +3702,7 @@ Array [
     "usd_actual_gas": 0,
     "usd_actual_return": 0,
     "usd_amount_source": 0,
-    "usd_quoted_gas": 0,
+    "usd_quoted_gas": 2.5778,
     "usd_quoted_return": 0,
   },
 ]
@@ -2991,6 +3787,9 @@ Array [
     "0xaccount1",
   ],
   Array [
+    "TransactionController:getState",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
@@ -3007,9 +3806,9 @@ Array [
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
-      "quote_vs_execution_ratio": 1,
+      "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
-      "quoted_vs_used_gas_ratio": 1,
+      "quoted_vs_used_gas_ratio": 0,
       "security_warnings": Array [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
@@ -3066,12 +3865,6 @@ Array [
 
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 Array [
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
   Array [
     "NetworkController:getState",
   ],

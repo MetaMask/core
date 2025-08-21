@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "22.1.1",
+  "version": "23.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -48,14 +48,13 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
-    "@metamask/base-controller": "^8.0.1",
+    "@metamask/base-controller": "^8.1.0",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/eth-hd-keyring": "^12.0.0",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/eth-simple-keyring": "^10.0.0",
-    "@metamask/keyring-api": "^20.0.0",
-    "@metamask/keyring-internal-api": "^8.0.0",
+    "@metamask/keyring-api": "^20.1.0",
+    "@metamask/keyring-internal-api": "^8.1.0",
     "@metamask/utils": "^11.4.2",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
@@ -66,7 +65,6 @@
   "devDependencies": {
     "@ethereumjs/common": "^4.4.0",
     "@ethereumjs/tx": "^5.4.0",
-    "@keystonehq/bc-ur-registry-eth": "^0.19.0",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",

@@ -179,6 +179,11 @@ export type SeedlessOnboardingControllerState =
        * This token is used to access the metadata service before the vault is created or unlocked.
        */
       metadataAccessToken?: string;
+
+      /**
+       * Whether the user is authenticated with social login and TOPRF service.
+       */
+      isSeedlessOnboardingUserAuthenticated: boolean;
     };
 
 // Actions

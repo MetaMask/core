@@ -308,6 +308,7 @@ describe('Bridge Selectors', () => {
   describe('selectBridgeQuotes', () => {
     const mockQuote = {
       quote: {
+        requestId: '123',
         srcChainId: '1',
         destChainId: '137',
         srcTokenAmount: '1000000000000000000',
@@ -338,15 +339,20 @@ describe('Bridge Selectors', () => {
       estimatedProcessingTimeInSeconds: 300,
       trade: {
         value: '0x0',
-        gasLimit: '21000',
+        gasLimit: '24000',
+        effectiveGas: '21000',
       },
       approval: {
-        gasLimit: '46000',
+        gasLimit: '49000',
+        effectiveGas: '46000',
       },
     };
 
     const mockState = {
-      quotes: [mockQuote],
+      quotes: [
+        mockQuote,
+        { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+      ],
       quoteRequest: {
         srcChainId: '1',
         destChainId: '137',
@@ -399,7 +405,10 @@ describe('Bridge Selectors', () => {
     it('should return sorted quotes with metadata', () => {
       const result = selectBridgeQuotes(mockState, mockClientParams);
 
-      expect(result.sortedQuotes).toHaveLength(1);
+      expect(result.sortedQuotes).toHaveLength(2);
+      expect(result.sortedQuotes[0].quote.requestId).toMatchInlineSnapshot(
+        `"123"`,
+      );
       expect(result.recommendedQuote).toBeDefined();
       expect(result.activeQuote).toBeDefined();
       expect(result.isLoading).toBe(false);
@@ -535,12 +544,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "1.004463862259999726625700576488242768526",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": null,
             "sentAmount": Object {
@@ -604,12 +622,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "1.004463862259999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": null,
             "sentAmount": Object {
@@ -682,12 +709,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": Object {
               "amount": "0.001",
@@ -764,12 +800,21 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": Object {
               "amount": "3",
@@ -811,7 +856,7 @@ describe('Bridge Selectors', () => {
         mockClientParams,
       );
 
-      expect(result.sortedQuotes).toHaveLength(1);
+      expect(result.sortedQuotes).toHaveLength(2);
       expect(result.recommendedQuote).toBeDefined();
       expect(result.activeQuote).toBeDefined();
       expect(result.isLoading).toBe(false);

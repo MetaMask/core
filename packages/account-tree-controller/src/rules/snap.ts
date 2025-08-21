@@ -5,6 +5,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
+import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
@@ -91,5 +92,15 @@ export class SnapRule
       : stripSnapPrefix(snapId);
 
     return snapName;
+  }
+
+  getComputedAccountGroupName(
+    group: AccountGroupObjectOf<AccountGroupType.SingleAccount>,
+  ): string {
+    return super.getComputedAccountGroupName(group);
+  }
+
+  getDefaultAccountGroupName(index?: number): string {
+    return super.getDefaultAccountGroupName(index);
   }
 }

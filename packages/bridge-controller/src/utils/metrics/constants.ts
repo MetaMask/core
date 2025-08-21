@@ -18,6 +18,13 @@ export enum UnifiedSwapBridgeEventName {
   AllQuotesOpened = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} All Quotes Opened`,
   AllQuotesSorted = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} All Quotes Sorted`,
   QuoteSelected = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quote Selected`,
+  AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
+}
+
+export enum AbortReason {
+  NewQuoteRequest = 'New Quote Request',
+  QuoteRequestUpdated = 'Quote Request Updated',
+  ResetState = 'Reset controller state',
 }
 
 /**
@@ -29,6 +36,9 @@ export enum MetaMetricsSwapsEventSource {
 }
 
 export enum MetricsActionType {
+  /**
+   * @deprecated new events should use SWAPBRIDGE_V1 instead
+   */
   CROSSCHAIN_V1 = 'crosschain-v1',
   SWAPBRIDGE_V1 = 'swapbridge-v1',
 }

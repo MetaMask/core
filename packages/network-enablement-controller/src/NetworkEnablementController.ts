@@ -12,6 +12,7 @@ import type {
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
+import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
@@ -89,7 +90,8 @@ export type NetworkEnablementControllerEvents =
 export type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 export type NetworkEnablementControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -171,6 +173,18 @@ export class NetworkEnablementController extends BaseController<
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
     });
+
+    // Listen for confirmed staking transactions
+    messenger.subscribe(
+      'TransactionController:transactionSubmitted',
+      (transactionMeta) => {
+        if (transactionMeta?.transactionMeta?.chainId) {
+          this.enableNetwork(
+            transactionMeta.transactionMeta.chainId as Hex | CaipChainId,
+          );
+        }
+      },
+    );
   }
 
   /**
@@ -245,6 +259,20 @@ export class NetworkEnablementController extends BaseController<
     this.update((s) => {
       s.enabledNetworkMap[namespace][storageKey] = false;
     });
+  }
+
+  /**
+   * Checks if a network is enabled.
+   *
+   * @param chainId - The chain ID of the network to check. Can be either:
+   * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
+   * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
+   * @returns True if the network is enabled, false otherwise
+   */
+  isNetworkEnabled(chainId: Hex | CaipChainId): boolean {
+    const derivedKeys = deriveKeys(chainId);
+    const { namespace, storageKey } = derivedKeys;
+    return this.state.enabledNetworkMap[namespace]?.[storageKey] ?? false;
   }
 
   /**
