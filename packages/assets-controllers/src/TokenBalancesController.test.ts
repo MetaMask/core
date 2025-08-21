@@ -24,7 +24,7 @@ import type { RpcEndpoint } from '../../network-controller/src/NetworkController
 
 // Constants for native token and staking addresses used in tests
 const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
-const STAKING_CONTRACT_ADDRESS = '0x4fef9d741011476750a243ac70b9789a63dd47df';
+const STAKING_CONTRACT_ADDRESS = '0x4FEF9D741011476750A243aC70b9789a63dd47Df';
 
 const setupController = ({
   config,
@@ -1550,7 +1550,7 @@ describe('TokenBalancesController', () => {
     it('should include staked balances in token balances state', async () => {
       const chainId = '0x1';
       const accountAddress = '0x1111111111111111111111111111111111111111';
-      const tokenAddress = '0x6b175474e89094c44da98b954eedeac495271d0f';
+      const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
       const stakedBalance = new BN('5000000000000000000'); // 5 ETH staked
 
       const tokens = {
@@ -1596,7 +1596,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
       const account1 = '0x1111111111111111111111111111111111111111';
       const account2 = '0x2222222222222222222222222222222222222222';
-      const tokenAddress = '0x6b175474e89094c44da98b954eedeac495271d0f';
+      const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       const tokens = {
         allTokens: {
@@ -1659,7 +1659,7 @@ describe('TokenBalancesController', () => {
     it('should handle zero staked balances', async () => {
       const chainId = '0x1';
       const accountAddress = '0x1111111111111111111111111111111111111111';
-      const tokenAddress = '0x6b175474e89094c44da98b954eedeac495271d0f';
+      const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       const tokens = {
         allTokens: {
@@ -1703,7 +1703,7 @@ describe('TokenBalancesController', () => {
     it('should handle missing staked balances gracefully', async () => {
       const chainId = '0x1';
       const accountAddress = '0x1111111111111111111111111111111111111111';
-      const tokenAddress = '0x6b175474e89094c44da98b954eedeac495271d0f';
+      const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       const tokens = {
         allTokens: {
@@ -1745,7 +1745,7 @@ describe('TokenBalancesController', () => {
     it('should handle unsupported chains for staking', async () => {
       const chainId = '0x89'; // Polygon - no staking support
       const accountAddress = '0x1111111111111111111111111111111111111111';
-      const tokenAddress = '0x6b175474e89094c44da98b954eedeac495271d0f';
+      const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       const tokens = {
         allTokens: {
@@ -1883,21 +1883,22 @@ describe('TokenBalancesController', () => {
   });
 
   describe('token address normalization', () => {
-    it('should normalize token addresses to lowercase to prevent duplicate entries', async () => {
+    it('should normalize token addresses to checksum format to prevent duplicate entries', async () => {
       const chainId = '0x1';
       const accountAddress = '0x0000000000000000000000000000000000000000';
       // Same token address in different cases
       const tokenAddressLowercase =
         '0x581c3c1a2a4ebde2a0df29b5cf4c116e42945947';
-      const tokenAddressChecksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
+      const tokenAddressRandomCase = '0x581c3C1A2A4ebde2a0df29B5cf4c116E42945947';
+      const tokenAddressProperChecksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
 
       const tokens = {
         allDetectedTokens: {},
         allTokens: {
           [chainId]: {
             [accountAddress]: [
-              // Token stored with mixed case address
-              { address: tokenAddressChecksum, symbol: 'TK1', decimals: 18 },
+              // Token stored with random case address
+              { address: tokenAddressRandomCase, symbol: 'TK1', decimals: 18 },
             ],
           },
         },
@@ -1921,12 +1922,12 @@ describe('TokenBalancesController', () => {
 
       await controller.updateBalances({ chainIds: [chainId] });
 
-      // Should only have one entry with normalized lowercase address
+      // Should only have one entry with proper checksum address
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
           [chainId]: {
             [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddressLowercase]: '0x186a0', // Only one entry, not duplicated
+            [tokenAddressProperChecksum]: '0x186a0', // Only checksum version exists
             [STAKING_CONTRACT_ADDRESS]: '0x0',
           },
         },
@@ -1940,7 +1941,7 @@ describe('TokenBalancesController', () => {
         key.toLowerCase().includes('581c3c1a2a4ebde2a0df29b5cf4c116e42945947'),
       );
       expect(tokenAddressKeys).toHaveLength(1);
-      expect(tokenAddressKeys[0]).toBe(tokenAddressLowercase);
+      expect(tokenAddressKeys[0]).toBe(tokenAddressProperChecksum);
     });
 
     it('should handle mixed case addresses in both allTokens and allDetectedTokens', async () => {
@@ -1948,6 +1949,8 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x0000000000000000000000000000000000000000';
       const tokenAddress1Mixed = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
       const tokenAddress2Mixed = '0xA0B86A33E6776C0b983F3B0862F02C30CABA2b75';
+      const tokenAddress1Checksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
+      const tokenAddress2Checksum = '0xa0B86a33E6776c0B983f3B0862F02C30cAbA2b75';
       const tokenAddress1Lower = tokenAddress1Mixed.toLowerCase();
       const tokenAddress2Lower = tokenAddress2Mixed.toLowerCase();
 
@@ -1973,7 +1976,7 @@ describe('TokenBalancesController', () => {
         config: { useAccountsAPI: false, allowExternalServices: () => true },
       });
 
-      // Mock balances returned with different case variations
+      // Mock balances returned with lowercase addresses
       jest
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({
@@ -1989,13 +1992,13 @@ describe('TokenBalancesController', () => {
 
       await controller.updateBalances({ chainIds: [chainId] });
 
-      // All addresses should be normalized to lowercase
+      // All addresses should be normalized to proper checksum format
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
           [chainId]: {
             [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddress1Lower]: toHex(500),
-            [tokenAddress2Lower]: toHex(1000),
+            [tokenAddress1Checksum]: toHex(500),
+            [tokenAddress2Checksum]: toHex(1000),
             [STAKING_CONTRACT_ADDRESS]: '0x0',
           },
         },
@@ -2006,7 +2009,8 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
       const accountAddress = '0x0000000000000000000000000000000000000000';
       const tokenAddressStored = '0x581c3c1a2a4ebde2a0df29b5cf4c116e42945947'; // lowercase in storage
-      const tokenAddressFetched = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947'; // mixed case in fetch result
+      const tokenAddressFetched = '0x581C3c1a2A4ebDE2a0Df29B5cf4c116E42945947'; // different mixed case in fetch result
+      const tokenAddressChecksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947'; // proper checksum
 
       const tokens = {
         allDetectedTokens: {},
@@ -2024,7 +2028,7 @@ describe('TokenBalancesController', () => {
         config: { useAccountsAPI: false, allowExternalServices: () => true },
       });
 
-      // Mock fetcher to return balance with mixed case address
+      // Mock fetcher to return balance with different mixed case address
       jest
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({
@@ -2037,12 +2041,12 @@ describe('TokenBalancesController', () => {
 
       await controller.updateBalances({ chainIds: [chainId] });
 
-      // Should only have one normalized entry
+      // Should only have one normalized entry with proper checksum
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
           [chainId]: {
             [NATIVE_TOKEN_ADDRESS]: '0x0',
-            [tokenAddressStored]: '0x186a0', // Only lowercase version exists
+            [tokenAddressChecksum]: '0x186a0', // Only checksum version exists
             [STAKING_CONTRACT_ADDRESS]: '0x0',
           },
         },
@@ -2052,14 +2056,16 @@ describe('TokenBalancesController', () => {
       const chainBalances =
         controller.state.tokenBalances[accountAddress][chainId];
       expect(chainBalances[tokenAddressFetched]).toBeUndefined();
-      expect(chainBalances[tokenAddressStored]).toBe('0x186a0');
+      expect(chainBalances[tokenAddressStored]).toBeUndefined();
+      expect(chainBalances[tokenAddressChecksum]).toBe('0x186a0');
     });
 
     it('should prevent the exact duplicate issue from the user report', async () => {
       const chainId = '0x1'; // Use a supported chain ID for simpler setup
       const accountAddress = '0x5cfe73b6021e818b776b421b1c4db2474086a7e1'; // Account from user's example
       const tokenAddressLower = '0x581c3c1a2a4ebde2a0df29b5cf4c116e42945947';
-      const tokenAddressMixed = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
+      const tokenAddressMixed = '0x581C3c1a2A4ebDE2a0Df29B5cf4c116E42945947'; // Different mixed case
+      const tokenAddressChecksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
 
       const tokens = {
         allDetectedTokens: {},
@@ -2099,8 +2105,9 @@ describe('TokenBalancesController', () => {
       const chainBalances =
         controller.state.tokenBalances[accountAddress][chainId];
 
-      // Should NOT have duplicate entries - the mixed case version should not exist
-      expect(chainBalances[tokenAddressLower]).toBe('0x186a0');
+      // Should NOT have duplicate entries - only checksum version should exist
+      expect(chainBalances[tokenAddressChecksum]).toBe('0x186a0');
+      expect(chainBalances[tokenAddressLower]).toBeUndefined();
       expect(chainBalances[tokenAddressMixed]).toBeUndefined();
 
       // Count token entries (excluding native and staking)
@@ -2113,7 +2120,7 @@ describe('TokenBalancesController', () => {
         (key) => !nativeAndStakingKeys.includes(key),
       );
       expect(tokenEntries).toHaveLength(1);
-      expect(tokenEntries[0]).toBe(tokenAddressLower);
+      expect(tokenEntries[0]).toBe(tokenAddressChecksum);
     });
   });
 
