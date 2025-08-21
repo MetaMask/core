@@ -85,6 +85,16 @@ const mockTokensControllerState: TokensControllerState = {
             'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x514910771AF9Ca656af840dff83E8264EcF986CA.png',
         },
       ],
+      '0x1010101010101010101010101010101010101010': [
+        {
+          address: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+          decimals: 18,
+          symbol: 'stETH',
+          name: 'Lido Staked Ether',
+          image:
+            'https://static.cx.metamask.io/api/v1/tokenIcons/10/0xae7ab96520de3a18e5e111b5eaab095312d7fe84.png',
+        },
+      ],
     },
     '0xa': {
       '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': [
@@ -197,6 +207,9 @@ const mockMultichainAssetsControllerState: MultichainAssetsControllerState = {
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2fUFhZyd47Mapv9wcfXh5gnQwFXtqcYu9xAN4THBpump',
     ],
     '40fe5e20-525a-4434-bb83-c51ce5560a8c': [
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
+    ],
+    '767fef5b-0cfd-417a-b618-60ed0f459df7': [
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
     ],
   },
@@ -526,6 +539,9 @@ const mockAccountsTrackerControllerState: {
       '0x0413078b85a6cb85f8f75181ad1a23d265d49202': {
         balance: '0xDE0B6B3A7640000', // 1000000000000000000 (1 - 18 decimals)
       },
+      '0x1010101010101010101010101010101010101010': {
+        balance: '0xDE0B6B3A7640000', // 1000000000000000000 (1 - 18 decimals)
+      },
     },
     '0xa': {
       '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
@@ -552,6 +568,138 @@ const mockedMergedState = {
   ...mockMultichainAssetsRatesControllerState,
   ...mockNetworkControllerState,
   ...mockAccountsTrackerControllerState,
+};
+
+const expectedMockResult = {
+  '0x1': [
+    {
+      type: 'eip155:eoa',
+      chainId: '0x1',
+      assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
+      address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
+      image:
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
+      name: 'GHO Token',
+      symbol: 'GHO',
+      isNative: false,
+      decimals: 18,
+      balance: '100',
+      fiat: {
+        balance: 21.6,
+        conversionRate: 2400,
+        currency: 'USD',
+      },
+    },
+    {
+      type: 'eip155:eoa',
+      chainId: '0x1',
+      assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
+      address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
+      image:
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b3595068778dd592e39a122f4f5a5cf09c90fe2.png',
+      name: 'SushiSwap',
+      symbol: 'SUSHI',
+      isNative: false,
+      decimals: 18,
+      balance: '200',
+      fiat: {
+        balance: 960,
+        conversionRate: 2400,
+        currency: 'USD',
+      },
+    },
+    {
+      type: 'eip155:eoa',
+      chainId: '0x1',
+      assetId: '0x0000000000000000000000000000000000000000',
+      address: '0x0000000000000000000000000000000000000000',
+      image: '',
+      name: 'Ethereum',
+      symbol: 'ETH',
+      isNative: true,
+      decimals: 18,
+      balance: '10',
+      fiat: {
+        balance: 24000,
+        conversionRate: 2400,
+        currency: 'USD',
+      },
+    },
+  ],
+  '0xa': [
+    {
+      type: 'eip155:eoa',
+      chainId: '0xa',
+      assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+      address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+      image:
+        'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
+      name: 'USDCoin',
+      symbol: 'USDC',
+      isNative: false,
+      decimals: 6,
+      balance: '1000',
+      fiat: {
+        balance: 12000,
+        conversionRate: 2400,
+        currency: 'USD',
+      },
+    },
+    {
+      type: 'eip155:eoa',
+      chainId: '0xa',
+      assetId: '0x0000000000000000000000000000000000000000',
+      address: '0x0000000000000000000000000000000000000000',
+      image: '',
+      name: 'Ethereum',
+      symbol: 'ETH',
+      isNative: true,
+      decimals: 18,
+      balance: '1',
+      fiat: {
+        balance: 2400,
+        conversionRate: 2400,
+        currency: 'USD',
+      },
+    },
+  ],
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [
+    {
+      type: 'solana:data-account',
+      chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      image:
+        'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44/501.png',
+      name: 'Solana',
+      symbol: 'SOL',
+      isNative: true,
+      decimals: 9,
+      balance: '10',
+      fiat: {
+        balance: 1635.5,
+        conversionRate: 163.55,
+        currency: 'USD',
+      },
+    },
+    {
+      type: 'solana:data-account',
+      chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      assetId:
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+      image:
+        'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN.png',
+      name: 'Jupiter',
+      symbol: 'JUP',
+      isNative: false,
+      decimals: 6,
+      balance: '200',
+      fiat: {
+        balance: 92.7462,
+        conversionRate: 0.463731,
+        currency: 'USD',
+      },
+    },
+  ],
 };
 
 describe('token-selectors', () => {
@@ -712,137 +860,7 @@ describe('token-selectors', () => {
     it('returns all assets for the selected account group', () => {
       const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
 
-      expect(result).toStrictEqual({
-        '0x1': [
-          {
-            type: 'eip155:eoa',
-            chainId: '0x1',
-            assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
-            address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
-            image:
-              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
-            name: 'GHO Token',
-            symbol: 'GHO',
-            isNative: false,
-            decimals: 18,
-            balance: '100',
-            fiat: {
-              balance: 21.6,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'eip155:eoa',
-            chainId: '0x1',
-            assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
-            address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
-            image:
-              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b3595068778dd592e39a122f4f5a5cf09c90fe2.png',
-            name: 'SushiSwap',
-            symbol: 'SUSHI',
-            isNative: false,
-            decimals: 18,
-            balance: '200',
-            fiat: {
-              balance: 960,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'eip155:eoa',
-            chainId: '0x1',
-            assetId: '0x0000000000000000000000000000000000000000',
-            address: '0x0000000000000000000000000000000000000000',
-            image: '',
-            name: 'Ethereum',
-            symbol: 'ETH',
-            isNative: true,
-            decimals: 18,
-            balance: '10',
-            fiat: {
-              balance: 24000,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-        ],
-        '0xa': [
-          {
-            type: 'eip155:eoa',
-            chainId: '0xa',
-            assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-            address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-            image:
-              'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
-            name: 'USDCoin',
-            symbol: 'USDC',
-            isNative: false,
-            decimals: 6,
-            balance: '1000',
-            fiat: {
-              balance: 12000,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'eip155:eoa',
-            chainId: '0xa',
-            assetId: '0x0000000000000000000000000000000000000000',
-            address: '0x0000000000000000000000000000000000000000',
-            image: '',
-            name: 'Ethereum',
-            symbol: 'ETH',
-            isNative: true,
-            decimals: 18,
-            balance: '1',
-            fiat: {
-              balance: 2400,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-        ],
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [
-          {
-            type: 'solana:data-account',
-            chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-            assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-            image:
-              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44/501.png',
-            name: 'Solana',
-            symbol: 'SOL',
-            isNative: true,
-            decimals: 9,
-            balance: '10',
-            fiat: {
-              balance: 1635.5,
-              conversionRate: 163.55,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'solana:data-account',
-            chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-            assetId:
-              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
-            image:
-              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN.png',
-            name: 'Jupiter',
-            symbol: 'JUP',
-            isNative: false,
-            decimals: 6,
-            balance: '200',
-            fiat: {
-              balance: 92.7462,
-              conversionRate: 0.463731,
-              currency: 'USD',
-            },
-          },
-        ],
-      });
+      expect(result).toStrictEqual(expectedMockResult);
     });
 
     it('returns no tokens if there is no selected account group', () => {
@@ -875,137 +893,7 @@ describe('token-selectors', () => {
         ),
       });
 
-      expect(result).toStrictEqual({
-        '0x1': [
-          {
-            type: 'eip155:eoa',
-            chainId: '0x1',
-            assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
-            address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
-            image:
-              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
-            name: 'GHO Token',
-            symbol: 'GHO',
-            isNative: false,
-            decimals: 18,
-            balance: '100',
-            fiat: {
-              balance: 21.6,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'eip155:eoa',
-            chainId: '0x1',
-            assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
-            address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
-            image:
-              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b3595068778dd592e39a122f4f5a5cf09c90fe2.png',
-            name: 'SushiSwap',
-            symbol: 'SUSHI',
-            isNative: false,
-            decimals: 18,
-            balance: '200',
-            fiat: {
-              balance: 960,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'eip155:eoa',
-            chainId: '0x1',
-            assetId: '0x0000000000000000000000000000000000000000',
-            address: '0x0000000000000000000000000000000000000000',
-            image: '',
-            name: 'Ethereum',
-            symbol: 'ETH',
-            isNative: true,
-            decimals: 18,
-            balance: '10',
-            fiat: {
-              balance: 24000,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-        ],
-        '0xa': [
-          {
-            type: 'eip155:eoa',
-            chainId: '0xa',
-            assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-            address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-            image:
-              'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
-            name: 'USDCoin',
-            symbol: 'USDC',
-            isNative: false,
-            decimals: 6,
-            balance: '1000',
-            fiat: {
-              balance: 12000,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'eip155:eoa',
-            chainId: '0xa',
-            assetId: '0x0000000000000000000000000000000000000000',
-            address: '0x0000000000000000000000000000000000000000',
-            image: '',
-            name: 'Ethereum',
-            symbol: 'ETH',
-            isNative: true,
-            decimals: 18,
-            balance: '1',
-            fiat: {
-              balance: 2400,
-              conversionRate: 2400,
-              currency: 'USD',
-            },
-          },
-        ],
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [
-          {
-            type: 'solana:data-account',
-            chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-            assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-            image:
-              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44/501.png',
-            name: 'Solana',
-            symbol: 'SOL',
-            isNative: true,
-            decimals: 9,
-            balance: '10',
-            fiat: {
-              balance: 1635.5,
-              conversionRate: 163.55,
-              currency: 'USD',
-            },
-          },
-          {
-            type: 'solana:data-account',
-            chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-            assetId:
-              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
-            image:
-              'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN.png',
-            name: 'Jupiter',
-            symbol: 'JUP',
-            isNative: false,
-            decimals: 6,
-            balance: '200',
-            fiat: {
-              balance: 92.7462,
-              conversionRate: 0.463731,
-              currency: 'USD',
-            },
-          },
-        ],
-      });
+      expect(result).toStrictEqual(expectedMockResult);
     });
   });
 });
