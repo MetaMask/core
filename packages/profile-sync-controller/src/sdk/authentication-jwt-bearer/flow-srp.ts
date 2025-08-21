@@ -68,6 +68,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   readonly #metametrics?: MetaMetricsAuth;
 
+  // Map to store ongoing login promises by entropySourceId
+  readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
+
   #customProvider?: Eip1193Provider;
 
   // Map to store ongoing login promises by entropySourceId
@@ -198,6 +201,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async #login(entropySourceId?: string): Promise<LoginResponse> {
+    // Use a deferred login to avoid race conditions
+    return await this.#deferredLogin(entropySourceId);
+  }
+
+  async #performLogin(entropySourceId?: string): Promise<LoginResponse> {
     // Nonce
     const publicKey = await this.getIdentifier(entropySourceId);
     const nonceRes = await getNonce(publicKey, this.#config.env);
@@ -233,6 +241,32 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     await this.#options.storage.setLoginResponse(result, entropySourceId);
 
     return result;
+  }
+
+  async #deferredLogin(entropySourceId?: string): Promise<LoginResponse> {
+    // Use a key that accounts for undefined entropySourceId
+    const loginKey = entropySourceId ?? '__default__';
+
+    // Check if there's already an ongoing login for this entropySourceId
+    const existingLogin = this.#ongoingLogins.get(loginKey);
+    if (existingLogin) {
+      return existingLogin;
+    }
+
+    // Create a new login promise
+    const loginPromise = this.#performLogin(entropySourceId);
+
+    // Store the promise in the map
+    this.#ongoingLogins.set(loginKey, loginPromise);
+
+    try {
+      // Wait for the login to complete
+      const result = await loginPromise;
+      return result;
+    } finally {
+      // Always clean up the ongoing login promise when done
+      this.#ongoingLogins.delete(loginKey);
+    }
   }
 
   #createSrpLoginRawMessage(
