@@ -316,7 +316,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (chainTokens?.[account]) {
             Object.values(chainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress =
+                  token.address.toLowerCase() as ChecksumAddress;
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -329,7 +330,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (detectedChainTokens?.[account]) {
             Object.values(detectedChainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress =
+                  token.address.toLowerCase() as ChecksumAddress;
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -342,8 +344,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Then update with actual fetched balances where available
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[token] =
-            toHex(value);
+          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
+            token.toLowerCase() as ChecksumAddress
+          ] = toHex(value);
         }
       });
     });
