@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `metamaskPay` and `requiredTransactionIds` properties to `TransactionMeta` ([#6361](https://github.com/MetaMask/core/pull/6361))
   - Add `updateRequiredTransactionIds` method.
+- Add `getSimulationConfig` constructor property ([#6281](https://github.com/MetaMask/core/pull/6281))
 
 ### Changed
 
@@ -21,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `isGasFeeSponsored` property to `TransactionMeta` type ([#6244](https://github.com/MetaMask/core/pull/6244))
-- Add `getSimulationConfig` constructor property ([#6281](https://github.com/MetaMask/core/pull/6281))
 
 ### Changed
 
