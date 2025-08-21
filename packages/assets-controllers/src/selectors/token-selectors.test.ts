@@ -875,22 +875,6 @@ describe('token-selectors', () => {
         ),
       });
 
-      // console.log(Object.fromEntries(
-      //   Object.entries(mockedMergedState.accountsByChainId).map(
-      //     ([chainId, accounts]) => [
-      //       chainId,
-      //       Object.fromEntries(
-      //         Object.entries(accounts).map(([address, data]) => [
-      //           toChecksumAddress(address),
-      //           data,
-      //         ]),
-      //       ),
-      //     ],
-      //   ),
-      // ))
-
-      // console.log('XXXX', JSON.stringify(result, null, 2));
-
       expect(result).toStrictEqual({
         '0x1': [
           {
