@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+- Uses the correct internal account type for the asset ([#6358](https://github.com/MetaMask/core/pull/6358)).
 
 ### Fixed
 
