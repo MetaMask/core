@@ -1888,20 +1888,30 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     }
 
     // revoke all pending refresh tokens in parallel
-    const promises = pendingToBeRevokedTokens.map(({ revokeToken }) =>
-      (async () => {
+    const promises = pendingToBeRevokedTokens.map(({ revokeToken }) => {
+      const revokePromise = async () => {
         try {
-          await this.#revokeRefreshToken({
-            connection: this.state.authConnection as AuthConnection,
-            revokeToken,
-          });
-          this.#removePendingRefreshToken({ revokeToken });
+          await this.#revokePendingRefreshToken(revokeToken);
         } catch (error) {
           log('Error revoking refresh token', error);
         }
-      })(),
-    );
-    await Promise.allSettled(promises);
+      };
+      return revokePromise();
+    });
+    await Promise.all(promises); // no need to do Promise.allSettled because the promise already handle try catch
+  }
+
+  /**
+   * Revoke a single pending refresh token.
+   *
+   * @param revokeToken - The revoke token to revoke.
+   */
+  async #revokePendingRefreshToken(revokeToken: string) {
+    await this.#revokeRefreshToken({
+      connection: this.state.authConnection as AuthConnection,
+      revokeToken,
+    });
+    this.#removePendingRefreshToken({ revokeToken });
   }
 
   /**
