@@ -9,6 +9,7 @@ import type {
   CaipAssetType,
   CaipChainId,
   SolScope,
+  TrxScope,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -39,7 +40,10 @@ export type SupportedCaipChainId =
   | BtcScope.Regtest
   | SolScope.Mainnet
   | SolScope.Testnet
-  | SolScope.Devnet;
+  | SolScope.Devnet
+  | TrxScope.Mainnet
+  | TrxScope.Nile
+  | TrxScope.Shasta;
 
 export type CommonNetworkConfiguration = {
   /**

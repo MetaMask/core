@@ -346,4 +346,67 @@ describe('MultichainAccountWallet', () => {
       expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
   });
+
+  describe('alignGroups', () => {
+    it('creates missing accounts only for providers with no accounts associated with a particular group index', async () => {
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount1, mockEvmAccount2], [mockSolAccount]],
+      });
+
+      await wallet.alignGroups();
+
+      // EVM provider already has group 0 and 1; should not be called.
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+
+      // Sol provider is missing group 1; should be called to create it.
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex: 1,
+      });
+    });
+  });
+
+  describe('alignGroup', () => {
+    it('aligns a specific multichain account group', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount], [mockSolAccount]],
+      });
+
+      await wallet.alignGroup(0);
+
+      // EVM provider already has group 0; should not be called.
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+
+      // Sol provider is missing group 0; should be called to create it.
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex: 0,
+      });
+
+      expect(providers[1].createAccounts).not.toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex: 1,
+      });
+    });
+  });
 });

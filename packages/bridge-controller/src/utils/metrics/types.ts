@@ -123,18 +123,27 @@ export type RequiredEventContextFromClient = {
     TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
-    Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
-    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'>;
-  [UnifiedSwapBridgeEventName.Completed]: RequestParams &
-    RequestMetadata &
-    TxStatusData &
+    Omit<RequestMetadata, 'security_warnings'> &
+    Pick<
+      RequestParams,
+      | 'token_symbol_source'
+      | 'token_symbol_destination'
+      | 'chain_id_source'
+      | 'chain_id_destination'
+    > & {
+      action_type: MetricsActionType;
+    };
+  [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
-    TradeData & {
+    Omit<RequestMetadata, 'security_warnings'> &
+    TxStatusData &
+    RequestParams & {
       actual_time_minutes: number;
       usd_actual_return: number;
       usd_actual_gas: number;
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
+      action_type: MetricsActionType;
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
@@ -180,6 +189,13 @@ export type RequiredEventContextFromClient = {
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];
   };
+  [UnifiedSwapBridgeEventName.AssetDetailTooltipClicked]: {
+    token_name: string;
+    token_symbol: string;
+    token_contract: string;
+    chain_name: string;
+    chain_id: string;
+  };
 };
 
 /**
@@ -212,10 +228,7 @@ export type EventPropertiesFromControllerState = {
     RequestParams &
     QuoteFetchData &
     TradeData;
-  [UnifiedSwapBridgeEventName.Submitted]: RequestParams &
-    RequestMetadata &
-    TradeData &
-    Pick<QuoteFetchData, 'price_impact'> & {};
+  [UnifiedSwapBridgeEventName.Submitted]: null;
   [UnifiedSwapBridgeEventName.Completed]: null;
   [UnifiedSwapBridgeEventName.Failed]: RequestParams &
     RequestMetadata &
@@ -236,6 +249,7 @@ export type EventPropertiesFromControllerState = {
     RequestMetadata &
     QuoteFetchData &
     TradeData;
+  [UnifiedSwapBridgeEventName.AssetDetailTooltipClicked]: null;
 };
 
 /**

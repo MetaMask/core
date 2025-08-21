@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "38.1.0",
+  "version": "40.1.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -47,9 +47,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.1.0",
+    "@metamask/base-controller": "^8.2.0",
     "@metamask/controller-utils": "^11.12.0",
-    "@metamask/keyring-api": "^20.0.0",
+    "@metamask/keyring-api": "^20.1.0",
     "@metamask/polling-controller": "^14.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.4.2",
@@ -57,13 +57,13 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^32.0.2",
+    "@metamask/accounts-controller": "^33.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^39.1.0",
+    "@metamask/bridge-controller": "^41.1.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/transaction-controller": "^59.2.0",
+    "@metamask/transaction-controller": "^60.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -76,12 +76,12 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^32.0.0",
-    "@metamask/bridge-controller": "^39.0.0",
+    "@metamask/accounts-controller": "^33.0.0",
+    "@metamask/bridge-controller": "^41.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
-    "@metamask/transaction-controller": "^59.0.0"
+    "@metamask/transaction-controller": "^60.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

@@ -215,6 +215,10 @@ export type QuoteRequest<
    * and the current network has STX support
    */
   gasIncluded: boolean;
+  /**
+   * Whether to request quotes that use EIP-7702 delegated gasless execution
+   */
+  gasless7702: boolean;
   noFee?: boolean;
 };
 

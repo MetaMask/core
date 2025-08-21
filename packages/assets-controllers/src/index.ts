@@ -221,3 +221,9 @@ export {
   calculateBalanceChangeForAllWallets,
   calculateBalanceChangeForAccountGroup,
 } from './balances';
+export type {
+  AccountGroupAssets,
+  Asset,
+  AssetListState,
+} from './selectors/token-selectors';
+export { selectAssetsBySelectedAccountGroup } from './selectors/token-selectors';

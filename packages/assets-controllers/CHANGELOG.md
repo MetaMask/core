@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+## [74.0.0]
+
+### Added
+
+- Added a token selector that returns list of tokens and balances for evm and multichain assets based on the selected account group ([#6226](https://github.com/MetaMask/core/pull/6226))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/preferences-controller` from `^18.0.0` to `^19.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` from `^59.0.0` to `^60.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+
+## [73.3.0]
+
+### Changed
+
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+### Fixed
+
+- Fix precision loss in AccountsApiBalanceFetcher causing incorrect token balance conversion ([#6330](https://github.com/MetaMask/core/pull/6330))
+  - Replaced floating-point arithmetic with string-based precision conversion to avoid JavaScript precision limitations
+
+## [73.2.0]
+
 ### Added
 
 - Implement balance change calculator and network filtering ([#6285](https://github.com/MetaMask/core/pull/6285))
@@ -26,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides comprehensive network coverage with graceful degradation when services are unavailable
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@metamask/transaction-controller` from `^59.1.0` to `^59.2.0` ([#6291](https://github.com/MetaMask/core/pull/6291))
+- Bump `@metamask/account-tree-controller` from `^0.7.0` to `^0.8.0` ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/accounts-controller` from `^32.0.1` to `^32.0.2` ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/keyring-controller` from `^22.1.0` to `^22.1.1` ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Bump `@metamask/multichain-account-service` from `^0.3.0` to `^0.4.0` ([#6273](https://github.com/MetaMask/core/pull/6273))
 
 ## [73.1.0]
 
@@ -1846,7 +1883,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.0.0...HEAD
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.3.0...@metamask/assets-controllers@74.0.0
+[73.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.2.0...@metamask/assets-controllers@73.3.0
+[73.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.1.0...@metamask/assets-controllers@73.2.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.2...@metamask/assets-controllers@73.1.0
 [73.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.1...@metamask/assets-controllers@73.0.2
 [73.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.0.0...@metamask/assets-controllers@73.0.1
