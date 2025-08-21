@@ -2707,18 +2707,28 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Update the required transaction IDs for a transaction.
+   *
+   * @param request - The request object.
+   * @param request.transactionId - The ID of the transaction to update.
+   * @param request.requiredTransactionIds - The additional required transaction IDs.
+   * @param request.append - Whether to append the IDs to any existing values. Defaults to true.
+   */
   updateRequiredTransactionIds({
     transactionId,
     requiredTransactionIds,
+    append,
   }: {
     transactionId: string;
     requiredTransactionIds: string[];
+    append?: boolean;
   }) {
     this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
       const { requiredTransactionIds: existing } = transactionMeta;
 
       transactionMeta.requiredTransactionIds = [
-        ...(existing ?? []),
+        ...(existing && append !== false ? existing : []),
         ...requiredTransactionIds,
       ];
     });
