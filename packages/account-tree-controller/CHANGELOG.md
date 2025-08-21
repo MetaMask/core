@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/superstruct` for data validation
   - `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
 ## [0.10.0]
 
 ### Changed

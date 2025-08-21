@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `syncInternalAccountsWithUserStorage` action handler so it can be used through the messaging system ([#6344](https://github.com/MetaMask/core/pull/6344))
 - Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
   - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 ## [24.0.0]
 
