@@ -432,7 +432,7 @@ const gasPricesService = new GasPricesService({
 
 Great! Now that we've set up the data service and its messenger action, we can use it somewhere else.
 
-Let's say we wanted to use it in a controller. We'd just need to allow that controller's messenger access to `GasPricesService:fetchGasPrices` by delegating it from the root messenger.
+Let's say we wanted to use `GasPricesService:fetchGasPrices` in a controller. First, that controller's messenger would need to include `GasPricesService:fetchGasPrices` in its type defintion.
 
 This code would probably be in the controller package itself. For instance, if we had a file `packages/send-controller/send-controller.ts`, we might have:
 
@@ -452,6 +452,15 @@ type SendControllerMessenger = Messenger<
   SendControllerActions | AllowedActions,
   SendControllerEvents | AllowedEvents,
 >;
+```
+
+Then we'll need to allow that controller's messenger access to `GasPricesService:fetchGasPrices` by delegating it from the root messenger:
+
+```typescript
+rootMessenger.delegate({
+  actions: ['GasPricesService:fetchGasPrices'],
+  messenger: sendControllerMessenger,
+});
 ```
 
 Then, later on in our controller, we could say:
