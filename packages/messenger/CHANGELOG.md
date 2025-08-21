@@ -35,4 +35,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...HEAD
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/messenger@0.0.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/messenger@0.1.0
