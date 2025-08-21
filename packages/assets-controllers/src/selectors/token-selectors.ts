@@ -299,8 +299,6 @@ const selectAllEvmAssets = createAssetListSelector(
       }
     }
 
-    console.log('EVMMM', JSON.stringify(groupAssets, null, 2));
-
     return groupAssets;
   },
 );
