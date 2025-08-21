@@ -192,7 +192,7 @@ export const QuoteSchema = type({
   /**
    * Whether the quote can use EIP-7702 delegated gasless execution
    */
-  gasless7702: optional(boolean()),
+  gasIncluded7702: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),
