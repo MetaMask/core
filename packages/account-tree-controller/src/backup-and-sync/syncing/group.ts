@@ -2,7 +2,6 @@ import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
-import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
 import {
   UserStorageSyncedWalletGroupSchema,
   type BackupAndSyncContext,
@@ -12,6 +11,7 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
+import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
 
 /**
  * Creates local groups from user storage groups.

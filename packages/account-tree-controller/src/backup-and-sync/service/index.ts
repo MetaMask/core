@@ -6,14 +6,6 @@ import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
-import type { StateSnapshot } from '../utils';
-import {
-  createStateSnapshot,
-  restoreStateFromSnapshot,
-  getLocalEntropyWallets,
-  getLocalGroupsForEntropyWallet,
-  contextualLogger,
-} from '../utils';
 import {
   createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
@@ -28,6 +20,14 @@ import {
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage';
+import {
+  createStateSnapshot,
+  restoreStateFromSnapshot,
+  getLocalEntropyWallets,
+  getLocalGroupsForEntropyWallet,
+  contextualLogger,
+} from '../utils';
+import type { StateSnapshot } from '../utils';
 
 /**
  * Service responsible for managing all backup and sync operations.

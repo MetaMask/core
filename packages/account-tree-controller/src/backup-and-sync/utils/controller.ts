@@ -1,11 +1,11 @@
 import { AccountWalletType } from '@metamask/account-api';
 import type { AccountWalletId } from '@metamask/account-api';
 
+import { contextualLogger } from './contextual-logger';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncContext } from '../types';
-import { contextualLogger } from './contextual-logger';
 
 /**
  * Gets all local entropy wallets that can be synced.

@@ -1,8 +1,8 @@
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import { getProfileId } from '../authentication/utils';
-import { getLocalEntropyWallets } from '../utils';
 import type { BackupAndSyncContext } from '../types';
 import { pushWalletToUserStorage } from '../user-storage';
+import { getLocalEntropyWallets } from '../utils';
 
 /**
  * Performs legacy account syncing.
