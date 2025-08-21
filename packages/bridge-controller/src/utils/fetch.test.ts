@@ -156,7 +156,7 @@ describe('fetch', () => {
 
       const result = await fetchBridgeQuotes(
         {
-          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
+          walletAddress: '0x388c818ca8b9251b393131C08a736A67ccB19297',
           srcChainId: 1,
           destChainId: 10,
           srcTokenAddress: AddressZero,
@@ -164,7 +164,7 @@ describe('fetch', () => {
           srcTokenAmount: '20000',
           slippage: 0.5,
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
         },
         signal,
         BridgeClientId.EXTENSION,
@@ -173,7 +173,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasless7702=false&slippage=0.5',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
           cacheOptions: {
             cacheRefreshTime: 0,
@@ -205,7 +205,7 @@ describe('fetch', () => {
           srcTokenAmount: '20000',
           slippage: 0.5,
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
         },
         signal,
         BridgeClientId.EXTENSION,
@@ -214,7 +214,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasless7702=false&slippage=0.5',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
           cacheOptions: {
             cacheRefreshTime: 0,
@@ -262,7 +262,7 @@ describe('fetch', () => {
 
       const result = await fetchBridgeQuotes(
         {
-          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
+          walletAddress: '0x388c818ca8b9251b393131C08a736A67ccB19297',
           srcChainId: 1,
           destChainId: 10,
           srcTokenAddress: AddressZero,
@@ -270,7 +270,7 @@ describe('fetch', () => {
           srcTokenAmount: '20000',
           slippage: 0.5,
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
         },
         signal,
         BridgeClientId.EXTENSION,
@@ -279,7 +279,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasless7702=false&slippage=0.5',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5',
         {
           cacheOptions: {
             cacheRefreshTime: 0,
@@ -301,7 +301,7 @@ describe('fetch', () => {
 
       const result = await fetchBridgeQuotes(
         {
-          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
+          walletAddress: '0x388c818ca8b9251b393131C08a736A67ccB19297',
           srcChainId: 1,
           destChainId: 10,
           srcTokenAddress: AddressZero,
@@ -309,7 +309,7 @@ describe('fetch', () => {
           srcTokenAmount: '20000',
           slippage: 0.5,
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
           aggIds: ['socket', 'lifi'],
           bridgeIds: ['bridge1', 'bridge2'],
           noFee: true,
@@ -321,7 +321,7 @@ describe('fetch', () => {
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasless7702=false&slippage=0.5&noFee=true&aggIds=socket%2Clifi&bridgeIds=bridge1%2Cbridge2',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&gasIncluded=false&gasIncluded7702=false&slippage=0.5&noFee=true&aggIds=socket%2Clifi&bridgeIds=bridge1%2Cbridge2',
         {
           cacheOptions: {
             cacheRefreshTime: 0,
