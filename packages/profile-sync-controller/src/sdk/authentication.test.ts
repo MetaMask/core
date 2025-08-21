@@ -4,8 +4,8 @@ import { arrangeAuthAPIs } from './__fixtures__/auth';
 import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
-import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
 import * as AuthServices from './authentication-jwt-bearer/services';
+import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
 import {
   NonceRetrievalError,
   PairError,
