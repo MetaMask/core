@@ -556,11 +556,6 @@ const mockedMergedState = {
 
 describe('token-selectors', () => {
   describe('selectAssetsBySelectedAccountGroup', () => {
-    beforeEach(() => {
-      // Clear the cache before each test
-      selectAssetsBySelectedAccountGroup.clearCache();
-    });
-
     it('does not include ignored evm tokens', () => {
       const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
 
