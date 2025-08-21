@@ -57,6 +57,8 @@ import type {
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
 } from '../authentication/AuthenticationController';
+import { assert } from '@metamask/superstruct';
+import { MultichainAccountsFeatureFlagSchema } from './types';
 
 const controllerName = 'UserStorageController';
 
@@ -152,7 +154,7 @@ type ControllerConfig = {
      * If true, it will prevent any new push updates from being sent to the user storage.
      * Multichain account syncing will be handled by `@metamask/account-tree-controller`.
      */
-    getIsMultichainAccountSyncingEnabled?: () => boolean;
+    forceEnableMultichainAccountSyncing?: boolean;
     maxNumberOfAccountsToAdd?: number;
     /**
      * Callback that fires when account sync adds an account.
@@ -630,23 +632,27 @@ export default class UserStorageController extends BaseController<
   }
 
   public getIsMultichainAccountSyncingEnabled(): boolean {
-    return (
-      this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
-      false
-    );
+    if (this.#config.accountSyncing?.forceEnableMultichainAccountSyncing) {
+      return true;
+    }
 
-    // TODO: should we do the following instead?
+    try {
+      const multichainAccountsFeatureFlags = this.messagingSystem.call(
+        'RemoteFeatureFlagController:getState',
+      )?.remoteFeatureFlags?.enableMultichainAccounts;
 
-    // const multichainAccountsFeatureFlags = this.messagingSystem.call(
-    //   'RemoteFeatureFlagController:getState',
-    // )?.remoteFeatureFlags?.enableMultichainAccounts;
+      assert(
+        multichainAccountsFeatureFlags,
+        MultichainAccountsFeatureFlagSchema,
+      );
 
-    // assert(multichainAccountsFeatureFlags, MultichainAccountsFeatureFlagSchema);
-
-    // return (
-    //   multichainAccountsFeatureFlags.enabled &&
-    //   multichainAccountsFeatureFlags.featureVersion === '2'
-    // );
+      return (
+        multichainAccountsFeatureFlags.enabled &&
+        multichainAccountsFeatureFlags.featureVersion === '2'
+      );
+    } catch (e) {
+      return false;
+    }
   }
 
   /**
