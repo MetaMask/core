@@ -20,6 +20,7 @@ import type {
   UserStorageSyncedWalletGroup,
   UserStorageWalletExtendedMetadata,
 } from '../types';
+import { contextualLogger } from '../utils';
 
 /**
  * Retrieves the wallet from user storage.
@@ -46,7 +47,7 @@ export const getWalletFromUserStorage = async (
       return parseWalletFromUserStorageResponse(walletData);
     } catch (error) {
       if (context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
@@ -112,7 +113,7 @@ export const getAllGroupsFromUserStorage = async (
           return parseGroupFromUserStorageResponse(groupStringifiedJSON);
         } catch (error) {
           if (context.enableDebugLogging) {
-            console.warn(
+            contextualLogger.warn(
               `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
             );
           }
@@ -150,7 +151,7 @@ export const getGroupFromUserStorage = async (
       return parseGroupFromUserStorageResponse(groupData);
     } catch (error) {
       if (context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
         );
       }

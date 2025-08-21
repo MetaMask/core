@@ -5,6 +5,7 @@ import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncContext } from '../types';
+import { contextualLogger } from './contextual-logger';
 
 /**
  * Gets all local entropy wallets that can be synced.
@@ -34,7 +35,9 @@ export function getLocalGroupsForEntropyWallet(
   const wallet = context.controller.state.accountTree.wallets[walletId];
   if (!wallet || wallet.type !== AccountWalletType.Entropy) {
     if (context.enableDebugLogging) {
-      console.warn(`Wallet ${walletId} not found or is not an entropy wallet`);
+      contextualLogger.warn(
+        `Wallet ${walletId} not found or is not an entropy wallet`,
+      );
     }
     return [];
   }

@@ -12,6 +12,7 @@ import {
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
+  contextualLogger,
 } from '../utils';
 import {
   createLocalGroupsFromUserStorage,
@@ -130,7 +131,7 @@ export class BackupAndSyncService {
   async performFullSync(): Promise<void> {
     if (this.#context.disableMultichainAccountSyncing) {
       if (this.#context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           'Multichain account syncing is disabled. Skipping full sync operation.',
         );
       }
@@ -202,7 +203,7 @@ export class BackupAndSyncService {
                 // If multichain account syncing is disabled, we can stop here
                 // and not perform any further syncing.
                 if (this.#context.enableDebugLogging) {
-                  console.log(
+                  contextualLogger.log(
                     'Multichain account syncing is disabled, skipping further syncing.',
                   );
                 }
@@ -271,7 +272,7 @@ export class BackupAndSyncService {
             );
           } catch (error) {
             if (this.#context.enableDebugLogging) {
-              console.error(
+              contextualLogger.error(
                 `Error syncing wallet ${wallet.id}:`,
                 error instanceof Error ? error.message : String(error),
               );
@@ -286,13 +287,13 @@ export class BackupAndSyncService {
               }
               restoreStateFromSnapshot(this.#context, stateSnapshot);
               if (this.#context.enableDebugLogging) {
-                console.log(
+                contextualLogger.log(
                   `Rolled back state changes for wallet ${wallet.id}`,
                 );
               }
             } catch (rollbackError) {
               if (this.#context.enableDebugLogging) {
-                console.error(
+                contextualLogger.error(
                   `Failed to rollback state for wallet ${wallet.id}:`,
                   rollbackError instanceof Error
                     ? rollbackError.message
@@ -307,7 +308,10 @@ export class BackupAndSyncService {
         }
       } catch (error) {
         if (this.#context.enableDebugLogging) {
-          console.error('Error during multichain account syncing:', error);
+          contextualLogger.error(
+            'Error during multichain account syncing:',
+            error,
+          );
         }
         throw error;
       } finally {
@@ -340,7 +344,7 @@ export class BackupAndSyncService {
       !this.getIsMultichainAccountsRemoteFeatureFlagEnabled()
     ) {
       if (this.#context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           'Multichain account syncing is disabled. Skipping single wallet sync operation.',
         );
       }
@@ -372,7 +376,10 @@ export class BackupAndSyncService {
       );
     } catch (error) {
       if (this.#context.enableDebugLogging) {
-        console.error(`Error in single wallet sync for ${walletId}:`, error);
+        contextualLogger.error(
+          `Error in single wallet sync for ${walletId}:`,
+          error,
+        );
       }
       throw error;
     }
@@ -389,7 +396,7 @@ export class BackupAndSyncService {
       !this.getIsMultichainAccountsRemoteFeatureFlagEnabled()
     ) {
       if (this.#context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           'Multichain account syncing is disabled. Skipping single group sync operation.',
         );
       }
@@ -435,7 +442,10 @@ export class BackupAndSyncService {
       );
     } catch (error) {
       if (this.#context.enableDebugLogging) {
-        console.error(`Error in single group sync for ${groupId}:`, error);
+        contextualLogger.error(
+          `Error in single group sync for ${groupId}:`,
+          error,
+        );
       }
       throw error;
     }

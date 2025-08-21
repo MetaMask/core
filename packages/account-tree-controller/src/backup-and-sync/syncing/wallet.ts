@@ -7,6 +7,7 @@ import {
   type UserStorageSyncedWallet,
 } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
+import { contextualLogger } from '../utils';
 
 /**
  * Syncs wallet metadata fields and determines if the wallet needs to be pushed to user storage.
@@ -29,14 +30,14 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
   if (!walletFromUserStorage) {
     if (walletPersistedMetadata) {
       if (context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           `Wallet ${localWallet.id} does not exist in user storage, but has local metadata. Uploading it.`,
         );
       }
       return true; // If wallet does not exist in user storage, we need to push it
     }
     if (context.enableDebugLogging) {
-      console.warn(
+      contextualLogger.warn(
         `Wallet ${localWallet.id} does not exist in user storage and has no local metadata, skipping sync`,
       );
     }

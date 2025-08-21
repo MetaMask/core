@@ -1,4 +1,5 @@
 import type { AtomicSyncEvent } from '../types';
+import { contextualLogger } from '../utils';
 
 /**
  * Manages atomic sync operations in a queue to prevent concurrent execution
@@ -50,7 +51,7 @@ export class AtomicSyncQueue {
     setTimeout(() => {
       this.process().catch((error) => {
         if (this.#getEnableDebugLogging()) {
-          console.error('Error processing atomic sync queue:', error);
+          contextualLogger.error('Error processing atomic sync queue:', error);
         }
       });
     }, 0);
@@ -83,7 +84,7 @@ export class AtomicSyncQueue {
           await event.execute();
         } catch (error) {
           if (this.#getEnableDebugLogging()) {
-            console.error(
+            contextualLogger.error(
               `Failed to process atomic sync event ${event.id}`,
               error,
             );

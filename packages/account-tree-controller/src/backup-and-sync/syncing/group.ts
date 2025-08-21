@@ -2,7 +2,7 @@ import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
-import { getLocalGroupsForEntropyWallet } from '../utils';
+import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
 import {
   UserStorageSyncedWalletGroupSchema,
   type BackupAndSyncContext,
@@ -36,7 +36,7 @@ export async function createLocalGroupsFromUserStorage(
 
     if (typeof groupIndex !== 'number' || groupIndex < 0) {
       if (context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           `Invalid group index ${groupIndex} found in user storage, skipping`,
         );
       }
@@ -49,7 +49,7 @@ export async function createLocalGroupsFromUserStorage(
 
     if (isGroupIndexOutOfSequence) {
       if (context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
         );
       }
@@ -71,7 +71,7 @@ export async function createLocalGroupsFromUserStorage(
       });
     } catch (error) {
       if (context.enableDebugLogging) {
-        console.error(
+        contextualLogger.error(
           `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
           error instanceof Error ? error.message : String(error),
         );
@@ -103,14 +103,14 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
   if (!groupFromUserStorage) {
     if (groupPersistedMetadata) {
       if (context.enableDebugLogging) {
-        console.warn(
+        contextualLogger.warn(
           `Group ${localGroup.id} does not exist in user storage, but has local metadata. Uploading it.`,
         );
       }
       return true; // If group does not exist in user storage, we need to push it
     }
     if (context.enableDebugLogging) {
-      console.warn(
+      contextualLogger.warn(
         `Group ${localGroup.id} does not exist in user storage and has no local metadata, skipping sync`,
       );
     }
