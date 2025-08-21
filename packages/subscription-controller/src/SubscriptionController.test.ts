@@ -17,6 +17,7 @@ import type {
   SubscriptionControllerOptions,
   SubscriptionControllerState,
   Subscription,
+  PricingResponse,
 } from './types';
 
 // Mock data
@@ -133,16 +134,19 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscription = jest.fn();
   const mockCancelSubscription = jest.fn();
+  const mockGetPricing = jest.fn();
 
   const mockService = {
     getSubscription: mockGetSubscription,
     cancelSubscription: mockCancelSubscription,
+    getPricing: mockGetPricing,
   };
 
   return {
     mockService,
     mockGetSubscription,
     mockCancelSubscription,
+    mockGetPricing,
   };
 }
 
@@ -718,6 +722,26 @@ describe('SubscriptionController', () => {
         expect(controller.state.subscription).toStrictEqual(
           minimalSubscription,
         );
+      });
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: {
+        type: 'crypto',
+        chains: [],
+      },
+    };
+
+    it('should return pricing response', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getPricing.mockResolvedValue(mockPricingResponse);
+
+        const result = await controller.getPricing();
+
+        expect(result).toStrictEqual(mockPricingResponse);
       });
     });
   });
