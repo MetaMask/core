@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `SampleGasPricesController` no longer takes a `gasPricesService` option ([#6168](https://github.com/MetaMask/core/pull/6168))
   - The controller now expects `SampleGasPricesService` to have been instantiated ahead of time
+- **BREAKING:** Remove `SampleAbstractGasPricesService` ([#6168](https://github.com/MetaMask/core/pull/6168))
 
 ## [1.0.0]
 
