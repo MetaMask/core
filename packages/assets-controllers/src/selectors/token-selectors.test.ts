@@ -574,6 +574,7 @@ const expectedMockResult = {
   '0x1': [
     {
       type: 'eip155:eoa',
+      accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
       assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
@@ -592,6 +593,7 @@ const expectedMockResult = {
     },
     {
       type: 'eip155:eoa',
+      accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
       assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
       address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
@@ -610,6 +612,7 @@ const expectedMockResult = {
     },
     {
       type: 'eip155:eoa',
+      accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
       assetId: '0x0000000000000000000000000000000000000000',
       address: '0x0000000000000000000000000000000000000000',
@@ -629,6 +632,7 @@ const expectedMockResult = {
   '0xa': [
     {
       type: 'eip155:eoa',
+      accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
       assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
@@ -647,6 +651,7 @@ const expectedMockResult = {
     },
     {
       type: 'eip155:eoa',
+      accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
       assetId: '0x0000000000000000000000000000000000000000',
       address: '0x0000000000000000000000000000000000000000',
@@ -666,6 +671,7 @@ const expectedMockResult = {
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [
     {
       type: 'solana:data-account',
+      accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       image:
@@ -683,6 +689,7 @@ const expectedMockResult = {
     },
     {
       type: 'solana:data-account',
+      accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId:
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
@@ -739,6 +746,7 @@ describe('token-selectors', () => {
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
+        accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
         assetId: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
         balance: '100',
@@ -770,6 +778,7 @@ describe('token-selectors', () => {
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
+        accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
         assetId: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
         balance: '100',
@@ -816,6 +825,7 @@ describe('token-selectors', () => {
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
+        accountId: '40fe5e20-525a-4434-bb83-c51ce5560a8c',
         assetId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
         balance: '100',
@@ -843,6 +853,7 @@ describe('token-selectors', () => {
       const nativeToken = result['0x89'].find((asset) => asset.isNative);
 
       expect(nativeToken).toStrictEqual({
+        accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         assetId: '0x0000000000000000000000000000000000001010',
         address: '0x0000000000000000000000000000000000001010',
         chainId: '0x89',

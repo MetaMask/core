@@ -50,6 +50,7 @@ export type Asset = (
       chainId: `${string}:${string}`;
     }
 ) & {
+  accountId: string;
   image: string;
   name: string;
   symbol: string;
@@ -100,7 +101,11 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
   (accountTree, internalAccounts) => {
     const accountsMap: Record<
       string,
-      { accountGroupId: AccountGroupId; type: InternalAccount['type'] }
+      {
+        accountGroupId: AccountGroupId;
+        type: InternalAccount['type'];
+        accountId: string;
+      }
     > = {};
     for (const { groups } of Object.values(accountTree.wallets)) {
       for (const { id: accountGroupId, accounts } of Object.values(groups)) {
@@ -112,7 +117,7 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
             internalAccount.type.startsWith('eip155')
               ? internalAccount.address
               : accountId
-          ] = { accountGroupId, type: internalAccount.type };
+          ] = { accountGroupId, type: internalAccount.type, accountId };
         }
       }
     }
@@ -152,7 +157,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           continue;
         }
 
-        const { accountGroupId, type } = account;
+        const { accountGroupId, type, accountId } = account;
 
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];
@@ -189,6 +194,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           image: nativeToken.image,
           name: nativeToken.name,
           symbol: nativeToken.symbol,
+          accountId,
           decimals: nativeToken.decimals,
           balance: stringifyBalanceWithDecimals(
             hexToBigInt(rawBalance),
@@ -245,7 +251,7 @@ const selectAllEvmAssets = createAssetListSelector(
             continue;
           }
 
-          const { accountGroupId, type } = account;
+          const { accountGroupId, type, accountId } = account;
 
           if (
             ignoredEvmTokens[chainId]?.[accountAddress]?.includes(tokenAddress)
@@ -281,6 +287,7 @@ const selectAllEvmAssets = createAssetListSelector(
             image: token.image ?? '',
             name: token.name ?? token.symbol,
             symbol: token.symbol,
+            accountId,
             decimals: token.decimals,
             balance: stringifyBalanceWithDecimals(
               hexToBigInt(rawBalance),
@@ -372,6 +379,7 @@ const selectAllMultichainAssets = createAssetListSelector(
           image: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
+          accountId,
           decimals:
             assetMetadata.units.find(
               (unit) =>
