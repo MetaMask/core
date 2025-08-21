@@ -14,7 +14,7 @@ Controllers are foundational pieces within MetaMask's architecture:
 All controllers should inherit from `BaseController` from the `@metamask/base-controller` package. This provides a few benefits:
 
 - It defines a standard interface for all controllers.
-- It introduces the messenger system, which is useful for interacting with other controllers without requiring direct access to them.
+- It introduces the messenger, which is useful for interacting with other parts of the application without requiring a direct reference.
 - It enforces that `update` is the only way to modify the state of the controller and provides a way to listen for state updates via the messenger.
 - It simplifies initialization by consolidating constructor arguments into one options object.
 
@@ -22,7 +22,7 @@ All controllers should inherit from `BaseController` from the `@metamask/base-co
 
 One of the uniquely identifying features of a controller is the ability to manage state.
 
-If you have a class that does not capture any data in state, then your class does not need to inherit from `BaseController` (even if it uses the messaging system).
+If you have a class that does not capture any data in state, then your class does not need to inherit from `BaseController` (even if it uses a messenger).
 
 ## Maintain a clear and concise API
 
@@ -193,7 +193,7 @@ class FooController extends BaseController</* ... */> {
 }
 ```
 
-## Use the messaging system instead of callbacks
+## Use the messenger instead of callbacks
 
 Prior to BaseController v2, it was common for a controller to respond to an event occurring within another controller (such a state change) by receiving an event listener callback which the client would bind ahead of time:
 
@@ -222,7 +222,7 @@ const fooController = new FooController({
 });
 ```
 
-If the recipient controller supports the messaging system, however, the callback pattern is unnecessary. Using the messenger not only aligns the controller with `BaseController`, but also reduces the number of options that consumers need to remember in order to use the controller:
+If the recipient controller uses a messenger, however, the callback pattern is unnecessary. Using the messenger not only aligns the controller with `BaseController`, but also reduces the number of options that consumers need to remember in order to use the controller:
 
 ✅ **The constructor subscribes to the `BarController:stateChange` event**
 
@@ -286,7 +286,7 @@ const fooController = new FooController({
 });
 ```
 
-## Use the messaging system instead of event emitters
+## Use the messenger instead of event emitters
 
 Some controllers expose an EventEmitter object so that other parts of the system can listen to them:
 
@@ -1201,7 +1201,7 @@ class PreferencesController extends BaseController<
 
 ## Expose derived state using selectors instead of getters
 
-Sometimes, for convenience, consumers want access to a higher-level representation of a controller's state. It is tempting to add a method to the controller which provides this representation, but this means that a consumer would need an entire instance of the controller on hand to use this method. Using the messaging system mitigates this problem, but then the consumer would need access to a messenger as well, which may be impossible in places like Redux selector functions.
+Sometimes, for convenience, consumers want access to a higher-level representation of a controller's state. It is tempting to add a method to the controller which provides this representation, but this means that a consumer would need an entire instance of the controller on hand to use this method. Using the messenger mitigates this problem, but then the consumer would need access to a messenger as well, which may be impossible in places like Redux selector functions.
 
 To make it easier to share such representations across disparate parts of the codebase in a flexible fashion, you can define and export selector functions from your controller file instead. They should be placed under a `${controllerName}Selectors` object and then exported.
 
@@ -1241,7 +1241,7 @@ class TokensController extends BaseController</* ... */> {
 }
 ```
 
-🚫 **Methods exposed via the messaging system**
+🚫 **Methods exposed via the messenger**
 
 ```typescript
 /* === This repo: packages/accounts-controller/src/AccountsController.ts === */
