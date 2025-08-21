@@ -2707,6 +2707,23 @@ export class TransactionController extends BaseController<
     });
   }
 
+  updateRequiredTransactionIds({
+    transactionId,
+    requiredTransactionIds,
+  }: {
+    transactionId: string;
+    requiredTransactionIds: string[];
+  }) {
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      const { requiredTransactionIds: existing } = transactionMeta;
+
+      transactionMeta.requiredTransactionIds = [
+        ...(existing ?? []),
+        ...requiredTransactionIds,
+      ];
+    });
+  }
+
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
