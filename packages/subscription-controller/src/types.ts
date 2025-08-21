@@ -80,10 +80,40 @@ export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
 
+export type PricingResponse = {
+  products: {
+    name: string;
+    prices: {
+      interval: string; // "month" | "year"
+      unitAmount: string; // amount in the smallest unit of the currency, e.g., cents
+      unitDecimals: number; // number of decimals for the smallest unit of the currency
+      currency: string; // "usd"
+      trialPeriodDays: number;
+      minBillingCycles: number;
+    }[];
+  }[];
+  paymentMethods: {
+    type: string; // "crypto" | "card"
+    chains: {
+      chainId: string; // "0x1",
+      paymentAddress: string; // "0x...",
+      tokens: {
+        symbol: string; // "USDC" | "USDT"
+        address: string; // "0x..."
+        decimals: number; // 18
+        conversionRate: {
+          usd: string; // "1.0"
+        };
+      }[];
+    }[];
+  };
+};
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
+  getPricing(): Promise<PricingResponse>;
 };

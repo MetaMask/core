@@ -8,6 +8,7 @@ import type {
   AuthUtils,
   GetSubscriptionsResponse,
   ISubscriptionService,
+  PricingResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
 } from './types';
@@ -100,5 +101,10 @@ export class SubscriptionService implements ISubscriptionService {
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.authUtils.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  async getPricing(): Promise<PricingResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest<PricingResponse>(path);
   }
 }

@@ -5,6 +5,7 @@ export type {
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerStartShieldSubscriptionWithCardAction,
+  SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,

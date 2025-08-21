@@ -14,7 +14,7 @@ import {
   type SubscriptionControllerOptions,
   type SubscriptionControllerState,
 } from './SubscriptionController';
-import type { Subscription } from './types';
+import type { Subscription, PricingResponse } from './types';
 import {
   PaymentType,
   ProductType,
@@ -114,11 +114,13 @@ function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
   const mockStartSubscriptionWithCard = jest.fn();
+  const mockGetPricing = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
     startSubscriptionWithCard: mockStartSubscriptionWithCard,
+    getPricing: mockGetPricing,
   };
 
   return {
@@ -126,6 +128,7 @@ function createMockSubscriptionService() {
     mockGetSubscriptions,
     mockCancelSubscription,
     mockStartSubscriptionWithCard,
+    mockGetPricing,
   };
 }
 
@@ -523,6 +526,26 @@ describe('SubscriptionController', () => {
         expect(mockService.cancelSubscription).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
         });
+      });
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: {
+        type: 'crypto',
+        chains: [],
+      },
+    };
+
+    it('should return pricing response', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getPricing.mockResolvedValue(mockPricingResponse);
+
+        const result = await controller.getPricing();
+
+        expect(result).toStrictEqual(mockPricingResponse);
       });
     });
   });
