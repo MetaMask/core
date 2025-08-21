@@ -100,7 +100,7 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')
-              ? internalAccount.address
+              ? internalAccount.address.toLowerCase()
               : accountId
           ] = accountGroupId;
         }
@@ -137,7 +137,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
-        const accountGroupId = accountsMap[accountAddress];
+        const accountGroupId = accountsMap[accountAddress.toLowerCase()];
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
@@ -224,7 +224,7 @@ const selectAllEvmAssets = createAssetListSelector(
       ) as [Hex, Token[]][]) {
         for (const token of addressTokens) {
           const tokenAddress = token.address as Hex;
-          const accountGroupId = accountsMap[accountAddress];
+          const accountGroupId = accountsMap[accountAddress.toLowerCase()];
 
           if (
             ignoredEvmTokens[chainId]?.[accountAddress]?.includes(tokenAddress)
