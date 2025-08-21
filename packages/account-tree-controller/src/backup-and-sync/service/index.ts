@@ -256,12 +256,6 @@ export class BackupAndSyncService {
               walletProfileId,
             );
 
-            // Refresh local state to ensure we have the latest groups that were just created
-            // This is important because createLocalGroupsFromUserStorage might have created new groups
-            // that need to be reflected in our local state before we proceed with metadata syncing
-            // TODO: we might not need to do this, commenting out for now
-            // this.#context.controller.init();
-
             // Sync group metadata bidirectionally
             await syncGroupsMetadata(
               this.#context,

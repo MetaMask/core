@@ -55,6 +55,20 @@ export async function createLocalGroupsFromUserStorage(
       }
     }
 
+    const didGroupAlreadyExist = Object.values(
+      context.controller.state.accountTree.wallets[`entropy:${entropySourceId}`]
+        .groups,
+    ).some((group) => group.metadata.entropy.groupIndex === groupIndex);
+
+    if (didGroupAlreadyExist) {
+      if (context.enableDebugLogging) {
+        contextualLogger.warn(
+          `Group with index ${groupIndex} (wallet entropy ${entropySourceId}) already exists, skipping creation`,
+        );
+      }
+      continue; // Skip creating group if it already exists
+    }
+
     try {
       // This will be idempotent so we can create the group even if it already exists
       await context.messenger.call(

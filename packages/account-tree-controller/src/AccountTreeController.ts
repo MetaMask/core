@@ -1059,10 +1059,18 @@ export class AccountTreeController extends BaseController<
     this.#syncingService.enqueueSingleGroupSync(groupId);
   }
 
-  clearPersistedMetadata(): void {
+  /**
+   * Clears all persisted metadata and syncing state.
+   *
+   * This will reset the account groups and wallets metadata, as well as
+   * the syncing state. This should be used when we want to
+   * completely reset the controller's state.
+   */
+  clearPersistedMetadataAndSyncingState(): void {
     this.update((state) => {
       state.accountGroupsMetadata = {};
       state.accountWalletsMetadata = {};
+      state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
     });
   }
 
