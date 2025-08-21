@@ -103,7 +103,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       return session.token.accessToken;
     }
 
-    const loginResponse = await this.#deferredLogin(entropySourceId);
+    const loginResponse = await this.#login(entropySourceId);
     return loginResponse.token.accessToken;
   }
 
@@ -113,7 +113,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       return session.profile;
     }
 
-    const loginResponse = await this.#deferredLogin(entropySourceId);
+    const loginResponse = await this.#login(entropySourceId);
     return loginResponse.profile;
   }
 

@@ -34,14 +34,14 @@ import {
 } from '@metamask/keyring-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-// import { assert } from '@metamask/superstruct';
+import { assert } from '@metamask/superstruct';
 
 import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
-// import { MultichainAccountsFeatureFlagSchema } from './types';
+import { MultichainAccountsFeatureFlagSchema } from './types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -57,8 +57,6 @@ import type {
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
 } from '../authentication/AuthenticationController';
-import { assert } from '@metamask/superstruct';
-import { MultichainAccountsFeatureFlagSchema } from './types';
 
 const controllerName = 'UserStorageController';
 
@@ -651,6 +649,10 @@ export default class UserStorageController extends BaseController<
         multichainAccountsFeatureFlags.featureVersion === '2'
       );
     } catch (e) {
+      console.log(
+        `${controllerName} - getIsMultichainAccountSyncingEnabled - failed to get multichain accounts feature flags`,
+        e,
+      );
       return false;
     }
   }
