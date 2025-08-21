@@ -73,9 +73,6 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   #customProvider?: Eip1193Provider;
 
-  // Map to store ongoing login promises by entropySourceId
-  readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
-
   constructor(
     config: AuthConfig & { type: AuthType.SRP },
     options: JwtBearerAuth_SRP_Options & {
@@ -172,32 +169,6 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       return auth;
     }
     return null;
-  }
-
-  async #deferredLogin(entropySourceId?: string): Promise<LoginResponse> {
-    // Use a key that accounts for undefined entropySourceId
-    const loginKey = entropySourceId ?? '__default__';
-
-    // Check if there's already an ongoing login for this entropySourceId
-    const existingLogin = this.#ongoingLogins.get(loginKey);
-    if (existingLogin) {
-      return existingLogin;
-    }
-
-    // Create a new login promise
-    const loginPromise = this.#login(entropySourceId);
-
-    // Store the promise in the map
-    this.#ongoingLogins.set(loginKey, loginPromise);
-
-    try {
-      // Wait for the login to complete
-      const result = await loginPromise;
-      return result;
-    } finally {
-      // Always clean up the ongoing login promise when done
-      this.#ongoingLogins.delete(loginKey);
-    }
   }
 
   async #login(entropySourceId?: string): Promise<LoginResponse> {
