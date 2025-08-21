@@ -2407,8 +2407,8 @@ __metadata:
     "@metamask/base-controller": "npm:^8.1.0"
     "@metamask/keyring-api": "npm:^20.1.0"
     "@metamask/keyring-controller": "npm:^23.0.0"
-    "@metamask/multichain-account-service": "npm:^0.4.0"
-    "@metamask/profile-sync-controller": "npm:^23.0.0"
+    "@metamask/multichain-account-service": "npm:^0.5.0"
+    "@metamask/profile-sync-controller": "npm:^24.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/snaps-sdk": "npm:^9.0.0"
@@ -2427,8 +2427,8 @@ __metadata:
     "@metamask/account-api": ^0.9.0
     "@metamask/accounts-controller": ^33.0.0
     "@metamask/keyring-controller": ^23.0.0
-    "@metamask/multichain-account-service": ^0.4.0
-    "@metamask/profile-sync-controller": ^23.0.0
+    "@metamask/multichain-account-service": ^0.5.0
+    "@metamask/profile-sync-controller": ^24.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
@@ -3315,7 +3315,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^16.0.0, @metamask/eth-snap-keyring@npm:^16.1.0":
+"@metamask/eth-snap-keyring@npm:^16.1.0":
   version: 16.1.0
   resolution: "@metamask/eth-snap-keyring@npm:16.1.0"
   dependencies:
@@ -3788,30 +3788,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-service@npm:^0.4.0":
-  version: 0.4.0
-  resolution: "@metamask/multichain-account-service@npm:0.4.0"
-  dependencies:
-    "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/eth-snap-keyring": "npm:^16.0.0"
-    "@metamask/keyring-api": "npm:^20.0.0"
-    "@metamask/keyring-internal-api": "npm:^8.0.0"
-    "@metamask/keyring-snap-client": "npm:^7.0.0"
-    "@metamask/keyring-utils": "npm:^3.1.0"
-    "@metamask/snaps-sdk": "npm:^9.0.0"
-    "@metamask/snaps-utils": "npm:^11.0.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-  peerDependencies:
-    "@metamask/account-api": ^0.9.0
-    "@metamask/accounts-controller": ^32.0.0
-    "@metamask/keyring-controller": ^22.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
-  checksum: 10/2186669576de7cc49826e566904dea8f160a8f10e8354f074f1fb2c8f6d51f014770e2aad0b92aeda6c9630c3c6de251c8b715dfa6f47359d1912e7e91a18c88
-  languageName: node
-  linkType: hard
-
 "@metamask/multichain-account-service@npm:^0.5.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
@@ -4245,28 +4221,6 @@ __metadata:
     "@metamask/keyring-controller": ^23.0.0
   languageName: unknown
   linkType: soft
-
-"@metamask/profile-sync-controller@npm:^23.0.0":
-  version: 23.0.0
-  resolution: "@metamask/profile-sync-controller@npm:23.0.0"
-  dependencies:
-    "@metamask/base-controller": "npm:^8.0.1"
-    "@metamask/snaps-sdk": "npm:^9.0.0"
-    "@metamask/snaps-utils": "npm:^11.0.0"
-    "@noble/ciphers": "npm:^0.5.2"
-    "@noble/hashes": "npm:^1.4.0"
-    immer: "npm:^9.0.6"
-    loglevel: "npm:^1.8.1"
-    siwe: "npm:^2.3.2"
-  peerDependencies:
-    "@metamask/accounts-controller": ^32.0.0
-    "@metamask/keyring-controller": ^22.0.0
-    "@metamask/providers": ^22.0.0
-    "@metamask/snaps-controllers": ^14.0.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
-  checksum: 10/b2934b92d58f65d8f1b005adb0eb8e3852bec0abbe6d1167f1bd4a9b00ffced02194cb85b87278b1f597cb9fdf5af2b757eb1c40674529f1bec67d47583c0c86
-  languageName: node
-  linkType: hard
 
 "@metamask/profile-sync-controller@npm:^24.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
@@ -4863,13 +4817,6 @@ __metadata:
     semver: "npm:^7.5.4"
     uuid: "npm:^9.0.1"
   checksum: 10/ed6648cd973bbf3b4eb0e862903b795a99d27784c820e19f62f0bc0ddf353e98c2858d7e9aaebc0249a586391b344e35b9249d13c08e3ea0c74b23dc1c6b1558
-  languageName: node
-  linkType: hard
-
-"@noble/ciphers@npm:^0.5.2":
-  version: 0.5.3
-  resolution: "@noble/ciphers@npm:0.5.3"
-  checksum: 10/af0ad96b5807feace93e63549e05de6f5e305b36e2e95f02d90532893fbc3af3f19b9621b6de4caa98303659e5df2e7aa082064e5d4a82e6f38c728d48dfae5d
   languageName: node
   linkType: hard
 
