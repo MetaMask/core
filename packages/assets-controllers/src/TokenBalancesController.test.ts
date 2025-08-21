@@ -1889,8 +1889,10 @@ describe('TokenBalancesController', () => {
       // Same token address in different cases
       const tokenAddressLowercase =
         '0x581c3c1a2a4ebde2a0df29b5cf4c116e42945947';
-      const tokenAddressRandomCase = '0x581c3C1A2A4ebde2a0df29B5cf4c116E42945947';
-      const tokenAddressProperChecksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
+      const tokenAddressRandomCase =
+        '0x581c3C1A2A4ebde2a0df29B5cf4c116E42945947';
+      const tokenAddressProperChecksum =
+        '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
 
       const tokens = {
         allDetectedTokens: {},
@@ -1949,8 +1951,10 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x0000000000000000000000000000000000000000';
       const tokenAddress1Mixed = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
       const tokenAddress2Mixed = '0xA0B86A33E6776C0b983F3B0862F02C30CABA2b75';
-      const tokenAddress1Checksum = '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
-      const tokenAddress2Checksum = '0xa0B86a33E6776c0B983f3B0862F02C30cAbA2b75';
+      const tokenAddress1Checksum =
+        '0x581c3C1A2A4EBDE2A0Df29B5cf4c116E42945947';
+      const tokenAddress2Checksum =
+        '0xa0B86a33E6776c0B983f3B0862F02C30cAbA2b75';
       const tokenAddress1Lower = tokenAddress1Mixed.toLowerCase();
       const tokenAddress2Lower = tokenAddress2Mixed.toLowerCase();
 

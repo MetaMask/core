@@ -346,9 +346,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Then update with actual fetched balances where available
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
-            checksum(token)
-          ] = toHex(value);
+          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
+            toHex(value);
         }
       });
     });
