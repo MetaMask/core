@@ -11,6 +11,7 @@ import * as multicall from './multicall';
 import type {
   AllowedActions,
   AllowedEvents,
+  ChainIdHex,
   TokenBalancesControllerActions,
   TokenBalancesControllerEvents,
   TokenBalancesControllerState,
@@ -164,6 +165,7 @@ describe('TokenBalancesController', () => {
   afterEach(() => {
     clock.restore();
     mockedSafelyExecuteWithTimeout.mockRestore();
+    jest.restoreAllMocks();
   });
 
   it('should set default state', () => {
@@ -2347,6 +2349,492 @@ describe('TokenBalancesController', () => {
         get: () => originalState,
         configurable: true,
       });
+    });
+  });
+
+  describe('Per-chain polling intervals', () => {
+    it('should use default interval when no chain-specific config is provided', () => {
+      const defaultInterval = 30000;
+      const { controller } = setupController({
+        config: { interval: defaultInterval },
+      });
+
+      // Any chain should get the default interval when no explicit config exists
+      expect(controller.getChainPollingConfig('0x1')).toStrictEqual({
+        interval: 30000,
+      });
+      expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
+        interval: 30000,
+      });
+    });
+
+    it('should initialize with chain-specific polling intervals', () => {
+      const chainPollingIntervals = {
+        '0x1': { interval: 15000 },
+        '0x89': { interval: 5000 },
+      };
+
+      const { controller } = setupController({
+        config: {
+          interval: 30000,
+          chainPollingIntervals,
+        },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+            },
+            '0x89': {
+              '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+            },
+          },
+          allDetectedTokens: {},
+        },
+      });
+
+      // Test that individual chains return their configured intervals
+      expect(controller.getChainPollingConfig('0x1')).toStrictEqual({
+        interval: 15000,
+      });
+      expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
+        interval: 5000,
+      });
+    });
+
+    it('should update chain polling configurations', () => {
+      const { controller } = setupController({
+        config: { interval: 30000 },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+            },
+            '0x89': {
+              '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+            },
+          },
+          allDetectedTokens: {},
+        },
+      });
+
+      // Initially no explicit configurations, so chains use default intervals
+      expect(controller.getChainPollingConfig('0x1')).toStrictEqual({
+        interval: 30000,
+      }); // Default
+      expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
+        interval: 30000,
+      }); // Default
+
+      // Update configurations
+      const newConfigs = {
+        '0x1': { interval: 10000 },
+        '0x89': { interval: 5000 },
+      };
+      controller.updateChainPollingConfigs(newConfigs);
+
+      // Now chains use their explicit configurations
+      expect(controller.getChainPollingConfig('0x1')).toStrictEqual({
+        interval: 10000,
+      });
+      expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
+        interval: 5000,
+      });
+    });
+
+    it('should get individual chain configs with proper fallback behavior', () => {
+      const chainPollingIntervals = {
+        '0x1': { interval: 15000 }, // Explicit config for Ethereum
+        '0xa4b1': { interval: 8000 }, // Explicit config for chain without tokens
+        // No explicit config for Polygon (has tokens) or BSC (no tokens)
+      };
+
+      const { controller } = setupController({
+        config: {
+          interval: 30000, // Default interval
+          chainPollingIntervals,
+        },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+            },
+            '0x89': {
+              // Polygon has tokens but no explicit config
+              '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+            },
+            // Note: 0xa4b1 and 0x38 have no tokens
+          },
+          allDetectedTokens: {},
+        },
+      });
+
+      // Explicit configurations should be returned as-is
+      expect(controller.getChainPollingConfig('0x1')).toStrictEqual({
+        interval: 15000,
+      });
+      expect(controller.getChainPollingConfig('0xa4b1')).toStrictEqual({
+        interval: 8000,
+      });
+
+      // Chains without explicit config should use defaults
+      expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
+        interval: 30000,
+      }); // Has tokens, no config
+      expect(
+        controller.getChainPollingConfig('0x38' as ChainIdHex),
+      ).toStrictEqual({
+        interval: 30000,
+      }); // No tokens, no config
+    });
+
+    it('should handle partial config updates', () => {
+      const initialConfigs = {
+        '0x1': { interval: 15000 },
+        '0x89': { interval: 5000 },
+      };
+
+      const { controller } = setupController({
+        config: {
+          interval: 30000,
+          chainPollingIntervals: initialConfigs,
+        },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+            },
+            '0x89': {
+              '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+            },
+            '0xa4b1': {
+              '0x123': [{ address: '0xtoken3', symbol: 'T3', decimals: 18 }],
+            },
+          },
+          allDetectedTokens: {},
+        },
+      });
+
+      // Update only one chain's config
+      controller.updateChainPollingConfigs({
+        '0x89': { interval: 8000 },
+        '0xa4b1': { interval: 12000 },
+      });
+
+      // Verify individual chain configurations after update
+      expect(controller.getChainPollingConfig('0x1')).toStrictEqual({
+        interval: 15000,
+      }); // Unchanged
+      expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
+        interval: 8000,
+      }); // Updated
+      expect(controller.getChainPollingConfig('0xa4b1')).toStrictEqual({
+        interval: 12000,
+      }); // New config
+    });
+
+    it('should poll chains with different intervals correctly', async () => {
+      const ethInterval = 1000; // 1 second
+      const polygonInterval = 2000; // 2 seconds
+
+      const chainPollingIntervals = {
+        '0x1': { interval: ethInterval },
+        '0x89': { interval: polygonInterval },
+      };
+
+      const tokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          '0x89': {
+            '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      const pollSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        '_executePoll',
+      );
+
+      const { controller } = setupController({
+        config: {
+          interval: 3000, // Default interval (3 seconds)
+          chainPollingIntervals,
+        },
+        tokens,
+      });
+
+      controller.startPolling({ chainIds: ['0x1', '0x89'] });
+
+      // Initial polls should happen immediately for both chains
+      await advanceTime({ clock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
+
+      pollSpy.mockClear();
+
+      // Advance by Ethereum interval (1000ms) - only Ethereum should poll
+      await advanceTime({ clock, duration: ethInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(1);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+
+      pollSpy.mockClear();
+
+      // Advance by another 1000ms (total 2000ms) - both should poll
+      await advanceTime({ clock, duration: ethInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon first repeat
+
+      controller.stopAllPolling();
+    });
+
+    it('should handle dynamic interval changes during polling', async () => {
+      const ethInterval = 1500; // 1.5 seconds
+      const polygonInitialInterval = 4500; // 4.5 seconds initially
+      const polygonNewInterval = 1500; // Change to match Ethereum
+
+      const tokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          '0x89': {
+            '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      const pollSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        '_executePoll',
+      );
+
+      const { controller } = setupController({
+        config: {
+          interval: 6000, // Default interval (6 seconds)
+          chainPollingIntervals: {
+            '0x1': { interval: ethInterval },
+            '0x89': { interval: polygonInitialInterval },
+          },
+        },
+        tokens,
+      });
+
+      controller.startPolling({ chainIds: ['0x1', '0x89'] });
+
+      // Initial polls
+      await advanceTime({ clock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      pollSpy.mockClear();
+
+      // Advance 1500ms - only Ethereum should poll
+      await advanceTime({ clock, duration: ethInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(1);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+
+      // Change Polygon interval to match Ethereum (1500ms)
+      controller.updateChainPollingConfigs({
+        '0x89': { interval: polygonNewInterval },
+      });
+
+      pollSpy.mockClear();
+
+      // Advance 1500ms - both should poll now (same interval, grouped together)
+      await advanceTime({ clock, duration: ethInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(1); // Now grouped together
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Both chains in one call
+
+      controller.stopAllPolling();
+    });
+
+    it('should group chains with same intervals for efficient polling', async () => {
+      const fastInterval = 1200; // 1.2 seconds
+      const slowInterval = 2400; // 2.4 seconds
+
+      const chainPollingIntervals = {
+        '0x1': { interval: fastInterval }, // Ethereum - fast
+        '0x89': { interval: slowInterval }, // Polygon - slow
+        '0xa4b1': { interval: fastInterval }, // Arbitrum - fast (same as Ethereum)
+      };
+
+      const tokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          '0x89': {
+            '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+          },
+          '0xa4b1': {
+            '0x123': [{ address: '0xtoken3', symbol: 'T3', decimals: 18 }],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      const pollSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        '_executePoll',
+      );
+
+      const { controller } = setupController({
+        config: {
+          interval: 4800, // Default interval (4.8 seconds)
+          chainPollingIntervals,
+        },
+        tokens,
+      });
+
+      controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
+
+      // Initial polls - should group efficiently
+      await advanceTime({ clock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(2); // Two groups: fast (ETH + ARB) and slow (MATIC)
+
+      // Verify Ethereum and Arbitrum are grouped together (same interval)
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] });
+      // Verify Polygon is separate (different interval)
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
+
+      pollSpy.mockClear();
+
+      // Advance by fast interval (1200ms) - only fast group should poll
+      await advanceTime({ clock, duration: fastInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(1);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] });
+
+      pollSpy.mockClear();
+
+      // Advance by another 1200ms (total 2400ms) - both groups should poll
+      await advanceTime({ clock, duration: fastInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] }); // Fast group again
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Slow group first repeat
+
+      controller.stopAllPolling();
+    });
+
+    it('should fall back to default interval for unconfigured chains', async () => {
+      const ethInterval = 800; // 800ms - configured
+      const defaultInterval = 1600; // 1.6 seconds - default for unconfigured chains
+
+      const chainPollingIntervals = {
+        '0x1': { interval: ethInterval }, // Ethereum configured
+        // '0x89' not configured - should use default
+      };
+
+      const tokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          '0x89': {
+            '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      const pollSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        '_executePoll',
+      );
+
+      const { controller } = setupController({
+        config: {
+          interval: defaultInterval, // This becomes default for unconfigured chains
+          chainPollingIntervals,
+        },
+        tokens,
+      });
+
+      controller.startPolling({ chainIds: ['0x1', '0x89'] });
+
+      // Initial polls
+      await advanceTime({ clock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
+
+      pollSpy.mockClear();
+
+      // Advance 800ms - only Ethereum should poll (configured interval)
+      await advanceTime({ clock, duration: ethInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(1);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+
+      pollSpy.mockClear();
+
+      // Advance another 800ms (total 1600ms) - both should poll
+      await advanceTime({ clock, duration: ethInterval });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon using default interval
+
+      controller.stopAllPolling();
+    });
+
+    it('should maintain proper polling state during configuration updates', async () => {
+      const tokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          '0x89': {
+            '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      const pollSpy = jest.spyOn(
+        TokenBalancesController.prototype,
+        '_executePoll',
+      );
+
+      const { controller } = setupController({
+        config: {
+          interval: 2000, // Default (2 seconds)
+          chainPollingIntervals: {
+            '0x1': { interval: 1000 }, // Ethereum: 1 second
+            '0x89': { interval: 3000 }, // Polygon: 3 seconds
+          },
+        },
+        tokens,
+      });
+
+      // Start polling
+      controller.startPolling({ chainIds: ['0x1', '0x89'] });
+
+      // Initial polls
+      await advanceTime({ clock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(2);
+      pollSpy.mockClear();
+
+      // Let some polling happen
+      await advanceTime({ clock, duration: 1000 }); // Ethereum polls
+      expect(pollSpy).toHaveBeenCalledTimes(1);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+
+      // Update configurations while polling is active
+      controller.updateChainPollingConfigs({
+        '0x1': { interval: 500 }, // Make Ethereum faster (500ms)
+        '0x89': { interval: 500 }, // Make Polygon same as Ethereum (500ms)
+      });
+
+      pollSpy.mockClear();
+
+      // Both should now poll every 500ms (regrouped)
+      await advanceTime({ clock, duration: 500 });
+      expect(pollSpy).toHaveBeenCalledTimes(1);
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Now grouped together
+
+      controller.stopAllPolling();
     });
   });
 });
