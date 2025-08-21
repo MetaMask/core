@@ -2,7 +2,7 @@ import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
-import { getLocalGroupsForEntropyWallet } from '../controller-utils';
+import { getLocalGroupsForEntropyWallet } from '../utils';
 import {
   UserStorageSyncedWalletGroupSchema,
   type BackupAndSyncContext,

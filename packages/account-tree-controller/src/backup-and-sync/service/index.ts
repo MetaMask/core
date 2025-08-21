@@ -6,13 +6,13 @@ import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
-import type { StateSnapshot } from '../controller-utils';
+import type { StateSnapshot } from '../utils';
 import {
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
-} from '../controller-utils';
+} from '../utils';
 import {
   createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
