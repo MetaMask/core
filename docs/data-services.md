@@ -2,14 +2,14 @@
 
 ## What is a data service?
 
-A **data service** is a pattern for making interactions with an external API (fetching token prices, storing accounts, etc.). It is implemented as a plain TypeScript class with methods that are exposed through the messaging system.
+A **data service** is a pattern for making interactions with an external API (fetching token prices, storing accounts, etc.). It is implemented as a plain TypeScript class with methods that are exposed through a messenger.
 
 ## Why use this pattern?
 
 If you want to talk to an API, it might be tempting to define a method in the controller or a function in a separate file. However, implementing the data service pattern is advantageous for the following reasons:
 
 1. The pattern provides an abstraction that allows for implementing and reusing strategies that are common when working with external APIs, such as batching, automatic retries with exponential backoff, etc.
-2. By integrating with the messaging system, other parts of the application can make use of the data service without needing to go through the controller, or in fact, without needing a reference to the data service at all.
+2. By integrating with a messenger, other parts of the application can make use of the data service without needing to go through the controller, or in fact, without needing a reference to the data service at all.
 
 ## How to create a data service
 
