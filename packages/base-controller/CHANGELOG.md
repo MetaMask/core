@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Under the `next` export, expand the controller metadata properties ([#6359](https://github.com/MetaMask/core/pull/6359))
+  - Note that this is a breaking change, but it's not labelled as such because it only impacts the experimental `next` export.
+  - The `anonymous` metadata property has been renamed to `includeInDebugSnapshot`
+  - Two additional metadata properties have been added: `includeInStateLogs` and `usedInUi`. State derivation is disallowed for `usedInUi`.
+
 ## [8.2.0]
 
 ### Added
