@@ -10,7 +10,6 @@ import type {
 } from '@metamask/base-controller';
 import {
   isValidHexAddress,
-  safelyExecuteWithTimeout,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
