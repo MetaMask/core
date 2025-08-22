@@ -10,7 +10,7 @@ import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
   describe('constructor', () => {
-    it('uses all of the given state properties to initialize state', async () => {
+    it('accepts initial state', async () => {
       const givenState = {
         namesByChainIdAndAddress: {
           '0x1': {
@@ -20,12 +20,15 @@ describe('SamplePetnamesController', () => {
         },
       };
 
-      await withController({ state: givenState }, ({ controller }) => {
-        expect(controller.state).toStrictEqual(givenState);
-      });
+      await withController(
+        { options: { state: givenState } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(givenState);
+        },
+      );
     });
 
-    it('fills in missing state properties with default values', async () => {
+    it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
@@ -39,9 +42,9 @@ describe('SamplePetnamesController', () => {
   describe('SamplePetnamesController:assignPetname', () => {
     for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
       it(`throws if given a chainId of "${blockedKey}"`, async () => {
-        await withController(({ unrestrictedMessenger }) => {
+        await withController(({ rootMessenger }) => {
           expect(() =>
-            unrestrictedMessenger.call(
+            rootMessenger.call(
               'SamplePetnamesController:assignPetname',
               // @ts-expect-error We are intentionally passing bad input.
               blockedKey,
@@ -56,16 +59,18 @@ describe('SamplePetnamesController', () => {
     it('registers the given pet name in state with the given chain ID and address', async () => {
       await withController(
         {
-          state: {
-            namesByChainIdAndAddress: {
-              '0x1': {
-                '0xaaaaaa': 'Account 1',
+          options: {
+            state: {
+              namesByChainIdAndAddress: {
+                '0x1': {
+                  '0xaaaaaa': 'Account 1',
+                },
               },
             },
           },
         },
-        async ({ controller, unrestrictedMessenger }) => {
-          unrestrictedMessenger.call(
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.call(
             'SamplePetnamesController:assignPetname',
             '0x1',
             '0xbbbbbb',
@@ -85,8 +90,8 @@ describe('SamplePetnamesController', () => {
     });
 
     it("creates a new group for the chain if it doesn't already exist", async () => {
-      await withController(async ({ controller, unrestrictedMessenger }) => {
-        unrestrictedMessenger.call(
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call(
           'SamplePetnamesController:assignPetname',
           '0x1',
           '0xaaaaaa',
@@ -106,16 +111,18 @@ describe('SamplePetnamesController', () => {
     it('overwrites any existing pet name for the address', async () => {
       await withController(
         {
-          state: {
-            namesByChainIdAndAddress: {
-              '0x1': {
-                '0xaaaaaa': 'Account 1',
+          options: {
+            state: {
+              namesByChainIdAndAddress: {
+                '0x1': {
+                  '0xaaaaaa': 'Account 1',
+                },
               },
             },
           },
         },
-        async ({ controller, unrestrictedMessenger }) => {
-          unrestrictedMessenger.call(
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.call(
             'SamplePetnamesController:assignPetname',
             '0x1',
             '0xaaaaaa',
@@ -134,8 +141,8 @@ describe('SamplePetnamesController', () => {
     });
 
     it('lowercases the given address before registering it to avoid duplicate entries', async () => {
-      await withController(async ({ controller, unrestrictedMessenger }) => {
-        unrestrictedMessenger.call(
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call(
           'SamplePetnamesController:assignPetname',
           '0x1',
           '0xAAAAAA',
@@ -157,10 +164,12 @@ describe('SamplePetnamesController', () => {
     it('does the same thing as the messenger action', async () => {
       await withController(
         {
-          state: {
-            namesByChainIdAndAddress: {
-              '0x1': {
-                '0xaaaaaa': 'Account 1',
+          options: {
+            state: {
+              namesByChainIdAndAddress: {
+                '0x1': {
+                  '0xaaaaaa': 'Account 1',
+                },
               },
             },
           },
@@ -183,9 +192,10 @@ describe('SamplePetnamesController', () => {
 });
 
 /**
- * The type of the messenger where all actions and events will be registered.
+ * The type of the messenger populated with all external actions and events
+ * required by the controller under test.
  */
-type UnrestrictedMessenger = Messenger<
+type RootMessenger = Messenger<
   ExtractAvailableAction<SamplePetnamesControllerMessenger>,
   ExtractAvailableEvent<SamplePetnamesControllerMessenger>
 >;
@@ -193,49 +203,40 @@ type UnrestrictedMessenger = Messenger<
 /**
  * The callback that `withController` calls.
  */
-type WithControllerCallback<ReturnValue> = ({
-  controller,
-}: {
+type WithControllerCallback<ReturnValue> = (payload: {
   controller: SamplePetnamesController;
-  unrestrictedMessenger: UnrestrictedMessenger;
-  restrictedMessenger: SamplePetnamesControllerMessenger;
+  rootMessenger: RootMessenger;
+  controllerMessenger: SamplePetnamesControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
 /**
- * The options that `withController` take.
+ * The options that `withController` takes.
  */
-type WithControllerOptions = Partial<
-  ConstructorParameters<typeof SamplePetnamesController>[0]
->;
+type WithControllerOptions = {
+  options: Partial<ConstructorParameters<typeof SamplePetnamesController>[0]>;
+};
 
 /**
- * The arguments that `withController` takes.
- */
-type WithControllerArgs<ReturnValue> =
-  | [WithControllerCallback<ReturnValue>]
-  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
-
-/**
- * Constructs the unrestricted messenger for these tests. This is where all
- * actions and events will ultimately be registered.
+ * Constructs the messenger populated with all external actions and events
+ * required by the controller under test.
  *
- * @returns The unrestricted messenger.
+ * @returns The root messenger.
  */
-function buildUnrestrictedMessenger(): UnrestrictedMessenger {
+function getRootMessenger(): RootMessenger {
   return new Messenger();
 }
 
 /**
- * Constructs the messenger suited for SamplePetnamesController.
+ * Constructs the messenger for the controller under test.
  *
- * @param unrestrictedMessenger - The messenger from which the controller
- * messenger will be derived.
- * @returns The restricted messenger.
+ * @param rootMessenger - The root messenger, with all external actions and
+ * events required by the controller's messenger.
+ * @returns The controller-specific messenger.
  */
-function buildRestrictedMessenger(
-  unrestrictedMessenger = buildUnrestrictedMessenger(),
+function getMessenger(
+  rootMessenger: RootMessenger,
 ): SamplePetnamesControllerMessenger {
-  return unrestrictedMessenger.getRestricted({
+  return rootMessenger.getRestricted({
     name: 'SamplePetnamesController',
     allowedActions: [],
     allowedEvents: [],
@@ -243,24 +244,28 @@ function buildRestrictedMessenger(
 }
 
 /**
- * Constructs a SamplePetnamesController based on the given options, and calls
- * the given function with that controller.
+ * Wrap tests for the controller under test by ensuring that the controller is
+ * created ahead of time and then safely destroyed afterward as needed.
  *
  * @param args - Either a function, or an options bag + a function. The options
- * bag is equivalent to the options that the controller takes, but `messenger`
- * is filled in if not given. The function will be called with the built
- * controller, unrestricted messenger, and restricted messenger.
- * @returns The same return value as the given callback.
+ * bag contains arguments for the controller constructor. All constructor
+ * arguments are optional and will be filled in with defaults in as needed
+ * (including `messenger`). The function is called with the instantiated
+ * controller, root messenger, and controller messenger.
+ * @returns The same return value as the given function.
  */
 async function withController<ReturnValue>(
-  ...args: WithControllerArgs<ReturnValue>
+  ...args:
+    | [WithControllerCallback<ReturnValue>]
+    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const unrestrictedMessenger = buildUnrestrictedMessenger();
-  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
+  const [{ options = {} }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+  const rootMessenger = getRootMessenger();
+  const controllerMessenger = getMessenger(rootMessenger);
   const controller = new SamplePetnamesController({
-    messenger: restrictedMessenger,
-    ...rest,
+    messenger: controllerMessenger,
+    ...options,
   });
-  return await fn({ controller, unrestrictedMessenger, restrictedMessenger });
+  return await testFunction({ controller, rootMessenger, controllerMessenger });
 }

@@ -34,9 +34,9 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const { unrestrictedMessenger } = buildService();
+      const { rootMessenger } = getService();
 
-      const gasPricesResponse = await unrestrictedMessenger.call(
+      const gasPricesResponse = await rootMessenger.call(
         'SampleGasPricesService:fetchGasPrices',
         '0x1',
       );
@@ -62,14 +62,11 @@ describe('SampleGasPricesService', () => {
             },
           };
         });
-      const { service, unrestrictedMessenger } = buildService();
+      const { service, rootMessenger } = getService();
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await unrestrictedMessenger.call(
-        'SampleGasPricesService:fetchGasPrices',
-        '0x1',
-      );
+      await rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1');
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
@@ -88,16 +85,15 @@ describe('SampleGasPricesService', () => {
             },
           };
         });
-      const { service, unrestrictedMessenger } = buildService({
-        policyOptions: { degradedThreshold: 500 },
+      const { service, rootMessenger } = getService({
+        options: {
+          policyOptions: { degradedThreshold: 500 },
+        },
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
-      await unrestrictedMessenger.call(
-        'SampleGasPricesService:fetchGasPrices',
-        '0x1',
-      );
+      await rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1');
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
@@ -108,16 +104,13 @@ describe('SampleGasPricesService', () => {
         .query({ chainId: 'eip155:1' })
         .times(4)
         .reply(500);
-      const { service, unrestrictedMessenger } = buildService();
+      const { service, rootMessenger } = getService();
       service.onRetry(async () => {
         await clock.nextAsync();
       });
 
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
@@ -129,7 +122,7 @@ describe('SampleGasPricesService', () => {
         .query({ chainId: 'eip155:1' })
         .times(4)
         .reply(500);
-      const { service, unrestrictedMessenger } = buildService();
+      const { service, rootMessenger } = getService();
       service.onRetry(async () => {
         await clock.nextAsync();
       });
@@ -137,10 +130,7 @@ describe('SampleGasPricesService', () => {
       service.onDegraded(onDegradedListener);
 
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
@@ -153,7 +143,7 @@ describe('SampleGasPricesService', () => {
         .query({ chainId: 'eip155:1' })
         .times(12)
         .reply(500);
-      const { service, unrestrictedMessenger } = buildService();
+      const { service, rootMessenger } = getService();
       service.onRetry(async () => {
         await clock.nextAsync();
       });
@@ -162,38 +152,26 @@ describe('SampleGasPricesService', () => {
 
       // Should make 4 requests
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       // Should make 4 requests
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       // Should make 4 requests
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       // Should not make an additional request (we only mocked 12 requests
       // above)
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
@@ -221,42 +199,32 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const { service, unrestrictedMessenger } = buildService({
-        policyOptions: { circuitBreakDuration },
+      const { service, rootMessenger } = getService({
+        options: {
+          policyOptions: { circuitBreakDuration },
+        },
       });
       service.onRetry(async () => {
         await clock.nextAsync();
       });
 
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
       await expect(
-        unrestrictedMessenger.call(
-          'SampleGasPricesService:fetchGasPrices',
-          '0x1',
-        ),
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
@@ -282,7 +250,7 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const { service } = buildService();
+      const { service } = getService();
 
       const gasPricesResponse = await service.fetchGasPrices('0x1');
 
@@ -296,34 +264,35 @@ describe('SampleGasPricesService', () => {
 });
 
 /**
- * The type of the messenger where all actions and events will be registered.
+ * The type of the messenger populated with all external actions and events
+ * required by the service under test.
  */
-type UnrestrictedMessenger = Messenger<
+type RootMessenger = Messenger<
   ExtractAvailableAction<SampleGasPricesServiceMessenger>,
   ExtractAvailableEvent<SampleGasPricesServiceMessenger>
 >;
 
 /**
- * Constructs the unrestricted messenger for these tests. This is where all
- * actions and events will ultimately be registered.
+ * Constructs the messenger populated with all external actions and events
+ * required by the service under test.
  *
- * @returns The unrestricted messenger.
+ * @returns The root messenger.
  */
-function buildUnrestrictedMessenger(): UnrestrictedMessenger {
+function buildRootMessenger(): RootMessenger {
   return new Messenger();
 }
 
 /**
- * Constructs the messenger suited for SampleGasPricesService.
+ * Constructs the messenger for the service under test.
  *
- * @param unrestrictedMessenger - The messenger from which the controller messenger
- * will be derived.
- * @returns The restricted messenger.
+ * @param rootMessenger - The root messenger, with all external actions and
+ * events required by the controller's messenger.
+ * @returns The service-specific messenger.
  */
-function buildRestrictedMessenger(
-  unrestrictedMessenger = buildUnrestrictedMessenger(),
+function getMessenger(
+  rootMessenger: RootMessenger,
 ): SampleGasPricesServiceMessenger {
-  return unrestrictedMessenger.getRestricted({
+  return rootMessenger.getRestricted({
     name: 'SampleGasPricesService',
     allowedActions: [],
     allowedEvents: [],
@@ -331,28 +300,30 @@ function buildRestrictedMessenger(
 }
 
 /**
- * Constructs a SampleGasPricesService based on the given options, and calls the
- * given function with that service.
+ * Constructs the service under test.
  *
- * @param options - The options that SampleGasPricesService takes.
- * @returns The constructed service.
+ * @param args - The arguments to this function.
+ * @param args.options - The options that the service constructor takes. All are
+ * optional and will be filled in with defaults in as needed (including
+ * `messenger`).
+ * @returns The new service, root messenger, and service messenger.
  */
-function buildService(
-  options: Partial<
-    ConstructorParameters<typeof SampleGasPricesService>[0]
-  > = {},
-): {
+function getService({
+  options = {},
+}: {
+  options?: Partial<ConstructorParameters<typeof SampleGasPricesService>[0]>;
+} = {}): {
   service: SampleGasPricesService;
-  unrestrictedMessenger: UnrestrictedMessenger;
-  restrictedMessenger: SampleGasPricesServiceMessenger;
+  rootMessenger: RootMessenger;
+  messenger: SampleGasPricesServiceMessenger;
 } {
-  const unrestrictedMessenger = buildUnrestrictedMessenger();
-  const restrictedMessenger = buildRestrictedMessenger(unrestrictedMessenger);
+  const rootMessenger = buildRootMessenger();
+  const messenger = getMessenger(rootMessenger);
   const service = new SampleGasPricesService({
     fetch,
-    messenger: restrictedMessenger,
+    messenger,
     ...options,
   });
 
-  return { service, unrestrictedMessenger, restrictedMessenger };
+  return { service, rootMessenger, messenger };
 }
