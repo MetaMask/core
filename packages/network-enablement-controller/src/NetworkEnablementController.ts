@@ -254,6 +254,71 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Initializes the network enablement state from network controller configurations.
+   *
+   * This method reads the current network configurations from both NetworkController
+   * and MultichainNetworkController and initializes the enabled network map accordingly.
+   * It ensures proper namespace buckets exist for all configured networks and enables
+   * popular networks by default.
+   *
+   * This method should be called after the NetworkController and MultichainNetworkController
+   * have been initialized and their configurations are available.
+   */
+  init(): void {
+    this.update((s) => {
+      // Get network configurations from NetworkController (EVM networks)
+      const networkControllerState = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+
+      // Get network configurations from MultichainNetworkController (all networks)
+      const multichainState = this.messagingSystem.call(
+        'MultichainNetworkController:getState',
+      );
+
+      // Initialize namespace buckets for EVM networks from NetworkController
+      Object.keys(
+        networkControllerState.networkConfigurationsByChainId,
+      ).forEach((chainId) => {
+        const { namespace } = deriveKeys(chainId as Hex);
+        this.#ensureNamespaceBucket(s, namespace);
+      });
+
+      // Initialize namespace buckets for all networks from MultichainNetworkController
+      Object.keys(
+        multichainState.multichainNetworkConfigurationsByChainId,
+      ).forEach((chainId) => {
+        const { namespace } = deriveKeys(chainId as CaipChainId);
+        this.#ensureNamespaceBucket(s, namespace);
+      });
+
+      // Enable popular networks that exist in the configurations
+      POPULAR_NETWORKS.forEach((chainId) => {
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+
+        // Check if network exists in NetworkController configurations
+        if (
+          s.enabledNetworkMap[namespace] &&
+          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
+        ) {
+          s.enabledNetworkMap[namespace][storageKey] = true;
+        }
+      });
+
+      // Enable Solana mainnet if it exists in configurations
+      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
+      if (
+        s.enabledNetworkMap[solanaKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          SolScope.Mainnet
+        ]
+      ) {
+        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
+      }
+    });
+  }
+
+  /**
    * Disables a network for the user.
    *
    * This method accepts either a Hex chain ID (for EVM networks) or a CAIP-2 chain ID
