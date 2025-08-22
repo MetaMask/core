@@ -1917,11 +1917,14 @@ describe('TokenBalancesController', () => {
           .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
           .mockImplementation(() => {
             // Return a promise that never resolves (simulating a hanging request)
+            // eslint-disable-next-line no-empty-function
             return new Promise(() => {});
           });
 
         // Start the balance update (don't await yet)
-        const updatePromise = controller.updateBalances({ chainIds: [chainId] });
+        const updatePromise = controller.updateBalances({
+          chainIds: [chainId],
+        });
 
         // Fast-forward time by 5000ms to trigger the timeout
         jest.advanceTimersByTime(15000);
@@ -1931,7 +1934,7 @@ describe('TokenBalancesController', () => {
 
         // Verify the timeout error was logged with the correct format
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          `Balance fetcher failed for chains ${chainId}: Error: Timeout after 15000ms`
+          `Balance fetcher failed for chains ${chainId}: Error: Timeout after 15000ms`,
         );
 
         // Restore mocks
