@@ -180,7 +180,7 @@ export class SampleGasPricesService {
 
   /**
    * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to an RPC endpoint consistently return a 5xx response.
+   * prove that requests to the API endpoint consistently return a 5xx response.
    *
    * @param listener - The handler to be called.
    * @returns An object that can be used to unregister the handler. See
@@ -195,15 +195,15 @@ export class SampleGasPricesService {
   /**
    * Registers a handler that will be called under one of two circumstances:
    *
-   * 1. After a set number of retries prove that requests to an RPC endpoint
+   * 1. After a set number of retries prove that requests to the API
    * consistently result in one of the following failures:
    *    1. A connection initiation error
    *    2. A connection reset error
    *    3. A timeout error
    *    4. A non-JSON response
    *    5. A 502, 503, or 504 response
-   * 2. After a successful request is made to the RPC endpoint, but the response
-   * takes longer than a set duration to return.
+   * 2. After a successful request is made to the API, but the response takes
+   * longer than a set duration to return.
    *
    * @param listener - The handler to be called.
    * @returns An object that can be used to unregister the handler. See
