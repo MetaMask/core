@@ -8,7 +8,7 @@ import {
   fromHex,
   HttpError,
 } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import { hasProperty, isPlainObject, type Hex } from '@metamask/utils';
 
 import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
 
@@ -232,10 +232,26 @@ export class SampleGasPricesService {
     });
     const jsonResponse = await response.json();
 
-    // Type assertion: We assume that if the request is successful, the response
-    // body always follows a certain shape.
-    const gasPricesResponse = jsonResponse as GasPricesResponse;
+    if (
+      isPlainObject(jsonResponse) &&
+      hasProperty(jsonResponse, 'data') &&
+      isPlainObject(jsonResponse.data) &&
+      hasProperty(jsonResponse.data, 'low') &&
+      hasProperty(jsonResponse.data, 'average') &&
+      hasProperty(jsonResponse.data, 'high')
+    ) {
+      const {
+        data: { low, average, high },
+      } = jsonResponse;
+      if (
+        typeof low === 'number' &&
+        typeof average === 'number' &&
+        typeof high === 'number'
+      ) {
+        return { low, average, high };
+      }
+    }
 
-    return gasPricesResponse.data;
+    throw new Error('Malformed response received from gas prices API');
   }
 }

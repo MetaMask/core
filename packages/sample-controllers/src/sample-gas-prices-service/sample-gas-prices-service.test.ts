@@ -23,7 +23,7 @@ describe('SampleGasPricesService', () => {
   });
 
   describe('SampleGasPricesService:fetchGasPrices', () => {
-    it('returns a slightly cleaned up version of the successful response from the API', async () => {
+    it('returns the low, average, and high gas prices from the API', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
@@ -47,6 +47,31 @@ describe('SampleGasPricesService', () => {
         high: 15,
       });
     });
+
+    it.each([
+      'not an object',
+      { missing: 'data' },
+      { data: 'not an object' },
+      { data: { missing: 'low', average: 2, high: 3 } },
+      { data: { low: 1, missing: 'average', high: 3 } },
+      { data: { low: 1, average: 2, missing: 'high' } },
+      { data: { low: 'not a number', average: 2, high: 3 } },
+      { data: { low: 1, average: 'not a number', high: 3 } },
+      { data: { low: 1, average: 2, high: 'not a number' } },
+    ])(
+      'throws if the API returns a malformed response %o',
+      async (response) => {
+        nock('https://api.example.com')
+          .get('/gas-prices')
+          .query({ chainId: 'eip155:1' })
+          .reply(200, JSON.stringify(response));
+        const { rootMessenger } = getService();
+
+        await expect(
+          rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
+        ).rejects.toThrow('Malformed response received from gas prices API');
+      },
+    );
 
     it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
       nock('https://api.example.com')
