@@ -627,6 +627,59 @@ describe('MultichainAccountService', () => {
     });
   });
 
+  describe('getIsAlignmentInProgress', () => {
+    it('returns false initially', () => {
+      const { service } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns true during alignWallets and false after completion', async () => {
+      const { service } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const alignmentPromise = service.alignWallets();
+      expect(service.getIsAlignmentInProgress()).toBe(true);
+
+      await alignmentPromise;
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns true during alignWallet and false after completion', async () => {
+      const { service } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const alignmentPromise = service.alignWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      expect(service.getIsAlignmentInProgress()).toBe(true);
+
+      await alignmentPromise;
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns false after alignment error', async () => {
+      const { service, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      mocks.EvmAccountProvider.createAccounts.mockRejectedValueOnce(
+        new Error('Test error'),
+      );
+
+      try {
+        await service.alignWallets();
+      } catch {
+        // Expected to throw
+      }
+
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+  });
+
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -767,6 +820,18 @@ describe('MultichainAccountService', () => {
           false,
         ),
       ).toBeUndefined();
+    });
+
+    it('gets alignment progress with MultichainAccountService:getIsAlignmentInProgress', () => {
+      const { messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const isInProgress = messenger.call(
+        'MultichainAccountService:getIsAlignmentInProgress',
+      );
+
+      expect(isInProgress).toBe(false);
     });
   });
 

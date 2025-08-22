@@ -63,6 +63,11 @@ export type MultichainAccountServiceAlignWalletsAction = {
   handler: MultichainAccountService['alignWallets'];
 };
 
+export type MultichainAccountServiceGetIsAlignmentInProgressAction = {
+  type: `${typeof serviceName}:getIsAlignmentInProgress`;
+  handler: MultichainAccountService['getIsAlignmentInProgress'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -76,7 +81,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
-  | MultichainAccountServiceAlignWalletsAction;
+  | MultichainAccountServiceAlignWalletsAction
+  | MultichainAccountServiceGetIsAlignmentInProgressAction;
 
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
