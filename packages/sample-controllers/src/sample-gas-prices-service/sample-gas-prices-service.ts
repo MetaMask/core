@@ -21,7 +21,7 @@ import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-se
 export const serviceName = 'SampleGasPricesService';
 
 // === MESSENGER ===
-//
+
 const MESSENGER_EXPOSED_METHODS = ['fetchGasPrices'] as const;
 
 /**
