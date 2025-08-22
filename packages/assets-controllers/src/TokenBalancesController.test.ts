@@ -1882,6 +1882,67 @@ describe('TokenBalancesController', () => {
       updateBalancesSpy.mockRestore();
       consoleWarnSpy.mockRestore();
     });
+
+    it('should handle timeout scenario', async () => {
+      const chainId = '0x1';
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+      const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Set up tokens so there's something to fetch
+      const tokens = {
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              {
+                address: tokenAddress,
+                symbol: 'TEST',
+                decimals: 18,
+              },
+            ],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      const { controller } = setupController({ tokens });
+
+      // Use fake timers for precise control
+      jest.useFakeTimers();
+
+      try {
+        // Mock the multicall function to return a promise that never resolves
+        const multicallSpy = jest
+          .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+          .mockImplementation(() => {
+            // Return a promise that never resolves (simulating a hanging request)
+            return new Promise(() => {});
+          });
+
+        // Start the balance update (don't await yet)
+        const updatePromise = controller.updateBalances({ chainIds: [chainId] });
+
+        // Fast-forward time by 5000ms to trigger the timeout
+        jest.advanceTimersByTime(15000);
+
+        // Now await the promise - it should have resolved due to timeout
+        await updatePromise;
+
+        // Verify the timeout error was logged with the correct format
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          `Balance fetcher failed for chains ${chainId}: Error: Timeout after 15000ms`
+        );
+
+        // Restore mocks
+        multicallSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+      } finally {
+        // Always restore timers
+        jest.useRealTimers();
+        consoleWarnSpy.mockRestore();
+      }
+    });
   });
 
   describe('token address normalization', () => {
