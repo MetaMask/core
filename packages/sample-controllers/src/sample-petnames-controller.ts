@@ -141,16 +141,23 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  *   allowedActions: [],
  *   allowedEvents: [],
  * });
- * const samplePetnamesController = new SamplePetnamesController({
+ * // Instantiate the controller to register its actions on the messenger
+ * new SamplePetnamesController({
  *   messenger: samplePetnamesMessenger,
  * });
  *
- * samplePetnamesController.assignPetname(
- *   '0x1',
- *   '0xF57F855e17483B1f09bFec62783C9d3b6c8b3A99',
- *   'Primary Account'
+ * globalMessenger.call(
+ *   'SamplePetnamesController:assignPetname',
+ *   [
+ *     '0x1',
+ *     '0xF57F855e17483B1f09bFec62783C9d3b6c8b3A99',
+ *     'Primary Account',
+ *   ],
  * );
- * samplePetnamesController.state.namesByChainIdAndAddress
+ * const samplePetnamesControllerState = await globalMessenger.call(
+ *   'SamplePetnamesController:getState',
+ * );
+ * samplePetnamesControllerState.namesByChainIdAndAddress
  * // => { '0x1': { '0xF57F855e17483B1f09bFec62783C9d3b6c8b3A99': 'Primary Account' } }
  * ```
  */

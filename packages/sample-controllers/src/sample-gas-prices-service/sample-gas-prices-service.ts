@@ -90,15 +90,19 @@ type GasPricesResponse = {
  *   allowedActions: [],
  *   allowedEvents: [],
  * });
- * const gasPricesService = new SampleGasPricesService({
+ * // Instantiate the service to register its actions on the messenger
+ * new SampleGasPricesService({
  *   messenger: gasPricesServiceMessenger,
  *   fetch,
  * });
  *
+ * // Later...
  * // Fetch gas prices for Mainnet
- * const gasPrices = await gasPricesService.fetchGasPrices('0x1');
- *
- * // ... Do something with the response ...
+ * const gasPrices = await globalMessenger.call(
+ *   'SampleGasPricesService:fetchGasPrices',
+ *   '0x1',
+ * );
+ * // ... Do something with the gas prices ...
  * ```
  */
 export class SampleGasPricesService {

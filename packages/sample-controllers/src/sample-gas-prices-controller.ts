@@ -162,7 +162,8 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  * } from '@metamask/example-controllers';
  * import {
  *   SampleGasPricesController,
- *   SampleGasPricesService
+ *   SampleGasPricesService,
+ *   selectGasPrices,
  * } from '@metamask/example-controllers';
  *
  * const globalMessenger = new Messenger<
@@ -178,7 +179,7 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  *   allowedActions: [],
  *   allowedEvents: [],
  * });
- * // Instantiate the service to register the service actions
+ * // Instantiate the service to register its actions on the messenger
  * new SampleGasPricesService({
  *   messenger: gasPricesServiceMessenger,
  *   // We assume you're using this in the browser.
@@ -189,13 +190,20 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  *   allowedActions: ['NetworkController:getNetworkClientById'],
  *   allowedEvents: ['NetworkController:stateChange'],
  * });
- * const gasPricesController = new SampleGasPricesController({
+ * // Instantiate the controller to register its actions on the messenger
+ * new SampleGasPricesController({
  *   messenger: gasPricesControllerMessenger,
  * });
  *
  * // Later...
- * await gasPricesController.updateGasPrices({ chainId: '0x42' });
- * gasPricesController.state.gasPricesByChainId
+ * await globalMessenger.call(
+ *   'SampleGasPricesController:updateGasPrices',
+ *   { chainId: '0x42' },
+ * );
+ * const gasPricesControllerState = await globalMessenger.call(
+ *   'SampleGasPricesController:getState',
+ * );
+ * gasPricesControllerState.gasPricesByChainId
  * // => { '0x42': { low: 5, average: 10, high: 15, fetchedDate: '2024-01-02T00:00:00.000Z' } }
  * ```
  */
