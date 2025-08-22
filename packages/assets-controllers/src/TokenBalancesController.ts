@@ -11,6 +11,7 @@ import type {
 import {
   isValidHexAddress,
   safelyExecuteWithTimeout,
+  toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
@@ -132,6 +133,9 @@ const draft = <T>(base: T, fn: (d: T) => void): T => produce(base, fn);
 
 const ZERO_ADDRESS =
   '0x0000000000000000000000000000000000000000' as ChecksumAddress;
+
+const checksum = (addr: string): ChecksumAddress =>
+  toChecksumHexAddress(addr) as ChecksumAddress;
 // endregion
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -316,7 +320,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (chainTokens?.[account]) {
             Object.values(chainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress = checksum(token.address);
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -329,7 +333,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (detectedChainTokens?.[account]) {
             Object.values(detectedChainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress = checksum(token.address);
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -342,7 +346,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Then update with actual fetched balances where available
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[token] =
+          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
             toHex(value);
         }
       });
