@@ -231,23 +231,43 @@ export class NetworkEnablementController extends BaseController<
    * and Solana mainnet. Unlike the enableNetwork method which has exclusive behavior,
    * this method enables multiple networks across namespaces simultaneously.
    *
-   * Popular networks that don't exist in the current state will be skipped silently.
+   * Popular networks that don't exist in NetworkController or MultichainNetworkController configurations will be skipped silently.
    */
   enableAllPopularNetworks(): void {
     this.update((s) => {
-      // Enable all popular EVM networks
+      // Get current network configurations to check if networks exist
+      const networkControllerState = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      const multichainState = this.messagingSystem.call(
+        'MultichainNetworkController:getState',
+      );
+
+      // Enable all popular EVM networks that exist in NetworkController configurations
       POPULAR_NETWORKS.forEach((chainId) => {
         const { namespace, storageKey } = deriveKeys(chainId as Hex);
 
-        // Only enable if the namespace bucket exists
-        if (s.enabledNetworkMap[namespace]) {
+        // Check if network exists in NetworkController configurations
+        if (
+          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
+        ) {
+          // Ensure namespace bucket exists
+          this.#ensureNamespaceBucket(s, namespace);
+          // Enable the network
           s.enabledNetworkMap[namespace][storageKey] = true;
         }
       });
 
-      // Enable Solana mainnet
+      // Enable Solana mainnet if it exists in MultichainNetworkController configurations
       const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
-      if (s.enabledNetworkMap[solanaKeys.namespace]) {
+      if (
+        multichainState.multichainNetworkConfigurationsByChainId[
+          SolScope.Mainnet
+        ]
+      ) {
+        // Ensure namespace bucket exists
+        this.#ensureNamespaceBucket(s, solanaKeys.namespace);
+        // Enable Solana mainnet
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
     });
