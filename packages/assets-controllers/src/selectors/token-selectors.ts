@@ -2,6 +2,7 @@ import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
 import { createSelector } from 'reselect';
@@ -30,19 +31,26 @@ const MULTICHAIN_NATIVE_ASSET_IDS = [
   `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`,
 ];
 
+type EvmAccountType = Extract<InternalAccount['type'], `eip155:${string}`>;
+type MultichainAccountType = Exclude<
+  InternalAccount['type'],
+  `eip155:${string}`
+>;
+
 export type Asset = (
   | {
-      type: 'evm';
+      type: EvmAccountType;
       assetId: Hex; // This is also the address for EVM tokens
       address: Hex;
       chainId: Hex;
     }
   | {
-      type: 'multichain';
+      type: MultichainAccountType;
       assetId: `${string}:${string}/${string}:${string}`;
       chainId: `${string}:${string}`;
     }
 ) & {
+  accountId: string;
   image: string;
   name: string;
   symbol: string;
@@ -91,7 +99,14 @@ const createAssetListSelector = createSelector.withTypes<AssetListState>();
 const selectAccountsToGroupIdMap = createAssetListSelector(
   [(state) => state.accountTree, (state) => state.internalAccounts],
   (accountTree, internalAccounts) => {
-    const accountsMap: Record<string, AccountGroupId> = {};
+    const accountsMap: Record<
+      string,
+      {
+        accountGroupId: AccountGroupId;
+        type: InternalAccount['type'];
+        accountId: string;
+      }
+    > = {};
     for (const { groups } of Object.values(accountTree.wallets)) {
       for (const { id: accountGroupId, accounts } of Object.values(groups)) {
         for (const accountId of accounts) {
@@ -102,7 +117,7 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
             internalAccount.type.startsWith('eip155')
               ? internalAccount.address
               : accountId
-          ] = accountGroupId;
+          ] = { accountGroupId, type: internalAccount.type, accountId };
         }
       }
     }
@@ -137,7 +152,13 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
-        const accountGroupId = accountsMap[accountAddress];
+        const account = accountsMap[accountAddress.toLowerCase()];
+        if (!account) {
+          continue;
+        }
+
+        const { accountGroupId, type, accountId } = account;
+
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
@@ -166,13 +187,14 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         );
 
         groupChainAssets.push({
-          type: 'evm',
+          type: type as EvmAccountType,
           assetId: nativeToken.address,
           isNative: true,
           address: nativeToken.address,
           image: nativeToken.image,
           name: nativeToken.name,
           symbol: nativeToken.symbol,
+          accountId,
           decimals: nativeToken.decimals,
           balance: stringifyBalanceWithDecimals(
             hexToBigInt(rawBalance),
@@ -224,7 +246,12 @@ const selectAllEvmAssets = createAssetListSelector(
       ) as [Hex, Token[]][]) {
         for (const token of addressTokens) {
           const tokenAddress = token.address as Hex;
-          const accountGroupId = accountsMap[accountAddress];
+          const account = accountsMap[accountAddress];
+          if (!account) {
+            continue;
+          }
+
+          const { accountGroupId, type, accountId } = account;
 
           if (
             ignoredEvmTokens[chainId]?.[accountAddress]?.includes(tokenAddress)
@@ -253,13 +280,14 @@ const selectAllEvmAssets = createAssetListSelector(
           );
 
           groupChainAssets.push({
-            type: 'evm',
+            type: type as EvmAccountType,
             assetId: tokenAddress,
             isNative: false,
             address: tokenAddress,
             image: token.image ?? '',
             name: token.name ?? token.symbol,
             symbol: token.symbol,
+            accountId,
             decimals: token.decimals,
             balance: stringifyBalanceWithDecimals(
               hexToBigInt(rawBalance),
@@ -314,11 +342,13 @@ const selectAllMultichainAssets = createAssetListSelector(
         const { chainId } = caipAsset;
         const asset = `${caipAsset.assetNamespace}:${caipAsset.assetReference}`;
 
-        const accountGroupId = accountsMap[accountId];
+        const account = accountsMap[accountId];
         const assetMetadata = multichainAssetsMetadata[assetId];
-        if (!accountGroupId || !assetMetadata) {
+        if (!account || !assetMetadata) {
           continue;
         }
+
+        const { accountGroupId, type } = account;
 
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];
@@ -343,12 +373,13 @@ const selectAllMultichainAssets = createAssetListSelector(
 
         // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
-          type: 'multichain',
+          type: type as MultichainAccountType,
           assetId,
           isNative: MULTICHAIN_NATIVE_ASSET_IDS.includes(assetId),
           image: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
+          accountId,
           decimals:
             assetMetadata.units.find(
               (unit) =>
@@ -420,7 +451,10 @@ function mergeAssets(
     const existingAccountGroupAssets = existingAssets[accountGroupId];
 
     if (!existingAccountGroupAssets) {
-      existingAssets[accountGroupId] = accountAssets;
+      existingAssets[accountGroupId] = {};
+      for (const [network, chainAssets] of Object.entries(accountAssets)) {
+        existingAssets[accountGroupId][network] = [...chainAssets];
+      }
     } else {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
         existingAccountGroupAssets[network] ??= [];
