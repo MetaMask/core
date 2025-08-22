@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix TokenBalancesController timeout handling by replacing `safelyExecuteWithTimeout` with proper `Promise.race` implementation ([#6365](https://github.com/MetaMask/core/pull/6365))
   - Replace `safelyExecuteWithTimeout` which was silently swallowing timeout errors with direct `Promise.race` that properly throws
-  - Reduce RPC timeout from 3 minutes to 5 seconds for better responsiveness and batch size
+  - Reduce RPC timeout from 3 minutes to 15 seconds for better responsiveness and batch size
   - Enable proper fallback between API and RPC balance fetchers when timeouts occur
 
 ## [74.0.0]
