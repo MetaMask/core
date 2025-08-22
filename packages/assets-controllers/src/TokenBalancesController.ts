@@ -52,7 +52,7 @@ export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
-const RPC_TIMEOUT_MS = 5000;
+const RPC_TIMEOUT_MS = 15000;
 
 const metadata = {
   tokenBalances: { persist: true, anonymous: false },
