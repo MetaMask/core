@@ -351,10 +351,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
 
-    this.#trackResponseValidationFailures(
-      baseQuotes.length,
-      validationFailures,
-    );
+    this.#trackResponseValidationFailures(validationFailures);
 
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
     const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
@@ -373,7 +370,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #trackResponseValidationFailures = (
-    validQuotesCount: number,
     validationFailures: string[],
   ) => {
     if (validationFailures.length === 0) {
@@ -384,7 +380,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         path: 'getQuote',
         failures: validationFailures,
-        quotes_count: validQuotesCount,
       },
     );
   };

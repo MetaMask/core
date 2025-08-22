@@ -199,7 +199,7 @@ export type RequiredEventContextFromClient = {
   [UnifiedSwapBridgeEventName.ResponseValidationFailure]: {
     path: 'getTxStatus' | 'getQuote';
     failures: string[];
-  } & Pick<QuoteFetchData, 'quotes_count'>;
+  };
 };
 
 /**
