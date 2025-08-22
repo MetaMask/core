@@ -10,7 +10,6 @@ import type {
 } from '@metamask/base-controller';
 import {
   isValidHexAddress,
-  safelyExecuteWithTimeout,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
@@ -53,6 +52,7 @@ export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
+const RPC_TIMEOUT_MS = 15000;
 
 const metadata = {
   tokenBalances: { persist: true, anonymous: false },
@@ -270,18 +270,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       try {
-        const balances = await safelyExecuteWithTimeout(
-          async () => {
-            return await fetcher.fetch({
-              chainIds: supportedChains,
-              queryAllAccounts: this.#queryAllAccounts,
-              selectedAccount: selected as ChecksumAddress,
-              allAccounts,
-            });
-          },
-          false,
-          this.getIntervalLength(),
-        );
+        const balances = await Promise.race([
+          fetcher.fetch({
+            chainIds: supportedChains,
+            queryAllAccounts: this.#queryAllAccounts,
+            selectedAccount: selected as ChecksumAddress,
+            allAccounts,
+          }),
+          new Promise<never>((_resolve, reject) =>
+            setTimeout(() => {
+              reject(new Error(`Timeout after ${RPC_TIMEOUT_MS}ms`));
+            }, RPC_TIMEOUT_MS),
+          ),
+        ]);
 
         if (balances && balances.length > 0) {
           aggregated.push(...balances);
