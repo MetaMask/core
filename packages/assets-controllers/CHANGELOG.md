@@ -17,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ensure that the evm addresses used for an internal mapping are always lowercase to avoid mismatches with client format ([#6358](https://github.com/MetaMask/core/pull/6358)).
 - Prevents mutation of memoized fields, which was causing issues ([#6358](https://github.com/MetaMask/core/pull/6358)).
 
-### Fixed
-
 - Fix duplicate token balance entries caused by case-sensitive address comparison in `TokenBalancesController.updateBalances` ([#6354](https://github.com/MetaMask/core/pull/6354))
   - Normalize token addresses to proper EIP-55 checksum format before using as object keys to prevent the same token from appearing multiple times with different cases
   - Add comprehensive unit tests for token address normalization scenarios
