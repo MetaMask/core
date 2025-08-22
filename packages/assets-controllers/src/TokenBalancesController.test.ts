@@ -1,6 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
-import * as controllerUtils from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -1790,32 +1789,35 @@ describe('TokenBalancesController', () => {
   describe('error logging', () => {
     it('should log error when balance fetcher throws in try-catch block', async () => {
       const chainId = '0x1';
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+      const tokenAddress = '0x0000000000000000000000000000000000000001';
       const mockError = new Error('Fetcher failed');
 
       // Spy on console.warn
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const { controller } = setupController();
-
-      // Mock safelyExecuteWithTimeout to simulate the scenario where the error
-      // bypasses it and reaches the catch block directly (line 289-292)
-      const safelyExecuteSpy = jest
-        .spyOn(controllerUtils, 'safelyExecuteWithTimeout')
-        .mockImplementation(async () => {
-          // Instead of swallowing the error, throw it to reach the catch block
-          throw mockError;
-        });
-
-      // Mock a fetcher that supports the chain
-      const mockFetcher = {
-        supports: jest.fn().mockReturnValue(true),
-        fetch: jest.fn(),
+      // Set up tokens so there's something to fetch
+      const tokens = {
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              {
+                address: tokenAddress,
+                symbol: 'TEST',
+                decimals: 18,
+              },
+            ],
+          },
+        },
+        allDetectedTokens: {},
       };
 
-      Object.defineProperty(controller, '#balanceFetchers', {
-        value: [mockFetcher],
-        writable: true,
-      });
+      const { controller } = setupController({ tokens });
+
+      // Mock the multicall function to throw an error
+      const multicallSpy = jest
+        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+        .mockRejectedValue(mockError);
 
       await controller.updateBalances({ chainIds: [chainId] });
 
@@ -1825,7 +1827,7 @@ describe('TokenBalancesController', () => {
       );
 
       // Restore mocks
-      safelyExecuteSpy.mockRestore();
+      multicallSpy.mockRestore();
       consoleWarnSpy.mockRestore();
     });
 
