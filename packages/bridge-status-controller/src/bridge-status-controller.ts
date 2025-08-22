@@ -590,6 +590,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#fetchFn,
         this.#config.customBridgeApiBaseUrl,
       );
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.ResponseValidationFailure,
+        bridgeTxMetaId,
+        {
+          path: 'getTxStatus',
+          failures: [],
+        },
+      );
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
@@ -1155,7 +1163,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
-      | typeof UnifiedSwapBridgeEventName.Completed,
+      | typeof UnifiedSwapBridgeEventName.Completed
+      | typeof UnifiedSwapBridgeEventName.ResponseValidationFailure,
   >(
     eventName: T,
     txMetaId?: string,
@@ -1199,9 +1208,33 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ({ id }) => id === historyItem.approvalTxId,
     );
 
+    const requestParamProperties = getRequestParamFromHistory(historyItem);
+
+    if (eventName === UnifiedSwapBridgeEventName.ResponseValidationFailure) {
+      const {
+        chain_id_source,
+        chain_id_destination,
+        token_address_source,
+        token_address_destination,
+      } = requestParamProperties;
+      this.messagingSystem.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
+        eventName,
+        {
+          ...baseProperties,
+          chain_id_source,
+          chain_id_destination,
+          token_address_source,
+          token_address_destination,
+          refresh_count: historyItem.attempts?.counter ?? 0,
+        },
+      );
+      return;
+    }
+
     const requiredEventProperties = {
       ...baseProperties,
-      ...getRequestParamFromHistory(historyItem),
+      ...requestParamProperties,
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),
       ...getTradeDataFromHistory(historyItem),
       ...getTxStatusesFromHistory(historyItem),
