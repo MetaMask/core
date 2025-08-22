@@ -4,26 +4,27 @@ exports[`fetch fetchBridgeQuotes should filter out malformed bridge quotes 2`] =
 Array [
   Array [
     "Quote validation failed",
-    Object {
-      "socket": Set {
-        "quote.requestId",
-        "quote.srcChainId",
-        "quote.srcAsset.decimals",
-        "quote.srcTokenAmount",
-        "quote.destChainId",
-        "quote.destAsset",
-        "quote.destTokenAmount",
-        "quote.minDestTokenAmount",
-        "quote.feeData",
-        "quote.bridges",
-        "quote.steps",
-        "quote.srcAsset",
-        "quote.destAsset.address",
-      },
-      "undefined": Set {
-        "quote",
-      },
-    },
+    Array [
+      "unknown|quote",
+      "lifi|quote.requestId",
+      "lifi|quote.srcChainId",
+      "lifi|quote.srcAsset.decimals",
+      "lifi|quote.srcTokenAmount",
+      "lifi|quote.destChainId",
+      "lifi|quote.destAsset",
+      "lifi|quote.destTokenAmount",
+      "lifi|quote.feeData",
+      "lifi|quote.steps",
+      "socket|quote.requestId",
+      "socket|quote.srcChainId",
+      "socket|quote.srcAsset",
+      "socket|quote.srcTokenAmount",
+      "socket|quote.destChainId",
+      "socket|quote.destAsset.address",
+      "socket|quote.destTokenAmount",
+      "socket|quote.feeData",
+      "socket|quote.steps",
+    ],
   ],
 ]
 `;
