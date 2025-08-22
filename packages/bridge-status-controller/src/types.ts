@@ -148,6 +148,7 @@ export enum BridgeStatusAction {
   SUBMIT_TX = 'submitTx',
   RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
   GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
+  GET_CURRENT_SUBMISSION_REQUEST = 'getCurrentSubmissionRequest',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -216,6 +217,10 @@ export type SourceChainTxMetaId = string;
 
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
+  currentSubmissionRequest?: {
+    quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
+    isBridgeTx: boolean;
+  };
 };
 
 // Actions
@@ -250,6 +255,9 @@ export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
 export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
   BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
 
+export type BridgeStatusControllerGetCurrentSubmissionRequestAction =
+  BridgeStatusControllerAction<BridgeStatusAction.GET_CURRENT_SUBMISSION_REQUEST>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
@@ -257,7 +265,8 @@ export type BridgeStatusControllerActions =
   | BridgeStatusControllerGetStateAction
   | BridgeStatusControllerSubmitTxAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction
+  | BridgeStatusControllerGetCurrentSubmissionRequestAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<

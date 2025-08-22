@@ -82,6 +82,10 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
     persist: true,
     anonymous: false,
   },
+  currentSubmissionRequest: {
+    persist: false,
+    anonymous: false,
+  },
 };
 
 /** The input to start polling for the {@link BridgeStatusController} */
@@ -189,6 +193,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
       this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:getCurrentSubmissionRequest`,
+      this.getCurrentSubmissionRequest.bind(this),
+    );
 
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
@@ -266,6 +274,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   resetState = () => {
     this.update((state) => {
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
+      state.currentSubmissionRequest =
+        DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.currentSubmissionRequest;
     });
   };
 
@@ -280,6 +290,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (ignoreNetwork) {
       this.update((state) => {
         state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
+        state.currentSubmissionRequest =
+          DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.currentSubmissionRequest;
       });
     } else {
       const { selectedNetworkClientId } = this.messagingSystem.call(
@@ -966,6 +978,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
 
     const { batchId } = await this.#addTransactionBatchFn(transactionParams);
+
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
       messagingSystem: this.messagingSystem,
       updateTransactionFn: this.#updateTransactionFn,
@@ -1041,6 +1054,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         async () => {
           try {
+            this.update((state) => {
+              state.currentSubmissionRequest = {
+                quoteResponse,
+                isBridgeTx,
+              };
+            });
+
             return await this.#handleSolanaTx(
               quoteResponse as QuoteResponse<string> & QuoteMetadata,
               selectedAccount,
@@ -1077,6 +1097,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () => {
+          this.update((state) => {
+            state.currentSubmissionRequest = {
+              quoteResponse,
+              isBridgeTx,
+            };
+          });
+
           if (isStxEnabledOnClient || quoteResponse.quote.gasIncluded7702) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
@@ -1143,9 +1170,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
+    } finally {
+      // Clear the current submission request state
+      this.update((state) => {
+        state.currentSubmissionRequest = undefined;
+      });
     }
     return txMeta;
   };
+
+  /**
+   * Gets the current submission request state
+   *
+   * @returns The current submission request or undefined if none exists
+   */
+  getCurrentSubmissionRequest() {
+    return this.state.currentSubmissionRequest;
+  }
 
   /**
    * Tracks post-submission events for a cross-chain swap based on the history item
