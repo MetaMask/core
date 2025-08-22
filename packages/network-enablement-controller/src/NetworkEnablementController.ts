@@ -16,6 +16,7 @@ import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/t
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
+import { POPULAR_NETWORKS } from './constants';
 import { SolScope } from './types';
 import {
   deriveKeys,
@@ -204,9 +205,7 @@ export class NetworkEnablementController extends BaseController<
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
   enableNetwork(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey, reference } = deriveKeys(chainId);
-
-    const isPopular = isPopularNetwork(reference);
+    const { namespace, storageKey } = deriveKeys(chainId);
 
     this.update((s) => {
       // if the namespace bucket does not exist, return
@@ -215,22 +214,42 @@ export class NetworkEnablementController extends BaseController<
         return;
       }
 
-      // If enabling a non-popular network, disable all networks in the same namespace
-      if (!isPopular) {
-        // disable all networks in the same namespace
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
-        });
-      } else {
-        // disable all custom networks
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          const { reference: keyReference } = deriveKeys(key as CaipChainId);
-          if (!isPopularNetwork(keyReference)) {
-            s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
-          }
-        });
-      }
+      // disable all networks in the same namespace
+      Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+        s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+      });
+
+      // enable the network
       s.enabledNetworkMap[namespace][storageKey] = true;
+    });
+  }
+
+  /**
+   * Enables all popular networks and Solana mainnet.
+   *
+   * This method enables all networks defined in POPULAR_NETWORKS (EVM networks)
+   * and Solana mainnet. Unlike the enableNetwork method which has exclusive behavior,
+   * this method enables multiple networks across namespaces simultaneously.
+   *
+   * Popular networks that don't exist in the current state will be skipped silently.
+   */
+  enableAllPopularNetworks(): void {
+    this.update((s) => {
+      // Enable all popular EVM networks
+      POPULAR_NETWORKS.forEach((chainId) => {
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+
+        // Only enable if the namespace bucket exists
+        if (s.enabledNetworkMap[namespace]) {
+          s.enabledNetworkMap[namespace][storageKey] = true;
+        }
+      });
+
+      // Enable Solana mainnet
+      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
+      if (s.enabledNetworkMap[solanaKeys.namespace]) {
+        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
+      }
     });
   }
 

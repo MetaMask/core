@@ -322,8 +322,136 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  describe('enableAllPopularNetworks', () => {
+    it('enables all popular networks that exist in state and Solana mainnet', () => {
+      const { controller } = setupInitializedController();
+
+      // Initially disable some networks
+      controller.disableNetwork('0xe708'); // Linea
+      controller.disableNetwork('0x2105'); // Base
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            '0x1': true, // Ethereum Mainnet
+            '0xe708': false, // Linea Mainnet (disabled)
+            '0x2105': false, // Base Mainnet (disabled)
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+          },
+        },
+      });
+
+      // Enable all popular networks
+      controller.enableAllPopularNetworks();
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            '0x1': true, // Ethereum Mainnet
+            '0xe708': true, // Linea Mainnet
+            '0x2105': true, // Base Mainnet
+            '0xa4b1': true, // Arbitrum One
+            '0xa86a': true, // Avalanche C-Chain
+            '0x38': true, // BNB Smart Chain
+            '0xa': true, // Optimism
+            '0x89': true, // Polygon
+            '0x531': true, // Sei
+            '0x144': true, // zkSync Era
+            '0x2a15c308d': true, // Palm
+            '0x3e7': true, // HyperEVM
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true, // Solana
+          },
+        },
+      });
+    });
+
+    it('enables all popular networks from constants', () => {
+      const { controller } = setupController();
+
+      // The function should enable all popular networks defined in constants
+      expect(() => controller.enableAllPopularNetworks()).not.toThrow();
+
+      // Should enable all popular networks and Solana
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
+            '0xa4b1': true, // Arbitrum One
+            '0xa86a': true, // Avalanche C-Chain
+            '0x38': true, // BNB Smart Chain
+            '0xa': true, // Optimism
+            '0x89': true, // Polygon
+            '0x531': true, // Sei
+            '0x144': true, // zkSync Era
+            '0x2a15c308d': true, // Palm
+            '0x3e7': true, // HyperEVM
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true, // Solana Mainnet
+          },
+        },
+      });
+    });
+
+    it('does not disable any existing networks', async () => {
+      const { controller, messenger } = setupInitializedController();
+
+      // Add a non-popular network
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0x2', // A network not in POPULAR_NETWORKS
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Test Network',
+        nativeCurrency: 'TEST',
+        rpcEndpoints: [
+          {
+            url: 'https://test.network/rpc',
+            networkClientId: 'test-id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // The added network should be enabled (exclusive behavior of network addition)
+      expect(controller.isNetworkEnabled('0x2')).toBe(true);
+      // Popular networks should be disabled due to exclusive behavior
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      // Enable all popular networks - this should not disable the non-popular network
+      controller.enableAllPopularNetworks();
+
+      // All popular networks should now be enabled (no exclusive behavior)
+      expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true); // Linea
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true); // Base
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true); // Arbitrum One
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true); // Avalanche C-Chain
+      expect(controller.isNetworkEnabled('0x38')).toBe(true); // BNB Smart Chain
+      expect(controller.isNetworkEnabled('0xa')).toBe(true); // Optimism
+      expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon
+      expect(controller.isNetworkEnabled('0x531')).toBe(true); // Sei
+      expect(controller.isNetworkEnabled('0x144')).toBe(true); // zkSync Era
+      expect(controller.isNetworkEnabled('0x2a15c308d')).toBe(true); // Palm
+      expect(controller.isNetworkEnabled('0x3e7')).toBe(true); // HyperEVM
+      expect(controller.isNetworkEnabled('0x2')).toBe(true); // Test network (not disabled)
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true); // Solana
+    });
+  });
+
   describe('enableNetwork', () => {
-    it('enables a popular network without clearing others', () => {
+    it('enables a network and clears all others in the same namespace', () => {
       const { controller } = setupInitializedController();
 
       // Disable a popular network (Ethereum Mainnet)
@@ -342,24 +470,24 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the network again
+      // Enable the network again - this should disable all others in the same namespace
       controller.enableNetwork('0x1');
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (re-enabled)
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: false, // Linea Mainnet (disabled)
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: false, // Base Mainnet (disabled)
           },
           [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: true,
+            [SolScope.Mainnet]: true, // Unaffected (different namespace)
           },
         },
       });
     });
 
-    it('enables a non-popular network and clears all others', async () => {
+    it('enables any network and clears all others (exclusive behavior)', async () => {
       const { controller, messenger } = setupInitializedController();
 
       // Add a non-popular network
@@ -394,16 +522,14 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the popular networks again
-      controller.enableNetwork('0x1');
-      controller.enableNetwork('0xe708');
+      // Enable one of the popular networks - only this one will be enabled
       controller.enableNetwork('0x2105');
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            '0x1': true,
-            '0xe708': true,
+            '0x1': false,
+            '0xe708': false,
             '0x2105': true,
             '0x2': false,
           },
@@ -413,7 +539,7 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the non-popular network again
+      // Enable the non-popular network again - it will disable all others
       controller.enableNetwork('0x2');
 
       expect(controller.state).toStrictEqual({
