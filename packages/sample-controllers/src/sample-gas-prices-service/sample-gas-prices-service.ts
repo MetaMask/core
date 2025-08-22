@@ -76,13 +76,27 @@ type GasPricesResponse = {
  * @example
  *
  * ``` ts
- * import type { SampleGasPricesMessenger } from '@metamask/sample-controllers';
+ * import type {
+ *   SampleGasPricesServiceActions,
+ *   SampleGasPricesServiceEvents
+ * } from '@metamask/sample-controllers';
  *
- * const messenger: SampleGasPricesMessenger = new Messenger();
- * const service = new SampleGasPricesService({ messenger, fetch });
+ * const globalMessenger = new Messenger<
+ *   SampleGasPricesServiceActions
+ *   SampleGasPricesServiceEvents
+ * >();
+ * const gasPricesServiceMessenger = globalMessenger.getRestricted({
+ *   name: 'SampleGasPricesService',
+ *   allowedActions: [],
+ *   allowedEvents: [],
+ * });
+ * const gasPricesService = new SampleGasPricesService({
+ *   messenger: gasPricesServiceMessenger,
+ *   fetch,
+ * });
  *
  * // Fetch gas prices for Mainnet
- * const gasPricesResponse = await service.fetchGasPrices('0x1');
+ * const gasPrices = await gasPricesService.fetchGasPrices('0x1');
  *
  * // ... Do something with the response ...
  * ```

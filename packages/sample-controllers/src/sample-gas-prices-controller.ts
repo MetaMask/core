@@ -165,7 +165,6 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  *   SampleGasPricesService
  * } from '@metamask/example-controllers';
  *
- * // Assuming that you're using this in the browser
  * const globalMessenger = new Messenger<
  *  SampleGasPricesServiceActions
  *  | SampleGasPricesControllerActions
@@ -174,13 +173,15 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  *  | SampleGasPricesControllerEvents
  *  | NetworkControllerEvents
  * >();
- * const gasPricesServiceMessenger: globalMessenger.getRestricted({
+ * const gasPricesServiceMessenger = globalMessenger.getRestricted({
  *   name: 'SampleGasPricesService',
  *   allowedActions: [],
  *   allowedEvents: [],
  * });
- * const gasPricesService = new SampleGasPricesService({
+ * // Instantiate the service to register the service actions
+ * new SampleGasPricesService({
  *   messenger: gasPricesServiceMessenger,
+ *   // We assume you're using this in the browser.
  *   fetch,
  * });
  * const gasPricesControllerMessenger = globalMessenger.getRestricted({

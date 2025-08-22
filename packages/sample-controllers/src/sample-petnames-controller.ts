@@ -130,13 +130,13 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  * import type {
  *   SamplePetnamesControllerActions,
  *   SamplePetnamesControllerEvents
- * } from '@metamask/example-controllers';
+ * } from '@metamask/sample-controllers';
  *
- * const rootMessenger = new Messenger<
+ * const globalMessenger = new Messenger<
  *  SamplePetnamesControllerActions,
  *  SamplePetnamesControllerEvents
  * >();
- * const samplePetnamesMessenger = rootMessenger.getRestricted({
+ * const samplePetnamesMessenger = globalMessenger.getRestricted({
  *   name: 'SamplePetnamesController',
  *   allowedActions: [],
  *   allowedEvents: [],
