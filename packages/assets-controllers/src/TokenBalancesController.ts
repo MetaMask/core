@@ -10,7 +10,7 @@ import type {
 } from '@metamask/base-controller';
 import {
   isValidHexAddress,
-  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
@@ -52,6 +52,7 @@ export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
+const RPC_TIMEOUT_MS = 15000;
 
 const metadata = {
   tokenBalances: { persist: true, anonymous: false },
@@ -132,6 +133,9 @@ const draft = <T>(base: T, fn: (d: T) => void): T => produce(base, fn);
 
 const ZERO_ADDRESS =
   '0x0000000000000000000000000000000000000000' as ChecksumAddress;
+
+const checksum = (addr: string): ChecksumAddress =>
+  toChecksumHexAddress(addr) as ChecksumAddress;
 // endregion
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -266,18 +270,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       try {
-        const balances = await safelyExecuteWithTimeout(
-          async () => {
-            return await fetcher.fetch({
-              chainIds: supportedChains,
-              queryAllAccounts: this.#queryAllAccounts,
-              selectedAccount: selected as ChecksumAddress,
-              allAccounts,
-            });
-          },
-          false,
-          this.getIntervalLength(),
-        );
+        const balances = await Promise.race([
+          fetcher.fetch({
+            chainIds: supportedChains,
+            queryAllAccounts: this.#queryAllAccounts,
+            selectedAccount: selected as ChecksumAddress,
+            allAccounts,
+          }),
+          new Promise<never>((_resolve, reject) =>
+            setTimeout(() => {
+              reject(new Error(`Timeout after ${RPC_TIMEOUT_MS}ms`));
+            }, RPC_TIMEOUT_MS),
+          ),
+        ]);
 
         if (balances && balances.length > 0) {
           aggregated.push(...balances);
@@ -316,7 +321,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (chainTokens?.[account]) {
             Object.values(chainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress = checksum(token.address);
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -329,7 +334,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (detectedChainTokens?.[account]) {
             Object.values(detectedChainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress = checksum(token.address);
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -342,7 +347,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Then update with actual fetched balances where available
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[token] =
+          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
             toHex(value);
         }
       });
