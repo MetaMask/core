@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getPricing` method ([#6356](https://github.com/MetaMask/core/pull/6356))
+
 - Initial release of the subscription controller ([#6233](https://github.com/MetaMask/core/pull/6233))
   - This controller allows MM extension and mobile users to manage user subscription, create new subscription, check subscription status.
   - The current controller contains the following methods:
