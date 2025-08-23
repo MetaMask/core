@@ -1,6 +1,10 @@
 import { getEnvUrls, type Env } from './constants';
 import { SubscriptionServiceError } from './errors';
-import type { ISubscriptionService, Subscription } from './types';
+import type {
+  ISubscriptionService,
+  PricingResponse,
+  Subscription,
+} from './types';
 
 export type SubscriptionServiceConfig = {
   env: Env;
@@ -94,5 +98,44 @@ export class SubscriptionService implements ISubscriptionService {
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.#config.auth.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  async getPricing(): Promise<PricingResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async #makeRequest<Result>(
+    path: string,
+    method: 'GET' | 'POST' = 'GET',
+  ): Promise<Result> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
+
+      const response = await fetch(url.toString(), {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      const responseBody = (await response.json()) as ErrorMessage;
+      if (!response.ok) {
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      return responseBody as Result;
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? 'unknown error');
+
+      throw new SubscriptionServiceError(
+        `failed to make request: ${errorMessage}`,
+      );
+    }
   }
 }

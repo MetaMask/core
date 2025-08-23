@@ -3,7 +3,7 @@ import nock, { cleanAll, isDone } from 'nock';
 import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
-import type { Subscription } from './types';
+import type { PricingResponse, Subscription } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -476,6 +476,56 @@ describe('SubscriptionService', () => {
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
       expect(isDone()).toBe(true);
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: {
+        type: 'crypto',
+        chains: [],
+      },
+    };
+
+    it('should fetch pricing successfully', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl).get('/api/v1/pricing').reply(200, mockPricingResponse);
+
+      const result = await service.getPricing();
+
+      expect(result).toStrictEqual(mockPricingResponse);
+    });
+
+    it('should throw SubscriptionServiceError for 404 response', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl).get('/api/v1/pricing').reply(404, MOCK_ERROR_RESPONSE);
+
+      await expect(service.getPricing()).rejects.toThrow(
+        /Subscription not found/u,
+      );
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+
+      try {
+        const fetchMock = jest.spyOn(global, 'fetch');
+        fetchMock.mockRejectedValueOnce('String error');
+        await expect(service.getPricing()).rejects.toThrow('String error');
+
+        fetchMock.mockRejectedValueOnce(null);
+        await expect(service.getPricing()).rejects.toThrow('unknown error');
+      } finally {
+        jest.restoreAllMocks();
+      }
     });
   });
 });

@@ -9,6 +9,7 @@ import {
 import { SubscriptionService } from './SubscriptionService';
 import type {
   ISubscriptionService,
+  PricingResponse,
   SubscriptionControllerConfig,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
@@ -103,6 +104,20 @@ export class SubscriptionController extends BaseController<
       });
   }
 
+  /**
+   * Gets the pricing information from the subscription service.
+   *
+   * @returns The pricing information.
+   */
+  async getPricing(): Promise<PricingResponse> {
+    return await this.#subscriptionService.getPricing();
+  }
+
+  /**
+   * Gets the subscription information from the subscription service.
+   *
+   * @returns The subscription information.
+   */
   async getSubscription() {
     const subscription = await this.#subscriptionService.getSubscription();
 
