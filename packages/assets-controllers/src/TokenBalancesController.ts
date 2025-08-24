@@ -365,7 +365,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         const balanceUpdates = nativeBalances.map((balance) => ({
           address: balance.account,
           chainId: balance.chainId,
-          balance: balance.value?.toString() ?? '0',
+          balance: balance.value?.toString() ?? '0x0',
         }));
 
         this.messagingSystem.call(
@@ -392,7 +392,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         const stakedBalanceUpdates = stakedBalances.map((balance) => ({
           address: balance.account,
           chainId: balance.chainId,
-          stakedBalance: balance.value?.toString() ?? '0',
+          stakedBalance: balance.value ? toHex(balance.value) : '0x0',
         }));
 
         this.messagingSystem.call(
