@@ -9,7 +9,6 @@ import { projectLogger } from '../logger';
 import type {
   BatchTransaction,
   BatchTransactionParams,
-  NestedTransactionMetadata,
   PublishHook,
   PublishHookResult,
   TransactionBatchSingleRequest,
@@ -28,17 +27,12 @@ const log = createModuleLogger(
 export class ExtraTransactionsPublishHook {
   readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
 
-  readonly #transactions: BatchTransaction[];
-
   constructor({
     addTransactionBatch,
-    transactions,
   }: {
     addTransactionBatch: TransactionController['addTransactionBatch'];
-    transactions: NestedTransactionMetadata[];
   }) {
     this.#addTransactionBatch = addTransactionBatch;
-    this.#transactions = transactions;
   }
 
   /**
@@ -54,8 +48,13 @@ export class ExtraTransactionsPublishHook {
   ): Promise<PublishHookResult> {
     log('Publishing transaction as batch', { transactionMeta, signedTx });
 
-    const { batchTransactionsOptions, id, networkClientId, txParams } =
-      transactionMeta;
+    const {
+      batchTransactions,
+      batchTransactionsOptions,
+      id,
+      networkClientId,
+      txParams,
+    } = transactionMeta;
 
     const from = txParams.from as Hex;
     const to = txParams.to as Hex | undefined;
@@ -93,7 +92,7 @@ export class ExtraTransactionsPublishHook {
       params: firstParams,
     };
 
-    const extraTransactions = this.#transactions.map((transaction) => {
+    const extraTransactions = (batchTransactions ?? []).map((transaction) => {
       const { isAfter, type, ...rest } = transaction;
       return {
         isAfter,
@@ -102,13 +101,21 @@ export class ExtraTransactionsPublishHook {
       };
     });
 
-    const beforeTransactions = extraTransactions.filter(
-      (transaction) => transaction.isAfter === false,
-    );
+    const beforeTransactions: TransactionBatchSingleRequest[] =
+      extraTransactions
+        .filter((transaction) => transaction.isAfter === false)
+        .map(({ isAfter, ...rest }) => ({
+          ...rest,
+        }));
 
-    const afterTransactions = extraTransactions.filter(
-      (transaction) => transaction.isAfter === undefined || transaction.isAfter,
-    );
+    const afterTransactions: TransactionBatchSingleRequest[] = extraTransactions
+      .filter(
+        (transaction) =>
+          transaction.isAfter === undefined || transaction.isAfter,
+      )
+      .map(({ isAfter, ...rest }) => ({
+        ...rest,
+      }));
 
     const transactions: TransactionBatchSingleRequest[] = [
       ...beforeTransactions,

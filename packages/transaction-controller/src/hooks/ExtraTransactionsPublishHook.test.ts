@@ -1,31 +1,40 @@
 import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
 import type {
-  NestedTransactionMetadata,
+  BatchTransactionParams,
   TransactionController,
   TransactionMeta,
 } from '..';
+import type { BatchTransaction } from '../types';
 import { TransactionType } from '../types';
 
 const SIGNED_TRANSACTION_MOCK = '0xffe';
 const TRANSACTION_HASH_MOCK = '0xeee';
 
-const BATCH_TRANSACTION_PARAMS_MOCK: NestedTransactionMetadata = {
+const BATCH_TRANSACTION_PARAMS_MOCK: BatchTransactionParams = {
   data: '0x123',
   gas: '0xab1',
   maxFeePerGas: '0xab2',
   maxPriorityFeePerGas: '0xab3',
   to: '0x456',
   value: '0x789',
-  type: TransactionType.gasPayment,
 };
 
-const BATCH_TRANSACTION_PARAMS_2_MOCK: NestedTransactionMetadata = {
+const BATCH_TRANSACTION_PARAMS_2_MOCK: BatchTransactionParams = {
   data: '0x321',
   gas: '0xab4',
   maxFeePerGas: '0xab5',
   maxPriorityFeePerGas: '0xab6',
   to: '0x654',
   value: '0x987',
+};
+
+const BATCH_TRANSACTION_MOCK: BatchTransaction = {
+  ...BATCH_TRANSACTION_PARAMS_MOCK,
+  type: TransactionType.gasPayment,
+};
+
+const BATCH_TRANSACTION_2_MOCK: BatchTransaction = {
+  ...BATCH_TRANSACTION_PARAMS_2_MOCK,
   type: TransactionType.swap,
 };
 
@@ -41,6 +50,7 @@ const TRANSACTION_META_MOCK = {
     to: '0xdef',
     value: '0xfed',
   },
+  batchTransactions: [BATCH_TRANSACTION_MOCK, BATCH_TRANSACTION_2_MOCK],
 } as TransactionMeta;
 
 describe('ExtraTransactionsPublishHook', () => {
@@ -51,10 +61,6 @@ describe('ExtraTransactionsPublishHook', () => {
 
     const hookInstance = new ExtraTransactionsPublishHook({
       addTransactionBatch,
-      transactions: [
-        BATCH_TRANSACTION_PARAMS_MOCK,
-        BATCH_TRANSACTION_PARAMS_2_MOCK,
-      ],
     });
 
     const hook = hookInstance.getHook();
@@ -62,16 +68,6 @@ describe('ExtraTransactionsPublishHook', () => {
     hook(TRANSACTION_META_MOCK, SIGNED_TRANSACTION_MOCK).catch(() => {
       // Intentionally empty
     });
-
-    const {
-      type: expectedFirstBatchTransactionType,
-      ...expectedFirstBatchTransactionParams
-    } = BATCH_TRANSACTION_PARAMS_MOCK;
-
-    const {
-      type: expectedSecondBatchTransactionType,
-      ...expectedSecondBatchTransactionParams
-    } = BATCH_TRANSACTION_PARAMS_2_MOCK;
 
     expect(addTransactionBatch).toHaveBeenCalledTimes(1);
     expect(addTransactionBatch).toHaveBeenCalledWith({
@@ -95,12 +91,12 @@ describe('ExtraTransactionsPublishHook', () => {
           },
         },
         {
-          params: expectedFirstBatchTransactionParams,
-          type: expectedFirstBatchTransactionType,
+          params: BATCH_TRANSACTION_PARAMS_MOCK,
+          type: BATCH_TRANSACTION_MOCK.type,
         },
         {
-          params: expectedSecondBatchTransactionParams,
-          type: expectedSecondBatchTransactionType,
+          params: BATCH_TRANSACTION_PARAMS_2_MOCK,
+          type: BATCH_TRANSACTION_2_MOCK.type,
         },
       ],
       disable7702: true,
@@ -116,10 +112,6 @@ describe('ExtraTransactionsPublishHook', () => {
 
     const hookInstance = new ExtraTransactionsPublishHook({
       addTransactionBatch,
-      transactions: [
-        BATCH_TRANSACTION_PARAMS_MOCK,
-        BATCH_TRANSACTION_PARAMS_2_MOCK,
-      ],
     });
 
     const hook = hookInstance.getHook();
@@ -155,10 +147,6 @@ describe('ExtraTransactionsPublishHook', () => {
 
     const hookInstance = new ExtraTransactionsPublishHook({
       addTransactionBatch,
-      transactions: [
-        BATCH_TRANSACTION_PARAMS_MOCK,
-        BATCH_TRANSACTION_PARAMS_2_MOCK,
-      ],
     });
 
     const hook = hookInstance.getHook();
@@ -170,5 +158,99 @@ describe('ExtraTransactionsPublishHook', () => {
     });
 
     await expect(hookPromise).rejects.toThrow('Test error');
+  });
+
+  it('uses batch transaction options', async () => {
+    const addTransactionBatch: jest.MockedFn<
+      TransactionController['addTransactionBatch']
+    > = jest.fn();
+
+    const hookInstance = new ExtraTransactionsPublishHook({
+      addTransactionBatch,
+    });
+
+    const hook = hookInstance.getHook();
+
+    hook(
+      {
+        ...TRANSACTION_META_MOCK,
+        batchTransactionsOptions: {
+          disable7702: true,
+          disableHook: true,
+          disableSequential: true,
+        },
+      },
+      SIGNED_TRANSACTION_MOCK,
+    ).catch(() => {
+      // Intentionally empty
+    });
+
+    expect(addTransactionBatch).toHaveBeenCalledTimes(1);
+    expect(addTransactionBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disable7702: true,
+        disableHook: true,
+        disableSequential: true,
+      }),
+    );
+  });
+
+  it('orders transactions based on isAfter', () => {
+    const addTransactionBatch: jest.MockedFn<
+      TransactionController['addTransactionBatch']
+    > = jest.fn();
+
+    const hookInstance = new ExtraTransactionsPublishHook({
+      addTransactionBatch,
+    });
+
+    const hook = hookInstance.getHook();
+
+    hook(
+      {
+        ...TRANSACTION_META_MOCK,
+        batchTransactions: [
+          {
+            ...BATCH_TRANSACTION_MOCK,
+            isAfter: true,
+          },
+          {
+            ...BATCH_TRANSACTION_2_MOCK,
+          },
+          {
+            ...BATCH_TRANSACTION_2_MOCK,
+            isAfter: false,
+          },
+        ],
+      },
+      SIGNED_TRANSACTION_MOCK,
+    ).catch(() => {
+      // Intentionally empty
+    });
+
+    expect(addTransactionBatch).toHaveBeenCalledTimes(1);
+    expect(addTransactionBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactions: [
+          {
+            params: BATCH_TRANSACTION_PARAMS_2_MOCK,
+            type: BATCH_TRANSACTION_2_MOCK.type,
+          },
+          expect.objectContaining({
+            existingTransaction: expect.objectContaining({
+              id: TRANSACTION_META_MOCK.id,
+            }),
+          }),
+          {
+            params: BATCH_TRANSACTION_PARAMS_MOCK,
+            type: BATCH_TRANSACTION_MOCK.type,
+          },
+          {
+            params: BATCH_TRANSACTION_PARAMS_2_MOCK,
+            type: BATCH_TRANSACTION_2_MOCK.type,
+          },
+        ],
+      }),
+    );
   });
 });
