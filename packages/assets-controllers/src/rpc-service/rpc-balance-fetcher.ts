@@ -54,6 +54,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       allDetectedTokens: TokensControllerState['allDetectedTokens'];
     },
   ) {
+    console.log('RpcBalanceFetcher constructor ---------------');
     this.#getProvider = getProvider;
     this.#getNetworkClient = getNetworkClient;
     this.#getTokensState = getTokensState;
@@ -75,6 +76,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
     selectedAccount,
     allAccounts,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<ProcessedBalance[]> {
+    console.log('chainIds ---------------', chainIds);
     const results: ProcessedBalance[] = [];
 
     for (const chainId of chainIds) {
@@ -92,6 +94,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       }
 
       const provider = this.#getProvider(chainId);
+      console.log('provider ---------------', provider);
       await this.#ensureFreshBlockData(chainId);
 
       const { tokenBalances, stakedBalances } =

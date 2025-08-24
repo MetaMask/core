@@ -5,6 +5,7 @@ import {
   type NetworkClientId,
   type NetworkClientConfiguration,
   getDefaultNetworkControllerState,
+  NetworkConfiguration,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
@@ -332,7 +333,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -348,7 +349,7 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_1]: { balance: '0xa' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
@@ -369,7 +370,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -383,7 +384,7 @@ describe('AccountTrackerController', () => {
                     balance: '0x0',
                   },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: {
                     balance: '0x10',
                   },
@@ -407,7 +408,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -420,7 +421,7 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
@@ -443,7 +444,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -456,7 +457,7 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
                 },
@@ -890,6 +891,23 @@ async function withController<ReturnValue>(
                 '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000acac5457a3517e0000000000000000000000000000000000000000000027548bd9e4026c918d4b',
             },
           },
+          // Mock balanceOf call for zero address - returns same balance data for consistency
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: '0xcA11bde05977b3631167028862bE2a173976CA11',
+                  data: '0x70a082310000000000000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000acac5457a3517e0000000000000000000000000000000000000000000027548bd9e4026c918d4b',
+            },
+          },
         ],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any;
@@ -911,6 +929,7 @@ async function withController<ReturnValue>(
     ...getDefaultNetworkControllerState(),
     chainId: initialChainId,
   });
+
   messenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkState,
