@@ -7,7 +7,6 @@ import {
 import type { TransactionController } from '..';
 import { projectLogger } from '../logger';
 import type {
-  BatchTransaction,
   BatchTransactionParams,
   PublishHook,
   PublishHookResult,
