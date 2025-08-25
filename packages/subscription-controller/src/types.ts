@@ -76,16 +76,8 @@ export type SubscriptionControllerMessenger = RestrictedMessenger<
   AllowedEvents['type']
 >;
 
-export type SubscriptionControllerConfig = {
-  env: Env;
-};
-
 /**
- * Seedless Onboarding Controller Options.
- *
- * @param messenger - The messenger to use for this controller.
- * @param state - The initial state to set on this controller.
- * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
+ * Subscription Controller Options.
  */
 export type SubscriptionControllerOptions = {
   messenger: SubscriptionControllerMessenger;
@@ -96,9 +88,9 @@ export type SubscriptionControllerOptions = {
   state?: Partial<SubscriptionControllerState>;
 
   /**
-   * Configuration for this controller.
+   * Environment for this controller.
    */
-  config?: Partial<SubscriptionControllerConfig>;
+  env: Env;
 
   /**
    * Subscription service to use for the subscription controller.

@@ -2,14 +2,13 @@ import { BaseController, type StateMetadata } from '@metamask/base-controller';
 
 import {
   controllerName,
-  Env,
+  type Env,
   SubscriptionControllerErrorMessage,
 } from './constants';
 // import { projectLogger, createModuleLogger } from './logger';
 import { SubscriptionService } from './SubscriptionService';
 import type {
   ISubscriptionService,
-  SubscriptionControllerConfig,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
@@ -56,9 +55,7 @@ export class SubscriptionController extends BaseController<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
-  readonly #config: SubscriptionControllerConfig = {
-    env: Env.PRD,
-  };
+  readonly #env: Env;
 
   /**
    * Creates a new SubscriptionController instance.
@@ -66,13 +63,13 @@ export class SubscriptionController extends BaseController<
    * @param options - The options for the SubscriptionController.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.config - Configuration for this controller.
+   * @param options.env - Environment for this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
    */
   constructor({
     messenger,
     state,
-    config,
+    env,
     subscriptionService,
   }: SubscriptionControllerOptions) {
     super({
@@ -85,15 +82,12 @@ export class SubscriptionController extends BaseController<
       messenger,
     });
 
-    this.#config = {
-      ...this.#config,
-      ...config,
-    };
+    this.#env = env;
 
     this.#subscriptionService =
       subscriptionService ??
       new SubscriptionService({
-        env: this.#config.env,
+        env: this.#env,
         auth: {
           getAccessToken: () =>
             this.messagingSystem.call(
