@@ -55,6 +55,7 @@ Object {
           },
         },
       },
+      "minDestTokenAmount": "941000000000000",
       "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
       "srcAsset": Object {
         "address": "0x0000000000000000000000000000000000000000",
@@ -253,6 +254,7 @@ Object {
           },
         },
       },
+      "minDestTokenAmount": "941000000000000",
       "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
       "srcAsset": Object {
         "address": "0x0000000000000000000000000000000000000000",
@@ -444,6 +446,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -673,6 +676,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -903,6 +907,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1143,6 +1148,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1372,6 +1378,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1601,6 +1608,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1939,6 +1947,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2188,6 +2197,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2561,6 +2571,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2844,6 +2855,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -3168,6 +3180,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "0.475",
     "requestId": "123",
     "srcAsset": Object {
       "address": "native",
@@ -3488,6 +3501,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "475000000000000000s",
     "requestId": "123",
     "srcAsset": Object {
       "address": "native",

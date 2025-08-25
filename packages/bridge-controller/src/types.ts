@@ -133,6 +133,10 @@ export type QuoteMetadata = {
    */
   toTokenAmount: TokenAmountValues;
   /**
+   * The minimum amount that the user will receive (minDestTokenAmount)
+   */
+  minToTokenAmount: TokenAmountValues;
+  /**
    * If gas is included: toTokenAmount
    * Otherwise: toTokenAmount - totalNetworkFee
    */

@@ -28,6 +28,7 @@
         "chainAgnosticId": "USDC"
       },
       "destTokenAmount": "24438902",
+      "minDestTokenAmount": "23900000",
       "feeData": {
         "metabridge": {
           "amount": "87500000000000",
@@ -184,6 +185,7 @@
         "chainAgnosticId": "USDC"
       },
       "destTokenAmount": "24256223",
+      "minDestTokenAmount": "23760000",
       "feeData": {
         "metabridge": {
           "amount": "87500000000000",
