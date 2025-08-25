@@ -118,6 +118,14 @@ export class SubscriptionController extends BaseController<
     this.#assertIsUserSubscribed({ productType: request.type });
 
     await this.#subscriptionService.cancelSubscription(request);
+
+    this.update((state) => {
+      state.subscriptions = state.subscriptions.map((subscription) =>
+        subscription.id === request.subscriptionId
+          ? { ...subscription, status: 'cancelled' }
+          : subscription,
+      );
+    });
   }
 
   #assertIsUserSubscribed(request: { productType: ProductType }) {

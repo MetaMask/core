@@ -428,6 +428,10 @@ describe('SubscriptionController', () => {
             }),
           ).toBeUndefined();
 
+          expect(controller.state.subscriptions).toStrictEqual([
+            { ...MOCK_SUBSCRIPTION, status: 'cancelled' },
+          ]);
+
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',
             type: ProductType.SHIELD,
