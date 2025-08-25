@@ -19,7 +19,6 @@ import {
   calcSlippagePercentage,
 } from './quote';
 import type {
-  BridgeAsset,
   GenericQuoteRequest,
   QuoteResponse,
   Quote,
