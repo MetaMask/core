@@ -189,6 +189,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   },
   destChainId,
   destTokenAmount: '990654755978612',
+  minDestTokenAmount: '941000000000000',
   destAsset: {
     address: '0x0000000000000000000000000000000000000000',
     assetId: `eip155:${destChainId}/slip44:60` as CaipAssetType,
@@ -298,6 +299,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     estimatedProcessingTimeInSeconds: 15,
     sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
     toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+    minToTokenAmount: { amount: '1.17', valueInCurrency: null, usd: null },
     totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
     totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
     gasFee: {
@@ -1581,6 +1583,7 @@ describe('BridgeStatusController', () => {
           assetId: 'eip155:1399811149/slip44:501',
         },
         destTokenAmount: '0.5',
+        minDestTokenAmount: '0.475',
         destAsset: {
           chainId: ChainId.ETH,
           address: '0x...',
@@ -1647,6 +1650,11 @@ describe('BridgeStatusController', () => {
         amount: '0.5',
         valueInCurrency: '1000',
         usd: '1000',
+      },
+      minToTokenAmount: {
+        amount: '0.475',
+        valueInCurrency: '950',
+        usd: '950',
       },
       totalNetworkFee: {
         amount: '0.1',
@@ -1781,6 +1789,7 @@ describe('BridgeStatusController', () => {
           assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
         },
         destTokenAmount: '500000000000000000s',
+        minDestTokenAmount: '475000000000000000s',
         destAsset: {
           chainId: ChainId.SOLANA,
           address: '0x...',
@@ -1847,6 +1856,11 @@ describe('BridgeStatusController', () => {
         amount: '0.5',
         valueInCurrency: '1000',
         usd: '1000',
+      },
+      minToTokenAmount: {
+        amount: '0.475',
+        valueInCurrency: '950',
+        usd: '950',
       },
       totalNetworkFee: {
         amount: '0.1',
@@ -1982,6 +1996,11 @@ describe('BridgeStatusController', () => {
         amount: '1.5',
         valueInCurrency: '2.9999',
         usd: '0.134214',
+      },
+      minToTokenAmount: {
+        amount: '1.425',
+        valueInCurrency: '2.85',
+        usd: '0.127',
       },
       totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
       totalMaxNetworkFee: {
@@ -2530,6 +2549,11 @@ describe('BridgeStatusController', () => {
         amount: '1.5',
         valueInCurrency: '2.9999',
         usd: '0.134214',
+      },
+      minToTokenAmount: {
+        amount: '1.425',
+        valueInCurrency: '2.85',
+        usd: '0.127',
       },
       totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
       totalMaxNetworkFee: {
