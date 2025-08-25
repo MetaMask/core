@@ -1,3 +1,4 @@
+import type { AccountSigner } from '@metamask/7715-permission-types';
 import { Messenger } from '@metamask/base-controller';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -14,10 +15,9 @@ import {
   mockNativeTokenStreamStorageEntry,
 } from './test/mocks';
 import type {
-  AccountSigner,
   GatorPermissionsMap,
   StoredGatorPermission,
-  PermissionTypes,
+  PermissionTypesWithCustom,
 } from './types';
 import type {
   ExtractAvailableAction,
@@ -30,7 +30,7 @@ const MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID =
   'local:http://localhost:8082' as SnapId;
 const MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES: StoredGatorPermission<
   AccountSigner,
-  PermissionTypes
+  PermissionTypesWithCustom
 >[] = mockGatorPermissionsStorageEntriesFactory({
   [MOCK_CHAIN_ID_1]: {
     nativeTokenStream: 5,
@@ -198,11 +198,9 @@ describe('GatorPermissionsController', () => {
           result[permissionType],
         ).flat();
         flattenedStoredGatorPermissions.forEach((permission) => {
-          expect(
-            permission.permissionResponse.isAdjustmentAllowed,
-          ).toBeUndefined();
-          expect(permission.permissionResponse.accountMeta).toBeUndefined();
           expect(permission.permissionResponse.signer).toBeUndefined();
+          expect(permission.permissionResponse.dependencyInfo).toBeUndefined();
+          expect(permission.permissionResponse.rules).toBeUndefined();
         });
       };
 
