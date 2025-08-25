@@ -1648,7 +1648,7 @@ export class NetworkController extends BaseController<
    */
   async lookupNetwork(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      await this.lookupNetworkByNetworkClientId(networkClientId);
+      await this.#lookupGivenNetwork(networkClientId);
     } else {
       await this.#lookupSelectedNetwork();
     }
@@ -1668,6 +1668,21 @@ export class NetworkController extends BaseController<
    * instead. This method will be removed in a future major version.
    */
   async lookupNetworkByNetworkClientId(networkClientId: NetworkClientId) {
+    await this.#lookupGivenNetwork(networkClientId);
+  }
+
+  /**
+   * Uses a request for the latest block to gather the following information on
+   * the given network, persisting it to state:
+   *
+   * - The connectivity status: whether the network is available, geo-blocked
+   * (Infura only), unavailable, or unknown
+   * - The feature compatibility status: whether the network supports EIP-1559,
+   * whether it does not, or whether it is unknown
+   *
+   * @param networkClientId - The ID of the network client to inspect.
+   */
+  async #lookupGivenNetwork(networkClientId: NetworkClientId) {
     const { networkStatus, isEIP1559Compatible } =
       await this.#determineNetworkMetadata(networkClientId);
     this.#updateMetadataForNetwork(
