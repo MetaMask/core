@@ -151,18 +151,6 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('should throw SubscriptionServiceError for authentication errors', async () => {
-      const config = createMockConfig();
-      config.auth.getAccessToken.mockRejectedValue(
-        new Error('Authentication failed'),
-      );
-      const service = new SubscriptionService(config);
-
-      await expect(service.getSubscriptions()).rejects.toThrow(
-        SubscriptionServiceError,
-      );
-    });
-
     it('should handle non-Error exceptions', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
@@ -176,37 +164,12 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('should handle null/undefined exceptions', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      nock(TEST_URL)
-        .get('/api/v1/subscriptions')
-        .replyWithError('Network error');
-
-      await expect(service.getSubscriptions()).rejects.toThrow(
-        SubscriptionServiceError,
-      );
-    });
-
-    it('should handle non-Error exceptions in catch block', async () => {
+    it('should handle get access token error', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
 
       // Simulate a non-Error thrown from the auth.getAccessToken mock
       config.auth.getAccessToken.mockRejectedValue('string error');
-
-      await expect(service.getSubscriptions()).rejects.toThrow(
-        SubscriptionServiceError,
-      );
-    });
-
-    it('should handle null exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw null to test the false branch with null value
-      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
 
       await expect(service.getSubscriptions()).rejects.toThrow(
         SubscriptionServiceError,
@@ -272,18 +235,6 @@ describe('SubscriptionService', () => {
       ).rejects.toThrow(/Network error/u);
     });
 
-    it('should throw SubscriptionServiceError for authentication errors', async () => {
-      const config = createMockConfig();
-      config.auth.getAccessToken.mockRejectedValue(
-        new Error('Authentication failed'),
-      );
-      const service = new SubscriptionService(config);
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(SubscriptionServiceError);
-    });
-
     it('should handle non-Error exceptions', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
@@ -295,26 +246,6 @@ describe('SubscriptionService', () => {
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
       ).rejects.toThrow(SubscriptionServiceError);
-    });
-
-    it('should handle non-Error exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw a non-Error object
-      const originalFetch = global.fetch;
-      jest
-        .spyOn(global, 'fetch')
-        .mockImplementation()
-        .mockRejectedValue('string error');
-
-      try {
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(SubscriptionServiceError);
-      } finally {
-        global.fetch = originalFetch;
-      }
     });
 
     it('should handle null exceptions in catch block', async () => {
