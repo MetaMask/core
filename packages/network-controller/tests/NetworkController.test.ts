@@ -1813,6 +1813,83 @@ describe('NetworkController', () => {
         const infuraChainId = ChainId[infuraNetworkType];
 
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
+          describe('if the provider has been not been initialized yet', () => {
+            it('does not update state', async () => {
+              await withController(
+                {
+                  state: {
+                    selectedNetworkClientId: infuraNetworkType,
+                    networkConfigurationsByChainId: {
+                      [infuraChainId]:
+                        buildInfuraNetworkConfiguration(infuraNetworkType),
+                    },
+                  },
+                },
+                async ({ controller, messenger }) => {
+                  const stateChangeListener = jest.fn();
+                  messenger.subscribe(
+                    'NetworkController:stateChange',
+                    stateChangeListener,
+                  );
+
+                  await controller.lookupNetwork();
+
+                  expect(stateChangeListener).not.toHaveBeenCalled();
+                },
+              );
+            });
+
+            it('does not publish NetworkController:infuraIsUnblocked', async () => {
+              await withController(
+                {
+                  state: {
+                    selectedNetworkClientId: infuraNetworkType,
+                    networkConfigurationsByChainId: {
+                      [infuraChainId]:
+                        buildInfuraNetworkConfiguration(infuraNetworkType),
+                    },
+                  },
+                },
+                async ({ controller, messenger }) => {
+                  const infuraIsUnblockedListener = jest.fn();
+                  messenger.subscribe(
+                    'NetworkController:infuraIsUnblocked',
+                    infuraIsUnblockedListener,
+                  );
+
+                  await controller.lookupNetwork();
+
+                  expect(infuraIsUnblockedListener).not.toHaveBeenCalled();
+                },
+              );
+            });
+
+            it('does not publish NetworkController:infuraIsBlocked', async () => {
+              await withController(
+                {
+                  state: {
+                    selectedNetworkClientId: infuraNetworkType,
+                    networkConfigurationsByChainId: {
+                      [infuraChainId]:
+                        buildInfuraNetworkConfiguration(infuraNetworkType),
+                    },
+                  },
+                },
+                async ({ controller, messenger }) => {
+                  const infuraIsBlockedListener = jest.fn();
+                  messenger.subscribe(
+                    'NetworkController:infuraIsBlocked',
+                    infuraIsBlockedListener,
+                  );
+
+                  await controller.lookupNetwork();
+
+                  expect(infuraIsBlockedListener).not.toHaveBeenCalled();
+                },
+              );
+            });
+          });
+
           describe('if the network was switched after the eth_getBlockByNumber request started but before it completed', () => {
             it('stores the network status of the second network, not the first', async () => {
               const infuraProjectId = 'some-infura-project-id';
@@ -2211,6 +2288,101 @@ describe('NetworkController', () => {
       }
 
       describe('when the selected network client represents a custom RPC endpoint', () => {
+        describe('if the provider has been not been initialized yet', () => {
+          it('does not update state', async () => {
+            await withController(
+              {
+                state: {
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  networkConfigurationsByChainId: {
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        }),
+                      ],
+                    }),
+                  },
+                },
+              },
+              async ({ controller, messenger }) => {
+                const stateChangeListener = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  stateChangeListener,
+                );
+
+                await controller.lookupNetwork();
+
+                expect(stateChangeListener).not.toHaveBeenCalled();
+              },
+            );
+          });
+
+          it('does not publish NetworkController:infuraIsUnblocked', async () => {
+            await withController(
+              {
+                state: {
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  networkConfigurationsByChainId: {
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        }),
+                      ],
+                    }),
+                  },
+                },
+              },
+              async ({ controller, messenger }) => {
+                const infuraIsUnblockedListener = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:infuraIsUnblocked',
+                  infuraIsUnblockedListener,
+                );
+
+                await controller.lookupNetwork();
+
+                expect(infuraIsUnblockedListener).not.toHaveBeenCalled();
+              },
+            );
+          });
+
+          it('does not publish NetworkController:infuraIsBlocked', async () => {
+            await withController(
+              {
+                state: {
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  networkConfigurationsByChainId: {
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        }),
+                      ],
+                    }),
+                  },
+                },
+              },
+              async ({ controller, messenger }) => {
+                const infuraIsBlockedListener = jest.fn();
+                messenger.subscribe(
+                  'NetworkController:infuraIsBlocked',
+                  infuraIsBlockedListener,
+                );
+
+                await controller.lookupNetwork();
+
+                expect(infuraIsBlockedListener).not.toHaveBeenCalled();
+              },
+            );
+          });
+        });
+
         describe('if the network was switched after the eth_getBlockByNumber request started but before it completed', () => {
           it('stores the network status of the second network, not the first', async () => {
             const infuraProjectId = 'some-infura-project-id';

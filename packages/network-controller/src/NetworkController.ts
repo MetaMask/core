@@ -1667,6 +1667,9 @@ export class NetworkController extends BaseController<
    * @deprecated Please use `lookupNetwork` and pass a network client ID
    * instead. This method will be removed in a future major version.
    */
+  // We are planning on removing this so we aren't interested in testing this
+  // right now.
+  /* istanbul ignore next */
   async lookupNetworkByNetworkClientId(networkClientId: NetworkClientId) {
     await this.#lookupGivenNetwork(networkClientId);
   }
@@ -1706,6 +1709,10 @@ export class NetworkController extends BaseController<
    * will also run for the new network).
    */
   async #lookupSelectedNetwork() {
+    if (!this.#ethQuery) {
+      return;
+    }
+
     let networkChanged = false;
     const listener = () => {
       networkChanged = true;
