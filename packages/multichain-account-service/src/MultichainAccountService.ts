@@ -5,14 +5,18 @@ import {
 import type {
   MultichainAccountWalletId,
   Bip44Account,
+  AccountProvider,
 } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
+import {
+  ProviderWrapper,
+  isProviderWrapper,
+} from './providers/ProviderWrapper';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -40,7 +44,10 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
+  readonly #providers: (
+    | AccountProvider<Bip44Account<KeyringAccount>>
+    | ProviderWrapper
+  )[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -51,6 +58,8 @@ export class MultichainAccountService {
     Bip44Account<KeyringAccount>['id'],
     AccountContext<Bip44Account<KeyringAccount>>
   >;
+
+  #isAlignmentInProgress: boolean = false;
 
   /**
    * The name of the service.
@@ -73,10 +82,11 @@ export class MultichainAccountService {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
+
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
-      new SolAccountProvider(this.#messenger),
+      new ProviderWrapper(new SolAccountProvider(this.#messenger)),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
@@ -106,12 +116,20 @@ export class MultichainAccountService {
       (...args) => this.createMultichainAccountGroup(...args),
     );
     this.#messenger.registerActionHandler(
+      'MultichainAccountService:setBasicFunctionality',
+      (...args) => this.setBasicFunctionality(...args),
+    );
+    this.#messenger.registerActionHandler(
       'MultichainAccountService:alignWallets',
       (...args) => this.alignWallets(...args),
     );
     this.#messenger.registerActionHandler(
       'MultichainAccountService:alignWallet',
       (...args) => this.alignWallet(...args),
+    );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:getIsAlignmentInProgress',
+      () => this.getIsAlignmentInProgress(),
     );
   }
 
@@ -360,11 +378,53 @@ export class MultichainAccountService {
   }
 
   /**
+   * Set basic functionality state and trigger alignment if enabled.
+   * When basic functionality is disabled, snap-based providers are disabled.
+   * When enabled, all snap providers are enabled and wallet alignment is triggered.
+   * EVM providers are never disabled as they're required for basic wallet functionality.
+   *
+   * @param enabled - Whether basic functionality is enabled.
+   */
+  async setBasicFunctionality(enabled: boolean): Promise<void> {
+    console.log(
+      `MultichainAccountService: Setting basic functionality ${enabled ? 'enabled' : 'disabled'}`,
+    );
+
+    // Loop through providers and disable only wrapped ones when basic functionality is disabled
+    for (const provider of this.#providers) {
+      if (isProviderWrapper(provider)) {
+        provider.setDisabled(!enabled);
+      }
+      // Regular providers (like EVM) are never disabled for basic functionality
+    }
+
+    // Trigger alignment only when basic functionality is enabled
+    if (enabled) {
+      console.log('Triggered wallet alignment...');
+      await this.alignWallets();
+    }
+  }
+
+  /**
+   * Gets whether wallet alignment is currently in progress.
+   *
+   * @returns True if alignment is in progress, false otherwise.
+   */
+  getIsAlignmentInProgress(): boolean {
+    return this.#isAlignmentInProgress;
+  }
+
+  /**
    * Align all multichain account wallets.
    */
   async alignWallets(): Promise<void> {
-    const wallets = this.getMultichainAccountWallets();
-    await Promise.all(wallets.map((w) => w.alignGroups()));
+    this.#isAlignmentInProgress = true;
+    try {
+      const wallets = this.getMultichainAccountWallets();
+      await Promise.all(wallets.map((w) => w.alignGroups()));
+    } finally {
+      this.#isAlignmentInProgress = false;
+    }
   }
 
   /**
@@ -373,7 +433,12 @@ export class MultichainAccountService {
    * @param entropySource - The entropy source of the multichain account wallet.
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
-    const wallet = this.getMultichainAccountWallet({ entropySource });
-    await wallet.alignGroups();
+    this.#isAlignmentInProgress = true;
+    try {
+      const wallet = this.getMultichainAccountWallet({ entropySource });
+      await wallet.alignGroups();
+    } finally {
+      this.#isAlignmentInProgress = false;
+    }
   }
 }

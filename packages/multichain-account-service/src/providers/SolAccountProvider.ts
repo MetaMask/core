@@ -63,7 +63,7 @@ export class SolAccountProvider extends SnapAccountProvider {
   async discoverAndCreateAccounts(_: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
+  }): Promise<Bip44Account<KeyringAccount>[]> {
     return []; // TODO: Implement account discovery.
   }
 }

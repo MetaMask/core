@@ -7,6 +7,7 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
+import { ProviderWrapper } from './providers/ProviderWrapper';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
 import {
@@ -626,6 +627,59 @@ describe('MultichainAccountService', () => {
     });
   });
 
+  describe('getIsAlignmentInProgress', () => {
+    it('returns false initially', () => {
+      const { service } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns true during alignWallets and false after completion', async () => {
+      const { service } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const alignmentPromise = service.alignWallets();
+      expect(service.getIsAlignmentInProgress()).toBe(true);
+
+      await alignmentPromise;
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns true during alignWallet and false after completion', async () => {
+      const { service } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const alignmentPromise = service.alignWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      expect(service.getIsAlignmentInProgress()).toBe(true);
+
+      await alignmentPromise;
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns false after alignment error', async () => {
+      const { service, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      mocks.EvmAccountProvider.createAccounts.mockRejectedValueOnce(
+        new Error('Test error'),
+      );
+
+      try {
+        await service.alignWallets();
+      } catch {
+        // Expected to throw
+      }
+
+      expect(service.getIsAlignmentInProgress()).toBe(false);
+    });
+  });
+
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -748,6 +802,155 @@ describe('MultichainAccountService', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
+    });
+
+    it('sets basic functionality with MultichainAccountService:setBasicFunctionality', async () => {
+      const { messenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      // This tests the action handler registration
+      expect(
+        await messenger.call(
+          'MultichainAccountService:setBasicFunctionality',
+          true,
+        ),
+      ).toBeUndefined();
+      expect(
+        await messenger.call(
+          'MultichainAccountService:setBasicFunctionality',
+          false,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('gets alignment progress with MultichainAccountService:getIsAlignmentInProgress', () => {
+      const { messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const isInProgress = messenger.call(
+        'MultichainAccountService:getIsAlignmentInProgress',
+      );
+
+      expect(isInProgress).toBe(false);
+    });
+  });
+
+  describe('setBasicFunctionality', () => {
+    it('accepts a boolean parameter instead of object', async () => {
+      const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      // These should not throw errors
+      expect(await service.setBasicFunctionality(true)).toBeUndefined();
+      expect(await service.setBasicFunctionality(false)).toBeUndefined();
+    });
+
+    it('can be called with boolean true', async () => {
+      const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      // This tests the simplified parameter signature
+      expect(await service.setBasicFunctionality(true)).toBeUndefined();
+    });
+
+    it('can be called with boolean false', async () => {
+      const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      // This tests the simplified parameter signature
+      expect(await service.setBasicFunctionality(false)).toBeUndefined();
+    });
+  });
+
+  describe('ProviderWrapper disabled behavior', () => {
+    let mockProvider: MockAccountProvider;
+    let wrapper: ProviderWrapper;
+
+    beforeEach(() => {
+      const { mocks } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+      mockProvider = mocks.SolAccountProvider;
+      wrapper = new ProviderWrapper(mockProvider);
+    });
+
+    it('returns empty array when getAccounts() is disabled', () => {
+      // Enable first - should work normally
+      mockProvider.getAccounts.mockReturnValue([MOCK_HD_ACCOUNT_1]);
+      expect(wrapper.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+
+      // Disable - should return empty array
+      wrapper.setDisabled(true);
+      expect(wrapper.getAccounts()).toStrictEqual([]);
+    });
+
+    it('throws error when getAccount() is disabled', () => {
+      // Enable first - should work normally
+      mockProvider.getAccount.mockReturnValue(MOCK_HD_ACCOUNT_1);
+      expect(wrapper.getAccount('test-id')).toStrictEqual(MOCK_HD_ACCOUNT_1);
+
+      // Disable - should throw error
+      wrapper.setDisabled(true);
+      expect(() => wrapper.getAccount('test-id')).toThrow('is disabled');
+    });
+
+    it('returns empty array when createAccounts() is disabled', async () => {
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      // Enable first - should work normally
+      mockProvider.createAccounts.mockResolvedValue([MOCK_HD_ACCOUNT_1]);
+      expect(await wrapper.createAccounts(options)).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      // Disable - should return empty array and not call underlying provider
+      wrapper.setDisabled(true);
+
+      const result = await wrapper.createAccounts(options);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array when discoverAndCreateAccounts() is disabled', async () => {
+      const options = {
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        groupIndex: 0,
+      };
+
+      // Enable first - should work normally
+      mockProvider.discoverAndCreateAccounts.mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+      expect(await wrapper.discoverAndCreateAccounts(options)).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      // Disable - should return empty array
+      wrapper.setDisabled(true);
+
+      const result = await wrapper.discoverAndCreateAccounts(options);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('proxies isAccountCompatible() correctly', () => {
+      // Test when provider has the method
+      const providerWithMethod = mockProvider as MockAccountProvider & {
+        isAccountCompatible: jest.Mock;
+      };
+      jest
+        .spyOn(providerWithMethod, 'isAccountCompatible')
+        .mockImplementation()
+        .mockReturnValue(true);
+      expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(true);
+      expect(providerWithMethod.isAccountCompatible).toHaveBeenCalledWith(
+        MOCK_HD_ACCOUNT_1,
+      );
+
+      // Test when provider doesn't have the method (fallback to true)
+      const providerWithoutMethod = { ...mockProvider };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (providerWithoutMethod as any).isAccountCompatible = undefined;
+      const wrapperWithoutMethod = new ProviderWrapper(providerWithoutMethod);
+      expect(wrapperWithoutMethod.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(
+        true,
+      );
     });
   });
 });
