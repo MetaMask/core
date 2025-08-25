@@ -18,6 +18,13 @@ export enum UnifiedSwapBridgeEventName {
   AllQuotesOpened = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} All Quotes Opened`,
   AllQuotesSorted = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} All Quotes Sorted`,
   QuoteSelected = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quote Selected`,
+  AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
+}
+
+export enum AbortReason {
+  NewQuoteRequest = 'New Quote Request',
+  QuoteRequestUpdated = 'Quote Request Updated',
+  ResetState = 'Reset controller state',
 }
 
 /**

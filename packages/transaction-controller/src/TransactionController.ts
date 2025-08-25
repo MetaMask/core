@@ -122,6 +122,7 @@ import type {
   BeforeSignHook,
   TransactionContainerType,
   NestedTransactionMetadata,
+  GetSimulationConfig,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -352,6 +353,11 @@ export type TransactionControllerOptions = {
 
   /** Gets the saved gas fee config. */
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+
+  /**
+   * Gets the transaction simulation configuration.
+   */
+  getSimulationConfig?: GetSimulationConfig;
 
   /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
@@ -753,6 +759,8 @@ export class TransactionController extends BaseController<
 
   readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
+  readonly #getSimulationConfig: GetSimulationConfig;
+
   readonly #incomingTransactionHelper: IncomingTransactionHelper;
 
   readonly #incomingTransactionOptions: IncomingTransactionOptions & {
@@ -832,6 +840,7 @@ export class TransactionController extends BaseController<
       getNetworkState,
       getPermittedAccounts,
       getSavedGasFees,
+      getSimulationConfig,
       hooks,
       incomingTransactions = {},
       isAutomaticGasFeeUpdateEnabled,
@@ -882,6 +891,8 @@ export class TransactionController extends BaseController<
     this.#getNetworkState = getNetworkState;
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
+    this.#getSimulationConfig =
+      getSimulationConfig ?? (() => Promise.resolve({}));
     this.#incomingTransactionOptions = incomingTransactions;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
@@ -1060,6 +1071,7 @@ export class TransactionController extends BaseController<
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getGasFeeEstimates: this.#getGasFeeEstimates,
       getInternalAccounts: this.#getInternalAccounts.bind(this),
+      getSimulationConfig: this.#getSimulationConfig.bind(this),
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           provider: this.#getProvider({ networkClientId }),
@@ -1607,6 +1619,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txParams: transaction,
     });
@@ -1635,6 +1648,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txParams: transaction,
     });
@@ -2704,6 +2718,33 @@ export class TransactionController extends BaseController<
       }
 
       transactionMeta.selectedGasFeeToken = contractAddress;
+    });
+  }
+
+  /**
+   * Update the required transaction IDs for a transaction.
+   *
+   * @param request - The request object.
+   * @param request.transactionId - The ID of the transaction to update.
+   * @param request.requiredTransactionIds - The additional required transaction IDs.
+   * @param request.append - Whether to append the IDs to any existing values. Defaults to true.
+   */
+  updateRequiredTransactionIds({
+    transactionId,
+    requiredTransactionIds,
+    append,
+  }: {
+    transactionId: string;
+    requiredTransactionIds: string[];
+    append?: boolean;
+  }) {
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      const { requiredTransactionIds: existing } = transactionMeta;
+
+      transactionMeta.requiredTransactionIds = [
+        ...(existing && append !== false ? existing : []),
+        ...requiredTransactionIds,
+      ];
     });
   }
 
@@ -4156,6 +4197,7 @@ export class TransactionController extends BaseController<
     };
 
     let gasFeeTokens: GasFeeToken[] = [];
+    let isGasFeeSponsored = false;
 
     const isBalanceChangesSkipped =
       this.#skipSimulationTransactionIds.has(transactionId);
@@ -4168,6 +4210,7 @@ export class TransactionController extends BaseController<
             blockTime,
             chainId,
             ethQuery: this.#getEthQuery({ networkClientId }),
+            getSimulationConfig: this.#getSimulationConfig,
             nestedTransactions,
             txParams,
           }),
@@ -4184,13 +4227,16 @@ export class TransactionController extends BaseController<
         };
       }
 
-      gasFeeTokens = await getGasFeeTokens({
+      const gasFeeTokensResponse = await getGasFeeTokens({
         chainId,
+        getSimulationConfig: this.#getSimulationConfig,
         isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
         messenger: this.messagingSystem,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
       });
+      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
+      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
 
     const latestTransactionMeta = this.#getTransaction(transactionId);
@@ -4214,6 +4260,7 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
+        txMeta.isGasFeeSponsored = isGasFeeSponsored;
 
         if (!isBalanceChangesSkipped) {
           txMeta.simulationData = simulationData;
@@ -4345,6 +4392,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txMeta: transactionMeta,
     });

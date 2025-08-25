@@ -200,6 +200,11 @@ export type TransactionMeta = {
    */
   isFirstTimeInteraction?: boolean;
 
+  /**
+   * Whether the transaction is sponsored meaning the user does not pay the gas fee.
+   */
+  isGasFeeSponsored?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -287,6 +292,9 @@ export type TransactionMeta = {
    */
   originalType?: TransactionType;
 
+  /** Metadata specific to the MetaMask Pay feature. */
+  metamaskPay?: MetamaskPayMetadata;
+
   /**
    * Account transaction balance after swap.
    */
@@ -336,6 +344,12 @@ export type TransactionMeta = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * IDs of any transactions that must be confirmed before this one is submitted.
+   * Unlike a transaction batch, these transactions can be on alternate chains.
+   */
+  requiredTransactionIds?: string[];
 
   /**
    * The number of times that the transaction submit has been retried.
@@ -1905,3 +1919,29 @@ export type AssetsFiatValues = {
    */
   sending?: string;
 };
+
+/** Metadata specific to the MetaMask Pay feature. */
+export type MetamaskPayMetadata = {
+  /** Total fee from any bridge transactions, in fiat currency. */
+  bridgeFeeFiat?: string;
+
+  /** Chain ID of the payment token. */
+  chainId?: Hex;
+
+  /** Total network fee in fiat currency, including the original and bridge transactions. */
+  networkFeeFiat?: string;
+
+  /** Address of the payment token that the transaction funds were sourced from. */
+  tokenAddress?: Hex;
+
+  /** Total cost of the transaction in fiat currency, including gas, fees, and the funds themselves. */
+  totalFiat?: string;
+};
+
+/**
+ * Parameters for the transaction simulation API.
+ */
+export type GetSimulationConfig = (url: string) => Promise<{
+  newUrl?: string;
+  authorization?: string;
+}>;

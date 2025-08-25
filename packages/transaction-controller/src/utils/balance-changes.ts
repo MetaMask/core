@@ -32,6 +32,7 @@ import type {
   SimulationToken,
   TransactionParams,
   NestedTransactionMetadata,
+  GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 
@@ -49,6 +50,7 @@ export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
   ethQuery: EthQuery;
+  getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
 };
@@ -107,6 +109,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
+ * @param request.getSimulationConfig - Optional transaction simulation parameters.
  * @returns The simulation data.
  */
 export async function getBalanceChanges(
@@ -691,7 +694,8 @@ async function baseRequest({
   before?: SimulationRequestTransaction[];
   after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, chainId, ethQuery, txParams } = request;
+  const { blockTime, chainId, ethQuery, getSimulationConfig, txParams } =
+    request;
   const { authorizationList } = txParams;
   const from = txParams.from as Hex;
 
@@ -731,6 +735,7 @@ async function baseRequest({
 
   return await simulateTransactions(chainId, {
     ...params,
+    getSimulationConfig,
     transactions,
     withGas: true,
     withDefaultBlockOverrides: true,

@@ -4,7 +4,11 @@ import { doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
 import { getGasFeeTokens } from './gas-fee-tokens';
-import type { TransactionControllerMessenger, TransactionMeta } from '..';
+import type {
+  GetSimulationConfig,
+  TransactionControllerMessenger,
+  TransactionMeta,
+} from '..';
 import { simulateTransactions } from '../api/simulation-api';
 
 jest.mock('../api/simulation-api');
@@ -20,6 +24,7 @@ const UPGRADE_CONTRACT_ADDRESS_MOCK =
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: jest.fn().mockResolvedValue(true),
+  getSimulationConfig: jest.fn(),
   messenger: {} as TransactionControllerMessenger,
   publicKeyEIP7702: '0x123',
   transactionMeta: {
@@ -90,40 +95,47 @@ describe('Gas Fee Tokens Utils', () => {
             return: '0x',
           },
         ],
+        sponsorship: {
+          isSponsored: true,
+          error: null,
+        },
       });
 
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(result).toStrictEqual([
-        {
-          amount: '0x4',
-          balance: '0x5',
-          decimals: 3,
-          fee: '0x7b',
-          gas: '0x1',
-          gasTransfer: '0x7a',
-          maxFeePerGas: '0x2',
-          maxPriorityFeePerGas: '0x3',
-          rateWei: '0x7',
-          recipient: '0x6',
-          symbol: 'TEST1',
-          tokenAddress: TOKEN_ADDRESS_1_MOCK,
-        },
-        {
-          amount: '0x8',
-          balance: '0x9',
-          decimals: 4,
-          fee: '0xbb',
-          gas: '0x1',
-          gasTransfer: '0xba',
-          maxFeePerGas: '0x2',
-          maxPriorityFeePerGas: '0x3',
-          rateWei: '0xb',
-          recipient: '0xa',
-          symbol: 'TEST2',
-          tokenAddress: TOKEN_ADDRESS_2_MOCK,
-        },
-      ]);
+      expect(result).toStrictEqual({
+        gasFeeTokens: [
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            fee: '0x7b',
+            gas: '0x1',
+            gasTransfer: '0x7a',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: TOKEN_ADDRESS_1_MOCK,
+          },
+          {
+            amount: '0x8',
+            balance: '0x9',
+            decimals: 4,
+            fee: '0xbb',
+            gas: '0x1',
+            gasTransfer: '0xba',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0xb',
+            recipient: '0xa',
+            symbol: 'TEST2',
+            tokenAddress: TOKEN_ADDRESS_2_MOCK,
+          },
+        ],
+        isGasFeeSponsored: true,
+      });
     });
 
     it('uses first fee level from simulation response', async () => {
@@ -175,26 +187,33 @@ describe('Gas Fee Tokens Utils', () => {
             return: '0x',
           },
         ],
+        sponsorship: {
+          isSponsored: true,
+          error: null,
+        },
       });
 
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(result).toStrictEqual([
-        {
-          amount: '0x4',
-          balance: '0x5',
-          decimals: 3,
-          fee: '0x7b',
-          gas: '0x1',
-          gasTransfer: '0x7a',
-          maxFeePerGas: '0x2',
-          maxPriorityFeePerGas: '0x3',
-          rateWei: '0x7',
-          recipient: '0x6',
-          symbol: 'TEST1',
-          tokenAddress: TOKEN_ADDRESS_1_MOCK,
-        },
-      ]);
+      expect(result).toStrictEqual({
+        gasFeeTokens: [
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            fee: '0x7b',
+            gas: '0x1',
+            gasTransfer: '0x7a',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: TOKEN_ADDRESS_1_MOCK,
+          },
+        ],
+        isGasFeeSponsored: true,
+      });
     });
 
     it('returns empty if error', async () => {
@@ -204,7 +223,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({
+        gasFeeTokens: [],
+        isGasFeeSponsored: false,
+      });
     });
 
     it('with 7702 if isEIP7702GasFeeTokensEnabled and chain supports EIP-7702', async () => {
@@ -216,6 +238,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await getGasFeeTokens(REQUEST_MOCK);
@@ -239,6 +265,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await getGasFeeTokens(REQUEST_MOCK);
@@ -262,6 +292,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await getGasFeeTokens(REQUEST_MOCK);
@@ -290,6 +324,10 @@ describe('Gas Fee Tokens Utils', () => {
 
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       const request = cloneDeep(REQUEST_MOCK);
@@ -315,6 +353,25 @@ describe('Gas Fee Tokens Utils', () => {
               ],
             }),
           ],
+        }),
+      );
+    });
+
+    it('forwards simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await getGasFeeTokens(request);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          getSimulationConfig: getSimulationConfigMock,
         }),
       );
     });

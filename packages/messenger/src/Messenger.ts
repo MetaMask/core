@@ -75,7 +75,7 @@ export type EventConstraint = {
  *
  * @template Subject - The messenger type to extract from.
  */
-type MessengerActions<
+export type MessengerActions<
   Subject extends Messenger<string, ActionConstraint, EventConstraint>,
 > =
   Subject extends Messenger<string, infer Action, EventConstraint>
@@ -87,7 +87,7 @@ type MessengerActions<
  *
  * @template Subject - The messenger type to extract from.
  */
-type MessengerEvents<
+export type MessengerEvents<
   Subject extends Messenger<string, ActionConstraint, EventConstraint>,
 > =
   Subject extends Messenger<string, ActionConstraint, infer Event>
@@ -179,8 +179,8 @@ type StripNamespace<Namespaced extends NamespacedName> =
  */
 export class Messenger<
   Namespace extends string,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  Action extends ActionConstraint = never,
+  Event extends EventConstraint = never,
   Parent extends Messenger<
     string,
     ActionConstraint,
