@@ -49,6 +49,7 @@ import {
 import { getBridgeFeatureFlags } from './utils/feature-flags';
 import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
 import {
+  AbortReason,
   MetricsActionType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -113,8 +114,6 @@ const metadata: StateMetadata<BridgeControllerState> = {
     anonymous: false,
   },
 };
-
-const RESET_STATE_ABORT_MESSAGE = 'Reset controller state';
 
 /**
  * The input to start polling for the {@link BridgeController}
@@ -253,7 +252,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
-    this.#abortController?.abort('Quote request updated');
+    this.#abortController?.abort(AbortReason.QuoteRequestUpdated);
 
     this.#trackInputChangedEvents(paramsToUpdate);
 
@@ -470,13 +469,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  stopPollingForQuotes = (reason?: string) => {
+  stopPollingForQuotes = (reason?: AbortReason) => {
     this.stopAllPolling();
     this.#abortController?.abort(reason);
   };
 
   resetState = () => {
-    this.stopPollingForQuotes(RESET_STATE_ABORT_MESSAGE);
+    this.stopPollingForQuotes(AbortReason.ResetState);
 
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
@@ -568,15 +567,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
-      const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
-      if (isAbortedDueToReset || isAbortError) {
-        // Exit the function early to avoid other state updates
+      if (
+        isAbortError ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+        ].includes(error as AbortReason)
+      ) {
+        // Exit the function early to prevent other state updates
         return;
       }
 
       this.update((state) => {
         state.quoteFetchError =
-          error instanceof Error ? error.message : 'Unknown error';
+          error instanceof Error ? error.message : (error?.toString() ?? null);
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
@@ -869,7 +874,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
         };
-      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
         return {
@@ -880,7 +884,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...propertiesFromClient,
         };
       }
-      // These are populated by BridgeStatusController
+      case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
+        return baseProperties;
+      // These events may be published after the bridge-controller state is reset
+      // So the BridgeStatusController populates all the properties
+      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
         return propertiesFromClient;
       case UnifiedSwapBridgeEventName.InputChanged:

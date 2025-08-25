@@ -9,7 +9,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import {
-  assertIsBip44Account,
+  assertAreBip44Accounts,
   BaseAccountProvider,
 } from './BaseAccountProvider';
 
@@ -69,9 +69,11 @@ export class EvmAccountProvider extends BaseAccountProvider {
 
     // We MUST have the associated internal account.
     assertInternalAccountExists(account);
-    assertIsBip44Account(account);
 
-    return [account];
+    const accountsArray = [account];
+    assertAreBip44Accounts(accountsArray);
+
+    return accountsArray;
   }
 
   async discoverAndCreateAccounts(_: {

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "32.0.2",
+  "version": "33.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -48,10 +48,10 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/base-controller": "^8.1.0",
-    "@metamask/eth-snap-keyring": "^16.0.0",
-    "@metamask/keyring-api": "^20.0.0",
-    "@metamask/keyring-internal-api": "^8.0.0",
+    "@metamask/base-controller": "^8.2.0",
+    "@metamask/eth-snap-keyring": "^16.1.0",
+    "@metamask/keyring-api": "^20.1.0",
+    "@metamask/keyring-internal-api": "^8.1.0",
     "@metamask/keyring-utils": "^3.1.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
@@ -65,9 +65,9 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.11.0",
-    "@metamask/keyring-controller": "^22.1.1",
-    "@metamask/network-controller": "^24.0.1",
+    "@metamask/controller-utils": "^11.12.0",
+    "@metamask/keyring-controller": "^23.0.0",
+    "@metamask/network-controller": "^24.1.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
@@ -80,7 +80,7 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^22.0.0",
+    "@metamask/keyring-controller": "^23.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",

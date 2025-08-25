@@ -5,6 +5,8 @@ import {
   EthAccountType,
   BtcAccountType,
   SolAccountType,
+  TrxScope,
+  TrxAccountType,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
@@ -26,6 +28,7 @@ const MOCK_ADDRESSES = {
   evm: '0x1234567890123456789012345678901234567890',
   solana: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   bitcoin: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+  tron: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
 } as const;
 
 const MOCK_CAIP_IDS = {
@@ -33,6 +36,7 @@ const MOCK_CAIP_IDS = {
   evm: `${EthScope.Mainnet}:${MOCK_ADDRESSES.evm}`,
   solana: `${SolScope.Mainnet}:${MOCK_ADDRESSES.solana}`,
   bitcoin: `${BtcScope.Mainnet}:${MOCK_ADDRESSES.bitcoin}`,
+  tron: `${TrxScope.Mainnet}:${MOCK_ADDRESSES.tron}`,
 } as const;
 
 describe('toAllowedCaipAccountIds', () => {
@@ -91,6 +95,19 @@ describe('toAllowedCaipAccountIds', () => {
     const result = toAllowedCaipAccountIds(account);
     expect(result).toStrictEqual([
       `${SolScope.Mainnet}:${MOCK_ADDRESSES.solana}`,
+    ]);
+  });
+
+  it('formats account with Tron scope', () => {
+    const account = createMockAccount(
+      MOCK_ADDRESSES.tron,
+      [TrxScope.Mainnet],
+      TrxAccountType.Eoa,
+    );
+
+    const result = toAllowedCaipAccountIds(account);
+    expect(result).toStrictEqual([
+      `${TrxScope.Mainnet}:${MOCK_ADDRESSES.tron}`,
     ]);
   });
 

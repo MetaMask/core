@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
 
 ### Deprecated
 
@@ -409,7 +417,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@19.0.0
 [18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
 [18.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.3.0...@metamask/preferences-controller@18.4.0
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.2.0...@metamask/preferences-controller@18.3.0
