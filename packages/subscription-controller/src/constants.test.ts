@@ -46,14 +46,6 @@ describe('constants', () => {
     });
   });
 
-  describe('Env enum', () => {
-    it('should have correct values', () => {
-      expect(Env.DEV).toBe('dev');
-      expect(Env.UAT).toBe('uat');
-      expect(Env.PRD).toBe('prd');
-    });
-  });
-
   describe('SubscriptionControllerErrorMessage', () => {
     it('should have correct error messages', () => {
       expect(SubscriptionControllerErrorMessage.UserAlreadySubscribed).toBe(

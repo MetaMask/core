@@ -100,15 +100,10 @@ function mockSubscriptionMessenger(overrideMessengers?: {
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
   const mockGetBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
-
-  jest.spyOn(messenger, 'call').mockImplementation((...args) => {
-    const [actionType] = args as [string, ...unknown[]];
-
-    if (actionType === 'AuthenticationController:getBearerToken') {
-      return mockGetBearerToken();
-    }
-    throw new Error(`MOCK_FAIL - unsupported messenger call: ${actionType}`);
-  });
+  baseMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockGetBearerToken,
+  );
 
   return {
     baseMessenger,
