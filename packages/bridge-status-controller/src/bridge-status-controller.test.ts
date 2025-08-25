@@ -1187,6 +1187,11 @@ describe('BridgeStatusController', () => {
               approvalTxId: 'bridgeApprovalTxMetaId1' as never,
             }),
           },
+          currentSubmissionRequest: {
+            quoteResponse:
+              getMockStartPollingForBridgeTxStatusArgs().quoteResponse,
+            isBridgeTx: true,
+          },
         },
       });
       expect(
