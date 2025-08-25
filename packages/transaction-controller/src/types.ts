@@ -1937,3 +1937,11 @@ export type MetamaskPayMetadata = {
   /** Total cost of the transaction in fiat currency, including gas, fees, and the funds themselves. */
   totalFiat?: string;
 };
+
+/**
+ * Parameters for the transaction simulation API.
+ */
+export type GetSimulationConfig = (url: string) => Promise<{
+  newUrl?: string;
+  authorization?: string;
+}>;

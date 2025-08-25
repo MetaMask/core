@@ -15,7 +15,10 @@ import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionBatchSingleRequest } from '../types';
+import type {
+  GetSimulationConfig,
+  TransactionBatchSingleRequest,
+} from '../types';
 import {
   TransactionEnvelopeType,
   type TransactionMeta,
@@ -27,6 +30,7 @@ export type UpdateGasRequest = {
   ethQuery: EthQuery;
   isCustomNetwork: boolean;
   isSimulationEnabled: boolean;
+  getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
@@ -76,6 +80,7 @@ export async function updateGas(request: UpdateGasRequest) {
  * @param options.ethQuery - The EthQuery instance to interact with the network.
  * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
  * @param options.isSimulationEnabled - Whether the simulation is enabled.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
  * @param options.messenger - The messenger instance for communication.
  * @param options.txParams - The transaction parameters.
  * @returns The estimated gas and related info.
@@ -85,6 +90,7 @@ export async function estimateGas({
   ethQuery,
   ignoreDelegationSignatures,
   isSimulationEnabled,
+  getSimulationConfig,
   messenger,
   txParams,
 }: {
@@ -92,6 +98,7 @@ export async function estimateGas({
   ethQuery: EthQuery;
   ignoreDelegationSignatures?: boolean;
   isSimulationEnabled: boolean;
+  getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   txParams: TransactionParams;
 }) {
@@ -144,10 +151,12 @@ export async function estimateGas({
         request,
         ethQuery,
         chainId,
+        getSimulationConfig,
       );
     } else if (ignoreDelegationSignatures && isSimulationEnabled) {
       estimatedGas = await simulateGas({
         chainId,
+        getSimulationConfig,
         transaction: request,
       });
     } else {
@@ -222,20 +231,24 @@ export function addGasBuffer(
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transactions.
  * @param options.from - The address of the sender.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
  * @param options.transactions - The array of transactions within a batch request.
  * @returns An object containing the transactions with their gas limits and the total gas limit.
  */
 export async function simulateGasBatch({
   chainId,
   from,
+  getSimulationConfig,
   transactions,
 }: {
   chainId: Hex;
   from: Hex;
+  getSimulationConfig: GetSimulationConfig;
   transactions: TransactionBatchSingleRequest[];
 }): Promise<{ gasLimit: Hex }> {
   try {
     const response = await simulateTransactions(chainId, {
+      getSimulationConfig,
       transactions: transactions.map((transaction) => ({
         ...transaction.params,
         from,
@@ -281,8 +294,14 @@ export async function simulateGasBatch({
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
-  const { chainId, isCustomNetwork, isSimulationEnabled, messenger, txMeta } =
-    request;
+  const {
+    chainId,
+    isCustomNetwork,
+    isSimulationEnabled,
+    getSimulationConfig,
+    messenger,
+    txMeta,
+  } = request;
   const { disableGasBuffer } = txMeta;
 
   if (txMeta.txParams.gas) {
@@ -301,9 +320,10 @@ async function getGas(
     isUpgradeWithDataToSelf,
     simulationFails,
   } = await estimateGas({
-    chainId: request.chainId,
+    chainId,
     ethQuery: request.ethQuery,
     isSimulationEnabled,
+    getSimulationConfig,
     messenger,
     txParams: txMeta.txParams,
   });
@@ -406,12 +426,14 @@ async function getLatestBlock(
  * @param txParams - The transaction parameters.
  * @param ethQuery - The EthQuery instance to interact with the network.
  * @param chainId - The chain ID of the transaction.
+ * @param getSimulationConfig - The function to get the simulation configuration.
  * @returns The estimated gas.
  */
 async function estimateGasUpgradeWithDataToSelf(
   txParams: TransactionParams,
   ethQuery: EthQuery,
   chainId: Hex,
+  getSimulationConfig: GetSimulationConfig,
 ) {
   const upgradeGas = await query(ethQuery, 'estimateGas', [
     {
@@ -430,6 +452,7 @@ async function estimateGasUpgradeWithDataToSelf(
     executeGas = await simulateGas({
       chainId: chainId as Hex,
       delegationAddress,
+      getSimulationConfig,
       transaction: txParams,
     });
   } catch (error: unknown) {
@@ -470,19 +493,23 @@ async function estimateGasUpgradeWithDataToSelf(
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transaction.
  * @param options.delegationAddress - The delegation address of the sender to mock.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
  * @param options.transaction - The transaction parameters.
  * @returns The simulated gas.
  */
 async function simulateGas({
   chainId,
   delegationAddress,
+  getSimulationConfig,
   transaction,
 }: {
   chainId: Hex;
   delegationAddress?: Hex;
+  getSimulationConfig: GetSimulationConfig;
   transaction: TransactionParams;
 }): Promise<Hex> {
   const response = await simulateTransactions(chainId, {
+    getSimulationConfig,
     transactions: [
       {
         to: transaction.to as Hex,
