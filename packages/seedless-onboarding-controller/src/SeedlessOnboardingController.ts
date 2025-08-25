@@ -1,6 +1,6 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import type { StateMetadata } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller/next';
 import type {
   KeyPair,
   RecoverEncryptionKeyResult,
@@ -239,10 +239,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
+    this.messenger.subscribe('KeyringController:lock', () => {
       this.setLocked();
     });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
+    this.messenger.subscribe('KeyringController:unlock', () => {
       this.#setUnlocked();
     });
   }
