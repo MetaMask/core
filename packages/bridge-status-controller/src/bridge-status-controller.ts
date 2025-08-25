@@ -584,20 +584,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.quote,
         srcTxHash,
       );
-      const status = await fetchBridgeTxStatus(
+      const { status, validationFailures } = await fetchBridgeTxStatus(
         statusRequest,
         this.#clientId,
         this.#fetchFn,
         this.#config.customBridgeApiBaseUrl,
       );
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.ResponseValidationFailure,
-        bridgeTxMetaId,
-        {
-          path: 'getTxStatus',
-          failures: [],
-        },
-      );
+
+      if (validationFailures.length > 0) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.ResponseValidationFailure,
+          bridgeTxMetaId,
+          {
+            endpoint: 'getTxStatus',
+            failures: validationFailures,
+          },
+        );
+        throw new Error(
+          `Bridge status validation failed: ${validationFailures.join(', ')}`,
+        );
+      }
+
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
@@ -641,7 +648,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
       }
     } catch (e) {
-      console.log('Failed to fetch bridge tx status', e);
+      console.warn('Failed to fetch bridge tx status', e);
       this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
