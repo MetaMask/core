@@ -73,6 +73,7 @@ import type {
   GasFeeToken,
   GasFeeEstimates,
   SimulationData,
+  GetSimulationConfig,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -1250,6 +1251,7 @@ describe('TransactionController', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: expect.anything(),
         isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
         messenger: expect.anything(),
         txParams: transactionParamsMock,
       });
@@ -2055,6 +2057,7 @@ describe('TransactionController', () => {
         ethQuery: expect.any(Object),
         isCustomNetwork: false,
         isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
         messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
@@ -2464,6 +2467,7 @@ describe('TransactionController', () => {
           blockTime: undefined,
           chainId: MOCK_NETWORK.chainId,
           ethQuery: expect.any(Object),
+          getSimulationConfig: expect.any(Function),
           nestedTransactions: undefined,
           txParams: {
             data: undefined,
@@ -2473,6 +2477,45 @@ describe('TransactionController', () => {
             value: '0x0',
           },
         });
+
+        expect(controller.state.transactions[0].simulationData).toStrictEqual(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+      });
+
+      it('with getSimulationConfig', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        const getSimulationConfigMock: GetSimulationConfig = jest
+          .fn()
+          .mockResolvedValue({});
+
+        const { controller } = setupController({
+          options: {
+            getSimulationConfig: getSimulationConfigMock,
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+        expect(getBalanceChangesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            getSimulationConfig: getSimulationConfigMock,
+          }),
+        );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
           SIMULATION_DATA_RESULT_MOCK,
@@ -2548,6 +2591,46 @@ describe('TransactionController', () => {
         );
 
         await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          GAS_FEE_TOKEN_MOCK,
+        ]);
+      });
+
+      it('with getSimulationConfig', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const getSimulationConfigMock: GetSimulationConfig = jest
+          .fn()
+          .mockResolvedValue({});
+
+        const { controller } = setupController({
+          options: {
+            getSimulationConfig: getSimulationConfigMock,
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            getSimulationConfig: getSimulationConfigMock,
+          }),
+        );
 
         expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
           GAS_FEE_TOKEN_MOCK,
@@ -7507,6 +7590,7 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
         ethQuery: expect.any(Object),
+        getSimulationConfig: expect.any(Function),
         nestedTransactions: undefined,
         txParams: {
           data: undefined,
@@ -7547,6 +7631,7 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
         ethQuery: expect.any(Object),
+        getSimulationConfig: expect.any(Function),
         nestedTransactions: undefined,
         txParams: {
           data: undefined,

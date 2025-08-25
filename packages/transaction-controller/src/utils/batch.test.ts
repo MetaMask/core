@@ -332,6 +332,7 @@ describe('Batch Utils', () => {
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
+        getSimulationConfig: jest.fn(),
         getTransaction: jest.fn(),
         isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
@@ -1618,6 +1619,7 @@ describe('Batch Utils', () => {
         expect(simulateGasBatchMock).toHaveBeenCalledWith({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
+          getSimulationConfig: request.getSimulationConfig,
           transactions: TRANSACTIONS_BATCH_MOCK,
         });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);

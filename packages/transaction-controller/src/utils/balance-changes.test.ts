@@ -18,6 +18,7 @@ import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
+import type { GetSimulationConfig } from '../types';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('../api/simulation-api');
@@ -63,6 +64,7 @@ const REQUEST_MOCK: GetBalanceChangesRequest = {
   ethQuery: {
     sendAsync: jest.fn(),
   } as EthQuery,
+  getSimulationConfig: jest.fn(),
   txParams: {
     data: '0x123',
     from: USER_ADDRESS_MOCK,
@@ -670,6 +672,7 @@ describe('Simulation Utils', () => {
           2,
           REQUEST_MOCK.chainId,
           {
+            getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
             transactions: [
               // ERC-20 balance before minting.
               {
@@ -1147,6 +1150,25 @@ describe('Simulation Utils', () => {
           }),
         );
       });
+    });
+
+    it('forwards simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await getBalanceChanges(request);
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          getSimulationConfig: getSimulationConfigMock,
+        }),
+      );
     });
   });
 });
