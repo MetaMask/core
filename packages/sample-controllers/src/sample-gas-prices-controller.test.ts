@@ -2,20 +2,16 @@ import { Messenger } from '@metamask/base-controller';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
-import {
-  getDefaultNetworkControllerState,
-  type NetworkControllerGetStateAction,
-} from './network-controller-types';
-import type { SampleAbstractGasPricesService } from './sample-gas-prices-service';
+import { flushPromises } from '../../../tests/helpers';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../base-controller/tests/helpers';
+import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers';
 
 describe('SampleGasPricesController', () => {
   describe('constructor', () => {
-    it('uses all of the given state properties to initialize state', () => {
-      const gasPricesService = buildGasPricesService();
+    it('accepts initial state', async () => {
       const givenState = {
         gasPricesByChainId: {
           '0x1': {
@@ -26,27 +22,231 @@ describe('SampleGasPricesController', () => {
           },
         },
       };
-      const controller = new SampleGasPricesController({
-        messenger: getMessenger(),
-        state: givenState,
-        gasPricesService,
-      });
 
-      expect(controller.state).toStrictEqual(givenState);
+      await withController(
+        { options: { state: givenState } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(givenState);
+        },
+      );
     });
 
-    it('fills in missing state properties with default values', () => {
-      const gasPricesService = buildGasPricesService();
-      const controller = new SampleGasPricesController({
-        messenger: getMessenger(),
-        gasPricesService,
+    it('fills in missing initial state with defaults', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state).toMatchInlineSnapshot(`
+          Object {
+            "gasPricesByChainId": Object {},
+          }
+        `);
       });
+    });
+  });
 
-      expect(controller.state).toMatchInlineSnapshot(`
-        Object {
-          "gasPricesByChainId": Object {},
-        }
-      `);
+  describe('on NetworkController:stateChange', () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('fetches and updates gas prices for the newly selected chain ID, if it has changed', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const chainId = '0x42';
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          async (givenChainId) => {
+            // eslint-disable-next-line jest/no-conditional-in-test
+            if (givenChainId === chainId) {
+              return {
+                low: 5,
+                average: 10,
+                high: 15,
+              };
+            }
+
+            throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkController:getNetworkClientById',
+          buildMockGetNetworkClientById({
+            // @ts-expect-error We are not supplying a complete NetworkClient.
+            'AAAA-AAAA-AAAA-AAAA': {
+              chainId,
+            },
+          }),
+        );
+
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+        await flushPromises();
+
+        expect(controller.state).toStrictEqual({
+          gasPricesByChainId: {
+            [chainId]: {
+              low: 5,
+              average: 10,
+              high: 15,
+              fetchedDate: '2024-01-02T00:00:00.000Z',
+            },
+          },
+        });
+      });
+    });
+
+    it('does not fetch gas prices again if the selected network client ID changed but the selected chain ID did not', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const chainId = '0x42';
+        let i = 0;
+        const delays = [5000, 1000];
+        const fetchGasPrices = jest.fn(async (givenChainId) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (givenChainId === chainId) {
+            jest.advanceTimersByTime(delays[i]);
+            i += 1;
+            return {
+              low: 5,
+              average: 10,
+              high: 15,
+            };
+          }
+
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+        });
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          fetchGasPrices,
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkController:getNetworkClientById',
+          buildMockGetNetworkClientById({
+            // @ts-expect-error We are not supplying a complete NetworkClient.
+            'AAAA-AAAA-AAAA-AAAA': {
+              chainId,
+            },
+            // @ts-expect-error We are not supplying a complete NetworkClient.
+            'BBBB-BBBB-BBBB-BBBB': {
+              chainId,
+            },
+          }),
+        );
+
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'BBBB-BBBB-BBBB-BBBB' },
+          [],
+        );
+        jest.runAllTimers();
+        await flushPromises();
+
+        expect(fetchGasPrices).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not fetch gas prices for the selected chain ID again if it has not changed', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const chainId = '0x42';
+        const fetchGasPrices = jest.fn(async (givenChainId) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (givenChainId === chainId) {
+            return {
+              low: 5,
+              average: 10,
+              high: 15,
+            };
+          }
+
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+        });
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          fetchGasPrices,
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkController:getNetworkClientById',
+          buildMockGetNetworkClientById({
+            // @ts-expect-error We are not supplying a complete NetworkClient.
+            'AAAA-AAAA-AAAA-AAAA': {
+              chainId,
+            },
+          }),
+        );
+
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+        await flushPromises();
+
+        expect(fetchGasPrices).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('SampleGasPricesController:updateGasPrices', () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('fetches and persists gas prices for the current chain through the service object', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const chainId = '0x42';
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          async (givenChainId) => {
+            // eslint-disable-next-line jest/no-conditional-in-test
+            if (givenChainId === chainId) {
+              return {
+                low: 5,
+                average: 10,
+                high: 15,
+              };
+            }
+
+            throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+          },
+        );
+
+        await rootMessenger.call('SampleGasPricesController:updateGasPrices', {
+          chainId,
+        });
+
+        expect(controller.state).toStrictEqual({
+          gasPricesByChainId: {
+            [chainId]: {
+              low: 5,
+              average: 10,
+              high: 15,
+              fetchedDate: '2024-01-02T00:00:00.000Z',
+            },
+          },
+        });
+      });
     });
   });
 
@@ -59,101 +259,120 @@ describe('SampleGasPricesController', () => {
       jest.useRealTimers();
     });
 
-    it('fetches gas prices for the current chain through the service object and updates state accordingly', async () => {
-      const gasPricesService = buildGasPricesService();
-      jest.spyOn(gasPricesService, 'fetchGasPrices').mockResolvedValue({
-        low: 5,
-        average: 10,
-        high: 15,
-      });
-      const rootMessenger = getRootMessenger({
-        networkControllerGetStateActionHandler: () => ({
-          ...getDefaultNetworkControllerState(),
-          chainId: '0x42',
-        }),
-      });
-      const controller = new SampleGasPricesController({
-        messenger: getMessenger(rootMessenger),
-        gasPricesService,
-      });
+    it('does the same thing as the messenger action', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const chainId = '0x42';
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          async (givenChainId) => {
+            // eslint-disable-next-line jest/no-conditional-in-test
+            if (givenChainId === chainId) {
+              return {
+                low: 5,
+                average: 10,
+                high: 15,
+              };
+            }
 
-      await controller.updateGasPrices();
-
-      expect(controller.state).toStrictEqual({
-        gasPricesByChainId: {
-          '0x42': {
-            low: 5,
-            average: 10,
-            high: 15,
-            fetchedDate: '2024-01-02T00:00:00.000Z',
+            throw new Error(`Unrecognized chain ID '${givenChainId}'`);
           },
-        },
+        );
+
+        await controller.updateGasPrices({ chainId });
+
+        expect(controller.state).toStrictEqual({
+          gasPricesByChainId: {
+            [chainId]: {
+              low: 5,
+              average: 10,
+              high: 15,
+              fetchedDate: '2024-01-02T00:00:00.000Z',
+            },
+          },
+        });
       });
     });
   });
 });
 
 /**
- * The union of actions that the root messenger allows.
+ * The type of the messenger populated with all external actions and events
+ * required by the controller under test.
  */
-type RootAction = ExtractAvailableAction<SampleGasPricesControllerMessenger>;
+type RootMessenger = Messenger<
+  ExtractAvailableAction<SampleGasPricesControllerMessenger>,
+  ExtractAvailableEvent<SampleGasPricesControllerMessenger>
+>;
 
 /**
- * The union of events that the root messenger allows.
+ * The callback that `withController` calls.
  */
-type RootEvent = ExtractAvailableEvent<SampleGasPricesControllerMessenger>;
+type WithControllerCallback<ReturnValue> = (payload: {
+  controller: SampleGasPricesController;
+  rootMessenger: RootMessenger;
+  messenger: SampleGasPricesControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
- * publish events within the tests for this controller.
+ * The options bag that `withController` takes.
+ */
+type WithControllerOptions = {
+  options: Partial<ConstructorParameters<typeof SampleGasPricesController>[0]>;
+};
+
+/**
+ * Constructs the messenger populated with all external actions and events
+ * required by the controller under test.
  *
- * @param args - The arguments to this function.
- * @param args.networkControllerGetStateActionHandler - Used to mock the
- * `NetworkController:getState` action on the messenger.
- * @returns The unrestricted messenger suited for SampleGasPricesController.
+ * @returns The root messenger.
  */
-function getRootMessenger({
-  networkControllerGetStateActionHandler = jest
-    .fn<
-      ReturnType<NetworkControllerGetStateAction['handler']>,
-      Parameters<NetworkControllerGetStateAction['handler']>
-    >()
-    .mockReturnValue(getDefaultNetworkControllerState()),
-}: {
-  networkControllerGetStateActionHandler?: NetworkControllerGetStateAction['handler'];
-} = {}): Messenger<RootAction, RootEvent> {
-  const rootMessenger = new Messenger<RootAction, RootEvent>();
-  rootMessenger.registerActionHandler(
-    'NetworkController:getState',
-    networkControllerGetStateActionHandler,
-  );
-  return rootMessenger;
+function getRootMessenger(): RootMessenger {
+  return new Messenger();
 }
 
 /**
- * Constructs the messenger which is restricted to relevant SampleGasPricesController
- * actions and events.
+ * Constructs the messenger for the controller under test.
  *
- * @param rootMessenger - The root messenger to restrict.
- * @returns The restricted messenger.
+ * @param rootMessenger - The root messenger, with all external actions and
+ * events required by the controller's messenger.
+ * @returns The controller-specific messenger.
  */
 function getMessenger(
-  rootMessenger = getRootMessenger(),
+  rootMessenger: RootMessenger,
 ): SampleGasPricesControllerMessenger {
   return rootMessenger.getRestricted({
     name: 'SampleGasPricesController',
-    allowedActions: ['NetworkController:getState'],
-    allowedEvents: [],
+    allowedActions: [
+      'SampleGasPricesService:fetchGasPrices',
+      'NetworkController:getNetworkClientById',
+    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 }
 
 /**
- * Constructs a mock SampleGasPricesService object for use in testing.
+ * Wrap tests for the controller under test by ensuring that the controller is
+ * created ahead of time and then safely destroyed afterward as needed.
  *
- * @returns The mock SampleGasPricesService object.
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag contains arguments for the controller constructor. All constructor
+ * arguments are optional and will be filled in with defaults in as needed
+ * (including `messenger`). The function is called with the new
+ * controller, root messenger, and controller messenger.
+ * @returns The same return value as the given function.
  */
-function buildGasPricesService(): SampleAbstractGasPricesService {
-  return {
-    fetchGasPrices: jest.fn(),
-  };
+async function withController<ReturnValue>(
+  ...args:
+    | [WithControllerCallback<ReturnValue>]
+    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
+): Promise<ReturnValue> {
+  const [{ options = {} }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+  const rootMessenger = getRootMessenger();
+  const messenger = getMessenger(rootMessenger);
+  const controller = new SampleGasPricesController({
+    messenger,
+    ...options,
+  });
+  return await testFunction({ controller, rootMessenger, messenger });
 }
