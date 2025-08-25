@@ -7740,6 +7740,70 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('updateRequiredTransactionIds', () => {
+    it('updates required transaction IDs in state', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      controller.updateRequiredTransactionIds({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredTransactionIds: ['123-456', '234-567'],
+      });
+
+      expect(
+        controller.state.transactions[0].requiredTransactionIds,
+      ).toStrictEqual(['123-456', '234-567']);
+    });
+
+    it('appends to existing values by default', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, requiredTransactionIds: ['123-456'] },
+            ],
+          },
+        },
+      });
+
+      controller.updateRequiredTransactionIds({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredTransactionIds: ['234-567'],
+      });
+
+      expect(
+        controller.state.transactions[0].requiredTransactionIds,
+      ).toStrictEqual(['123-456', '234-567']);
+    });
+
+    it('replaces existing values if append is false', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, requiredTransactionIds: ['123-456'] },
+            ],
+          },
+        },
+      });
+
+      controller.updateRequiredTransactionIds({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredTransactionIds: ['234-567'],
+        append: false,
+      });
+
+      expect(
+        controller.state.transactions[0].requiredTransactionIds,
+      ).toStrictEqual(['234-567']);
+    });
+  });
+
   describe('updateSelectedGasFeeToken', () => {
     it('updates selected gas fee token in state', () => {
       const { controller } = setupController({
