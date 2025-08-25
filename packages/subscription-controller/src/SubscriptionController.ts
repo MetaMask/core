@@ -35,7 +35,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken
+  | AuthenticationController.AuthenticationControllerPerformSignOut;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -176,6 +177,13 @@ export class SubscriptionController extends BaseController<
           : subscription,
       );
     });
+  }
+
+  /**
+   * Triggers an access token refresh.
+   */
+  triggerAccessTokenRefresh() {
+    this.messagingSystem.call('AuthenticationController:performSignOut');
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
