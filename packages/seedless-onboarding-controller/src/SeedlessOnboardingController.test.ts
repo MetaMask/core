@@ -44,8 +44,8 @@ import {
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import type {
-  AllowedActions,
-  AllowedEvents,
+  SeedlessOnboardingControllerAllowedActions,
+  SeedlessOnboardingControllerAllowedEvents,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
@@ -115,7 +115,7 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  baseMessenger: Messenger<SeedlessOnboardingControllerAllowedActions, SeedlessOnboardingControllerAllowedEvents>;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
   mockRevokeRefreshToken: jest.Mock;

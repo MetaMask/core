@@ -186,7 +186,7 @@ export type SeedlessOnboardingControllerGetStateAction =
 export type SeedlessOnboardingControllerActions =
   SeedlessOnboardingControllerGetStateAction;
 
-export type AllowedActions = never;
+export type SeedlessOnboardingControllerAllowedActions = never;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
@@ -197,17 +197,19 @@ export type SeedlessOnboardingControllerStateChangeEvent =
 export type SeedlessOnboardingControllerEvents =
   SeedlessOnboardingControllerStateChangeEvent;
 
-export type AllowedEvents =
+export type SeedlessOnboardingControllerAllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  | SeedlessOnboardingControllerActions
+  | SeedlessOnboardingControllerAllowedActions,
+  | SeedlessOnboardingControllerEvents
+  | SeedlessOnboardingControllerAllowedEvents,
+  SeedlessOnboardingControllerAllowedActions['type'],
+  SeedlessOnboardingControllerAllowedEvents['type']
 >;
 
 /**
