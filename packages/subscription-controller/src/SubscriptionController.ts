@@ -104,10 +104,10 @@ export class SubscriptionController extends BaseController<
     return subscription;
   }
 
-  async cancelSubscription(subscriptionId: string) {
+  async cancelSubscription(request: { subscriptionId: string }) {
     this.#assertIsUserSubscribed();
 
-    await this.#subscriptionService.cancelSubscription({ subscriptionId });
+    await this.#subscriptionService.cancelSubscription(request);
   }
 
   #assertIsUserSubscribed() {
