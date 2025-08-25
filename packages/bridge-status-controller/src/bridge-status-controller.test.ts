@@ -548,7 +548,10 @@ const executePollingWithPendingStatus = async () => {
   jest.useFakeTimers();
   const fetchBridgeTxStatusSpy = jest
     .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-    .mockResolvedValueOnce(MockStatusResponse.getPending());
+    .mockResolvedValueOnce({
+      status: MockStatusResponse.getPending(),
+      validationFailures: [],
+    });
   const bridgeStatusController = new BridgeStatusController({
     messenger: getMessengerMock(),
     clientId: BridgeClientId.EXTENSION,
@@ -566,7 +569,10 @@ const executePollingWithPendingStatus = async () => {
     getMockStartPollingForBridgeTxStatusArgs(),
   );
   fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
-    return MockStatusResponse.getPending();
+    return {
+      status: MockStatusResponse.getPending(),
+      validationFailures: [],
+    };
   });
   jest.advanceTimersByTime(10000);
   await flushPromises();
@@ -890,7 +896,10 @@ describe('BridgeStatusController', () => {
         }),
       );
       fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
-        return MockStatusResponse.getComplete();
+        return {
+          status: MockStatusResponse.getComplete(),
+          validationFailures: [],
+        };
       });
       jest.advanceTimersByTime(10000);
       await flushPromises();
@@ -1002,7 +1011,10 @@ describe('BridgeStatusController', () => {
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete();
+          return {
+            status: MockStatusResponse.getComplete(),
+            validationFailures: [],
+          };
         });
 
       // Execution
@@ -1030,7 +1042,10 @@ describe('BridgeStatusController', () => {
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getFailed();
+          return {
+            status: MockStatusResponse.getFailed(),
+            validationFailures: [],
+          };
         });
       const bridgeStatusController = new BridgeStatusController({
         messenger: messengerMock,
@@ -1299,13 +1314,19 @@ describe('BridgeStatusController', () => {
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete();
+          return {
+            status: MockStatusResponse.getComplete(),
+            validationFailures: [],
+          };
         })
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete({
-            srcTxHash: '0xsrcTxHash2',
-            destTxHash: '0xdestTxHash2',
-          });
+          return {
+            status: MockStatusResponse.getComplete({
+              srcTxHash: '0xsrcTxHash2',
+              destTxHash: '0xdestTxHash2',
+            }),
+            validationFailures: [],
+          };
         });
 
       // Start polling for 0xaccount1
@@ -1392,12 +1413,18 @@ describe('BridgeStatusController', () => {
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete();
+          return {
+            status: MockStatusResponse.getComplete(),
+            validationFailures: [],
+          };
         })
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete({
-            srcTxHash: '0xsrcTxHash2',
-          });
+          return {
+            status: MockStatusResponse.getComplete({
+              srcTxHash: '0xsrcTxHash2',
+            }),
+            validationFailures: [],
+          };
         });
 
       // Start polling for chainId 42161 to chainId 1
@@ -1499,12 +1526,18 @@ describe('BridgeStatusController', () => {
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete();
+          return {
+            status: MockStatusResponse.getComplete(),
+            validationFailures: [],
+          };
         })
         .mockImplementationOnce(async () => {
-          return MockStatusResponse.getComplete({
-            srcTxHash: '0xsrcTxHash2',
-          });
+          return {
+            status: MockStatusResponse.getComplete({
+              srcTxHash: '0xsrcTxHash2',
+            }),
+            validationFailures: [],
+          };
         });
 
       // Start polling for chainId 42161 to chainId 1
@@ -3016,10 +3049,16 @@ describe('BridgeStatusController', () => {
         );
         fetchBridgeTxStatusSpy
           .mockImplementationOnce(async () => {
-            return MockStatusResponse.getPending();
+            return {
+              status: MockStatusResponse.getPending(),
+              validationFailures: [],
+            };
           })
           .mockImplementationOnce(async () => {
-            return MockStatusResponse.getPending();
+            return {
+              status: MockStatusResponse.getPending(),
+              validationFailures: [],
+            };
           });
 
         // Create controller with a bridge transaction that has failed attempts
