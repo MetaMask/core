@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Swaps 2807 account for min dest token amount ([#6373](https://github.com/MetaMask/core/pull/6373))
+
 ## [40.1.0]
 
 ### Changed

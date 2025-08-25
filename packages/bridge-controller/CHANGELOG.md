@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/511.0.0 ([#6372](https://github.com/MetaMask/core/pull/6372))
+
 ### Changed
 
 - Update quotes to account for minDestTokenAmount ([#6373](https://github.com/MetaMask/core/pull/6373))
