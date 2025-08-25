@@ -1164,7 +1164,9 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         state: EMPTY_INIT_STATE,
       });
-      expect(bridgeStatusController.getCurrentSubmissionRequest()).toBeUndefined();
+      expect(
+        bridgeStatusController.getCurrentSubmissionRequest(),
+      ).toBeUndefined();
     });
 
     it('returns the current submission request when it exists', () => {
@@ -1187,7 +1189,9 @@ describe('BridgeStatusController', () => {
           },
         },
       });
-      expect(bridgeStatusController.getCurrentSubmissionRequest()).toBeDefined();
+      expect(
+        bridgeStatusController.getCurrentSubmissionRequest(),
+      ).toBeDefined();
     });
   });
 
