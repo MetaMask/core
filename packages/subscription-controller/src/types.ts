@@ -7,43 +7,63 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import type { controllerName, Env } from './constants';
 
+export enum ProductType {
+  SHIELD = 'shield',
+}
+
+export type Product = {
+  name: ProductType;
+  id: string;
+  currency: string;
+  amount: number;
+};
+
+export enum PaymentType {
+  CARD = 'card',
+  CRYPTO = 'crypto',
+}
+
+export type PaymentMethod = {
+  type: PaymentType;
+  crypto?: {
+    payerAddress: string;
+    chainId: string;
+    tokenSymbol: string;
+  };
+};
+
 // state
 export type Subscription = {
   id: string;
-  createdDate: string;
-  status: 'active' | 'inactive';
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  paymentMethod: 'card' | 'crypto';
-  paymentType: 'monthly' | 'yearly';
-  paymentAmount: number;
-  paymentCurrency: string;
-  paymentDate: string;
-  paymentId: string;
+  products: Product[];
+  currentPeriodStart: string; // ISO 8601
+  currentPeriodEnd: string; // ISO 8601
+  billingCycles?: number;
+  status: 'active' | 'inactive' | 'trialing' | 'cancelled';
+  interval: 'month' | 'year';
+  paymentMethod: PaymentMethod;
 };
 
-export type AuthUserData = {
-  // Authentication token reference (managed by user storage controller)
-  authTokenRef: {
-    lastRefreshTriggered: string;
-    refreshStatus: 'pending' | 'completed' | 'failed';
-  };
+// Authentication token reference (managed by user storage controller)
+export type AuthTokenRef = {
+  lastRefreshTriggered: string;
+  refreshStatus: 'pending' | 'completed' | 'failed';
 };
 
-export type PendingPaymentTransactionData = {
-  pendingPaymentTransactions: {
-    [transactionId: string]: {
-      type: 'subscription_approval' | 'subscription_payment';
-      status: 'pending' | 'confirmed' | 'failed';
-      chainId: string;
-      hash?: string;
-    };
-  };
+export type PendingPaymentTransaction = {
+  type: 'subscription_approval' | 'subscription_payment';
+  status: 'pending' | 'confirmed' | 'failed';
+  chainId: string;
+  hash?: string;
 };
 
-export type SubscriptionControllerState = Partial<AuthUserData> &
-  Partial<PendingPaymentTransactionData> & {
-    subscription?: Subscription;
+export type SubscriptionControllerState = {
+  subscriptions: Subscription[];
+  authTokenRef?: AuthTokenRef;
+  pendingPaymentTransactions?: {
+    [transactionId: string]: PendingPaymentTransaction;
   };
+};
 
 // Actions
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
@@ -98,7 +118,13 @@ export type SubscriptionControllerOptions = {
   subscriptionService?: ISubscriptionService;
 };
 
+export type GetSubscriptionsResponse = {
+  customerId: string;
+  subscriptions: Subscription[] | null;
+  trialedProducts: ProductType[];
+};
+
 export type ISubscriptionService = {
-  getSubscription(): Promise<Subscription | null>;
+  getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
 };

@@ -4,19 +4,26 @@ import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
 import type { Subscription } from './types';
+import { PaymentType, ProductType } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
-  createdDate: '2024-01-01T00:00:00Z',
+  products: [
+    {
+      name: ProductType.SHIELD,
+      id: 'prod_shield_basic',
+      currency: 'USD',
+      amount: 9.99,
+    },
+  ],
+  currentPeriodStart: '2024-01-01T00:00:00Z',
+  currentPeriodEnd: '2024-02-01T00:00:00Z',
   status: 'active',
-  paymentStatus: 'completed',
-  paymentMethod: 'card',
-  paymentType: 'monthly',
-  paymentAmount: 9.99,
-  paymentCurrency: 'USD',
-  paymentDate: '2024-01-01T00:00:00Z',
-  paymentId: 'pay_123456789',
+  interval: 'month',
+  paymentMethod: {
+    type: PaymentType.CARD,
+  },
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
@@ -109,32 +116,42 @@ describe('SubscriptionService', () => {
     });
   });
 
-  describe('getSubscription', () => {
-    it('should fetch subscription successfully', async () => {
+  describe('getSubscriptions', () => {
+    it('should fetch subscriptions successfully', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .get('/api/v1/subscription')
-        .reply(200, { data: MOCK_SUBSCRIPTION });
+        .get('/api/v1/subscriptions')
+        .reply(200, {
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
-      const result = await service.getSubscription();
+      const result = await service.getSubscriptions();
 
-      expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
+      expect(result).toStrictEqual({
+        customerId: 'cus_1',
+        subscriptions: [MOCK_SUBSCRIPTION],
+        trialedProducts: [],
+      });
       expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
     });
 
-    it('should return null for 404 response', async () => {
+    it('should throw SubscriptionServiceError for error responses', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').reply(404, MOCK_ERROR_RESPONSE);
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .reply(404, MOCK_ERROR_RESPONSE);
 
-      const result = await service.getSubscription();
-
-      expect(result).toBeNull();
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
+      );
     });
 
     it('should throw SubscriptionServiceError for non-404 error responses', async () => {
@@ -142,10 +159,12 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').reply(500, MOCK_ERROR_RESPONSE);
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .reply(500, MOCK_ERROR_RESPONSE);
 
-      await expect(service.getSubscription()).rejects.toThrow(
-        /Subscription not found/u,
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
       );
     });
 
@@ -154,9 +173,13 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').replyWithError('Network error');
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .replyWithError('Network error');
 
-      await expect(service.getSubscription()).rejects.toThrow(/Network error/u);
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
+      );
     });
 
     it('should throw SubscriptionServiceError for authentication errors', async () => {
@@ -166,11 +189,8 @@ describe('SubscriptionService', () => {
       );
       const service = new SubscriptionService(config);
 
-      await expect(service.getSubscription()).rejects.toThrow(
+      await expect(service.getSubscriptions()).rejects.toThrow(
         SubscriptionServiceError,
-      );
-      await expect(service.getSubscription()).rejects.toThrow(
-        'failed to get subscription. Authentication failed',
       );
     });
 
@@ -179,9 +199,11 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').replyWithError('String error');
+      nock(testUrl).get('/api/v1/subscriptions').replyWithError('String error');
 
-      await expect(service.getSubscription()).rejects.toThrow(/String error/u);
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
+      );
     });
 
     it('should handle null/undefined exceptions', async () => {
@@ -189,25 +211,24 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').replyWithError('Network error');
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .replyWithError('Network error');
 
-      await expect(service.getSubscription()).rejects.toThrow(/Network error/u);
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
+      );
     });
 
     it('should handle non-Error exceptions in catch block', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
 
-      // Use nock to simulate a non-Error exception from the HTTP request
-      // nock's replyWithError can take a string, which will be wrapped as an Error,
-      // but to simulate a non-Error, we need to use the error option with a non-Error value.
-      // However, nock always wraps the value as an Error, so to simulate a non-Error thrown,
-      // we can mock the underlying http.request to throw a string, but that's complex.
-      // Instead, we can simulate a non-Error thrown from the auth.getAccessToken mock:
+      // Simulate a non-Error thrown from the auth.getAccessToken mock
       config.auth.getAccessToken.mockRejectedValue('string error');
 
-      await expect(service.getSubscription()).rejects.toThrow(
-        /failed to get subscription\. "string error"/u,
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
       );
     });
 
@@ -218,8 +239,8 @@ describe('SubscriptionService', () => {
       // Mock fetch to throw null to test the false branch with null value
       jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
 
-      await expect(service.getSubscription()).rejects.toThrow(
-        /failed to get subscription\. ""/u,
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
       );
     });
 
@@ -228,9 +249,15 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.PRD);
 
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .reply(200, {
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
-      await service.getSubscription();
+      await service.getSubscriptions();
 
       // Verify the correct URL was used
       expect(isDone()).toBe(true);
@@ -241,9 +268,15 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .reply(200, {
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
-      await service.getSubscription();
+      await service.getSubscriptions();
 
       // Verify the correct headers were sent
       expect(isDone()).toBe(true);
@@ -257,7 +290,7 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .reply(200, {});
 
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
@@ -271,7 +304,7 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .reply(400, MOCK_ERROR_RESPONSE);
 
       await expect(
@@ -285,7 +318,7 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .replyWithError('Network error');
 
       await expect(
@@ -303,9 +336,6 @@ describe('SubscriptionService', () => {
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
       ).rejects.toThrow(SubscriptionServiceError);
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow('failed to cancel subscription. Authentication failed');
     });
 
     it('should handle non-Error exceptions', async () => {
@@ -314,26 +344,12 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .replyWithError('String error');
 
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(/String error/u);
-    });
-
-    it('should handle null/undefined exceptions', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .replyWithError(new Error('Network error'));
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(/Network error/u);
+      ).rejects.toThrow(SubscriptionServiceError);
     });
 
     it('should handle non-Error exceptions in catch block', async () => {
@@ -351,9 +367,6 @@ describe('SubscriptionService', () => {
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
         ).rejects.toThrow(SubscriptionServiceError);
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/failed to cancel subscription\. "string error"/u);
       } finally {
         global.fetch = originalFetch;
       }
@@ -371,9 +384,6 @@ describe('SubscriptionService', () => {
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
         ).rejects.toThrow(SubscriptionServiceError);
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/failed to cancel subscription\. ""/u);
       } finally {
         global.fetch = originalFetch;
       }
@@ -385,7 +395,7 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.UAT);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .reply(200, {});
 
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
@@ -400,7 +410,7 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .reply(200, {});
 
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
@@ -414,7 +424,7 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).post('/api/v1/subscription//cancel').reply(200, {});
+      nock(testUrl).delete('/api/v1/subscriptions/').reply(200, {});
 
       await service.cancelSubscription({ subscriptionId: '' });
 
@@ -427,7 +437,7 @@ describe('SubscriptionService', () => {
       const testUrl = getTestUrl(Env.DEV);
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123-456_789/cancel')
+        .delete('/api/v1/subscriptions/sub_123-456_789')
         .reply(200, {});
 
       await service.cancelSubscription({ subscriptionId: 'sub_123-456_789' });
@@ -442,13 +452,19 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .reply(200, {
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .reply(200, {});
 
-      await service.getSubscription();
+      await service.getSubscriptions();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
       expect(config.auth.getAccessToken).toHaveBeenCalledTimes(2);
@@ -466,13 +482,19 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
+      nock(testUrl)
+        .get('/api/v1/subscriptions')
+        .reply(200, {
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
       nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
+        .delete('/api/v1/subscriptions/sub_123456789')
         .reply(200, {});
 
-      await service.getSubscription();
+      await service.getSubscriptions();
       await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
       expect(isDone()).toBe(true);

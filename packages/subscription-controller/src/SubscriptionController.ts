@@ -7,6 +7,7 @@ import {
 } from './constants';
 import { SubscriptionService } from './SubscriptionService';
 import type {
+  ProductType,
   ISubscriptionService,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
@@ -19,7 +20,9 @@ import type {
  * @returns The default state for the Subscription Controller.
  */
 export function getDefaultSubscriptionControllerState(): SubscriptionControllerState {
-  return {};
+  return {
+    subscriptions: [],
+  };
 }
 
 /**
@@ -31,17 +34,17 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
  */
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
-    subscription: {
+    subscriptions: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     pendingPaymentTransactions: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     authTokenRef: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
   };
 
@@ -95,23 +98,33 @@ export class SubscriptionController extends BaseController<
   }
 
   async getSubscription() {
-    const subscription = await this.#subscriptionService.getSubscription();
+    const { subscriptions } =
+      await this.#subscriptionService.getSubscriptions();
 
     this.update((state) => {
-      state.subscription = subscription ?? undefined;
+      state.subscriptions = subscriptions ?? [];
     });
 
-    return subscription;
+    return subscriptions;
   }
 
-  async cancelSubscription(request: { subscriptionId: string }) {
-    this.#assertIsUserSubscribed();
+  async cancelSubscription(request: {
+    subscriptionId: string;
+    type: ProductType;
+  }) {
+    this.#assertIsUserSubscribed({ productType: request.type });
 
     await this.#subscriptionService.cancelSubscription(request);
   }
 
-  #assertIsUserSubscribed() {
-    if (!this.state.subscription) {
+  #assertIsUserSubscribed(request: { productType: ProductType }) {
+    if (
+      !this.state.subscriptions.find((subscription) =>
+        subscription.products.some(
+          (product) => product.name === request.productType,
+        ),
+      )
+    ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
   }

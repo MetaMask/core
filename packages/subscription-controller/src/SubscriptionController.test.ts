@@ -18,19 +18,26 @@ import type {
   SubscriptionControllerState,
   Subscription,
 } from './types';
+import { PaymentType, ProductType } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
-  createdDate: '2024-01-01T00:00:00Z',
+  products: [
+    {
+      name: ProductType.SHIELD,
+      id: 'prod_shield_basic',
+      currency: 'USD',
+      amount: 9.99,
+    },
+  ],
+  currentPeriodStart: '2024-01-01T00:00:00Z',
+  currentPeriodEnd: '2024-02-01T00:00:00Z',
   status: 'active',
-  paymentStatus: 'completed',
-  paymentMethod: 'card',
-  paymentType: 'monthly',
-  paymentAmount: 9.99,
-  paymentCurrency: 'USD',
-  paymentDate: '2024-01-01T00:00:00Z',
-  paymentId: 'pay_123456789',
+  interval: 'month',
+  paymentMethod: {
+    type: PaymentType.CARD,
+  },
 };
 
 const MOCK_AUTH_TOKEN_REF = {
@@ -131,17 +138,17 @@ function createMockSubscriptionMessenger(): {
  * @returns The mock service and related mocks.
  */
 function createMockSubscriptionService() {
-  const mockGetSubscription = jest.fn();
+  const mockGetSubscriptions = jest.fn();
   const mockCancelSubscription = jest.fn();
 
   const mockService = {
-    getSubscription: mockGetSubscription,
+    getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
   };
 
   return {
     mockService,
-    mockGetSubscription,
+    mockGetSubscriptions,
     mockCancelSubscription,
   };
 }
@@ -182,6 +189,7 @@ async function withController<ReturnValue>(
 
   const controller = new SubscriptionController({
     messenger,
+    env: Env.PRD,
     subscriptionService: mockService,
     ...rest,
   });
@@ -200,6 +208,7 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
       });
 
       expect(controller).toBeDefined();
@@ -215,9 +224,7 @@ describe('SubscriptionController', () => {
       // Create controller without custom subscription service to test default creation
       const controller = new SubscriptionController({
         messenger,
-        config: {
-          env: Env.PRD,
-        },
+        env: Env.PRD,
       });
 
       expect(controller).toBeDefined();
@@ -226,9 +233,13 @@ describe('SubscriptionController', () => {
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: jest.fn().mockResolvedValue(MOCK_SUBSCRIPTION),
+        json: jest.fn().mockResolvedValue({
+          customerId: 'cus_123',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        }),
       });
-      global.fetch = mockFetch;
+      global.fetch = mockFetch as unknown as typeof fetch;
 
       try {
         await controller.getSubscription();
@@ -254,9 +265,7 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const controller = new SubscriptionController({
         messenger,
-        config: {
-          env: Env.DEV,
-        },
+        env: Env.DEV,
       });
 
       expect(controller).toBeDefined();
@@ -268,17 +277,18 @@ describe('SubscriptionController', () => {
     it('should be able to instantiate with initial state', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
-        subscription: MOCK_SUBSCRIPTION,
+        subscriptions: [MOCK_SUBSCRIPTION],
         authTokenRef: MOCK_AUTH_TOKEN_REF,
       };
 
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
         state: initialState,
       });
 
       expect(controller).toBeDefined();
-      expect(controller.state.subscription).toStrictEqual(MOCK_SUBSCRIPTION);
+      expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
       expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
     });
 
@@ -288,6 +298,7 @@ describe('SubscriptionController', () => {
 
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
         subscriptionService: mockService,
       });
 
@@ -302,9 +313,7 @@ describe('SubscriptionController', () => {
 
       const controller = new SubscriptionController({
         messenger,
-        config: {
-          env: Env.PRD,
-        },
+        env: Env.PRD,
       });
 
       expect(controller).toBeDefined();
@@ -318,32 +327,44 @@ describe('SubscriptionController', () => {
   describe('getSubscription', () => {
     it('should fetch and store subscription successfully', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
+        mockService.getSubscriptions.mockResolvedValue({
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
         const result = await controller.getSubscription();
 
-        expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
-        expect(controller.state.subscription).toStrictEqual(MOCK_SUBSCRIPTION);
-        expect(mockService.getSubscription).toHaveBeenCalledTimes(1);
+        expect(result).toStrictEqual([MOCK_SUBSCRIPTION]);
+        // For backward compatibility during refactor, keep single subscription mirror if present
+        // but assert new state field
+        expect(controller.state.subscriptions).toStrictEqual([
+          MOCK_SUBSCRIPTION,
+        ]);
+        expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
       });
     });
 
     it('should handle null subscription response', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getSubscription.mockResolvedValue(null);
+        mockService.getSubscriptions.mockResolvedValue({
+          customerId: 'cus_1',
+          subscriptions: null,
+          trialedProducts: [],
+        });
 
         const result = await controller.getSubscription();
 
         expect(result).toBeNull();
-        expect(controller.state.subscription).toBeUndefined();
-        expect(mockService.getSubscription).toHaveBeenCalledTimes(1);
+        expect(controller.state.subscriptions).toStrictEqual([]);
+        expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
       });
     });
 
     it('should handle subscription service errors', async () => {
       await withController(async ({ controller, mockService }) => {
         const errorMessage = 'Failed to fetch subscription';
-        mockService.getSubscription.mockRejectedValue(
+        mockService.getSubscriptions.mockRejectedValue(
           new SubscriptionServiceError(errorMessage),
         );
 
@@ -351,8 +372,8 @@ describe('SubscriptionController', () => {
           SubscriptionServiceError,
         );
 
-        expect(controller.state.subscription).toBeUndefined();
-        expect(mockService.getSubscription).toHaveBeenCalledTimes(1);
+        expect(controller.state.subscriptions).toStrictEqual([]);
+        expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -363,21 +384,27 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: initialSubscription,
+            subscriptions: [initialSubscription],
           },
         },
         async ({ controller, mockService }) => {
-          expect(controller.state.subscription).toStrictEqual(
+          expect(controller.state.subscriptions).toStrictEqual([
             initialSubscription,
-          );
+          ]);
 
           // Fetch new subscription
-          mockService.getSubscription.mockResolvedValue(newSubscription);
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [newSubscription],
+            trialedProducts: [],
+          });
           const result = await controller.getSubscription();
 
-          expect(result).toStrictEqual(newSubscription);
-          expect(controller.state.subscription).toStrictEqual(newSubscription);
-          expect(controller.state.subscription?.id).toBe('sub_new');
+          expect(result).toStrictEqual([newSubscription]);
+          expect(controller.state.subscriptions).toStrictEqual([
+            newSubscription,
+          ]);
+          expect(controller.state.subscriptions[0]?.id).toBe('sub_new');
         },
       );
     });
@@ -388,18 +415,22 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: MOCK_SUBSCRIPTION,
+            subscriptions: [MOCK_SUBSCRIPTION],
           },
         },
         async ({ controller, mockService }) => {
           mockService.cancelSubscription.mockResolvedValue(undefined);
 
           expect(
-            await controller.cancelSubscription('sub_123456789'),
+            await controller.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              type: ProductType.SHIELD,
+            }),
           ).toBeUndefined();
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',
+            type: ProductType.SHIELD,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
@@ -410,72 +441,15 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: undefined,
+            subscriptions: [],
           },
         },
         async ({ controller }) => {
           await expect(
-            controller.cancelSubscription('sub_123456789'),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.UserNotSubscribed,
-          );
-        },
-      );
-    });
-
-    it('should throw error when user is not subscribed with different subscription ID', async () => {
-      await withController(
-        {
-          state: {
-            subscription: undefined,
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.cancelSubscription('different_sub_id'),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.UserNotSubscribed,
-          );
-        },
-      );
-    });
-
-    it('should use the subscription ID from state when canceling', async () => {
-      const subscriptionWithDifferentId = {
-        ...MOCK_SUBSCRIPTION,
-        id: 'different_sub_id',
-      };
-      await withController(
-        {
-          state: {
-            subscription: subscriptionWithDifferentId,
-          },
-        },
-        async ({ controller, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue(undefined);
-
-          expect(
-            await controller.cancelSubscription('different_sub_id'),
-          ).toBeUndefined();
-
-          expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: 'different_sub_id',
-          });
-          expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('should validate subscription exists before attempting to cancel', async () => {
-      await withController(
-        {
-          state: {
-            subscription: null as unknown as Subscription, // Test with null subscription
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.cancelSubscription('sub_123456789'),
+            controller.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              type: ProductType.SHIELD,
+            }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserNotSubscribed,
           );
@@ -487,12 +461,15 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: undefined,
+            subscriptions: [],
           },
         },
         async ({ controller, mockService }) => {
           await expect(
-            controller.cancelSubscription('sub_123456789'),
+            controller.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              type: ProductType.SHIELD,
+            }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserNotSubscribed,
           );
@@ -507,7 +484,7 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: MOCK_SUBSCRIPTION,
+            subscriptions: [MOCK_SUBSCRIPTION],
           },
         },
         async ({ controller, mockService }) => {
@@ -517,11 +494,15 @@ describe('SubscriptionController', () => {
           );
 
           await expect(
-            controller.cancelSubscription('sub_123456789'),
+            controller.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              type: ProductType.SHIELD,
+            }),
           ).rejects.toThrow(SubscriptionServiceError);
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',
+            type: ProductType.SHIELD,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
@@ -532,7 +513,7 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: MOCK_SUBSCRIPTION,
+            subscriptions: [MOCK_SUBSCRIPTION],
           },
         },
         async ({ controller, mockService }) => {
@@ -540,11 +521,15 @@ describe('SubscriptionController', () => {
           mockService.cancelSubscription.mockRejectedValue(networkError);
 
           await expect(
-            controller.cancelSubscription('sub_123456789'),
+            controller.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              type: ProductType.SHIELD,
+            }),
           ).rejects.toThrow(networkError);
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',
+            type: ProductType.SHIELD,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
@@ -557,6 +542,7 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
       });
 
       expect(controller.state).toStrictEqual(
@@ -567,17 +553,18 @@ describe('SubscriptionController', () => {
     it('should merge initial state with default state', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
-        subscription: MOCK_SUBSCRIPTION,
+        subscriptions: [MOCK_SUBSCRIPTION],
         authTokenRef: MOCK_AUTH_TOKEN_REF,
         pendingPaymentTransactions: MOCK_PENDING_PAYMENT_TRANSACTIONS,
       };
 
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
         state: initialState,
       });
 
-      expect(controller.state.subscription).toStrictEqual(MOCK_SUBSCRIPTION);
+      expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
       expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
       expect(controller.state.pendingPaymentTransactions).toStrictEqual(
         MOCK_PENDING_PAYMENT_TRANSACTIONS,
@@ -589,24 +576,30 @@ describe('SubscriptionController', () => {
       const { mockService } = createMockSubscriptionService();
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
         subscriptionService: mockService,
       });
 
       const newSubscription = { ...MOCK_SUBSCRIPTION, id: 'new_sub_id' };
-      mockService.getSubscription.mockResolvedValue(newSubscription);
+      mockService.getSubscriptions.mockResolvedValue({
+        customerId: 'cus_1',
+        subscriptions: [newSubscription],
+        trialedProducts: [],
+      });
 
       await controller.getSubscription();
 
-      expect(controller.state.subscription).toStrictEqual(newSubscription);
-      expect(controller.state.subscription?.id).toBe('new_sub_id');
+      expect(controller.state.subscriptions).toStrictEqual([newSubscription]);
+      expect(controller.state.subscriptions[0]?.id).toBe('new_sub_id');
     });
 
     it('should handle partial state updates through initial state', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const controller = new SubscriptionController({
         messenger,
+        env: Env.PRD,
         state: {
-          subscription: MOCK_SUBSCRIPTION,
+          subscriptions: [MOCK_SUBSCRIPTION],
           authTokenRef: {
             lastRefreshTriggered: '2024-02-01T00:00:00Z',
             refreshStatus: 'pending',
@@ -614,7 +607,7 @@ describe('SubscriptionController', () => {
         },
       });
 
-      expect(controller.state.subscription).toStrictEqual(MOCK_SUBSCRIPTION);
+      expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
       expect(controller.state.authTokenRef?.lastRefreshTriggered).toBe(
         '2024-02-01T00:00:00Z',
       );
@@ -626,28 +619,41 @@ describe('SubscriptionController', () => {
     it('should handle complete subscription lifecycle with updated logic', async () => {
       await withController(async ({ controller, mockService }) => {
         // 1. Initially no subscription
-        expect(controller.state.subscription).toBeUndefined();
+        expect(controller.state.subscriptions).toStrictEqual([]);
 
         // 2. Try to cancel subscription (should fail - user not subscribed)
         await expect(
-          controller.cancelSubscription('sub_123456789'),
+          controller.cancelSubscription({
+            subscriptionId: 'sub_123456789',
+            type: ProductType.SHIELD,
+          }),
         ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
 
         // 3. Fetch subscription
-        mockService.getSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
-        const subscription = await controller.getSubscription();
+        mockService.getSubscriptions.mockResolvedValue({
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
+        const subscriptions = await controller.getSubscription();
 
-        expect(subscription).toStrictEqual(MOCK_SUBSCRIPTION);
-        expect(controller.state.subscription).toStrictEqual(MOCK_SUBSCRIPTION);
+        expect(subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
+        expect(controller.state.subscriptions).toStrictEqual([
+          MOCK_SUBSCRIPTION,
+        ]);
 
         // 4. Now cancel should work (user is subscribed)
         mockService.cancelSubscription.mockResolvedValue(undefined);
         expect(
-          await controller.cancelSubscription('sub_123456789'),
+          await controller.cancelSubscription({
+            subscriptionId: 'sub_123456789',
+            type: ProductType.SHIELD,
+          }),
         ).toBeUndefined();
 
         expect(mockService.cancelSubscription).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
+          type: ProductType.SHIELD,
         });
       });
     });
@@ -658,16 +664,22 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: MOCK_SUBSCRIPTION,
+            subscriptions: [MOCK_SUBSCRIPTION],
           },
         },
         async ({ controller, mockService }) => {
           mockService.cancelSubscription.mockResolvedValue(undefined);
 
-          expect(await controller.cancelSubscription('')).toBeUndefined();
+          expect(
+            await controller.cancelSubscription({
+              subscriptionId: '',
+              type: ProductType.SHIELD,
+            }),
+          ).toBeUndefined();
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: '',
+            type: ProductType.SHIELD,
           });
         },
       );
@@ -677,7 +689,7 @@ describe('SubscriptionController', () => {
       await withController(
         {
           state: {
-            subscription: MOCK_SUBSCRIPTION,
+            subscriptions: [MOCK_SUBSCRIPTION],
           },
         },
         async ({ controller, mockService }) => {
@@ -685,11 +697,15 @@ describe('SubscriptionController', () => {
           mockService.cancelSubscription.mockResolvedValue(undefined);
 
           expect(
-            await controller.cancelSubscription(longSubscriptionId),
+            await controller.cancelSubscription({
+              subscriptionId: longSubscriptionId,
+              type: ProductType.SHIELD,
+            }),
           ).toBeUndefined();
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: longSubscriptionId,
+            type: ProductType.SHIELD,
           });
         },
       );
@@ -699,25 +715,35 @@ describe('SubscriptionController', () => {
       await withController(async ({ controller, mockService }) => {
         const minimalSubscription: Subscription = {
           id: 'minimal_sub',
-          createdDate: '2024-01-01T00:00:00Z',
+          products: [
+            {
+              name: ProductType.SHIELD,
+              id: 'prod_minimal',
+              currency: 'USD',
+              amount: 0,
+            },
+          ],
+          currentPeriodStart: '2024-01-01T00:00:00Z',
+          currentPeriodEnd: '2024-02-01T00:00:00Z',
           status: 'active',
-          paymentStatus: 'pending',
-          paymentMethod: 'card',
-          paymentType: 'monthly',
-          paymentAmount: 0,
-          paymentCurrency: 'USD',
-          paymentDate: '2024-01-01T00:00:00Z',
-          paymentId: 'pay_minimal',
+          interval: 'month',
+          paymentMethod: {
+            type: PaymentType.CARD,
+          },
         };
 
-        mockService.getSubscription.mockResolvedValue(minimalSubscription);
+        mockService.getSubscriptions.mockResolvedValue({
+          customerId: 'cus_1',
+          subscriptions: [minimalSubscription],
+          trialedProducts: [],
+        });
 
         const result = await controller.getSubscription();
 
-        expect(result).toStrictEqual(minimalSubscription);
-        expect(controller.state.subscription).toStrictEqual(
+        expect(result).toStrictEqual([minimalSubscription]);
+        expect(controller.state.subscriptions).toStrictEqual([
           minimalSubscription,
-        );
+        ]);
       });
     });
   });
