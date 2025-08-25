@@ -111,6 +111,7 @@ const MockStatusResponse = {
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -711,9 +712,18 @@ describe('BridgeStatusController', () => {
   });
 
   describe('startPolling - error handling', () => {
+    const consoleFn = console.warn;
+    let consoleFnSpy: jest.SpyInstance;
+
     beforeEach(() => {
       jest.clearAllMocks();
       jest.clearAllTimers();
+      // eslint-disable-next-line no-empty-function
+      consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      console.warn = consoleFn;
     });
 
     it('should handle network errors during fetchBridgeTxStatus', async () => {
@@ -767,6 +777,14 @@ describe('BridgeStatusController', () => {
       ).toBeDefined();
 
       bridgeStatusController.stopAllPolling();
+      expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
+        Array [
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Network error],
+          ],
+        ]
+      `);
     });
 
     it('should stop polling after max attempts are reached', async () => {
@@ -816,6 +834,38 @@ describe('BridgeStatusController', () => {
         callCountBeforeExtraTime,
       );
       bridgeStatusController.stopAllPolling();
+      expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
+        Array [
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+          Array [
+            "Failed to fetch bridge tx status",
+            [Error: Persistent error],
+          ],
+        ]
+      `);
     });
   });
 
@@ -3231,8 +3281,15 @@ describe('BridgeStatusController', () => {
       | TransactionControllerEvents
       | BridgeControllerEvents
     >;
+    let mockFetchFn: jest.Mock;
+    const consoleFn = console.warn;
+    let consoleFnSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      jest.clearAllTimers();
+      jest.clearAllMocks();
+      // eslint-disable-next-line no-empty-function
+      consoleFnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       mockMessenger = new Messenger<
         | BridgeStatusControllerActions
         | TransactionControllerActions
@@ -3274,9 +3331,10 @@ describe('BridgeStatusController', () => {
         getLayer1GasFee: jest.fn(),
       });
 
-      const mockFetchFn = jest
-        .fn()
-        .mockResolvedValueOnce(MockStatusResponse.getPending());
+      mockFetchFn = jest.fn().mockResolvedValueOnce({
+        status: MockStatusResponse.getPending(),
+        validationFailures: [],
+      });
       bridgeStatusController = new BridgeStatusController({
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
@@ -3300,6 +3358,7 @@ describe('BridgeStatusController', () => {
 
     afterEach(() => {
       bridgeStatusController.stopAllPolling();
+      console.warn = consoleFn;
     });
 
     describe('TransactionController:transactionFailed', () => {
@@ -3467,6 +3526,56 @@ describe('BridgeStatusController', () => {
     });
 
     describe('TransactionController:transactionConfirmed', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
+      it('should start polling for bridge tx if status response is invalid', async () => {
+        jest.useFakeTimers();
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockFetchFn.mockResolvedValueOnce({
+          ...MockStatusResponse.getComplete(),
+          status: 'INVALID',
+        });
+        const oldHistoryItem =
+          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+            'bridgeTxMetaId1',
+          );
+        mockMessenger.publish('TransactionController:transactionConfirmed', {
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.bridge,
+          status: TransactionStatus.confirmed,
+          id: 'bridgeTxMetaId1',
+        });
+
+        jest.advanceTimersByTime(500);
+        bridgeStatusController.stopAllPolling();
+        await flushPromises();
+
+        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
+        expect(mockFetchFn).toHaveBeenCalledTimes(2);
+        expect(mockFetchFn).toHaveBeenCalledWith(
+          'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xsrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
+          {
+            headers: { 'X-Client-Id': BridgeClientId.EXTENSION },
+          },
+        );
+        expect(
+          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+            'bridgeTxMetaId1',
+          ),
+        ).toStrictEqual({
+          ...oldHistoryItem,
+          attempts: expect.objectContaining({
+            counter: 1,
+          }),
+        });
+        expect(consoleFnSpy.mock.calls).toMatchSnapshot();
+      });
+
       it('should track completed event for swap transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish('TransactionController:transactionConfirmed', {

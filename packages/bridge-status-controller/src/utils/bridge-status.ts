@@ -71,9 +71,6 @@ export const fetchBridgeTxStatus = async (
           statusRequest.bridgeId ||
           'unknown';
         const pathString = path?.join('.') || 'unknown';
-        if (!pathString) {
-          return;
-        }
         validationFailures.push([aggregatorId, pathString].join('|'));
       });
     }
