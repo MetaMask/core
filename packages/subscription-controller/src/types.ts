@@ -67,7 +67,8 @@ export type SubscriptionControllerActions =
   SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken
+  | AuthenticationController.AuthenticationControllerPerformSignOut;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<

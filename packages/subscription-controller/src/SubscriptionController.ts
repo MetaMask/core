@@ -116,6 +116,13 @@ export class SubscriptionController extends BaseController<
     await this.#subscriptionService.cancelSubscription(request);
   }
 
+  /**
+   * Triggers an access token refresh.
+   */
+  triggerAccessTokenRefresh() {
+    this.messagingSystem.call('AuthenticationController:performSignOut');
+  }
+
   #assertIsUserSubscribed(request: { productType: ProductType }) {
     if (
       !this.state.subscriptions.find((subscription) =>

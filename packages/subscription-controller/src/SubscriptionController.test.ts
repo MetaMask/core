@@ -69,7 +69,10 @@ function createCustomSubscriptionMessenger(props?: {
     AllowedEvents['type']
   >({
     name: controllerName,
-    allowedActions: ['AuthenticationController:getBearerToken'],
+    allowedActions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:performSignOut',
+    ],
     allowedEvents: props?.overrideEvents ?? [
       'AuthenticationController:stateChange',
     ],
@@ -102,10 +105,17 @@ function mockSubscriptionMessenger(overrideMessengers?: {
     mockGetBearerToken,
   );
 
+  const mockPerformSignOut = jest.fn();
+  baseMessenger.registerActionHandler(
+    'AuthenticationController:performSignOut',
+    mockPerformSignOut,
+  );
+
   return {
     baseMessenger,
     messenger,
     mockGetBearerToken,
+    mockPerformSignOut,
   };
 }
 
@@ -118,6 +128,7 @@ function createMockSubscriptionMessenger(): {
   messenger: SubscriptionControllerMessenger;
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   mockGetBearerToken: jest.Mock;
+  mockPerformSignOut: jest.Mock;
 } {
   return mockSubscriptionMessenger();
 }
@@ -151,11 +162,13 @@ type WithControllerCallback<ReturnValue> = ({
   initialState,
   messenger,
   mockService,
+  mockPerformSignOut,
 }: {
   controller: SubscriptionController;
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
+  mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -174,7 +187,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger } = createMockSubscriptionMessenger();
+  const { messenger, mockPerformSignOut } = createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
   const controller = new SubscriptionController({
@@ -190,6 +203,7 @@ async function withController<ReturnValue>(
     initialState: controller.state,
     messenger,
     mockService,
+    mockPerformSignOut,
   });
 }
 
@@ -728,6 +742,16 @@ describe('SubscriptionController', () => {
         expect(controller.state.subscriptions).toStrictEqual([
           minimalSubscription,
         ]);
+      });
+    });
+  });
+
+  describe('triggerAuthTokenRefresh', () => {
+    it('should trigger auth token refresh', async () => {
+      await withController(async ({ controller, mockPerformSignOut }) => {
+        await controller.triggerAccessTokenRefresh();
+
+        expect(mockPerformSignOut).toHaveBeenCalledWith();
       });
     });
   });
