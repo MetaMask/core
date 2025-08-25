@@ -5,7 +5,6 @@ import {
   type Env,
   SubscriptionControllerErrorMessage,
 } from './constants';
-// import { projectLogger, createModuleLogger } from './logger';
 import { SubscriptionService } from './SubscriptionService';
 import type {
   ISubscriptionService,
@@ -13,8 +12,6 @@ import type {
   SubscriptionControllerOptions,
   SubscriptionControllerState,
 } from './types';
-
-// const log = createModuleLogger(projectLogger, controllerName);
 
 /**
  * Get the default state for the Subscription Controller.
@@ -112,12 +109,6 @@ export class SubscriptionController extends BaseController<
 
     await this.#subscriptionService.cancelSubscription({ subscriptionId });
   }
-
-  // #assertIsUserNotSubscribed() {
-  //   if (this.state.subscription) {
-  //     throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
-  //   }
-  // }
 
   #assertIsUserSubscribed() {
     if (!this.state.subscription) {
