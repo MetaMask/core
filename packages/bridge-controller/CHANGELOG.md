@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** Rename `gasless7702` field from `QuoteRequest` (and quote schema) to `gasIncluded7702` ([#6363](https://github.com/MetaMask/core/pull/<PR_NUMBER>))
+- Include 7702 gas-included quotes when computing `includedTxFees` ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+### Added
+
+- Add `gas_included_7702` metric from quote ([6363](https://github.com/MetaMask/core/pull/6363))
+
 ## [41.2.0]
 
 ### Uncategorized
