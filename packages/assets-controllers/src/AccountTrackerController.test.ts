@@ -7,7 +7,7 @@ import {
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
-import sinon from 'sinon';
+import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
 import type {
   AccountTrackerControllerMessenger,
@@ -58,10 +58,10 @@ const mockedQuery = query as jest.Mock<
 >;
 
 describe('AccountTrackerController', () => {
-  let clock: sinon.SinonFakeTimers;
+  let clock: SinonFakeTimers;
 
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
+    clock = useFakeTimers();
     mockedQuery.mockReturnValue(Promise.resolve('0x0'));
   });
 
@@ -983,7 +983,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller: AccountTrackerController;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   refresh: (
-    clock: sinon.SinonFakeTimers,
+    clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
   ) => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -1155,7 +1155,7 @@ async function withController<ReturnValue>(
   });
 
   const refresh = async (
-    clock: sinon.SinonFakeTimers,
+    clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
   ) => {
     const promise = controller.refresh(networkClientIds);
