@@ -530,7 +530,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { networkConfigurationsByChainId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    console.log('networkConfigurationsByChainId ---------------', networkConfigurationsByChainId);
+    console.log(
+      'networkConfigurationsByChainId ---------------',
+      networkConfigurationsByChainId,
+    );
     console.log('chainId ---------------', chainId);
     const cfg = networkConfigurationsByChainId[chainId];
     console.log('cfg 111 ---------------', cfg);
@@ -658,7 +661,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
               }, DEFAULT_TIMEOUT_MS),
             ),
           ]);
-
 
           if (balances && balances.length > 0) {
             aggregated.push(...balances);
