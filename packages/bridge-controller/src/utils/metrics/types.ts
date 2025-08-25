@@ -196,6 +196,10 @@ export type RequiredEventContextFromClient = {
     chain_name: string;
     chain_id: string;
   };
+  [UnifiedSwapBridgeEventName.ResponseValidationFailure]: {
+    path: 'getTxStatus' | 'getQuote';
+    failures: string[];
+  } & Pick<QuoteFetchData, 'quotes_count'>;
 };
 
 /**
@@ -250,6 +254,9 @@ export type EventPropertiesFromControllerState = {
     QuoteFetchData &
     TradeData;
   [UnifiedSwapBridgeEventName.AssetDetailTooltipClicked]: null;
+  [UnifiedSwapBridgeEventName.ResponseValidationFailure]: RequestParams & {
+    refresh_count: number;
+  };
 };
 
 /**
