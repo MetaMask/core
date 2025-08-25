@@ -14,9 +14,6 @@
     "n/prefer-global/text-decoder": 1,
     "no-shadow": 2
   },
-  "packages/assets-controllers/src/AccountTrackerController.test.ts": {
-    "import-x/namespace": 2
-  },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 1
