@@ -42,10 +42,6 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       persist: true,
       anonymous: false,
     },
-    authTokenRef: {
-      persist: true,
-      anonymous: false,
-    },
   };
 
 export class SubscriptionController extends BaseController<
@@ -118,6 +114,13 @@ export class SubscriptionController extends BaseController<
     this.#assertIsUserSubscribed({ productType: request.type });
 
     await this.#subscriptionService.cancelSubscription(request);
+  }
+
+  /**
+   * Triggers an access token refresh.
+   */
+  triggerAccessTokenRefresh() {
+    this.messagingSystem.call('AuthenticationController:performSignOut');
   }
 
   #assertIsUserSubscribed(request: { productType: ProductType }) {

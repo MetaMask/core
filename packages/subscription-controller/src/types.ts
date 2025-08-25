@@ -44,12 +44,6 @@ export type Subscription = {
   paymentMethod: PaymentMethod;
 };
 
-// Authentication token reference (managed by user storage controller)
-export type AuthTokenRef = {
-  lastRefreshTriggered: string;
-  refreshStatus: 'pending' | 'completed' | 'failed';
-};
-
 export type PendingPaymentTransaction = {
   type: 'subscription_approval' | 'subscription_payment';
   status: 'pending' | 'confirmed' | 'failed';
@@ -59,7 +53,6 @@ export type PendingPaymentTransaction = {
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
-  authTokenRef?: AuthTokenRef;
   pendingPaymentTransactions?: {
     [transactionId: string]: PendingPaymentTransaction;
   };
@@ -74,7 +67,8 @@ export type SubscriptionControllerActions =
   SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken
+  | AuthenticationController.AuthenticationControllerPerformSignOut;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<

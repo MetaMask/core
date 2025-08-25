@@ -40,11 +40,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
   },
 };
 
-const MOCK_AUTH_TOKEN_REF = {
-  lastRefreshTriggered: '2024-01-01T00:00:00Z',
-  refreshStatus: 'completed' as const,
-};
-
 const MOCK_PENDING_PAYMENT_TRANSACTIONS = {
   txn_123456789: {
     type: 'subscription_approval' as const,
@@ -74,7 +69,10 @@ function createCustomSubscriptionMessenger(props?: {
     AllowedEvents['type']
   >({
     name: controllerName,
-    allowedActions: ['AuthenticationController:getBearerToken'],
+    allowedActions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:performSignOut',
+    ],
     allowedEvents: props?.overrideEvents ?? [
       'AuthenticationController:stateChange',
     ],
@@ -102,20 +100,22 @@ function mockSubscriptionMessenger(overrideMessengers?: {
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
   const mockGetBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
+  baseMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockGetBearerToken,
+  );
 
-  jest.spyOn(messenger, 'call').mockImplementation((...args) => {
-    const [actionType] = args as [string, ...unknown[]];
-
-    if (actionType === 'AuthenticationController:getBearerToken') {
-      return mockGetBearerToken();
-    }
-    throw new Error(`MOCK_FAIL - unsupported messenger call: ${actionType}`);
-  });
+  const mockPerformSignOut = jest.fn();
+  baseMessenger.registerActionHandler(
+    'AuthenticationController:performSignOut',
+    mockPerformSignOut,
+  );
 
   return {
     baseMessenger,
     messenger,
     mockGetBearerToken,
+    mockPerformSignOut,
   };
 }
 
@@ -128,6 +128,7 @@ function createMockSubscriptionMessenger(): {
   messenger: SubscriptionControllerMessenger;
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   mockGetBearerToken: jest.Mock;
+  mockPerformSignOut: jest.Mock;
 } {
   return mockSubscriptionMessenger();
 }
@@ -161,11 +162,13 @@ type WithControllerCallback<ReturnValue> = ({
   initialState,
   messenger,
   mockService,
+  mockPerformSignOut,
 }: {
   controller: SubscriptionController;
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
+  mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -184,7 +187,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger } = createMockSubscriptionMessenger();
+  const { messenger, mockPerformSignOut } = createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
   const controller = new SubscriptionController({
@@ -200,6 +203,7 @@ async function withController<ReturnValue>(
     initialState: controller.state,
     messenger,
     mockService,
+    mockPerformSignOut,
   });
 }
 
@@ -275,7 +279,6 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
-        authTokenRef: MOCK_AUTH_TOKEN_REF,
       };
 
       const controller = new SubscriptionController({
@@ -287,7 +290,6 @@ describe('SubscriptionController', () => {
 
       expect(controller).toBeDefined();
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
     });
 
     it('should be able to instantiate with custom subscription service', () => {
@@ -555,7 +557,6 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
-        authTokenRef: MOCK_AUTH_TOKEN_REF,
         pendingPaymentTransactions: MOCK_PENDING_PAYMENT_TRANSACTIONS,
       };
 
@@ -567,7 +568,6 @@ describe('SubscriptionController', () => {
       });
 
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
       expect(controller.state.pendingPaymentTransactions).toStrictEqual(
         MOCK_PENDING_PAYMENT_TRANSACTIONS,
       );
@@ -606,18 +606,10 @@ describe('SubscriptionController', () => {
           (jest.fn() as unknown as typeof fetch),
         state: {
           subscriptions: [MOCK_SUBSCRIPTION],
-          authTokenRef: {
-            lastRefreshTriggered: '2024-02-01T00:00:00Z',
-            refreshStatus: 'pending',
-          },
         },
       });
 
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef?.lastRefreshTriggered).toBe(
-        '2024-02-01T00:00:00Z',
-      );
-      expect(controller.state.authTokenRef?.refreshStatus).toBe('pending');
     });
   });
 
@@ -750,6 +742,16 @@ describe('SubscriptionController', () => {
         expect(controller.state.subscriptions).toStrictEqual([
           minimalSubscription,
         ]);
+      });
+    });
+  });
+
+  describe('triggerAuthTokenRefresh', () => {
+    it('should trigger auth token refresh', async () => {
+      await withController(async ({ controller, mockPerformSignOut }) => {
+        await controller.triggerAccessTokenRefresh();
+
+        expect(mockPerformSignOut).toHaveBeenCalledWith();
       });
     });
   });
