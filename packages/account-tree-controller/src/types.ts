@@ -12,9 +12,9 @@ import type {
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import type {
@@ -108,10 +108,8 @@ export type AllowedEvents =
 
 export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
 
-export type AccountTreeControllerMessenger = RestrictedMessenger<
+export type AccountTreeControllerMessenger = Messenger<
   typeof controllerName,
   AccountTreeControllerActions | AllowedActions,
-  AccountTreeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AccountTreeControllerEvents | AllowedEvents
 >;

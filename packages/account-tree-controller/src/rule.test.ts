@@ -4,7 +4,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { Messenger } from '@metamask/base-controller';
 import {
   EthAccountType,
   EthMethod,
@@ -16,13 +15,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
 import { BaseRule } from './rule';
-import type {
-  AccountTreeControllerMessenger,
-  AccountTreeControllerActions,
-  AccountTreeControllerEvents,
-  AllowedActions,
-  AllowedEvents,
-} from './types';
+import {
+  getAccountTreeControllerMessenger,
+  getAccountsControllerMessenger,
+  getRootMessenger,
+} from '../tests/mockMessenger';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -56,53 +53,16 @@ const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
   },
 };
 
-/**
- * Creates a new root messenger instance for testing.
- *
- * @returns A new Messenger instance.
- */
-function getRootMessenger() {
-  return new Messenger<
-    AccountTreeControllerActions | AllowedActions,
-    AccountTreeControllerEvents | AllowedEvents
-  >();
-}
-
-/**
- * Retrieves a restricted messenger for the AccountTreeController.
- *
- * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
- * @returns The restricted messenger for the AccountTreeController.
- */
-function getAccountTreeControllerMessenger(
-  messenger = getRootMessenger(),
-): AccountTreeControllerMessenger {
-  return messenger.getRestricted({
-    name: 'AccountTreeController',
-    allowedEvents: [
-      'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
-      'AccountsController:selectedAccountChange',
-    ],
-    allowedActions: [
-      'AccountsController:listMultichainAccounts',
-      'AccountsController:getAccount',
-      'AccountsController:getSelectedAccount',
-      'AccountsController:setSelectedAccount',
-      'KeyringController:getState',
-      'SnapController:get',
-    ],
-  });
-}
-
 describe('BaseRule', () => {
   describe('getComputedAccountGroupName', () => {
     it('returns empty string when account is not found', () => {
       const rootMessenger = getRootMessenger();
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const accountsControllerMessenger =
+        getAccountsControllerMessenger(rootMessenger);
       const rule = new BaseRule(messenger);
 
-      rootMessenger.registerActionHandler(
+      accountsControllerMessenger.registerActionHandler(
         'AccountsController:getAccount',
         () => undefined,
       );
@@ -130,9 +90,11 @@ describe('BaseRule', () => {
     it('returns account name when account is found', () => {
       const rootMessenger = getRootMessenger();
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const accountsControllerMessenger =
+        getAccountsControllerMessenger(rootMessenger);
       const rule = new BaseRule(messenger);
 
-      rootMessenger.registerActionHandler(
+      accountsControllerMessenger.registerActionHandler(
         'AccountsController:getAccount',
         () => MOCK_HD_ACCOUNT_1,
       );

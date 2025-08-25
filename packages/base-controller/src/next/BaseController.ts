@@ -171,7 +171,7 @@ export class BaseController<
   /**
    * The controller messenger.
    *
-   * This is the same as the `messagingSystem` property, but has a type that only lets us use
+   * This is the same as the `messenger` property, but has a type that only lets us use
    * actions and events that are part of the `BaseController` class.
    */
   readonly #messenger: Messenger<
