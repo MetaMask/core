@@ -3065,7 +3065,6 @@ export class TransactionController extends BaseController<
 
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
-          transactions: transactionMeta.batchTransactions,
         });
 
         publishHookOverride = extraTransactionsPublishHook.getHook();
