@@ -8,15 +8,24 @@ import { AccountWalletType, select } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
+import {
+  formatAnalyticsEvent,
+  traceFallback,
+} from './backup-and-sync/analytics';
+import { BackupAndSyncService } from './backup-and-sync/service';
+import type { BackupAndSyncContext } from './backup-and-sync/types';
 import type { AccountGroupObject } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
+  AccountTreeControllerConfig,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
@@ -28,6 +37,14 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
     accountTree: {
       persist: false, // We do re-recompute this state everytime.
+      anonymous: false,
+    },
+    isAccountTreeSyncingInProgress: {
+      persist: false,
+      anonymous: false,
+    },
+    hasAccountTreeSyncingSyncedAtLeastOnce: {
+      persist: true,
       anonymous: false,
     },
     accountGroupsMetadata: {
@@ -51,6 +68,8 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
+    isAccountTreeSyncingInProgress: false,
+    hasAccountTreeSyncingSyncedAtLeastOnce: false,
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
   };
@@ -84,9 +103,27 @@ export class AccountTreeController extends BaseController<
 
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
 
+  /**
+   * Service responsible for all backup and sync operations.
+   */
+  readonly #syncingService: BackupAndSyncService;
+
   readonly #newGroupsMap: WeakMap<AccountGroupObject, boolean>;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
+
+  readonly #trace: TraceCallback;
+
+  readonly #backupAndSyncConfig: {
+    emitBackupAndSyncEvent: (
+      event: BackupAndSyncEmitAnalyticsEventParams,
+    ) => void;
+    enableDebugLogging: boolean;
+  };
+
+  // Temporary: ensures we can release updates to AccountTreeController without
+  // breaking changes while we transition to the new multichain syncing approach.
+  readonly #disableMultichainAccountSyncing: boolean = false;
 
   /**
    * Constructor for AccountTreeController.
@@ -94,14 +131,17 @@ export class AccountTreeController extends BaseController<
    * @param options - The controller options.
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
+   * @param options.config - Optional configuration for the controller.
    */
 
   constructor({
     messenger,
     state,
+    config,
   }: {
     messenger: AccountTreeControllerMessenger;
     state?: Partial<AccountTreeControllerState>;
+    config?: AccountTreeControllerConfig;
   }) {
     super({
       messenger,
@@ -119,6 +159,24 @@ export class AccountTreeController extends BaseController<
     // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
 
+    // Initialize trace function before syncing service
+    this.#trace = config?.trace ?? traceFallback;
+
+    // Initialize backup and sync config before syncing service
+    this.#backupAndSyncConfig = {
+      emitBackupAndSyncEvent: (
+        event: BackupAndSyncEmitAnalyticsEventParams,
+      ) => {
+        const formattedEvent = formatAnalyticsEvent(event);
+        return config?.backupAndSync?.onBackupAndSyncEvent?.(formattedEvent);
+      },
+      enableDebugLogging: config?.backupAndSync?.enableDebugLogging ?? false,
+    };
+
+    // Initialize the syncing service
+    this.#syncingService = new BackupAndSyncService(
+      this.#createBackupAndSyncContext(),
+    );
     // Temporary map to track which groups contain new accounts (for naming optimization)
     this.#newGroupsMap = new WeakMap();
 
@@ -614,6 +672,11 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
+
+      // Trigger atomic sync for new wallet (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#syncingService.enqueueSingleWalletSync(walletId);
+      }
     }
 
     const groupId = result.group.id;
@@ -639,6 +702,11 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
+
+      // Trigger atomic sync for new group (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#syncingService.enqueueSingleGroupSync(groupId);
+      }
     } else {
       // If adding to existing group, update the "new" status if this account is new
       if (isNewAccount) {
@@ -897,6 +965,9 @@ export class AccountTreeController extends BaseController<
           name;
       }
     });
+
+    // Trigger atomic sync for group rename
+    this.#syncingService.enqueueSingleGroupSync(groupId);
   }
 
   /**
@@ -921,6 +992,9 @@ export class AccountTreeController extends BaseController<
       // Update tree node directly
       state.accountTree.wallets[walletId].metadata.name = name;
     });
+
+    // Trigger atomic sync for wallet rename
+    this.#syncingService.enqueueSingleWalletSync(walletId);
   }
 
   /**
@@ -949,6 +1023,9 @@ export class AccountTreeController extends BaseController<
           pinned;
       }
     });
+
+    // Trigger atomic sync for group pinning
+    this.#syncingService.enqueueSingleGroupSync(groupId);
   }
 
   /**
@@ -977,6 +1054,24 @@ export class AccountTreeController extends BaseController<
           hidden;
       }
     });
+
+    // Trigger atomic sync for group hiding
+    this.#syncingService.enqueueSingleGroupSync(groupId);
+  }
+
+  /**
+   * Clears all persisted metadata and syncing state.
+   *
+   * This will reset the account groups and wallets metadata, as well as
+   * the syncing state. This should be used when we want to
+   * completely reset the controller's state.
+   */
+  clearPersistedMetadataAndSyncingState(): void {
+    this.update((state) => {
+      state.accountGroupsMetadata = {};
+      state.accountWalletsMetadata = {};
+      state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
+    });
   }
 
   /**
@@ -997,5 +1092,29 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
     );
+  }
+
+  async syncWithUserStorage(): Promise<void> {
+    return this.#syncingService.performFullSync();
+  }
+
+  /**
+   * Creates an backup and sync context for sync operations.
+   * Used by the syncing service.
+   *
+   * @returns The backup and sync context.
+   */
+  #createBackupAndSyncContext(): BackupAndSyncContext {
+    return {
+      controller: this,
+      messenger: this.messagingSystem,
+      controllerStateUpdateFn: this.update.bind(this),
+      traceFn: this.#trace.bind(this),
+      emitAnalyticsEventFn:
+        this.#backupAndSyncConfig.emitBackupAndSyncEvent.bind(this),
+      enableDebugLogging: this.#backupAndSyncConfig.enableDebugLogging,
+      disableMultichainAccountSyncing: this.#disableMultichainAccountSyncing,
+      groupIdToWalletId: this.#groupIdToWalletId,
+    };
   }
 }
