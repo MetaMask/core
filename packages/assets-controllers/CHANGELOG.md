@@ -9,15 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.1.0]
 
-### Changed
-
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+### Added
 
 - Enable `AccountTrackerController` to fetch native balances using AccountsAPI when `allowExternalServices` is enabled ([#6369](https://github.com/MetaMask/core/pull/6369))
 
   - Implement native balance fetching via AccountsAPI when `useAccountsAPI` and `allowExternalServices` are both true
   - Add fallback to RPC balance fetching when external services are disabled
   - Add comprehensive test coverage for both AccountsAPI and RPC balance fetching scenarios
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 - Add new `accountId` field to the `Asset` type ([#6358](https://github.com/MetaMask/core/pull/6358))
 
