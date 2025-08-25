@@ -1,16 +1,16 @@
-import { Messenger } from '@metamask/base-controller';
-import { SampleGasPricesController } from '@metamask/sample-controllers';
-import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 
 import {
   getDefaultNetworkControllerState,
   type NetworkControllerGetStateAction,
 } from './network-controller-types';
+import { SampleGasPricesController } from './sample-gas-prices-controller';
+import type { SampleGasPricesControllerMessenger } from './sample-gas-prices-controller';
 import type { SampleAbstractGasPricesService } from './sample-gas-prices-service';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 
 describe('SampleGasPricesController', () => {
   describe('constructor', () => {
@@ -94,23 +94,26 @@ describe('SampleGasPricesController', () => {
 });
 
 /**
- * The union of actions that the root messenger allows.
+ * The union of all SampleGasPricesController actions.
  */
-type RootAction = ExtractAvailableAction<SampleGasPricesControllerMessenger>;
+type AllSampleGasPricesControllerActions =
+  MessengerActions<SampleGasPricesControllerMessenger>;
 
 /**
- * The union of events that the root messenger allows.
+ * The union of all SampleGasPricesController events.
  */
-type RootEvent = ExtractAvailableEvent<SampleGasPricesControllerMessenger>;
+type AllSampleGasPricesControllerEvents =
+  MessengerEvents<SampleGasPricesControllerMessenger>;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
- * publish events within the tests for this controller.
+ * Construct the root messenger that is populated with all external actions/events that the
+ * SampleGasPricesController needs.
  *
  * @param args - The arguments to this function.
  * @param args.networkControllerGetStateActionHandler - Used to mock the
  * `NetworkController:getState` action on the messenger.
- * @returns The unrestricted messenger suited for SampleGasPricesController.
+ * @returns A root messenger that is populated with all external actions/events that the
+ * SampleGasPricesController needs.
  */
 function getRootMessenger({
   networkControllerGetStateActionHandler = jest
@@ -121,30 +124,57 @@ function getRootMessenger({
     .mockReturnValue(getDefaultNetworkControllerState()),
 }: {
   networkControllerGetStateActionHandler?: NetworkControllerGetStateAction['handler'];
-} = {}): Messenger<RootAction, RootEvent> {
-  const rootMessenger = new Messenger<RootAction, RootEvent>();
-  rootMessenger.registerActionHandler(
+} = {}): Messenger<
+  'Root',
+  AllSampleGasPricesControllerActions,
+  AllSampleGasPricesControllerEvents
+> {
+  const rootMessenger = new Messenger<
+    'Root',
+    AllSampleGasPricesControllerActions,
+    AllSampleGasPricesControllerEvents
+  >({ namespace: 'Root' });
+  // Create NetworkController messenger just so that it can delegate to root
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    NetworkControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >({ namespace: 'NetworkController', parent: rootMessenger });
+  // Register stubs for required action handlers
+  networkControllerMessenger.registerActionHandler(
     'NetworkController:getState',
     networkControllerGetStateActionHandler,
   );
+
   return rootMessenger;
 }
 
 /**
- * Constructs the messenger which is restricted to relevant SampleGasPricesController
- * actions and events.
+ * Constructs the SampleGasPricesController messenger.
  *
- * @param rootMessenger - The root messenger to restrict.
+ * @param rootMessenger - The root messenger, with all external actions/events required by the
+ * SampleGasPricesController messenger.
  * @returns The restricted messenger.
  */
 function getMessenger(
   rootMessenger = getRootMessenger(),
 ): SampleGasPricesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SampleGasPricesController',
-    allowedActions: ['NetworkController:getState'],
-    allowedEvents: [],
+  const messenger = new Messenger<
+    'SampleGasPricesController',
+    AllSampleGasPricesControllerActions,
+    AllSampleGasPricesControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'SampleGasPricesController',
+    parent: rootMessenger,
   });
+  // Delegate external actions/events
+  rootMessenger.delegate({
+    actions: ['NetworkController:getState'],
+    messenger,
+  });
+  return messenger;
 }
 
 /**

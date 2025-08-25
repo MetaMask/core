@@ -14,7 +14,7 @@ Controllers are foundational pieces within MetaMask's architecture:
 All controllers should inherit from `BaseController` from the `@metamask/base-controller` package. This provides a few benefits:
 
 - It defines a standard interface for all controllers.
-- It introduces the messenger system, which is useful for interacting with other controllers without requiring direct access to them.
+- It introduces the messenger, which is useful for interacting with other parts of the application without requiring a direct reference.
 - It enforces that `update` is the only way to modify the state of the controller and provides a way to listen for state updates via the messenger.
 - It simplifies initialization by consolidating constructor arguments into one options object.
 
@@ -22,7 +22,7 @@ All controllers should inherit from `BaseController` from the `@metamask/base-co
 
 One of the uniquely identifying features of a controller is the ability to manage state.
 
-If you have a class that does not capture any data in state, then your class does not need to inherit from `BaseController` (even if it uses the messaging system).
+If you have a class that does not capture any data in state, then your class does not need to inherit from `BaseController` (even if it uses a messenger).
 
 ## Maintain a clear and concise API
 
@@ -185,7 +185,7 @@ class FooController extends BaseController</* ... */> {
 }
 ```
 
-## Use the messaging system instead of callbacks
+## Use the messenger instead of callbacks
 
 Prior to BaseController v2, it was common for a controller to respond to an event occurring within another controller (such a state change) by receiving an event listener callback which the client would bind ahead of time:
 
@@ -214,7 +214,7 @@ const fooController = new FooController({
 });
 ```
 
-If the recipient controller supports the messaging system, however, the callback pattern is unnecessary. Using the messenger not only aligns the controller with `BaseController`, but also reduces the number of options that consumers need to remember in order to use the controller:
+If the recipient controller uses a messenger, however, the callback pattern is unnecessary. Using the messenger not only aligns the controller with `BaseController`, but also reduces the number of options that consumers need to remember in order to use the controller:
 
 ✅ **The constructor subscribes to the `BarController:stateChange` event**
 
@@ -223,12 +223,10 @@ If the recipient controller supports the messaging system, however, the callback
 
 const name = 'FooController';
 
-type FooControllerMessenger = RestrictedMessenger<
+type FooControllerMessenger = Messenger<
   typeof name,
-  never,
-  never,
-  never,
-  never
+  FooControllerActions,
+  FooControllerEvents
 >;
 
 class FooController extends BaseController<
@@ -247,22 +245,40 @@ class FooController extends BaseController<
 
 // === Client repo ===
 
-const rootMessenger = new Messenger<'BarController:stateChange', never>();
-const barControllerMessenger = rootMessenger.getRestricted({
-  name: 'BarController',
+const rootMessenger = new Messenger<'Root', RootActions, RootEvents>({
+  namespace: 'Root',
+});
+const barControllerMessenger = new Messenger<
+  'BarController',
+  BarControllerActions,
+  BarControllerEvents,
+  typeof rootMessenger
+>({
+  namespace: 'BarController',
+  parent: rootMessenger,
 });
 const barController = new BarController({
   messenger: barControllerMessenger,
 });
-const fooControllerMessenger = rootMessenger.getRestricted({
-  name: 'FooController',
+const fooControllerMessenger = new Messenger<
+  'FooController',
+  FooControllerActions,
+  FooControllerEvents | BarControllerStateChange,
+  typeof rootMessenger
+>({
+  namespace: 'FooController',
+  parent: rootMessenger,
+});
+rootMessenger.delegate({
+  events: ['BarController:stateChange' as const],
+  messenger: fooControllerMessenger,
 });
 const fooController = new FooController({
   messenger: fooControllerMessenger,
 });
 ```
 
-## Use the messaging system instead of event emitters
+## Use the messenger instead of event emitters
 
 Some controllers expose an EventEmitter object so that other parts of the system can listen to them:
 
@@ -304,12 +320,10 @@ However, this pattern can be replaced with the use of the messenger:
 
 const name = 'FooController';
 
-type FooControllerMessenger = RestrictedMessenger<
+type FooControllerMessenger = Messenger<
   typeof name,
-  never,
-  never,
-  never,
-  never
+  FooControllerActions,
+  FooControllerEvents
 >;
 
 class FooController extends BaseController<
@@ -322,15 +336,23 @@ class FooController extends BaseController<
   }
 
   doSomething() {
-    this.messagingSystem.publish('FooController:someEvent');
+    this.messenger.publish('FooController:someEvent');
   }
 }
 
 // === Client repo ===
 
-const rootMessenger = new Messenger<'FooController:someEvent', never>();
-const fooControllerMessenger = rootMessenger.getRestricted({
-  name: 'FooController',
+const rootMessenger = new Messenger<'Root', RootActions, RootEvents>({
+  namespace: 'Root',
+});
+const fooControllerMessenger = new Messenger<
+  'FooController',
+  FooControllerActions,
+  FooControllerEvents,
+  typeof rootMessenger
+>({
+  namespace: 'FooController',
+  parent: rootMessenger,
 });
 const fooController = new FooController({
   messenger: fooControllerMessenger,
@@ -499,37 +521,19 @@ A controller should define and export a type union that holds all of its actions
 
 The name of this type should be `${ControllerName}Actions`.
 
-This type should be only passed to `RestrictedMessenger` as the 2nd type parameter. It should _not_ be included in its 4th type parameter, as that is is used for external actions.
+This type should be passed to `Messenger` as the 2nd type parameter. It should _not_ include external actions.
 
-🚫 **`FooController['type']` is passed as the 4th type parameter**
-
-```typescript
-export type FooControllerActions =
-  | FooControllerUpdateCurrencyAction
-  | FooControllerUpdateRatesAction;
-
-export type FooControllerMessenger = RestrictedMessenger<
-  'FooController',
-  FooControllerActions,
-  never,
-  FooControllerActions['type'],
-  never
->;
-```
-
-✅ **`never` is passed as the 4th type parameter (assuming no external actions)**
+✅ **`FooControllerActions` is passed as the 2nd type parameter (assuming no external actions)**
 
 ```typescript
 export type FooControllerActions =
   | FooControllerUpdateCurrencyAction
   | FooControllerUpdateRatesAction;
 
-export type FooControllerMessenger = RestrictedMessenger<
+export type FooControllerMessenger = Messenger<
   'FooController',
   FooControllerActions,
-  never,
-  never,
-  never
+  FooControllerEvents
 >;
 ```
 
@@ -539,81 +543,49 @@ A controller should define and export a type union that holds all of its events.
 
 The name of this type should be `${ControllerName}Events`.
 
-This type should be only passed to `RestrictedMessenger` as the 3rd type parameter. It should _not_ be included in its 5th type parameter, as that is is used for external events.
+This type should be passed to `Messenger` as the 3rd type parameter. It should _not_ include external events.
 
-🚫 **`FooControllerEvents['type']` is passed as the 5th type parameter**
-
-```typescript
-export type FooControllerEvents =
-  | FooControllerMessageReceivedEvent
-  | FooControllerNotificationAddedEvent;
-
-export type FooControllerMessenger = RestrictedMessenger<
-  'FooController',
-  never,
-  FooControllerEvents,
-  never,
-  FooControllerEvents['type']
->;
-```
-
-✅ **`never` is passed as the 5th type parameter (assuming no external events)**
+✅ **`FooControllerEvents` is passed as the 2nd type parameter (assuming no external events)**
 
 ```typescript
 export type FooControllerEvents =
   | FooControllerMessageReceivedEvent
   | FooControllerNotificationAddedEvent;
 
-export type FooControllerMessenger = RestrictedMessenger<
+export type FooControllerMessenger = Messenger<
   'FooController',
-  never,
-  FooControllerEvents,
-  never,
-  never
+  FooControllerActions,
+  FooControllerEvents
 >;
 ```
 
 ## Define, but do not export, a type union for external action types
 
-A controller may wish to call actions defined by other controllers, and therefore will need to define them in the messenger's allowlist.
+A controller may wish to call actions defined by other controllers, and therefore will need to include them in the controller messenger's type definition.
 
-In this case, the controller should group these types into a type union so that they can be easily passed to the `RestrictedMessenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
+In this case, the controller should group these types into a type union so that they can be easily passed to the `Messenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
 
 The name of this type should be `AllowedActions`.
 
-This type should not only be passed to `RestrictedMessenger` as the 2nd type parameter, but should also be included in its 4th type parameter.
+This type should be passed to `Messenger` as part of the 2nd type parameter, in a type union with internal actions.
 
-🚫 **`never` is passed as the 4th type parameter**
-
-```typescript
-export type AllowedActions =
-  | BarControllerDoSomethingAction
-  | BarControllerDoSomethingElseAction;
-
-export type FooControllerMessenger = RestrictedMessenger<
-  'FooController',
-  AllowedActions,
-  never,
-  never,
-  never
->;
-```
-
-🚫 **`AllowedActions['type']` is passed as the 4th type parameter, but `AllowedActions` is exported**
+🚫 **`AllowedActions` is exported**
 
 ```typescript
 /* === packages/foo-controller/src/FooController.ts === */
 
+export type FooControllerActions =
+  | FooControllerUpdateCurrencyAction
+  | FooControllerUpdateRatesAction;
+
 export type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooControllerMessenger = RestrictedMessenger<
+export type FooControllerMessenger = Messenger<
   'FooController',
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  FooControllerActions | AllowedActions,
+  FooControllerEvents
 >;
 
 /* === packages/foo-controller/src/index.ts === */
@@ -621,75 +593,78 @@ export type FooControllerMessenger = RestrictedMessenger<
 export type { AllowedActions } from '@metamask/foo-controller';
 ```
 
-✅ **`AllowedActions['type']` is passed as the 4th type parameter, and `AllowedActions` is _not_ exported**
+🚫 **External actions are included in controller action type**
 
 ```typescript
+export type FooControllerActions =
+  | FooControllerUpdateCurrencyAction
+  | FooControllerUpdateRatesAction
+  | BarControllerDoSomethingAction
+  | BarControllerDoSomethingElseAction;
+
+export type FooControllerMessenger = Messenger<
+  'FooController',
+  FooControllerActions,
+  FooControllerEvents
+>;
+```
+
+✅ **`AllowedActions` is included in the 2nd type parameter but is _not_ exported**
+
+```typescript
+export type FooControllerActions =
+  | FooControllerUpdateCurrencyAction
+  | FooControllerUpdateRatesAction;
+
 type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooControllerMessenger = RestrictedMessenger<
+export type FooControllerMessenger = Messenger<
   'FooController',
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  FooControllerActions | AllowedActions,
+  FooControllerEvents
 >;
 ```
 
-If, in a test, you need to access all of the actions included in a controller's messenger allowlist, use the [`ExtractAvailableAction` utility type](../packages/base-controller/tests/helpers.ts):
+If, in a test, you need to access all of the actions supported by a messenger, use the [`MessengerActions` utility type](../packages/messenger/src/Messenger.ts):
 
 ```typescript
-// NOTE: You may need to adjust the path depending on where you are
-import { ExtractAvailableAction } from '../../base-controller/tests/helpers';
+import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
 
 const messenger = new Messenger<
-  ExtractAvailableAction<FooControllerMessenger>,
-  never
+  controllerName,
+  MessengerActions<FooControllerMessenger>,
+  MessengerEvents<FooControllerMessenger>
 >();
 ```
 
 ## Define, but do not export, a type union for external event types
 
-A controller may wish to subscribe to events defined by other controllers, and therefore will need to define them in the messenger's allowlist.
+A controller may wish to subscribe to events defined by other controllers, and therefore will need to include them in the controller messenger's type definition.
 
-In this case, the controller should group these types into a type union so that they can be easily passed to the `RestrictedMessenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
+In this case, the controller should group these types into a type union so that they can be easily passed to the `Messenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
 
 The name of this type should be `AllowedEvents`.
 
-This type should not only be passed to `RestrictedMessenger` as the 3rd type parameter, but should also be included in its 5th type parameter.
+This type should be passed to `Messenger` as part of the 3rd type parameter, in a type union with internal events.
 
-🚫 **`never` is passed as the 5th type parameter**
-
-```typescript
-export type AllowedEvents =
-  | BarControllerSomethingHappenedEvent
-  | BarControllerSomethingElseHappenedEvent;
-
-export type FooControllerMessenger = RestrictedMessenger<
-  'FooController',
-  never,
-  AllowedEvents,
-  never,
-  never
->;
-```
-
-🚫 **`AllowedEvents['type']` is passed as the 5th type parameter, but `AllowedEvents` is exported**
+🚫 **`AllowedEvents` is exported**
 
 ```typescript
 /* === packages/foo-controller/src/FooController.ts === */
+export type FooControllerEvents =
+  | FooControllerMessageReceivedEvent
+  | FooControllerNotificationAddedEvent;
 
 export type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooControllerMessenger = RestrictedMessenger<
+export type FooControllerMessenger = Messenger<
   'FooController',
-  never,
-  AllowedEvents,
-  never,
-  AllowedEvents['type']
+  FooControllerActions,
+  FooControllerEvents | AllowedEvents
 >;
 
 /* === packages/foo-controller/src/index.ts === */
@@ -697,31 +672,49 @@ export type FooControllerMessenger = RestrictedMessenger<
 export type { AllowedEvents } from '@metamask/foo-controller';
 ```
 
-✅ **`AllowedEvents['type']` is passed as the 5th type parameter, and `AllowedEvents` is _not_ exported**
+🚫 **External events are included in controller actieventn type**
 
 ```typescript
+export type FooControllerEvents =
+  | FooControllerMessageReceivedEvent
+  | FooControllerNotificationAddedEvent
+  | BarControllerSomethingHappenedEvent
+  | BarControllerSomethingElseHappenedEvent;
+
+export type FooControllerMessenger = Messenger<
+  'FooController',
+  FooControllerActions,
+  FooControllerEvents
+>;
+```
+
+✅ **`AllowedEvents` is included in the 3nd type parameter but is _not_ exported**
+
+```typescript
+export type FooControllerEvents =
+  | FooControllerMessageReceivedEvent
+  | FooControllerNotificationAddedEvent;
+
 type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooControllerMessenger = RestrictedMessenger<
+export type FooControllerMessenger = Messenger<
   'FooController',
-  never,
-  AllowedEvents,
-  never,
-  AllowedEvents['type']
+  FooControllerActions,
+  FooControllerEvents | AllowedEvents
 >;
 ```
 
-If, in a test, you need to access all of the events included in a controller's messenger allowlist, use the [`ExtractAvailableEvent` utility type](../packages/base-controller/tests/helpers.ts):
+If, in a test, you need to access all of the events supported by a messenger, use the [`MessengerEvents` utility type](../packages/messenger/src/Messenger.ts):
 
 ```typescript
-// NOTE: You may need to adjust the path depending on where you are
-import { ExtractAvailableEvent } from '../../base-controller/tests/helpers';
+import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
 
 const messenger = new Messenger<
-  never,
-  ExtractAvailableEvent<FooControllerMessenger>
+  controllerName,
+  MessengerActions<FooControllerMessenger>,
+  MessengerEvents<FooControllerMessenger>
 >();
 ```
 
@@ -784,25 +777,17 @@ export type AllowedEvents =
   | ApprovalControllerApprovalRequestApprovedEvent
   | ApprovalControllerApprovalRequestRejectedEvent;
 
-export type SwapsControllerMessenger = RestrictedMessenger<
+export type SwapsControllerMessenger = Messenger<
   'SwapsController',
   SwapsControllerActions | AllowedActions,
-  SwapsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SwapsControllerEvents | AllowedEvents
 >;
 ```
 
 A messenger that allows no actions or events (whether internal or external) looks like this:
 
 ```typescript
-export type SwapsControllerMessenger = RestrictedMessenger<
-  'SwapsController',
-  never,
-  never,
-  never,
-  never
->;
+export type FooServiceMessenger = Messenger<'FooService', never, never>;
 ```
 
 ## Define and export a type for the controller's state
@@ -1167,14 +1152,14 @@ class AccountsController extends BaseController<
 
 import { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 
+// Other type definitions
+
 type AllowedActions = AccountsControllerGetStateAction;
 
-type PreferencesControllerMessenger = RestrictedMessenger<
+type PreferencesControllerMessenger = Messenger<
   'PreferencesController',
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  PreferencesControllerActions | AllowedActions,
+  PreferencesControllerEvents
 >;
 
 class PreferencesController extends BaseController<
@@ -1208,7 +1193,7 @@ class PreferencesController extends BaseController<
 
 ## Expose derived state using selectors instead of getters
 
-Sometimes, for convenience, consumers want access to a higher-level representation of a controller's state. It is tempting to add a method to the controller which provides this representation, but this means that a consumer would need an entire instance of the controller on hand to use this method. Using the messaging system mitigates this problem, but then the consumer would need access to a messenger as well, which may be impossible in places like Redux selector functions.
+Sometimes, for convenience, consumers want access to a higher-level representation of a controller's state. It is tempting to add a method to the controller which provides this representation, but this means that a consumer would need an entire instance of the controller on hand to use this method. Using the messenger mitigates this problem, but then the consumer would need access to a messenger as well, which may be impossible in places like Redux selector functions.
 
 To make it easier to share such representations across disparate parts of the codebase in a flexible fashion, you can define and export selector functions from your controller file instead. They should be placed under a `${controllerName}Selectors` object and then exported.
 
@@ -1248,7 +1233,7 @@ class TokensController extends BaseController</* ... */> {
 }
 ```
 
-🚫 **Methods exposed via the messaging system**
+🚫 **Methods exposed via the messenger**
 
 ```typescript
 /* === This repo: packages/accounts-controller/src/AccountsController.ts === */
@@ -1263,16 +1248,15 @@ export type AccountsControllerGetInactiveAccountsAction = {
   handler: AccountsController['getInactiveAccounts'];
 };
 
-type AccountsControllerActions =
+export type AccountsControllerActions =
+  /// Other actions
   | AccountsControllerGetActiveAccountAction
   | AccountsControllerGetInactiveAccountsAction;
 
-export type AccountsControllerMessenger = RestrictedMessenger<
+export type AccountsControllerMessenger = Messenger<
   'AccountsController',
   AccountsControllerActions,
-  never,
-  never,
-  never
+  AccountsControllerEvents
 >;
 
 class AccountsController extends BaseController</* ... */> {
@@ -1296,12 +1280,10 @@ type AllowedActions =
   | AccountsControllerGetActiveAccountsAction
   | AccountsControllerGetInactiveAccountsAction;
 
-export type TokensControllerMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = Messenger<
   'TokensController',
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  TokensControllerActions | AllowedActions,
+  TokensControllerEvents
 >;
 
 class TokensController extends BaseController</* ... */> {
@@ -1319,7 +1301,7 @@ class TokensController extends BaseController</* ... */> {
     // Now TokensController no longer needs an instance of AccountsController to
     // access the list of active accounts, which is good...
     const tokens = getTokens(
-      this.messagingSystem.call('AccountsController:getActiveAccounts'),
+      this.messenger.call('AccountsController:getActiveAccounts'),
     );
     // ... do something with tokens ...
   }
@@ -1377,12 +1359,10 @@ export type AccountsControllerGetStateAction = ControllerGetStateAction<
 
 type AccountsControllerActions = AccountsControllerGetStateAccountAction;
 
-export type AccountsControllerMessenger = RestrictedMessenger<
+export type AccountsControllerMessenger = Messenger<
   'AccountsController',
   AccountsControllerActions,
-  never,
-  never,
-  never
+  AccountsControllerEvents,
 >;
 
 /* === This repo: packages/tokens-controller/src/TokensController.ts === */
@@ -1394,12 +1374,10 @@ import { accountsControllerSelectors } from '@metamask/accounts-controller';
 
 type AllowedActions = AccountsControllerGetStateAction;
 
-export type TokensControllerMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = Messenger<
   'TokensController',
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  TokensControllerActions | AllowedActions,
+  TokensControllerEvents
 >;
 
 class TokensController extends BaseController</* ... */> {
@@ -1415,7 +1393,7 @@ class TokensController extends BaseController</* ... */> {
 
   fetchTokens() {
     // Now TokensController can use the selector in combination with the state
-    const tokensControllerState = this.messagingSystem.call(
+    const tokensControllerState = this.messenger.call(
       'AccountsController:getState',
     );
     const accounts = accountsControllerSelectors.selectActiveAccounts(

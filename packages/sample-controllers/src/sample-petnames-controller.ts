@@ -1,11 +1,11 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 // === GENERAL ===
@@ -92,12 +92,10 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link SamplePetnamesController}.
  */
-export type SamplePetnamesControllerMessenger = RestrictedMessenger<
+export type SamplePetnamesControllerMessenger = Messenger<
   typeof controllerName,
   SamplePetnamesControllerActions | AllowedActions,
-  SamplePetnamesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SamplePetnamesControllerEvents | AllowedEvents
 >;
 
 /**

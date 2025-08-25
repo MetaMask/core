@@ -1,10 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type { NetworkControllerGetStateAction } from './network-controller-types';
@@ -123,12 +123,10 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link SampleGasPricesController}.
  */
-export type SampleGasPricesControllerMessenger = RestrictedMessenger<
+export type SampleGasPricesControllerMessenger = Messenger<
   typeof controllerName,
   SampleGasPricesControllerActions | AllowedActions,
-  SampleGasPricesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SampleGasPricesControllerEvents | AllowedEvents
 >;
 
 /**
@@ -228,7 +226,7 @@ export class SampleGasPricesController extends BaseController<
 
     this.#gasPricesService = gasPricesService;
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateGasPrices`,
       this.updateGasPrices.bind(this),
     );
@@ -239,7 +237,7 @@ export class SampleGasPricesController extends BaseController<
    * state.
    */
   async updateGasPrices() {
-    const { chainId } = this.messagingSystem.call('NetworkController:getState');
+    const { chainId } = this.messenger.call('NetworkController:getState');
     const gasPricesResponse =
       await this.#gasPricesService.fetchGasPrices(chainId);
     this.update((state) => {
