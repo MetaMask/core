@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `UnifiedSwapBridgeEventName.ResponseValidationFailure` event ([#6362](https://github.com/MetaMask/core/pull/6362))
 
+### Changed
+
+- Update quotes to account for minDestTokenAmount ([#6373](https://github.com/MetaMask/core/pull/6373))
+
 ## [41.1.0]
 
 ### Added

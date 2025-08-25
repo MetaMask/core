@@ -42,6 +42,7 @@ describe('utils', () => {
         assetId: 'eip155:137/erc20:0x456',
       },
       destTokenAmount: '',
+      minDestTokenAmount: '',
       feeData: {
         metabridge: {
           amount: '100',
