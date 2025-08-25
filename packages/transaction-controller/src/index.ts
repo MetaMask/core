@@ -53,6 +53,7 @@ export type {
   IsAtomicBatchSupportedResultEntry,
   LegacyGasFeeEstimates,
   Log,
+  MetamaskPayMetadata,
   NestedTransactionMetadata,
   PublishBatchHook,
   PublishBatchHookRequest,

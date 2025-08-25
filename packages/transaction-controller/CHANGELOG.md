@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `metamaskPay` and `requiredTransactionIds` properties to `TransactionMeta` ([#6361](https://github.com/MetaMask/core/pull/6361))
+  - Add `updateRequiredTransactionIds` method.
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
