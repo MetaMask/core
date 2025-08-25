@@ -47,6 +47,7 @@ export type {
   GasFeeToken,
   GasPriceGasFeeEstimates,
   GasPriceValue,
+  GetSimulationConfig,
   InferTransactionTypeResult,
   IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResult,
