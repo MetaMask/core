@@ -516,9 +516,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
-    console.log('cfg ---------------', cfg);
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    console.log('networkClientId ---------------', networkClientId);
     const client = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -530,15 +528,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { networkConfigurationsByChainId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    console.log(
-      'networkConfigurationsByChainId ---------------',
-      networkConfigurationsByChainId,
-    );
-    console.log('chainId ---------------', chainId);
     const cfg = networkConfigurationsByChainId[chainId];
-    console.log('cfg 111 ---------------', cfg);
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    console.log('networkClientId 111 ---------------', networkClientId);
     return this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -671,7 +662,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
             );
           }
         } catch (error) {
-          console.log('error ---------------', error);
           console.warn(
             `Balance fetcher failed for chains ${supportedChains.join(', ')}: ${String(error)}`,
           );
