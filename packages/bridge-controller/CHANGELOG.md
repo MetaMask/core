@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `UnifiedSwapBridgeEventName.ResponseValidationFailure` event ([#6362](https://github.com/MetaMask/core/pull/6362))
 
+## [41.2.0]
+
+### Uncategorized
+
+- Release/511.0.0 ([#6372](https://github.com/MetaMask/core/pull/6372))
+
 ### Changed
 
 - Update quotes to account for minDestTokenAmount ([#6373](https://github.com/MetaMask/core/pull/6373))
@@ -533,7 +539,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...HEAD
+[41.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.1.0...@metamask/bridge-controller@41.2.0
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.0.0...@metamask/bridge-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@40.0.0...@metamask/bridge-controller@41.0.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.1.0...@metamask/bridge-controller@40.0.0
