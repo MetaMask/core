@@ -1513,7 +1513,12 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
-      const { controller, accountsControllerMessenger } = setup({
+      const {
+        controller,
+        messenger,
+        accountsControllerMessenger,
+        accountTreeControllerMessenger,
+      } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
@@ -1526,6 +1531,10 @@ describe('AccountTreeController', () => {
         'AccountsController:getSelectedAccount',
         () => EMPTY_ACCOUNT_MOCK,
       );
+      messenger.delegate({
+        messenger: accountTreeControllerMessenger,
+        actions: ['AccountsController:getSelectedAccount'],
+      });
 
       controller.init();
 
@@ -1542,7 +1551,12 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when selected account is not in tree', () => {
-      const { controller, accountsControllerMessenger } = setup({
+      const {
+        controller,
+        messenger,
+        accountsControllerMessenger,
+        accountTreeControllerMessenger,
+      } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
@@ -1560,6 +1574,10 @@ describe('AccountTreeController', () => {
         'AccountsController:getSelectedAccount',
         () => unknownAccount,
       );
+      messenger.delegate({
+        messenger: accountTreeControllerMessenger,
+        actions: ['AccountsController:getSelectedAccount'],
+      });
 
       controller.init();
 
@@ -1576,7 +1594,12 @@ describe('AccountTreeController', () => {
     });
 
     it('returns empty string when no wallets exist and getSelectedAccount returns EMPTY_ACCOUNT', () => {
-      const { controller, accountsControllerMessenger } = setup({
+      const {
+        controller,
+        messenger,
+        accountsControllerMessenger,
+        accountTreeControllerMessenger,
+      } = setup({
         accounts: [],
         keyrings: [],
       });
@@ -1589,6 +1612,10 @@ describe('AccountTreeController', () => {
         'AccountsController:getSelectedAccount',
         () => EMPTY_ACCOUNT_MOCK,
       );
+      messenger.delegate({
+        messenger: accountTreeControllerMessenger,
+        actions: ['AccountsController:getSelectedAccount'],
+      });
 
       controller.init();
 
