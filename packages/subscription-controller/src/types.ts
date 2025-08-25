@@ -1,12 +1,3 @@
-import type {
-  ControllerStateChangeEvent,
-  ControllerGetStateAction,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
-
-import type { controllerName, Env } from './constants';
-
 export enum ProductType {
   SHIELD = 'shield',
 }
@@ -55,72 +46,6 @@ export type PendingPaymentTransaction = {
   status: 'pending' | 'confirmed' | 'failed';
   chainId: string;
   hash?: string;
-};
-
-export type SubscriptionControllerState = {
-  subscriptions: Subscription[];
-  authTokenRef?: AuthTokenRef;
-  pendingPaymentTransactions?: {
-    [transactionId: string]: PendingPaymentTransaction;
-  };
-};
-
-// Actions
-export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  SubscriptionControllerState
->;
-export type SubscriptionControllerActions =
-  SubscriptionControllerGetStateAction;
-
-export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
-
-// Events
-export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  SubscriptionControllerState
->;
-export type SubscriptionControllerEvents =
-  SubscriptionControllerStateChangeEvent;
-
-export type AllowedEvents =
-  AuthenticationController.AuthenticationControllerStateChangeEvent;
-
-// Messenger
-export type SubscriptionControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  SubscriptionControllerActions | AllowedActions,
-  SubscriptionControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
-
-/**
- * Subscription Controller Options.
- */
-export type SubscriptionControllerOptions = {
-  messenger: SubscriptionControllerMessenger;
-
-  /**
-   * Initial state to set on this controller.
-   */
-  state?: Partial<SubscriptionControllerState>;
-
-  /**
-   * Environment for this controller.
-   */
-  env: Env;
-
-  /**
-   * Subscription service to use for the subscription controller.
-   */
-  subscriptionService?: ISubscriptionService;
-
-  /**
-   * Fetch function to use for the subscription controller.
-   */
-  fetchFn: typeof globalThis.fetch;
 };
 
 export type GetSubscriptionsResponse = {

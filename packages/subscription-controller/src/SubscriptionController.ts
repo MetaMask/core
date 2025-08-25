@@ -1,4 +1,11 @@
-import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import {
+  BaseController,
+  type StateMetadata,
+  type ControllerStateChangeEvent,
+  type ControllerGetStateAction,
+  type RestrictedMessenger,
+} from '@metamask/base-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import {
   controllerName,
@@ -9,10 +16,85 @@ import { SubscriptionService } from './SubscriptionService';
 import type {
   ProductType,
   ISubscriptionService,
-  SubscriptionControllerMessenger,
-  SubscriptionControllerOptions,
-  SubscriptionControllerState,
+  Subscription,
+  AuthTokenRef,
+  PendingPaymentTransaction,
 } from './types';
+
+export type SubscriptionControllerState = {
+  subscriptions: Subscription[];
+  authTokenRef?: AuthTokenRef;
+  pendingPaymentTransactions?: {
+    [transactionId: string]: PendingPaymentTransaction;
+  };
+};
+
+// Messenger Actions
+type CreateActionsObj<Controller extends keyof SubscriptionController> = {
+  [K in Controller]: {
+    type: `${typeof controllerName}:${K}`;
+    handler: SubscriptionController[K];
+  };
+};
+type ActionsObj = CreateActionsObj<'getSubscriptions' | 'cancelSubscription'>;
+
+export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  SubscriptionControllerState
+>;
+export type SubscriptionControllerActions =
+  | ActionsObj[keyof ActionsObj]
+  | SubscriptionControllerGetStateAction;
+
+export type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerToken;
+
+// Events
+export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  SubscriptionControllerState
+>;
+export type SubscriptionControllerEvents =
+  SubscriptionControllerStateChangeEvent;
+
+export type AllowedEvents =
+  AuthenticationController.AuthenticationControllerStateChangeEvent;
+
+// Messenger
+export type SubscriptionControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  SubscriptionControllerActions | AllowedActions,
+  SubscriptionControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+
+/**
+ * Subscription Controller Options.
+ */
+export type SubscriptionControllerOptions = {
+  messenger: SubscriptionControllerMessenger;
+
+  /**
+   * Initial state to set on this controller.
+   */
+  state?: Partial<SubscriptionControllerState>;
+
+  /**
+   * Environment for this controller.
+   */
+  env: Env;
+
+  /**
+   * Subscription service to use for the subscription controller.
+   */
+  subscriptionService?: ISubscriptionService;
+
+  /**
+   * Fetch function to use for the subscription controller.
+   */
+  fetchFn: typeof globalThis.fetch;
+};
 
 /**
  * Get the default state for the Subscription Controller.
@@ -98,9 +180,27 @@ export class SubscriptionController extends BaseController<
         },
         fetchFn,
       });
+
+    this.#registerMessageHandlers();
   }
 
-  async getSubscription() {
+  /**
+   * Constructor helper for registering this controller's messaging system
+   * actions.
+   */
+  #registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getSubscriptions',
+      this.getSubscriptions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:cancelSubscription',
+      this.cancelSubscription.bind(this),
+    );
+  }
+
+  async getSubscriptions() {
     const { subscriptions } =
       await this.#subscriptionService.getSubscriptions();
 

@@ -9,15 +9,13 @@ import { SubscriptionServiceError } from './errors';
 import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
+  type AllowedActions,
+  type AllowedEvents,
+  type SubscriptionControllerMessenger,
+  type SubscriptionControllerOptions,
+  type SubscriptionControllerState,
 } from './SubscriptionController';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  SubscriptionControllerMessenger,
-  SubscriptionControllerOptions,
-  SubscriptionControllerState,
-  Subscription,
-} from './types';
+import type { Subscription } from './types';
 import { PaymentType, ProductType } from './types';
 
 // Mock data
@@ -242,7 +240,7 @@ describe('SubscriptionController', () => {
 
       expect(controller).toBeDefined();
 
-      await controller.getSubscription();
+      await controller.getSubscriptions();
 
       // Verify that the messenger's call method was used to get the bearer token
       expect(mockGetBearerToken).toHaveBeenCalled();
@@ -333,7 +331,7 @@ describe('SubscriptionController', () => {
           trialedProducts: [],
         });
 
-        const result = await controller.getSubscription();
+        const result = await controller.getSubscriptions();
 
         expect(result).toStrictEqual([MOCK_SUBSCRIPTION]);
         // For backward compatibility during refactor, keep single subscription mirror if present
@@ -353,7 +351,7 @@ describe('SubscriptionController', () => {
           trialedProducts: [],
         });
 
-        const result = await controller.getSubscription();
+        const result = await controller.getSubscriptions();
 
         expect(result).toBeNull();
         expect(controller.state.subscriptions).toStrictEqual([]);
@@ -368,7 +366,7 @@ describe('SubscriptionController', () => {
           new SubscriptionServiceError(errorMessage),
         );
 
-        await expect(controller.getSubscription()).rejects.toThrow(
+        await expect(controller.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
         );
 
@@ -398,7 +396,7 @@ describe('SubscriptionController', () => {
             subscriptions: [newSubscription],
             trialedProducts: [],
           });
-          const result = await controller.getSubscription();
+          const result = await controller.getSubscriptions();
 
           expect(result).toStrictEqual([newSubscription]);
           expect(controller.state.subscriptions).toStrictEqual([
@@ -594,7 +592,7 @@ describe('SubscriptionController', () => {
         trialedProducts: [],
       });
 
-      await controller.getSubscription();
+      await controller.getSubscriptions();
 
       expect(controller.state.subscriptions).toStrictEqual([newSubscription]);
       expect(controller.state.subscriptions[0]?.id).toBe('new_sub_id');
@@ -605,9 +603,7 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         env: Env.PRD,
-        fetchFn:
-          (global as unknown as { fetch?: typeof fetch }).fetch ??
-          (jest.fn() as unknown as typeof fetch),
+        fetchFn: global.fetch,
         state: {
           subscriptions: [MOCK_SUBSCRIPTION],
           authTokenRef: {
@@ -645,7 +641,7 @@ describe('SubscriptionController', () => {
           subscriptions: [MOCK_SUBSCRIPTION],
           trialedProducts: [],
         });
-        const subscriptions = await controller.getSubscription();
+        const subscriptions = await controller.getSubscriptions();
 
         expect(subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
         expect(controller.state.subscriptions).toStrictEqual([
@@ -748,7 +744,7 @@ describe('SubscriptionController', () => {
           trialedProducts: [],
         });
 
-        const result = await controller.getSubscription();
+        const result = await controller.getSubscriptions();
 
         expect(result).toStrictEqual([minimalSubscription]);
         expect(controller.state.subscriptions).toStrictEqual([

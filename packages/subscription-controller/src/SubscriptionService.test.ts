@@ -2,7 +2,7 @@ import nock, { cleanAll, isDone } from 'nock';
 
 import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
-import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
+import { SubscriptionService } from './SubscriptionService';
 import type { Subscription } from './types';
 import { PaymentType, ProductType } from './types';
 
