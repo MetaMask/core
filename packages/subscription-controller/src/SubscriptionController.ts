@@ -65,12 +65,14 @@ export class SubscriptionController extends BaseController<
    * @param options.state - Initial state to set on this controller.
    * @param options.env - Environment for this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
+   * @param options.fetchFn - The fetch function to use for the subscription controller.
    */
   constructor({
     messenger,
     state,
     env,
     subscriptionService,
+    fetchFn,
   }: SubscriptionControllerOptions) {
     super({
       name: controllerName,
@@ -94,6 +96,7 @@ export class SubscriptionController extends BaseController<
               'AuthenticationController:getBearerToken',
             ),
         },
+        fetchFn,
       });
   }
 

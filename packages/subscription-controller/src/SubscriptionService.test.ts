@@ -45,6 +45,7 @@ function createMockConfig(env: Env = Env.DEV) {
     auth: {
       getAccessToken: jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
     },
+    fetchFn: fetch,
   };
 }
 

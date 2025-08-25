@@ -2,11 +2,14 @@ import { getEnvUrls, type Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type { GetSubscriptionsResponse, ISubscriptionService } from './types';
 
+export type AuthUtils = {
+  getAccessToken: () => Promise<string>;
+};
+
 export type SubscriptionServiceConfig = {
   env: Env;
-  auth: {
-    getAccessToken: () => Promise<string>;
-  };
+  auth: AuthUtils;
+  fetchFn: typeof globalThis.fetch;
 };
 
 type ErrorMessage = {
@@ -18,13 +21,16 @@ export const SUBSCRIPTION_URL = (env: Env, path: string) =>
   `${getEnvUrls(env).subscriptionApiUrl}/api/v1/${path}`;
 
 export class SubscriptionService implements ISubscriptionService {
-  readonly #config: SubscriptionServiceConfig;
+  readonly #authUtils: AuthUtils;
 
   readonly #env: Env;
 
+  readonly #fetch: typeof globalThis.fetch;
+
   constructor(config: SubscriptionServiceConfig) {
     this.#env = config.env;
-    this.#config = config;
+    this.#authUtils = config.auth;
+    this.#fetch = config.fetchFn;
   }
 
   async getSubscriptions(): Promise<GetSubscriptionsResponse> {
@@ -45,7 +51,7 @@ export class SubscriptionService implements ISubscriptionService {
       const headers = await this.#getAuthorizationHeader();
       const url = new URL(SUBSCRIPTION_URL(this.#env, path));
 
-      const response = await fetch(url.toString(), {
+      const response = await this.#fetch(url.toString(), {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +78,7 @@ export class SubscriptionService implements ISubscriptionService {
   }
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    const accessToken = await this.#config.auth.getAccessToken();
+    const accessToken = await this.#authUtils.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
   }
 }

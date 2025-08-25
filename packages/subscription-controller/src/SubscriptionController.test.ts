@@ -191,6 +191,7 @@ async function withController<ReturnValue>(
     messenger,
     env: Env.PRD,
     subscriptionService: mockService,
+    fetchFn: global.fetch,
     ...rest,
   });
 
@@ -209,6 +210,7 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         env: Env.PRD,
+        fetchFn: global.fetch,
       });
 
       expect(controller).toBeDefined();
@@ -221,14 +223,6 @@ describe('SubscriptionController', () => {
       const { messenger, mockGetBearerToken } =
         createMockSubscriptionMessenger();
 
-      // Create controller without custom subscription service to test default creation
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-      });
-
-      expect(controller).toBeDefined();
-
       // Mock fetch to test the default service
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
@@ -239,26 +233,28 @@ describe('SubscriptionController', () => {
           trialedProducts: [],
         }),
       });
-      global.fetch = mockFetch as unknown as typeof fetch;
+      // Create controller without custom subscription service to test default creation
+      const controller = new SubscriptionController({
+        messenger,
+        env: Env.PRD,
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
 
-      try {
-        await controller.getSubscription();
+      expect(controller).toBeDefined();
 
-        // Verify that the messenger's call method was used to get the bearer token
-        expect(mockGetBearerToken).toHaveBeenCalled();
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('subscription-service.api.cx.metamask.io'),
-          expect.objectContaining({
-            headers: expect.objectContaining({
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
-            }),
+      await controller.getSubscription();
+
+      // Verify that the messenger's call method was used to get the bearer token
+      expect(mockGetBearerToken).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('subscription-service.api.cx.metamask.io'),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
           }),
-        );
-      } finally {
-        // Clean up
-        delete (global as unknown as { fetch: unknown }).fetch;
-      }
+        }),
+      );
     });
 
     it('should be able to instantiate with custom config', () => {
@@ -266,6 +262,7 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         env: Env.DEV,
+        fetchFn: global.fetch,
       });
 
       expect(controller).toBeDefined();
@@ -285,6 +282,7 @@ describe('SubscriptionController', () => {
         messenger,
         env: Env.PRD,
         state: initialState,
+        fetchFn: global.fetch,
       });
 
       expect(controller).toBeDefined();
@@ -300,6 +298,7 @@ describe('SubscriptionController', () => {
         messenger,
         env: Env.PRD,
         subscriptionService: mockService,
+        fetchFn: global.fetch,
       });
 
       expect(controller).toBeDefined();
@@ -314,6 +313,7 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         env: Env.PRD,
+        fetchFn: global.fetch,
       });
 
       expect(controller).toBeDefined();
@@ -543,6 +543,7 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         env: Env.PRD,
+        fetchFn: global.fetch,
       });
 
       expect(controller.state).toStrictEqual(
@@ -562,6 +563,7 @@ describe('SubscriptionController', () => {
         messenger,
         env: Env.PRD,
         state: initialState,
+        fetchFn: global.fetch,
       });
 
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
@@ -578,6 +580,7 @@ describe('SubscriptionController', () => {
         messenger,
         env: Env.PRD,
         subscriptionService: mockService,
+        fetchFn: global.fetch,
       });
 
       const newSubscription = { ...MOCK_SUBSCRIPTION, id: 'new_sub_id' };
@@ -598,6 +601,9 @@ describe('SubscriptionController', () => {
       const controller = new SubscriptionController({
         messenger,
         env: Env.PRD,
+        fetchFn:
+          (global as unknown as { fetch?: typeof fetch }).fetch ??
+          (jest.fn() as unknown as typeof fetch),
         state: {
           subscriptions: [MOCK_SUBSCRIPTION],
           authTokenRef: {

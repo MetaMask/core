@@ -116,6 +116,11 @@ export type SubscriptionControllerOptions = {
    * Subscription service to use for the subscription controller.
    */
   subscriptionService?: ISubscriptionService;
+
+  /**
+   * Fetch function to use for the subscription controller.
+   */
+  fetchFn: typeof globalThis.fetch;
 };
 
 export type GetSubscriptionsResponse = {
