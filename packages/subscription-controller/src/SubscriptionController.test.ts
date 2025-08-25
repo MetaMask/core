@@ -40,11 +40,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
   },
 };
 
-const MOCK_AUTH_TOKEN_REF = {
-  lastRefreshTriggered: '2024-01-01T00:00:00Z',
-  refreshStatus: 'completed' as const,
-};
-
 const MOCK_PENDING_PAYMENT_TRANSACTIONS = {
   txn_123456789: {
     type: 'subscription_approval' as const,
@@ -275,7 +270,6 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
-        authTokenRef: MOCK_AUTH_TOKEN_REF,
       };
 
       const controller = new SubscriptionController({
@@ -287,7 +281,6 @@ describe('SubscriptionController', () => {
 
       expect(controller).toBeDefined();
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
     });
 
     it('should be able to instantiate with custom subscription service', () => {
@@ -555,7 +548,6 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
-        authTokenRef: MOCK_AUTH_TOKEN_REF,
         pendingPaymentTransactions: MOCK_PENDING_PAYMENT_TRANSACTIONS,
       };
 
@@ -567,7 +559,6 @@ describe('SubscriptionController', () => {
       });
 
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
       expect(controller.state.pendingPaymentTransactions).toStrictEqual(
         MOCK_PENDING_PAYMENT_TRANSACTIONS,
       );
@@ -606,18 +597,10 @@ describe('SubscriptionController', () => {
           (jest.fn() as unknown as typeof fetch),
         state: {
           subscriptions: [MOCK_SUBSCRIPTION],
-          authTokenRef: {
-            lastRefreshTriggered: '2024-02-01T00:00:00Z',
-            refreshStatus: 'pending',
-          },
         },
       });
 
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef?.lastRefreshTriggered).toBe(
-        '2024-02-01T00:00:00Z',
-      );
-      expect(controller.state.authTokenRef?.refreshStatus).toBe('pending');
     });
   });
 

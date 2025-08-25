@@ -42,10 +42,6 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       persist: true,
       anonymous: false,
     },
-    authTokenRef: {
-      persist: true,
-      anonymous: false,
-    },
   };
 
 export class SubscriptionController extends BaseController<
