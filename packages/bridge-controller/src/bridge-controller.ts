@@ -378,7 +378,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.ResponseValidationFailure,
       {
-        path: 'getQuote',
+        endpoint: 'getQuote',
         failures: validationFailures,
       },
     );

@@ -197,7 +197,7 @@ export type RequiredEventContextFromClient = {
     chain_id: string;
   };
   [UnifiedSwapBridgeEventName.ResponseValidationFailure]: {
-    path: 'getTxStatus' | 'getQuote';
+    endpoint: 'getTxStatus' | 'getQuote';
     failures: string[];
   };
 };
