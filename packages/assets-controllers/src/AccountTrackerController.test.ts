@@ -5,10 +5,9 @@ import {
   type NetworkClientId,
   type NetworkClientConfiguration,
   getDefaultNetworkControllerState,
-  NetworkConfiguration,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import type {
   AccountTrackerControllerMessenger,
@@ -67,7 +66,7 @@ describe('AccountTrackerController', () => {
   });
 
   afterEach(() => {
-    sinon.restore();
+    clock.restore();
     mockedQuery.mockRestore();
   });
 
@@ -617,6 +616,204 @@ describe('AccountTrackerController', () => {
           },
         );
       });
+
+      it('should handle unsupported chains gracefully', async () => {
+        const networkClientId = 'networkClientId1';
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        await withController(
+          {
+            options: {
+              state: {
+                accountsByChainId: {
+                  '0x1': {
+                    [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+                    foo: { balance: '0x2' },
+                  },
+                  '0x2': {
+                    [CHECKSUM_ADDRESS_1]: { balance: '0xa' },
+                    foo: { balance: '0xb' },
+                  },
+                },
+              },
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5', // Goerli - may not be supported by all balance fetchers
+              }),
+            },
+          },
+          async ({ controller, refresh }) => {
+            // Should not throw an error, even for unsupported chains
+            await refresh(clock, ['networkClientId1']);
+
+            // State should still be updated with chain entry from syncAccounts
+            expect(controller.state.accountsByChainId).toHaveProperty('0x5');
+            expect(controller.state.accountsByChainId['0x5']).toHaveProperty(
+              CHECKSUM_ADDRESS_1,
+            );
+            expect(controller.state.accountsByChainId['0x5']).toHaveProperty(
+              CHECKSUM_ADDRESS_2,
+            );
+
+            consoleWarnSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should handle timeout error correctly', async () => {
+        const originalSetTimeout = global.setTimeout;
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        await withController(
+          {
+            options: {
+              state: {
+                accountsByChainId: {
+                  '0x1': {
+                    [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+                  },
+                },
+              },
+              useAccountsAPI: false, // Disable API balance fetchers to force RPC usage
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock setTimeout to immediately trigger the timeout callback
+            global.setTimeout = ((callback: () => void, _delay: number) => {
+              // This is the timeout callback from line 657 - trigger it immediately
+              originalSetTimeout(callback, 0);
+              return 123 as unknown as NodeJS.Timeout; // Return a fake timer id
+            }) as typeof setTimeout;
+
+            // Mock the query to hang indefinitely
+            const hangingPromise = new Promise(() => {
+              // Intentionally empty - simulates hanging request
+            });
+            mockedQuery.mockReturnValue(hangingPromise);
+
+            // Start refresh and let the timeout trigger
+            await refresh(clock, ['mainnet']);
+
+            // Verify that the timeout error was logged (confirms line 657 was executed)
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+              expect.stringContaining(
+                'Balance fetcher failed for chains 0x1: Error: Timeout after 15000ms',
+              ),
+            );
+
+            // Restore original setTimeout
+            global.setTimeout = originalSetTimeout;
+            consoleWarnSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should use default allowExternalServices when not provided (covers line 390)', async () => {
+        // Mock fetch to simulate API balance fetcher behavior
+        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        } as Response);
+
+        await withController(
+          {
+            options: {
+              useAccountsAPI: true,
+              // allowExternalServices not provided - should default to () => true (line 390)
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock RPC query to return balance
+            mockedQuery.mockResolvedValue('0x0');
+
+            // Refresh balances for mainnet (supported by API)
+            await refresh(clock, ['mainnet']);
+
+            // Since allowExternalServices defaults to () => true (line 390), and useAccountsAPI is true,
+            // the API fetcher should be used, which means fetch should be called
+            expect(fetchSpy).toHaveBeenCalled();
+
+            fetchSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should respect allowExternalServices when set to true', async () => {
+        // Mock fetch to simulate API balance fetcher behavior
+        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        } as Response);
+
+        await withController(
+          {
+            options: {
+              useAccountsAPI: true,
+              allowExternalServices: () => true, // Explicitly set to true
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock RPC query to return balance
+            mockedQuery.mockResolvedValue('0x0');
+
+            // Refresh balances for mainnet (supported by API)
+            await refresh(clock, ['mainnet']);
+
+            // Since allowExternalServices is true and useAccountsAPI is true,
+            // the API fetcher should be used, which means fetch should be called
+            expect(fetchSpy).toHaveBeenCalled();
+
+            fetchSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should respect allowExternalServices when set to false', async () => {
+        // Mock fetch to simulate API balance fetcher behavior
+        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        } as Response);
+
+        await withController(
+          {
+            options: {
+              useAccountsAPI: true,
+              allowExternalServices: () => false, // Explicitly set to false
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock RPC query to return balance
+            mockedQuery.mockResolvedValue('0x0');
+
+            // Refresh balances for mainnet
+            await refresh(clock, ['mainnet']);
+
+            // Since allowExternalServices is false, the API fetcher should NOT be used
+            // Only RPC calls should be made, so fetch should NOT be called
+            expect(fetchSpy).not.toHaveBeenCalled();
+            // RPC fetcher should be used as the only balance fetcher
+            // (mockedQuery may or may not be called depending on implementation details)
+
+            fetchSpy.mockRestore();
+          },
+        );
+      });
     });
   });
 
@@ -685,7 +882,7 @@ describe('AccountTrackerController', () => {
       async ({ controller }) => {
         jest.spyOn(controller, 'refresh').mockResolvedValue();
 
-        await controller.startPolling({
+        controller.startPolling({
           networkClientIds: ['networkClientId1'],
         });
         await advanceTime({ clock, duration: 1 });

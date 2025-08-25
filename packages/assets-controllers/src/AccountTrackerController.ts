@@ -697,16 +697,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         if (success && value !== undefined) {
           const hexValue = `0x${value.toString(16)}`;
 
-          // Ensure chainId exists
-          if (!nextAccountsByChainId[chainId]) {
-            nextAccountsByChainId[chainId] = {};
-          }
-
-          // Ensure account exists
-          if (!nextAccountsByChainId[chainId][account]) {
-            nextAccountsByChainId[chainId][account] = { balance: '0x0' };
-          }
-
           if (token === ZERO_ADDRESS) {
             // Native balance
             if (nextAccountsByChainId[chainId][account].balance !== hexValue) {
@@ -728,13 +718,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         ([chainId, balancesByAddress]) => {
           Object.entries(balancesByAddress).forEach(
             ([address, stakedBalance]) => {
-              if (!nextAccountsByChainId[chainId]) {
-                nextAccountsByChainId[chainId] = {};
-              }
-              if (!nextAccountsByChainId[chainId][address]) {
-                nextAccountsByChainId[chainId][address] = { balance: '0x0' };
-              }
-
               if (
                 nextAccountsByChainId[chainId][address].stakedBalance !==
                 stakedBalance
