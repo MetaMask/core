@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `gas_included_7702` metric from quote ([#6363](https://github.com/MetaMask/core/pull/6363))
+
 ### Changed
 
 - **BREAKING** Rename `gasless7702` field from `QuoteRequest` (and quote schema) to `gasIncluded7702` ([#6363](https://github.com/MetaMask/core/pull/6363))
