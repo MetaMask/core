@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update EVM transaction batch handling to enable EIP-7702 when `gasIncluded7702` is true ([#6363>](https://github.com/MetaMask/core/pull/6363>))
+
+### Added
+
+- Add `gas_included_7702` metric from quote ([#<PR_NUMBER>](https://github.com/MetaMask/core/pull/6363))
+- Add new state prop `currentSubmissionRequest` and `getCurrentSubmissionRequest` action ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+ 
 ## [40.1.0]
 
 ### Changed
