@@ -18,7 +18,6 @@ import {
   deriveStateFromMetadata,
 } from './BaseController';
 
-
 export const countControllerName = 'CountController';
 
 type CountControllerState = {
