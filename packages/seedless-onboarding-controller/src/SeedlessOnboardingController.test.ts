@@ -115,7 +115,10 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<SeedlessOnboardingControllerAllowedActions, SeedlessOnboardingControllerAllowedEvents>;
+  baseMessenger: Messenger<
+    SeedlessOnboardingControllerAllowedActions,
+    SeedlessOnboardingControllerAllowedEvents
+  >;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
   mockRevokeRefreshToken: jest.Mock;
@@ -2321,6 +2324,38 @@ describe('SeedlessOnboardingController', () => {
   describe('submitPassword', () => {
     const MOCK_PASSWORD = 'mock-password';
 
+    it('should be able to unlock the vault with password', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+      );
+
+      const mockVault = mockResult.encryptedMockVault;
+      await withController(
+        {
+          state: {
+            vault: mockVault,
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          expect(controller.state.vault).toBe(mockVault);
+        },
+      );
+    });
+
     it('should throw error if the vault is missing', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.submitPassword(MOCK_PASSWORD)).rejects.toThrow(
@@ -3409,7 +3444,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.storeKeyringEncryptionKey(''),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.VaultEncryptionKeyUndefined,
+            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
 
           // Setup and store keyring encryption key.
