@@ -1465,6 +1465,66 @@ describe('BridgeController', function () {
     );
   });
 
+  it('returns early on AbortError without updating post-fetch state', async () => {
+    jest.useFakeTimers();
+
+    const abortError = new Error('Aborted');
+    // Make it look like an AbortError to hit the early return
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    abortError.name = 'AbortError';
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(
+        async () =>
+          await new Promise((_resolve, reject) => {
+            setTimeout(() => reject(abortError), 1000);
+          }),
+      );
+
+    // Minimal messenger/env setup to allow polling to start
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+      selectedNetworkClientId: 'selectedNetworkClientId',
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
+    } as never);
+
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Trigger the fetch + abort rejection
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+
+    // Early return path: no post-fetch updates
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state.quoteFetchError).toBeNull();
+    expect(bridgeController.state.quotesLoadingStatus).toBe(
+      RequestStatus.LOADING,
+    );
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesRefreshCount).toBe(0);
+    expect(bridgeController.state.quotes).toStrictEqual([]);
+  });
+
   it.each([
     [
       'should append solanaFees for Solana quotes',
