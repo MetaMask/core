@@ -324,6 +324,7 @@ describe('fetch', () => {
           "lifi|quote.destChainId",
           "lifi|quote.destAsset",
           "lifi|quote.destTokenAmount",
+          "lifi|quote.minDestTokenAmount",
           "lifi|quote.feeData",
           "lifi|quote.steps",
           "socket|quote.requestId",
@@ -333,6 +334,7 @@ describe('fetch', () => {
           "socket|quote.destChainId",
           "socket|quote.destAsset.address",
           "socket|quote.destTokenAmount",
+          "socket|quote.minDestTokenAmount",
           "socket|quote.feeData",
           "socket|quote.steps",
         ]
