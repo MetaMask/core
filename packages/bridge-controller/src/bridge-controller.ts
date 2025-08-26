@@ -376,9 +376,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       return;
     }
     this.trackUnifiedSwapBridgeEvent(
-      UnifiedSwapBridgeEventName.ResponseValidationFailure,
+      UnifiedSwapBridgeEventName.QuotesValidationFailed,
       {
-        endpoint: 'getQuote',
         failures: validationFailures,
       },
     );
@@ -854,7 +853,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.ResponseValidationFailure:
+      case UnifiedSwapBridgeEventName.QuotesValidationFailed:
         return {
           ...this.#getRequestParams(),
           refresh_count: this.state.quotesRefreshCount + 1,

@@ -186,6 +186,20 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the StatusValidationFailed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Status Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "failures": Array [
+        "Failed to submit tx",
+      ],
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Submitted event 1`] = `
 Array [
   Array [
@@ -1057,12 +1071,11 @@ Array [
 exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 2`] = `
 Array [
   Array [
-    "Unified SwapBridge Response Validation Failure",
+    "Unified SwapBridge Quotes Failed Validation",
     Object {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "endpoint": "getQuote",
       "failures": Array [
         "socket|quote.srcAsset.decimals",
         "socket|quote.destAsset.address",

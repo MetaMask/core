@@ -593,10 +593,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       if (validationFailures.length > 0) {
         this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.ResponseValidationFailure,
+          UnifiedSwapBridgeEventName.StatusValidationFailed,
           bridgeTxMetaId,
           {
-            endpoint: 'getTxStatus',
             failures: validationFailures,
           },
         );
@@ -1171,7 +1170,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
       | typeof UnifiedSwapBridgeEventName.Completed
-      | typeof UnifiedSwapBridgeEventName.ResponseValidationFailure,
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
   >(
     eventName: T,
     txMetaId?: string,
@@ -1217,7 +1216,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     const requestParamProperties = getRequestParamFromHistory(historyItem);
 
-    if (eventName === UnifiedSwapBridgeEventName.ResponseValidationFailure) {
+    if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
       const {
         chain_id_source,
         chain_id_destination,

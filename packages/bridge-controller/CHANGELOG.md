@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `UnifiedSwapBridgeEventName.ResponseValidationFailure` event ([#6362](https://github.com/MetaMask/core/pull/6362))
+- Publish `QuotesValidationFailed` and `StatusValidationFailed` events ([#6362](https://github.com/MetaMask/core/pull/6362))
 
 ## [41.2.0]
 

@@ -1713,7 +1713,7 @@ describe('BridgeController', function () {
       expect(
         trackMetaMetricsFn.mock.calls.filter(
           ([eventName]) =>
-            eventName === UnifiedSwapBridgeEventName.ResponseValidationFailure,
+            eventName === UnifiedSwapBridgeEventName.QuotesValidationFailed,
         ),
       ).toMatchSnapshot();
     },
@@ -2048,6 +2048,37 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
           stx_enabled: false,
           usd_amount_source: 100,
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the StatusValidationFailed event', () => {
+      const controller = new BridgeController({
+        messenger: messengerMock,
+        getLayer1GasFee: getLayer1GasFeeMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+        state: {
+          quoteRequest: {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+          },
+          quotes: mockBridgeQuotesSolErc20 as never,
+        },
+      });
+      controller.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.StatusValidationFailed,
+        {
+          failures: ['Failed to submit tx'],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
