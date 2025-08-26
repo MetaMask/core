@@ -37,11 +37,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
   },
 };
 
-const MOCK_AUTH_TOKEN_REF = {
-  lastRefreshTriggered: '2024-01-01T00:00:00Z',
-  refreshStatus: 'completed' as const,
-};
-
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
 /**
@@ -207,7 +202,6 @@ describe('SubscriptionController', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
-        authTokenRef: MOCK_AUTH_TOKEN_REF,
       };
 
       const controller = new SubscriptionController({
@@ -218,7 +212,6 @@ describe('SubscriptionController', () => {
 
       expect(controller).toBeDefined();
       expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
     });
 
     it('should be able to instantiate with custom subscription service', () => {
@@ -231,22 +224,6 @@ describe('SubscriptionController', () => {
       });
 
       expect(controller).toBeDefined();
-      expect(controller.state).toStrictEqual(
-        getDefaultSubscriptionControllerState(),
-      );
-    });
-
-    it('should create default subscription service when not provided', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const { mockService } = createMockSubscriptionService();
-
-      const controller = new SubscriptionController({
-        messenger,
-        subscriptionService: mockService,
-      });
-
-      expect(controller).toBeDefined();
-      // The controller should have created a SubscriptionService internally
       expect(controller.state).toStrictEqual(
         getDefaultSubscriptionControllerState(),
       );
@@ -367,7 +344,7 @@ describe('SubscriptionController', () => {
   });
 
   describe('cancelSubscription', () => {
-    it('should cancel subscription successfully when user is subscribed', async () => {
+    it('should cancel subscription successfully', async () => {
       await withController(
         {
           state: {
@@ -459,33 +436,6 @@ describe('SubscriptionController', () => {
               type: ProductType.SHIELD,
             }),
           ).rejects.toThrow(SubscriptionServiceError);
-
-          expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: 'sub_123456789',
-            type: ProductType.SHIELD,
-          });
-          expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('should handle network errors during cancellation', async () => {
-      await withController(
-        {
-          state: {
-            subscriptions: [MOCK_SUBSCRIPTION],
-          },
-        },
-        async ({ controller, mockService }) => {
-          const networkError = new Error('Network error');
-          mockService.cancelSubscription.mockRejectedValue(networkError);
-
-          await expect(
-            controller.cancelSubscription({
-              subscriptionId: 'sub_123456789',
-              type: ProductType.SHIELD,
-            }),
-          ).rejects.toThrow(networkError);
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',

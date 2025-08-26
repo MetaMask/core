@@ -35,12 +35,6 @@ export type Subscription = {
   paymentMethod: PaymentMethod;
 };
 
-// Authentication token reference (managed by user storage controller)
-export type AuthTokenRef = {
-  lastRefreshTriggered: string;
-  refreshStatus: 'pending' | 'completed' | 'failed';
-};
-
 export type PendingPaymentTransaction = {
   type: 'subscription_approval' | 'subscription_payment';
   status: 'pending' | 'confirmed' | 'failed';
@@ -50,7 +44,7 @@ export type PendingPaymentTransaction = {
 
 export type GetSubscriptionsResponse = {
   customerId: string;
-  subscriptions: Subscription[] | null;
+  subscriptions: Subscription[];
   trialedProducts: ProductType[];
 };
 

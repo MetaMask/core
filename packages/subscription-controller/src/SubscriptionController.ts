@@ -9,21 +9,17 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import {
   controllerName,
-  type Env,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import { SubscriptionService } from './SubscriptionService';
 import type {
   ProductType,
   ISubscriptionService,
   Subscription,
-  AuthTokenRef,
   PendingPaymentTransaction,
 } from './types';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
-  authTokenRef?: AuthTokenRef;
   pendingPaymentTransactions?: {
     [transactionId: string]: PendingPaymentTransaction;
   };
@@ -111,10 +107,6 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       anonymous: false,
     },
     pendingPaymentTransactions: {
-      persist: true,
-      anonymous: false,
-    },
-    authTokenRef: {
       persist: true,
       anonymous: false,
     },
