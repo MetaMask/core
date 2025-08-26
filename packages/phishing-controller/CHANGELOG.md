@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Fix: phishing controller c2 optimization ([#6388](https://github.com/MetaMask/core/pull/6388))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.2.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
 
 ## [13.1.0]
 

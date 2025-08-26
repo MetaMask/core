@@ -13,11 +13,65 @@ import type {
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
+import type {
+  MultichainAccountService,
+  serviceName,
+} from './MultichainAccountService';
+
+export type MultichainAccountServiceGetMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:getMultichainAccountGroup`;
+  handler: MultichainAccountService['getMultichainAccountGroup'];
+};
+
+export type MultichainAccountServiceGetMultichainAccountGroupsAction = {
+  type: `${typeof serviceName}:getMultichainAccountGroups`;
+  handler: MultichainAccountService['getMultichainAccountGroups'];
+};
+
+export type MultichainAccountServiceGetMultichainAccountWalletAction = {
+  type: `${typeof serviceName}:getMultichainAccountWallet`;
+  handler: MultichainAccountService['getMultichainAccountWallet'];
+};
+
+export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
+  type: `${typeof serviceName}:getMultichainAccountWallets`;
+  handler: MultichainAccountService['getMultichainAccountWallets'];
+};
+
+export type MultichainAccountServiceCreateNextMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:createNextMultichainAccountGroup`;
+  handler: MultichainAccountService['createNextMultichainAccountGroup'];
+};
+
+export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
+  type: `${typeof serviceName}:createMultichainAccountGroup`;
+  handler: MultichainAccountService['createMultichainAccountGroup'];
+};
+
+export type MultichainAccountServiceAlignWalletAction = {
+  type: `${typeof serviceName}:alignWallet`;
+  handler: MultichainAccountService['alignWallet'];
+};
+
+export type MultichainAccountServiceAlignWalletsAction = {
+  type: `${typeof serviceName}:alignWallets`;
+  handler: MultichainAccountService['alignWallets'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
  */
-export type MultichainAccountServiceActions = never;
+export type MultichainAccountServiceActions =
+  | MultichainAccountServiceGetMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountGroupsAction
+  | MultichainAccountServiceGetMultichainAccountWalletAction
+  | MultichainAccountServiceGetMultichainAccountWalletsAction
+  | MultichainAccountServiceCreateNextMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceAlignWalletAction
+  | MultichainAccountServiceAlignWalletsAction;
+
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.

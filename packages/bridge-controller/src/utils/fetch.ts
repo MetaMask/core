@@ -70,11 +70,14 @@ export async function fetchBridgeTokens(
  */
 export async function fetchBridgeQuotes(
   request: GenericQuoteRequest,
-  signal: AbortSignal,
+  signal: AbortSignal | null,
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
-): Promise<QuoteResponse[]> {
+): Promise<{
+  quotes: QuoteResponse[];
+  validationFailures: string[];
+}> {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
@@ -88,9 +91,19 @@ export async function fetchBridgeQuotes(
     insufficientBal: Boolean(request.insufficientBal),
     resetApproval: Boolean(request.resetApproval),
     gasIncluded: Boolean(request.gasIncluded),
+    gasless7702: Boolean(request.gasless7702),
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
+  }
+  if (request.noFee !== undefined) {
+    normalizedRequest.noFee = request.noFee;
+  }
+  if (request.aggIds && request.aggIds.length > 0) {
+    normalizedRequest.aggIds = request.aggIds;
+  }
+  if (request.bridgeIds && request.bridgeIds.length > 0) {
+    normalizedRequest.bridgeIds = request.bridgeIds;
   }
 
   const queryParams = new URLSearchParams();
@@ -105,31 +118,38 @@ export async function fetchBridgeQuotes(
     functionName: 'fetchBridgeQuotes',
   });
 
-  const validationFailuresByAggregator: {
-    [aggregator: string]: Set<string>;
-  } = {};
-  const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
-    try {
-      return validateQuoteResponse(quoteResponse);
-    } catch (error) {
-      if (error instanceof StructError) {
-        error.failures().forEach(({ branch, path }) => {
-          const aggregatorId = branch?.[0]?.quote?.bridgeId;
-          if (!validationFailuresByAggregator[aggregatorId]) {
-            validationFailuresByAggregator[aggregatorId] = new Set([]);
-          }
-          const pathString = path?.join('.') || 'unknown';
-          validationFailuresByAggregator[aggregatorId].add(pathString);
-        });
+  const uniqueValidationFailures: Set<string> = new Set<string>([]);
+  const filteredQuotes = quotes.filter(
+    (quoteResponse: unknown): quoteResponse is QuoteResponse => {
+      try {
+        return validateQuoteResponse(quoteResponse);
+      } catch (error) {
+        if (error instanceof StructError) {
+          error.failures().forEach(({ branch, path }) => {
+            const aggregatorId =
+              branch?.[0]?.quote?.bridgeId ||
+              branch?.[0]?.quote?.bridges?.[0] ||
+              (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+              'unknown';
+            const pathString = path?.join('.') || 'unknown';
+            uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
+          });
+        }
+        return false;
       }
-      return false;
-    }
-  });
+    },
+  );
 
-  if (Object.keys(validationFailuresByAggregator).length > 0) {
-    console.error('Quote validation failed', validationFailuresByAggregator);
+  const validationFailures = Array.from(uniqueValidationFailures);
+  if (uniqueValidationFailures.size > 0) {
+    console.warn('Quote validation failed', validationFailures);
   }
-  return filteredQuotes as QuoteResponse[];
+
+  return {
+    quotes: filteredQuotes,
+    validationFailures,
+  };
 }
 
 const fetchAssetPricesForCurrency = async (request: {

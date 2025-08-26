@@ -22,6 +22,7 @@
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "./packages/foundryup/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
+    { "path": "./packages/gator-permissions-controller/tsconfig.build.json" },
     { "path": "./packages/json-rpc-engine/tsconfig.build.json" },
     { "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json" },
     { "path": "./packages/keyring-controller/tsconfig.build.json" },
@@ -36,6 +37,7 @@
     },
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
+    { "path": "./packages/network-enablement-controller/tsconfig.build.json" },
     {
       "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
@@ -50,6 +52,7 @@
     { "path": "./packages/sample-controllers/tsconfig.build.json" },
     { "path": "./packages/seedless-onboarding-controller/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
+    { "path": "./packages/shield-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     {
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"

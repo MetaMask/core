@@ -46,6 +46,7 @@ describe('metrics utils', () => {
       requestId: 'test-request-id',
       srcTokenAmount: '1000000000000000000',
       destTokenAmount: '990000000000000000',
+      minDestTokenAmount: '940000000000000000',
       feeData: {
         [FeeType.METABRIDGE]: {
           amount: '10000000000000000',
@@ -100,8 +101,9 @@ describe('metrics utils', () => {
     pricingData: {
       amountSent: '1.234',
       amountSentInUsd: '2000',
-      quotedGasInUsd: '10',
+      quotedGasInUsd: '2.54739',
       quotedReturnInUsd: '1980',
+      quotedGasAmount: '0.00055',
     },
     status: {
       status: StatusTypes.COMPLETE,
@@ -112,6 +114,7 @@ describe('metrics utils', () => {
       destChain: {
         chainId: 10,
         txHash: '0xdestHash',
+        amount: '880000000000000000',
       },
     },
     hasApprovalTx: false,
@@ -225,15 +228,448 @@ describe('metrics utils', () => {
   });
 
   describe('getFinalizedTxProperties', () => {
-    it('should calculate correct time and ratios', () => {
-      const result = getFinalizedTxProperties(mockHistoryItem);
-      expect(result).toStrictEqual({
-        actual_time_minutes: (2000 - 1000) / 60000,
-        usd_actual_return: 1980,
-        usd_actual_gas: 10,
-        quote_vs_execution_ratio: 1,
-        quoted_vs_used_gas_ratio: 1,
+    it('should calculate correct time and ratios for EVM bridge tx', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00023762029936118124',
+            quotedReturnInUsd: '2.89114367789257129',
+            quotedGasAmount: '5.1901652883e-8',
+          },
+        },
+        {
+          type: TransactionType.bridge,
+          txReceipt: {
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 1.1251337476231986,
+          "quoted_vs_used_gas_ratio": 2.8325818363563227,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 2.5696,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ETH tx', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '635621722151236',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0000000000000000000000000000000000000000',
+              decimals: 18,
+            },
+          },
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00034411818110125904',
+            quotedReturnInUsd: '2.91005421809056075408',
+            quotedGasAmount: '7.5163201268e-8',
+          },
+          startTime: 1755199230447 - 60000,
+        },
+        {
+          type: TransactionType.swap,
+          time: 1755199230447,
+          postTxBalance: '0x10879421cc05e3',
+          preTxBalance: '0xe39c0e2d7de7e',
+          txReceipt: { gasUsed: '0x57b05', effectiveGasPrice: '0x1880a' },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 1,
+          "quote_vs_execution_ratio": 0.9801662314040546,
+          "quoted_vs_used_gas_ratio": 2.0851258834973363,
+          "usd_actual_gas": "0.00016503472707560328",
+          "usd_actual_return": 2.968939476645719,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ETH tx, using txMeta.time', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '635621722151236',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0000000000000000000000000000000000000000',
+              decimals: 18,
+            },
+          },
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00034411818110125904',
+            quotedReturnInUsd: '2.91005421809056075408',
+            quotedGasAmount: '7.5163201268e-8',
+          },
+          startTime: 1755199230447 - 60000,
+        },
+        {
+          type: TransactionType.swap,
+          postTxBalance: '0x10879421cc05e3',
+          preTxBalance: '0xe39c0e2d7de7e',
+          txReceipt: { gasUsed: '0x57b05', effectiveGasPrice: '0x1880a' },
+          time: 1755199230447,
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 1,
+          "quote_vs_execution_ratio": 0.9801662314040546,
+          "quoted_vs_used_gas_ratio": 2.0851258834973363,
+          "usd_actual_gas": "0.00016503472707560328",
+          "usd_actual_return": 2.968939476645719,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ERC0 tx', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            logs: [
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000009a13f98cb987694c9f086b1f5eb990eea8264ec3',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                ],
+              },
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                  '0x00000000000000000000000030e8ccad5a980bdf30447f8c2c48e70989d9d294',
+                ],
+              },
+            ],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0,
+          "quote_vs_execution_ratio": 0.9799999911934969,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 9.082497255348,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ERC0 tx, incomplete pricingData', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            logs: [
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000009a13f98cb987694c9f086b1f5eb990eea8264ec3',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                ],
+              },
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                  '0x00000000000000000000000030e8ccad5a980bdf30447f8c2c48e70989d9d294',
+                ],
+              },
+            ],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ETH tx, missing preTxBalance', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '635621722151236',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0000000000000000000000000000000000000000',
+              decimals: 18,
+            },
+          },
+          pricingData: {
+            amountSent: '3',
+            amountSentInUsd: '2.999439',
+            quotedGasInUsd: '0.00034411818110125904',
+            quotedReturnInUsd: '2.91005421809056075408',
+            quotedGasAmount: '7.5163201268e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          postTxBalance: '0x10879421cc05e3',
+          txReceipt: { gasUsed: '0x57b05', effectiveGasPrice: '0x1880a' },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0,
+          "quote_vs_execution_ratio": 1,
+          "quoted_vs_used_gas_ratio": 2.0851258834973363,
+          "usd_actual_gas": "0.00016503472707560328",
+          "usd_actual_return": 2.910054218090561,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ERC0 tx with 0x0 status', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            status: '0x0',
+            logs: [
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000009a13f98cb987694c9f086b1f5eb990eea8264ec3',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                ],
+              },
+              {
+                address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                data: '0x00000000000000000000000000000000000000000000000000000000008a9d24',
+                topics: [
+                  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                  '0x0000000000000000000000000a2854fbbd9b3ef66f17d47284e7f899b9509330',
+                  '0x00000000000000000000000030e8ccad5a980bdf30447f8c2c48e70989d9d294',
+                ],
+              },
+            ],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap to ERC0 tx with incomplete log data', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        {
+          type: TransactionType.swap,
+          txReceipt: {
+            logs: [],
+            gasUsed: '0x2c92a',
+            effectiveGasPrice: '0x1880a',
+          },
+        } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 2.6099633492283485,
+          "usd_actual_gas": "0.0000838882380418152",
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for swap tx without txMeta', () => {
+      const result = getFinalizedTxProperties(
+        {
+          ...mockHistoryItem,
+          account: '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294',
+          quote: {
+            ...mockHistoryItem.quote,
+            destTokenAmount: '8902512',
+            destAsset: {
+              ...mockHistoryItem.quote.destAsset,
+              address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              decimals: 6,
+            },
+          },
+          pricingData: {
+            amountSent: '0.002',
+            amountSentInUsd: '9.15656',
+            quotedGasInUsd: '0.00021894522672048096',
+            quotedReturnInUsd: '8.900847230256',
+            quotedGasAmount: '4.7822594232e-8',
+          },
+        },
+        { type: TransactionType.swap } as never,
+      );
+
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0,
+          "quote_vs_execution_ratio": 0,
+          "quoted_vs_used_gas_ratio": 0,
+          "usd_actual_gas": 0,
+          "usd_actual_return": 0,
+        }
+      `);
+    });
+
+    it('should calculate correct time and ratios for Solana tx', () => {
+      const result = getFinalizedTxProperties({
+        ...mockHistoryItem,
+        pricingData: {
+          amountSent: '3',
+          amountSentInUsd: '2.999439',
+          quotedGasInUsd: '0.00023762029936118124',
+          quotedReturnInUsd: '2.89114367789257129',
+          quotedGasAmount: '5.1901652883e-8',
+        },
       });
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "actual_time_minutes": 0.016666666666666666,
+          "quote_vs_execution_ratio": 1.1251337476231986,
+          "quoted_vs_used_gas_ratio": 0,
+          "usd_actual_gas": 0,
+          "usd_actual_return": 2.5696,
+        }
+      `);
     });
 
     it('should handle missing completion time', () => {
@@ -345,13 +781,15 @@ describe('metrics utils', () => {
   describe('getTradeDataFromHistory', () => {
     it('should return correct trade data', () => {
       const result = getTradeDataFromHistory(mockHistoryItem);
-      expect(result).toStrictEqual({
-        usd_quoted_gas: 10,
-        gas_included: false,
-        provider: 'across_across',
-        quoted_time_minutes: 15,
-        usd_quoted_return: 1980,
-      });
+      expect(result).toMatchInlineSnapshot(`
+        Object {
+          "gas_included": false,
+          "provider": "across_across",
+          "quoted_time_minutes": 15,
+          "usd_quoted_gas": 2.54739,
+          "usd_quoted_return": 1980,
+        }
+      `);
     });
 
     it('should handle missing pricing data', () => {
@@ -617,6 +1055,19 @@ describe('metrics utils', () => {
       );
       expect(result.token_address_source).toBe('eip155:1/slip44:60');
       expect(result.token_address_destination).toBe('eip155:1/slip44:60');
+    });
+
+    it('should handle invalid token addresses', () => {
+      const noAddressesTransactionMeta: TransactionMeta = {
+        ...mockTransactionMeta,
+        sourceTokenAddress: 'fsdxfs',
+        destinationTokenAddress: 'fsdxfs',
+      };
+      const result = getEVMTxPropertiesFromTransactionMeta(
+        noAddressesTransactionMeta,
+      );
+      expect(result.token_address_source).toBe('');
+      expect(result.token_address_destination).toBe('');
     });
 
     it('should handle crosschain swap type', () => {

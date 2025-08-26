@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
+  - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+## [24.0.0]
+
+### Added
+
+- `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action ([#6215](https://github.com/MetaMask/core/pull/6215))
+  - This callback needs to be wired to client specific selectors in order to fetch the value of the feature flag dynamically
+  - If `true`, Account syncing will stop pushing new data to the user storage and only act as an account restoration method that will be fired before multichain account syncing for legacy compatibility
+  - This is done because `AccountTreeController` will become responsible for Multichain Account syncing
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^32.0.0` to `^33.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
+- Bump `@noble/ciphers` from `^0.5.2` to `^1.3.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+### Removed
+
+- **BREAKING:** Remove `UserStorageController:saveInternalAccountToUserStorage` public method ([#6215](https://github.com/MetaMask/core/pull/6215))
+
+## [23.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `AuthenticationController:getUserProfileMetaMetrics` to `AuthenticationController:getUserProfileLineage` ([#6211](https://github.com/MetaMask/core/pull/6211))
+  - Rename API endpoint from `/api/v2/profile/metametrics` to `/api/v2/profile/lineage`
+
 ## [22.0.0]
 
 ### Changed
@@ -673,7 +710,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...@metamask/profile-sync-controller@24.0.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@22.0.0...@metamask/profile-sync-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@21.0.0...@metamask/profile-sync-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@20.0.0...@metamask/profile-sync-controller@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@19.0.0...@metamask/profile-sync-controller@20.0.0

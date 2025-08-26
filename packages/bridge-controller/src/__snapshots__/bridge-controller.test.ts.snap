@@ -55,7 +55,7 @@ Array [
   Array [
     "Unified SwapBridge Completed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
       "chain_id_destination": "eip155:10",
@@ -69,7 +69,6 @@ Array [
       "quote_vs_execution_ratio": 1,
       "quoted_time_minutes": 0,
       "quoted_vs_used_gas_ratio": 1,
-      "security_warnings": Array [],
       "source_transaction": "PENDING",
       "stx_enabled": false,
       "swap_type": "crosschain",
@@ -92,11 +91,10 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
       "approval_transaction": "PENDING",
-      "can_submit": true,
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -132,8 +130,7 @@ Array [
   Array [
     "Unified SwapBridge Failed",
     Object {
-      "action_type": "crosschain-v1",
-      "can_submit": true,
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
@@ -169,7 +166,7 @@ Array [
   Array [
     "Unified SwapBridge Snap Confirmation Page Viewed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
@@ -189,32 +186,37 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the StatusValidationFailed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Status Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "failures": Array [
+        "Failed to submit tx",
+      ],
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Submitted event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Submitted",
     Object {
-      "action_type": "crosschain-v1",
-      "can_submit": true,
-      "chain_id_destination": "eip155:10",
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "custom_slippage": true,
+      "custom_slippage": false,
       "gas_included": false,
-      "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 12,
       "provider": "provider_bridge",
       "quoted_time_minutes": 2,
-      "quotes_count": 2,
-      "quotes_list": Array [
-        "lifi_mayan",
-        "lifi_mayanMCTP",
-      ],
       "slippage_limit": 0.5,
       "stx_enabled": false,
       "swap_type": "crosschain",
-      "token_address_destination": "eip155:10/erc20:0x1234",
-      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -230,7 +232,7 @@ Array [
   Array [
     "Unified SwapBridge All Quotes Opened",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "can_submit": true,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
@@ -258,7 +260,7 @@ Array [
   Array [
     "Unified SwapBridge All Quotes Sorted",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
       "chain_id_destination": null,
@@ -283,12 +285,28 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AssetDetailTooltipClicked event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Asset Detail Tooltip Clicked",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id": "1",
+      "chain_name": "Ethereum",
+      "token_contract": "0x123",
+      "token_name": "ETH",
+      "token_symbol": "ETH",
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the ButtonClicked event 1`] = `
 Array [
   Array [
     "Unified SwapBridge Button Clicked",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "location": "Main View",
@@ -306,7 +324,7 @@ Array [
   Array [
     "Unified SwapBridge Source Destination Flipped",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "security_warnings": Array [
@@ -327,7 +345,7 @@ Array [
     "Unified SwapBridge Page Viewed",
     Object {
       "abc": 1,
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "token_address_destination": null,
@@ -342,9 +360,9 @@ Array [
   Array [
     "Unified SwapBridge Quote Selected",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": true,
+      "can_submit": false,
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
@@ -373,7 +391,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Received",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
       "chain_id_destination": null,
@@ -407,39 +425,39 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "token_destination",
-      "value": "eip155:10/erc20:0x123",
+      "input_value": "eip155:10/erc20:0x123",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -460,9 +478,9 @@ Array [
   Array [
     "Unified SwapBridge Quotes Received",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
-      "can_submit": false,
+      "can_submit": true,
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -791,39 +809,39 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "token_destination",
-      "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -844,7 +862,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -865,7 +883,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -886,7 +904,7 @@ Array [
   Array [
     "Unified SwapBridge Quote Error",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -908,7 +926,7 @@ Array [
   Array [
     "Unified SwapBridge Quotes Requested",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
@@ -932,9 +950,9 @@ Array [
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "chain_source",
-      "value": "eip155:1",
+      "input_value": "eip155:1",
     },
   ],
   Array [
@@ -942,15 +960,15 @@ Array [
     Object {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
-      "value": "eip155:10",
+      "input_value": "eip155:10",
     },
   ],
   Array [
     "Unified SwapBridge Input Changed",
     Object {
-      "action_type": "crosschain-v1",
+      "action_type": "swapbridge-v1",
       "input": "slippage",
-      "value": 0.5,
+      "input_value": 0.5,
     },
   ],
 ]
@@ -1017,6 +1035,60 @@ Array [
 ]
 `;
 
+exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 2`] = `Array []`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 2`] = `
+Array [
+  Array [
+    "Unified SwapBridge Quotes Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "failures": Array [
+        "socket|quote.srcAsset.decimals",
+        "socket|quote.destAsset.address",
+        "lifi|quote.srcAsset.decimals",
+      ],
+      "refresh_count": 0,
+      "token_address_destination": "eip155:1/slip44:60",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+    },
+  ],
+]
+`;
+
 exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 1`] = `
 Array [
   Array [
@@ -1048,4 +1120,8 @@ Array [
 ]
 `;
 
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 2`] = `Array []`;
+
 exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `Array []`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 2`] = `Array []`;

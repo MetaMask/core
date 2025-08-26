@@ -308,10 +308,12 @@ describe('Bridge Selectors', () => {
   describe('selectBridgeQuotes', () => {
     const mockQuote = {
       quote: {
+        requestId: '123',
         srcChainId: '1',
         destChainId: '137',
         srcTokenAmount: '1000000000000000000',
         destTokenAmount: '2000000000000000000',
+        minDestTokenAmount: '1800000000000000000',
         srcAsset: {
           address: '0x0000000000000000000000000000000000000000',
           decimals: 18,
@@ -338,15 +340,20 @@ describe('Bridge Selectors', () => {
       estimatedProcessingTimeInSeconds: 300,
       trade: {
         value: '0x0',
-        gasLimit: '21000',
+        gasLimit: '24000',
+        effectiveGas: '21000',
       },
       approval: {
-        gasLimit: '46000',
+        gasLimit: '49000',
+        effectiveGas: '46000',
       },
     };
 
     const mockState = {
-      quotes: [mockQuote],
+      quotes: [
+        mockQuote,
+        { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+      ],
       quoteRequest: {
         srcChainId: '1',
         destChainId: '137',
@@ -399,7 +406,10 @@ describe('Bridge Selectors', () => {
     it('should return sorted quotes with metadata', () => {
       const result = selectBridgeQuotes(mockState, mockClientParams);
 
-      expect(result.sortedQuotes).toHaveLength(1);
+      expect(result.sortedQuotes).toHaveLength(2);
+      expect(result.sortedQuotes[0].quote.requestId).toMatchInlineSnapshot(
+        `"123"`,
+      );
       expect(result.recommendedQuote).toBeDefined();
       expect(result.activeQuote).toBeDefined();
       expect(result.isLoading).toBe(false);
@@ -468,6 +478,12 @@ describe('Bridge Selectors', () => {
                   .dividedBy(currencyRates.BNB.conversionRate)
                   .multipliedBy(10 ** destAsset.decimals)
                   .toFixed(0),
+                minDestTokenAmount: new BigNumber('9')
+                  .dividedBy(marketData['0x38'][destAsset.address].price)
+                  .dividedBy(currencyRates.BNB.conversionRate)
+                  .multipliedBy(10 ** destAsset.decimals)
+                  .multipliedBy(0.95) // 5% slippage
+                  .toFixed(0),
               },
               estimatedProcessingTimeInSeconds: 300,
               approval: {
@@ -535,14 +551,28 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "1.004463862259999726625700576488242768526",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": null,
+            "minToTokenAmount": Object {
+              "amount": "9.994389353314869106",
+              "usd": "9.992709880792782347418849595400950831104",
+              "valueInCurrency": "8.550000000000000000198810453356610924716",
+            },
             "sentAmount": Object {
               "amount": "0.018116598427479256",
               "usd": "11.68737997753541763072",
@@ -604,14 +634,28 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "1.004463862259999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": null,
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
@@ -682,17 +726,31 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": Object {
               "amount": "0.001",
               "usd": "0.64512",
               "valueInCurrency": "0.55198",
+            },
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
             },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
@@ -764,17 +822,31 @@ describe('Bridge Selectors', () => {
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
             "gasFee": Object {
-              "amount": "0.000008087",
-              "amountMax": "0.000016174",
-              "usd": "0.00521708544",
-              "usdMax": "0.01043417088",
-              "valueInCurrency": "0.00446386226",
-              "valueInCurrencyMax": "0.00892772452",
+              "effective": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
+              "max": Object {
+                "amount": "0.000016174",
+                "usd": "0.01043417088",
+                "valueInCurrency": "0.00892772452",
+              },
+              "total": Object {
+                "amount": "0.000008087",
+                "usd": "0.00521708544",
+                "valueInCurrency": "0.00446386226",
+              },
             },
             "includedTxFees": Object {
               "amount": "3",
               "usd": "1935.36",
               "valueInCurrency": "1655.94",
+            },
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
             },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
@@ -811,7 +883,7 @@ describe('Bridge Selectors', () => {
         mockClientParams,
       );
 
-      expect(result.sortedQuotes).toHaveLength(1);
+      expect(result.sortedQuotes).toHaveLength(2);
       expect(result.recommendedQuote).toBeDefined();
       expect(result.activeQuote).toBeDefined();
       expect(result.isLoading).toBe(false);

@@ -5,6 +5,7 @@
     "rootDir": "../.."
   },
   "references": [
+    { "path": "../account-tree-controller" },
     { "path": "../accounts-controller" },
     { "path": "../approval-controller" },
     { "path": "../base-controller" },

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.0]
+
+### Added
+
+- Add experimental `next` export for testing upcoming breaking changes ([#6316](https://github.com/MetaMask/core/pull/6316))
+  - Note that this should generally not be used, and further breaking changes may be made under this export without a corresponding major version bump for this package.
+  - Changes:
+    - Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318))
+    - Rename `ListenerV2` type export to `StateChangeListener` ([#6339](https://github.com/MetaMask/core/pull/6339))
+    - Rename `messagingSystem` protected instance variable to `messenger` ([#6337](https://github.com/MetaMask/core/pull/6337))
+    - Remove `isBaseController` ([#6341](https://github.com/MetaMask/core/pull/6341))
+
+### Changed
+
+- Add dependency on `@metamask/messenger` ([#6318](https://github.com/MetaMask/core/pull/6318))
+  - This is only used by the experimental `next` export for now.
+
+## [8.1.0]
+
 ### Added
 
 - Add `registerMethodActionHandlers` method to `Messenger`, and `RestrictedMessenger` for simplified bulk action handler registration ([#5927](https://github.com/MetaMask/core/pull/5927))
@@ -16,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Add default for `ReturnHandler` type parameter of `SelectorEventHandler` and `SelectorFunction` ([#6262](https://github.com/MetaMask/core/pull/6262), [#6264](https://github.com/MetaMask/core/pull/6264))
+
+### Fixed
+
+- Update `unsubscribe` type signature to support selector event handlers ([#6262](https://github.com/MetaMask/core/pull/6262))
 
 ## [8.0.1]
 
@@ -320,7 +344,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...HEAD
+[8.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...@metamask/base-controller@8.2.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.0...@metamask/base-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.1...@metamask/base-controller@8.0.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.1.0...@metamask/base-controller@7.1.1

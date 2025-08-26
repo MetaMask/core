@@ -236,10 +236,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      async (currencyRatesState: CurrencyRateState) => {
-        this.#currentCurrency = currencyRatesState.currentCurrency;
+      async (currentCurrency: string) => {
+        this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
       },
+      (currencyRateControllerState) =>
+        currencyRateControllerState.currentCurrency,
     );
 
     this.messagingSystem.subscribe(
@@ -344,6 +346,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   ): Promise<
     Record<string, UnifiedAssetConversion & { currency: CaipAssetType }>
   > {
+    // Do not attempt to retrieve rates from Snap if there are no assets
+    if (!assets.length) {
+      return {};
+    }
+
     // Build the conversions array
     const conversions = this.#buildConversions(assets);
 

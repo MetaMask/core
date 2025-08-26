@@ -42,6 +42,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
+- [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
@@ -54,6 +55,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
+- [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
@@ -66,6 +68,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
+- [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -101,6 +104,7 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
+  gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
@@ -113,6 +117,7 @@ linkStyle default opacity:0.5
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
+  network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
@@ -125,6 +130,7 @@ linkStyle default opacity:0.5
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
+  shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -197,6 +203,7 @@ linkStyle default opacity:0.5
   gas_fee_controller --> controller_utils;
   gas_fee_controller --> polling_controller;
   gas_fee_controller --> network_controller;
+  gator_permissions_controller --> base_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   logging_controller --> base_controller;
@@ -228,6 +235,10 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> error_reporting_service;
+  network_enablement_controller --> base_controller;
+  network_enablement_controller --> controller_utils;
+  network_enablement_controller --> multichain_network_controller;
+  network_enablement_controller --> network_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;

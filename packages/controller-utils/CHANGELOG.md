@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.12.0]
+
+### Added
+
+- Update `onDegraded` property in `ServicePolicy` so that the event listener payload may be an object with either an `error` or `value` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - The payload will be empty (i.e. the object will be `undefined`) if the degraded event merely represents a slow request.
+  - `ServicePolicy` is the type returned by `createServicePolicy`.
+  - **NOTE:** Although `error` and `value` are new, optional properties, this change makes an inadvertent breaking change to the signature of the event listener due to how TypeScript compares function types. We have conciously decided not to re-release this change under a major version, so be advised.
+
 ## [11.11.0]
 
 ### Added
@@ -548,7 +557,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.12.0...HEAD
+[11.12.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...@metamask/controller-utils@11.12.0
 [11.11.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...@metamask/controller-utils@11.11.0
 [11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0
 [11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0

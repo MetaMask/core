@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
+import type { GetSimulationConfig } from 'src';
 
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
@@ -9,8 +10,12 @@ const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error Message';
+const GET_SIMULATION_CONFIG_MOCK: GetSimulationConfig = jest
+  .fn()
+  .mockResolvedValue({});
 
 const REQUEST_MOCK: SimulationRequest = {
+  getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
   transactions: [{ from: '0x1', to: '0x2', value: '0x1' }],
   overrides: {
     '0x1': {
@@ -45,6 +50,10 @@ const RESPONSE_MOCK: SimulationResponse = {
       },
     },
   ],
+  sponsorship: {
+    isSponsored: false,
+    error: null,
+  },
 };
 
 const RESPONSE_MOCK_NETWORKS = {
@@ -95,7 +104,9 @@ describe('Simulation API Utils', () => {
       const requestBodyRaw = (request.body as BodyInit).toString();
       const requestBody = JSON.parse(requestBodyRaw);
 
-      expect(requestBody.params[0]).toStrictEqual(REQUEST_MOCK);
+      // JSON.stringify strips functions, so we apply it here.
+      const expectedRequest = JSON.parse(JSON.stringify(REQUEST_MOCK));
+      expect(requestBody.params[0]).toStrictEqual(expectedRequest);
     });
 
     it('throws if chain ID not supported', async () => {
@@ -112,6 +123,37 @@ describe('Simulation API Utils', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
         expect.any(Object),
+      );
+    });
+
+    it('uses simulation config', async () => {
+      const getSimulationConfigMock: GetSimulationConfig = jest
+        .fn()
+        .mockResolvedValue({
+          authorization: 'Bearer test',
+          newUrl: 'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
+        });
+
+      const request = {
+        ...REQUEST_MOCK,
+        getSimulationConfig: getSimulationConfigMock,
+      };
+
+      await simulateTransactions(CHAIN_ID_MOCK, request);
+
+      expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationConfigMock).toHaveBeenCalledWith(
+        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test',
+          }),
+        }),
       );
     });
 

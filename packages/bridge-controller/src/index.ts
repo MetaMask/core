@@ -12,12 +12,12 @@ export type {
   RequestParams,
   RequestMetadata,
   TxStatusData,
+  QuoteFetchData,
 } from './utils/metrics/types';
 
 export {
   formatProviderLabel,
   getRequestParams,
-  getActionType,
   getSwapType,
   isHardwareWallet,
   isCustomSlippage,
@@ -59,7 +59,12 @@ export {
   BridgeBackgroundAction,
 } from './types';
 
-export { FeeType, ActionTypes, BridgeAssetSchema } from './utils/validators';
+export {
+  FeeType,
+  ActionTypes,
+  BridgeAssetSchema,
+  FeatureId,
+} from './utils/validators';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,

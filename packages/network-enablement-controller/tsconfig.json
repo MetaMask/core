@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDir": "../.."
+  },
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../network-controller" },
+    { "path": "../multichain-network-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../transaction-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}

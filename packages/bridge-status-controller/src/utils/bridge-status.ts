@@ -1,4 +1,5 @@
 import { type Quote } from '@metamask/bridge-controller';
+import { StructError } from '@metamask/superstruct';
 
 import { validateBridgeStatusResponse } from './validators';
 import { REFRESH_INTERVAL_MS } from '../constants';
@@ -43,7 +44,7 @@ export const fetchBridgeTxStatus = async (
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
-): Promise<StatusResponse> => {
+): Promise<{ status: StatusResponse; validationFailures: string[] }> => {
   const statusRequestDto = getStatusRequestDto(statusRequest);
   const params = new URLSearchParams(statusRequestDto);
 
@@ -54,11 +55,30 @@ export const fetchBridgeTxStatus = async (
     headers: getClientIdHeader(clientId),
   });
 
-  // Validate
-  validateBridgeStatusResponse(rawTxStatus);
+  const validationFailures: string[] = [];
 
-  // Return
-  return rawTxStatus as StatusResponse;
+  try {
+    validateBridgeStatusResponse(rawTxStatus);
+  } catch (error) {
+    // Build validation failure event properties
+    if (error instanceof StructError) {
+      error.failures().forEach(({ branch, path }) => {
+        const aggregatorId =
+          branch?.[0]?.quote?.bridgeId ||
+          branch?.[0]?.quote?.bridges?.[0] ||
+          (rawTxStatus as StatusResponse)?.bridge ||
+          statusRequest.bridge ||
+          statusRequest.bridgeId ||
+          'unknown';
+        const pathString = path?.join('.') || 'unknown';
+        validationFailures.push([aggregatorId, pathString].join('|'));
+      });
+    }
+  }
+  return {
+    status: rawTxStatus as StatusResponse,
+    validationFailures,
+  };
 };
 
 export const getStatusRequestWithSrcTxHash = (

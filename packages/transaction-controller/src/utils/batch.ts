@@ -27,7 +27,7 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { validateBatchRequest } from './validation';
-import type { TransactionControllerState } from '..';
+import type { GetSimulationConfig, TransactionControllerState } from '..';
 import {
   determineTransactionType,
   GasFeeEstimateLevel,
@@ -80,6 +80,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  getSimulationConfig: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -272,6 +273,7 @@ async function addTransactionBatchWith7702(
   const {
     addTransaction,
     getChainId,
+    getTransaction,
     messenger,
     publicKeyEIP7702,
     request: userRequest,
@@ -322,12 +324,24 @@ async function addTransactionBatchWith7702(
     ),
   );
 
+  const existingTransaction = transactions.find((tx) => tx.existingTransaction);
+
+  const existingTransactionMeta = existingTransaction
+    ? getTransaction(existingTransaction.existingTransaction?.id as string)
+    : undefined;
+
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
     from,
     ...batchParams,
   };
+
+  const existingNonce = existingTransactionMeta?.txParams?.nonce;
+
+  if (existingNonce) {
+    txParams.nonce = existingNonce;
+  }
 
   if (!isSupported) {
     const upgradeContractAddress = getEIP7702UpgradeContractAddress(
@@ -383,8 +397,9 @@ async function addTransactionBatchWith7702(
     type: TransactionType.batch,
   });
 
-  // Wait for the transaction to be published.
-  await result;
+  const transactionHash = await result;
+
+  existingTransaction?.existingTransaction?.onPublish?.({ transactionHash });
 
   return {
     batchId,
@@ -410,8 +425,9 @@ async function addTransactionBatchWithHook(
   const {
     from,
     networkClientId,
+    origin,
     requireApproval,
-    transactions: nestedTransactions,
+    transactions: requestedTransactions,
   } = userRequest;
 
   let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -455,6 +471,10 @@ async function addTransactionBatchWithHook(
 
   let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
+  const nestedTransactions = requestedTransactions.map((tx) => ({
+    ...tx,
+    origin,
+  }));
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   try {
@@ -551,7 +571,8 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta?: TransactionBatchMeta,
 ) {
-  const { existingTransaction, params, type } = nestedTransaction;
+  const { assetsFiatValues, existingTransaction, params, type } =
+    nestedTransaction;
 
   const {
     addTransaction,
@@ -560,7 +581,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId } = userRequest;
+  const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish, signedTransaction } = existingTransaction;
@@ -602,9 +623,11 @@ async function processTransactionWithHook(
   const { transactionMeta } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
+      assetsFiatValues,
       batchId,
       disableGasBuffer: true,
       networkClientId,
+      origin,
       publishHook,
       requireApproval: false,
       type,
@@ -740,10 +763,11 @@ async function prepareApprovalData({
     messenger,
     request: userRequest,
     isSimulationEnabled,
-    getGasFeeEstimates,
-    update,
-    getEthQuery,
     getChainId,
+    getEthQuery,
+    getGasFeeEstimates,
+    getSimulationConfig,
+    update,
   } = request;
 
   const {
@@ -766,6 +790,7 @@ async function prepareApprovalData({
   const { gasLimit } = await simulateGasBatch({
     chainId,
     from,
+    getSimulationConfig,
     transactions: nestedTransactions,
   });
 
