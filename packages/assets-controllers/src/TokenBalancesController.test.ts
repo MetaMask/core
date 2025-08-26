@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import * as controllerUtils from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -3815,17 +3816,12 @@ describe('TokenBalancesController', () => {
       // Should have attempted polls despite errors
       expect(pollSpy).toHaveBeenCalledTimes(2);
 
-      // Should have logged errors
+      // Should have logged errors (both immediate and interval polling use the same error format)
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Immediate polling failed for chains 0x1:'),
+        expect.stringContaining('Polling failed for chains 0x1 with interval 100:'),
         expect.any(Error),
       );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Polling failed for chains 0x1 with interval 100:',
-        ),
-        expect.any(Error),
-      );
+      expect(consoleSpy).toHaveBeenCalledTimes(2); // Should have been called twice
 
       controller.stopAllPolling();
       consoleSpy.mockRestore();
