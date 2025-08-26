@@ -1670,7 +1670,7 @@ export class NetworkController extends BaseController<
   // We are planning on removing this so we aren't interested in testing this
   // right now.
   /* istanbul ignore next */
-  async lookupNetworkByNetworkClientId(networkClientId: NetworkClientId) {
+  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
     await this.#lookupGivenNetwork(networkClientId);
   }
 
