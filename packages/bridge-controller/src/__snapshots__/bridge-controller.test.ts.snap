@@ -1081,7 +1081,7 @@ Array [
         "socket|quote.destAsset.address",
         "lifi|quote.srcAsset.decimals",
       ],
-      "refresh_count": 1,
+      "refresh_count": 0,
       "token_address_destination": "eip155:1/slip44:60",
       "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
     },
