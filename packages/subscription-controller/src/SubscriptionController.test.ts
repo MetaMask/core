@@ -362,7 +362,6 @@ describe('SubscriptionController', () => {
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',
-            type: ProductType.SHIELD,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
@@ -434,7 +433,6 @@ describe('SubscriptionController', () => {
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: 'sub_123456789',
-            type: ProductType.SHIELD,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
@@ -480,7 +478,6 @@ describe('SubscriptionController', () => {
 
         expect(mockService.cancelSubscription).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
-          type: ProductType.SHIELD,
         });
       });
     });
@@ -506,7 +503,6 @@ describe('SubscriptionController', () => {
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: '',
-            type: ProductType.SHIELD,
           });
         },
       );
@@ -532,7 +528,6 @@ describe('SubscriptionController', () => {
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: longSubscriptionId,
-            type: ProductType.SHIELD,
           });
         },
       );
