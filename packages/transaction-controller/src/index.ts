@@ -36,6 +36,7 @@ export type {
   AfterSimulateHook,
   Authorization,
   AuthorizationList,
+  BatchTransaction,
   BatchTransactionParams,
   BeforeSignHook,
   DappSuggestedGasFees,

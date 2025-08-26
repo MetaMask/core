@@ -2933,9 +2933,6 @@ describe('TransactionController', () => {
         expect(ExtraTransactionsPublishHook).toHaveBeenCalledTimes(1);
         expect(ExtraTransactionsPublishHook).toHaveBeenCalledWith({
           addTransactionBatch: expect.any(Function),
-          transactions: [
-            { data: DATA_MOCK, to: ACCOUNT_2_MOCK, value: VALUE_MOCK },
-          ],
         });
 
         expect(publishHook).toHaveBeenCalledTimes(1);

@@ -273,6 +273,7 @@ async function addTransactionBatchWith7702(
   const {
     addTransaction,
     getChainId,
+    getTransaction,
     messenger,
     publicKeyEIP7702,
     request: userRequest,
@@ -323,12 +324,24 @@ async function addTransactionBatchWith7702(
     ),
   );
 
+  const existingTransaction = transactions.find((tx) => tx.existingTransaction);
+
+  const existingTransactionMeta = existingTransaction
+    ? getTransaction(existingTransaction.existingTransaction?.id as string)
+    : undefined;
+
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
     from,
     ...batchParams,
   };
+
+  const existingNonce = existingTransactionMeta?.txParams?.nonce;
+
+  if (existingNonce) {
+    txParams.nonce = existingNonce;
+  }
 
   if (!isSupported) {
     const upgradeContractAddress = getEIP7702UpgradeContractAddress(
@@ -384,8 +397,9 @@ async function addTransactionBatchWith7702(
     type: TransactionType.batch,
   });
 
-  // Wait for the transaction to be published.
-  await result;
+  const transactionHash = await result;
+
+  existingTransaction?.existingTransaction?.onPublish?.({ transactionHash });
 
   return {
     batchId,
