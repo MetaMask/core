@@ -1,9 +1,4 @@
-import {
-  Env,
-  getEnvUrls,
-  controllerName,
-  SubscriptionControllerErrorMessage,
-} from './constants';
+import { Env, getEnvUrls, controllerName } from './constants';
 
 describe('constants', () => {
   describe('getEnvUrls', () => {
