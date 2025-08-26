@@ -1,14 +1,14 @@
-import type { Bip44Account } from '@metamask/account-api';
+import type { Bip44Account, AccountProvider } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 
-import { BaseBip44AccountProvider } from './BaseAccountProvider';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 /**
- * A simple wrapper that adds disable functionality to any BaseAccountProvider.
+ * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.
  * When disabled, the provider will not create new accounts and return empty results.
  */
-export class ProviderWrapper extends BaseBip44AccountProvider {
+export class AccountProviderWrapper extends BaseBip44AccountProvider {
   private isEnabled: boolean = true;
 
   private readonly provider: BaseBip44AccountProvider;
@@ -110,10 +110,12 @@ export class ProviderWrapper extends BaseBip44AccountProvider {
  * Simple type guard to check if a provider is wrapped.
  *
  * @param provider - The provider to check.
- * @returns True if the provider is a ProviderWrapper.
+ * @returns True if the provider is an AccountProviderWrapper.
  */
-export function isProviderWrapper(
-  provider: BaseBip44AccountProvider | ProviderWrapper,
-): provider is ProviderWrapper {
-  return provider instanceof ProviderWrapper;
+export function isAccountProviderWrapper(
+  provider:
+    | AccountProvider<Bip44Account<KeyringAccount>>
+    | AccountProviderWrapper,
+): provider is AccountProviderWrapper {
+  return provider instanceof AccountProviderWrapper;
 }

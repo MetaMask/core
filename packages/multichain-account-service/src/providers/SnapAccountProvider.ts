@@ -6,7 +6,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Json, SnapId } from '@metamask/snaps-sdk';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { BaseBip44AccountProvider } from './BaseAccountProvider';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 
 export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,

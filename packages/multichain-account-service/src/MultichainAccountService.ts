@@ -5,18 +5,18 @@ import {
 import type {
   MultichainAccountWalletId,
   Bip44Account,
+  AccountProvider,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { BaseBip44AccountProvider } from './providers/BaseAccountProvider';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import {
-  ProviderWrapper,
-  isProviderWrapper,
-} from './providers/ProviderWrapper';
+  AccountProviderWrapper,
+  isAccountProviderWrapper,
+} from './providers/AccountProviderWrapper';
+import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 
@@ -27,7 +27,7 @@ export const serviceName = 'MultichainAccountService';
  */
 type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: BaseBip44AccountProvider[];
+  providers?: AccountProvider<Bip44Account<KeyringAccount>>[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -42,7 +42,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: (BaseBip44AccountProvider | ProviderWrapper)[];
+  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -76,7 +76,7 @@ export class MultichainAccountService {
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
-      new ProviderWrapper(
+      new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(this.#messenger),
       ),
@@ -381,7 +381,7 @@ export class MultichainAccountService {
   async setBasicFunctionality(enabled: boolean): Promise<void> {
     // Loop through providers and enable/disable only wrapped ones when basic functionality changes
     for (const provider of this.#providers) {
-      if (isProviderWrapper(provider)) {
+      if (isAccountProviderWrapper(provider)) {
         provider.setEnabled(enabled);
       }
       // Regular providers (like EVM) are never disabled for basic functionality

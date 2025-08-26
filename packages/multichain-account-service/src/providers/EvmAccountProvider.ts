@@ -11,7 +11,7 @@ import type { Hex } from '@metamask/utils';
 import {
   assertAreBip44Accounts,
   BaseBip44AccountProvider,
-} from './BaseAccountProvider';
+} from './BaseBip44AccountProvider';
 
 /**
  * Asserts an internal account exists.

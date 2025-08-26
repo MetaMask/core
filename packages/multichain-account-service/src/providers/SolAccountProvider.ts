@@ -9,7 +9,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { assertAreBip44Accounts } from './BaseAccountProvider';
+import { assertAreBip44Accounts } from './BaseBip44AccountProvider';
 import { SnapAccountProvider } from './SnapAccountProvider';
 
 export class SolAccountProvider extends SnapAccountProvider {

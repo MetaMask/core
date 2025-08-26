@@ -1,6 +1,6 @@
-export * from './BaseAccountProvider';
+export * from './BaseBip44AccountProvider';
 export * from './SnapAccountProvider';
-export * from './ProviderWrapper';
+export * from './AccountProviderWrapper';
 
 // Concrete providers:
 export * from './SolAccountProvider';

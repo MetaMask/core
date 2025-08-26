@@ -7,7 +7,7 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import { MultichainAccountService } from './MultichainAccountService';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { ProviderWrapper } from './providers/ProviderWrapper';
+import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
 import {
@@ -858,8 +858,8 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('ProviderWrapper disabled behavior', () => {
-    let wrapper: ProviderWrapper;
+  describe('AccountProviderWrapper disabled behavior', () => {
+    let wrapper: AccountProviderWrapper;
     let solProvider: SolAccountProvider;
 
     beforeEach(() => {
@@ -877,7 +877,7 @@ describe('MultichainAccountService', () => {
       jest.spyOn(solProvider, 'discoverAndCreateAccounts');
       jest.spyOn(solProvider, 'isAccountCompatible');
 
-      wrapper = new ProviderWrapper(
+      wrapper = new AccountProviderWrapper(
         getMultichainAccountServiceMessenger(messenger),
         solProvider,
       );
