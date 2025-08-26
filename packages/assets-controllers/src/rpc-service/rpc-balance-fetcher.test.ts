@@ -407,7 +407,7 @@ describe('RpcBalanceFetcher', () => {
 
       // With parallel processing and safelyExecuteWithTimeout, errors are caught gracefully
       // and an empty array is returned for failed chains
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('should handle multicall errors gracefully', async () => {
@@ -424,7 +424,7 @@ describe('RpcBalanceFetcher', () => {
 
       // With parallel processing and safelyExecuteWithTimeout, errors are caught gracefully
       // and an empty array is returned for failed chains
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('should handle timeout gracefully when safelyExecuteWithTimeout returns undefined', async () => {
