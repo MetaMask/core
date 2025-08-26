@@ -173,7 +173,6 @@ describe('SubscriptionService', () => {
 
         await service.getSubscriptions();
 
-        // Verify the correct headers were sent
         expect(isDone()).toBe(true);
       });
     });
