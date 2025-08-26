@@ -23,6 +23,16 @@ export enum NetworkStatus {
    * networks.
    */
   Blocked = 'blocked',
+  /**
+   * The network has yet to return or did not return a response in a timely
+   * manner. Used to inform the end user that this network is problematic.
+   */
+  Slow = 'slow',
+  /**
+   * Similar to "slow", but where the duration is longer.  Used to inform the
+   * end user that this network is problematic.
+   */
+  VerySlow = 'very-slow',
 }
 
 export const INFURA_BLOCKED_KEY = 'countryBlocked';

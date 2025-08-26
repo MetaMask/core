@@ -270,10 +270,6 @@
     "@typescript-eslint/prefer-readonly": 2,
     "jsdoc/tag-lines": 1
   },
-  "packages/network-controller/tests/NetworkController.test.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "@typescript-eslint/prefer-promise-reject-errors": 1
-  },
   "packages/network-controller/tests/create-network-client.test.ts": {
     "import-x/order": 1
   },

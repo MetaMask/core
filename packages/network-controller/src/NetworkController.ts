@@ -55,11 +55,18 @@ import type {
   NetworkClientConfiguration,
   AdditionalDefaultNetwork,
 } from './types';
+import { measureTime } from './utils';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
 const INFURA_URL_REGEX =
   /^https:\/\/(?<networkName>[^.]+)\.infura\.io\/v\d+\/(?<apiKey>.+)$/u;
+
+/**
+ * The default duration that a successful initial request to a network is
+ * allowed to take after which the network will be regarded as "degraded".
+ */
+const DEFAULT_DEGRADED_THRESHOLD = 5000;
 
 export type Block = {
   baseFeePerGas?: string;
@@ -81,6 +88,12 @@ export type NetworkMetadata = {
    * Indicates the availability of the network
    */
   status: NetworkStatus;
+  /**
+   * How long the initial request to the network took to complete. Will be
+   * `undefined` if the network is unavailable or the availability status is
+   * unknown.
+   */
+  latency?: number;
 };
 
 /**
@@ -661,6 +674,12 @@ export type NetworkControllerOptions = {
    * automatically diverted to configured failover RPC endpoints.
    */
   isRpcFailoverEnabled?: boolean;
+  /**
+   * The duration of a successful initial request to a network that causes that
+   * network to be marked as "degraded". Can be overridden on the RPC endpoint
+   * level via `getRpcServiceOptions`.
+   */
+  degradedThreshold?: number;
 };
 
 /**
@@ -781,6 +800,16 @@ function getCustomNetworkConfiguration(
         url: rpcEndpointUrl,
       },
     ],
+  };
+}
+
+/**
+ * @returns The initial metadata for a network.
+ */
+function getInitialNetworkMetadata() {
+  return {
+    status: NetworkStatus.Unknown,
+    EIPS: {},
   };
 }
 
@@ -1153,6 +1182,8 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
+  // We will remove this option later.
+  // eslint-disable-next-line no-unused-private-class-members
   #log: Logger | undefined;
 
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
@@ -1169,6 +1200,8 @@ export class NetworkController extends BaseController<
     undefined
   >;
 
+  readonly #degradedThreshold: number;
+
   /**
    * Constructs a NetworkController.
    *
@@ -1184,6 +1217,7 @@ export class NetworkController extends BaseController<
       getBlockTrackerOptions,
       additionalDefaultNetworks,
       isRpcFailoverEnabled = false,
+      degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(additionalDefaultNetworks),
@@ -1221,6 +1255,7 @@ export class NetworkController extends BaseController<
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
     this.#isRpcFailoverEnabled = isRpcFailoverEnabled;
+    this.#degradedThreshold = degradedThreshold;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1575,79 +1610,83 @@ export class NetworkController extends BaseController<
     const networkClient = isInfuraNetworkType(networkClientId)
       ? this.getNetworkClientById(networkClientId)
       : this.getNetworkClientById(networkClientId);
-
     const isInfura =
       networkClient.configuration.type === NetworkClientType.Infura;
-    let networkStatus: NetworkStatus;
+
+    let possibleNetworkStatus: NetworkStatus | undefined;
     let isEIP1559Compatible: boolean | undefined;
+    let latency: number | undefined;
+
+    const promiseForIsEIP1559Compatible =
+      this.#determineEIP1559Compatibility(networkClientId);
+
+    const updateNetworkStatusToSlowTimeout = setTimeout(() => {
+      possibleNetworkStatus = NetworkStatus.Slow;
+      this.#updateNetworkStatus(networkClientId, NetworkStatus.Slow);
+    }, this.#degradedThreshold);
+
+    const updateNetworkStatusToVerySlowTimeout = setTimeout(() => {
+      clearTimeout(updateNetworkStatusToSlowTimeout);
+      possibleNetworkStatus = NetworkStatus.VerySlow;
+      this.#updateNetworkStatus(networkClientId, NetworkStatus.VerySlow);
+    }, this.#degradedThreshold * 4);
 
     try {
-      isEIP1559Compatible =
-        await this.#determineEIP1559Compatibility(networkClientId);
-      networkStatus = NetworkStatus.Available;
+      latency = await measureTime(async () => {
+        isEIP1559Compatible = await promiseForIsEIP1559Compatible;
+        if (possibleNetworkStatus === undefined) {
+          possibleNetworkStatus = NetworkStatus.Available;
+          clearTimeout(updateNetworkStatusToSlowTimeout);
+          clearTimeout(updateNetworkStatusToVerySlowTimeout);
+        }
+      });
     } catch (error) {
-      debugLog('NetworkController: lookupNetwork: ', error);
+      debugLog('[lookupNetwork] Request to get latest block failed', error);
+
+      clearTimeout(updateNetworkStatusToSlowTimeout);
+      clearTimeout(updateNetworkStatusToVerySlowTimeout);
 
       if (isErrorWithCode(error)) {
-        let responseBody;
+        let jsonDecodedErrorMessage;
         if (
           isInfura &&
           hasProperty(error, 'message') &&
           typeof error.message === 'string'
         ) {
           try {
-            responseBody = JSON.parse(error.message);
+            jsonDecodedErrorMessage = JSON.parse(error.message);
           } catch {
-            // error.message must not be JSON
-            this.#log?.warn(
-              'NetworkController: lookupNetwork: json parse error: ',
-              error,
-            );
+            // Message is not JSON-encoded, skip
           }
         }
 
         if (
-          isPlainObject(responseBody) &&
-          responseBody.error === INFURA_BLOCKED_KEY
+          isPlainObject(jsonDecodedErrorMessage) &&
+          jsonDecodedErrorMessage.error === INFURA_BLOCKED_KEY
         ) {
-          networkStatus = NetworkStatus.Blocked;
-        } else if (error.code === errorCodes.rpc.internal) {
-          networkStatus = NetworkStatus.Unknown;
-          this.#log?.warn(
-            'NetworkController: lookupNetwork: rpc internal error: ',
-            error,
-          );
-        } else {
-          networkStatus = NetworkStatus.Unavailable;
-          this.#log?.warn('NetworkController: lookupNetwork: ', error);
+          possibleNetworkStatus = NetworkStatus.Blocked;
+        } else if (error.code !== errorCodes.rpc.internal) {
+          possibleNetworkStatus = NetworkStatus.Unavailable;
         }
-      } else {
-        debugLog(
-          'NetworkController - could not determine network status',
-          error,
-        );
-        networkStatus = NetworkStatus.Unknown;
-        this.#log?.warn('NetworkController: lookupNetwork: ', error);
       }
     }
 
+    const networkStatus = possibleNetworkStatus ?? NetworkStatus.Unknown;
+
     this.update((state) => {
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
-      }
-      const meta = state.networksMetadata[networkClientId];
-      meta.status = networkStatus;
+      const metadata =
+        state.networksMetadata[networkClientId] ?? getInitialNetworkMetadata();
+      metadata.status = networkStatus;
+      metadata.latency = latency;
       if (isEIP1559Compatible === undefined) {
-        delete meta.EIPS[1559];
+        delete metadata.EIPS[1559];
       } else {
-        meta.EIPS[1559] = isEIP1559Compatible;
+        metadata.EIPS[1559] = isEIP1559Compatible;
       }
+      state.networksMetadata[networkClientId] = metadata;
     });
 
-    return { isInfura, networkStatus, isEIP1559Compatible };
+    return { isInfura, networkStatus, latency, isEIP1559Compatible };
   }
 
   /**
@@ -1745,6 +1784,24 @@ export class NetworkController extends BaseController<
         this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
     }
+  }
+
+  /**
+   * Updates the status of a network in state.
+   *
+   * @param networkClientId - The client ID of the network to update.
+   * @param networkStatus - The network status to store in state.
+   */
+  #updateNetworkStatus(
+    networkClientId: NetworkClientId,
+    networkStatus: NetworkStatus,
+  ) {
+    this.update((state) => {
+      const metadata =
+        state.networksMetadata[networkClientId] ?? getInitialNetworkMetadata();
+      metadata.status = networkStatus;
+      state.networksMetadata[networkClientId] = metadata;
+    });
   }
 
   /**
