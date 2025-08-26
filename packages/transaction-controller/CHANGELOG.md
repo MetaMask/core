@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `batchTransactionsOptions` to `TransactionMeta` ([#6368](https://github.com/MetaMask/core/pull/6368))
+  - Add optional `isAfter` property to `batchTransactions` entries in `TransactionMeta`.
+  - Add `BatchTransaction` type.
 - Add optional `metamaskPay` and `requiredTransactionIds` properties to `TransactionMeta` ([#6361](https://github.com/MetaMask/core/pull/6361))
   - Add `updateRequiredTransactionIds` method.
 - Add `getSimulationConfig` constructor property ([#6281](https://github.com/MetaMask/core/pull/6281))
