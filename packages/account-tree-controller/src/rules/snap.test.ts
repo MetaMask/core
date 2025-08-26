@@ -4,7 +4,6 @@ import {
   toAccountWalletId,
   AccountWalletType,
 } from '@metamask/account-api';
-import { Messenger } from '@metamask/base-controller';
 import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
