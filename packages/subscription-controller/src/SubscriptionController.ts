@@ -81,19 +81,9 @@ export type SubscriptionControllerOptions = {
   state?: Partial<SubscriptionControllerState>;
 
   /**
-   * Environment for this controller.
-   */
-  env: Env;
-
-  /**
    * Subscription service to use for the subscription controller.
    */
-  subscriptionService?: ISubscriptionService;
-
-  /**
-   * Fetch function to use for the subscription controller.
-   */
-  fetchFn: typeof globalThis.fetch;
+  subscriptionService: ISubscriptionService;
 };
 
 /**
@@ -137,24 +127,18 @@ export class SubscriptionController extends BaseController<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
-  readonly #env: Env;
-
   /**
    * Creates a new SubscriptionController instance.
    *
    * @param options - The options for the SubscriptionController.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.env - Environment for this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
-   * @param options.fetchFn - The fetch function to use for the subscription controller.
    */
   constructor({
     messenger,
     state,
-    env,
     subscriptionService,
-    fetchFn,
   }: SubscriptionControllerOptions) {
     super({
       name: controllerName,
@@ -166,20 +150,13 @@ export class SubscriptionController extends BaseController<
       messenger,
     });
 
-    this.#env = env;
-
-    this.#subscriptionService =
-      subscriptionService ??
-      new SubscriptionService({
-        env: this.#env,
-        auth: {
-          getAccessToken: () =>
-            this.messagingSystem.call(
-              'AuthenticationController:getBearerToken',
-            ),
-        },
-        fetchFn,
+    this.#subscriptionService = subscriptionService;
+    if (!this.#subscriptionService.hasAuthUtils()) {
+      this.#subscriptionService.setAuthUtils({
+        getAccessToken: () =>
+          this.messagingSystem.call('AuthenticationController:getBearerToken'),
       });
+    }
 
     this.#registerMessageHandlers();
   }

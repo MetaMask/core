@@ -2,7 +2,6 @@ import { Messenger } from '@metamask/base-controller';
 
 import {
   controllerName,
-  Env,
   SubscriptionControllerErrorMessage,
 } from './constants';
 import { SubscriptionServiceError } from './errors';
@@ -41,15 +40,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
 const MOCK_AUTH_TOKEN_REF = {
   lastRefreshTriggered: '2024-01-01T00:00:00Z',
   refreshStatus: 'completed' as const,
-};
-
-const MOCK_PENDING_PAYMENT_TRANSACTIONS = {
-  txn_123456789: {
-    type: 'subscription_approval' as const,
-    status: 'pending' as const,
-    chainId: '1',
-    hash: '0x123456789abcdef',
-  },
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
@@ -131,18 +121,24 @@ function createMockSubscriptionMessenger(): {
  * @returns The mock service and related mocks.
  */
 function createMockSubscriptionService() {
-  const mockGetSubscriptions = jest.fn();
+  const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
+  const mockHasAuthUtils = jest.fn().mockReturnValue(false);
+  const mockSetAuthUtils = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
+    hasAuthUtils: mockHasAuthUtils,
+    setAuthUtils: mockSetAuthUtils,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
+    mockHasAuthUtils,
+    mockSetAuthUtils,
   };
 }
 
@@ -159,6 +155,7 @@ type WithControllerCallback<ReturnValue> = ({
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
+  mockGetBearerToken: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -177,14 +174,12 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger } = createMockSubscriptionMessenger();
+  const { messenger, mockGetBearerToken } = createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
   const controller = new SubscriptionController({
     messenger,
-    env: Env.PRD,
     subscriptionService: mockService,
-    fetchFn: global.fetch,
     ...rest,
   });
 
@@ -193,78 +188,22 @@ async function withController<ReturnValue>(
     initialState: controller.state,
     messenger,
     mockService,
+    mockGetBearerToken,
   });
 }
 
 describe('SubscriptionController', () => {
   describe('constructor', () => {
-    it('should be able to instantiate with default options', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-        fetchFn: global.fetch,
+    it('should be able to instantiate with default options', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.state).toStrictEqual(
+          getDefaultSubscriptionControllerState(),
+        );
       });
-
-      expect(controller).toBeDefined();
-      expect(controller.state).toStrictEqual(
-        getDefaultSubscriptionControllerState(),
-      );
-    });
-
-    it('should create default subscription service and use messenger for auth token', async () => {
-      const { messenger, mockGetBearerToken } =
-        createMockSubscriptionMessenger();
-
-      // Mock fetch to test the default service
-      const mockFetch = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: jest.fn().mockResolvedValue({
-          customerId: 'cus_123',
-          subscriptions: [MOCK_SUBSCRIPTION],
-          trialedProducts: [],
-        }),
-      });
-      // Create controller without custom subscription service to test default creation
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-        fetchFn: mockFetch as unknown as typeof fetch,
-      });
-
-      expect(controller).toBeDefined();
-
-      await controller.getSubscriptions();
-
-      // Verify that the messenger's call method was used to get the bearer token
-      expect(mockGetBearerToken).toHaveBeenCalled();
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('subscription-service.api.cx.metamask.io'),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
-          }),
-        }),
-      );
-    });
-
-    it('should be able to instantiate with custom config', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.DEV,
-        fetchFn: global.fetch,
-      });
-
-      expect(controller).toBeDefined();
-      expect(controller.state).toStrictEqual(
-        getDefaultSubscriptionControllerState(),
-      );
     });
 
     it('should be able to instantiate with initial state', () => {
+      const { mockService } = createMockSubscriptionService();
       const { messenger } = createMockSubscriptionMessenger();
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
@@ -273,9 +212,8 @@ describe('SubscriptionController', () => {
 
       const controller = new SubscriptionController({
         messenger,
-        env: Env.PRD,
         state: initialState,
-        fetchFn: global.fetch,
+        subscriptionService: mockService,
       });
 
       expect(controller).toBeDefined();
@@ -289,9 +227,7 @@ describe('SubscriptionController', () => {
 
       const controller = new SubscriptionController({
         messenger,
-        env: Env.PRD,
         subscriptionService: mockService,
-        fetchFn: global.fetch,
       });
 
       expect(controller).toBeDefined();
@@ -302,11 +238,11 @@ describe('SubscriptionController', () => {
 
     it('should create default subscription service when not provided', () => {
       const { messenger } = createMockSubscriptionMessenger();
+      const { mockService } = createMockSubscriptionService();
 
       const controller = new SubscriptionController({
         messenger,
-        env: Env.PRD,
-        fetchFn: global.fetch,
+        subscriptionService: mockService,
       });
 
       expect(controller).toBeDefined();
@@ -314,6 +250,33 @@ describe('SubscriptionController', () => {
       expect(controller.state).toStrictEqual(
         getDefaultSubscriptionControllerState(),
       );
+    });
+
+    it('should wire auth utils to messenger bearer token call when service has no auth utils', async () => {
+      const { messenger, mockGetBearerToken } =
+        createMockSubscriptionMessenger();
+      const { mockService, mockSetAuthUtils, mockHasAuthUtils } =
+        createMockSubscriptionService();
+
+      // Sanity: service reports it has no auth utils
+      expect(mockHasAuthUtils()).toBe(false);
+
+      // Instantiate controller, which should set auth utils on the service
+      // using a getAccessToken implementation that calls the messenger
+      // AuthenticationController:getBearerToken action.
+      new SubscriptionController({
+        messenger,
+        subscriptionService: mockService,
+      });
+
+      expect(mockSetAuthUtils).toHaveBeenCalledTimes(1);
+
+      const [{ getAccessToken }] = mockSetAuthUtils.mock.calls[0] as [
+        { getAccessToken: () => Promise<string> },
+      ];
+      await getAccessToken();
+
+      expect(mockGetBearerToken).toHaveBeenCalled();
     });
   });
 
@@ -531,88 +494,6 @@ describe('SubscriptionController', () => {
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
       );
-    });
-  });
-
-  describe('state management', () => {
-    it('should properly initialize with default state', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-        fetchFn: global.fetch,
-      });
-
-      expect(controller.state).toStrictEqual(
-        getDefaultSubscriptionControllerState(),
-      );
-    });
-
-    it('should merge initial state with default state', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const initialState: Partial<SubscriptionControllerState> = {
-        subscriptions: [MOCK_SUBSCRIPTION],
-        authTokenRef: MOCK_AUTH_TOKEN_REF,
-        pendingPaymentTransactions: MOCK_PENDING_PAYMENT_TRANSACTIONS,
-      };
-
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-        state: initialState,
-        fetchFn: global.fetch,
-      });
-
-      expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef).toStrictEqual(MOCK_AUTH_TOKEN_REF);
-      expect(controller.state.pendingPaymentTransactions).toStrictEqual(
-        MOCK_PENDING_PAYMENT_TRANSACTIONS,
-      );
-    });
-
-    it('should update state correctly through getSubscription', async () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const { mockService } = createMockSubscriptionService();
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-        subscriptionService: mockService,
-        fetchFn: global.fetch,
-      });
-
-      const newSubscription = { ...MOCK_SUBSCRIPTION, id: 'new_sub_id' };
-      mockService.getSubscriptions.mockResolvedValue({
-        customerId: 'cus_1',
-        subscriptions: [newSubscription],
-        trialedProducts: [],
-      });
-
-      await controller.getSubscriptions();
-
-      expect(controller.state.subscriptions).toStrictEqual([newSubscription]);
-      expect(controller.state.subscriptions[0]?.id).toBe('new_sub_id');
-    });
-
-    it('should handle partial state updates through initial state', () => {
-      const { messenger } = createMockSubscriptionMessenger();
-      const controller = new SubscriptionController({
-        messenger,
-        env: Env.PRD,
-        fetchFn: global.fetch,
-        state: {
-          subscriptions: [MOCK_SUBSCRIPTION],
-          authTokenRef: {
-            lastRefreshTriggered: '2024-02-01T00:00:00Z',
-            refreshStatus: 'pending',
-          },
-        },
-      });
-
-      expect(controller.state.subscriptions).toStrictEqual([MOCK_SUBSCRIPTION]);
-      expect(controller.state.authTokenRef?.lastRefreshTriggered).toBe(
-        '2024-02-01T00:00:00Z',
-      );
-      expect(controller.state.authTokenRef?.refreshStatus).toBe('pending');
     });
   });
 

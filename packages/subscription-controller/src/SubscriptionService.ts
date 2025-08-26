@@ -1,14 +1,14 @@
 import { getEnvUrls, type Env } from './constants';
 import { SubscriptionServiceError } from './errors';
-import type { GetSubscriptionsResponse, ISubscriptionService } from './types';
-
-export type AuthUtils = {
-  getAccessToken: () => Promise<string>;
-};
+import type {
+  AuthUtils,
+  GetSubscriptionsResponse,
+  ISubscriptionService,
+} from './types';
 
 export type SubscriptionServiceConfig = {
   env: Env;
-  auth: AuthUtils;
+  auth?: AuthUtils;
   fetchFn: typeof globalThis.fetch;
 };
 
@@ -21,16 +21,24 @@ export const SUBSCRIPTION_URL = (env: Env, path: string) =>
   `${getEnvUrls(env).subscriptionApiUrl}/api/v1/${path}`;
 
 export class SubscriptionService implements ISubscriptionService {
-  readonly #authUtils: AuthUtils;
-
   readonly #env: Env;
 
   readonly #fetch: typeof globalThis.fetch;
 
+  public authUtils?: AuthUtils;
+
   constructor(config: SubscriptionServiceConfig) {
     this.#env = config.env;
-    this.#authUtils = config.auth;
+    this.authUtils = config.auth;
     this.#fetch = config.fetchFn;
+  }
+
+  public hasAuthUtils(): boolean {
+    return Boolean(this.authUtils);
+  }
+
+  public setAuthUtils(authUtils: AuthUtils) {
+    this.authUtils = authUtils;
   }
 
   async getSubscriptions(): Promise<GetSubscriptionsResponse> {
@@ -59,11 +67,10 @@ export class SubscriptionService implements ISubscriptionService {
         },
       });
 
-      const responseBody = (await response.json()) as ErrorMessage;
+      const responseBody = await response.json();
       if (!response.ok) {
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
+        const { message, error } = responseBody as ErrorMessage;
+        throw new Error(`HTTP error message: ${message}, error: ${error}`);
       }
 
       return responseBody as Result;
@@ -78,7 +85,7 @@ export class SubscriptionService implements ISubscriptionService {
   }
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    const accessToken = await this.#authUtils.getAccessToken();
+    const accessToken = await this.authUtils?.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
   }
 }

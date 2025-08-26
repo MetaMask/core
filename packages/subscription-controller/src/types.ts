@@ -54,7 +54,13 @@ export type GetSubscriptionsResponse = {
   trialedProducts: ProductType[];
 };
 
+export type AuthUtils = {
+  getAccessToken: () => Promise<string>;
+};
+
 export type ISubscriptionService = {
+  hasAuthUtils(): boolean;
+  setAuthUtils(authUtils: AuthUtils): void;
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
 };

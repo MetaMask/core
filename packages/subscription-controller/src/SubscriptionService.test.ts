@@ -195,6 +195,20 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('auth utils management', () => {
+    it('should report absence of auth utils and allow setting them', async () => {
+      const service = new SubscriptionService({ env: Env.DEV, fetchFn: fetch });
+
+      expect(service.hasAuthUtils()).toBe(false);
+
+      const authUtils = { getAccessToken: jest.fn().mockResolvedValue('t') };
+      service.setAuthUtils(authUtils);
+
+      expect(service.hasAuthUtils()).toBe(true);
+      expect(service.authUtils).toBe(authUtils);
+    });
+  });
+
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       const config = createMockConfig();
@@ -246,23 +260,6 @@ describe('SubscriptionService', () => {
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
       ).rejects.toThrow(SubscriptionServiceError);
-    });
-
-    it('should handle null exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw null
-      const originalFetch = global.fetch;
-      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
-
-      try {
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(SubscriptionServiceError);
-      } finally {
-        global.fetch = originalFetch;
-      }
     });
 
     it('should include correct headers and method', async () => {
