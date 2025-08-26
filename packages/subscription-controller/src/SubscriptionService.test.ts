@@ -184,6 +184,10 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService({ env: Env.DEV, fetchFn: fetch });
       expect(service.hasAuthUtils()).toBe(false);
 
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        'No access token found',
+      );
+
       const authUtils = { getAccessToken: jest.fn().mockResolvedValue('t') };
       service.setAuthUtils(authUtils);
 
