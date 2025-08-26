@@ -140,12 +140,7 @@ function createMockSubscriptionService() {
 /**
  * Helper function to create controller with options.
  */
-type WithControllerCallback<ReturnValue> = ({
-  controller,
-  initialState,
-  messenger,
-  mockService,
-}: {
+type WithControllerCallback<ReturnValue> = (params: {
   controller: SubscriptionController;
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;

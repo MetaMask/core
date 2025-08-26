@@ -35,13 +35,6 @@ export type Subscription = {
   paymentMethod: PaymentMethod;
 };
 
-export type PendingPaymentTransaction = {
-  type: 'subscription_approval' | 'subscription_payment';
-  status: 'pending' | 'confirmed' | 'failed';
-  chainId: string;
-  hash?: string;
-};
-
 export type GetSubscriptionsResponse = {
   customerId: string;
   subscriptions: Subscription[];

@@ -11,18 +11,10 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type {
-  ProductType,
-  ISubscriptionService,
-  Subscription,
-  PendingPaymentTransaction,
-} from './types';
+import type { ProductType, ISubscriptionService, Subscription } from './types';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
-  pendingPaymentTransactions?: {
-    [transactionId: string]: PendingPaymentTransaction;
-  };
 };
 
 // Messenger Actions
@@ -103,10 +95,6 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
     subscriptions: {
-      persist: true,
-      anonymous: false,
-    },
-    pendingPaymentTransactions: {
       persist: true,
       anonymous: false,
     },
