@@ -1,5 +1,5 @@
-import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -20,17 +20,22 @@ import {
  * @returns Test fixtures including messenger, controller, and event listeners
  */
 function arrangeMocks() {
-  const messenger = new Messenger<
+  const rootMessenger = new Messenger<
+    'Root',
     AddressBookControllerActions,
     AddressBookControllerEvents
-  >();
-  const restrictedMessenger = messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
+  >({ namespace: 'Root' });
+  const addressBookControllerMessenger = new Messenger<
+    typeof controllerName,
+    AddressBookControllerActions,
+    AddressBookControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
   });
   const controller = new AddressBookController({
-    messenger: restrictedMessenger,
+    messenger: addressBookControllerMessenger,
   });
 
   // Set up mock event listeners
@@ -38,11 +43,11 @@ function arrangeMocks() {
   const contactDeletedListener = jest.fn();
 
   // Subscribe to events
-  messenger.subscribe(
+  rootMessenger.subscribe(
     'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
     contactUpdatedListener,
   );
-  messenger.subscribe(
+  rootMessenger.subscribe(
     'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
     contactDeletedListener,
   );
