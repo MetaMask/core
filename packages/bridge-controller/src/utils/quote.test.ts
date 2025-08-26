@@ -38,6 +38,7 @@ describe('Quote Utils', () => {
       srcTokenAmount: '1000',
       slippage: 0.5,
       gasIncluded: false,
+      gasless7702: false,
     };
 
     it('should return true for valid request with all required fields', () => {
@@ -296,14 +297,19 @@ describe('Quote Metadata Utils', () => {
   describe('calcToAmount', () => {
     const mockQuote: Quote = {
       destTokenAmount: '1000000000',
+      minDestTokenAmount: '950000000',
       destAsset: { decimals: 6 },
     } as Quote;
 
     it('should calculate destination amount correctly with exchange rates', () => {
-      const result = calcToAmount(mockQuote, {
-        exchangeRate: '2',
-        usdExchangeRate: '1.5',
-      });
+      const result = calcToAmount(
+        mockQuote.destTokenAmount,
+        mockQuote.destAsset,
+        {
+          exchangeRate: '2',
+          usdExchangeRate: '1.5',
+        },
+      );
 
       expect(result.amount).toBe('1000');
       expect(result.valueInCurrency).toBe('2000');
@@ -311,7 +317,11 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle missing exchange rates', () => {
-      const result = calcToAmount(mockQuote, {});
+      const result = calcToAmount(
+        mockQuote.destTokenAmount,
+        mockQuote.destAsset,
+        {},
+      );
 
       expect(result.amount).toBe('1000');
       expect(result.valueInCurrency).toBeNull();

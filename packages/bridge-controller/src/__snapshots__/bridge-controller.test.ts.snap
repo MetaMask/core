@@ -55,6 +55,7 @@ Array [
   Array [
     "Unified SwapBridge Completed",
     Object {
+      "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
       "chain_id_destination": "eip155:10",
@@ -68,7 +69,6 @@ Array [
       "quote_vs_execution_ratio": 1,
       "quoted_time_minutes": 0,
       "quoted_vs_used_gas_ratio": 1,
-      "security_warnings": Array [],
       "source_transaction": "PENDING",
       "stx_enabled": false,
       "swap_type": "crosschain",
@@ -192,25 +192,17 @@ Array [
     "Unified SwapBridge Submitted",
     Object {
       "action_type": "swapbridge-v1",
-      "chain_id_destination": "eip155:10",
+      "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "custom_slippage": true,
+      "custom_slippage": false,
       "gas_included": false,
-      "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 12,
       "provider": "provider_bridge",
       "quoted_time_minutes": 2,
-      "quotes_count": 2,
-      "quotes_list": Array [
-        "lifi_mayan",
-        "lifi_mayanMCTP",
-      ],
       "slippage_limit": 0.5,
       "stx_enabled": false,
       "swap_type": "crosschain",
-      "token_address_destination": "eip155:10/erc20:0x1234",
-      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -274,6 +266,22 @@ Array [
       "token_address_source": "eip155:1/slip44:60",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the AssetDetailTooltipClicked event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Asset Detail Tooltip Clicked",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id": "1",
+      "chain_name": "Ethereum",
+      "token_contract": "0x123",
+      "token_name": "ETH",
+      "token_symbol": "ETH",
     },
   ],
 ]

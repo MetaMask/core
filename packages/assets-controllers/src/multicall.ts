@@ -1040,7 +1040,7 @@ export const getTokenBalancesForMultipleAddresses = async (
     // Note: Staking balances will be handled separately in two steps after token/native calls
 
     // Execute all calls in batches
-    const maxCallsPerBatch = 300; // Limit calls per batch to avoid gas/size limits
+    const maxCallsPerBatch = 100; // Limit calls per batch to avoid gas/size limits
     const allResults: Aggregate3Result[] = [];
 
     await reduceInBatchesSerially<Aggregate3Call, void>({
