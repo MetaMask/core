@@ -1558,8 +1558,8 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Uses a request for the latest block to gather the following information on
-   * the given network:
+   * Uses a request for the latest block to gather and record the following
+   * information on the given network:
    *
    * - The connectivity status: whether it is available, geo-blocked (Infura
    * only), unavailable, or unknown
@@ -1570,7 +1570,7 @@ export class NetworkController extends BaseController<
    * If no ID is provided, uses the currently selected network.
    * @returns The resulting metadata for the network.
    */
-  async #determineNetworkMetadata(networkClientId: NetworkClientId) {
+  async #captureNetworkMetadata(networkClientId: NetworkClientId) {
     // Force TypeScript to use one of the two overloads explicitly
     const networkClient = isInfuraNetworkType(networkClientId)
       ? this.getNetworkClientById(networkClientId)
@@ -1631,6 +1631,22 @@ export class NetworkController extends BaseController<
       }
     }
 
+    this.update((state) => {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
+      const meta = state.networksMetadata[networkClientId];
+      meta.status = networkStatus;
+      if (isEIP1559Compatible === undefined) {
+        delete meta.EIPS[1559];
+      } else {
+        meta.EIPS[1559] = isEIP1559Compatible;
+      }
+    });
+
     return { isInfura, networkStatus, isEIP1559Compatible };
   }
 
@@ -1686,13 +1702,7 @@ export class NetworkController extends BaseController<
    * @param networkClientId - The ID of the network client to inspect.
    */
   async #lookupGivenNetwork(networkClientId: NetworkClientId) {
-    const { networkStatus, isEIP1559Compatible } =
-      await this.#determineNetworkMetadata(networkClientId);
-    this.#updateMetadataForNetwork(
-      networkClientId,
-      networkStatus,
-      isEIP1559Compatible,
-    );
+    await this.#captureNetworkMetadata(networkClientId);
   }
 
   /**
@@ -1713,111 +1723,28 @@ export class NetworkController extends BaseController<
       return;
     }
 
-    let networkChanged = false;
-    const listener = () => {
-      networkChanged = true;
-      try {
-        this.messagingSystem.unsubscribe(
-          'NetworkController:networkDidChange',
-          listener,
-        );
-      } catch (error) {
-        // In theory, this `catch` should not be necessary given that this error
-        // would occur "inside" of the call to `#determineEIP1559Compatibility`
-        // below and so it should be caught by the `try`/`catch` below (it is
-        // impossible to reproduce in tests for that reason). However, somehow
-        // it occurs within Mobile and so we have to add our own `try`/`catch`
-        // here.
-        /* istanbul ignore next */
-        if (
-          !(error instanceof Error) ||
-          error.message !==
-            'Subscription not found for event: NetworkController:networkDidChange'
-        ) {
-          // Again, this error should not happen and is impossible to reproduce
-          // in tests.
-          /* istanbul ignore next */
-          throw error;
-        }
-      }
-    };
-    this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      listener,
-    );
+    // Capture up front in case the network is switched while awaiting the
+    // network request
+    const { selectedNetworkClientId } = this.state;
 
-    const { isInfura, networkStatus, isEIP1559Compatible } =
-      await this.#determineNetworkMetadata(this.state.selectedNetworkClientId);
-
-    if (networkChanged) {
-      // If the network has changed, then `lookupNetwork` either has been or is
-      // in the process of being called, so we don't need to go further.
-      return;
-    }
-
-    try {
-      this.messagingSystem.unsubscribe(
-        'NetworkController:networkDidChange',
-        listener,
-      );
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        error.message !==
-          'Subscription not found for event: NetworkController:networkDidChange'
-      ) {
-        throw error;
-      }
-    }
-
-    this.#updateMetadataForNetwork(
+    const { isInfura, networkStatus } = await this.#captureNetworkMetadata(
       this.state.selectedNetworkClientId,
-      networkStatus,
-      isEIP1559Compatible,
     );
 
-    if (isInfura) {
-      if (networkStatus === NetworkStatus.Available) {
-        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
-      } else if (networkStatus === NetworkStatus.Blocked) {
-        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
-      }
-    } else {
-      // Always publish infuraIsUnblocked regardless of network status to
-      // prevent consumers from being stuck in a blocked state if they were
-      // previously connected to an Infura network that was blocked
-      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
-    }
-  }
-
-  /**
-   * Updates the metadata for the given network in state.
-   *
-   * @param networkClientId - The associated network client ID.
-   * @param networkStatus - The network status to store in state.
-   * @param isEIP1559Compatible - The EIP-1559 compatibility status to
-   * store in state.
-   */
-  #updateMetadataForNetwork(
-    networkClientId: NetworkClientId,
-    networkStatus: NetworkStatus,
-    isEIP1559Compatible: boolean | undefined,
-  ) {
-    this.update((state) => {
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
-      }
-      const meta = state.networksMetadata[networkClientId];
-      meta.status = networkStatus;
-      if (isEIP1559Compatible === undefined) {
-        delete meta.EIPS[1559];
+    if (selectedNetworkClientId === this.state.selectedNetworkClientId) {
+      if (isInfura) {
+        if (networkStatus === NetworkStatus.Available) {
+          this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+        } else if (networkStatus === NetworkStatus.Blocked) {
+          this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+        }
       } else {
-        meta.EIPS[1559] = isEIP1559Compatible;
+        // Always publish infuraIsUnblocked regardless of network status to
+        // prevent consumers from being stuck in a blocked state if they were
+        // previously connected to an Infura network that was blocked
+        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
-    });
+    }
   }
 
   /**
