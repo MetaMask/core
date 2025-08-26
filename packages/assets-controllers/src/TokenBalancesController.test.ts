@@ -3007,20 +3007,32 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
+        config: { useAccountsAPI: false }, // Force use of RpcBalanceFetcher
       });
 
-      // Mock safelyExecuteWithTimeout to throw timeout error
-      const safelyExecuteSpy = jest
-        .spyOn(controllerUtils, 'safelyExecuteWithTimeout')
-        .mockRejectedValue(new Error('Timeout'));
+      // Use fake timers to control setTimeout behavior
+      jest.useFakeTimers();
 
-      // This should trigger the safelyExecuteWithTimeout error path (line 440)
-      expect(async () => {
-        await controller.updateBalances({ chainIds: ['0x1'] });
-      }).not.toThrow();
+      // Mock the multicall function to never resolve (simulating a hanging request)
+      const mockGetTokenBalances = jest
+        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+        .mockImplementation(() => new Promise(() => {})); // Never resolves
 
-      // Restore original function
-      safelyExecuteSpy.mockRestore();
+      // Start the balance update - this should timeout after 15000ms
+      const updatePromise = controller.updateBalances({ chainIds: [chainId] });
+
+      // Fast-forward time past the timeout threshold (15000ms)
+      jest.advanceTimersByTime(15001);
+
+      // Wait for the promise to resolve (should handle timeout gracefully)
+      await expect(updatePromise).resolves.not.toThrow();
+
+      // Verify that the multicall was attempted
+      expect(mockGetTokenBalances).toHaveBeenCalled();
+
+      // Restore timers and mocks
+      jest.useRealTimers();
+      mockGetTokenBalances.mockRestore();
     });
 
     it('should handle constructor with different configurations', () => {
