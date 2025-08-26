@@ -3,7 +3,6 @@ import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import {
   safelyExecute,
-  safelyExecuteWithTimeout,
   toHex,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
@@ -22,7 +21,6 @@ import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 
 // Maximum number of account addresses that can be sent to the accounts API in a single request
 const ACCOUNTS_API_BATCH_SIZE = 50;
-const API_TIMEOUT_MS = 30000;
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -207,18 +205,11 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
   async #fetchBalances(addrs: CaipAccountAddress[]) {
     // If we have fewer than or equal to the batch size, make a single request
     if (addrs.length <= ACCOUNTS_API_BATCH_SIZE) {
-      const result = await safelyExecuteWithTimeout(
-        async () => {
-          const { balances } = await fetchMultiChainBalancesV4(
-            { accountAddresses: addrs },
-            this.#platform,
-          );
-          return balances;
-        },
-        true,
-        API_TIMEOUT_MS,
+      const { balances } = await fetchMultiChainBalancesV4(
+        { accountAddresses: addrs },
+        this.#platform,
       );
-      return result || [];
+      return balances;
     }
 
     // Otherwise, batch the requests to respect the 50-element limit
@@ -233,18 +224,10 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       values: addrs,
       batchSize: ACCOUNTS_API_BATCH_SIZE,
       eachBatch: async (workingResult, batch) => {
-        const result = await safelyExecuteWithTimeout(
-          async () => {
-            const { balances } = await fetchMultiChainBalancesV4(
-              { accountAddresses: batch },
-              this.#platform,
-            );
-            return balances;
-          },
-          true, // logError
-          API_TIMEOUT_MS,
+        const { balances } = await fetchMultiChainBalancesV4(
+          { accountAddresses: batch },
+          this.#platform,
         );
-        const balances = result || [];
         return [...(workingResult || []), ...balances];
       },
       initialResult: [],

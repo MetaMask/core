@@ -1888,47 +1888,6 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(oldMethodCalculation.toString()).toContain('e+'); // Should be in scientific notation
     });
 
-    it('should create error entries for all addresses when API fails completely (lines 383-385)', async () => {
-      // Mock the API to throw an error directly (this will trigger apiError = true)
-      mockFetchMultiChainBalancesV4.mockRejectedValue(
-        new Error('API completely failed'),
-      );
-      // Mock staking provider to return successful staked balances
-      const mockProvider = {
-        call: jest.fn().mockResolvedValue('0x0de0b6b3a7640000'), // 1 ETH in hex
-      };
-      const mockGetProvider = jest.fn().mockReturnValue(mockProvider);
-      const balanceFetcherWithStaking = new AccountsApiBalanceFetcher(
-        'extension',
-        mockGetProvider,
-      );
-
-      const result = await balanceFetcherWithStaking.fetch({
-        chainIds: [MOCK_CHAIN_ID, '0x89'], // Multiple chains
-        queryAllAccounts: true, // Multiple accounts
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
-        allAccounts: MOCK_INTERNAL_ACCOUNTS,
-      });
-
-      // Should have error entries for each address/chain combination (from API failure)
-      const errorEntries = result.filter((r) => !r.success);
-
-      // Should also have successful entries (from staking)
-      const successEntries = result.filter((r) => r.success);
-
-      expect(errorEntries.length).toBeGreaterThan(0);
-      expect(successEntries.length).toBeGreaterThan(0); // This prevents line 400 from throwing
-
-      // Verify error entries have correct structure (can be native token or staking contract)
-      errorEntries.forEach((entry) => {
-        expect(entry.success).toBe(false);
-        // Error entries can be for native token (API failure) or staking contract (staking failure)
-        expect([ZERO_ADDRESS, STAKING_CONTRACT_ADDRESS]).toContain(entry.token);
-        expect(['0x1', '0x89']).toContain(entry.chainId);
-        expect([MOCK_ADDRESS_1, MOCK_ADDRESS_2]).toContain(entry.account);
-      });
-    });
-
     it('should throw error when API fails and no successful results exist (line 400)', async () => {
       const mockApiError = new Error('Complete API failure');
 
