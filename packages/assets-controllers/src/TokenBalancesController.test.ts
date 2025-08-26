@@ -3818,7 +3818,9 @@ describe('TokenBalancesController', () => {
 
       // Should have logged errors (both immediate and interval polling use the same error format)
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Polling failed for chains 0x1 with interval 100:'),
+        expect.stringContaining(
+          'Polling failed for chains 0x1 with interval 100:',
+        ),
         expect.any(Error),
       );
       expect(consoleSpy).toHaveBeenCalledTimes(2); // Should have been called twice
@@ -3950,7 +3952,7 @@ describe('TokenBalancesController', () => {
         .mockRejectedValue(new Error('Timeout'));
 
       // This should trigger the safelyExecuteWithTimeout error path (line 440)
-      await expect(async () => {
+      expect(async () => {
         await controller.updateBalances({ chainIds: ['0x1'] });
       }).not.toThrow();
 
