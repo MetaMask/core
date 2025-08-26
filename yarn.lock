@@ -2547,6 +2547,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.2.0"
+    "@metamask/messenger": "npm:^0.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
