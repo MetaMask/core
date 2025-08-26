@@ -133,9 +133,6 @@ export async function fetchBridgeQuotes(
               (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
               'unknown';
             const pathString = path?.join('.') || 'unknown';
-            if (!pathString) {
-              return;
-            }
             uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
           });
         }
