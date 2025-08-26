@@ -344,11 +344,11 @@ export const calcTotalMaxNetworkFee = (
 
 // Gas is included for some swap quotes and this is the value displayed in the client
 export const calcIncludedTxFees = (
-  { gasIncluded, srcAsset, feeData: { txFee } }: Quote,
+  { gasIncluded, gasIncluded7702, srcAsset, feeData: { txFee } }: Quote,
   srcTokenExchangeRate: ExchangeRate,
   destTokenExchangeRate: ExchangeRate,
 ) => {
-  if (!txFee || !gasIncluded) {
+  if (!txFee || !(gasIncluded || gasIncluded7702)) {
     return null;
   }
   // Use exchange rate of the token that is being used to pay for the transaction
