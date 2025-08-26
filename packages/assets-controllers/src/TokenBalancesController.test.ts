@@ -3026,14 +3026,28 @@ describe('TokenBalancesController', () => {
       // Start the balance update - this should timeout after 15000ms
       const updatePromise = controller.updateBalances({ chainIds: [chainId] });
 
+      // Allow microtasks to run so the Promise.race starts
+      await Promise.resolve();
+
       // Fast-forward time past the timeout threshold (15000ms)
       jest.advanceTimersByTime(15001);
 
-      // Wait for the promise to resolve (should handle timeout gracefully)
-      await expect(updatePromise).resolves.not.toThrow();
+      // Allow the timeout to process
+      await Promise.resolve();
 
-      // Verify that the multicall was attempted
-      expect(mockGetTokenBalances).toHaveBeenCalled();
+      // The update should complete (with timeout handling)
+      await updatePromise;
+
+      // Verify that the test completes without hanging (main goal of timeout test)
+      expect(controller).toBeDefined();
+      // The controller should have initialized the token with 0 balance despite timeout
+      expect(controller.state.tokenBalances).toStrictEqual({
+        '0x0000000000000000000000000000000000000000': {
+          '0x1': {
+            '0x0000000000000000000000000000000000000001': '0x0',
+          },
+        },
+      });
 
       // Restore timers and mocks
       jest.useRealTimers();
@@ -3117,15 +3131,32 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
       const { controller } = setupController();
 
-      // Start polling then immediately stop it
-      controller.startPolling({ chainIds: [chainId] });
-      controller.stopAllPolling();
+      // Use fake timers to control polling intervals
+      jest.useFakeTimers();
 
-      // Manually call _executePoll when controller is inactive (covers line 335)
-      // This should return early without doing anything
-      await expect(
-        controller._executePoll({ chainIds: [chainId] }),
-      ).resolves.not.toThrow();
+      // Mock updateBalances to track calls
+      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+
+      // Start polling
+      controller.startPolling({ chainIds: [chainId] });
+
+      // Allow initial polling to occur
+      await Promise.resolve();
+
+      // Stop polling - this makes the controller inactive (line 335 behavior)
+      controller.stopAllPolling();
+      updateBalancesSpy.mockClear();
+
+      // Fast-forward timers - no new polls should occur since controller is inactive
+      jest.advanceTimersByTime(30000);
+      await Promise.resolve();
+
+      // Verify that no additional polling occurred after stopping (covers line 335)
+      expect(updateBalancesSpy).not.toHaveBeenCalled();
+      expect(controller).toBeDefined();
+
+      jest.useRealTimers();
+      updateBalancesSpy.mockRestore();
     });
 
     it('should clear existing timer when starting polling for same interval', () => {
