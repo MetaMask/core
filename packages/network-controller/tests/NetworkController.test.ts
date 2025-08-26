@@ -17,6 +17,8 @@ import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
+import type { SinonFakeTimers } from 'sinon';
+import { useFakeTimers } from 'sinon';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -14654,16 +14656,26 @@ function lookupNetworkTests({
   operation: (controller: NetworkController) => Promise<void>;
   shouldTestInfuraMessengerEvents?: boolean;
 }) {
-  describe('if the network details request resolves successfully', () => {
-    describe('if the new network details of the target network are different from the ones in state', () => {
-      it('updates state to match', async () => {
+  describe('if the request for the latest block resolves successfully', () => {
+    let clock: SinonFakeTimers;
+
+    beforeEach(() => {
+      clock = useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    describe('if the request duration is under the degraded threshold', () => {
+      it('updates the status of the network to "available"', async () => {
         await withController(
           {
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
-                  EIPS: { 1559: false },
+                [expectedNetworkClientId]: {
+                  EIPS: {},
                   status: NetworkStatus.Unknown,
                 },
               },
@@ -14687,26 +14699,27 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            await operation(controller);
+            const promise = operation(controller);
+            clock.next();
+            await promise;
 
             expect(
-              controller.state.networksMetadata[expectedNetworkClientId]
-                .EIPS[1559],
-            ).toBe(true);
+              controller.state.networksMetadata[expectedNetworkClientId].status,
+            ).toBe('available');
           },
         );
       });
     });
 
-    describe('if the new network details of the target network are the same as the ones in state', () => {
-      it('does not update state', async () => {
+    describe('if the request duration is over the degraded threshold', () => {
+      it('updates the status of the network to "degraded"', async () => {
         await withController(
           {
             state: {
               ...initialState,
               networksMetadata: {
-                mainnet: {
-                  EIPS: { 1559: true },
+                [expectedNetworkClientId]: {
+                  EIPS: {},
                   status: NetworkStatus.Unknown,
                 },
               },
@@ -14720,25 +14733,113 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  response: {
-                    result: {
-                      baseFeePerGas: '0x1',
-                    },
+                  implementation: (callback) => {
+                    clock.tick(6000);
+                    return callback(null, {
+                      jsonrpc: '2.0',
+                      id: 1,
+                      result: {
+                        baseFeePerGas: '0x1',
+                      },
+                    });
                   },
                 },
               ],
               stubLookupNetworkWhileSetting: true,
             });
 
-            await operation(controller);
+            const promise = operation(controller);
+            clock.next();
+            await promise;
 
             expect(
-              controller.state.networksMetadata[expectedNetworkClientId]
-                .EIPS[1559],
-            ).toBe(true);
+              controller.state.networksMetadata[expectedNetworkClientId].status,
+            ).toBe('degraded');
           },
         );
       });
+    });
+
+    it('sets the EIP-1559 compatibility status to true if the latest block has a baseFeePerGas property', async () => {
+      await withController(
+        {
+          state: {
+            ...initialState,
+            networksMetadata: {
+              [expectedNetworkClientId]: {
+                EIPS: {},
+                status: NetworkStatus.Unknown,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: {
+                    baseFeePerGas: '0x1',
+                  },
+                },
+              },
+            ],
+            stubLookupNetworkWhileSetting: true,
+          });
+
+          await operation(controller);
+
+          expect(
+            controller.state.networksMetadata[expectedNetworkClientId]
+              .EIPS[1559],
+          ).toBe(true);
+        },
+      );
+    });
+
+    it('sets the EIP-1559 compatibility status to false if the latest block does not have a baseFeePerGas property', async () => {
+      await withController(
+        {
+          state: {
+            ...initialState,
+            networksMetadata: {
+              [expectedNetworkClientId]: {
+                EIPS: {},
+                status: NetworkStatus.Unknown,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: {
+                    // no baseFeePerGas property
+                  },
+                },
+              },
+            ],
+            stubLookupNetworkWhileSetting: true,
+          });
+
+          await operation(controller);
+
+          expect(
+            controller.state.networksMetadata[expectedNetworkClientId]
+              .EIPS[1559],
+          ).toBe(false);
+        },
+      );
     });
 
     if (shouldTestInfuraMessengerEvents) {
@@ -14791,7 +14892,7 @@ function lookupNetworkTests({
     }
   });
 
-  describe('if the network details request produces a JSON-RPC error that is not internal and not a country blocked error', () => {
+  describe('if the request for the latest block produces a JSON-RPC error that is not internal and not a country blocked error', () => {
     it('updates the network in state to "unavailable"', async () => {
       await withController(
         {
@@ -14966,7 +15067,7 @@ function lookupNetworkTests({
     }
   });
 
-  describe('if the network details request produces a country blocked error', () => {
+  describe('if the request for the latest block produces a country blocked error', () => {
     if (expectedNetworkClientType === NetworkClientType.Custom) {
       it('updates the network in state to "unknown"', async () => {
         await withController(
@@ -15203,7 +15304,7 @@ function lookupNetworkTests({
     });
   });
 
-  describe('if the network details request produces an internal JSON-RPC error', () => {
+  describe('if the request for the latest block produces an internal JSON-RPC error', () => {
     it('updates the network in state to "unknown"', async () => {
       await withController(
         {
@@ -15378,7 +15479,7 @@ function lookupNetworkTests({
     }
   });
 
-  describe('if the network details request produces a non-JSON-RPC error', () => {
+  describe('if the request for the latest block produces a non-JSON-RPC error', () => {
     it('updates the network in state to "unknown"', async () => {
       await withController(
         {
@@ -15551,6 +15652,37 @@ function lookupNetworkTests({
         );
       });
     }
+  });
+
+  // TODO
+  describe('if the request for the latest block responds with an error that ...', () => {
+    it('updates the status of the network to "degraded"', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                error: 'oops',
+              },
+            ],
+            stubLookupNetworkWhileSetting: true,
+          });
+
+          await operation(controller);
+
+          expect(
+            controller.state.networksMetadata[expectedNetworkClientId].status,
+          ).toBe(NetworkStatus.Unknown);
+        },
+      );
+    });
   });
 }
 

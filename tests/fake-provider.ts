@@ -77,7 +77,9 @@ export type FakeProviderStub = {
       error: unknown;
     }
   | {
-      implementation: () => void;
+      implementation: (
+        callback: (error: unknown, response?: JsonRpcResponse) => void,
+      ) => void;
     }
 );
 
@@ -228,7 +230,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
     }
 
     if ('implementation' in stub) {
-      stub.implementation();
+      return stub.implementation(callback);
     } else if ('response' in stub) {
       if ('result' in stub.response) {
         return callback(null, {
