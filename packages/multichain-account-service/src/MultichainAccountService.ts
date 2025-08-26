@@ -384,10 +384,6 @@ export class MultichainAccountService {
    * @param enabled - Whether basic functionality is enabled.
    */
   async setBasicFunctionality(enabled: boolean): Promise<void> {
-    console.log(
-      `MultichainAccountService: Setting basic functionality ${enabled ? 'enabled' : 'disabled'}`,
-    );
-
     // Loop through providers and enable/disable only wrapped ones when basic functionality changes
     for (const provider of this.#providers) {
       if (isProviderWrapper(provider)) {
@@ -398,7 +394,6 @@ export class MultichainAccountService {
 
     // Trigger alignment only when basic functionality is enabled
     if (enabled) {
-      console.log('Triggered wallet alignment...');
       await this.alignWallets();
     }
   }

@@ -23,9 +23,6 @@ export class ProviderWrapper
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    console.log(
-      `Provider ${this.provider.constructor.name} ${enabled ? 'enabled' : 'disabled'}`,
-    );
   }
 
   /**
@@ -50,7 +47,7 @@ export class ProviderWrapper
     id: Bip44Account<KeyringAccount>['id'],
   ): Bip44Account<KeyringAccount> | undefined {
     if (!this.isEnabled) {
-      throw new Error(`Provider ${this.provider.constructor.name} is disabled`);
+      return undefined;
     }
     return this.provider.getAccount(id);
   }
@@ -68,9 +65,6 @@ export class ProviderWrapper
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
-      console.log(
-        `Provider ${this.provider.constructor.name} is disabled - skipping account creation`,
-      );
       return [];
     }
     return this.provider.createAccounts(options);
@@ -89,9 +83,6 @@ export class ProviderWrapper
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
-      console.log(
-        `Provider ${this.provider.constructor.name} is disabled - skipping account discovery`,
-      );
       return [];
     }
     return this.provider.discoverAndCreateAccounts(options);
