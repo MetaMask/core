@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137), [#6345](https://github.com/MetaMask/core/pull/6345))
+- Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
 [Unreleased]: https://github.com/MetaMask/core/
