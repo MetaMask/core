@@ -148,7 +148,7 @@ export enum BridgeStatusAction {
   SUBMIT_TX = 'submitTx',
   RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
   GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
-  GET_CURRENT_SUBMISSION_REQUEST = 'getCurrentSubmissionRequest',
+  GET_SUBMISSION_REQUESTS = 'getSubmissionRequests',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -214,13 +214,26 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 };
 
 export type SourceChainTxMetaId = string;
+export type ApprovalTxId = string;
+export type ApprovalTxChainId = string;
+
+// SubmissionRequestItem is used to track the submission request.
+export type SubmissionRequestItem = {
+  gasIncluded7702: boolean;
+  isBridgeTx: boolean;
+};
+
+// SubmissionRequests is a map of chainId to a map of approvalTxId to SubmissionRequestItem.
+// This is used to track the submission request for each approvalTxId.
+// NB: We cannot index by TxMetaId because it is not known until the tx is submitted.
+export type SubmissionRequests = Record<
+  ApprovalTxChainId,
+  Record<ApprovalTxId, SubmissionRequestItem>
+>;
 
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
-  currentSubmissionRequest?: {
-    quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
-    isBridgeTx: boolean;
-  };
+  submissionRequests?: SubmissionRequests;
 };
 
 // Actions
@@ -255,8 +268,8 @@ export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
 export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
   BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
 
-export type BridgeStatusControllerGetCurrentSubmissionRequestAction =
-  BridgeStatusControllerAction<BridgeStatusAction.GET_CURRENT_SUBMISSION_REQUEST>;
+export type BridgeStatusControllerGetSubmissionRequestsAction =
+  BridgeStatusControllerAction<BridgeStatusAction.GET_SUBMISSION_REQUESTS>;
 
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
@@ -266,7 +279,7 @@ export type BridgeStatusControllerActions =
   | BridgeStatusControllerSubmitTxAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction
   | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction
-  | BridgeStatusControllerGetCurrentSubmissionRequestAction;
+  | BridgeStatusControllerGetSubmissionRequestsAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<

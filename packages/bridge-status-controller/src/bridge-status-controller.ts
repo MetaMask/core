@@ -44,6 +44,9 @@ import type {
   FetchFunction,
   SolanaTransactionMeta,
   BridgeHistoryItem,
+  ApprovalTxChainId,
+  ApprovalTxId,
+  SubmissionRequestItem,
 } from './types';
 import { type BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
@@ -82,7 +85,7 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
     persist: true,
     anonymous: false,
   },
-  currentSubmissionRequest: {
+  submissionRequests: {
     persist: false,
     anonymous: false,
   },
@@ -194,8 +197,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
     this.messagingSystem.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:getCurrentSubmissionRequest`,
-      this.getCurrentSubmissionRequest.bind(this),
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:getSubmissionRequests`,
+      this.getSubmissionRequests.bind(this),
     );
 
     // Set interval
@@ -274,8 +277,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   resetState = () => {
     this.update((state) => {
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
-      state.currentSubmissionRequest =
-        DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.currentSubmissionRequest;
+      state.submissionRequests =
+        DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.submissionRequests;
     });
   };
 
@@ -290,8 +293,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (ignoreNetwork) {
       this.update((state) => {
         state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
-        state.currentSubmissionRequest =
-          DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.currentSubmissionRequest;
+        state.submissionRequests =
+          DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.submissionRequests;
       });
     } else {
       const { selectedNetworkClientId } = this.messagingSystem.call(
@@ -1030,6 +1033,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
+    let approvalTxChainId: ApprovalTxChainId | undefined;
     const startTime = Date.now();
 
     const isBridgeTx = isCrossChain(
@@ -1054,13 +1058,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         async () => {
           try {
-            this.update((state) => {
-              state.currentSubmissionRequest = {
-                quoteResponse,
-                isBridgeTx,
-              };
-            });
-
             return await this.#handleSolanaTx(
               quoteResponse as QuoteResponse<string> & QuoteMetadata,
               selectedAccount,
@@ -1097,13 +1094,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () => {
-          this.update((state) => {
-            state.currentSubmissionRequest = {
-              quoteResponse,
-              isBridgeTx,
-            };
-          });
-
           if (isStxEnabledOnClient || quoteResponse.quote.gasIncluded7702) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
@@ -1117,7 +1107,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 quoteResponse,
                 requireApproval,
               });
+
             approvalTxId = approvalMeta?.id;
+            approvalTxChainId = approvalMeta?.chainId;
+            if (approvalTxChainId && approvalTxId) {
+              this.#upsertSubmissionRequest(approvalTxChainId, approvalTxId, {
+                gasIncluded7702: quoteResponse.quote.gasIncluded7702 ?? false,
+                isBridgeTx,
+              });
+            }
             return tradeMeta;
           }
           // Set approval time and id if an approval tx is needed
@@ -1126,7 +1124,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             quoteResponse,
             requireApproval,
           );
+
           approvalTxId = approvalTxMeta?.id;
+          approvalTxChainId = approvalTxMeta?.chainId;
+          if (approvalTxChainId && approvalTxId) {
+            this.#upsertSubmissionRequest(approvalTxChainId, approvalTxId, {
+              gasIncluded7702: quoteResponse.quote.gasIncluded7702 ?? false,
+              isBridgeTx,
+            });
+          }
 
           await handleMobileHardwareWalletDelay(requireApproval);
 
@@ -1171,21 +1177,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     } catch {
       // Ignore errors here, we don't want to crash the app if this fails and tx submission succeeds
     } finally {
-      // Clear the current submission request state
-      this.update((state) => {
-        state.currentSubmissionRequest = undefined;
-      });
+      // Clear the submission request state
+      if (approvalTxChainId && approvalTxId) {
+        this.#clearSubmissionRequest(approvalTxChainId, approvalTxId);
+      }
     }
     return txMeta;
   };
 
   /**
-   * Gets the current submission request state
+   * Gets the  submission request state
    *
    * @returns The current submission request or undefined if none exists
    */
-  getCurrentSubmissionRequest() {
-    return this.state.currentSubmissionRequest;
+  getSubmissionRequests() {
+    return this.state.submissionRequests;
   }
 
   /**
@@ -1259,5 +1265,32 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       eventName,
       requiredEventProperties,
     );
+  };
+
+  readonly #upsertSubmissionRequest = (
+    chainId: ApprovalTxChainId,
+    approvalTxId: ApprovalTxId,
+    item: SubmissionRequestItem,
+  ) => {
+    this.update((state) => {
+      state.submissionRequests ??= {};
+      (state.submissionRequests[chainId] ??= {})[approvalTxId] = item;
+    });
+  };
+
+  readonly #clearSubmissionRequest = (
+    chainId: ApprovalTxChainId,
+    approvalTxId: ApprovalTxId,
+  ) => {
+    this.update((state) => {
+      const byChain = state.submissionRequests?.[chainId];
+      if (!byChain) {
+        return;
+      }
+      delete byChain[approvalTxId];
+      if (state.submissionRequests && Object.keys(byChain).length === 0) {
+        delete state.submissionRequests[chainId];
+      }
+    });
   };
 }

@@ -1166,12 +1166,12 @@ describe('BridgeStatusController', () => {
         estimateGasFeeFn: jest.fn(),
         state: EMPTY_INIT_STATE,
       });
-      expect(
-        bridgeStatusController.getCurrentSubmissionRequest(),
-      ).toBeUndefined();
+      expect(bridgeStatusController.getSubmissionRequests()).toStrictEqual(
+        EMPTY_INIT_STATE.submissionRequests,
+      );
     });
 
-    it('returns the current submission request when it exists', () => {
+    it('returns the submission requests when it exists', () => {
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
         clientId: BridgeClientId.EXTENSION,
@@ -1189,16 +1189,17 @@ describe('BridgeStatusController', () => {
               approvalTxId: 'bridgeApprovalTxMetaId1' as never,
             }),
           },
-          currentSubmissionRequest: {
-            quoteResponse:
-              getMockStartPollingForBridgeTxStatusArgs().quoteResponse,
-            isBridgeTx: true,
+          submissionRequests: {
+            '1': {
+              bridgeApprovalTxMetaId1: {
+                gasIncluded7702: true,
+                isBridgeTx: true,
+              },
+            },
           },
         },
       });
-      expect(
-        bridgeStatusController.getCurrentSubmissionRequest(),
-      ).toBeDefined();
+      expect(bridgeStatusController.getSubmissionRequests()).toBeDefined();
     });
   });
 

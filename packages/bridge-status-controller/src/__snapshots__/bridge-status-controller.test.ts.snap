@@ -2511,6 +2511,8 @@ Array [
 ]
 `;
 
+exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 1`] = `undefined`;
+
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
 Object {
   "batchId": "batchId1",
