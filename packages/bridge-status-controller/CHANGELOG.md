@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 513.0.0 ([#6381](https://github.com/MetaMask/core/pull/6381))
+- Release/512.0.0 ([#6376](https://github.com/MetaMask/core/pull/6376))
+- Swaps 2807 account for min dest token amount ([#6373](https://github.com/MetaMask/core/pull/6373))
+
 ### Added
 
 - Publish `StatusValidationFailed` event for invalid getTxStatus responses ([#6362](https://github.com/MetaMask/core/pull/6362))
