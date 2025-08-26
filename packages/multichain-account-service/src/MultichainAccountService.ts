@@ -25,9 +25,7 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions<
-  Account extends Bip44Account<KeyringAccount>,
-> = {
+type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: BaseBip44AccountProvider[];
 };
@@ -70,10 +68,7 @@ export class MultichainAccountService {
    * @param options.providers - Optional list of account
    * providers.
    */
-  constructor({
-    messenger,
-    providers = [],
-  }: MultichainAccountServiceOptions<Bip44Account<KeyringAccount>>) {
+  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
