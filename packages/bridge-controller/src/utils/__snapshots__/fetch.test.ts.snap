@@ -13,6 +13,7 @@ Array [
         "quote.destChainId",
         "quote.destAsset",
         "quote.destTokenAmount",
+        "quote.minDestTokenAmount",
         "quote.feeData",
         "quote.bridges",
         "quote.steps",

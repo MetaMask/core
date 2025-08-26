@@ -7,19 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [74.1.0]
 
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
-- Uses the correct internal account type for the asset ([#6358](https://github.com/MetaMask/core/pull/6358)).
+### Added
+
 - Enable `AccountTrackerController` to fetch native balances using AccountsAPI when `allowExternalServices` is enabled ([#6369](https://github.com/MetaMask/core/pull/6369))
+
   - Implement native balance fetching via AccountsAPI when `useAccountsAPI` and `allowExternalServices` are both true
   - Add fallback to RPC balance fetching when external services are disabled
   - Add comprehensive test coverage for both AccountsAPI and RPC balance fetching scenarios
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+- Add new `accountId` field to the `Asset` type ([#6358](https://github.com/MetaMask/core/pull/6358))
+
 ### Fixed
 
-- Ensure that the evm addresses used for an internal mapping are always lowercase to avoid mismatches with client format ([#6358](https://github.com/MetaMask/core/pull/6358)).
-- Prevents mutation of memoized fields, which was causing issues ([#6358](https://github.com/MetaMask/core/pull/6358)).
+- Uses `InternalAccount['type']` for the `Asset['type']` property ([#6358](https://github.com/MetaMask/core/pull/6358))
+
+- Ensure that the evm addresses used to fetch balances from AccountTrackerController state is lowercase, in order to account for discrepancies between clients ([#6358](https://github.com/MetaMask/core/pull/6358))
+
+- Prevents mutation of memoized fields used inside selectors ([#6358](https://github.com/MetaMask/core/pull/6358))
 
 - Fix duplicate token balance entries caused by case-sensitive address comparison in `TokenBalancesController.updateBalances` ([#6354](https://github.com/MetaMask/core/pull/6354))
 
@@ -27,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add comprehensive unit tests for token address normalization scenarios
 
 - Fix TokenBalancesController timeout handling by replacing `safelyExecuteWithTimeout` with proper `Promise.race` implementation ([#6365](https://github.com/MetaMask/core/pull/6365))
+
   - Replace `safelyExecuteWithTimeout` which was silently swallowing timeout errors with direct `Promise.race` that properly throws
   - Reduce RPC timeout from 3 minutes to 15 seconds for better responsiveness and batch size
   - Enable proper fallback between API and RPC balance fetchers when timeouts occur
@@ -1903,7 +1914,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.1.0...HEAD
+[74.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.0.0...@metamask/assets-controllers@74.1.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.3.0...@metamask/assets-controllers@74.0.0
 [73.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.2.0...@metamask/assets-controllers@73.3.0
 [73.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@73.1.0...@metamask/assets-controllers@73.2.0
