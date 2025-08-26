@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fix: phishing controller c2 optimization ([#6388](https://github.com/MetaMask/core/pull/6388))
+
 ## [13.1.0]
 
 ### Added
