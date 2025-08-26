@@ -3954,9 +3954,9 @@ describe('TokenBalancesController', () => {
         .mockRejectedValue(new Error('Timeout'));
 
       // This should trigger the safelyExecuteWithTimeout error path (line 440)
-      await expect(
-        controller.updateBalances({ chainIds: ['0x1'] }),
-      ).resolves.not.toThrow();
+      await expect(async () => {
+        await controller.updateBalances({ chainIds: ['0x1'] });
+      }).not.toThrow();
 
       // Restore original function
       safelyExecuteSpy.mockRestore();
