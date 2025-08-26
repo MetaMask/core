@@ -8,9 +8,6 @@
       "path": "../base-controller"
     },
     {
-      "path": "../message-manager"
-    },
-    {
       "path": "../profile-sync-controller"
     }
   ],

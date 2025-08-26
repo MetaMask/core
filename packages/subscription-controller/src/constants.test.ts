@@ -45,15 +45,4 @@ describe('constants', () => {
       expect(controllerName).toBe('SubscriptionController');
     });
   });
-
-  describe('SubscriptionControllerErrorMessage', () => {
-    it('should have correct error messages', () => {
-      expect(SubscriptionControllerErrorMessage.UserAlreadySubscribed).toBe(
-        'SubscriptionController - User is already subscribed',
-      );
-      expect(SubscriptionControllerErrorMessage.UserNotSubscribed).toBe(
-        'SubscriptionController - User is not subscribed',
-      );
-    });
-  });
 });

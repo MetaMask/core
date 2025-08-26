@@ -10,9 +10,6 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
-      "path": "../message-manager/tsconfig.build.json"
-    },
-    {
       "path": "../profile-sync-controller/tsconfig.build.json"
     }
   ],
