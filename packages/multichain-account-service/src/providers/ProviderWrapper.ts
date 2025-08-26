@@ -8,7 +8,7 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 export class ProviderWrapper
   implements AccountProvider<Bip44Account<KeyringAccount>>
 {
-  private isDisabled: boolean = false;
+  private isEnabled: boolean = true;
 
   private readonly provider: AccountProvider<Bip44Account<KeyringAccount>>;
 
@@ -17,14 +17,14 @@ export class ProviderWrapper
   }
 
   /**
-   * Set the disabled state for this provider.
+   * Set the enabled state for this provider.
    *
-   * @param disabled - Whether the provider should be disabled.
+   * @param enabled - Whether the provider should be enabled.
    */
-  setDisabled(disabled: boolean): void {
-    this.isDisabled = disabled;
+  setEnabled(enabled: boolean): void {
+    this.isEnabled = enabled;
     console.log(
-      `Provider ${this.provider.constructor.name} ${disabled ? 'disabled' : 'enabled'}`,
+      `Provider ${this.provider.constructor.name} ${enabled ? 'enabled' : 'disabled'}`,
     );
   }
 
@@ -34,7 +34,7 @@ export class ProviderWrapper
    * @returns Array of accounts, or empty array if disabled.
    */
   getAccounts(): Bip44Account<KeyringAccount>[] {
-    if (this.isDisabled) {
+    if (!this.isEnabled) {
       return [];
     }
     return this.provider.getAccounts();
@@ -49,7 +49,7 @@ export class ProviderWrapper
   getAccount(
     id: Bip44Account<KeyringAccount>['id'],
   ): Bip44Account<KeyringAccount> | undefined {
-    if (this.isDisabled) {
+    if (!this.isEnabled) {
       throw new Error(`Provider ${this.provider.constructor.name} is disabled`);
     }
     return this.provider.getAccount(id);
@@ -67,7 +67,7 @@ export class ProviderWrapper
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    if (this.isDisabled) {
+    if (!this.isEnabled) {
       console.log(
         `Provider ${this.provider.constructor.name} is disabled - skipping account creation`,
       );
@@ -88,7 +88,7 @@ export class ProviderWrapper
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    if (this.isDisabled) {
+    if (!this.isEnabled) {
       console.log(
         `Provider ${this.provider.constructor.name} is disabled - skipping account discovery`,
       );

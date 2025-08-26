@@ -59,8 +59,6 @@ export class MultichainAccountService {
     AccountContext<Bip44Account<KeyringAccount>>
   >;
 
-  #isAlignmentInProgress: boolean = false;
-
   /**
    * The name of the service.
    */
@@ -390,10 +388,10 @@ export class MultichainAccountService {
       `MultichainAccountService: Setting basic functionality ${enabled ? 'enabled' : 'disabled'}`,
     );
 
-    // Loop through providers and disable only wrapped ones when basic functionality is disabled
+    // Loop through providers and enable/disable only wrapped ones when basic functionality changes
     for (const provider of this.#providers) {
       if (isProviderWrapper(provider)) {
-        provider.setDisabled(!enabled);
+        provider.setEnabled(enabled);
       }
       // Regular providers (like EVM) are never disabled for basic functionality
     }
@@ -408,23 +406,20 @@ export class MultichainAccountService {
   /**
    * Gets whether wallet alignment is currently in progress.
    *
-   * @returns True if alignment is in progress, false otherwise.
+   * @returns True if any wallet alignment is in progress, false otherwise.
    */
   getIsAlignmentInProgress(): boolean {
-    return this.#isAlignmentInProgress;
+    return Array.from(this.#wallets.values()).some((wallet) =>
+      wallet.getIsAlignmentInProgress(),
+    );
   }
 
   /**
    * Align all multichain account wallets.
    */
   async alignWallets(): Promise<void> {
-    this.#isAlignmentInProgress = true;
-    try {
-      const wallets = this.getMultichainAccountWallets();
-      await Promise.all(wallets.map((w) => w.alignGroups()));
-    } finally {
-      this.#isAlignmentInProgress = false;
-    }
+    const wallets = this.getMultichainAccountWallets();
+    await Promise.all(wallets.map((w) => w.alignGroups()));
   }
 
   /**
@@ -433,12 +428,7 @@ export class MultichainAccountService {
    * @param entropySource - The entropy source of the multichain account wallet.
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
-    this.#isAlignmentInProgress = true;
-    try {
-      const wallet = this.getMultichainAccountWallet({ entropySource });
-      await wallet.alignGroups();
-    } finally {
-      this.#isAlignmentInProgress = false;
-    }
+    const wallet = this.getMultichainAccountWallet({ entropySource });
+    await wallet.alignGroups();
   }
 }

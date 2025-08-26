@@ -875,7 +875,7 @@ describe('MultichainAccountService', () => {
       expect(wrapper.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
 
       // Disable - should return empty array
-      wrapper.setDisabled(true);
+      wrapper.setEnabled(false);
       expect(wrapper.getAccounts()).toStrictEqual([]);
     });
 
@@ -885,7 +885,7 @@ describe('MultichainAccountService', () => {
       expect(wrapper.getAccount('test-id')).toStrictEqual(MOCK_HD_ACCOUNT_1);
 
       // Disable - should throw error
-      wrapper.setDisabled(true);
+      wrapper.setEnabled(false);
       expect(() => wrapper.getAccount('test-id')).toThrow('is disabled');
     });
 
@@ -902,7 +902,7 @@ describe('MultichainAccountService', () => {
       ]);
 
       // Disable - should return empty array and not call underlying provider
-      wrapper.setDisabled(true);
+      wrapper.setEnabled(false);
 
       const result = await wrapper.createAccounts(options);
       expect(result).toStrictEqual([]);
@@ -923,7 +923,7 @@ describe('MultichainAccountService', () => {
       ]);
 
       // Disable - should return empty array
-      wrapper.setDisabled(true);
+      wrapper.setEnabled(false);
 
       const result = await wrapper.discoverAndCreateAccounts(options);
       expect(result).toStrictEqual([]);

@@ -12,14 +12,6 @@ export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
 ) => Promise<KeyringAccount>;
 
-export const isSnapAccountProvider = (
-  provider: unknown,
-): provider is SnapAccountProvider => {
-  return (
-    provider !== null && typeof provider === 'object' && 'snapId' in provider
-  );
-};
-
 export abstract class SnapAccountProvider extends BaseAccountProvider {
   readonly snapId: SnapId;
 
@@ -63,3 +55,9 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 }
+
+export const isSnapAccountProvider = (
+  provider: unknown,
+): provider is SnapAccountProvider => {
+  return provider instanceof SnapAccountProvider;
+};
