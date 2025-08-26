@@ -4,6 +4,8 @@ import {
   AppMetadataController,
   getDefaultAppMetadataControllerState,
   type AppMetadataControllerOptions,
+  AppMetadataControllerActions,
+  AppMetadataControllerEvents,
 } from './AppMetadataController';
 
 describe('AppMetadataController', () => {
@@ -148,12 +150,16 @@ function withController<ReturnValue>(
 ): ReturnValue {
   const [options = {}, fn] = args.length === 2 ? args : [{}, args[0]];
 
-  const rootMessenger = new Messenger<'Root'>({ namespace: 'Root' });
+  const rootMessenger = new Messenger<
+    'Root',
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents
+  >({ namespace: 'Root' });
 
   const appMetadataControllerMessenger = new Messenger<
     'AppMetadataController',
-    never,
-    never,
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents,
     typeof rootMessenger
   >({
     namespace: 'AppMetadataController',
