@@ -4,8 +4,8 @@ import {
   AppMetadataController,
   getDefaultAppMetadataControllerState,
   type AppMetadataControllerOptions,
-  AppMetadataControllerActions,
-  AppMetadataControllerEvents,
+  type AppMetadataControllerActions,
+  type AppMetadataControllerEvents,
 } from './AppMetadataController';
 
 describe('AppMetadataController', () => {
