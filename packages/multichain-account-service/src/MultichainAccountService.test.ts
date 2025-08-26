@@ -6,8 +6,8 @@ import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import { MultichainAccountService } from './MultichainAccountService';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
+import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
 import {
