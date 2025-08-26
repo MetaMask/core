@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+- **BREAKING**: Rename `BaseAccountProvider` to `BaseBip44AccountProvider` for clarity ([#6332](https://github.com/MetaMask/core/pull/6332))
+  - `ProviderWrapper` now extends `BaseBip44AccountProvider` instead of implementing interface directly ([#6332](https://github.com/MetaMask/core/pull/6332))
 
 ## [0.5.0]
 
