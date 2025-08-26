@@ -5,13 +5,13 @@ import {
 import type {
   MultichainAccountWalletId,
   Bip44Account,
-  AccountProvider,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { BaseBip44AccountProvider } from './providers/BaseAccountProvider';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import {
   ProviderWrapper,
@@ -29,7 +29,7 @@ type MultichainAccountServiceOptions<
   Account extends Bip44Account<KeyringAccount>,
 > = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: AccountProvider<Account>[];
+  providers?: BaseBip44AccountProvider[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -44,10 +44,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: (
-    | AccountProvider<Bip44Account<KeyringAccount>>
-    | ProviderWrapper
-  )[];
+  readonly #providers: (BaseBip44AccountProvider | ProviderWrapper)[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -84,7 +81,10 @@ export class MultichainAccountService {
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(this.#messenger),
-      new ProviderWrapper(new SolAccountProvider(this.#messenger)),
+      new ProviderWrapper(
+        this.#messenger,
+        new SolAccountProvider(this.#messenger),
+      ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];

@@ -661,21 +661,20 @@ describe('MultichainAccountService', () => {
       expect(service.getIsAlignmentInProgress()).toBe(false);
     });
 
-    it('returns false after alignment error', async () => {
+    it('returns false after alignment completes even with provider errors', async () => {
       const { service, mocks } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
 
+      // Mock a provider error during alignment
       mocks.EvmAccountProvider.createAccounts.mockRejectedValueOnce(
         new Error('Test error'),
       );
 
-      try {
-        await service.alignWallets();
-      } catch {
-        // Expected to throw
-      }
+      // Alignment should complete gracefully without throwing
+      await service.alignWallets();
 
+      // Flag should be reset even after provider errors
       expect(service.getIsAlignmentInProgress()).toBe(false);
     });
   });
@@ -860,18 +859,35 @@ describe('MultichainAccountService', () => {
   });
 
   describe('ProviderWrapper disabled behavior', () => {
-    let mockProvider: MockAccountProvider;
     let wrapper: ProviderWrapper;
+    let solProvider: SolAccountProvider;
 
     beforeEach(() => {
-      const { mocks } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
-      mockProvider = mocks.SolAccountProvider;
-      wrapper = new ProviderWrapper(mockProvider);
+      const { messenger } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      // Create actual SolAccountProvider instance for wrapping
+      solProvider = new SolAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+      );
+
+      // Spy on the provider methods
+      jest.spyOn(solProvider, 'getAccounts');
+      jest.spyOn(solProvider, 'getAccount');
+      jest.spyOn(solProvider, 'createAccounts');
+      jest.spyOn(solProvider, 'discoverAndCreateAccounts');
+      jest.spyOn(solProvider, 'isAccountCompatible');
+
+      wrapper = new ProviderWrapper(
+        getMultichainAccountServiceMessenger(messenger),
+        solProvider,
+      );
     });
 
     it('returns empty array when getAccounts() is disabled', () => {
       // Enable first - should work normally
-      mockProvider.getAccounts.mockReturnValue([MOCK_HD_ACCOUNT_1]);
+      (solProvider.getAccounts as jest.Mock).mockReturnValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
       expect(wrapper.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
 
       // Disable - should return empty array
@@ -881,12 +897,14 @@ describe('MultichainAccountService', () => {
 
     it('throws error when getAccount() is disabled', () => {
       // Enable first - should work normally
-      mockProvider.getAccount.mockReturnValue(MOCK_HD_ACCOUNT_1);
+      (solProvider.getAccount as jest.Mock).mockReturnValue(MOCK_HD_ACCOUNT_1);
       expect(wrapper.getAccount('test-id')).toStrictEqual(MOCK_HD_ACCOUNT_1);
 
       // Disable - should throw error
       wrapper.setEnabled(false);
-      expect(() => wrapper.getAccount('test-id')).toThrow('is disabled');
+      expect(() => wrapper.getAccount('test-id')).toThrow(
+        'Provider is disabled',
+      );
     });
 
     it('returns empty array when createAccounts() is disabled', async () => {
@@ -896,7 +914,9 @@ describe('MultichainAccountService', () => {
       };
 
       // Enable first - should work normally
-      mockProvider.createAccounts.mockResolvedValue([MOCK_HD_ACCOUNT_1]);
+      (solProvider.createAccounts as jest.Mock).mockResolvedValue([
+        MOCK_HD_ACCOUNT_1,
+      ]);
       expect(await wrapper.createAccounts(options)).toStrictEqual([
         MOCK_HD_ACCOUNT_1,
       ]);
@@ -915,7 +935,7 @@ describe('MultichainAccountService', () => {
       };
 
       // Enable first - should work normally
-      mockProvider.discoverAndCreateAccounts.mockResolvedValue([
+      (solProvider.discoverAndCreateAccounts as jest.Mock).mockResolvedValue([
         MOCK_HD_ACCOUNT_1,
       ]);
       expect(await wrapper.discoverAndCreateAccounts(options)).toStrictEqual([
@@ -929,28 +949,17 @@ describe('MultichainAccountService', () => {
       expect(result).toStrictEqual([]);
     });
 
-    it('proxies isAccountCompatible() correctly', () => {
-      // Test when provider has the method
-      const providerWithMethod = mockProvider as MockAccountProvider & {
-        isAccountCompatible: jest.Mock;
-      };
-      jest
-        .spyOn(providerWithMethod, 'isAccountCompatible')
-        .mockImplementation()
-        .mockReturnValue(true);
+    it('delegates isAccountCompatible() to wrapped provider', () => {
+      // Mock the provider's compatibility check
+      (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(true);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(true);
-      expect(providerWithMethod.isAccountCompatible).toHaveBeenCalledWith(
+      expect(solProvider.isAccountCompatible).toHaveBeenCalledWith(
         MOCK_HD_ACCOUNT_1,
       );
 
-      // Test when provider doesn't have the method (fallback to true)
-      const providerWithoutMethod = { ...mockProvider };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (providerWithoutMethod as any).isAccountCompatible = undefined;
-      const wrapperWithoutMethod = new ProviderWrapper(providerWithoutMethod);
-      expect(wrapperWithoutMethod.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(
-        true,
-      );
+      // Test with false return
+      (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
+      expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
     });
   });
 });

@@ -10,7 +10,7 @@ import type { Hex } from '@metamask/utils';
 
 import {
   assertAreBip44Accounts,
-  BaseAccountProvider,
+  BaseBip44AccountProvider,
 } from './BaseAccountProvider';
 
 /**
@@ -27,7 +27,7 @@ function assertInternalAccountExists(
   }
 }
 
-export class EvmAccountProvider extends BaseAccountProvider {
+export class EvmAccountProvider extends BaseBip44AccountProvider {
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&

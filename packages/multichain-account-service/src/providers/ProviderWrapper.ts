@@ -1,18 +1,23 @@
-import type { AccountProvider, Bip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 
+import { BaseBip44AccountProvider } from './BaseAccountProvider';
+import type { MultichainAccountServiceMessenger } from '../types';
+
 /**
- * A simple wrapper that adds disable functionality to any AccountProvider.
+ * A simple wrapper that adds disable functionality to any BaseAccountProvider.
  * When disabled, the provider will not create new accounts and return empty results.
  */
-export class ProviderWrapper
-  implements AccountProvider<Bip44Account<KeyringAccount>>
-{
+export class ProviderWrapper extends BaseBip44AccountProvider {
   private isEnabled: boolean = true;
 
-  private readonly provider: AccountProvider<Bip44Account<KeyringAccount>>;
+  private readonly provider: BaseBip44AccountProvider;
 
-  constructor(provider: AccountProvider<Bip44Account<KeyringAccount>>) {
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    provider: BaseBip44AccountProvider,
+  ) {
+    super(messenger);
     this.provider = provider;
   }
 
@@ -26,11 +31,11 @@ export class ProviderWrapper
   }
 
   /**
-   * Get accounts, returns empty array when disabled.
+   * Override getAccounts to return empty array when disabled.
    *
    * @returns Array of accounts, or empty array if disabled.
    */
-  getAccounts(): Bip44Account<KeyringAccount>[] {
+  override getAccounts(): Bip44Account<KeyringAccount>[] {
     if (!this.isEnabled) {
       return [];
     }
@@ -38,22 +43,34 @@ export class ProviderWrapper
   }
 
   /**
-   * Get account by ID, throws error when disabled.
+   * Override getAccount to throw when disabled.
    *
    * @param id - The account ID to retrieve.
-   * @returns The account with the specified ID, or undefined if not found.
+   * @returns The account with the specified ID.
+   * @throws When disabled or account not found.
    */
-  getAccount(
+  override getAccount(
     id: Bip44Account<KeyringAccount>['id'],
-  ): Bip44Account<KeyringAccount> | undefined {
+  ): Bip44Account<KeyringAccount> {
     if (!this.isEnabled) {
-      return undefined;
+      throw new Error('Provider is disabled');
     }
     return this.provider.getAccount(id);
   }
 
   /**
-   * Create accounts, returns empty array when disabled.
+   * Implement abstract method: Check if account is compatible.
+   * Delegates directly to wrapped provider - no runtime checks needed!
+   *
+   * @param account - The account to check.
+   * @returns True if the account is compatible.
+   */
+  isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean {
+    return this.provider.isAccountCompatible(account);
+  }
+
+  /**
+   * Implement abstract method: Create accounts, returns empty array when disabled.
    *
    * @param options - Account creation options.
    * @param options.entropySource - The entropy source to use.
@@ -71,7 +88,7 @@ export class ProviderWrapper
   }
 
   /**
-   * Discover and create accounts, returns empty array when disabled.
+   * Implement abstract method: Discover and create accounts, returns empty array when disabled.
    *
    * @param options - Account discovery options.
    * @param options.entropySource - The entropy source to use.
@@ -87,24 +104,6 @@ export class ProviderWrapper
     }
     return this.provider.discoverAndCreateAccounts(options);
   }
-
-  /**
-   * Check if account is compatible.
-   *
-   * @param account - The account to check.
-   * @returns True if the account is compatible.
-   */
-  isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean {
-    // Check if the provider has the method (from BaseAccountProvider)
-    if (
-      'isAccountCompatible' in this.provider &&
-      typeof this.provider.isAccountCompatible === 'function'
-    ) {
-      return this.provider.isAccountCompatible(account);
-    }
-    // Fallback: return true if the method doesn't exist
-    return true;
-  }
 }
 
 /**
@@ -114,7 +113,7 @@ export class ProviderWrapper
  * @returns True if the provider is a ProviderWrapper.
  */
 export function isProviderWrapper(
-  provider: AccountProvider<Bip44Account<KeyringAccount>> | ProviderWrapper,
+  provider: BaseBip44AccountProvider | ProviderWrapper,
 ): provider is ProviderWrapper {
   return provider instanceof ProviderWrapper;
 }
