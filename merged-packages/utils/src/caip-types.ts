@@ -143,6 +143,15 @@ export enum KnownCaipNamespace {
 }
 
 /**
+ * A CAIP-2 chain ID that is guaranteed to have a known CAIP namespace
+ * (@see {@link KnownCaipNamespace}).
+ *
+ * This is a narrower, more type-safe alternative to {@link CaipChainId} for use cases
+ * where the chain namespace must be one of the known standards.
+ */
+export type KnownCaipNamespacedChainId = `${KnownCaipNamespace}:${string}`;
+
+/**
  * Check if the given value is a {@link CaipChainId}.
  *
  * @param value - The value to check.
