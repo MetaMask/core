@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Publish `QuotesValidationFailed` and `StatusValidationFailed` events ([#6362](https://github.com/MetaMask/core/pull/6362))
+
 ## [41.2.0]
 
 ### Uncategorized
