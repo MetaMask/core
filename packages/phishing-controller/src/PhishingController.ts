@@ -36,7 +36,7 @@ export const PHISHING_CONFIG_BASE_URL =
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 
-export const CLIENT_SIDE_DETECION_BASE_URL =
+export const CLIENT_SIDE_DETECTION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
 export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 
@@ -51,7 +51,7 @@ export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in secon
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
-export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
+export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECTION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
 
 /**
  * @type ListTypes
