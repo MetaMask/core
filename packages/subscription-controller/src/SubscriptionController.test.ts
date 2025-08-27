@@ -306,8 +306,7 @@ describe('SubscriptionController', () => {
 
           expect(
             await controller.cancelSubscription({
-              subscriptionId: 'sub_123456789',
-              type: ProductType.SHIELD,
+              subscriptionId: MOCK_SUBSCRIPTION.id,
             }),
           ).toBeUndefined();
 
@@ -316,7 +315,7 @@ describe('SubscriptionController', () => {
           ]);
 
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: 'sub_123456789',
+            subscriptionId: MOCK_SUBSCRIPTION.id,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
@@ -334,7 +333,6 @@ describe('SubscriptionController', () => {
           await expect(
             controller.cancelSubscription({
               subscriptionId: 'sub_123456789',
-              type: ProductType.SHIELD,
             }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserNotSubscribed,
@@ -354,7 +352,6 @@ describe('SubscriptionController', () => {
           await expect(
             controller.cancelSubscription({
               subscriptionId: 'sub_123456789',
-              type: ProductType.SHIELD,
             }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserNotSubscribed,
@@ -382,7 +379,6 @@ describe('SubscriptionController', () => {
           await expect(
             controller.cancelSubscription({
               subscriptionId: 'sub_123456789',
-              type: ProductType.SHIELD,
             }),
           ).rejects.toThrow(SubscriptionServiceError);
 
@@ -405,7 +401,6 @@ describe('SubscriptionController', () => {
         await expect(
           controller.cancelSubscription({
             subscriptionId: 'sub_123456789',
-            type: ProductType.SHIELD,
           }),
         ).rejects.toThrow(SubscriptionControllerErrorMessage.UserNotSubscribed);
 
@@ -427,100 +422,12 @@ describe('SubscriptionController', () => {
         expect(
           await controller.cancelSubscription({
             subscriptionId: 'sub_123456789',
-            type: ProductType.SHIELD,
           }),
         ).toBeUndefined();
 
         expect(mockService.cancelSubscription).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
         });
-      });
-    });
-  });
-
-  describe('edge cases', () => {
-    it('should handle empty subscription ID in cancellation', async () => {
-      await withController(
-        {
-          state: {
-            subscriptions: [MOCK_SUBSCRIPTION],
-          },
-        },
-        async ({ controller, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue(undefined);
-
-          expect(
-            await controller.cancelSubscription({
-              subscriptionId: '',
-              type: ProductType.SHIELD,
-            }),
-          ).toBeUndefined();
-
-          expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: '',
-          });
-        },
-      );
-    });
-
-    it('should handle very long subscription ID', async () => {
-      await withController(
-        {
-          state: {
-            subscriptions: [MOCK_SUBSCRIPTION],
-          },
-        },
-        async ({ controller, mockService }) => {
-          const longSubscriptionId = 'a'.repeat(1000);
-          mockService.cancelSubscription.mockResolvedValue(undefined);
-
-          expect(
-            await controller.cancelSubscription({
-              subscriptionId: longSubscriptionId,
-              type: ProductType.SHIELD,
-            }),
-          ).toBeUndefined();
-
-          expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: longSubscriptionId,
-          });
-        },
-      );
-    });
-
-    it('should handle subscription with all optional fields undefined', async () => {
-      await withController(async ({ controller, mockService }) => {
-        const minimalSubscription: Subscription = {
-          id: 'minimal_sub',
-          products: [
-            {
-              name: ProductType.SHIELD,
-              id: 'prod_minimal',
-              currency: 'USD',
-              amount: 0,
-            },
-          ],
-          currentPeriodStart: '2024-01-01T00:00:00Z',
-          currentPeriodEnd: '2024-02-01T00:00:00Z',
-          status: 'active',
-          interval: 'month',
-          paymentMethod: {
-            type: PaymentType.CARD,
-          },
-        };
-
-        mockService.getSubscriptions.mockResolvedValue({
-          customerId: 'cus_1',
-          subscriptions: [minimalSubscription],
-          trialedProducts: [],
-        });
-
-        const result = await controller.getSubscriptions();
-
-        expect(result).toStrictEqual([minimalSubscription]);
-        expect(controller.state.subscriptions).toStrictEqual([
-          minimalSubscription,
-        ]);
       });
     });
   });

@@ -36,16 +36,21 @@ const MOCK_ERROR_RESPONSE = {
 /**
  * Creates a mock subscription service config for testing
  *
- * @param env - The environment to use for the config
+ * @param params - The parameters object
+ * @param [params.env] - The environment to use for the config
+ * @param [params.fetchFn] - The fetch function to use for the config
  * @returns The mock configuration object
  */
-function createMockConfig(env: Env = Env.DEV) {
+function createMockConfig({
+  env = Env.DEV,
+  fetchFn = fetch,
+}: { env?: Env; fetchFn?: typeof fetch } = {}) {
   return {
     env,
     auth: {
       getAccessToken: jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
     },
-    fetchFn: fetch,
+    fetchFn,
   };
 }
 
@@ -92,9 +97,9 @@ describe('SubscriptionService', () => {
     });
 
     it('should create instance with different environments', () => {
-      const devConfig = createMockConfig(Env.DEV);
-      const uatConfig = createMockConfig(Env.UAT);
-      const prdConfig = createMockConfig(Env.PRD);
+      const devConfig = createMockConfig({ env: Env.DEV });
+      const uatConfig = createMockConfig({ env: Env.UAT });
+      const prdConfig = createMockConfig({ env: Env.PRD });
 
       expect(() => new SubscriptionService(devConfig)).not.toThrow();
       expect(() => new SubscriptionService(uatConfig)).not.toThrow();
@@ -161,6 +166,16 @@ describe('SubscriptionService', () => {
           SubscriptionServiceError,
         );
       });
+    });
+
+    it('should handle null exceptions in catch block', async () => {
+      const fetchMock = jest.fn().mockRejectedValueOnce(null);
+      const config = createMockConfig({ fetchFn: fetchMock });
+      const service = new SubscriptionService(config);
+
+      await expect(
+        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+      ).rejects.toThrow(SubscriptionServiceError);
     });
   });
 

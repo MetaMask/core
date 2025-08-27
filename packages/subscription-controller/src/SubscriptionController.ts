@@ -162,11 +162,8 @@ export class SubscriptionController extends BaseController<
     return subscriptions;
   }
 
-  async cancelSubscription(request: {
-    subscriptionId: string;
-    type: ProductType;
-  }) {
-    this.#assertIsUserSubscribed({ productType: request.type });
+  async cancelSubscription(request: { subscriptionId: string }) {
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     await this.#subscriptionService.cancelSubscription({
       subscriptionId: request.subscriptionId,
@@ -181,12 +178,10 @@ export class SubscriptionController extends BaseController<
     });
   }
 
-  #assertIsUserSubscribed(request: { productType: ProductType }) {
+  #assertIsUserSubscribed(request: { subscriptionId: string }) {
     if (
-      !this.state.subscriptions.find((subscription) =>
-        subscription.products.some(
-          (product) => product.name === request.productType,
-        ),
+      !this.state.subscriptions.find(
+        (subscription) => subscription.id === request.subscriptionId,
       )
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
