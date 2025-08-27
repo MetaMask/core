@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Bitcoin as a supported bridge chain ([#6389](https://github.com/MetaMask/core/pull/6389))
+- Export `isBitcoinChainId` utility function ([#6389](https://github.com/MetaMask/core/pull/6389))
 
 ## [41.3.0]
 
