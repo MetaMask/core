@@ -755,7 +755,7 @@ export class Messenger<
           | undefined;
         if (!actionHandler) {
           throw new Error(
-            `Cannot call '${actionType}', action not registered.`,
+            `A handler for ${actionType} has not been registered`,
           );
         }
         return actionHandler(...args);

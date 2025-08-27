@@ -1265,7 +1265,7 @@ describe('Messenger', () => {
       });
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        `Cannot call 'Source:getLength', action not registered.`,
+        `A handler for Source:getLength has not been registered`,
       );
     });
   });
