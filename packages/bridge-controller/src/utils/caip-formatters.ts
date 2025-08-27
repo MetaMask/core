@@ -147,9 +147,7 @@ export const formatAddressToAssetId = (
   if (chainId === SolScope.Mainnet) {
     return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
   }
-  if (chainId === BtcScope.Mainnet) {
-    return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
-  }
+
   // EVM assets
   if (!isStrictHexString(addressOrAssetId)) {
     return undefined;
