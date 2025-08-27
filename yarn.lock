@@ -4687,6 +4687,7 @@ __metadata:
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/gas-fee-controller": "npm:^24.0.0"
+    "@metamask/messenger": "npm:^0.1.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^24.1.0"
     "@metamask/nonce-tracker": "npm:^6.0.0"

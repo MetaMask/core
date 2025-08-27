@@ -4,7 +4,6 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -15,6 +14,7 @@ import {
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
+import { Messenger } from '@metamask/messenger';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -56,6 +56,7 @@ import type {
   MethodData,
   TransactionControllerActions,
   TransactionControllerEvents,
+  TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
@@ -111,7 +112,8 @@ import {
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
 
-type UnrestrictedMessenger = Messenger<
+type RootMessenger = Messenger<
+  'Root',
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents
 >;
@@ -328,10 +330,7 @@ function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
  * @returns A promise that resolves with the transaction meta when the transaction is finished.
  */
 function waitForTransactionFinished(
-  messenger: Messenger<
-    TransactionControllerActions | AllowedActions,
-    TransactionControllerEvents | AllowedEvents
-  >,
+  messenger: TransactionControllerMessenger | RootMessenger,
   { confirmed = false } = {},
 ): Promise<TransactionMeta> {
   const eventName = confirmed
@@ -657,19 +656,33 @@ describe('TransactionController', () => {
         listener(networkState);
       });
     };
-    const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
+    const rootMessenger: RootMessenger = new Messenger({
+      namespace: 'Root',
+    });
+    const networkControllerMessenger = new Messenger<
+      'NetworkController',
+      AllowedActions,
+      AllowedEvents,
+      typeof rootMessenger
+    >({ namespace: 'NetworkController', parent: rootMessenger });
     const getNetworkClientById = buildMockGetNetworkClientById(
       mockNetworkClientConfigurationsByNetworkClientId,
     );
-    unrestrictedMessenger.registerActionHandler(
+    networkControllerMessenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientById,
     );
 
     const { addTransactionApprovalRequest = { state: 'pending' } } =
       messengerOptions;
+    const approvalControllerMessenger = new Messenger<
+      'ApprovalController',
+      AllowedActions,
+      AllowedEvents,
+      typeof rootMessenger
+    >({ namespace: 'ApprovalController', parent: rootMessenger });
     const mockTransactionApprovalRequest = mockAddTransactionApprovalRequest(
-      unrestrictedMessenger,
+      approvalControllerMessenger,
       addTransactionApprovalRequest,
     );
 
@@ -694,28 +707,38 @@ describe('TransactionController', () => {
       ...givenOptions,
     };
 
-    const restrictedMessenger =
+    const transactionControllerMessenger: TransactionControllerMessenger =
       givenRestrictedMessenger ??
-      unrestrictedMessenger.getRestricted({
-        name: 'TransactionController',
-        allowedActions: [
-          'AccountsController:getSelectedAccount',
-          'AccountsController:getState',
-          'ApprovalController:addRequest',
-          'NetworkController:getNetworkClientById',
-          'NetworkController:findNetworkClientIdByChainId',
-          'RemoteFeatureFlagController:getState',
-        ],
-        allowedEvents: [],
+      new Messenger({
+        namespace: 'TransactionController',
+        parent: rootMessenger,
       });
+    rootMessenger.delegate({
+      messenger: transactionControllerMessenger,
+      actions: [
+        'AccountsController:getSelectedAccount',
+        'AccountsController:getState',
+        'ApprovalController:addRequest',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:findNetworkClientIdByChainId',
+        'RemoteFeatureFlagController:getState',
+      ],
+    });
+
+    const accountsControllerMessenger = new Messenger<
+      'AccountsController',
+      AllowedActions,
+      AllowedEvents,
+      typeof rootMessenger
+    >({ namespace: 'AccountsController', parent: rootMessenger });
 
     const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
-    unrestrictedMessenger.registerActionHandler(
+    accountsControllerMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
       mockGetSelectedAccount,
     );
 
-    unrestrictedMessenger.registerActionHandler(
+    accountsControllerMessenger.registerActionHandler(
       'AccountsController:getState',
       () => ({}) as never,
     );
@@ -724,14 +747,24 @@ describe('TransactionController', () => {
       featureFlags: {},
     });
 
-    unrestrictedMessenger.registerActionHandler(
+    const remoteFeatureFlagControllerMessenger = new Messenger<
+      'RemoteFeatureFlagController',
+      AllowedActions,
+      AllowedEvents,
+      typeof rootMessenger
+    >({
+      namespace: 'RemoteFeatureFlagController',
+      parent: rootMessenger,
+    });
+
+    remoteFeatureFlagControllerMessenger.registerActionHandler(
       'RemoteFeatureFlagController:getState',
       remoteFeatureFlagControllerGetStateMock,
     );
 
     const controller = new TransactionController({
       ...otherOptions,
-      messenger: restrictedMessenger,
+      messenger: transactionControllerMessenger,
     } as TransactionControllerOptions);
 
     const state = givenOptions?.state;
@@ -754,7 +787,8 @@ describe('TransactionController', () => {
 
     return {
       controller,
-      messenger: unrestrictedMessenger,
+      messenger: transactionControllerMessenger,
+      networkControllerMessenger,
       mockTransactionApprovalRequest,
       mockGetSelectedAccount,
       changeNetwork,
@@ -783,7 +817,7 @@ describe('TransactionController', () => {
    * finally the mocked version of the action handler itself.
    */
   function mockAddTransactionApprovalRequest(
-    messenger: UnrestrictedMessenger,
+    messenger: Messenger<'ApprovalController', AllowedActions, AllowedEvents>,
     options:
       | {
           state: 'approved';
@@ -6015,8 +6049,8 @@ describe('TransactionController', () => {
     });
 
     it('uses the nonceTracker for the networkClientId matching the chainId', async () => {
-      const { controller, messenger } = setupController();
-      messenger.registerActionHandler(
+      const { controller, networkControllerMessenger } = setupController();
+      networkControllerMessenger.registerActionHandler(
         'NetworkController:findNetworkClientIdByChainId',
         () => 'sepolia',
       );
