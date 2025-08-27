@@ -1,8 +1,6 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
+import type { AccountTreeControllerGetAccountsFromSelectedAccountGroupAction } from '@metamask/account-tree-controller';
+import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -46,6 +44,7 @@ import type {
   RefreshPooledStakingDataOptions,
   RefreshPooledStakingVaultDailyApysOptions,
 } from './types';
+import type { InternalAccount } from '../../transaction-controller/src/types';
 
 export const controllerName = 'EarnController';
 
@@ -236,7 +235,7 @@ export type EarnControllerActions = EarnControllerGetStateAction;
  */
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 /**
  * The event that EarnController publishes when updating state.
@@ -450,12 +449,25 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Gets the current account.
+   * Gets the EVM account from the selected account group.
    *
-   * @returns The current account.
+   * @returns The EVM account or undefined if no EVM account is found.
    */
-  #getCurrentAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  #getSelectedEvmAccount(): InternalAccount | undefined {
+    return this.messagingSystem
+      .call('AccountTreeController:getAccountsFromSelectedAccountGroup')
+      .find((account: InternalAccount) =>
+        account.type.startsWith('eip155:'),
+    );
+  }
+
+  /**
+   * Gets the EVM account address from the selected account group.
+   *
+   * @returns The EVM account address or undefined if no EVM account is found.
+   */
+  #getSelectedEvmAccountAddress(): string | undefined {
+    return this.#getSelectedEvmAccount()?.address;
   }
 
   /**
@@ -474,7 +486,7 @@ export class EarnController extends BaseController<
     address,
     chainId = ChainId.ETHEREUM,
   }: RefreshPooledStakesOptions = {}): Promise<void> {
-    const addressToUse = address ?? this.#getCurrentAccount()?.address;
+    const addressToUse = address ?? this.#getSelectedEvmAccountAddress();
 
     if (!addressToUse) {
       return;
@@ -516,7 +528,7 @@ export class EarnController extends BaseController<
   async refreshEarnEligibility({
     address,
   }: RefreshEarnEligibilityOptions = {}): Promise<void> {
-    const addressToCheck = address ?? this.#getCurrentAccount()?.address;
+    const addressToCheck = address ?? this.#getSelectedEvmAccountAddress();
 
     if (!addressToCheck) {
       return;
@@ -704,7 +716,7 @@ export class EarnController extends BaseController<
   async refreshLendingPositions({
     address,
   }: RefreshLendingPositionsOptions = {}): Promise<void> {
-    const addressToUse = address ?? this.#getCurrentAccount()?.address;
+    const addressToUse = address ?? this.#getSelectedEvmAccountAddress();
 
     if (!addressToUse) {
       return;
@@ -737,7 +749,7 @@ export class EarnController extends BaseController<
   async refreshLendingEligibility({
     address,
   }: RefreshLendingEligibilityOptions = {}): Promise<void> {
-    const addressToUse = address ?? this.#getCurrentAccount()?.address;
+    const addressToUse = address ?? this.#getSelectedEvmAccountAddress();
     // TODO: this is a temporary solution to refresh lending eligibility as
     // the eligibility check is not yet implemented for lending
     // this check will check the address against the same blocklist as the
@@ -820,7 +832,7 @@ export class EarnController extends BaseController<
     protocol: string;
     days?: number;
   }) {
-    const addressToUse = address ?? this.#getCurrentAccount()?.address;
+    const addressToUse = address ?? this.#getSelectedEvmAccountAddress();
 
     if (!addressToUse || !isSupportedLendingChain(chainId)) {
       return [];
@@ -904,7 +916,11 @@ export class EarnController extends BaseController<
       typeof TransactionController.prototype.addTransaction
     >[1];
   }) {
-    const address = this.#getCurrentAccount()?.address;
+    const address = this.#getSelectedEvmAccountAddress();
+
+    if (!address) {
+      throw new Error('No EVM-compatible account address found');
+    }
 
     const transactionData = await this.#earnSDK?.contracts?.lending?.[
       protocol
@@ -975,7 +991,11 @@ export class EarnController extends BaseController<
       typeof TransactionController.prototype.addTransaction
     >[1];
   }) {
-    const address = this.#getCurrentAccount()?.address;
+    const address = this.#getSelectedEvmAccountAddress();
+
+    if (!address) {
+      throw new Error('No EVM-compatible account address found');
+    }
 
     const transactionData = await this.#earnSDK?.contracts?.lending?.[
       protocol
@@ -1047,7 +1067,11 @@ export class EarnController extends BaseController<
       typeof TransactionController.prototype.addTransaction
     >[1];
   }) {
-    const address = this.#getCurrentAccount()?.address;
+    const address = this.#getSelectedEvmAccountAddress();
+
+    if (!address) {
+      throw new Error('No EVM-compatible account address found');
+    }
 
     const transactionData = await this.#earnSDK?.contracts?.lending?.[
       protocol
@@ -1096,7 +1120,11 @@ export class EarnController extends BaseController<
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
   ) {
-    const address = this.#getCurrentAccount()?.address;
+    const address = this.#getSelectedEvmAccountAddress();
+
+    if (!address) {
+      return
+    }
 
     const allowance =
       await this.#earnSDK?.contracts?.lending?.[protocol]?.[
@@ -1117,7 +1145,11 @@ export class EarnController extends BaseController<
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
   ) {
-    const address = this.#getCurrentAccount()?.address;
+    const address = this.#getSelectedEvmAccountAddress();
+
+    if (!address) {
+      return
+    }
 
     const maxWithdraw =
       await this.#earnSDK?.contracts?.lending?.[protocol]?.[
@@ -1138,7 +1170,11 @@ export class EarnController extends BaseController<
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
   ) {
-    const address = this.#getCurrentAccount()?.address;
+    const address = this.#getSelectedEvmAccountAddress();
+
+    if (!address) {
+      return
+    }
 
     const maxDeposit =
       await this.#earnSDK?.contracts?.lending?.[protocol]?.[

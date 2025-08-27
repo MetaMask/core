@@ -106,7 +106,7 @@ function getEarnControllerMessenger(
     name: 'EarnController',
     allowedActions: [
       'NetworkController:getNetworkClientById',
-      'AccountsController:getSelectedAccount',
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
@@ -118,9 +118,13 @@ function getEarnControllerMessenger(
 
 type InternalAccount = ReturnType<AccountsController['getSelectedAccount']>;
 
+const mockAccount1Address = '0x1234';
+
+const mockAccount2Address = '0xabc';
+
 const createMockInternalAccount = ({
   id = '123e4567-e89b-12d3-a456-426614174000',
-  address = '0x2990079bcdee240329a520d2444386fc119da21a',
+  address = mockAccount1Address,
   name = 'Account 1',
   importTime = Date.now(),
   lastSelected = Date.now(),
@@ -147,9 +151,7 @@ const createMockInternalAccount = ({
   };
 };
 
-const mockAccount1Address = '0x1234';
-
-const mockAccount2Address = '0xabc';
+const mockInternalAccount1 = createMockInternalAccount();
 
 const createMockTransaction = ({
   id = '1',
@@ -661,9 +663,9 @@ const setupController = async ({
     },
   })),
 
-  mockGetSelectedAccount = jest.fn(() => ({
-    address: mockAccount1Address,
-  })),
+  mockGetAccountsFromSelectedAccountGroup = jest.fn(() => [
+    mockInternalAccount1,
+  ]),
 
   addTransactionFn = jest.fn(),
   selectedNetworkClientId = '1',
@@ -671,7 +673,7 @@ const setupController = async ({
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
   mockGetNetworkClientById?: jest.Mock;
   mockGetNetworkControllerState?: jest.Mock;
-  mockGetSelectedAccount?: jest.Mock;
+  mockGetAccountsFromSelectedAccountGroup?: jest.Mock;
   addTransactionFn?: jest.Mock;
   selectedNetworkClientId?: string;
 } = {}) => {
@@ -682,8 +684,8 @@ const setupController = async ({
     mockGetNetworkClientById,
   );
   messenger.registerActionHandler(
-    'AccountsController:getSelectedAccount',
-    mockGetSelectedAccount,
+    'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    mockGetAccountsFromSelectedAccountGroup,
   );
 
   const earnControllerMessenger = getEarnControllerMessenger(messenger);
@@ -1008,7 +1010,7 @@ describe('EarnController', () => {
       // if no account is selected, it should not fetch stakes data but still update vault metadata, vault daily apys and vault apy averages.
       it('does not fetch staking data if no account is selected', async () => {
         const { controller } = await setupController({
-          mockGetSelectedAccount: jest.fn(() => null),
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
         });
 
         expect(
@@ -1694,9 +1696,7 @@ describe('EarnController', () => {
 
       it('returns empty array if no address is provided', async () => {
         const { controller } = await setupController({
-          mockGetSelectedAccount: jest.fn(() => ({
-            address: null,
-          })),
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
         });
         const result = await controller.getLendingPositionHistory({
           chainId: 1,
@@ -1983,6 +1983,24 @@ describe('EarnController', () => {
           }),
         ).rejects.toThrow('Selected network client id not found');
       });
+
+      it('handles no selected account address found', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+        await expect(
+          controller.executeLendingDeposit({
+            amount: '100',
+            chainId: '0x1',
+            protocol: 'aave' as LendingMarket['protocol'],
+            underlyingTokenAddress: '0x123',
+            gasOptions: {},
+            txOptions: {
+              networkClientId: '1',
+            },
+          }),
+        ).rejects.toThrow('No EVM-compatible account address found');
+      });
     });
 
     describe('executeLendingWithdraw', () => {
@@ -2155,6 +2173,24 @@ describe('EarnController', () => {
             },
           }),
         ).rejects.toThrow('Selected network client id not found');
+      });
+
+      it('handles no selected account address found', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+        await expect(
+          controller.executeLendingWithdraw({
+            amount: '100',
+            chainId: '0x1',
+            protocol: 'aave' as LendingMarket['protocol'],
+            underlyingTokenAddress: '0x123',
+            gasOptions: {},
+            txOptions: {
+              networkClientId: '1',
+            },
+          }),
+        ).rejects.toThrow('No EVM-compatible account address found');
       });
     });
 
@@ -2329,6 +2365,24 @@ describe('EarnController', () => {
           }),
         ).rejects.toThrow('Selected network client id not found');
       });
+
+      it('handles no selected account address found', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+        await expect(
+          controller.executeLendingTokenApprove({
+            amount: '100',
+            chainId: '0x1',
+            protocol: 'aave' as LendingMarket['protocol'],
+            underlyingTokenAddress: '0x123',
+            gasOptions: {},
+            txOptions: {
+              networkClientId: '1',
+            },
+          }),
+        ).rejects.toThrow('No EVM-compatible account address found');
+      });
     });
 
     describe('getLendingTokenAllowance', () => {
@@ -2360,6 +2414,33 @@ describe('EarnController', () => {
           mockLendingContract.underlyingTokenAllowance,
         ).toHaveBeenCalledWith(mockAccount1Address);
         expect(result).toBe(mockAllowance);
+      });
+
+      it('doesn`t call underlyingTokenAllowance if no account address found', async () => {
+        const mockLendingContract = {
+          underlyingTokenAllowance: jest.fn().mockResolvedValue(0),
+        };
+        
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.getLendingTokenAllowance(
+          'aave' as LendingMarket['protocol'],
+          '0x123',
+        );
+
+        expect(mockLendingContract.underlyingTokenAllowance).not.toHaveBeenCalled();
       });
     });
 
@@ -2393,6 +2474,33 @@ describe('EarnController', () => {
         );
         expect(result).toBe(mockMaxWithdraw);
       });
+
+      it('doesn`t call maxWithdraw if no account address found', async () => {
+        const mockLendingContract = {
+          maxWithdraw: jest.fn().mockResolvedValue(0),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.getLendingTokenMaxWithdraw(
+          'aave' as LendingMarket['protocol'],
+          '0x123',
+        );
+
+        expect(mockLendingContract.maxWithdraw).not.toHaveBeenCalled();
+      });
     });
 
     describe('getLendingTokenMaxDeposit', () => {
@@ -2424,6 +2532,33 @@ describe('EarnController', () => {
           mockAccount1Address,
         );
         expect(result).toBe(mockMaxDeposit);
+      });
+
+      it('doesn`t call maxDeposit if no account address found', async () => {
+        const mockLendingContract = {
+          maxDeposit: jest.fn().mockResolvedValue(0),
+        };
+
+        (EarnSdk.create as jest.Mock).mockImplementation(() => ({
+          contracts: {
+            lending: {
+              aave: {
+                '0x123': mockLendingContract,
+              },
+            },
+          },
+        }));
+
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.getLendingTokenMaxDeposit(
+          'aave' as LendingMarket['protocol'],
+          '0x123',
+        );
+
+        expect(mockLendingContract.maxDeposit).not.toHaveBeenCalled();
       });
     });
   });

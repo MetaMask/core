@@ -16,6 +16,9 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../account-tree-controller"
     }
   ]
 }
