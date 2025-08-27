@@ -997,5 +997,25 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountWalletName`,
+      this.setAccountWalletName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupName`,
+      this.setAccountGroupName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupPinned`,
+      this.setAccountGroupPinned.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupHidden`,
+      this.setAccountGroupHidden.bind(this),
+    );
   }
 }

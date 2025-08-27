@@ -341,7 +341,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
 
     // If quoteRequestOverrides is specified, merge it with the quoteRequest
-    const baseQuotes = await fetchBridgeQuotes(
+    const { quotes: baseQuotes, validationFailures } = await fetchBridgeQuotes(
       quoteRequestOverrides
         ? { ...quoteRequest, ...quoteRequestOverrides }
         : quoteRequest,
@@ -350,6 +350,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
+
+    this.#trackResponseValidationFailures(validationFailures);
+
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
     const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
     const quotesWithFees =
@@ -364,6 +367,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       });
     }
     return quotesWithFees;
+  };
+
+  readonly #trackResponseValidationFailures = (
+    validationFailures: string[],
+  ) => {
+    if (validationFailures.length === 0) {
+      return;
+    }
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesValidationFailed,
+      {
+        failures: validationFailures,
+      },
+    );
   };
 
   readonly #getExchangeRateSources = () => {
@@ -834,6 +851,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.PageViewed:
         return {
           ...this.#getRequestParams(),
+          ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.QuotesValidationFailed:
+        return {
+          ...this.#getRequestParams(),
+          refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesReceived:
