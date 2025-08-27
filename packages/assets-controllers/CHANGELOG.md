@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improve balance fetching performance and resilience by parallelizing multi-chain operations and moving timeout handling to fetchers ([#6390](https://github.com/MetaMask/core/pull/6390))
+
+  - Replace sequential `for` loops with `Promise.allSettled` in `RpcBalanceFetcher` and `AccountTrackerController` for parallel chain processing
+  - Move timeout handling from controller-level `Promise.race` to fetcher-level `safelyExecuteWithTimeout` for better error isolation
+  - Add `safelyExecuteWithTimeout` to both `RpcBalanceFetcher` and `AccountsApiBalanceFetcher` to prevent individual chain timeouts from blocking other chains
+  - Remove redundant timeout wrappers from `TokenBalancesController` and `AccountTrackerController`
+  - Improve test coverage for timeout and error handling scenarios in all balance fetchers
+
 ## [74.1.0]
 
 ### Added
