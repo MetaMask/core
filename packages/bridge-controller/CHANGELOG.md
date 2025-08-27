@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/517.0.0 ([#6405](https://github.com/MetaMask/core/pull/6405))
+- Release/516.0.0 ([#6396](https://github.com/MetaMask/core/pull/6396))
+
 ### Added
 
 - Add Bitcoin as a supported bridge chain ([#6389](https://github.com/MetaMask/core/pull/6389))
