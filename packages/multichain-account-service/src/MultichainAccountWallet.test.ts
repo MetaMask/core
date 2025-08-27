@@ -409,4 +409,93 @@ describe('MultichainAccountWallet', () => {
       });
     });
   });
+
+  describe('getIsAlignmentInProgress', () => {
+    it('returns false initially', () => {
+      const { wallet } = setup();
+      expect(wallet.getIsAlignmentInProgress()).toBe(false);
+    });
+
+    it('returns true during alignment and false after completion', async () => {
+      const { wallet } = setup();
+
+      // Start alignment (don't await yet)
+      const alignmentPromise = wallet.alignGroups();
+
+      // Check if alignment is in progress
+      expect(wallet.getIsAlignmentInProgress()).toBe(true);
+
+      // Wait for completion
+      await alignmentPromise;
+
+      // Should be false after completion
+      expect(wallet.getIsAlignmentInProgress()).toBe(false);
+    });
+  });
+
+  describe('concurrent alignment prevention', () => {
+    it('prevents concurrent alignGroups calls', async () => {
+      // Setup with EVM account in group 0, Sol account in group 1 (missing group 0)
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount], [mockSolAccount]],
+      });
+
+      // Make provider createAccounts slow to ensure concurrency
+      providers[1].createAccounts.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve([]), 50)),
+      );
+
+      // Start first alignment
+      const firstAlignment = wallet.alignGroups();
+
+      // Start second alignment while first is still running
+      const secondAlignment = wallet.alignGroups();
+
+      // Both should complete without error
+      await Promise.all([firstAlignment, secondAlignment]);
+
+      // Provider should only be called once (not twice due to concurrency protection)
+      expect(providers[1].createAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('prevents concurrent alignGroup calls', async () => {
+      // Setup with EVM account in group 0, Sol account in group 1 (missing group 0)
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount], [mockSolAccount]],
+      });
+
+      // Make provider createAccounts slow to ensure concurrency
+      providers[1].createAccounts.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve([]), 50)),
+      );
+
+      // Start first alignment
+      const firstAlignment = wallet.alignGroup(0);
+
+      // Start second alignment while first is still running
+      const secondAlignment = wallet.alignGroup(0);
+
+      // Both should complete without error
+      await Promise.all([firstAlignment, secondAlignment]);
+
+      // Provider should only be called once (not twice due to concurrency protection)
+      expect(providers[1].createAccounts).toHaveBeenCalledTimes(1);
+    });
+  });
 });
