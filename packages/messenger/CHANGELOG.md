@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
 - Keep delegated handlers when unregistering actions ([#6395](https://github.com/MetaMask/core/pull/6395))
 
