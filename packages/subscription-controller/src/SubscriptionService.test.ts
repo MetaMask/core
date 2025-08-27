@@ -123,6 +123,7 @@ describe('SubscriptionService', () => {
             trialedProducts: [],
           });
           expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+          expect(isDone()).toBe(true);
         },
       );
     });
@@ -184,6 +185,7 @@ describe('SubscriptionService', () => {
           await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
           expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+          expect(isDone()).toBe(true);
         },
       );
     });
