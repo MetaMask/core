@@ -1,4 +1,5 @@
 import { bigIntToHex } from '@metamask/utils';
+
 import {
   stringifyBalanceWithDecimals,
   parseBalanceWithDecimals,
