@@ -15,8 +15,12 @@ export type RestrictedSnapKeyringCreateAccount = (
 export abstract class SnapAccountProvider extends BaseAccountProvider {
   readonly snapId: SnapId;
 
-  constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
-    super(messenger);
+  constructor(
+    snapId: SnapId,
+    messenger: MultichainAccountServiceMessenger,
+    providerType: AccountProviderType,
+  ) {
+    super(messenger, providerType);
 
     this.snapId = snapId;
   }
@@ -52,6 +56,5 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
 
   abstract discoverAndCreateAccounts(options: {
     entropySource: EntropySourceId;
-    groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 }
