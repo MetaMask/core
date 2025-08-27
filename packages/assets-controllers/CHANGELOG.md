@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add native and staked balances to assets calculations ([#6399](https://github.com/MetaMask/core/pull/6399))
+
 ## [74.2.0]
 
 ### Added
