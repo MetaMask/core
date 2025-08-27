@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `rawBalance` to the result of `selectAssetsBySelectedAccountGroup` ([#6398](https://github.com/MetaMask/core/pull/6398))
+
 ## [74.1.1]
 
 ### Changed
