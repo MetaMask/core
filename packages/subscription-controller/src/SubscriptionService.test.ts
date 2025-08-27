@@ -108,6 +108,7 @@ describe('SubscriptionService', () => {
         async ({ service, testUrl, config }) => {
           nock(testUrl)
             .get('/api/v1/subscriptions')
+            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, {
               customerId: 'cus_1',
               subscriptions: [MOCK_SUBSCRIPTION],
@@ -169,22 +170,6 @@ describe('SubscriptionService', () => {
         );
       });
     });
-
-    it('should include correct headers', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .reply(200, {
-            customerId: 'cus_1',
-            subscriptions: [MOCK_SUBSCRIPTION],
-            trialedProducts: [],
-          });
-
-        await service.getSubscriptions();
-
-        expect(isDone()).toBe(true);
-      });
-    });
   });
 
   describe('cancelSubscription', () => {
@@ -193,6 +178,7 @@ describe('SubscriptionService', () => {
         async ({ service, testUrl, config }) => {
           nock(testUrl)
             .delete('/api/v1/subscriptions/sub_123456789')
+            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, {});
 
           await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
@@ -223,18 +209,6 @@ describe('SubscriptionService', () => {
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
         ).rejects.toThrow(/Network error/u);
-      });
-    });
-
-    it('should include correct headers and method', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
-          .reply(200, {});
-
-        await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-
-        expect(isDone()).toBe(true);
       });
     });
   });
