@@ -1,4 +1,4 @@
-import type { Bip44Account, AccountProvider } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
