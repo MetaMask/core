@@ -303,7 +303,7 @@ type RootMessenger = Messenger<
  *
  * @returns The root messenger.
  */
-function buildRootMessenger(): RootMessenger {
+function getRootMessenger(): RootMessenger {
   return new Messenger();
 }
 
@@ -342,7 +342,7 @@ function getService({
   rootMessenger: RootMessenger;
   messenger: SampleGasPricesServiceMessenger;
 } {
-  const rootMessenger = buildRootMessenger();
+  const rootMessenger = getRootMessenger();
   const messenger = getMessenger(rootMessenger);
   const service = new SampleGasPricesService({
     fetch,
