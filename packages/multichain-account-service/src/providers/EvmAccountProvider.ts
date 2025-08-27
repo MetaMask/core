@@ -41,6 +41,11 @@ export class EvmAccountProvider extends BaseAccountProvider {
     );
   }
 
+  /**
+   * Get the Evm provider.
+   *
+   * @returns The Evm provider.
+   */
   getEvmProvider(): Provider {
     const networkClientId = this.messenger.call(
       'NetworkController:findNetworkClientIdByChainId',
@@ -94,6 +99,16 @@ export class EvmAccountProvider extends BaseAccountProvider {
     return accountsArray;
   }
 
+  /**
+   * Discover and create accounts for the Evm provider.
+   *
+   * NOTE: This method should only be called on a newly created wallet.
+   * There should be already one existing account on this associated entropy source.
+   *
+   * @param opts - The options for the discovery and creation of accounts.
+   * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
+   * @returns The accounts for the Evm provider.
+   */
   async discoverAndCreateAccounts(opts: { entropySource: EntropySourceId }) {
     const provider = this.getEvmProvider();
     const accounts = [];

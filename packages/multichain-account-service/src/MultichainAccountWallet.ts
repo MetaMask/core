@@ -327,6 +327,15 @@ export class MultichainAccountWallet<
     }
   }
 
+  /**
+   * Discover and create accounts for all providers.
+   *
+   * NOTE: This method should only be called on a newly created wallet.
+   *
+   * @param opts - The options for the discovery and creation of accounts.
+   * @param opts.skippedProviders - The providers to skip.
+   * @returns The accounts for each provider.
+   */
   async discoverAndCreateAccounts({
     skippedProviders = [],
   }: {
