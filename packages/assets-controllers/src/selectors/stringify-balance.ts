@@ -1,6 +1,8 @@
 // From https://github.com/MetaMask/eth-token-tracker/blob/main/lib/util.js
 // Ensures backwards compatibility with display formatting.
 
+import { bigIntToHex, type Hex } from '@metamask/utils';
+
 /**
  * @param balance - The balance to stringify as a decimal string
  * @param decimals - The number of decimals of the balance
@@ -45,4 +47,47 @@ export function stringifyBalanceWithDecimals(
     return `${whole}${withOnlySigZeroes}`;
   }
   return `${whole}.${fractional}`;
+}
+
+/**
+ * Converts a decimal string representation back to a bigint balance.
+ * This is the inverse operation of stringifyBalanceWithDecimals.
+ *
+ * @param balanceString - The decimal string representation (e.g., "123.456")
+ * @param decimals - The number of decimals to apply (shifts decimal point right)
+ * @returns The balance as a bigint in the smallest unit
+ *
+ * @example
+ * parseBalanceWithDecimals("123.456", 18) // Returns 123456000000000000000n
+ * parseBalanceWithDecimals("0.001", 18)   // Returns 1000000000000000n
+ * parseBalanceWithDecimals("123", 18)     // Returns 123000000000000000000n
+ */
+export function parseBalanceWithDecimals(
+  balanceString: string,
+  decimals: number,
+): Hex | undefined {
+  // Allows: "123", "123.456", "0.123", but not: "-123", "123.", "abc", "12.34.56"
+  if (!/^\d+(\.\d+)?$/u.test(balanceString)) {
+    return undefined;
+  }
+
+  const [integerPart, fractionalPart = ''] = balanceString.split('.');
+
+  if (decimals === 0) {
+    return bigIntToHex(BigInt(integerPart));
+  }
+
+  if (fractionalPart.length >= decimals) {
+    return bigIntToHex(
+      BigInt(`${integerPart}${fractionalPart.slice(0, decimals)}`),
+    );
+  }
+
+  return bigIntToHex(
+    BigInt(
+      `${integerPart}${fractionalPart}${'0'.repeat(
+        decimals - fractionalPart.length,
+      )}`,
+    ),
+  );
 }
