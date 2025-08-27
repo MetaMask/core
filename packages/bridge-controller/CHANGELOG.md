@@ -29,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
-- Bump peer dependency `@metamask/assets-controller` from `^74.1.0` to `^74.1.1` ([#6396](https://github.com/MetaMask/core/pull/6396))
-
 ## [41.0.0]
 
 ### Added
