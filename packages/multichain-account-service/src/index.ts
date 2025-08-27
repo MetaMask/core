@@ -9,6 +9,7 @@ export type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateNextMultichainAccountGroupAction,
   MultichainAccountServiceGetIsAlignmentInProgressAction,
+  MultichainAccountServiceSetBasicFunctionalityAction,
 } from './types';
 export {
   AccountProviderWrapper,
