@@ -52,7 +52,6 @@ export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
-const RPC_TIMEOUT_MS = 15000;
 
 const metadata = {
   tokenBalances: { persist: true, anonymous: false },
@@ -194,7 +193,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
-      this.#onTokensChanged,
+      (tokensState: TokensControllerState) => {
+        this.#onTokensChanged(tokensState).catch((error) => {
+          console.warn('Error handling token state change:', error);
+        });
+      },
     );
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
@@ -270,19 +273,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       try {
-        const balances = await Promise.race([
-          fetcher.fetch({
-            chainIds: supportedChains,
-            queryAllAccounts: this.#queryAllAccounts,
-            selectedAccount: selected as ChecksumAddress,
-            allAccounts,
-          }),
-          new Promise<never>((_resolve, reject) =>
-            setTimeout(() => {
-              reject(new Error(`Timeout after ${RPC_TIMEOUT_MS}ms`));
-            }, RPC_TIMEOUT_MS),
-          ),
-        ]);
+        const balances = await fetcher.fetch({
+          chainIds: supportedChains,
+          queryAllAccounts: this.#queryAllAccounts,
+          selectedAccount: selected as ChecksumAddress,
+          allAccounts,
+        });
 
         if (balances && balances.length > 0) {
           aggregated.push(...balances);

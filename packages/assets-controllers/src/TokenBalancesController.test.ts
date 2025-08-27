@@ -21,9 +21,21 @@ import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 
+// Mock safelyExecuteWithTimeout
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  safelyExecuteWithTimeout: jest.fn(),
+}));
+
 // Constants for native token and staking addresses used in tests
 const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 const STAKING_CONTRACT_ADDRESS = '0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+
+// Mock function for safelyExecuteWithTimeout
+const { safelyExecuteWithTimeout } = jest.requireMock(
+  '@metamask/controller-utils',
+);
+const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
 
 const setupController = ({
   config,
@@ -136,10 +148,22 @@ describe('TokenBalancesController', () => {
 
   beforeEach(() => {
     clock = useFakeTimers();
+
+    // Mock safelyExecuteWithTimeout to execute the operation normally by default
+    mockedSafelyExecuteWithTimeout.mockImplementation(
+      async (operation: () => Promise<unknown>) => {
+        try {
+          return await operation();
+        } catch {
+          return undefined;
+        }
+      },
+    );
   });
 
   afterEach(() => {
     clock.restore();
+    mockedSafelyExecuteWithTimeout.mockRestore();
   });
 
   it('should set default state', () => {
@@ -1793,8 +1817,16 @@ describe('TokenBalancesController', () => {
       const tokenAddress = '0x0000000000000000000000000000000000000001';
       const mockError = new Error('Fetcher failed');
 
-      // Spy on console.warn
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      // Spy on console.error since safelyExecuteWithTimeout logs errors there
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Override the mock to use the real safelyExecuteWithTimeout for this test
+      const realSafelyExecuteWithTimeout = jest.requireActual(
+        '@metamask/controller-utils',
+      ).safelyExecuteWithTimeout;
+      mockedSafelyExecuteWithTimeout.mockImplementation(
+        realSafelyExecuteWithTimeout,
+      );
 
       // Set up tokens so there's something to fetch
       const tokens = {
@@ -1821,14 +1853,13 @@ describe('TokenBalancesController', () => {
 
       await controller.updateBalances({ chainIds: [chainId] });
 
-      // Verify the error was logged with the expected message
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        `Balance fetcher failed for chains ${chainId}: Error: Fetcher failed`,
-      );
+      // With safelyExecuteWithTimeout, errors are logged as console.error
+      // and the operation continues gracefully
+      expect(consoleErrorSpy).toHaveBeenCalledWith(mockError);
 
       // Restore mocks
       multicallSpy.mockRestore();
-      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it('should log error when updateBalances fails after token change', async () => {
@@ -1911,31 +1942,31 @@ describe('TokenBalancesController', () => {
       // Use fake timers for precise control
       jest.useFakeTimers();
 
-      try {
-        // Mock the multicall function to return a promise that never resolves
-        const multicallSpy = jest
-          .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-          .mockImplementation(() => {
-            // Return a promise that never resolves (simulating a hanging request)
-            // eslint-disable-next-line no-empty-function
-            return new Promise(() => {});
-          });
+      // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
+      mockedSafelyExecuteWithTimeout.mockImplementation(
+        async () => undefined, // Simulates timeout behavior
+      );
 
-        // Start the balance update (don't await yet)
-        const updatePromise = controller.updateBalances({
+      // Mock the multicall function - this won't be reached due to timeout simulation
+      const multicallSpy = jest
+        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+        .mockResolvedValue({
+          tokenBalances: {},
+          stakedBalances: {},
+        });
+
+      try {
+        // Start the balance update - should complete gracefully despite timeout
+        await controller.updateBalances({
           chainIds: [chainId],
         });
 
-        // Fast-forward time by 5000ms to trigger the timeout
-        jest.advanceTimersByTime(15000);
+        // With safelyExecuteWithTimeout, timeouts are handled gracefully
+        // The system should continue operating without throwing errors
+        // No specific timeout error message should be logged at controller level
 
-        // Now await the promise - it should have resolved due to timeout
-        await updatePromise;
-
-        // Verify the timeout error was logged with the correct format
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
-          `Balance fetcher failed for chains ${chainId}: Error: Timeout after 15000ms`,
-        );
+        // Verify that the update completed without errors
+        expect(controller.state.tokenBalances).toBeDefined();
 
         // Restore mocks
         multicallSpy.mockRestore();
@@ -1943,7 +1974,6 @@ describe('TokenBalancesController', () => {
       } finally {
         // Always restore timers
         jest.useRealTimers();
-        consoleWarnSpy.mockRestore();
       }
     });
   });

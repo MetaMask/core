@@ -31,6 +31,7 @@ jest.mock('@metamask/controller-utils', () => {
   return {
     ...jest.requireActual('@metamask/controller-utils'),
     query: jest.fn(),
+    safelyExecuteWithTimeout: jest.fn(),
   };
 });
 
@@ -57,17 +58,34 @@ const mockedQuery = query as jest.Mock<
   Parameters<typeof query>
 >;
 
+const { safelyExecuteWithTimeout } = jest.requireMock(
+  '@metamask/controller-utils',
+);
+const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
+
 describe('AccountTrackerController', () => {
   let clock: SinonFakeTimers;
 
   beforeEach(() => {
     clock = useFakeTimers();
     mockedQuery.mockReturnValue(Promise.resolve('0x0'));
+
+    // Mock safelyExecuteWithTimeout to execute the operation normally by default
+    mockedSafelyExecuteWithTimeout.mockImplementation(
+      async (operation: () => Promise<unknown>) => {
+        try {
+          return await operation();
+        } catch {
+          return undefined;
+        }
+      },
+    );
   });
 
   afterEach(() => {
     clock.restore();
     mockedQuery.mockRestore();
+    mockedSafelyExecuteWithTimeout.mockRestore();
   });
 
   it('should set default state', async () => {
@@ -664,7 +682,6 @@ describe('AccountTrackerController', () => {
       });
 
       it('should handle timeout error correctly', async () => {
-        const originalSetTimeout = global.setTimeout;
         const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
         await withController(
@@ -683,32 +700,28 @@ describe('AccountTrackerController', () => {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
-          async ({ refresh }) => {
-            // Mock setTimeout to immediately trigger the timeout callback
-            global.setTimeout = ((callback: () => void, _delay: number) => {
-              // This is the timeout callback from line 657 - trigger it immediately
-              originalSetTimeout(callback, 0);
-              return 123 as unknown as NodeJS.Timeout; // Return a fake timer id
-            }) as typeof setTimeout;
-
-            // Mock the query to hang indefinitely
-            const hangingPromise = new Promise(() => {
-              // Intentionally empty - simulates hanging request
-            });
-            mockedQuery.mockReturnValue(hangingPromise);
-
-            // Start refresh and let the timeout trigger
-            await refresh(clock, ['mainnet']);
-
-            // Verify that the timeout error was logged (confirms line 657 was executed)
-            expect(consoleWarnSpy).toHaveBeenCalledWith(
-              expect.stringContaining(
-                'Balance fetcher failed for chains 0x1: Error: Timeout after 15000ms',
-              ),
+          async ({ refresh, controller }) => {
+            // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
+            mockedSafelyExecuteWithTimeout.mockImplementation(
+              async () => undefined, // Simulates timeout behavior
             );
 
-            // Restore original setTimeout
-            global.setTimeout = originalSetTimeout;
+            // Start refresh with the mocked timeout behavior
+            await refresh(clock, ['mainnet']);
+
+            // With safelyExecuteWithTimeout, timeouts are handled gracefully
+            // The system should continue operating without throwing errors
+            // No specific timeout error message should be logged
+            expect(consoleWarnSpy).not.toHaveBeenCalledWith(
+              expect.stringContaining('Timeout after'),
+            );
+
+            // Verify that the controller state remains intact despite the timeout
+            expect(controller.state.accountsByChainId).toHaveProperty('0x1');
+            expect(controller.state.accountsByChainId['0x1']).toHaveProperty(
+              CHECKSUM_ADDRESS_1,
+            );
+
             consoleWarnSpy.mockRestore();
           },
         );
