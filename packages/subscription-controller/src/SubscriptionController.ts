@@ -156,7 +156,7 @@ export class SubscriptionController extends BaseController<
       await this.#subscriptionService.getSubscriptions();
 
     this.update((state) => {
-      state.subscriptions = subscriptions ?? [];
+      state.subscriptions = subscriptions;
     });
 
     return subscriptions;

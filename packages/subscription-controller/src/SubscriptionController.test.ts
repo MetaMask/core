@@ -232,13 +232,13 @@ describe('SubscriptionController', () => {
       await withController(async ({ controller, mockService }) => {
         mockService.getSubscriptions.mockResolvedValue({
           customerId: 'cus_1',
-          subscriptions: null,
+          subscriptions: [],
           trialedProducts: [],
         });
 
         const result = await controller.getSubscriptions();
 
-        expect(result).toBeNull();
+        expect(result).toHaveLength(0);
         expect(controller.state.subscriptions).toStrictEqual([]);
         expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
       });
