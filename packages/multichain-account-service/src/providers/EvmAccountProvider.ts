@@ -6,7 +6,9 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
@@ -28,11 +30,27 @@ function assertInternalAccountExists(
 }
 
 export class EvmAccountProvider extends BaseAccountProvider {
+  constructor(messenger: MultichainAccountServiceMessenger) {
+    super(messenger, AccountProviderType.Evm);
+  }
+
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
       account.metadata.keyring.type === (KeyringTypes.hd as string)
     );
+  }
+
+  getEvmProvider(): Provider {
+    const networkClientId = this.messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      '0x1',
+    );
+    const { provider } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    return provider;
   }
 
   async createAccounts({
@@ -76,10 +94,34 @@ export class EvmAccountProvider extends BaseAccountProvider {
     return accountsArray;
   }
 
-  async discoverAndCreateAccounts(_: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }) {
-    return []; // TODO: Implement account discovery.
+  async discoverAndCreateAccounts(opts: { entropySource: EntropySourceId }) {
+    const provider = this.getEvmProvider();
+    const accounts = [];
+    // we start at 1 because we already have the first account.
+    for (let i = 1; ; i++) {
+      const [address] = await this.withKeyring(
+        { id: opts.entropySource },
+        async ({ keyring }) => {
+          return await keyring.addAccounts(1);
+        },
+      );
+      const countHex = (await provider.request({
+        method: 'eth_getTransactionCount',
+        params: [address, 'latest'],
+      })) as Hex;
+      const count = parseInt(countHex, 16);
+      if (count === 0) {
+        // If the account has no transactions, we can remove it.
+        await this.withKeyring(
+          { id: opts.entropySource },
+          async ({ keyring }) => {
+            return await keyring.removeAccount(address);
+          },
+        );
+        break;
+      }
+      accounts.push(address);
+    }
+    return accounts;
   }
 }
