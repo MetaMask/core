@@ -113,9 +113,7 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
  * @returns True if the provider is an AccountProviderWrapper.
  */
 export function isAccountProviderWrapper(
-  provider:
-    | AccountProvider<Bip44Account<KeyringAccount>>
-    | AccountProviderWrapper,
+  provider: unknown,
 ): provider is AccountProviderWrapper {
   return provider instanceof AccountProviderWrapper;
 }

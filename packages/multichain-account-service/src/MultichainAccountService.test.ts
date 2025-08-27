@@ -835,14 +835,6 @@ describe('MultichainAccountService', () => {
   });
 
   describe('setBasicFunctionality', () => {
-    it('accepts a boolean parameter instead of object', async () => {
-      const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
-
-      // These should not throw errors
-      expect(await service.setBasicFunctionality(true)).toBeUndefined();
-      expect(await service.setBasicFunctionality(false)).toBeUndefined();
-    });
-
     it('can be called with boolean true', async () => {
       const { service } = setup({ accounts: [MOCK_HD_ACCOUNT_1] });
 

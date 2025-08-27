@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 - **BREAKING**: Rename `BaseAccountProvider` to `BaseBip44AccountProvider` for clarity ([#6332](https://github.com/MetaMask/core/pull/6332))
-  - `ProviderWrapper` now extends `BaseBip44AccountProvider` instead of implementing interface directly ([#6332](https://github.com/MetaMask/core/pull/6332))
+
+### Added
+
+- Add `setBasicFunctionality` method to control providers state and trigger wallets alignment ([#6332](https://github.com/MetaMask/core/pull/6332))
+  - Add `AccountProviderWrapper` to handle Snap account providers behavior when disabled.
+  - Export `AccountProviderWrapper` from public API to allow external providers to use basic functionality logic
 
 ## [0.5.0]
 
@@ -19,8 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow for multichain account group alignment through the `align` method ([#6326](https://github.com/MetaMask/core/pull/6326))
   - You can now call alignment from the group, wallet and service levels.
-- Add `setBasicFunctionality` method to control providers state and trigger wallets alignment ([#6332](https://github.com/MetaMask/core/pull/6332))
-  - Add `ProviderWrapper` to handle Snap account providers behavior when disabled
 
 ### Changed
 
