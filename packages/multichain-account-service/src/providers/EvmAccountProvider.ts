@@ -97,7 +97,7 @@ export class EvmAccountProvider extends BaseAccountProvider {
   async discoverAndCreateAccounts(opts: { entropySource: EntropySourceId }) {
     const provider = this.getEvmProvider();
     const accounts = [];
-    // we start at 1 because we already have the first account.
+
     for (let i = 1; ; i++) {
       const [address] = await this.withKeyring(
         { id: opts.entropySource },
