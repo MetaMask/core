@@ -16,7 +16,11 @@ export class SolAccountProvider extends SnapAccountProvider {
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
   constructor(messenger: MultichainAccountServiceMessenger) {
-    super(SolAccountProvider.SOLANA_SNAP_ID, messenger);
+    super(
+      SolAccountProvider.SOLANA_SNAP_ID,
+      messenger,
+      AccountProviderType.Solana,
+    );
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
@@ -60,10 +64,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     return accounts;
   }
 
-  async discoverAndCreateAccounts(_: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }) {
+  async discoverAndCreateAccounts(_: { entropySource: EntropySourceId }) {
     return []; // TODO: Implement account discovery.
   }
 }
