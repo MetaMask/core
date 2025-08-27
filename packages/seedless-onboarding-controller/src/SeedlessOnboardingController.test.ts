@@ -44,13 +44,16 @@ import {
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import type {
-  SeedlessOnboardingControllerAllowedActions,
-  SeedlessOnboardingControllerAllowedEvents,
+  SeedlessOnboardingControllerEvents,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
   VaultEncryptor,
 } from './types';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
 import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
   handleMockSecretDataGet,
@@ -116,8 +119,9 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
   baseMessenger: Messenger<
-    SeedlessOnboardingControllerAllowedActions,
-    SeedlessOnboardingControllerAllowedEvents
+    ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
+    | SeedlessOnboardingControllerEvents
+    | ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
   >;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;

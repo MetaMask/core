@@ -1,10 +1,14 @@
 import { Messenger } from '@metamask/base-controller';
 
 import type {
-  SeedlessOnboardingControllerAllowedActions,
-  SeedlessOnboardingControllerAllowedEvents,
-  SeedlessOnboardingControllerMessenger,
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
+import type {
+  SeedlessOnboardingControllerActions,
+  SeedlessOnboardingControllerEvents,
 } from '../../src/types';
+import { type SeedlessOnboardingControllerMessenger } from '../../src/types';
 
 /**
  * creates a custom seedless onboarding messenger, in case tests need different permissions
@@ -13,8 +17,9 @@ import type {
  */
 export function createCustomSeedlessOnboardingMessenger() {
   const baseMessenger = new Messenger<
-    SeedlessOnboardingControllerAllowedActions,
-    SeedlessOnboardingControllerAllowedEvents
+    SeedlessOnboardingControllerActions | never,
+    | SeedlessOnboardingControllerEvents
+    | ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
   >();
   const messenger = baseMessenger.getRestricted({
     name: 'SeedlessOnboardingController',
@@ -30,8 +35,8 @@ export function createCustomSeedlessOnboardingMessenger() {
 
 type OverrideMessengers = {
   baseMessenger: Messenger<
-    SeedlessOnboardingControllerAllowedActions,
-    SeedlessOnboardingControllerAllowedEvents
+    ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
+    ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
   >;
   messenger: SeedlessOnboardingControllerMessenger;
 };
