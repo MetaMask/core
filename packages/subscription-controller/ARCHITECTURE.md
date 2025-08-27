@@ -39,13 +39,11 @@ The Subscription Controller is responsible for managing user subscription lifecy
 - **Available Methods**: Determine user's available payment options
 - **Card Support**: Always include card payment as an option
 - **Crypto Support**: Include supported cryptocurrencies based on user's chain balances
-- **Dynamic Options**: Update available options based on user's current state
 
 ### 6. Billing Management
 
 - **Billing Portal Access**: Request Stripe billing portal URLs from subscription service
 - **Subscription Verification**: Ensure user has active subscription before billing access
-- **Portal Integration**: Return billing URLs to UI for user management
 
 ## Architecture Components
 
@@ -54,13 +52,7 @@ The Subscription Controller is responsible for managing user subscription lifecy
 ```typescript
 interface SubscriptionControllerState {
   // User subscription information
-  subscription: Subscription;
-
-  // Authentication token reference (managed by user storage controller)
-  authTokenRef: {
-    lastRefreshTriggered: string;
-    refreshStatus: 'pending' | 'completed' | 'failed';
-  };
+  subscriptions: Subscription[];
 
   // Payment options cache
   availablePaymentOptions: {
@@ -73,16 +65,6 @@ interface SubscriptionControllerState {
           decimals: number;
         };
       };
-    };
-  };
-
-  // Transaction tracking
-  pendingTransactions: {
-    [transactionId: string]: {
-      type: 'subscription_approval' | 'subscription_payment';
-      status: 'pending' | 'confirmed' | 'failed';
-      chainId: string;
-      hash?: string;
     };
   };
 }
@@ -145,7 +127,6 @@ type SubscriptionControllerMessenger = RestrictedMessenger<
 - `getAvailablePaymentOptions()`: Get user's available payment methods
 - `manageBilling()`: Access billing management portal
 - `cancelSubscription()`: Cancel active subscription
-- `triggerAuthTokenRefresh()`: Trigger auth token refresh through user storage controller
 
 ### Internal Methods
 
