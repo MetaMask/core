@@ -46,8 +46,6 @@ export type AuthUtils = {
 };
 
 export type ISubscriptionService = {
-  hasAuthUtils(): boolean;
-  setAuthUtils(authUtils: AuthUtils): void;
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
 };

@@ -8,7 +8,7 @@ import type {
 
 export type SubscriptionServiceConfig = {
   env: Env;
-  auth?: AuthUtils;
+  auth: AuthUtils;
   fetchFn: typeof globalThis.fetch;
 };
 
@@ -25,20 +25,12 @@ export class SubscriptionService implements ISubscriptionService {
 
   readonly #fetch: typeof globalThis.fetch;
 
-  public authUtils?: AuthUtils;
+  public authUtils: AuthUtils;
 
   constructor(config: SubscriptionServiceConfig) {
     this.#env = config.env;
     this.authUtils = config.auth;
     this.#fetch = config.fetchFn;
-  }
-
-  public hasAuthUtils(): boolean {
-    return Boolean(this.authUtils);
-  }
-
-  public setAuthUtils(authUtils: AuthUtils) {
-    this.authUtils = authUtils;
   }
 
   async getSubscriptions(): Promise<GetSubscriptionsResponse> {

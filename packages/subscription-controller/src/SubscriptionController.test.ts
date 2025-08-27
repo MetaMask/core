@@ -37,8 +37,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
   },
 };
 
-const MOCK_ACCESS_TOKEN = 'mock-access-token';
-
 /**
  * Creates a custom subscription messenger, in case tests need different permissions
  *
@@ -84,16 +82,9 @@ function mockSubscriptionMessenger(overrideMessengers?: {
   const { baseMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
-  const mockGetBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
-  baseMessenger.registerActionHandler(
-    'AuthenticationController:getBearerToken',
-    mockGetBearerToken,
-  );
-
   return {
     baseMessenger,
     messenger,
-    mockGetBearerToken,
   };
 }
 
@@ -105,7 +96,6 @@ function mockSubscriptionMessenger(overrideMessengers?: {
 function createMockSubscriptionMessenger(): {
   messenger: SubscriptionControllerMessenger;
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
-  mockGetBearerToken: jest.Mock;
 } {
   return mockSubscriptionMessenger();
 }
@@ -118,22 +108,16 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
-  const mockHasAuthUtils = jest.fn().mockReturnValue(false);
-  const mockSetAuthUtils = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
-    hasAuthUtils: mockHasAuthUtils,
-    setAuthUtils: mockSetAuthUtils,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
-    mockHasAuthUtils,
-    mockSetAuthUtils,
   };
 }
 
@@ -145,7 +129,6 @@ type WithControllerCallback<ReturnValue> = (params: {
   initialState: SubscriptionControllerState;
   messenger: SubscriptionControllerMessenger;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
-  mockGetBearerToken: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -164,7 +147,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger, mockGetBearerToken } = createMockSubscriptionMessenger();
+  const { messenger } = createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
   const controller = new SubscriptionController({
@@ -178,7 +161,6 @@ async function withController<ReturnValue>(
     initialState: controller.state,
     messenger,
     mockService,
-    mockGetBearerToken,
   });
 }
 
@@ -222,33 +204,6 @@ describe('SubscriptionController', () => {
       expect(controller.state).toStrictEqual(
         getDefaultSubscriptionControllerState(),
       );
-    });
-
-    it('should wire auth utils to messenger bearer token call when service has no auth utils', async () => {
-      const { messenger, mockGetBearerToken } =
-        createMockSubscriptionMessenger();
-      const { mockService, mockSetAuthUtils, mockHasAuthUtils } =
-        createMockSubscriptionService();
-
-      // Sanity: service reports it has no auth utils
-      expect(mockHasAuthUtils()).toBe(false);
-
-      // Instantiate controller, which should set auth utils on the service
-      // using a getAccessToken implementation that calls the messenger
-      // AuthenticationController:getBearerToken action.
-      new SubscriptionController({
-        messenger,
-        subscriptionService: mockService,
-      });
-
-      expect(mockSetAuthUtils).toHaveBeenCalledTimes(1);
-
-      const [{ getAccessToken }] = mockSetAuthUtils.mock.calls[0] as [
-        { getAccessToken: () => Promise<string> },
-      ];
-      await getAccessToken();
-
-      expect(mockGetBearerToken).toHaveBeenCalled();
     });
   });
 

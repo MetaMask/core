@@ -131,12 +131,6 @@ export class SubscriptionController extends BaseController<
     });
 
     this.#subscriptionService = subscriptionService;
-    if (!this.#subscriptionService.hasAuthUtils()) {
-      this.#subscriptionService.setAuthUtils({
-        getAccessToken: () =>
-          this.messagingSystem.call('AuthenticationController:getBearerToken'),
-      });
-    }
 
     this.#registerMessageHandlers();
   }

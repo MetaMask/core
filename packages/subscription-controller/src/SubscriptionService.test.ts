@@ -150,6 +150,15 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('should throw SubscriptionServiceError for no access token', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.auth.getAccessToken.mockResolvedValue(null);
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+      });
+    });
+
     it('should handle get access token error', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         // Simulate a non-Error thrown from the auth.getAccessToken mock
@@ -175,23 +184,6 @@ describe('SubscriptionService', () => {
 
         expect(isDone()).toBe(true);
       });
-    });
-  });
-
-  describe('auth utils management', () => {
-    it('should report absence of auth utils and allow setting them', async () => {
-      const service = new SubscriptionService({ env: Env.DEV, fetchFn: fetch });
-      expect(service.hasAuthUtils()).toBe(false);
-
-      await expect(service.getSubscriptions()).rejects.toThrow(
-        'No access token found',
-      );
-
-      const authUtils = { getAccessToken: jest.fn().mockResolvedValue('t') };
-      service.setAuthUtils(authUtils);
-
-      expect(service.hasAuthUtils()).toBe(true);
-      expect(service.authUtils).toBe(authUtils);
     });
   });
 
