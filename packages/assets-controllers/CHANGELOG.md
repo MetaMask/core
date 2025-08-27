@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.1.1]
 
-### Uncategorized
-
-- Release 513.0.0 ([#6381](https://github.com/MetaMask/core/pull/6381))
-
 ### Changed
 
 - Improve balance fetching performance and resilience by parallelizing multi-chain operations and moving timeout handling to fetchers ([#6390](https://github.com/MetaMask/core/pull/6390))
