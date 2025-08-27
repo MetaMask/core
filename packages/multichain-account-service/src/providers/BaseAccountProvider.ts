@@ -42,8 +42,14 @@ export abstract class BaseAccountProvider
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
-  constructor(messenger: MultichainAccountServiceMessenger) {
+  readonly providerType: AccountProviderType;
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    providerType: AccountProviderType,
+  ) {
     this.messenger = messenger;
+    this.providerType = providerType;
   }
 
   #getAccounts(
@@ -121,9 +127,7 @@ export abstract class BaseAccountProvider
 
   abstract discoverAndCreateAccounts({
     entropySource,
-    groupIndex,
   }: {
     entropySource: EntropySourceId;
-    groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 }
