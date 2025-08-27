@@ -32,13 +32,16 @@ import {
   type KeyringControllerUnlockEvent,
   type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import { assert } from '@metamask/superstruct';
 
 import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
 import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
+import { MultichainAccountsFeatureFlagSchema } from './types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -149,7 +152,7 @@ type ControllerConfig = {
      * If true, it will prevent any new push updates from being sent to the user storage.
      * Multichain account syncing will be handled by `@metamask/account-tree-controller`.
      */
-    getIsMultichainAccountSyncingEnabled?: () => boolean;
+    forceEnableMultichainAccountSyncing?: boolean;
     maxNumberOfAccountsToAdd?: number;
     /**
      * Callback that fires when account sync adds an account.
@@ -213,6 +216,7 @@ type ActionsObj = CreateActionsObj<
   | 'performDeleteStorage'
   | 'performBatchDeleteStorage'
   | 'getStorageKey'
+  | 'syncInternalAccountsWithUserStorage'
   | 'getIsMultichainAccountSyncingEnabled'
 >;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
@@ -235,6 +239,8 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
+export type UserStorageControllerSyncInternalAccountsWithUserStorage =
+  ActionsObj['syncInternalAccountsWithUserStorage'];
 export type UserStorageControllerGetIsMultichainAccountSyncingEnabled =
   ActionsObj['getIsMultichainAccountSyncingEnabled'];
 
@@ -257,7 +263,9 @@ export type AllowedActions =
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
   | AddressBookControllerDeleteAction
-  | AddressBookControllerActions;
+  | AddressBookControllerActions
+  // Remote Feature Flag
+  | RemoteFeatureFlagControllerGetStateAction;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -480,6 +488,11 @@ export default class UserStorageController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      'UserStorageController:syncInternalAccountsWithUserStorage',
+      this.syncInternalAccountsWithUserStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       'UserStorageController:getIsMultichainAccountSyncingEnabled',
       this.getIsMultichainAccountSyncingEnabled.bind(this),
     );
@@ -617,10 +630,31 @@ export default class UserStorageController extends BaseController<
   }
 
   public getIsMultichainAccountSyncingEnabled(): boolean {
-    return (
-      this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
-      false
-    );
+    if (this.#config.accountSyncing?.forceEnableMultichainAccountSyncing) {
+      return true;
+    }
+
+    try {
+      const multichainAccountsFeatureFlags = this.messagingSystem.call(
+        'RemoteFeatureFlagController:getState',
+      )?.remoteFeatureFlags?.enableMultichainAccounts;
+
+      assert(
+        multichainAccountsFeatureFlags,
+        MultichainAccountsFeatureFlagSchema,
+      );
+
+      return (
+        multichainAccountsFeatureFlags.enabled &&
+        multichainAccountsFeatureFlags.featureVersion === '2'
+      );
+    } catch (e) {
+      console.log(
+        `${controllerName} - getIsMultichainAccountSyncingEnabled - failed to get multichain accounts feature flags`,
+        e,
+      );
+      return false;
+    }
   }
 
   /**

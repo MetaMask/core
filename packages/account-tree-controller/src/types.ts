@@ -14,13 +14,20 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
+import type {
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
+import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import type {
   AccountGroupObject,
   AccountTreeGroupPersistedMetadata,
@@ -49,6 +56,8 @@ export type AccountTreeControllerState = {
     };
     selectedAccountGroup: AccountGroupId | '';
   };
+  isAccountTreeSyncingInProgress: boolean;
+  hasAccountTreeSyncingSyncedAtLeastOnce: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
   accountGroupsMetadata: Record<
     AccountGroupId,
@@ -87,7 +96,15 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
-  | SnapControllerGetSnap;
+  | SnapControllerGetSnap
+  | UserStorageController.UserStorageControllerPerformGetStorage
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntries
+  | UserStorageController.UserStorageControllerPerformSetStorage
+  | UserStorageController.UserStorageControllerPerformBatchSetStorage
+  | UserStorageController.UserStorageControllerSyncInternalAccountsWithUserStorage
+  | UserStorageController.UserStorageControllerGetIsMultichainAccountSyncingEnabled
+  | AuthenticationController.AuthenticationControllerGetSessionProfile
+  | MultichainAccountServiceCreateMultichainAccountGroupAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
@@ -115,3 +132,11 @@ export type AccountTreeControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+export type AccountTreeControllerConfig = {
+  trace?: TraceCallback;
+  backupAndSync?: {
+    onBackupAndSyncEvent?: (event: BackupAndSyncAnalyticsEventPayload) => void;
+    enableDebugLogging?: boolean;
+  };
+};
