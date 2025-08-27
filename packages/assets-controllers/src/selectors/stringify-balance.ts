@@ -50,17 +50,17 @@ export function stringifyBalanceWithDecimals(
 }
 
 /**
- * Converts a decimal string representation back to a bigint balance.
+ * Converts a decimal string representation back to a Hex balance.
  * This is the inverse operation of stringifyBalanceWithDecimals.
  *
  * @param balanceString - The decimal string representation (e.g., "123.456")
  * @param decimals - The number of decimals to apply (shifts decimal point right)
- * @returns The balance as a bigint in the smallest unit
+ * @returns The balance as a Hex string
  *
  * @example
- * parseBalanceWithDecimals("123.456", 18) // Returns 123456000000000000000n
- * parseBalanceWithDecimals("0.001", 18)   // Returns 1000000000000000n
- * parseBalanceWithDecimals("123", 18)     // Returns 123000000000000000000n
+ * parseBalanceWithDecimals("123.456", 18) // Returns '0x6B14BD1E6EEA00000'
+ * parseBalanceWithDecimals("0.001", 18)   // Returns '0x38D7EA4C68000'
+ * parseBalanceWithDecimals("123", 18)     // Returns '0x6AAF7C8516D0C0000'
  */
 export function parseBalanceWithDecimals(
   balanceString: string,
