@@ -53,7 +53,6 @@ const controllerName = 'AccountTrackerController';
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
 
-const DEFAULT_TIMEOUT_MS = 15000;
 const ZERO_ADDRESS =
   '0x0000000000000000000000000000000000000000' as ChecksumAddress;
 
@@ -92,9 +91,8 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
     selectedAccount,
     allAccounts,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<ProcessedBalance[]> {
-    const results: ProcessedBalance[] = [];
-
-    for (const chainId of chainIds) {
+    // Process all chains in parallel for better performance
+    const chainProcessingPromises = chainIds.map(async (chainId) => {
       const accountsToUpdate = queryAllAccounts
         ? Object.values(allAccounts).map(
             (account) =>
@@ -104,6 +102,7 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
 
       const { provider, blockTracker } = this.#getNetworkClient(chainId);
       const ethQuery = new EthQuery(provider);
+      const chainResults: ProcessedBalance[] = [];
 
       // Force fresh block data before multicall
       await safelyExecuteWithTimeout(() =>
@@ -133,7 +132,7 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
 
         if (nativeBalances) {
           accountsToUpdate.forEach((address, index) => {
-            results.push({
+            chainResults.push({
               success: true,
               value: new BN(nativeBalances[index].toString()),
               account: address,
@@ -156,7 +155,7 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
               ).catch(() => null);
 
               if (balanceResult) {
-                results.push({
+                chainResults.push({
                   success: true,
                   value: new BN(balanceResult.replace('0x', ''), 16),
                   account: address as ChecksumAddress,
@@ -164,7 +163,7 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
                   chainId,
                 });
               } else {
-                results.push({
+                chainResults.push({
                   success: false,
                   account: address as ChecksumAddress,
                   token: ZERO_ADDRESS,
@@ -201,7 +200,7 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
           if (stakingContractAddress) {
             Object.entries(stakedBalanceResult).forEach(
               ([address, balance]) => {
-                results.push({
+                chainResults.push({
                   success: true,
                   value: balance
                     ? new BN(balance.replace('0x', ''), 16)
@@ -217,7 +216,22 @@ class AccountTrackerRpcBalanceFetcher implements BalanceFetcher {
           }
         }
       }
-    }
+
+      return chainResults;
+    });
+
+    // Wait for all chains to complete (or fail) and collect results
+    const chainResultsArray = await Promise.allSettled(chainProcessingPromises);
+    const results: ProcessedBalance[] = [];
+
+    chainResultsArray.forEach((chainResult) => {
+      if (chainResult.status === 'fulfilled') {
+        results.push(...chainResult.value);
+      } else {
+        // Log error but continue with other chains
+        console.warn('Chain processing failed:', chainResult.reason);
+      }
+    });
 
     return results;
   }
@@ -637,21 +651,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         }
 
         try {
-          const balances = await Promise.race([
-            fetcher.fetch({
-              chainIds: supportedChains,
-              queryAllAccounts: isMultiAccountBalancesEnabled,
-              selectedAccount: toChecksumHexAddress(
-                selectedAccount.address,
-              ) as ChecksumAddress,
-              allAccounts,
-            }),
-            new Promise<never>((_resolve, reject) =>
-              setTimeout(() => {
-                reject(new Error(`Timeout after ${DEFAULT_TIMEOUT_MS}ms`));
-              }, DEFAULT_TIMEOUT_MS),
-            ),
-          ]);
+          const balances = await fetcher.fetch({
+            chainIds: supportedChains,
+            queryAllAccounts: isMultiAccountBalancesEnabled,
+            selectedAccount: toChecksumHexAddress(
+              selectedAccount.address,
+            ) as ChecksumAddress,
+            allAccounts,
+          });
 
           if (balances && balances.length > 0) {
             aggregated.push(...balances);
