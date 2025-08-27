@@ -374,7 +374,7 @@ const selectAllMultichainAssets = createAssetListSelector(
             unit.symbol === assetMetadata.symbol,
         )?.decimals;
 
-        if (!balance || !decimals) {
+        if (!balance || decimals === undefined) {
           continue;
         }
 
