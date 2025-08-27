@@ -10,8 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `setBasicFunctionality` method to control providers state and trigger wallets alignment ([#6332](https://github.com/MetaMask/core/pull/6332))
-  - Add `AccountProviderWrapper` to handle Snap account providers behavior when disabled.
-  - Export `AccountProviderWrapper` from public API to allow external providers to use basic functionality logic
+  - Add `AccountProviderWrapper` to handle Snap account providers behavior according to the basic functionality flag.
 
 ### Changed
 
