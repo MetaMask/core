@@ -2420,7 +2420,7 @@ describe('EarnController', () => {
         const mockLendingContract = {
           underlyingTokenAllowance: jest.fn().mockResolvedValue(0),
         };
-        
+
         (EarnSdk.create as jest.Mock).mockImplementation(() => ({
           contracts: {
             lending: {
@@ -2440,7 +2440,9 @@ describe('EarnController', () => {
           '0x123',
         );
 
-        expect(mockLendingContract.underlyingTokenAllowance).not.toHaveBeenCalled();
+        expect(
+          mockLendingContract.underlyingTokenAllowance,
+        ).not.toHaveBeenCalled();
       });
     });
 

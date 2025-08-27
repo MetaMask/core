@@ -456,9 +456,7 @@ export class EarnController extends BaseController<
   #getSelectedEvmAccount(): InternalAccount | undefined {
     return this.messagingSystem
       .call('AccountTreeController:getAccountsFromSelectedAccountGroup')
-      .find((account: InternalAccount) =>
-        account.type.startsWith('eip155:'),
-    );
+      .find((account: InternalAccount) => account.type.startsWith('eip155:'));
   }
 
   /**
@@ -1123,7 +1121,7 @@ export class EarnController extends BaseController<
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
-      return
+      return undefined;
     }
 
     const allowance =
@@ -1148,7 +1146,7 @@ export class EarnController extends BaseController<
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
-      return
+      return undefined;
     }
 
     const maxWithdraw =
@@ -1173,7 +1171,7 @@ export class EarnController extends BaseController<
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
-      return
+      return undefined;
     }
 
     const maxDeposit =
