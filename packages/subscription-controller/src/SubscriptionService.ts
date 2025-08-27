@@ -78,9 +78,6 @@ export class SubscriptionService implements ISubscriptionService {
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.authUtils?.getAccessToken();
-    if (!accessToken) {
-      throw new SubscriptionServiceError('No access token found');
-    }
     return { Authorization: `Bearer ${accessToken}` };
   }
 }

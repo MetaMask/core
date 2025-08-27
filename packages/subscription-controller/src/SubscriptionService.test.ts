@@ -152,15 +152,6 @@ describe('SubscriptionService', () => {
       });
     });
 
-    it('should throw SubscriptionServiceError for no access token', async () => {
-      await withMockSubscriptionService(async ({ service, config }) => {
-        config.auth.getAccessToken.mockResolvedValue(null);
-        await expect(service.getSubscriptions()).rejects.toThrow(
-          SubscriptionServiceError,
-        );
-      });
-    });
-
     it('should handle get access token error', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         // Simulate a non-Error thrown from the auth.getAccessToken mock
