@@ -1,5 +1,4 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import type { Messenger } from '@metamask/base-controller';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
   encrypt,
@@ -9,6 +8,7 @@ import {
   decryptWithKey as decryptWithKeyBrowserPassworder,
   importKey as importKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
+import type { Messenger } from '@metamask/messenger';
 import {
   TOPRFError,
   type FetchAuthPubKeyResult,
@@ -44,13 +44,17 @@ import {
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
   VaultEncryptor,
 } from './types';
+import type {
+  AllSeedlessOnboardingControllerActions,
+  AllSeedlessOnboardingControllerEvents,
+  baseMessengerName,
+  MockKeyringControllerMessenger,
+} from '../tests/__fixtures__/mockMessenger';
 import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
 import {
   handleMockSecretDataGet,
@@ -115,7 +119,12 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   encryptor: VaultEncryptor<EKey>;
   initialState: SeedlessOnboardingControllerState;
   messenger: SeedlessOnboardingControllerMessenger;
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  baseMessenger: Messenger<
+    typeof baseMessengerName,
+    AllSeedlessOnboardingControllerActions,
+    AllSeedlessOnboardingControllerEvents
+  >;
+  keyringControllerMessenger: MockKeyringControllerMessenger;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
   mockRevokeRefreshToken: jest.Mock;
@@ -174,7 +183,8 @@ async function withController<ReturnValue>(
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockVaultEncryptor();
-  const { messenger, baseMessenger } = mockSeedlessOnboardingMessenger();
+  const { messenger, baseMessenger, keyringControllerMessenger } =
+    mockSeedlessOnboardingMessenger();
 
   const mockRefreshJWTToken = jest.fn().mockResolvedValue({
     idTokens: ['newIdToken'],
@@ -222,6 +232,7 @@ async function withController<ReturnValue>(
     initialState: controller.state,
     messenger,
     baseMessenger,
+    keyringControllerMessenger,
     toprfClient,
     mockRefreshJWTToken,
     mockRevokeRefreshToken,
@@ -2745,9 +2756,9 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
           }),
         },
-        async ({ controller, encryptor, baseMessenger }) => {
+        async ({ controller, encryptor, keyringControllerMessenger }) => {
           // unlock the controller
-          baseMessenger.publish('KeyringController:unlock');
+          keyringControllerMessenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
           jest
@@ -2860,14 +2871,14 @@ describe('SeedlessOnboardingController', () => {
             // Intentionally missing nodeAuthTokens, authConnectionId, userId
           },
         },
-        async ({ controller, baseMessenger, encryptor }) => {
+        async ({ controller, keyringControllerMessenger, encryptor }) => {
           // Mock the encryptor to pass verifyVaultPassword
           jest
             .spyOn(encryptor, 'decrypt')
             .mockResolvedValueOnce('mock decrypted data');
 
           // unlock the controller
-          baseMessenger.publish('KeyringController:unlock');
+          keyringControllerMessenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
           await expect(
@@ -3098,7 +3109,7 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
           }),
         },
-        async ({ controller, baseMessenger, toprfClient }) => {
+        async ({ controller, keyringControllerMessenger, toprfClient }) => {
           await mockCreateToprfKeyAndBackupSeedPhrase(
             toprfClient,
             controller,
@@ -3107,7 +3118,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
 
-          baseMessenger.publish('KeyringController:lock');
+          keyringControllerMessenger.publish('KeyringController:lock');
 
           await expect(
             controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
@@ -3127,7 +3138,7 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthenticatedUser: true,
           }),
         },
-        async ({ controller, baseMessenger }) => {
+        async ({ controller, keyringControllerMessenger }) => {
           await expect(
             controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
               keyringId: MOCK_KEYRING_ID,
@@ -3136,7 +3147,7 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
 
-          baseMessenger.publish('KeyringController:unlock');
+          keyringControllerMessenger.publish('KeyringController:unlock');
 
           await new Promise((resolve) => setTimeout(resolve, 100));
 

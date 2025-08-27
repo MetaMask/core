@@ -1,10 +1,32 @@
-import { Messenger } from '@metamask/base-controller';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 
+import { controllerName } from '../../src/constants';
 import type {
   AllowedActions,
   AllowedEvents,
   SeedlessOnboardingControllerMessenger,
 } from '../../src/types';
+
+export type AllSeedlessOnboardingControllerActions =
+  MessengerActions<SeedlessOnboardingControllerMessenger>;
+export type AllSeedlessOnboardingControllerEvents =
+  MessengerEvents<SeedlessOnboardingControllerMessenger>;
+
+export const baseMessengerName = 'Root';
+
+export type MockKeyringControllerMessenger = Messenger<
+  'KeyringController',
+  never,
+  KeyringControllerLockEvent | KeyringControllerUnlockEvent
+>;
 
 /**
  * creates a custom seedless onboarding messenger, in case tests need different permissions
@@ -12,22 +34,56 @@ import type {
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
  */
 export function createCustomSeedlessOnboardingMessenger() {
-  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
-  const messenger = baseMessenger.getRestricted({
-    name: 'SeedlessOnboardingController',
-    allowedActions: [],
-    allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
+  // Create the root messenger
+  const baseMessenger = new Messenger<
+    typeof baseMessengerName,
+    AllSeedlessOnboardingControllerActions,
+    AllSeedlessOnboardingControllerEvents
+  >({ namespace: baseMessengerName });
+
+  const keyringControllerMessenger = new Messenger<
+    'KeyringController',
+    never,
+    KeyringControllerLockEvent | KeyringControllerUnlockEvent,
+    typeof baseMessenger
+  >({ namespace: 'KeyringController', parent: baseMessenger });
+
+  // Create the seedless onboarding controller messenger
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllSeedlessOnboardingControllerActions,
+    AllSeedlessOnboardingControllerEvents,
+    typeof baseMessenger
+  >({
+    namespace: controllerName,
+    parent: baseMessenger,
+  });
+
+  // Delegate external actions/events
+  keyringControllerMessenger.delegate({
+    events: ['KeyringController:lock', 'KeyringController:unlock'],
+    messenger: baseMessenger,
+  });
+  baseMessenger.delegate({
+    events: ['KeyringController:lock', 'KeyringController:unlock'],
+    messenger,
   });
 
   return {
     baseMessenger,
     messenger,
+    keyringControllerMessenger,
   };
 }
 
 type OverrideMessengers = {
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  baseMessenger: Messenger<
+    typeof baseMessengerName,
+    AllowedActions,
+    AllowedEvents
+  >;
   messenger: SeedlessOnboardingControllerMessenger;
+  keyringControllerMessenger: MockKeyringControllerMessenger;
 };
 
 /**
@@ -39,7 +95,7 @@ type OverrideMessengers = {
 export function mockSeedlessOnboardingMessenger(
   overrideMessengers?: OverrideMessengers,
 ) {
-  const { baseMessenger, messenger } =
+  const { baseMessenger, messenger, keyringControllerMessenger } =
     overrideMessengers ?? createCustomSeedlessOnboardingMessenger();
 
   const mockKeyringGetAccounts = jest.fn();
@@ -50,6 +106,7 @@ export function mockSeedlessOnboardingMessenger(
   return {
     baseMessenger,
     messenger,
+    keyringControllerMessenger,
     mockKeyringGetAccounts,
     mockKeyringAddAccounts,
     mockAccountsListAccounts,

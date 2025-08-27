@@ -1,4 +1,3 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type {
@@ -6,6 +5,7 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
@@ -202,12 +202,10 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent;
 
 // Messenger
-export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
+export type SeedlessOnboardingControllerMessenger = Messenger<
   typeof controllerName,
   SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SeedlessOnboardingControllerEvents | AllowedEvents
 >;
 
 /**
