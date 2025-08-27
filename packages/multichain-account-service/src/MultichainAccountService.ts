@@ -124,6 +124,13 @@ export class MultichainAccountService {
       'MultichainAccountService:getIsAlignmentInProgress',
       () => this.getIsAlignmentInProgress(),
     );
+
+    this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
+      this.#handleOnAccountAdded(account),
+    );
+    this.#messenger.subscribe('AccountsController:accountRemoved', (id) =>
+      this.#handleOnAccountRemoved(id),
+    );
   }
 
   /**
@@ -131,6 +138,9 @@ export class MultichainAccountService {
    * multichain accounts and wallets.
    */
   init(): void {
+    this.#wallets.clear();
+    this.#accountIdToContext.clear();
+
     // Create initial wallets.
     const { keyrings } = this.#messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
@@ -157,13 +167,6 @@ export class MultichainAccountService {
         }
       }
     }
-
-    this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
-      this.#handleOnAccountAdded(account),
-    );
-    this.#messenger.subscribe('AccountsController:accountRemoved', (id) =>
-      this.#handleOnAccountRemoved(id),
-    );
   }
 
   #handleOnAccountAdded(account: KeyringAccount): void {
