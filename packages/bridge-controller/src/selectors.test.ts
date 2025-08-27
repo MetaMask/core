@@ -313,6 +313,7 @@ describe('Bridge Selectors', () => {
         destChainId: '137',
         srcTokenAmount: '1000000000000000000',
         destTokenAmount: '2000000000000000000',
+        minDestTokenAmount: '1800000000000000000',
         srcAsset: {
           address: '0x0000000000000000000000000000000000000000',
           decimals: 18,
@@ -477,6 +478,12 @@ describe('Bridge Selectors', () => {
                   .dividedBy(currencyRates.BNB.conversionRate)
                   .multipliedBy(10 ** destAsset.decimals)
                   .toFixed(0),
+                minDestTokenAmount: new BigNumber('9')
+                  .dividedBy(marketData['0x38'][destAsset.address].price)
+                  .dividedBy(currencyRates.BNB.conversionRate)
+                  .multipliedBy(10 ** destAsset.decimals)
+                  .multipliedBy(0.95) // 5% slippage
+                  .toFixed(0),
               },
               estimatedProcessingTimeInSeconds: 300,
               approval: {
@@ -561,6 +568,11 @@ describe('Bridge Selectors', () => {
               },
             },
             "includedTxFees": null,
+            "minToTokenAmount": Object {
+              "amount": "9.994389353314869106",
+              "usd": "9.992709880792782347418849595400950831104",
+              "valueInCurrency": "8.550000000000000000198810453356610924716",
+            },
             "sentAmount": Object {
               "amount": "0.018116598427479256",
               "usd": "11.68737997753541763072",
@@ -639,6 +651,11 @@ describe('Bridge Selectors', () => {
               },
             },
             "includedTxFees": null,
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
@@ -730,6 +747,11 @@ describe('Bridge Selectors', () => {
               "usd": "0.64512",
               "valueInCurrency": "0.55198",
             },
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
             "sentAmount": Object {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
@@ -820,6 +842,11 @@ describe('Bridge Selectors', () => {
               "amount": "3",
               "usd": "1935.36",
               "valueInCurrency": "1655.94",
+            },
+            "minToTokenAmount": Object {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
             },
             "sentAmount": Object {
               "amount": "11.689344272882887843",

@@ -7,6 +7,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { isNativeAddress, isSolanaChainId } from './bridge';
 import type {
+  BridgeAsset,
   ExchangeRate,
   GenericQuoteRequest,
   L1GasFees,
@@ -105,7 +106,8 @@ export const calcSolanaTotalNetworkFee = (
 };
 
 export const calcToAmount = (
-  { destTokenAmount, destAsset }: Quote,
+  destTokenAmount: string,
+  destAsset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const normalizedDestAmount = calcTokenAmount(
