@@ -1609,18 +1609,14 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    */
   #parseVaultData(data: unknown): VaultData {
     if (typeof data !== 'string') {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
-      );
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
     }
 
     let parsedVaultData: unknown;
     try {
       parsedVaultData = JSON.parse(data);
     } catch {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
-      );
+      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
     }
 
     assertIsValidVaultData(parsedVaultData);

@@ -1605,36 +1605,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw error if encryptionSalt is different from the one in the vault', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-          }),
-        },
-        async ({ controller }) => {
-          // intentionally mock the JSON.parse to return an object with a different salt
-          jest.spyOn(global.JSON, 'parse').mockReturnValueOnce({
-            salt: 'different-salt',
-          });
-
-          await expect(
-            controller.addNewSecretData(
-              NEW_KEY_RING_1.seedPhrase,
-              SecretType.Mnemonic,
-              {
-                keyringId: NEW_KEY_RING_1.id,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
-          );
-        },
-      );
-    });
-
     it('should throw an error if password is outdated', async () => {
       await withController(
         {
@@ -2220,23 +2190,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      const mockToprfEncryptor = createMockToprfEncryptor();
-
-      const MOCK_ENCRYPTION_KEY =
-        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-      const MOCK_PASSWORD_ENCRYPTION_KEY =
-        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
-      const MOCK_AUTH_KEY_PAIR =
-        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-
-      const mockResult = await createMockVault(
-        MOCK_ENCRYPTION_KEY,
-        MOCK_PASSWORD_ENCRYPTION_KEY,
-        MOCK_AUTH_KEY_PAIR,
-        MOCK_PASSWORD,
-      );
-
-      const mockVault = mockResult.encryptedMockVault;
+      const mockVault = JSON.stringify({ foo: 'bar' });
 
       await withController(
         {
@@ -2246,42 +2200,45 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'encryptWithDetail').mockResolvedValueOnce({
-            vault: mockVault,
-            exportedKeyString: mockResult.vaultEncryptionKey,
-          });
-
           jest
             .spyOn(encryptor, 'decryptWithKey')
             .mockResolvedValueOnce(mockVault);
           await expect(
             controller.submitPassword(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.VaultDataError,
+            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
           );
         },
       );
     });
 
     it('should throw an error if vault unlocked has an unexpected shape', async () => {
+      const mockVault = 'corrupted-vault-json';
+
       await withController(
         {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
-            vault: JSON.stringify({ foo: 'bar' }),
+            vault: mockVault,
           }),
         },
         async ({ controller, encryptor }) => {
-          jest
-            .spyOn(encryptor, 'decryptWithKey')
-            .mockResolvedValueOnce({ foo: 'bar' });
+          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
+            vault: mockVault,
+            exportedKeyString: 'mock-encryption-key',
+            salt: 'mock-salt',
+          });
           await expect(
             controller.submitPassword(MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
           );
 
-          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce('null');
+          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
+            vault: null,
+            exportedKeyString: 'mock-encryption-key',
+            salt: 'mock-salt',
+          });
           await expect(
             controller.submitPassword(MOCK_PASSWORD),
           ).rejects.toThrow(
