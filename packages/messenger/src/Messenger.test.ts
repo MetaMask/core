@@ -1268,31 +1268,6 @@ describe('Messenger', () => {
         `Cannot call 'Source:getLength', action not registered.`,
       );
     });
-
-    it('unregisters delegated action handlers when action is unregistered', () => {
-      type ExampleAction = {
-        type: 'Source:getLength';
-        handler: (input: string) => number;
-      };
-      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
-        namespace: 'Source',
-      });
-      const delegatedMessenger = new Messenger<
-        'Destination',
-        ExampleAction,
-        never
-      >({ namespace: 'Destination' });
-      sourceMessenger.delegate({
-        messenger: delegatedMessenger,
-        actions: ['Source:getLength'],
-      });
-
-      sourceMessenger.unregisterActionHandler('Source:getLength');
-
-      expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        `A handler for Source:getLength has not been registered`,
-      );
-    });
   });
 
   describe('revoke', () => {

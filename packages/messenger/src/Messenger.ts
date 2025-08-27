@@ -356,14 +356,6 @@ export class Messenger<
     actionType: ActionType,
   ) {
     this.#actions.delete(actionType);
-    const delegationTargets = this.#actionDelegationTargets.get(actionType);
-    if (!delegationTargets) {
-      return;
-    }
-    for (const messenger of delegationTargets) {
-      messenger._internalUnregisterDelegatedActionHandler(actionType);
-    }
-    this.#actionDelegationTargets.delete(actionType);
   }
 
   /**
