@@ -1605,64 +1605,16 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw an error if failed to parse vault data', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-          }),
-        },
-        async ({ controller, encryptor, toprfClient }) => {
-          await controller.submitPassword(MOCK_PASSWORD);
-
-          mockFetchAuthPubKey(
-            toprfClient,
-            base64ToBytes(controller.state.authPubKey as string),
-          );
-
-          jest
-            .spyOn(encryptor, 'decryptWithKey')
-            .mockResolvedValueOnce('{ "foo": "bar"');
-          await expect(
-            controller.addNewSecretData(
-              NEW_KEY_RING_1.seedPhrase,
-              SecretType.Mnemonic,
-              {
-                keyringId: NEW_KEY_RING_1.id,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
-          );
-        },
-      );
-    });
-
     it('should throw error if encryptionSalt is different from the one in the vault', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
-        async ({ controller, toprfClient }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            MOCK_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          mockFetchAuthPubKey(
-            toprfClient,
-            base64ToBytes(controller.state.authPubKey as string),
-          );
-
+        async ({ controller }) => {
           // intentionally mock the JSON.parse to return an object with a different salt
           jest.spyOn(global.JSON, 'parse').mockReturnValueOnce({
             salt: 'different-salt',
@@ -1678,119 +1630,6 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ExpiredCredentials,
-          );
-        },
-      );
-    });
-
-    it('should throw an error if vault unlocked has an unexpected shape', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            vault: MOCK_VAULT,
-          }),
-        },
-        async ({ controller, toprfClient, encryptor }) => {
-          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
-
-          // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
-          // encrypt and store the secret data
-          handleMockSecretDataAdd();
-
-          jest.spyOn(encryptor, 'encryptWithDetail').mockResolvedValueOnce({
-            vault: MOCK_VAULT,
-            exportedKeyString: MOCK_VAULT_ENCRYPTION_KEY,
-          });
-
-          await controller.createToprfKeyAndBackupSeedPhrase(
-            MOCK_PASSWORD,
-            NEW_KEY_RING_1.seedPhrase,
-            NEW_KEY_RING_1.id,
-          );
-
-          mockFetchAuthPubKey(
-            toprfClient,
-            base64ToBytes(controller.state.authPubKey as string),
-          );
-
-          jest
-            .spyOn(encryptor, 'decryptWithKey')
-            .mockResolvedValueOnce({ foo: 'bar' });
-          await expect(
-            controller.addNewSecretData(
-              NEW_KEY_RING_2.seedPhrase,
-              SecretType.Mnemonic,
-              {
-                keyringId: NEW_KEY_RING_2.id,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
-          );
-
-          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce('null');
-          await expect(
-            controller.addNewSecretData(
-              NEW_KEY_RING_2.seedPhrase,
-              SecretType.Mnemonic,
-              {
-                keyringId: NEW_KEY_RING_2.id,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.VaultDataError,
-          );
-        },
-      );
-    });
-
-    it('should throw an error if vault unlocked has invalid authentication data', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            vault: MOCK_VAULT,
-          }),
-        },
-        async ({ controller, toprfClient, encryptor }) => {
-          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
-
-          // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
-          // encrypt and store the secret data
-          handleMockSecretDataAdd();
-
-          jest.spyOn(encryptor, 'encryptWithDetail').mockResolvedValueOnce({
-            vault: MOCK_VAULT,
-            exportedKeyString: MOCK_VAULT_ENCRYPTION_KEY,
-          });
-
-          await controller.createToprfKeyAndBackupSeedPhrase(
-            MOCK_PASSWORD,
-            NEW_KEY_RING_1.seedPhrase,
-            NEW_KEY_RING_1.id,
-          );
-
-          mockFetchAuthPubKey(
-            toprfClient,
-            base64ToBytes(controller.state.authPubKey as string),
-          );
-
-          jest
-            .spyOn(encryptor, 'decryptWithKey')
-            .mockResolvedValueOnce(MOCK_VAULT);
-          await expect(
-            controller.addNewSecretData(
-              NEW_KEY_RING_2.seedPhrase,
-              SecretType.Mnemonic,
-              {
-                keyringId: NEW_KEY_RING_2.id,
-              },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.VaultDataError,
           );
         },
       );
@@ -2375,6 +2214,78 @@ describe('SeedlessOnboardingController', () => {
           // @ts-expect-error intentional test case
           await expect(controller.submitPassword(123)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
+          );
+        },
+      );
+    });
+
+    it('should throw an error if vault unlocked has invalid authentication data', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+      );
+
+      const mockVault = mockResult.encryptedMockVault;
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockVault,
+          }),
+        },
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'encryptWithDetail').mockResolvedValueOnce({
+            vault: mockVault,
+            exportedKeyString: mockResult.vaultEncryptionKey,
+          });
+
+          jest
+            .spyOn(encryptor, 'decryptWithKey')
+            .mockResolvedValueOnce(mockVault);
+          await expect(
+            controller.submitPassword(MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
+          );
+        },
+      );
+    });
+
+    it('should throw an error if vault unlocked has an unexpected shape', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: JSON.stringify({ foo: 'bar' }),
+          }),
+        },
+        async ({ controller, encryptor }) => {
+          jest
+            .spyOn(encryptor, 'decryptWithKey')
+            .mockResolvedValueOnce({ foo: 'bar' });
+          await expect(
+            controller.submitPassword(MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidVaultData,
+          );
+
+          jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce('null');
+          await expect(
+            controller.submitPassword(MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultDataError,
           );
         },
       );

@@ -202,6 +202,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   #isUnlocked = false;
 
   /**
+   * Cached decrypted vault data.
+   *
+   * This is used to cache the decrypted vault data to avoid decrypting the vault data multiple times.
+   */
+  #cachedDecryptedVaultData: DeserializedVaultData | undefined;
+
+  /**
    * Creates a new SeedlessOnboardingController instance.
    *
    * @param options - The options for the SeedlessOnboardingController.
@@ -689,6 +696,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       delete state.accessToken;
     });
 
+    this.#cachedDecryptedVaultData = undefined;
     this.#isUnlocked = false;
   }
 
@@ -1277,6 +1285,10 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     encryptionKey?: string;
   }): Promise<DeserializedVaultData> {
     return this.#withVaultLock(async () => {
+      if (this.#cachedDecryptedVaultData) {
+        return this.#cachedDecryptedVaultData;
+      }
+
       const { vaultData, vaultEncryptionKey, vaultEncryptionSalt } =
         await this.#decryptAndParseVaultData(params);
 
@@ -1287,7 +1299,9 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         state.accessToken = vaultData.accessToken;
       });
 
-      return deserializeVaultData(vaultData);
+      const deserializedVaultData = deserializeVaultData(vaultData);
+      this.#cachedDecryptedVaultData = deserializedVaultData;
+      return deserializedVaultData;
     });
   }
 
@@ -1480,17 +1494,18 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
     const { revokeToken } = this.state;
     const accessToken = await this.#getAccessToken(password);
-    const serializedVaultData = serializeVaultData({
+
+    const vaultData: DeserializedVaultData = {
       toprfAuthKeyPair: rawToprfAuthKeyPair,
       toprfEncryptionKey: rawToprfEncryptionKey,
       toprfPwEncryptionKey: rawToprfPwEncryptionKey,
       revokeToken,
       accessToken,
-    });
+    };
 
     await this.#updateVault({
       password,
-      serializedVaultData,
+      vaultData,
       pwEncKey: rawToprfPwEncryptionKey,
     });
 
@@ -1507,21 +1522,26 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    *
    * @param params - The parameters for updating the vault.
    * @param params.password - The password to encrypt the vault.
-   * @param params.serializedVaultData - The serialized authentication data to update the vault with.
+   * @param params.vaultData - The raw vault data to update the vault with.
    * @param params.pwEncKey - The global password encryption key.
    * @returns A promise that resolves to the updated vault.
    */
   async #updateVault({
     password,
-    serializedVaultData,
+    vaultData,
     pwEncKey,
   }: {
     password: string;
-    serializedVaultData: string;
+    vaultData: DeserializedVaultData;
     pwEncKey: Uint8Array;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       assertIsValidPassword(password);
+
+      // cache the vault data to avoid decrypting the vault data multiple times
+      this.#cachedDecryptedVaultData = vaultData;
+
+      const serializedVaultData = serializeVaultData(vaultData);
 
       // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
       // from the password using an intentionally slow key derivation function.
