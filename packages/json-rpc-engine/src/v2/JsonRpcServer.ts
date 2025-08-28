@@ -91,18 +91,20 @@ export class JsonRpcServer {
    * notification.
    */
   async handle(rawRequest: unknown): Promise<JsonRpcResponse | undefined> {
+    // If rawRequest is not a notification, the originalId will be attached
+    // to the response. We attach our own, trusted id in #coerceRequest()
+    // while the request is being handled.
     const [originalId, isRequest] = getOriginalId(rawRequest);
 
     try {
       const request = this.#coerceRequest(rawRequest, isRequest);
       const result = await this.#engine.handleAny(request);
 
-      if (isRequest) {
+      if (result !== undefined) {
         return {
           jsonrpc,
           id: originalId as JsonRpcId,
-          // The result is guaranteed to be Json by the engine.
-          result: result as Json,
+          result,
         };
       }
     } catch (error) {
