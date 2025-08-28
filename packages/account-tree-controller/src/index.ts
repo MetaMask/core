@@ -7,7 +7,6 @@ export type {
   AccountTreeControllerActions,
   AccountTreeControllerSetSelectedAccountGroupAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
-  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerAccountTreeChangeEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
