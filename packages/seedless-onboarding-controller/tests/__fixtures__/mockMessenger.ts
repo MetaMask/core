@@ -4,10 +4,6 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import type {
-  SeedlessOnboardingControllerActions,
-  SeedlessOnboardingControllerEvents,
-} from '../../src/types';
 import { type SeedlessOnboardingControllerMessenger } from '../../src/types';
 
 /**
@@ -17,9 +13,8 @@ import { type SeedlessOnboardingControllerMessenger } from '../../src/types';
  */
 export function createCustomSeedlessOnboardingMessenger() {
   const baseMessenger = new Messenger<
-    SeedlessOnboardingControllerActions | never,
-    | SeedlessOnboardingControllerEvents
-    | ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
+    ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
+    ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
   >();
   const messenger = baseMessenger.getRestricted({
     name: 'SeedlessOnboardingController',

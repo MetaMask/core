@@ -44,7 +44,6 @@ import {
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import type {
-  SeedlessOnboardingControllerEvents,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
@@ -120,8 +119,7 @@ type WithControllerCallback<ReturnValue, EKey> = ({
   messenger: SeedlessOnboardingControllerMessenger;
   baseMessenger: Messenger<
     ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
-    | SeedlessOnboardingControllerEvents
-    | ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
+    ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
   >;
   toprfClient: ToprfSecureBackup;
   mockRefreshJWTToken: jest.Mock;
@@ -3920,6 +3918,69 @@ describe('SeedlessOnboardingController', () => {
             expect.objectContaining({ password: GLOBAL_PASSWORD }),
           );
           expect(encryptorSpy).toHaveBeenCalled();
+        },
+      );
+    });
+
+    /**
+     * This test is to verify that the controller throws an error if the encryption salt is expired.
+     * The test creates a mock vault with a different salt value in the state to simulate an expired salt.
+     * It then creates mock keys associated with the new global password and uses these values as mock return values for the recoverEncKey and recoverPwEncKey calls.
+     * The test expects the controller to throw an error indicating that the password could not be recovered since the encryption salt from state is different from the salt in the mock vault.
+     */
+    it('should throw an error if the encryption salt is expired', async () => {
+      const encryptedSeedlessEncryptionKey = bytesToBase64(
+        initialEncryptedSeedlessEncryptionKey,
+      );
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            authPubKey: INITIAL_AUTH_PUB_KEY, // Use the base64 encoded key
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            // Mock a different salt value in state to simulate an expired salt
+            vaultEncryptionSalt: 'DIFFERENT-SALT',
+            withMockAuthPubKey: true,
+            encryptedSeedlessEncryptionKey,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          // Here we are creating mock keys associated with the new global password
+          // and these values are used as mock return values for the recoverEncKey and recoverPwEncKey calls
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const newEncKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const newPwEncKey =
+            mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
+          const newAuthKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+
+          const recoverEncKeySpy = jest
+            .spyOn(toprfClient, 'recoverEncKey')
+            .mockResolvedValueOnce({
+              encKey: newEncKey,
+              pwEncKey: newPwEncKey,
+              authKeyPair: newAuthKeyPair,
+              rateLimitResetResult: Promise.resolve(),
+              keyShareIndex: 1,
+            });
+
+          const recoverPwEncKeySpy = jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockResolvedValueOnce({
+              pwEncKey: initialPwEncKey,
+            });
+
+          await expect(
+            controller.submitGlobalPassword({
+              globalPassword: GLOBAL_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.CouldNotRecoverPassword,
+          );
+
+          expect(recoverEncKeySpy).toHaveBeenCalled();
+          expect(recoverPwEncKeySpy).toHaveBeenCalled();
         },
       );
     });
