@@ -1,17 +1,17 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 
-export const makeRequest = <Request extends JsonRpcRequest>(
-  params: Partial<Request> = {},
-): Request =>
+export const makeRequest = <Request extends Partial<JsonRpcRequest>>(
+  params: Request = {} as Request,
+) =>
   ({
-    jsonrpc: '2.0' as const,
+    jsonrpc: '2.0',
     id: '1',
     method: 'test_request',
-    params: [] as Request['params'],
+    params: [],
     ...params,
-  }) as Request;
+  }) as const satisfies JsonRpcRequest;
 
-const requestProps = ['jsonrpc', 'method', 'params', 'id'];
+const requestProps = ['jsonrpc', 'method', 'params', 'id'] as const;
 
 /**
  * Get the keys of a request that are not part of the standard JSON-RPC request
@@ -21,5 +21,7 @@ const requestProps = ['jsonrpc', 'method', 'params', 'id'];
  * @returns The extraneous keys.
  */
 export function getExtraneousKeys(req: Record<string, unknown>): string[] {
-  return Object.keys(req).filter((key) => !requestProps.includes(key));
+  return Object.keys(req).filter(
+    (key) => !requestProps.find((requestProp) => requestProp === key),
+  );
 }
