@@ -1,9 +1,9 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
@@ -66,12 +66,10 @@ const metadata = {
   },
 };
 
-export type AnnouncementControllerMessenger = RestrictedMessenger<
+export type AnnouncementControllerMessenger = Messenger<
   typeof controllerName,
   AnnouncementControllerActions,
-  AnnouncementControllerEvents,
-  never,
-  never
+  AnnouncementControllerEvents
 >;
 
 /**
