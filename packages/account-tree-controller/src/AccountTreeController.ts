@@ -462,6 +462,10 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
+    this.messagingSystem.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
+    );
   }
 
   /**
@@ -475,6 +479,9 @@ export class AccountTreeController extends BaseController<
 
     if (context) {
       const { walletId, groupId } = context;
+
+      const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
+      let selectedGroupChanged = false;
 
       this.update((state) => {
         const accounts =
@@ -491,8 +498,11 @@ export class AccountTreeController extends BaseController<
               accounts.length === 0
             ) {
               // The currently selected group is now empty, find a new group to select
-              state.accountTree.selectedAccountGroup =
-                this.#getDefaultAccountGroupId(state.accountTree.wallets);
+              const newSelectedGroup = this.#getDefaultAccountGroupId(
+                state.accountTree.wallets,
+              );
+              state.accountTree.selectedAccountGroup = newSelectedGroup;
+              selectedGroupChanged = newSelectedGroup !== previousSelectedGroup;
             }
           }
           if (accounts.length === 0) {
@@ -500,6 +510,19 @@ export class AccountTreeController extends BaseController<
           }
         }
       });
+      this.messagingSystem.publish(
+        `${controllerName}:accountTreeChange`,
+        this.state.accountTree,
+      );
+
+      // Emit selectedAccountGroupChange event if the selected group changed
+      if (selectedGroupChanged) {
+        this.messagingSystem.publish(
+          `${controllerName}:selectedAccountGroupChange`,
+          this.state.accountTree.selectedAccountGroup,
+          previousSelectedGroup,
+        );
+      }
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
@@ -706,10 +729,10 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID to select.
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedGroup === groupId) {
       return;
     }
 
@@ -723,6 +746,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      groupId,
+      previousSelectedGroup,
+    );
 
     // Update AccountsController - this will trigger selectedAccountChange event,
     // but our handler is idempotent so it won't cause infinite loop
@@ -771,10 +799,10 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedGroup === groupId) {
       return;
     }
 
@@ -782,6 +810,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      groupId,
+      previousSelectedGroup,
+    );
   }
 
   /**

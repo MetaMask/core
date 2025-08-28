@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountTreeController:accountTreeChange` event ([#6400](https://github.com/MetaMask/core/pull/6400))
+- Add `AccountTreeController:selectedAccountGroupChange` event ([#6400](https://github.com/MetaMask/core/pull/6400))
+
 ## [0.11.0]
 
 ### Added
