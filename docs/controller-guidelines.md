@@ -680,7 +680,7 @@ export type FooControllerMessenger = Messenger<
 export type { AllowedEvents } from '@metamask/foo-controller';
 ```
 
-🚫 **External events are included in controller actieventn type**
+🚫 **External events are included in controller event type**
 
 ```typescript
 export type FooControllerEvents =
