@@ -897,6 +897,7 @@ describe('Simulation Utils', () => {
             code: ERROR_CODE_MOCK,
             message: ERROR_MESSAGE_MOCK,
           },
+          gasUsed: undefined,
           tokenBalanceChanges: [],
         });
       });
@@ -913,6 +914,7 @@ describe('Simulation Utils', () => {
             code: ERROR_CODE_MOCK,
             message: undefined,
           },
+          gasUsed: undefined,
           tokenBalanceChanges: [],
         });
       });
@@ -933,6 +935,7 @@ describe('Simulation Utils', () => {
             code: SimulationErrorCode.InvalidResponse,
             message: new SimulationInvalidResponseError().message,
           },
+          gasUsed: undefined,
           tokenBalanceChanges: [],
         });
       });
@@ -958,6 +961,7 @@ describe('Simulation Utils', () => {
             code: SimulationErrorCode.Reverted,
             message: new SimulationRevertedError().message,
           },
+          gasUsed: undefined,
           tokenBalanceChanges: [],
         });
       });
@@ -983,6 +987,7 @@ describe('Simulation Utils', () => {
             code: undefined,
             message: 'test 1 2 3',
           },
+          gasUsed: undefined,
           tokenBalanceChanges: [],
         });
       });
@@ -1000,6 +1005,7 @@ describe('Simulation Utils', () => {
             code: SimulationErrorCode.Reverted,
             message: new SimulationRevertedError().message,
           },
+          gasUsed: undefined,
           tokenBalanceChanges: [],
         });
       });
