@@ -1,6 +1,8 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { AccountTreeControllerGetAccountsFromSelectedAccountGroupAction } from '@metamask/account-tree-controller';
-import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
+import type {
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -9,9 +11,11 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
+  NetworkState,
 } from '@metamask/network-controller';
 import {
   EarnSdk,
@@ -34,6 +38,7 @@ import {
   type TransactionController,
   TransactionType,
   type TransactionControllerTransactionConfirmedEvent,
+  type TransactionMeta,
 } from '@metamask/transaction-controller';
 
 import type {
@@ -44,7 +49,6 @@ import type {
   RefreshPooledStakingDataOptions,
   RefreshPooledStakingVaultDailyApysOptions,
 } from './types';
-import type { InternalAccount } from '../../transaction-controller/src/types';
 
 export const controllerName = 'EarnController';
 
@@ -254,7 +258,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  * All events that EarnController subscribes to internally.
  */
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkDidChangeEvent;
 
@@ -335,7 +339,7 @@ export class EarnController extends BaseController<
     // Listen for network changes
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
-      (networkControllerState) => {
+      (networkControllerState: NetworkState) => {
         this.#selectedNetworkClientId =
           networkControllerState.selectedNetworkClientId;
 
@@ -355,14 +359,9 @@ export class EarnController extends BaseController<
 
     // Listen for account changes
     this.messagingSystem.subscribe(
-      'AccountsController:selectedAccountChange',
-      (account) => {
-        const address = account?.address;
-        /**
-         * TEMP: There's a race condition where the account state isn't updated immediately.
-         * Until this has been fixed, we rely on the event payload for the latest account instead of #getCurrentAccount().
-         * Issue: https://github.com/MetaMask/accounts-planning/issues/887
-         */
+      'AccountTreeController:selectedAccountGroupChange',
+      () => {
+        const address = this.#getSelectedEvmAccountAddress();
 
         // TODO: temp solution, this will refresh lending eligibility also
         // we could have a more general check, as what is happening is a compliance address check
@@ -375,7 +374,7 @@ export class EarnController extends BaseController<
     // Listen for confirmed staking transactions
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
-      (transactionMeta) => {
+      (transactionMeta: TransactionMeta) => {
         /**
          * When we speed up a transaction, we set the type as Retry and we lose
          * information about type of transaction that is being set up, so we use
