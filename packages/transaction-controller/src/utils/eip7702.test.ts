@@ -2,10 +2,9 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import {
   Messenger,
-  MessengerActions,
-  MessengerEvents,
+  type MessengerActions,
+  type MessengerEvents,
 } from '@metamask/messenger';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 

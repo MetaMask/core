@@ -236,12 +236,12 @@ function getMessengers() {
   return {
     rootMessenger,
     approvalControllerMessenger: new Messenger<
-      'ApprovalController',
+      typeof controllerName,
       ApprovalControllerActions,
       ApprovalControllerEvents,
       typeof rootMessenger
     >({
-      namespace: 'ApprovalController',
+      namespace: controllerName,
       parent: rootMessenger,
     }),
   };
