@@ -1,7 +1,6 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import { Messenger } from '@metamask/base-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
@@ -14,6 +13,7 @@ import {
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
+import { Messenger } from '@metamask/messenger';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
@@ -4273,27 +4273,16 @@ function stubKeyringClassWithAccount(
 }
 
 /**
- * Build a messenger that includes all events used by the keyring
- * controller.
- *
- * @returns The messenger.
- */
-function buildMessenger() {
-  return new Messenger<KeyringControllerActions, KeyringControllerEvents>();
-}
-
-/**
  * Build a restricted messenger for the keyring controller.
  *
- * @param messenger - A messenger.
  * @returns The keyring controller restricted messenger.
  */
-function buildKeyringControllerMessenger(messenger = buildMessenger()) {
-  return messenger.getRestricted({
-    name: 'KeyringController',
-    allowedActions: [],
-    allowedEvents: [],
-  });
+function buildKeyringControllerMessenger() {
+  return new Messenger<
+    'KeyringController',
+    KeyringControllerActions,
+    KeyringControllerEvents
+  >({ namespace: 'KeyringController' });
 }
 
 /**
