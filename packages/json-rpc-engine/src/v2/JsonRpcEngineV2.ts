@@ -125,10 +125,12 @@ export class JsonRpcEngineV2<
     return result;
   }
 
-  // This exists because a JsonRpcCall overload of handle() cannot coexist with
-  // the other overloads due to type union / overload shenanigans.
   /**
    * Handle a JSON-RPC call. A response will be returned if the call is a request.
+   *
+   * This exists because a {@link JsonRpcCall} overload of {@link handle} cannot
+   * coexist with the other overloads of that method. In particular, such an
+   * overload will always return `void`.
    *
    * @param request - The JSON-RPC call to handle.
    * @param options - The options for the handle operation.
