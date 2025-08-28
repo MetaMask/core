@@ -278,7 +278,7 @@ const fooControllerMessenger = new Messenger<
   parent: rootMessenger,
 });
 rootMessenger.delegate({
-  events: ['BarController:stateChange' as const],
+  events: ['BarController:stateChange'],
   messenger: fooControllerMessenger,
 });
 const fooController = new FooController({
