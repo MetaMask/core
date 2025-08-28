@@ -617,7 +617,7 @@ export type FooControllerMessenger = Messenger<
 >;
 ```
 
-✅ **`AllowedActions` is included in the 2nd type parameter but is _not_ exported**
+✅ **`AllowedActions` is included in the actions type union but is _not_ exported**
 
 ```typescript
 export type FooControllerActions =
@@ -696,7 +696,7 @@ export type FooControllerMessenger = Messenger<
 >;
 ```
 
-✅ **`AllowedEvents` is included in the 3nd type parameter but is _not_ exported**
+✅ **`AllowedEvents` is included in the events type union but is _not_ exported**
 
 ```typescript
 export type FooControllerEvents =
