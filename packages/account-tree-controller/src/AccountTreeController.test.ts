@@ -2451,7 +2451,7 @@ describe('AccountTreeController', () => {
       expect(spy).toHaveBeenCalledWith(groupId, hidden);
     });
   });
-  
+
   describe('Event Emissions', () => {
     it('does NOT emit accountTreeChange when tree is initialized', () => {
       const { controller, messenger } = setup({
@@ -2539,9 +2539,10 @@ describe('AccountTreeController', () => {
     });
 
     it('emits selectedAccountGroupChange when setSelectedAccountGroup is called', () => {
+      // Use different keyring types to ensure different groups
       const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
-        keyrings: [MOCK_HD_KEYRING_1],
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
       const selectedAccountGroupChangeListener = jest.fn();
@@ -2552,35 +2553,29 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      // Get the actual group IDs from the controller's state
-      const groupIds = Object.keys(
-        Object.values(controller.state.accountTree.wallets)[0]?.groups || {},
+      const initialSelectedGroup =
+        controller.state.accountTree.selectedAccountGroup;
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
       );
-      const firstGroupId = groupIds[0];
-      const secondGroupId = groupIds[1] || firstGroupId; // Fallback to first if only one group
+      const targetGroupId = toMultichainAccountGroupId(walletId, 1);
 
       jest.clearAllMocks();
 
-      // Only test if there are multiple groups
-      if (groupIds.length > 1) {
-        controller.setSelectedAccountGroup(secondGroupId as AccountGroupId);
+      controller.setSelectedAccountGroup(targetGroupId);
 
-        expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
-          selectedAccountGroup: secondGroupId,
-          previousSelectedAccountGroup: firstGroupId,
-        });
-        expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
-      } else {
-        // If there's only one group, test that calling setSelectedAccountGroup with the same group doesn't emit
-        controller.setSelectedAccountGroup(firstGroupId as AccountGroupId);
-        expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
-      }
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
+        selectedAccountGroup: targetGroupId,
+        previousSelectedAccountGroup: initialSelectedGroup,
+      });
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });
 
     it('emits selectedAccountGroupChange when selected account changes via AccountsController', () => {
+      // Use different keyring types to ensure different groups
       const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
-        keyrings: [MOCK_HD_KEYRING_1],
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
       const selectedAccountGroupChangeListener = jest.fn();
@@ -2598,22 +2593,17 @@ describe('AccountTreeController', () => {
 
       messenger.publish(
         'AccountsController:selectedAccountChange',
-        MOCK_HD_ACCOUNT_2,
+        MOCK_SNAP_ACCOUNT_1,
       );
 
       const newSelectedGroup =
         controller.state.accountTree.selectedAccountGroup;
 
-      // Only check if the group actually changed
-      if (newSelectedGroup !== initialSelectedGroup) {
-        expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
-          selectedAccountGroup: newSelectedGroup,
-          previousSelectedAccountGroup: initialSelectedGroup,
-        });
-        expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
-      } else {
-        expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
-      }
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
+        selectedAccountGroup: newSelectedGroup,
+        previousSelectedAccountGroup: initialSelectedGroup,
+      });
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });
 
     it('does NOT emit selectedAccountGroupChange when the same account group is already selected', () => {
@@ -2655,19 +2645,16 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const currentSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
 
       jest.clearAllMocks();
 
-      // Only test if there's a selected group (not empty string)
-      if (currentSelectedGroup) {
-        controller.setSelectedAccountGroup(currentSelectedGroup);
-        expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
-      } else {
-        // If no group is selected, skip this test
-        expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
-      }
+      controller.setSelectedAccountGroup(groupId);
+
+      expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
     });
   });
 });
