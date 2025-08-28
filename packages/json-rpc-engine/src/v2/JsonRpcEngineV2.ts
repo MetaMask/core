@@ -79,10 +79,6 @@ export class JsonRpcEngineV2<
     NonEmptyArray<JsonRpcMiddleware<Request, Result | void>>
   >;
 
-  readonly #makeMiddlewareIterator = (): Iterator<
-    JsonRpcMiddleware<Request, Result | void>
-  > => this.#middleware[Symbol.iterator]();
-
   #isDestroyed = false;
 
   constructor({ middleware }: Options<Request, Result>) {
@@ -236,6 +232,12 @@ export class JsonRpcEngineV2<
     };
 
     return makeNext;
+  }
+
+  #makeMiddlewareIterator(): Iterator<
+    JsonRpcMiddleware<Request, Result | void>
+  > {
+    return this.#middleware[Symbol.iterator]();
   }
 
   /**
