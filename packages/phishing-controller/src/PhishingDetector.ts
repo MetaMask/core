@@ -25,6 +25,7 @@ export type LegacyPhishingDetectorList = {
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
+  blocklistPaths?: Record<string, Record<string, string[]>>;
   c2DomainBlocklist?: string[];
   name?: string;
   version?: string | number;
@@ -50,6 +51,7 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
+  blocklistPaths?: Record<string, Record<string, string[]>>;
   c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
