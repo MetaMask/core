@@ -2521,6 +2521,46 @@ describe('AccountTreeController', () => {
       expect(accountTreeChangeListener).toHaveBeenCalledTimes(1);
     });
 
+    it('emits selectedAccountGroupChange when account removal causes empty group and auto-selection', () => {
+      // Set up with two accounts in different groups to ensure group change on removal
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      // Set selected group to be the group we're about to empty
+      const snapWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const snapGroupId = toMultichainAccountGroupId(snapWalletId, 1);
+      controller.setSelectedAccountGroup(snapGroupId);
+
+      jest.clearAllMocks();
+
+      // Remove the only account in the selected group, which should trigger auto-selection
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_SNAP_ACCOUNT_1.id,
+      );
+
+      const newSelectedGroup =
+        controller.state.accountTree.selectedAccountGroup;
+
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
+        selectedAccountGroup: newSelectedGroup,
+        previousSelectedAccountGroup: snapGroupId,
+      });
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+    });
+
     it('does NOT emit selectedAccountGroupChange when tree is initialized', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],

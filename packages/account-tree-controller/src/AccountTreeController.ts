@@ -480,6 +480,9 @@ export class AccountTreeController extends BaseController<
     if (context) {
       const { walletId, groupId } = context;
 
+      const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
+      let selectedGroupChanged = false;
+
       this.update((state) => {
         const accounts =
           state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
@@ -495,8 +498,11 @@ export class AccountTreeController extends BaseController<
               accounts.length === 0
             ) {
               // The currently selected group is now empty, find a new group to select
-              state.accountTree.selectedAccountGroup =
-                this.#getDefaultAccountGroupId(state.accountTree.wallets);
+              const newSelectedGroup = this.#getDefaultAccountGroupId(
+                state.accountTree.wallets,
+              );
+              state.accountTree.selectedAccountGroup = newSelectedGroup;
+              selectedGroupChanged = newSelectedGroup !== previousSelectedGroup;
             }
           }
           if (accounts.length === 0) {
@@ -508,6 +514,17 @@ export class AccountTreeController extends BaseController<
         `${controllerName}:accountTreeChange`,
         this.state.accountTree,
       );
+
+      // Emit selectedAccountGroupChange event if the selected group changed
+      if (selectedGroupChanged && this.state.accountTree.selectedAccountGroup) {
+        this.messagingSystem.publish(
+          `${controllerName}:selectedAccountGroupChange`,
+          {
+            selectedAccountGroup: this.state.accountTree.selectedAccountGroup,
+            previousSelectedAccountGroup: previousSelectedGroup,
+          },
+        );
+      }
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
