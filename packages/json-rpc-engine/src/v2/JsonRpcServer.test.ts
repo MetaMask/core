@@ -23,7 +23,7 @@ describe('JsonRpcServer', () => {
   it('can be constructed with an engine', () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     expect(server).toBeDefined();
@@ -32,7 +32,7 @@ describe('JsonRpcServer', () => {
   it('can be constructed with middleware', () => {
     const server = new JsonRpcServer({
       middleware: [() => null],
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     expect(server).toBeDefined();
@@ -41,7 +41,7 @@ describe('JsonRpcServer', () => {
   it('handles a request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -60,7 +60,7 @@ describe('JsonRpcServer', () => {
   it('handles a request with params', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -80,7 +80,7 @@ describe('JsonRpcServer', () => {
   it('handles a notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -94,7 +94,7 @@ describe('JsonRpcServer', () => {
   it('handles a notification with params', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -109,7 +109,7 @@ describe('JsonRpcServer', () => {
   it('returns an error response for a failed request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -132,7 +132,7 @@ describe('JsonRpcServer', () => {
   it('returns undefined for a failed notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -143,11 +143,11 @@ describe('JsonRpcServer', () => {
     expect(response).toBeUndefined();
   });
 
-  it('calls handleError for a failed request', async () => {
-    const handleError = jest.fn();
+  it('calls onError for a failed request', async () => {
+    const onError = jest.fn();
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError,
+      onError,
     });
 
     await server.handle({
@@ -156,11 +156,11 @@ describe('JsonRpcServer', () => {
       method: 'unknown',
     });
 
-    expect(handleError).toHaveBeenCalledTimes(1);
-    expect(handleError).toHaveBeenCalledWith(new Error('Unknown method'));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(new Error('Unknown method'));
   });
 
-  it('returns a failed request when handleError is not provided', async () => {
+  it('returns a failed request when onError is not provided', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
     });
@@ -182,11 +182,11 @@ describe('JsonRpcServer', () => {
     });
   });
 
-  it('calls handleError for a failed notification', async () => {
-    const handleError = jest.fn();
+  it('calls onError for a failed notification', async () => {
+    const onError = jest.fn();
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError,
+      onError,
     });
 
     await server.handle({
@@ -194,14 +194,14 @@ describe('JsonRpcServer', () => {
       method: 'unknown',
     });
 
-    expect(handleError).toHaveBeenCalledTimes(1);
-    expect(handleError).toHaveBeenCalledWith(new Error('Unknown method'));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(new Error('Unknown method'));
   });
 
   it('accepts requests with malformed jsonrpc', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      handleError: () => undefined,
+      onError: () => undefined,
     });
 
     const response = await server.handle({
@@ -222,7 +222,7 @@ describe('JsonRpcServer', () => {
     async (id) => {
       const server = new JsonRpcServer({
         engine: makeEngine(),
-        handleError: () => undefined,
+        onError: () => undefined,
       });
 
       const response = await server.handle({
@@ -254,16 +254,16 @@ describe('JsonRpcServer', () => {
   ])(
     'throws if the request is not minimally conformant',
     async (malformedRequest) => {
-      const handleError = jest.fn();
+      const onError = jest.fn();
       const server = new JsonRpcServer({
         engine: makeEngine(),
-        handleError,
+        onError,
       });
 
       await server.handle(malformedRequest);
 
-      expect(handleError).toHaveBeenCalledTimes(1);
-      expect(handleError).toHaveBeenCalledWith(
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(
         rpcErrors.invalidRequest({
           data: {
             request: malformedRequest,

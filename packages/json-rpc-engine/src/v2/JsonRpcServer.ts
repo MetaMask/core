@@ -14,10 +14,10 @@ import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
 import { getUniqueId } from '../getUniqueId';
 
-type HandleError = (error: unknown) => void;
+type OnError = (error: unknown) => void;
 
 type Options = {
-  handleError?: HandleError;
+  onError?: OnError;
 } & (
   | {
       engine: JsonRpcEngineV2;
@@ -39,7 +39,7 @@ const jsonrpc = '2.0' as const;
  * ```ts
  * const server = new JsonRpcServer({
  *   engine,
- *   handleError,
+ *   onError,
  * });
  *
  * const response = await server.handle(request);
@@ -53,13 +53,13 @@ const jsonrpc = '2.0' as const;
 export class JsonRpcServer {
   readonly #engine: JsonRpcEngineV2;
 
-  readonly #handleError?: HandleError | undefined;
+  readonly #onError?: OnError | undefined;
 
   /**
    * Construct a new JSON-RPC server.
    *
    * @param options - The options for the server.
-   * @param options.handleError - The callback to handle errors thrown by the
+   * @param options.onError - The callback to handle errors thrown by the
    * engine. Errors always result in a failed response object, containing a
    * JSON-RPC 2.0 serialized version of the original error.
    * @param options.engine - The engine to use. Mutually exclusive with
@@ -68,7 +68,7 @@ export class JsonRpcServer {
    * `engine`.
    */
   constructor(options: Options) {
-    this.#handleError = options.handleError;
+    this.#onError = options.onError;
 
     if ('engine' in options) {
       this.#engine = options.engine;
@@ -82,7 +82,7 @@ export class JsonRpcServer {
    * property, so long as any other JSON-RPC 2.0 properties are valid.
    *
    * This method never throws. All errors are handled by the instance's
-   * `handleError` callback. A response with a `result` or `error` property is
+   * `onError` callback. A response with a `result` or `error` property is
    * returned unless the request is a notification, in which case `undefined`
    * is returned.
    *
@@ -108,7 +108,7 @@ export class JsonRpcServer {
         };
       }
     } catch (error) {
-      this.#handleError?.(error);
+      this.#onError?.(error);
 
       if (isRequest) {
         return {

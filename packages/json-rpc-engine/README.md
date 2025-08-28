@@ -50,7 +50,7 @@ Alternatively, pass the engine to a `JsonRpcServer`, which coerces raw request
 objects into well-formed requests, and handles error serialization:
 
 ```ts
-const server = new JsonRpcServer({ engine, handleError });
+const server = new JsonRpcServer({ engine, onError });
 const request = { id: '1', jsonrpc: '2.0', method: 'hello' };
 
 // server.handle() never throws
@@ -487,10 +487,10 @@ const engine = new JsonRpcEngine({ middleware });
 
 const server = new JsonRpcServer({
   engine,
-  handleError: (error) => console.error('Server error:', error),
+  onError: (error) => console.error('Server error:', error),
 });
 
-// server.handle() never throws - all errors are handled by handleError
+// server.handle() never throws - all errors are handled by onError
 const response = await server.handle({
   id: '1',
   jsonrpc: '2.0',
@@ -510,7 +510,7 @@ await server.handle(notification); // Returns undefined
 The server accepts any object with a `method` property and validates JSON-RPC 2.0
 compliance.
 Errors occurring during request validation or processing (by the engine) are passed
-to `handleError`.
+to `onError`.
 Response objects are returned for requests but not notifications, and contain
 the `result` in case of success and `error` in case of failure.
 
