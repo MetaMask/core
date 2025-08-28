@@ -2,8 +2,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { CoverageResult, CoverageStatus, ShieldBackend } from './types';
 
-export const BASE_URL = 'https://rule-engine.metamask.io';
-
 export type InitCoverageCheckRequest = {
   txParams: [
     {
@@ -45,13 +43,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
     getCoverageResultPollInterval = 1000, // milliseconds
-    baseUrl = BASE_URL,
+    baseUrl,
     fetch: fetchFn,
   }: {
     getAccessToken: () => Promise<string>;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;
-    baseUrl?: string;
+    baseUrl: string;
     fetch: typeof globalThis.fetch;
   }) {
     this.#getAccessToken = getAccessToken;
