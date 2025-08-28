@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-conditional-in-test */
-import type { AccountsController } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import {
   EarnSdk,
@@ -81,9 +81,9 @@ jest.mock('@metamask/stake-sdk', () => ({
 }));
 
 /**
- * Builds a new instance of the Messenger class for the AccountsController.
+ * Builds a new instance of the Messenger class for the EarnController.
  *
- * @returns A new instance of the Messenger class for the AccountsController.
+ * @returns A new instance of the Messenger class for the EarnController.
  */
 function buildMessenger() {
   return new Messenger<
@@ -110,13 +110,11 @@ function getEarnControllerMessenger(
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       'TransactionController:transactionConfirmed',
     ],
   });
 }
-
-type InternalAccount = ReturnType<AccountsController['getSelectedAccount']>;
 
 const mockAccount1Address = '0x1234';
 
@@ -1400,10 +1398,6 @@ describe('EarnController', () => {
   });
 
   describe('subscription handlers', () => {
-    const account = createMockInternalAccount({
-      address: mockAccount2Address,
-    });
-
     describe('On network change', () => {
       it('updates vault data when network changes', async () => {
         const { controller, messenger } = await setupController();
@@ -1439,20 +1433,28 @@ describe('EarnController', () => {
     });
 
     describe('On selected account change', () => {
-      // TEMP: Workaround for issue: https://github.com/MetaMask/accounts-planning/issues/887
-      it('uses event payload account address to update staking eligibility', async () => {
+      it('updates earn eligibility, pooled stakes, and lending positions', async () => {
         const { controller, messenger } = await setupController();
 
         jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
 
-        messenger.publish('AccountsController:selectedAccountChange', account);
+        messenger.publish(
+          'AccountTreeController:selectedAccountGroupChange',
+          '',
+          '',
+        );
 
+        // Expect address argument to be the EVM address from mockGetAccountsFromSelectedAccountGroup
         expect(controller.refreshEarnEligibility).toHaveBeenNthCalledWith(1, {
-          address: account.address,
+          address: mockAccount1Address,
         });
         expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
-          address: account.address,
+          address: mockAccount1Address,
+        });
+        expect(controller.refreshLendingPositions).toHaveBeenNthCalledWith(1, {
+          address: mockAccount1Address,
         });
       });
     });
