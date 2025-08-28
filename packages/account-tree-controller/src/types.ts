@@ -139,12 +139,7 @@ export type AccountTreeControllerAccountTreeChangeEvent = {
  */
 export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
   type: `${typeof controllerName}:selectedAccountGroupChange`;
-  payload: [
-    {
-      selectedAccountGroup: AccountGroupId;
-      previousSelectedAccountGroup: AccountGroupId | '';
-    },
-  ];
+  payload: [AccountGroupId | '', AccountGroupId | ''];
 };
 
 export type AllowedEvents =

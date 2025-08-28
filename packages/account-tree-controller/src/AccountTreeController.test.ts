@@ -2554,10 +2554,10 @@ describe('AccountTreeController', () => {
       const newSelectedGroup =
         controller.state.accountTree.selectedAccountGroup;
 
-      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
-        selectedAccountGroup: newSelectedGroup,
-        previousSelectedAccountGroup: snapGroupId,
-      });
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        newSelectedGroup,
+        snapGroupId,
+      );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });
 
@@ -2604,10 +2604,10 @@ describe('AccountTreeController', () => {
 
       controller.setSelectedAccountGroup(targetGroupId);
 
-      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
-        selectedAccountGroup: targetGroupId,
-        previousSelectedAccountGroup: initialSelectedGroup,
-      });
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        targetGroupId,
+        initialSelectedGroup,
+      );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });
 
@@ -2639,10 +2639,10 @@ describe('AccountTreeController', () => {
       const newSelectedGroup =
         controller.state.accountTree.selectedAccountGroup;
 
-      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
-        selectedAccountGroup: newSelectedGroup,
-        previousSelectedAccountGroup: initialSelectedGroup,
-      });
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        newSelectedGroup,
+        initialSelectedGroup,
+      );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });
 

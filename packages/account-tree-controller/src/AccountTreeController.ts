@@ -516,13 +516,11 @@ export class AccountTreeController extends BaseController<
       );
 
       // Emit selectedAccountGroupChange event if the selected group changed
-      if (selectedGroupChanged && this.state.accountTree.selectedAccountGroup) {
+      if (selectedGroupChanged) {
         this.messagingSystem.publish(
           `${controllerName}:selectedAccountGroupChange`,
-          {
-            selectedAccountGroup: this.state.accountTree.selectedAccountGroup,
-            previousSelectedAccountGroup: previousSelectedGroup,
-          },
+          this.state.accountTree.selectedAccountGroup,
+          previousSelectedGroup,
         );
       }
 
@@ -750,10 +748,8 @@ export class AccountTreeController extends BaseController<
     });
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
-      {
-        selectedAccountGroup: groupId,
-        previousSelectedAccountGroup: currentSelectedGroup,
-      },
+      groupId,
+      currentSelectedGroup,
     );
 
     // Update AccountsController - this will trigger selectedAccountChange event,
@@ -816,10 +812,8 @@ export class AccountTreeController extends BaseController<
     });
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
-      {
-        selectedAccountGroup: groupId,
-        previousSelectedAccountGroup: currentSelectedGroup,
-      },
+      groupId,
+      currentSelectedGroup,
     );
   }
 
