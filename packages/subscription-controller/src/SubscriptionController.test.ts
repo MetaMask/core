@@ -295,25 +295,24 @@ describe('SubscriptionController', () => {
 
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
+      const mockSubscription2 = { ...MOCK_SUBSCRIPTION, id: 'sub_2' };
       await withController(
         {
           state: {
-            subscriptions: [MOCK_SUBSCRIPTION],
+            subscriptions: [MOCK_SUBSCRIPTION, mockSubscription2],
           },
         },
         async ({ controller, mockService }) => {
           mockService.cancelSubscription.mockResolvedValue(undefined);
-
           expect(
             await controller.cancelSubscription({
               subscriptionId: MOCK_SUBSCRIPTION.id,
             }),
           ).toBeUndefined();
-
           expect(controller.state.subscriptions).toStrictEqual([
             { ...MOCK_SUBSCRIPTION, status: 'cancelled' },
+            mockSubscription2,
           ]);
-
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
             subscriptionId: MOCK_SUBSCRIPTION.id,
           });
