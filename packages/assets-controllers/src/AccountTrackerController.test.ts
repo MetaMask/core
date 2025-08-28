@@ -1191,17 +1191,17 @@ describe('AccountTrackerController batch update methods', () => {
           {
             address: CHECKSUM_ADDRESS_1,
             chainId: '0x1' as const,
-            balance: '0x1bc16d674ec80000', // 2 ETH
+            balance: '0x1bc16d674ec80000' as const, // 2 ETH
           },
           {
             address: CHECKSUM_ADDRESS_2,
             chainId: '0x1' as const,
-            balance: '0x38d7ea4c68000', // 1 ETH
+            balance: '0x38d7ea4c68000' as const, // 1 ETH
           },
           {
             address: CHECKSUM_ADDRESS_1,
             chainId: '0x89' as const, // Polygon
-            balance: '0x56bc75e2d630eb20', // 6.25 MATIC
+            balance: '0x56bc75e2d630eb20' as const, // 6.25 MATIC
           },
         ];
 
@@ -1225,7 +1225,7 @@ describe('AccountTrackerController batch update methods', () => {
           {
             address: CHECKSUM_ADDRESS_1,
             chainId: '0xa4b1' as const, // Arbitrum
-            balance: '0x2386f26fc10000', // 0.01 ETH
+            balance: '0x2386f26fc10000' as const, // 0.01 ETH
           },
         ];
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix values returned from multicall fetcher to use the correct BN type, not BigNumber ([#6411](https://github.com/MetaMask/core/pull/6411))
+
+- Ensure every access to the state of `AccountTrackerController` is done with a checksumed address ([#6411](https://github.com/MetaMask/core/pull/6411))
+
+- Ensure the balance passed to update `AccountTrackerController:updateNativeBalances` is of type `Hex` ([#6411](https://github.com/MetaMask/core/pull/6411))
+
 ## [74.3.0]
 
 ### Added

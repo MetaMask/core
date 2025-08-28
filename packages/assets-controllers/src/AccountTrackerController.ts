@@ -694,12 +694,17 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
+          const checksumAddress = toChecksumHexAddress(account);
           const hexValue = `0x${value.toString(16)}`;
 
           if (token === ZERO_ADDRESS) {
             // Native balance
-            if (nextAccountsByChainId[chainId][account].balance !== hexValue) {
-              nextAccountsByChainId[chainId][account].balance = hexValue;
+            if (
+              nextAccountsByChainId[chainId][checksumAddress].balance !==
+              hexValue
+            ) {
+              nextAccountsByChainId[chainId][checksumAddress].balance =
+                hexValue;
               hasChanges = true;
             }
           } else {
@@ -707,7 +712,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
             if (!stakedBalancesByChainAndAddress[chainId]) {
               stakedBalancesByChainAndAddress[chainId] = {};
             }
-            stakedBalancesByChainAndAddress[chainId][account] = hexValue;
+            stakedBalancesByChainAndAddress[chainId][checksumAddress] =
+              hexValue;
           }
         }
       });
@@ -800,22 +806,26 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param balances - Array of balance updates, each containing address, chainId, and balance.
    */
   updateNativeBalances(
-    balances: { address: string; chainId: Hex; balance: string }[],
+    balances: { address: string; chainId: Hex; balance: Hex }[],
   ) {
     this.update((state) => {
       balances.forEach(({ address, chainId, balance }) => {
+        const checksumAddress = toChecksumHexAddress(address);
+
         // Ensure the chainId exists in the state
         if (!state.accountsByChainId[chainId]) {
           state.accountsByChainId[chainId] = {};
         }
 
         // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][address]) {
-          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        if (!state.accountsByChainId[chainId][checksumAddress]) {
+          state.accountsByChainId[chainId][checksumAddress] = {
+            balance: '0x0',
+          };
         }
 
         // Update the balance
-        state.accountsByChainId[chainId][address].balance = balance;
+        state.accountsByChainId[chainId][checksumAddress].balance = balance;
       });
     });
   }
@@ -836,18 +846,23 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ) {
     this.update((state) => {
       stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
+        const checksumAddress = toChecksumHexAddress(address);
+
         // Ensure the chainId exists in the state
         if (!state.accountsByChainId[chainId]) {
           state.accountsByChainId[chainId] = {};
         }
 
         // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][address]) {
-          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        if (!state.accountsByChainId[chainId][checksumAddress]) {
+          state.accountsByChainId[chainId][checksumAddress] = {
+            balance: '0x0',
+          };
         }
 
         // Update the staked balance
-        state.accountsByChainId[chainId][address].stakedBalance = stakedBalance;
+        state.accountsByChainId[chainId][checksumAddress].stakedBalance =
+          stakedBalance;
       });
     });
   }
