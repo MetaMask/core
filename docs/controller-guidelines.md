@@ -577,7 +577,7 @@ The name of this type should be `AllowedActions`.
 
 This type should be passed to `Messenger` as part of the 2nd type parameter, in a type union with internal actions.
 
-🚫 **`AllowedActions` is exported**
+🚫 **`AllowedActions` is included in the actions type union and _is_ exported**
 
 ```typescript
 /* === packages/foo-controller/src/FooController.ts === */
@@ -657,7 +657,7 @@ The name of this type should be `AllowedEvents`.
 
 This type should be passed to `Messenger` as part of the 3rd type parameter, in a type union with internal events.
 
-🚫 **`AllowedEvents` is exported**
+🚫 **`AllowedEvents` is included in the actions type union and _is_ exported**
 
 ```typescript
 /* === packages/foo-controller/src/FooController.ts === */
