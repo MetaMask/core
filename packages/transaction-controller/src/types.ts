@@ -240,6 +240,11 @@ export type TransactionMeta = {
   gasLimitNoBuffer?: string;
 
   /**
+   * The gas used by the transaction in the simulation.
+   */
+  gasUsed?: Hex;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
@@ -1483,6 +1488,9 @@ export type SimulationData = {
 
   /** Data concerning a change to the user's token balances. */
   tokenBalanceChanges: SimulationTokenBalanceChange[];
+
+  /** The gas used by the transaction in the simulation. */
+  gasUsed?: Hex;
 };
 
 /** Gas fee properties for a legacy transaction. */

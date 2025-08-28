@@ -139,9 +139,11 @@ export async function getBalanceChanges(
 
     const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
+    const gasUsed = response.transactions?.[0]?.gasUsed;
     const simulationData = {
       nativeBalanceChange,
       tokenBalanceChanges,
+      ...(gasUsed !== undefined ? { gasUsed } : {}),
     };
 
     return simulationData;
@@ -162,6 +164,7 @@ export async function getBalanceChanges(
 
     return {
       tokenBalanceChanges: [],
+      gasUsed: undefined,
       error: {
         code,
         message,
