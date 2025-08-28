@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.3.1]
 
-### Uncategorized
-
-- Release/520.0.0 ([#6409](https://github.com/MetaMask/core/pull/6409))
-
 ### Fixed
 
 - Fix values returned from multicall fetcher to use the correct BN type, not BigNumber ([#6411](https://github.com/MetaMask/core/pull/6411))
