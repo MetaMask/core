@@ -2537,11 +2537,11 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Set selected group to be the group we're about to empty
-      const snapWalletId = toMultichainAccountWalletId(
+      const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
-      const snapGroupId = toMultichainAccountGroupId(snapWalletId, 1);
-      controller.setSelectedAccountGroup(snapGroupId);
+      const groupId = toMultichainAccountGroupId(walletId, 1);
+      controller.setSelectedAccountGroup(groupId);
 
       jest.clearAllMocks();
 
@@ -2556,7 +2556,7 @@ describe('AccountTreeController', () => {
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         newSelectedGroup,
-        snapGroupId,
+        groupId,
       );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });

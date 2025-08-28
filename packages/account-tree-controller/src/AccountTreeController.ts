@@ -729,10 +729,10 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID to select.
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedGroup === groupId) {
       return;
     }
 
@@ -749,7 +749,7 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
-      currentSelectedGroup,
+      previousSelectedGroup,
     );
 
     // Update AccountsController - this will trigger selectedAccountChange event,
@@ -799,10 +799,10 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedGroup === groupId) {
       return;
     }
 
@@ -813,7 +813,7 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
-      currentSelectedGroup,
+      previousSelectedGroup,
     );
   }
 
