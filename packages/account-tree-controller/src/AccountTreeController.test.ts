@@ -189,6 +189,8 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
   },
 };
 
+const mockGetSelectedAccountActionHandler = jest.fn();
+
 /**
  * Sets up the AccountTreeController for testing.
  *
@@ -271,6 +273,9 @@ function setup({
     // Mock AccountsController:getSelectedAccount to return the first account
     accountsControllerMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
+      mockGetSelectedAccountActionHandler,
+    );
+    mockGetSelectedAccountActionHandler.mockImplementation(
       () => accounts[0] || MOCK_HD_ACCOUNT_1,
     );
 
@@ -1513,28 +1518,13 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when AccountsController returns EMPTY_ACCOUNT', () => {
-      const {
-        controller,
-        messenger,
-        accountsControllerMessenger,
-        accountTreeControllerMessenger,
-      } = setup({
+      const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      // Unregister existing handler and register new one BEFORE init
-      accountsControllerMessenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
-      );
-      accountsControllerMessenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
-        () => EMPTY_ACCOUNT_MOCK,
-      );
-      messenger.delegate({
-        messenger: accountTreeControllerMessenger,
-        actions: ['AccountsController:getSelectedAccount'],
-      });
+      // Mock action handler BEFORE init
+      mockGetSelectedAccountActionHandler.mockReturnValue(EMPTY_ACCOUNT_MOCK);
 
       controller.init();
 
@@ -1551,12 +1541,7 @@ describe('AccountTreeController', () => {
     });
 
     it('falls back to first wallet first group when selected account is not in tree', () => {
-      const {
-        controller,
-        messenger,
-        accountsControllerMessenger,
-        accountTreeControllerMessenger,
-      } = setup({
+      const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
@@ -1567,17 +1552,7 @@ describe('AccountTreeController', () => {
         id: 'unknown-account-id',
       };
 
-      accountsControllerMessenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
-      );
-      accountsControllerMessenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
-        () => unknownAccount,
-      );
-      messenger.delegate({
-        messenger: accountTreeControllerMessenger,
-        actions: ['AccountsController:getSelectedAccount'],
-      });
+      mockGetSelectedAccountActionHandler.mockReturnValue(unknownAccount);
 
       controller.init();
 
@@ -1594,28 +1569,13 @@ describe('AccountTreeController', () => {
     });
 
     it('returns empty string when no wallets exist and getSelectedAccount returns EMPTY_ACCOUNT', () => {
-      const {
-        controller,
-        messenger,
-        accountsControllerMessenger,
-        accountTreeControllerMessenger,
-      } = setup({
+      const { controller } = setup({
         accounts: [],
         keyrings: [],
       });
 
       // Mock getSelectedAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
-      accountsControllerMessenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
-      );
-      accountsControllerMessenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
-        () => EMPTY_ACCOUNT_MOCK,
-      );
-      messenger.delegate({
-        messenger: accountTreeControllerMessenger,
-        actions: ['AccountsController:getSelectedAccount'],
-      });
+      mockGetSelectedAccountActionHandler.mockReturnValue(EMPTY_ACCOUNT_MOCK);
 
       controller.init();
 
