@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Make `KnownCaipNamespacedChainId` type generic over `Namespace` type parameter ([#262](https://github.com/MetaMask/utils/pull/262))
+
 ## [11.5.0]
 
 ### Added
