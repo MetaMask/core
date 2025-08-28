@@ -81,25 +81,7 @@ export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
   handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
 };
 
-export type AccountTreeControllerSetAccountWalletNameAction = {
-  type: `${typeof controllerName}:setAccountWalletName`;
-  handler: AccountTreeController['setAccountWalletName'];
-};
 
-export type AccountTreeControllerSetAccountGroupNameAction = {
-  type: `${typeof controllerName}:setAccountGroupName`;
-  handler: AccountTreeController['setAccountGroupName'];
-};
-
-export type AccountTreeControllerSetAccountGroupHiddenAction = {
-  type: `${typeof controllerName}:setAccountGroupHidden`;
-  handler: AccountTreeController['setAccountGroupHidden'];
-};
-
-export type AccountTreeControllerSetAccountGroupPinnedAction = {
-  type: `${typeof controllerName}:setAccountGroupPinned`;
-  handler: AccountTreeController['setAccountGroupPinned'];
-};
 
 export type AllowedActions =
   | AccountsControllerGetAccountAction
@@ -113,11 +95,7 @@ export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
   | AccountTreeControllerSetSelectedAccountGroupAction
   | AccountTreeControllerGetSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
-  | AccountTreeControllerSetAccountWalletNameAction
-  | AccountTreeControllerSetAccountGroupNameAction
-  | AccountTreeControllerSetAccountGroupPinnedAction
-  | AccountTreeControllerSetAccountGroupHiddenAction;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,

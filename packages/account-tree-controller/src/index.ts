@@ -8,10 +8,7 @@ export type {
   AccountTreeControllerSetSelectedAccountGroupAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
-  AccountTreeControllerSetAccountWalletNameAction,
-  AccountTreeControllerSetAccountGroupNameAction,
-  AccountTreeControllerSetAccountGroupPinnedAction,
-  AccountTreeControllerSetAccountGroupHiddenAction,
+
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerAccountTreeChangeEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
