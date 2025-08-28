@@ -106,6 +106,7 @@ export const applyDiffs = (
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
+    blocklistPaths: listState.blocklistPaths,
     version: listState.version,
     name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
@@ -260,6 +261,38 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
     // source matches target or (is deeper subdomain)
     return target.every((part, index) => source[index] === part);
   });
+};
+
+/**
+ * Checks if the hostname and path exists within the list of paths.
+ * If there are more than 3 path components, we return true if the first 3 path components exist.
+ *
+ * @param url - the url to check.
+ * @param urlPaths - the paths to check.
+ * @returns true if the hostname and path exists in the path list, false otherwise.
+ */
+export const doesURLPathExist = (
+  url: string,
+  urlPaths: Record<string, Record<string, string[]>>,
+) => {
+  const { hostname, pathname } = new URL(url);
+  const [path1, path2, path3] = pathname.split('/').filter(Boolean);
+
+  if (!path1) return false;
+
+  const hostnamePath1 = urlPaths[`${hostname}/${path1}`];
+  if (!hostnamePath1) return false;
+  if (Object.keys(hostnamePath1).length === 0) return true;
+
+  if (!path2) return false;
+
+  const hostnamePath1Path2 = urlPaths[`${hostname}/${path1}`][path2];
+  if (!hostnamePath1Path2) return false;
+  if (hostnamePath1Path2.length === 0) return true;
+
+  if (!path3) return false;
+
+  return hostnamePath1Path2.includes(path3);
 };
 
 /**
