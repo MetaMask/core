@@ -26,6 +26,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
+  buildErrorReportingServiceMessenger,
   buildInfuraNetworkClientConfiguration,
   buildInfuraNetworkConfiguration,
   buildInfuraRpcEndpoint,
@@ -165,11 +166,11 @@ describe('NetworkController', () => {
   describe('constructor', () => {
     it('throws given an empty networkConfigurationsByChainId collection', () => {
       const messenger = buildRootMessenger();
-      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
           new NetworkController({
-            messenger: restrictedMessenger,
+            messenger: controllerMessenger,
             state: {
               networkConfigurationsByChainId: {},
             },
@@ -186,11 +187,11 @@ describe('NetworkController', () => {
 
     it('throws if the key under which a network configuration is filed does not match the chain ID of that network configuration', () => {
       const messenger = buildRootMessenger();
-      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
           new NetworkController({
-            messenger: restrictedMessenger,
+            messenger: controllerMessenger,
             state: {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
@@ -212,11 +213,11 @@ describe('NetworkController', () => {
 
     it('throws if a network configuration has a defaultBlockExplorerUrlIndex that does not refer to an entry in blockExplorerUrls', () => {
       const messenger = buildRootMessenger();
-      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
           new NetworkController({
-            messenger: restrictedMessenger,
+            messenger: controllerMessenger,
             state: {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
@@ -245,11 +246,11 @@ describe('NetworkController', () => {
 
     it('throws if a network configuration has a non-empty blockExplorerUrls but an absent defaultBlockExplorerUrlIndex', () => {
       const messenger = buildRootMessenger();
-      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
           new NetworkController({
-            messenger: restrictedMessenger,
+            messenger: controllerMessenger,
             state: {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
@@ -277,11 +278,11 @@ describe('NetworkController', () => {
 
     it('throws if a network configuration has an invalid defaultRpcEndpointIndex', () => {
       const messenger = buildRootMessenger();
-      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
           new NetworkController({
-            messenger: restrictedMessenger,
+            messenger: controllerMessenger,
             state: {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
@@ -309,11 +310,11 @@ describe('NetworkController', () => {
 
     it('throws if more than one RPC endpoint across network configurations has the same networkClientId', () => {
       const messenger = buildRootMessenger();
-      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      const controllerMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
           new NetworkController({
-            messenger: restrictedMessenger,
+            messenger: controllerMessenger,
             state: {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
@@ -352,13 +353,15 @@ describe('NetworkController', () => {
     describe('if selectedNetworkClientId does not match the networkClientId of an RPC endpoint in networkConfigurationsByChainId', () => {
       it('corrects selectedNetworkClientId to the default RPC endpoint of the first chain', () => {
         const messenger = buildRootMessenger();
-        messenger.registerActionHandler(
+        const errorReportingServiceMessenger =
+          buildErrorReportingServiceMessenger(messenger);
+        errorReportingServiceMessenger.registerActionHandler(
           'ErrorReportingService:captureException',
           jest.fn(),
         );
-        const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+        const controllerMessenger = buildNetworkControllerMessenger(messenger);
         const controller = new NetworkController({
-          messenger: restrictedMessenger,
+          messenger: controllerMessenger,
           state: {
             selectedNetworkClientId: 'nonexistent',
             networkConfigurationsByChainId: {
@@ -392,15 +395,17 @@ describe('NetworkController', () => {
 
       it('logs a Sentry error', () => {
         const messenger = buildRootMessenger();
+        const errorReportingServiceMessenger =
+          buildErrorReportingServiceMessenger(messenger);
         const captureExceptionMock = jest.fn();
-        messenger.registerActionHandler(
+        errorReportingServiceMessenger.registerActionHandler(
           'ErrorReportingService:captureException',
           captureExceptionMock,
         );
-        const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+        const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
         new NetworkController({
-          messenger: restrictedMessenger,
+          messenger: controllerMessenger,
           state: {
             selectedNetworkClientId: 'nonexistent',
             networkConfigurationsByChainId: {
@@ -441,11 +446,11 @@ describe('NetworkController', () => {
         invalidProjectId,
       )}"`, () => {
         const messenger = buildRootMessenger();
-        const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+        const controllerMessenger = buildNetworkControllerMessenger(messenger);
         expect(
           () =>
             new NetworkController({
-              messenger: restrictedMessenger,
+              messenger: controllerMessenger,
               state: {},
               // @ts-expect-error We are intentionally passing bad input.
               infuraProjectId: invalidProjectId,
@@ -2127,7 +2132,7 @@ describe('NetworkController', () => {
                 },
                 infuraProjectId,
               },
-              async ({ controller, messenger }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 const fakeProvider = buildFakeProvider([
                   // Called during provider initialization
                   {
@@ -2151,7 +2156,7 @@ describe('NetworkController', () => {
                 const lookupNetworkPromise = controller.lookupNetwork();
                 const error = new Error('oops');
                 jest
-                  .spyOn(messenger, 'unsubscribe')
+                  .spyOn(networkControllerMessenger, 'unsubscribe')
                   .mockImplementation((eventType) => {
                     // This is okay.
                     // eslint-disable-next-line jest/no-conditional-in-test
@@ -2539,7 +2544,7 @@ describe('NetworkController', () => {
               },
               infuraProjectId,
             },
-            async ({ controller, messenger }) => {
+            async ({ controller, networkControllerMessenger }) => {
               const fakeProvider = buildFakeProvider([
                 // Called during provider initialization
                 {
@@ -2563,7 +2568,7 @@ describe('NetworkController', () => {
               const lookupNetworkPromise = controller.lookupNetwork();
               const error = new Error('oops');
               jest
-                .spyOn(messenger, 'unsubscribe')
+                .spyOn(networkControllerMessenger, 'unsubscribe')
                 .mockImplementation((eventType) => {
                   // This is okay.
                   // eslint-disable-next-line jest/no-conditional-in-test

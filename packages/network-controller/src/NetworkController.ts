@@ -1,9 +1,8 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
@@ -20,6 +19,7 @@ import {
 import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
+import type { Messenger } from '@metamask/messenger';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
@@ -603,12 +603,10 @@ export type NetworkControllerActions =
  */
 type AllowedActions = ErrorReportingServiceCaptureExceptionAction;
 
-export type NetworkControllerMessenger = RestrictedMessenger<
+export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
   NetworkControllerActions | AllowedActions,
-  NetworkControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  NetworkControllerEvents | AllowedEvents
 >;
 
 /**
@@ -1229,7 +1227,7 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEthQuery`,
@@ -1238,80 +1236,80 @@ export class NetworkController extends BaseController<
       },
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setActiveNetwork`,
       this.setActiveNetwork.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setProviderType`,
       this.setProviderType.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:findNetworkClientIdByChainId`,
       this.findNetworkClientIdByChainId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByChainId`,
       this.getNetworkConfigurationByChainId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByNetworkClientId`,
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${this.name}:getSelectedChainId`,
       this.getSelectedChainId.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:addNetwork`,
       this.addNetwork.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:removeNetwork`,
       this.removeNetwork.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       // ESLint is mistaken here; `name` is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:updateNetwork`,
@@ -1535,15 +1533,9 @@ export class NetworkController extends BaseController<
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
   ) {
-    this.messagingSystem.publish(
-      'NetworkController:networkWillChange',
-      this.state,
-    );
+    this.messenger.publish('NetworkController:networkWillChange', this.state);
     this.#applyNetworkSelection(networkClientId, options);
-    this.messagingSystem.publish(
-      'NetworkController:networkDidChange',
-      this.state,
-    );
+    this.messenger.publish('NetworkController:networkDidChange', this.state);
     await this.lookupNetwork();
   }
 
@@ -1681,7 +1673,7 @@ export class NetworkController extends BaseController<
     const listener = () => {
       networkChanged = true;
       try {
-        this.messagingSystem.unsubscribe(
+        this.messenger.unsubscribe(
           'NetworkController:networkDidChange',
           listener,
         );
@@ -1705,10 +1697,7 @@ export class NetworkController extends BaseController<
         }
       }
     };
-    this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      listener,
-    );
+    this.messenger.subscribe('NetworkController:networkDidChange', listener);
 
     let updatedNetworkStatus: NetworkStatus;
     let updatedIsEIP1559Compatible: boolean | undefined;
@@ -1772,7 +1761,7 @@ export class NetworkController extends BaseController<
     }
 
     try {
-      this.messagingSystem.unsubscribe(
+      this.messenger.unsubscribe(
         'NetworkController:networkDidChange',
         listener,
       );
@@ -1798,15 +1787,15 @@ export class NetworkController extends BaseController<
 
     if (isInfura) {
       if (updatedNetworkStatus === NetworkStatus.Available) {
-        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+        this.messenger.publish('NetworkController:infuraIsUnblocked');
       } else if (updatedNetworkStatus === NetworkStatus.Blocked) {
-        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+        this.messenger.publish('NetworkController:infuraIsBlocked');
       }
     } else {
       // Always publish infuraIsUnblocked regardless of network status to
       // prevent consumers from being stuck in a blocked state if they were
       // previously connected to an Infura network that was blocked
-      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      this.messenger.publish('NetworkController:infuraIsUnblocked');
     }
   }
 
@@ -2047,7 +2036,7 @@ export class NetworkController extends BaseController<
       });
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:networkAdded`,
       newNetworkConfiguration,
     );
@@ -2384,7 +2373,7 @@ export class NetworkController extends BaseController<
       });
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       'NetworkController:networkRemoved',
       existingNetworkConfiguration,
     );
@@ -2788,7 +2777,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       } else {
@@ -2804,7 +2793,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
-          messenger: this.messagingSystem,
+          messenger: this.messenger,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
         });
       }
@@ -2966,7 +2955,7 @@ export class NetworkController extends BaseController<
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
-              messenger: this.messagingSystem,
+              messenger: this.messenger,
               isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
             }),
           ] as const;
@@ -2983,7 +2972,7 @@ export class NetworkController extends BaseController<
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
-            messenger: this.messagingSystem,
+            messenger: this.messenger,
             isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
           }),
         ] as const;
