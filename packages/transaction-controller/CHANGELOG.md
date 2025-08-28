@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `TransactionController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [60.1.0]
 
 ### Added
