@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "41.2.0",
+  "version": "41.4.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/assets-controllers": "^74.1.0",
+    "@metamask/assets-controllers": "^74.3.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/network-controller": "^24.1.0",
