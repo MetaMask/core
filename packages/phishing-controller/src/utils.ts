@@ -43,6 +43,22 @@ const splitStringByPeriod = <Start extends string, End extends string>(
   ];
 };
 
+const isValidURL = (url: string): URL | null => {
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
+};
+
+const hasPath = (url: string): boolean => {
+  const urlObj = isValidURL(url);
+  if (!urlObj) {
+    return false;
+  }
+  return urlObj.pathname.split('/').filter(Boolean).length > 0;
+};
+
 /**
  * Determines which diffs are applicable to the listState, then applies those diffs.
  *
@@ -80,11 +96,23 @@ export const applyDiffs = (
     fuzzylist: new Set(listState.fuzzylist),
     c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
+  const blocklistPaths = JSON.parse(JSON.stringify(listState.blocklistPaths));
+
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
+
+    if (targetListType === 'blocklist' && hasPath(url)) {
+      if (isRemoval) {
+        removeURLFromBlocklistPaths(url, blocklistPaths);
+      } else {
+        addURLToBlocklistPaths(url, blocklistPaths);
+      }
+      continue;
+    }
+
     if (isRemoval) {
       listSets[targetListType].delete(url);
     } else {
@@ -106,7 +134,7 @@ export const applyDiffs = (
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
-    blocklistPaths: listState.blocklistPaths,
+    blocklistPaths,
     version: listState.version,
     name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
@@ -293,6 +321,105 @@ export const doesURLPathExist = (
   if (!path3) return false;
 
   return hostnamePath1Path2.includes(path3);
+};
+
+/**
+ * Adds a URL to the blocklistPaths structure.
+ * Parses the URL and adds the path components to the appropriate nested structure.
+ *
+ * @param url - The URL to add.
+ * @param blocklistPaths - The blocklistPaths structure to modify.
+ */
+const addURLToBlocklistPaths = (
+  url: string,
+  blocklistPaths: Record<string, Record<string, string[]>>,
+) => {
+  const { hostname, pathname } = new URL(url);
+  const [path1, path2, path3] = pathname.split('/').filter(Boolean);
+
+  if (!path1) return;
+
+  const hostnamePath1Key = `${hostname}/${path1}`;
+  if (!blocklistPaths[hostnamePath1Key]) {
+    blocklistPaths[hostnamePath1Key] = {};
+  }
+  if (!path2) {
+    // As a URL entry with only one path component, that would take precedence over a URL entry with 2 path components
+    // that has the same hostname and path1 component. Hence, we need to remove the values of the hostname/path1 key.
+    blocklistPaths[hostnamePath1Key] = {};
+    return;
+  }
+
+  if (!blocklistPaths[hostnamePath1Key][path2]) {
+    blocklistPaths[hostnamePath1Key][path2] = [];
+  }
+  if (!path3) {
+    // As a URL entry with only two path components, that would take precedence over a URL entry with 3 path components
+    // that has the same hostname, path1, and path2 components. Hence, we need to remove the values of the hostname/path1/path2 key.
+    blocklistPaths[hostnamePath1Key][path2] = [];
+    return;
+  }
+
+  if (!blocklistPaths[hostnamePath1Key][path2].includes(path3)) {
+    blocklistPaths[hostnamePath1Key][path2].push(path3);
+  }
+};
+
+/**
+ * Removes a URL from the blocklistPaths structure.
+ * Parses the URL and removes the path components from the appropriate nested structure.
+ * Cleans up empty nested objects/arrays.
+ *
+ * @param url - The URL to remove.
+ * @param blocklistPaths - The blocklistPaths structure to modify.
+ */
+const removeURLFromBlocklistPaths = (
+  url: string,
+  blocklistPaths: Record<string, Record<string, string[]>>,
+) => {
+  const { hostname, pathname } = new URL(url);
+  const [path1, path2, path3] = pathname.split('/').filter(Boolean);
+
+  if (!path1) return;
+
+  const hostnamePath1Key = `${hostname}/${path1}`;
+
+  if (!blocklistPaths[hostnamePath1Key]) return;
+
+  if (!path2) {
+    // Remove the entire hostname/path1 entry
+    delete blocklistPaths[hostnamePath1Key];
+    return;
+  }
+
+  if (!blocklistPaths[hostnamePath1Key][path2]) return;
+
+  if (!path3) {
+    // Remove the entire path2 entry
+    delete blocklistPaths[hostnamePath1Key][path2];
+    if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
+      // If the hostname/path1 key has no values after removing the path2 value,
+      // we must remove the hostname/path1 key as the path2 key would never
+      // have been added as we do not add path2 keys if the path1 key already exists.
+      delete blocklistPaths[hostnamePath1Key];
+    }
+    return;
+  }
+
+  const path3Index = blocklistPaths[hostnamePath1Key][path2].indexOf(path3);
+  if (path3Index > -1) {
+    blocklistPaths[hostnamePath1Key][path2].splice(path3Index, 1);
+
+    if (blocklistPaths[hostnamePath1Key][path2].length === 0) {
+      // Same as removing a hostname/path1 key, if the hostname/path1/path2 key has no values,
+      // we must remove it as we do not add path3 value if the path2 key already exists.
+      delete blocklistPaths[hostnamePath1Key][path2];
+      if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
+        // This is removing the hostname/path1 key if the hostname/path1/path2 key has no values.
+        delete blocklistPaths[hostnamePath1Key];
+      }
+    }
+  }
 };
 
 /**
