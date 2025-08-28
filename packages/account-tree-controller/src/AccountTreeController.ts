@@ -462,6 +462,11 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
+
+    this.messagingSystem.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
+    );
   }
 
   /**
@@ -500,6 +505,11 @@ export class AccountTreeController extends BaseController<
           }
         }
       });
+
+      this.messagingSystem.publish(
+        `${controllerName}:accountTreeChange`,
+        this.state.accountTree,
+      );
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
@@ -724,6 +734,14 @@ export class AccountTreeController extends BaseController<
       state.accountTree.selectedAccountGroup = groupId;
     });
 
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      {
+        selectedAccountGroup: groupId,
+        previousSelectedAccountGroup: currentSelectedGroup,
+      },
+    );
+
     // Update AccountsController - this will trigger selectedAccountChange event,
     // but our handler is idempotent so it won't cause infinite loop
     this.messagingSystem.call(
@@ -782,6 +800,14 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      {
+        selectedAccountGroup: groupId,
+        previousSelectedAccountGroup: currentSelectedGroup,
+      },
+    );
   }
 
   /**
@@ -996,6 +1022,26 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountWalletName`,
+      this.setAccountWalletName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupName`,
+      this.setAccountGroupName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupPinned`,
+      this.setAccountGroupPinned.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupHidden`,
+      this.setAccountGroupHidden.bind(this),
     );
   }
 }

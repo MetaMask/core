@@ -2298,4 +2298,357 @@ describe('AccountTreeController', () => {
       expect(group?.metadata.name).toBe('Account 1');
     });
   });
+
+  describe('actions', () => {
+    const walletId = toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id);
+    const groupId = toMultichainAccountGroupId(
+      walletId,
+      MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+    );
+
+    it('gets a multichain account with AccountTreeController:getSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call('AccountTreeController:getSelectedAccountGroup');
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('gets a multichain account with AccountTreeController:setSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call('AccountTreeController:setSelectedAccountGroup', groupId);
+      expect(spy).toHaveBeenCalledWith(groupId);
+    });
+
+    it('gets a multichain account with AccountTreeController:getAccountsFromSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getAccountsFromSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      );
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountWalletName', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountWalletName',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const name = 'Test';
+
+      messenger.call(
+        'AccountTreeController:setAccountWalletName',
+        walletId,
+        name,
+      );
+      expect(spy).toHaveBeenCalledWith(walletId, name);
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountGroupName', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountGroupName',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const name = 'Test';
+
+      messenger.call(
+        'AccountTreeController:setAccountGroupName',
+        groupId,
+        name,
+      );
+      expect(spy).toHaveBeenCalledWith(groupId, name);
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountGroupPinned', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountGroupPinned',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const pinned = true;
+
+      messenger.call(
+        'AccountTreeController:setAccountGroupPinned',
+        groupId,
+        pinned,
+      );
+      expect(spy).toHaveBeenCalledWith(groupId, pinned);
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountGroupHidden', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountGroupHidden',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const hidden = false;
+
+      messenger.call(
+        'AccountTreeController:setAccountGroupHidden',
+        groupId,
+        hidden,
+      );
+      expect(spy).toHaveBeenCalledWith(groupId, hidden);
+    });
+  });
+
+  describe('Event Emissions', () => {
+    it('does NOT emit accountTreeChange when tree is initialized', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+
+      // Init should not emit accountTreeChange - it's for runtime changes only
+      expect(accountTreeChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('emits accountTreeChange when account is added', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+
+      // Add new account
+      messenger.publish('AccountsController:accountAdded', MOCK_HD_ACCOUNT_2);
+
+      expect(accountTreeChangeListener).toHaveBeenCalledTimes(1);
+      expect(accountTreeChangeListener).toHaveBeenCalledWith(
+        controller.state.accountTree,
+      );
+    });
+
+    it('emits accountTreeChange when account is removed', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+
+      // Remove account
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_2.id,
+      );
+
+      expect(accountTreeChangeListener).toHaveBeenCalledTimes(1);
+      expect(accountTreeChangeListener).toHaveBeenCalledWith(
+        controller.state.accountTree,
+      );
+    });
+
+    it('does NOT emit accountTreeChange when metadata is updated', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId1 = controller.getSelectedAccountGroup();
+
+      // Ensure we have a valid group ID
+      expect(groupId1).not.toBe('');
+
+      // Update metadata - should NOT trigger event
+      controller.setAccountGroupName(
+        groupId1 as AccountGroupId,
+        'New Group Name',
+      );
+      controller.setAccountWalletName(walletId1, 'New Wallet Name');
+      controller.setAccountGroupPinned(groupId1 as AccountGroupId, true);
+      controller.setAccountGroupHidden(groupId1 as AccountGroupId, true);
+
+      expect(accountTreeChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('emits selectedAccountGroupChange when selected group is set manually', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      const initialGroup = controller.getSelectedAccountGroup();
+
+      // Find which group is NOT selected to test switching
+      const wallets = controller.getAccountWalletObjects();
+      const otherGroup = wallets
+        .flatMap((w) => Object.values(w.groups))
+        .find((g) => g.id !== initialGroup)?.id;
+
+      // Ensure we have at least 2 groups for this test
+      expect(otherGroup).toBeDefined();
+      expect(otherGroup).not.toBe(initialGroup);
+
+      // Set selected group manually
+      controller.setSelectedAccountGroup(otherGroup as AccountGroupId);
+
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
+        selectedAccountGroup: otherGroup,
+        previousSelectedAccountGroup: initialGroup,
+      });
+    });
+
+    it('emits selectedAccountGroupChange when selected account changes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      const initialGroup = controller.getSelectedAccountGroup();
+
+      // Change selected account which should trigger group change
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_2,
+      );
+
+      const newGroup = controller.getSelectedAccountGroup();
+
+      // Verify that groups are different and event was emitted
+      expect(newGroup).not.toBe(initialGroup);
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith({
+        selectedAccountGroup: newGroup,
+        previousSelectedAccountGroup: initialGroup,
+      });
+    });
+
+    it('does NOT emit selectedAccountGroupChange when setting same group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      const currentGroup = controller.getSelectedAccountGroup();
+
+      // Ensure we have a valid group ID
+      expect(currentGroup).not.toBe('');
+
+      // Clear any initial events
+      selectedAccountGroupChangeListener.mockClear();
+
+      // Set the same group again - should be idempotent
+      controller.setSelectedAccountGroup(currentGroup as AccountGroupId);
+
+      expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
+    });
+  });
 });
