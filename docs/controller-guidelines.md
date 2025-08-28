@@ -553,7 +553,7 @@ The name of this type should be `${ControllerName}Events`.
 
 This type should be passed to `Messenger` as the 3rd type parameter. It should _not_ include external events.
 
-✅ **`FooControllerEvents` is passed as the 2nd type parameter (assuming no external events)**
+✅ **`FooControllerEvents` is passed as the 3rd type parameter (assuming no external events)**
 
 ```typescript
 export type FooControllerEvents =
