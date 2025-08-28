@@ -462,7 +462,6 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
-
     this.messagingSystem.publish(
       `${controllerName}:accountTreeChange`,
       this.state.accountTree,
@@ -505,7 +504,6 @@ export class AccountTreeController extends BaseController<
           }
         }
       });
-
       this.messagingSystem.publish(
         `${controllerName}:accountTreeChange`,
         this.state.accountTree,
@@ -733,7 +731,6 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
-
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       {
@@ -800,7 +797,6 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
-
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       {
@@ -1022,26 +1018,6 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setAccountWalletName`,
-      this.setAccountWalletName.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setAccountGroupName`,
-      this.setAccountGroupName.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setAccountGroupPinned`,
-      this.setAccountGroupPinned.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setAccountGroupHidden`,
-      this.setAccountGroupHidden.bind(this),
     );
   }
 }

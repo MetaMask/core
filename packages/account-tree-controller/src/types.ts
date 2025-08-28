@@ -81,8 +81,6 @@ export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
   handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
 };
 
-
-
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -119,7 +117,7 @@ export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
   type: `${typeof controllerName}:selectedAccountGroupChange`;
   payload: [
     {
-      selectedAccountGroup: AccountGroupId | '';
+      selectedAccountGroup: AccountGroupId;
       previousSelectedAccountGroup: AccountGroupId | '';
     },
   ];

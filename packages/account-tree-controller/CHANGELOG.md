@@ -7,12 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.11.0]
-
 ### Added
 
-- Add `AccountTreeController:accountTreeChange` event emitted when nodes (wallets, groups, or accounts) are added or removed ([#6400](https://github.com/MetaMask/core/pull/6400))
-- Add `AccountTreeController:selectedAccountGroupChange` event emitted when the selected account group changes ([#6400](https://github.com/MetaMask/core/pull/6400))
+- Add `AccountTreeController:accountTreeChange` event ([#6400](https://github.com/MetaMask/core/pull/6400))
+- Add `AccountTreeController:selectedAccountGroupChange` event ([#6400](https://github.com/MetaMask/core/pull/6400))
 
 ### Changed
 
@@ -147,8 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.11.0...HEAD
-[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.10.0...@metamask/account-tree-controller@0.11.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.10.0...HEAD
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.9.0...@metamask/account-tree-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.8.0...@metamask/account-tree-controller@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.7.0...@metamask/account-tree-controller@0.8.0
