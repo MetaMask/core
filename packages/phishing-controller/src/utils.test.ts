@@ -3,6 +3,7 @@ import * as sinon from 'sinon';
 import { ListKeys, ListNames } from './PhishingController';
 import {
   applyDiffs,
+  doesURLPathExist,
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
@@ -10,7 +11,6 @@ import {
   getHostnameFromWebUrl,
   matchPartsAgainstList,
   processConfigs,
-  // processConfigs,
   processDomainList,
   roundToNearestMinute,
   sha256Hash,
@@ -24,6 +24,15 @@ const examplec2DomainBlocklistHashOne =
   '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 const exampleBlocklist = [exampleBlockedUrl, exampleBlockedUrlOne];
 const examplec2DomainBlocklist = [examplec2DomainBlocklistHashOne];
+const exampleBlocklistPaths: Record<string, Record<string, string[]>> = {
+  'sites.google.com/path1': {
+    path2: ['path3bad', 'path3good'],
+    path22: [],
+  },
+  'example.com/path2': {
+    path3: ['path4bad', 'path4good'],
+  },
+};
 
 const exampleAllowUrl = 'https://example-allowlist-item.com';
 const exampleFuzzyUrl = 'https://example-fuzzylist-item.com';
@@ -32,6 +41,7 @@ const exampleFuzzylist = [exampleFuzzyUrl];
 const exampleListState = {
   blocklist: exampleBlocklist,
   c2DomainBlocklist: examplec2DomainBlocklist,
+  blocklistPaths: exampleBlocklistPaths,
   fuzzylist: exampleFuzzylist,
   tolerance: 2,
   allowlist: exampleAllowlist,
@@ -795,5 +805,110 @@ describe('generateParentDomains', () => {
     const filteredSourceParts = sourceParts.filter(Boolean);
     const expected = ['b.c', 'a.b.c'];
     expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+});
+
+describe('doesURLPathExist', () => {
+  const blocklistPaths: Record<string, Record<string, string[]>> = {
+    'blocklist.has3paths.com/path1': { path2: ['path3'] }, // explicit third-level allowlist
+    'blocklist.has2paths.com/path1': { path2: [] }, // special: exact /path1/path2 only
+    'blocklist.has1path.com/path1': {}, // special: exact /path1 only
+  };
+
+  // each testcase is [name, input, expected]
+  describe('input has 3 path components', () => {
+    it.each([
+      [
+        'matches when the 3rd path component is explicitly in the list',
+        'https://blocklist.has3paths.com/path1/path2/path3',
+        true,
+      ],
+      [
+        'matches when the first path component has no children',
+        'https://blocklist.has1path.com/path1/path2/path3',
+        true,
+      ],
+      [
+        'matches when the first two path components have no children',
+        'https://blocklist.has2paths.com/path1/path2/path3',
+        true,
+      ],
+      [
+        'does not match when the 3rd path component is not in the list',
+        'https://blocklist.has3paths.com/path1/path2/path4',
+        false,
+      ],
+    ])('should %s', (_name, input, expected) => {
+      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
+    });
+  });
+
+  describe('input has 2 path components', () => {
+    it.each([
+      [
+        'matches when the 2nd path component has no children',
+        'https://blocklist.has2paths.com/path1/path2',
+        true,
+      ],
+      [
+        'matches when the 1st path component has no children',
+        'https://blocklist.has1path.com/path1/path2',
+        true,
+      ],
+      [
+        'does not match when the 2nd path component is not in the list',
+        'https://blocklist.has2paths.com/path1/path3',
+        false,
+      ],
+      [
+        'does not match when the 1st path component is not in the list',
+        'https://blocklist.has2paths.com/path2/path2',
+        false,
+      ],
+      [
+        'does not match when the 2nd path component has children',
+        'https://blocklist.has3paths.com/path1/path2',
+        false,
+      ],
+    ])('should %s', (_name, input, expected) => {
+      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
+    });
+  });
+
+  describe('input has 1 path component', () => {
+    it.each([
+      [
+        'matches when the 1st path component has no children',
+        'https://blocklist.has1path.com/path1',
+        true,
+      ],
+      [
+        'does not match when the 1st path component is not in the list',
+        'https://blocklist.has1path.com/path2',
+        false,
+      ],
+      [
+        'does not match when the 1st path component has children',
+        'https://blocklist.has2paths.com/path1',
+        false,
+      ],
+    ])('should %s', (_name, input, expected) => {
+      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
+    });
+  });
+
+  it.each([
+    [
+      'does not match when the input has no path',
+      'https://blocklist.has1path.com',
+      false,
+    ],
+    [
+      'matches with trailing slash',
+      'https://blocklist.has1path.com/path1/',
+      true,
+    ],
+  ])('should %s', (_name, input, expected) => {
+    expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
   });
 });
