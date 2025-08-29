@@ -1,4 +1,5 @@
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import type { Logger } from 'loglevel';
 
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
@@ -76,6 +77,7 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
  * primary RPC endpoint for this network should be automatically diverted to
  * provided failover endpoints if the primary is unavailable.
+ * @param args.logger - A `loglevel` logger.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
@@ -86,6 +88,7 @@ export function createAutoManagedNetworkClient<
   getBlockTrackerOptions = () => ({}),
   messenger,
   isRpcFailoverEnabled: givenIsRpcFailoverEnabled,
+  logger,
 }: {
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
@@ -96,6 +99,7 @@ export function createAutoManagedNetworkClient<
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
+  logger?: Logger;
 }): AutoManagedNetworkClient<Configuration> {
   let isRpcFailoverEnabled = givenIsRpcFailoverEnabled;
   let networkClient: NetworkClient | undefined;
@@ -107,6 +111,7 @@ export function createAutoManagedNetworkClient<
       getBlockTrackerOptions,
       messenger,
       isRpcFailoverEnabled,
+      logger,
     });
 
     if (networkClient === undefined) {
