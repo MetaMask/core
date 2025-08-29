@@ -44,6 +44,9 @@ function setup({
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     providers,
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
+    transientState: {
+      isAlignmentInProgress: false,
+    },
   });
 
   const group = new MultichainAccountGroup({
