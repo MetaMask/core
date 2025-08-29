@@ -18,6 +18,8 @@ import {
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
+import { Bip44AccountProvider } from './types';
+import { isSnapAccountProvider } from './providers';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -366,7 +368,7 @@ export class MultichainAccountWallet<
   async discoverAndCreateAccounts(): Promise<Record<string, number>> {
     const providers = this.#providers;
     const providerContexts = new Map<
-      Bip44Provider,
+      Bip44AccountProvider,
       {
         stopped: boolean;
         running?: Promise<void>;
@@ -381,7 +383,7 @@ export class MultichainAccountWallet<
 
     let maxGroupIndex = 0;
 
-    const schedule = (p: Bip44Provider, index: number) => {
+    const schedule = (p: Bip44AccountProvider, index: number) => {
       const providerCtx = providerContexts.get(p);
       if (!providerCtx) {
         throw new Error(`Provider ${p} not found in providerContexts`);
@@ -451,7 +453,7 @@ export class MultichainAccountWallet<
     const discoveredAccounts: Record<string, number> = {};
 
     for (const [p, ctx] of providerContexts) {
-      const groupKey = p.snapId ?? 'Evm';
+      const groupKey = isSnapAccountProvider(p) ? p.snapId : 'Evm';
       discoveredAccounts[groupKey] = ctx.count;
     }
 
