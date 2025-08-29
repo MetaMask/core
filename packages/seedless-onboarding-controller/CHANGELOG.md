@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `renewRefreshToken` options in SeedlessOnboardingController constructor - A function to renew the refresh token and get new revoke token. ([#6272](https://github.com/MetaMask/core/pull/6272))
-- Added `renewRefreshToken` method to renew refresh token from client ([#6272](https://github.com/MetaMask/core/pull/6272))
-- Added `revokePendingRefreshTokens` method to revoke all pending old refresh tokens instead from client ([#6272](https://github.com/MetaMask/core/pull/6272))
+- Added `renewRefreshToken` options in SeedlessOnboardingController constructor - A function to renew the refresh token and get new revoke token. ([#6272](https://github.com/MetaMask/core/pull/6275))
+- Added `renewRefreshToken` method to renew refresh token from client ([#6272](https://github.com/MetaMask/core/pull/6275))
+- Added `revokePendingRefreshTokens` method to revoke all pending old refresh tokens instead from client ([#6272](https://github.com/MetaMask/core/pull/6275))
 
 ### Removed
 
-- Removed `revokeRefreshToken` method ([#6272](https://github.com/MetaMask/core/pull/6272))
+- Removed `revokeRefreshToken` method ([#6272](https://github.com/MetaMask/core/pull/6275))
 
 ### Changed
 
