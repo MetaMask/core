@@ -68,18 +68,18 @@ export enum AtomicCapabilityStatus {
 const VERSION = '2.0.0';
 
 /**
- * TODO: add docs
+ * Processes a sendCalls request for EIP-5792 atomic transactions.
  *
- * @param hooks - a
- * @param hooks.addTransactionBatch - a
- * @param hooks.addTransaction - a
- * @param hooks.getDismissSmartAccountSuggestionEnabled - a
- * @param hooks.isAtomicBatchSupported - a
- * @param hooks.validateSecurity - a
- * @param messenger - a
- * @param params - a
- * @param req - a
- * @returns - a
+ * @param hooks - Object containing required controller hooks and utilities.
+ * @param hooks.addTransactionBatch - Function to add a batch of transactions atomically.
+ * @param hooks.addTransaction - Function to add a single transaction.
+ * @param hooks.getDismissSmartAccountSuggestionEnabled - Function to check if smart account suggestions are disabled.
+ * @param hooks.isAtomicBatchSupported - Function to check if atomic batching is supported for given parameters.
+ * @param hooks.validateSecurity - Function to validate security for transaction requests.
+ * @param messenger - Messenger instance for controller communication.
+ * @param params - The sendCalls parameters containing transaction calls and metadata.
+ * @param req - The original JSON-RPC request.
+ * @returns Promise resolving to a SendCallsResult containing the batch ID.
  */
 export async function processSendCalls(
   hooks: {
@@ -155,11 +155,12 @@ export async function processSendCalls(
 }
 
 /**
- * TODO: add docs
+ * Retrieves the status of a transaction batch by its ID.
  *
- * @param messenger - docs
- * @param id - docs
- * @returns - docs
+ * @param messenger - Messenger instance for controller communication.
+ * @param id - The batch ID to look up (hexadecimal string).
+ * @returns GetCallsStatusResult containing the batch status, receipts, and metadata.
+ * @throws JsonRpcError with EIP5792ErrorCode.UnknownBundleId if no matching bundle is found.
  */
 export function getCallsStatus(
   messenger: EIP5792Messenger,
@@ -208,18 +209,18 @@ export function getCallsStatus(
 }
 
 /**
- * TODO: add docss
+ * Retrieves the capabilities for atomic transactions on specified chains.
  *
- * @param hooks - docs
- * @param hooks.getDismissSmartAccountSuggestionEnabled - docs
- * @param hooks.getIsSmartTransaction - docs
- * @param hooks.isAtomicBatchSupported - docs
- * @param hooks.isRelaySupported - docs
- * @param hooks.getSendBundleSupportedChains - docs
- * @param messenger - docs
- * @param address - docs
- * @param chainIds - docs
- * @returns - docs
+ * @param hooks - Object containing required controller hooks and utilities.
+ * @param hooks.getDismissSmartAccountSuggestionEnabled - Function to check if smart account suggestions are disabled.
+ * @param hooks.getIsSmartTransaction - Function to check if a chain supports smart transactions.
+ * @param hooks.isAtomicBatchSupported - Function to check if atomic batching is supported.
+ * @param hooks.isRelaySupported - Function to check if relay is supported on a chain.
+ * @param hooks.getSendBundleSupportedChains - Function to get chains that support send bundle.
+ * @param messenger - Messenger instance for controller communication.
+ * @param address - The account address to check capabilities for.
+ * @param chainIds - Array of chain IDs to check capabilities for (if undefined, checks all configured networks).
+ * @returns Promise resolving to GetCapabilitiesResult mapping chain IDs to their capabilities.
  */
 export async function getCapabilities(
   hooks: {
@@ -315,19 +316,19 @@ export async function getCapabilities(
 }
 
 /**
- * TODO: add docs
+ * Processes a single transaction from a sendCalls request.
  *
- * @param param0 - docs
- * @param param0.addTransaction - docs
- * @param param0.chainId  - docs
- * @param param0.from  - docs
- * @param param0.networkClientId  - docs
- * @param param0.origin  - docs
- * @param param0.securityAlertId  - docs
- * @param param0.sendCalls  - docs
- * @param param0.transactions  - docs
- * @param param0.validateSecurity  - docs
- * @returns - docs
+ * @param params - Object containing all parameters needed for single transaction processing.
+ * @param params.addTransaction - Function to add a single transaction.
+ * @param params.chainId - The chain ID for the transaction.
+ * @param params.from - The sender address.
+ * @param params.networkClientId - The network client ID.
+ * @param params.origin - The origin of the request (optional).
+ * @param params.securityAlertId - The security alert ID for this transaction.
+ * @param params.sendCalls - The original sendCalls request.
+ * @param params.transactions - Array containing the single transaction.
+ * @param params.validateSecurity - Function to validate security for the transaction.
+ * @returns Promise resolving to the generated batch ID for the transaction.
  */
 async function processSingleTransaction({
   addTransaction,
@@ -380,21 +381,22 @@ async function processSingleTransaction({
 }
 
 /**
+ * Processes multiple transactions from a sendCalls request as an atomic batch.
  *
- * @param param0 -
- * @param param0.addTransactionBatch -
- * @param param0.isAtomicBatchSupported -
- * @param param0.chainId -
- * @param param0.from -
- * @param param0.getDismissSmartAccountSuggestionEnabled -
- * @param param0.networkClientId -
- * @param param0.messenger -
- * @param param0.origin -
- * @param param0.sendCalls -
- * @param param0.securityAlertId -
- * @param param0.transactions -
- * @param param0.validateSecurity -
- * @returns -
+ * @param params - Object containing all parameters needed for multiple transaction processing.
+ * @param params.addTransactionBatch - Function to add a batch of transactions atomically.
+ * @param params.isAtomicBatchSupported - Function to check if atomic batching is supported.
+ * @param params.chainId - The chain ID for the transactions.
+ * @param params.from - The sender address.
+ * @param params.getDismissSmartAccountSuggestionEnabled - Function to check if smart account suggestions are disabled.
+ * @param params.networkClientId - The network client ID.
+ * @param params.messenger - Messenger instance for controller communication.
+ * @param params.origin - The origin of the request (optional).
+ * @param params.sendCalls - The original sendCalls request.
+ * @param params.securityAlertId - The security alert ID for this batch.
+ * @param params.transactions - Array of transactions to process.
+ * @param params.validateSecurity - Function to validate security for the transactions.
+ * @returns Promise resolving to the generated batch ID for the transaction batch.
  */
 async function processMultipleTransaction({
   addTransactionBatch,
@@ -469,9 +471,10 @@ function generateBatchId(): Hex {
 }
 
 /**
+ * Validates a single sendCalls request.
  *
- * @param sendCalls -
- * @param dappChainId .
+ * @param sendCalls - The sendCalls request to validate.
+ * @param dappChainId - The chain ID that the dApp is connected to.
  */
 function validateSingleSendCall(sendCalls: SendCalls, dappChainId: Hex) {
   validateSendCallsVersion(sendCalls);
@@ -480,12 +483,13 @@ function validateSingleSendCall(sendCalls: SendCalls, dappChainId: Hex) {
 }
 
 /**
+ * Validates a sendCalls request for multiple transactions.
  *
- * @param sendCalls -
- * @param dappChainId -
- * @param dismissSmartAccountSuggestionEnabled -
- * @param chainBatchSupport -
- * @param keyringType -
+ * @param sendCalls - The sendCalls request to validate.
+ * @param dappChainId - The chain ID that the dApp is connected to.
+ * @param dismissSmartAccountSuggestionEnabled - Whether smart account suggestions are disabled.
+ * @param chainBatchSupport - Information about atomic batch support for the chain.
+ * @param keyringType - The type of keyring associated with the account.
  */
 function validateSendCalls(
   sendCalls: SendCalls,
@@ -505,8 +509,10 @@ function validateSendCalls(
 }
 
 /**
+ * Validates the version of a sendCalls request.
  *
- * @param sendCalls -
+ * @param sendCalls - The sendCalls request to validate.
+ * @throws JsonRpcError if the version is not supported.
  */
 function validateSendCallsVersion(sendCalls: SendCalls) {
   const { version } = sendCalls;
@@ -519,9 +525,11 @@ function validateSendCallsVersion(sendCalls: SendCalls) {
 }
 
 /**
+ * Validates that the chain ID in the sendCalls request matches the dApp's selected network.
  *
- * @param sendCalls -
- * @param dappChainId .
+ * @param sendCalls - The sendCalls request to validate.
+ * @param dappChainId - The chain ID that the dApp is connected to
+ * @throws JsonRpcError if the chain IDs don't match
  */
 function validateDappChainId(sendCalls: SendCalls, dappChainId: Hex) {
   const { chainId: requestChainId } = sendCalls;
@@ -537,10 +545,12 @@ function validateDappChainId(sendCalls: SendCalls, dappChainId: Hex) {
 }
 
 /**
+ * Validates the chain ID for sendCalls requests with additional EIP-7702 support checks.
  *
- * @param sendCalls -
- * @param dappChainId -
- * @param chainBatchSupport -
+ * @param sendCalls - The sendCalls request to validate.
+ * @param dappChainId - The chain ID that the dApp is connected to
+ * @param chainBatchSupport - Information about atomic batch support for the chain
+ * @throws JsonRpcError if the chain ID doesn't match or EIP-7702 is not supported
  */
 function validateSendCallsChainId(
   sendCalls: SendCalls,
@@ -557,8 +567,10 @@ function validateSendCallsChainId(
 }
 
 /**
+ * Validates that all required capabilities in the sendCalls request are supported.
  *
- * @param sendCalls -
+ * @param sendCalls - The sendCalls request to validate.
+ * @throws JsonRpcError if unsupported non-optional capabilities are requested.
  */
 function validateCapabilities(sendCalls: SendCalls) {
   const { calls, capabilities } = sendCalls;
@@ -589,10 +601,12 @@ function validateCapabilities(sendCalls: SendCalls) {
 }
 
 /**
+ * Validates whether an EIP-7702 upgrade is allowed for the given parameters.
  *
- * @param dismissSmartAccountSuggestionEnabled -a
- * @param chainBatchSupport -a
- * @param keyringType -a
+ * @param dismissSmartAccountSuggestionEnabled - Whether smart account suggestions are disabled.
+ * @param chainBatchSupport - Information about atomic batch support for the chain.
+ * @param keyringType - The type of keyring associated with the account.
+ * @throws JsonRpcError if the upgrade is rejected due to user settings or account type.
  */
 function validateUpgrade(
   dismissSmartAccountSuggestionEnabled: boolean,
@@ -619,14 +633,15 @@ function validateUpgrade(
 }
 
 /**
+ * Determines alternate gas fees capability for the specified chains.
  *
- * @param chainIds -
- * @param batchSupport -
- * @param getIsSmartTransaction -
- * @param isRelaySupported -
- * @param getSendBundleSupportedChains -
- * @param messenger -
- * @returns -
+ * @param chainIds - Array of chain IDs to check for alternate gas fees support.
+ * @param batchSupport - Information about atomic batch support for each chain.
+ * @param getIsSmartTransaction - Function to check if a chain supports smart transactions.
+ * @param isRelaySupported - Function to check if relay is supported on a chain.
+ * @param getSendBundleSupportedChains - Function to get chains that support send bundle.
+ * @param messenger - Messenger instance for controller communication.
+ * @returns Promise resolving to GetCapabilitiesResult with alternate gas fees information.
  */
 async function getAlternateGasFeesCapability(
   chainIds: Hex[],
@@ -686,9 +701,10 @@ async function getAlternateGasFeesCapability(
 }
 
 /**
+ * Maps transaction status to EIP-5792 call status codes.
  *
- * @param transactionMeta a
- * @returns a
+ * @param transactionMeta - The transaction metadata containing status and hash information.
+ * @returns GetCallsStatusCode representing the current status of the transaction.
  */
 function getStatusCode(transactionMeta: TransactionMeta) {
   const { hash, status } = transactionMeta;
@@ -711,10 +727,12 @@ function getStatusCode(transactionMeta: TransactionMeta) {
 }
 
 /**
+ * Retrieves the keyring type for a given account address.
  *
- * @param accountAddress - d
- * @param messenger -d
- * @returns  -
+ * @param accountAddress - The account address to look up.
+ * @param messenger - Messenger instance for controller communication.
+ * @returns The keyring type associated with the account.
+ * @throws JsonRpcError if the account type is unknown or not found.
  */
 function getAccountKeyringType(
   accountAddress: Hex,
