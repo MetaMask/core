@@ -15,12 +15,8 @@ export type RestrictedSnapKeyringCreateAccount = (
 export abstract class SnapAccountProvider extends BaseAccountProvider {
   readonly snapId: SnapId;
 
-  constructor(
-    snapId: SnapId,
-    messenger: MultichainAccountServiceMessenger,
-    providerType: AccountProviderType,
-  ) {
-    super(messenger, providerType);
+  constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
+    super(messenger);
 
     this.snapId = snapId;
   }

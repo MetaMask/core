@@ -332,95 +332,100 @@ export class MultichainAccountWallet<
    *
    * NOTE: This method should only be called on a newly created wallet.
    *
-   * @param opts - The options for the discovery and creation of accounts.
-   * @param opts.skippedProviders - The providers to skip.
    * @returns The accounts for each provider.
    */
-  async discoverAndCreateAccounts({
-    skippedProviders = [],
-  }: {
-    skippedProviders: AccountProviderType[];
-  }): Promise<{
-    [AccountProviderType]: Bip44Account<KeyringAccount>[];
-  }> {
-    const providers = this.#providers.filter(
-      (provider) => !skippedProviders.includes(provider.providerType),
-    );
+  async discoverAndCreateAccounts(): Promise<Record<string, number>> {
+    const providers = this.#providers;
+    const providerContexts = new Map<
+      Bip44Provider,
+      {
+        stopped: boolean;
+        running?: Promise<void>;
+        index: number;
+        count: number;
+      }
+    >();
 
-    const results: Record<AccountProviderType, Bip44Account<KeyringAccount>[]> =
-      {};
-    const nextIndex = new Map<Bip44Provider, number>(
-      providers.map((p) => [p, 0]),
-    );
-    const stopped = new Set<Bip44Provider>();
-    const inFlight = new Map<Bip44Provider, Promise<void>>();
+    for (const p of providers) {
+      providerContexts.set(p, { stopped: false, index: 0, count: 0 });
+    }
 
-    let high = 0;
+    let maxGroupIndex = 0;
 
     const schedule = (p: Bip44Provider, index: number) => {
-      const run = (async () => {
+      const providerCtx = providerContexts.get(p);
+      if (!providerCtx) {
+        throw new Error(`Provider ${p} not found in providerContexts`);
+      }
+
+      if (providerCtx.stopped || providerCtx.running) {
+        return;
+      }
+
+      providerCtx.index = index;
+
+      providerCtx.running = (async () => {
         try {
           const accounts = await p.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
             groupIndex: index,
           });
 
-          inFlight.delete(p);
+          if (!accounts.length) {
+            providerCtx.stopped = true;
+            return;
+          }
 
-          if (accounts.length > 0) {
-            stopped.add(p);
-          } else {
-            results[p.providerType] = [
-              ...(results[p.providerType] ?? []),
-              ...accounts,
-            ];
+          providerCtx.count += accounts.length;
 
-            const next = index + 1;
-            nextIndex.set(p, next);
-            if (next > high) {
-              high = next;
+          const next = index + 1;
+          providerCtx.index = next;
 
-              for (const q of providers) {
-                if (
-                  !stopped.has(q) &&
-                  !inFlight.has(q) &&
-                  (nextIndex.get(q) ?? 0) < high
-                ) {
-                  schedule(q, high);
-                }
+          if (next > maxGroupIndex) {
+            maxGroupIndex = next;
+            for (const [q, qCtx] of providerContexts) {
+              if (
+                !qCtx.stopped &&
+                !qCtx.running &&
+                qCtx.index < maxGroupIndex
+              ) {
+                schedule(q, maxGroupIndex);
               }
             }
-
-            if (!stopped.has(p)) {
-              const target = Math.max(high, nextIndex.get(p) ?? 0);
-              schedule(p, target);
-            }
           }
-        } catch {
-          inFlight.delete(p);
-          stopped.add(p);
+        } catch (err) {
+          providerCtx.stopped = true;
+          console.error(err);
+        } finally {
+          providerCtx.running = undefined;
+          if (!providerCtx.stopped) {
+            const target = Math.max(maxGroupIndex, providerCtx.index);
+            schedule(p, target);
+          }
         }
       })();
-
-      inFlight.set(p, run);
     };
 
     for (const p of providers) {
       schedule(p, 0);
     }
 
-    while (inFlight.size > 0) {
-      await Promise.race(inFlight.values());
+    while ([...providerContexts.values()].some((ctx) => Boolean(ctx.running))) {
+      const racers = [...providerContexts.values()]
+        .map((c) => c.running)
+        .filter(Boolean) as Promise<void>[];
+      await Promise.race(racers);
     }
 
     await this.alignGroups();
 
-    const out: Record<AccountProviderType, Bip44Account<KeyringAccount>[]> = {};
+    const discoveredAccounts: Record<string, number> = {};
 
-    for (const p of providers) {
-      out[p.providerType] = results[p.providerType] ?? [];
+    for (const [p, ctx] of providerContexts) {
+      const groupKey = p.snapId ?? 'Evm';
+      discoveredAccounts[groupKey] = ctx.count;
     }
 
-    return out;
+    return discoveredAccounts;
   }
 }

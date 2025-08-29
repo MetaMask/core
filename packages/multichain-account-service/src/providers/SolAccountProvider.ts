@@ -16,11 +16,7 @@ export class SolAccountProvider extends SnapAccountProvider {
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
   constructor(messenger: MultichainAccountServiceMessenger) {
-    super(
-      SolAccountProvider.SOLANA_SNAP_ID,
-      messenger,
-      AccountProviderType.Solana,
-    );
+    super(SolAccountProvider.SOLANA_SNAP_ID, messenger);
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {

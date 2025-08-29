@@ -42,14 +42,8 @@ export abstract class BaseAccountProvider
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
-  readonly providerType: AccountProviderType;
-
-  constructor(
-    messenger: MultichainAccountServiceMessenger,
-    providerType: AccountProviderType,
-  ) {
+  constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
-    this.providerType = providerType;
   }
 
   #getAccounts(

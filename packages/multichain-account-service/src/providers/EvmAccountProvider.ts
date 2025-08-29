@@ -31,10 +31,6 @@ function assertInternalAccountExists(
 }
 
 export class EvmAccountProvider extends BaseAccountProvider {
-  constructor(messenger: MultichainAccountServiceMessenger) {
-    super(messenger, AccountProviderType.Evm);
-  }
-
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
