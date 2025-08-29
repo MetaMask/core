@@ -134,7 +134,7 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
-  blocklistPaths: Record<string, Record<string, string[]>>;
+  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>;
   c2DomainBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;
