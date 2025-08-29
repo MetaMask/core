@@ -112,6 +112,8 @@
 /packages/delegation-controller/CHANGELOG.md      @MetaMask/vault @MetaMask/core-platform
 /packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
+/packages/eip-5792-middleware/package.json        @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
+/packages/eip-5792-middleware/CHANGELOG.md        @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/eip1193-permission-middleware/package.json @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/eip1193-permission-middleware/CHANGELOG.md @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/core-platform
