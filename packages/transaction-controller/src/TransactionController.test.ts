@@ -484,6 +484,7 @@ const SIMULATION_DATA_RESULT_MOCK: SimulationData = {
       isDecrease: false,
     },
   ],
+  // gasUsed: '0x5208',
 };
 
 const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
@@ -988,6 +989,7 @@ describe('TransactionController', () => {
 
     signMock = jest.fn().mockImplementation(async (transaction) => transaction);
     isEIP7702GasFeeTokensEnabledMock = jest.fn().mockResolvedValue(false);
+    getBalanceChangesMock.mockResolvedValue(SIMULATION_DATA_RESULT_MOCK);
   });
 
   describe('constructor', () => {

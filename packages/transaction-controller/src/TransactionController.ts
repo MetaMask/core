@@ -4260,6 +4260,7 @@ export class TransactionController extends BaseController<
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
         txMeta.isGasFeeSponsored = isGasFeeSponsored;
+        txMeta.gasUsed = simulationData.gasUsed;
 
         if (!isBalanceChangesSkipped) {
           txMeta.simulationData = simulationData;
