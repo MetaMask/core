@@ -56,5 +56,6 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
 
   abstract discoverAndCreateAccounts(options: {
     entropySource: EntropySourceId;
+    groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 }

@@ -127,7 +127,9 @@ export abstract class BaseAccountProvider
 
   abstract discoverAndCreateAccounts({
     entropySource,
+    groupIndex,
   }: {
     entropySource: EntropySourceId;
+    groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 }

@@ -12,6 +12,7 @@ import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
+  assertIsBip44Account,
   BaseAccountProvider,
 } from './BaseAccountProvider';
 
@@ -107,36 +108,54 @@ export class EvmAccountProvider extends BaseAccountProvider {
    *
    * @param opts - The options for the discovery and creation of accounts.
    * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
+   * @param opts.groupIndex - The index of the group to create the accounts for.
    * @returns The accounts for the Evm provider.
    */
-  async discoverAndCreateAccounts(opts: { entropySource: EntropySourceId }) {
+  async discoverAndCreateAccounts(opts: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }) {
     const provider = this.getEvmProvider();
-    const accounts = [];
+    const { entropySource, groupIndex } = opts;
+    // groupIndex starts as +1, because we already have one account in the associated keyring.
+    const actualGroupIndex = groupIndex + 1;
 
-    for (let i = 1; ; i++) {
-      const [address] = await this.withKeyring(
-        { id: opts.entropySource },
+    const [address, didCreate] = await this.withKeyring<
+      EthKeyring,
+      [Hex, boolean]
+    >({ id: entropySource }, async ({ keyring }) => {
+      const existing = await keyring.getAccounts();
+      if (actualGroupIndex < existing.length) {
+        return [existing[actualGroupIndex], false];
+      }
+      const need = actualGroupIndex - existing.length + 1;
+      const added = await keyring.addAccounts(need);
+      const target = added[added.length - 1];
+      return [target, true];
+    });
+
+    const countHex = (await provider.request({
+      method: 'eth_getTransactionCount',
+      params: [address, 'latest'],
+    })) as Hex;
+    const count = parseInt(countHex, 16);
+
+    if (count === 0 && didCreate) {
+      await this.withKeyring<EthKeyring>(
+        { id: entropySource },
         async ({ keyring }) => {
-          return await keyring.addAccounts(1);
+          keyring.removeAccount?.(address);
         },
       );
-      const countHex = (await provider.request({
-        method: 'eth_getTransactionCount',
-        params: [address, 'latest'],
-      })) as Hex;
-      const count = parseInt(countHex, 16);
-      if (count === 0) {
-        // If the account has no transactions, we can remove it.
-        await this.withKeyring(
-          { id: opts.entropySource },
-          async ({ keyring }) => {
-            return await keyring.removeAccount(address);
-          },
-        );
-        break;
-      }
-      accounts.push(address);
+      return [];
     }
-    return accounts;
+
+    const account = this.messenger.call(
+      'AccountsController:getAccountByAddress',
+      address,
+    );
+    assertInternalAccountExists(account);
+    assertIsBip44Account(account);
+    return [account];
   }
 }
