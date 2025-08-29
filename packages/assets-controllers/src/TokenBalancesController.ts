@@ -9,6 +9,7 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
+  BNToHex,
   isValidHexAddress,
   toChecksumHexAddress,
   toHex,
@@ -361,7 +362,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         const balanceUpdates = nativeBalances.map((balance) => ({
           address: balance.account,
           chainId: balance.chainId,
-          balance: balance.value?.toString() ?? '0x0',
+          balance: balance.value ? BNToHex(balance.value) : '0x0',
         }));
 
         this.messagingSystem.call(

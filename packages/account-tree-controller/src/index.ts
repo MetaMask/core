@@ -13,6 +13,8 @@ export type {
   AccountTreeControllerSetAccountGroupPinnedAction,
   AccountTreeControllerSetAccountGroupHiddenAction,
   AccountTreeControllerStateChangeEvent,
+  AccountTreeControllerAccountTreeChangeEvent,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types';
