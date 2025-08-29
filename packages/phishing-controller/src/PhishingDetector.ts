@@ -14,6 +14,7 @@ import {
   matchPartsAgainstList,
   processConfigs,
   sha256Hash,
+  doesURLPathExist,
 } from './utils';
 
 export type LegacyPhishingDetectorList = {
@@ -25,6 +26,7 @@ export type LegacyPhishingDetectorList = {
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
+  blocklistPaths?: Record<string, Record<string, Record<string, string[]>>>;
   c2DomainBlocklist?: string[];
   name?: string;
   version?: string | number;
@@ -50,6 +52,7 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
+  blocklistPaths?: Record<string, Record<string, Record<string, string[]>>>;
   c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
@@ -157,6 +160,22 @@ export class PhishingDetector {
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
     const source = domainToParts(fqdn);
+
+    for (const { blocklistPaths, name, version } of this.#configs) {
+      if (!blocklistPaths) {
+        continue;
+      }
+      const pathMatch = doesURLPathExist(url, blocklistPaths);
+      if (pathMatch) {
+        return {
+          match: domainPartsToDomain(source), // TODO: revisit this. do we want to return the path?
+          name,
+          result: true,
+          type: PhishingDetectorResultType.Blocklist, // TODO: do we want to differentiate between path and hostname blocklists?
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
 
     for (const { allowlist, name, version } of this.#configs) {
       // if source matches allowlist hostname (or subdomain thereof), PASS

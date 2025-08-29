@@ -304,7 +304,7 @@
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 38,
+    "jsdoc/check-tag-names": 39,
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingDetector.ts": {
