@@ -55,6 +55,7 @@ Object {
           },
         },
       },
+      "minDestTokenAmount": "941000000000000",
       "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
       "srcAsset": Object {
         "address": "0x0000000000000000000000000000000000000000",
@@ -156,9 +157,6 @@ Array [
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 Array [
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -256,6 +254,7 @@ Object {
           },
         },
       },
+      "minDestTokenAmount": "941000000000000",
       "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
       "srcAsset": Object {
         "address": "0x0000000000000000000000000000000000000000",
@@ -327,9 +326,6 @@ Object {
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
 Array [
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
   Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -450,6 +446,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -524,14 +521,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -540,9 +546,6 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -569,9 +572,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -676,6 +676,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -750,14 +751,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:59144",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -792,9 +802,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -900,6 +907,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1024,14 +1032,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": true,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -1052,9 +1069,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -1134,6 +1148,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1208,14 +1223,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -1250,9 +1274,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -1357,6 +1378,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1431,14 +1453,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -1447,9 +1478,6 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1476,9 +1504,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -1583,6 +1608,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -1772,14 +1798,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -1833,9 +1868,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -1915,6 +1947,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2034,14 +2067,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -2076,9 +2118,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -2158,6 +2197,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2277,14 +2317,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -2305,9 +2354,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -2343,14 +2389,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -2403,14 +2458,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -2457,7 +2521,7 @@ Object {
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
 Object {
-  "account": "",
+  "account": "0xaccount1",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
@@ -2507,6 +2571,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2656,14 +2721,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
       "stx_enabled": true,
+      "swap_type": "single_chain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -2687,9 +2761,6 @@ Array [
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -2784,6 +2855,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "srcAsset": Object {
       "address": "0x0000000000000000000000000000000000000000",
@@ -2858,14 +2930,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
@@ -2887,9 +2968,6 @@ Array [
   Array [
     "TransactionController:getState",
   ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
 ]
 `;
 
@@ -2899,23 +2977,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -2941,12 +3025,18 @@ Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Snap error",
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -2963,23 +3053,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -3000,9 +3096,6 @@ Array [
       },
       "snapId": "test-snap",
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
 ]
 `;
@@ -3087,6 +3180,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "0.475",
     "requestId": "123",
     "srcAsset": Object {
       "address": "native",
@@ -3149,14 +3243,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -3165,18 +3268,21 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "crosschain",
       "token_symbol_destination": "ETH",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -3193,23 +3299,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -3235,12 +3347,18 @@ Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Snap error",
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -3257,23 +3375,29 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
       "usd_quoted_gas": 5,
       "usd_quoted_return": 985,
     },
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
   ],
   Array [
     "SnapController:handleRequest",
@@ -3296,49 +3420,11 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "AccountsController:getAccountByAddress",
     "0x123...",
   ],
   Array [
     "TransactionController:getState",
-  ],
-  Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Completed",
-    Object {
-      "action_type": "swapbridge-v1",
-      "actual_time_minutes": 0,
-      "allowance_reset_transaction": undefined,
-      "approval_transaction": undefined,
-      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      "custom_slippage": true,
-      "destination_transaction": "PENDING",
-      "gas_included": false,
-      "is_hardware_wallet": true,
-      "price_impact": 0,
-      "provider": "test-bridge_undefined",
-      "quote_vs_execution_ratio": 0,
-      "quoted_time_minutes": 5,
-      "quoted_vs_used_gas_ratio": 0,
-      "security_warnings": Array [],
-      "slippage_limit": 0,
-      "source_transaction": "COMPLETE",
-      "stx_enabled": false,
-      "swap_type": "single_chain",
-      "token_address_destination": "eip155:1399811149/slip44:501",
-      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "SOL",
-      "usd_actual_gas": 0,
-      "usd_actual_return": 0,
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 5,
-      "usd_quoted_return": 1000,
-    },
   ],
 ]
 `;
@@ -3415,6 +3501,7 @@ Object {
         },
       },
     },
+    "minDestTokenAmount": "475000000000000000s",
     "requestId": "123",
     "srcAsset": Object {
       "address": "native",
@@ -3477,40 +3564,7 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Submitted",
-    Object {
-      "gas_included": false,
-      "price_impact": 0,
-      "provider": "test-bridge_undefined",
-      "quoted_time_minutes": 5,
-      "stx_enabled": false,
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "SOL",
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 5,
-      "usd_quoted_return": 985,
-    },
-  ],
-  Array [
     "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Failed",
-    Object {
-      "error_message": "Failed to submit cross-chain swap transaction: undefined multichain account",
-      "gas_included": false,
-      "price_impact": 0,
-      "provider": "test-bridge_undefined",
-      "quoted_time_minutes": 5,
-      "stx_enabled": false,
-      "token_symbol_destination": "USDC",
-      "token_symbol_source": "SOL",
-      "usd_amount_source": 100,
-      "usd_quoted_gas": 5,
-      "usd_quoted_return": 985,
-    },
   ],
 ]
 `;
@@ -3521,14 +3575,23 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
+    "AccountsController:getSelectedMultichainAccount",
+  ],
+  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -3537,18 +3600,21 @@ Array [
     },
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
       "gas_included": false,
+      "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
       "stx_enabled": false,
+      "swap_type": "single_chain",
       "token_symbol_destination": "USDC",
       "token_symbol_source": "SOL",
       "usd_amount_source": 100,
@@ -3562,6 +3628,37 @@ Array [
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `Array []`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 1`] = `
+Array [
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Status Failed Validation",
+  Object {
+    "action_type": "swapbridge-v1",
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "failures": Array [
+      "across|status",
+    ],
+    "refresh_count": 0,
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+  },
+]
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 2`] = `
+Array [
+  Array [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status, across|srcChain],
+  ],
+  Array [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status],
+  ],
+]
+`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
 Array [
@@ -3813,12 +3910,6 @@ Array [
 
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 Array [
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
-  Array [
-    "AccountsController:getSelectedMultichainAccount",
-  ],
   Array [
     "NetworkController:getState",
   ],

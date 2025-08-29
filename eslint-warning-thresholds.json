@@ -14,9 +14,6 @@
     "n/prefer-global/text-decoder": 1,
     "no-shadow": 2
   },
-  "packages/assets-controllers/src/AccountTrackerController.test.ts": {
-    "import-x/namespace": 2
-  },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 1
@@ -193,11 +190,11 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 14,
-    "jest/no-conditional-in-test": 8
+    "import-x/namespace": 5,
+    "jest/no-conditional-in-test": 2
   },
   "packages/keyring-controller/src/KeyringController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4,
+    "@typescript-eslint/no-unsafe-enum-comparison": 2,
     "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {

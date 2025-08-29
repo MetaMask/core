@@ -9,10 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+## [23.0.0]
+
+### Changed
+
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
 - Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
   - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
   - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+### Removed
+
+- **BREAKING:** Removed QR keyring methods ([#6031](https://github.com/MetaMask/core/pull/6031))
+  - The following methods have been removed:
+    - `cancelQRSignRequest`
+    - `cancelQRSynchronization`
+    - `connectQRHardware`
+    - `forgetQRDevice`
+    - `getOrAddQRKeyring`
+    - `getQRKeyring`
+    - `getQRKeyringState`
+    - `resetQRKeyringState`
+    - `restoreQRKeyring`
+    - `submitQRCryptoHDKey`
+    - `submitQRCryptoAccount`
+    - `submitQRSignature`
+    - `unlockQRHardwareWalletAccount`
+  - Consumers can use the `withKeyring` method to select a QR keyring and execute a callback with it as argument.
+- **BREAKING:** Removed `KeyringController:qrKeyringStateChange` event ([#6031](https://github.com/MetaMask/core/pull/6031))
 
 ## [22.1.1]
 
@@ -821,7 +847,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...@metamask/keyring-controller@23.0.0
 [22.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.0...@metamask/keyring-controller@22.1.1
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...@metamask/keyring-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...@metamask/keyring-controller@22.0.2

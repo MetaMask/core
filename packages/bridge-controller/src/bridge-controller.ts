@@ -341,7 +341,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
 
     // If quoteRequestOverrides is specified, merge it with the quoteRequest
-    const baseQuotes = await fetchBridgeQuotes(
+    const { quotes: baseQuotes, validationFailures } = await fetchBridgeQuotes(
       quoteRequestOverrides
         ? { ...quoteRequest, ...quoteRequestOverrides }
         : quoteRequest,
@@ -350,6 +350,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
+
+    this.#trackResponseValidationFailures(validationFailures);
+
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
     const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
     const quotesWithFees =
@@ -364,6 +367,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       });
     }
     return quotesWithFees;
+  };
+
+  readonly #trackResponseValidationFailures = (
+    validationFailures: string[],
+  ) => {
+    if (validationFailures.length === 0) {
+      return;
+    }
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesValidationFailed,
+      {
+        failures: validationFailures,
+      },
+    );
   };
 
   readonly #getExchangeRateSources = () => {
@@ -836,6 +853,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...baseProperties,
         };
+      case UnifiedSwapBridgeEventName.QuotesValidationFailed:
+        return {
+          ...this.#getRequestParams(),
+          refresh_count: this.state.quotesRefreshCount,
+          ...baseProperties,
+        };
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
           ...this.#getRequestParams(),
@@ -874,7 +897,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
         };
-      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
         return {
@@ -885,7 +907,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...propertiesFromClient,
         };
       }
-      // These are populated by BridgeStatusController
+      case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
+        return baseProperties;
+      // These events may be published after the bridge-controller state is reset
+      // So the BridgeStatusController populates all the properties
+      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
         return propertiesFromClient;
       case UnifiedSwapBridgeEventName.InputChanged:

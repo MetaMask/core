@@ -8,6 +8,7 @@ import {
 import { KnownCaipNamespace } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
+import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
 import type {
   NetworkEnablementControllerActions,
@@ -322,8 +323,453 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  describe('init', () => {
+    it('initializes network enablement state from controller configurations', () => {
+      const { controller } = setupController();
+
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
+                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                'eip155:1': { chainId: 'eip155:1', name: 'Ethereum Mainnet' },
+                'eip155:59144': {
+                  chainId: 'eip155:59144',
+                  name: 'Linea Mainnet',
+                },
+                'eip155:8453': { chainId: 'eip155:8453', name: 'Base Mainnet' },
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                  name: 'Solana Mainnet',
+                },
+              },
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Initialize from configurations
+      controller.init();
+
+      // Should only enable popular networks that exist in NetworkController config
+      // (0x1, 0xe708, 0x2105 exist in default NetworkController mock)
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (exists in default config)
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet (exists in default config)
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet (exists in default config)
+            // Other popular networks not enabled because they don't exist in default config
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true, // Solana Mainnet (exists in multichain config)
+          },
+        },
+      });
+    });
+
+    it('only enables popular networks that exist in NetworkController configurations', () => {
+      // Create a separate controller setup for this test to avoid handler conflicts
+      const { controller, messenger } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+              [KnownCaipNamespace.Solana]: {},
+            },
+          },
+        },
+      });
+
+      jest.spyOn(messenger, 'call').mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
+                // Missing other popular networks
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                  name: 'Solana Mainnet',
+                },
+              },
+              selectedMultichainNetworkChainId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        },
+      );
+
+      // Initialize from configurations
+      controller.init();
+
+      // Should only enable networks that exist in configurations
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            '0x1': true, // Ethereum Mainnet (exists in config)
+            '0xe708': true, // Linea Mainnet (exists in config)
+            // Other popular networks not enabled because they don't exist in config
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true, // Solana Mainnet (exists in config)
+          },
+        },
+      });
+    });
+
+    it('handles missing MultichainNetworkController gracefully', () => {
+      const { controller, messenger } = setupController();
+
+      jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
+                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {},
+              selectedMultichainNetworkChainId: 'eip155:1',
+              isEvmSelected: true,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Should not throw
+      expect(() => controller.init()).not.toThrow();
+
+      // Should still enable popular networks from NetworkController
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+    });
+
+    it('creates namespace buckets for all configured networks', () => {
+      const { controller } = setupController();
+
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum' },
+                '0x89': { chainId: '0x89', name: 'Polygon' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                  name: 'Solana',
+                },
+                'bip122:000000000019d6689c085ae165831e93': {
+                  chainId: 'bip122:000000000019d6689c085ae165831e93',
+                  name: 'Bitcoin',
+                },
+              },
+              selectedMultichainNetworkChainId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      controller.init();
+
+      // Should have created namespace buckets for all network types
+      expect(controller.state.enabledNetworkMap).toHaveProperty(
+        KnownCaipNamespace.Eip155,
+      );
+      expect(controller.state.enabledNetworkMap).toHaveProperty(
+        KnownCaipNamespace.Solana,
+      );
+      expect(controller.state.enabledNetworkMap).toHaveProperty(
+        KnownCaipNamespace.Bip122,
+      );
+    });
+  });
+
+  describe('enableAllPopularNetworks', () => {
+    it('enables all popular networks that exist in controller configurations and Solana mainnet', () => {
+      const { controller } = setupInitializedController();
+
+      // Mock the network configurations
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
+                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                  name: 'Solana Mainnet',
+                },
+              },
+              selectedMultichainNetworkChainId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Initially disable some networks
+      controller.disableNetwork('0xe708'); // Linea
+      controller.disableNetwork('0x2105'); // Base
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            '0x1': true, // Ethereum Mainnet
+            '0xe708': false, // Linea Mainnet (disabled)
+            '0x2105': false, // Base Mainnet (disabled)
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true,
+          },
+        },
+      });
+
+      // Enable all popular networks
+      controller.enableAllPopularNetworks();
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: {
+            '0x1': true, // Ethereum Mainnet
+            '0xe708': true, // Linea Mainnet
+            '0x2105': true, // Base Mainnet
+          },
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true, // Solana
+          },
+        },
+      });
+    });
+
+    it('enables all popular networks from constants', () => {
+      const { controller, messenger } = setupController();
+
+      // Mock all popular networks to be available in configurations
+      jest.spyOn(messenger, 'call').mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            // Create mock configurations for all popular networks
+            const networkConfigurationsByChainId = POPULAR_NETWORKS.reduce(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (acc: any, chainId: string) => {
+                acc[chainId] = { chainId, name: `Network ${chainId}` };
+                return acc;
+              },
+              {},
+            );
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId,
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                  name: 'Solana Mainnet',
+                },
+              },
+              selectedMultichainNetworkChainId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        },
+      );
+
+      // The function should enable all popular networks defined in constants
+      expect(() => controller.enableAllPopularNetworks()).not.toThrow();
+
+      // Should enable all popular networks and Solana
+      const expectedEip155Networks = POPULAR_NETWORKS.reduce(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (acc: any, chainId: string) => {
+          acc[chainId] = true;
+          return acc;
+        },
+        {},
+      );
+
+      expect(controller.state).toStrictEqual({
+        enabledNetworkMap: {
+          [KnownCaipNamespace.Eip155]: expectedEip155Networks,
+          [KnownCaipNamespace.Solana]: {
+            [SolScope.Mainnet]: true, // Solana Mainnet
+          },
+        },
+      });
+    });
+
+    it('does not disable any existing networks', async () => {
+      const { controller, messenger } = setupInitializedController();
+
+      // Mock the network configurations to include popular networks
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+                '0xe708': { chainId: '0xe708', name: 'Linea Mainnet' },
+                '0x2105': { chainId: '0x2105', name: 'Base Mainnet' },
+                '0x2': { chainId: '0x2', name: 'Test Network' }, // Non-popular network
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                  name: 'Solana Mainnet',
+                },
+              },
+              selectedMultichainNetworkChainId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Add a non-popular network
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0x2', // A network not in POPULAR_NETWORKS
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Test Network',
+        nativeCurrency: 'TEST',
+        rpcEndpoints: [
+          {
+            url: 'https://test.network/rpc',
+            networkClientId: 'test-id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // The added network should be enabled (exclusive behavior of network addition)
+      expect(controller.isNetworkEnabled('0x2')).toBe(true);
+      // Popular networks should be disabled due to exclusive behavior
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      // Enable all popular networks - this should not disable the non-popular network
+      controller.enableAllPopularNetworks();
+
+      // All popular networks should now be enabled (no exclusive behavior)
+      expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true); // Linea
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true); // Base
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true); // Solana
+      // The non-popular network should remain enabled
+      expect(controller.isNetworkEnabled('0x2')).toBe(true); // Test network
+    });
+  });
+
   describe('enableNetwork', () => {
-    it('enables a popular network without clearing others', () => {
+    it('enables a network and clears all others in the same namespace', () => {
       const { controller } = setupInitializedController();
 
       // Disable a popular network (Ethereum Mainnet)
@@ -342,24 +788,24 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the network again
+      // Enable the network again - this should disable all others in the same namespace
       controller.enableNetwork('0x1');
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
             [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet (re-enabled)
-            [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
-            [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
+            [ChainId[BuiltInNetworkName.LineaMainnet]]: false, // Linea Mainnet (disabled)
+            [ChainId[BuiltInNetworkName.BaseMainnet]]: false, // Base Mainnet (disabled)
           },
           [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: true,
+            [SolScope.Mainnet]: true, // Unaffected (different namespace)
           },
         },
       });
     });
 
-    it('enables a non-popular network and clears all others', async () => {
+    it('enables any network and clears all others (exclusive behavior)', async () => {
       const { controller, messenger } = setupInitializedController();
 
       // Add a non-popular network
@@ -394,16 +840,14 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the popular networks again
-      controller.enableNetwork('0x1');
-      controller.enableNetwork('0xe708');
+      // Enable one of the popular networks - only this one will be enabled
       controller.enableNetwork('0x2105');
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            '0x1': true,
-            '0xe708': true,
+            '0x1': false,
+            '0xe708': false,
             '0x2105': true,
             '0x2': false,
           },
@@ -413,7 +857,7 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      // Enable the non-popular network again
+      // Enable the non-popular network again - it will disable all others
       controller.enableNetwork('0x2');
 
       expect(controller.state).toStrictEqual({

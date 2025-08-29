@@ -255,6 +255,7 @@ export const getAddTransactionBatchParams = async ({
     quote: {
       feeData: { txFee },
       gasIncluded,
+      gasless7702,
     },
     sentAmount,
     toTokenAmount,
@@ -271,6 +272,7 @@ export const getAddTransactionBatchParams = async ({
   resetApproval?: TxData;
   requireApproval?: boolean;
 }) => {
+  const isGasless = gasIncluded || gasless7702;
   const selectedAccount = messagingSystem.call(
     'AccountsController:getAccountByAddress',
     trade.from,
@@ -286,8 +288,9 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // 7702 enables gasless txs for smart accounts, so we disable it for now
-  const disable7702 = true;
+  // When an active quote has gasless7702 set to true,
+  // enable 7702 gasless txs for smart accounts
+  const disable7702 = gasless7702 !== true;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
@@ -297,7 +300,7 @@ export const getAddTransactionBatchParams = async ({
       resetApproval,
       networkClientId,
       hexChainId,
-      gasIncluded ? txFee : undefined,
+      isGasless ? txFee : undefined,
     );
     transactions.push({
       type: isBridgeTx
@@ -314,7 +317,7 @@ export const getAddTransactionBatchParams = async ({
       approval,
       networkClientId,
       hexChainId,
-      gasIncluded ? txFee : undefined,
+      isGasless ? txFee : undefined,
     );
     transactions.push({
       type: isBridgeTx
@@ -330,7 +333,7 @@ export const getAddTransactionBatchParams = async ({
     trade,
     networkClientId,
     hexChainId,
-    gasIncluded ? txFee : undefined,
+    isGasless ? txFee : undefined,
   );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
@@ -379,9 +382,41 @@ export const findAndUpdateTransactionsInBatch = ({
   // This is a workaround to update the tx type after the tx is signed
   // TODO: remove this once the tx type for batch txs is preserved in the tx controller
   Object.entries(txDataByType).forEach(([txType, txData]) => {
-    const txMeta = txs.find(
-      (tx) => tx.batchId === batchId && tx.txParams.data === txData,
-    );
+    // Find transaction by batchId and either matching data or delegation characteristics
+    const txMeta = txs.find((tx) => {
+      if (tx.batchId !== batchId) {
+        return false;
+      }
+
+      // For 7702 delegated transactions, check for delegation-specific fields
+      // These transactions might have authorizationList or delegationAddress
+      const is7702Transaction =
+        (Array.isArray(tx.txParams.authorizationList) &&
+          tx.txParams.authorizationList.length > 0) ||
+        Boolean(tx.delegationAddress);
+
+      if (is7702Transaction) {
+        // For 7702 transactions, we need to match based on transaction type
+        // since the data field might be different (batch execute call)
+        if (
+          txType === TransactionType.swap &&
+          tx.type === TransactionType.batch
+        ) {
+          return true;
+        }
+        // Also check if it's an approval transaction for 7702
+        if (
+          txType === TransactionType.swapApproval &&
+          tx.txParams.data === txData
+        ) {
+          return true;
+        }
+      }
+
+      // Default matching logic for non-7702 transactions
+      return tx.txParams.data === txData;
+    });
+
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
       updateTransactionFn(updatedTx, `Update tx type to ${txType}`);

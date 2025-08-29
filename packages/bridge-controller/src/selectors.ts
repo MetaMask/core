@@ -264,7 +264,16 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   ) => {
     const newQuotes = quotes.map((quote) => {
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
-      const toTokenAmount = calcToAmount(quote.quote, destTokenExchangeRate);
+      const toTokenAmount = calcToAmount(
+        quote.quote.destTokenAmount,
+        quote.quote.destAsset,
+        destTokenExchangeRate,
+      );
+      const minToTokenAmount = calcToAmount(
+        quote.quote.minDestTokenAmount,
+        quote.quote.destAsset,
+        destTokenExchangeRate,
+      );
 
       const includedTxFees = calcIncludedTxFees(
         quote.quote,
@@ -315,6 +324,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         // QuoteMetadata fields
         sentAmount,
         toTokenAmount,
+        minToTokenAmount,
         swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
         totalNetworkFee: totalEstimatedNetworkFee,
         totalMaxNetworkFee,

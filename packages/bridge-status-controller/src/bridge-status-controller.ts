@@ -1,3 +1,4 @@
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
   QuoteMetadata,
@@ -58,9 +59,9 @@ import {
   getRequestMetadataFromHistory,
   getRequestParamFromHistory,
   getTradeDataFromHistory,
-  getTradeDataFromQuote,
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
+  getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics';
 import {
   findAndUpdateTransactionsInBatch,
@@ -359,6 +360,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
+   * Gets a bridge history item from the history by its transaction meta ID
+   *
+   * @param txMetaId - The transaction meta ID to look up
+   * @returns The bridge history item if found, undefined otherwise
+   */
+  getBridgeHistoryItemByTxMetaId = (
+    txMetaId: string,
+  ): BridgeHistoryItem | undefined => {
+    return this.state.txHistory[txMetaId];
+  };
+
+  /**
    * Restart polling for txs that are not in a final state
    * This is called during initialization
    */
@@ -415,9 +428,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       targetContractAddress,
       approvalTxId,
       isStxEnabled,
+      accountAddress: selectedAddress,
     } = startPollingForBridgeTxStatusArgs;
 
-    const accountAddress = this.#getMultichainSelectedAccountAddress();
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {
@@ -437,7 +450,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
       initialDestAssetBalance,
       targetContractAddress,
-      account: accountAddress,
+      account: selectedAddress,
       status: {
         // We always have a PENDING status when we start polling for a tx, don't need the Bridge API for that
         // Also we know the bare minimum fields for status at this point in time
@@ -509,10 +522,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
   }
 
-  #getMultichainSelectedAccountAddress() {
-    return this.#getMultichainSelectedAccount()?.address ?? '';
-  }
-
   /**
    * Handles the failure to fetch the bridge tx status
    * We eventually stop polling for the tx if we fail too many times
@@ -575,12 +584,26 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.quote,
         srcTxHash,
       );
-      const status = await fetchBridgeTxStatus(
+      const { status, validationFailures } = await fetchBridgeTxStatus(
         statusRequest,
         this.#clientId,
         this.#fetchFn,
         this.#config.customBridgeApiBaseUrl,
       );
+
+      if (validationFailures.length > 0) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.StatusValidationFailed,
+          bridgeTxMetaId,
+          {
+            failures: validationFailures,
+          },
+        );
+        throw new Error(
+          `Bridge status validation failed: ${validationFailures.join(', ')}`,
+        );
+      }
+
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
@@ -624,7 +647,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
       }
     } catch (e) {
-      console.log('Failed to fetch bridge tx status', e);
+      console.warn('Failed to fetch bridge tx status', e);
       this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
@@ -715,18 +738,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *
    * @param quoteResponse - The quote response
    * @param quoteResponse.quote - The quote
+   * @param selectedAccount - The account to submit the transaction for
    * @returns The transaction meta
    */
   readonly #handleSolanaTx = async (
     quoteResponse: QuoteResponse<string> & QuoteMetadata,
+    selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
-    const selectedAccount = this.#getMultichainSelectedAccount();
-    if (!selectedAccount) {
-      throw new Error(
-        'Failed to submit cross-chain swap transaction: undefined multichain account',
-      );
-    }
-    if (!selectedAccount?.metadata?.snap?.id) {
+    if (!selectedAccount.metadata?.snap?.id) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: undefined snap id',
       );
@@ -986,16 +1005,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
 
-    // Before the tx is confirmed, its data is not available in txHistory
-    // The quote is used to populate event properties before confirmation
-    const preConfirmationProperties = {
-      ...getPriceImpactFromQuote(quoteResponse.quote),
-      ...getTradeDataFromQuote(quoteResponse),
-      token_symbol_source: quoteResponse.quote.srcAsset.symbol,
-      token_symbol_destination: quoteResponse.quote.destAsset.symbol,
-      usd_amount_source: Number(quoteResponse.sentAmount?.usd ?? 0),
-      stx_enabled: isStxEnabledOnClient,
-    };
+    const selectedAccount = this.#getMultichainSelectedAccount();
+    if (!selectedAccount) {
+      throw new Error(
+        'Failed to submit cross-chain swap transaction: undefined multichain account',
+      );
+    }
+    const isHardwareAccount = isHardwareWallet(selectedAccount);
+
+    const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
+      quoteResponse,
+      isStxEnabledOnClient,
+      isHardwareAccount,
+    );
     // Emit Submitted event after submit button is clicked
     this.#trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.Submitted,
@@ -1031,6 +1053,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           try {
             return await this.#handleSolanaTx(
               quoteResponse as QuoteResponse<string> & QuoteMetadata,
+              selectedAccount,
             );
           } catch (error) {
             this.#trackUnifiedSwapBridgeEvent(
@@ -1050,8 +1073,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
       // Extension does not have this issue
       const requireApproval =
-        this.#clientId === BridgeClientId.MOBILE &&
-        isHardwareWallet(this.#getMultichainSelectedAccount());
+        this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
 
       // Handle smart transactions if enabled
       txMeta = await this.#trace(
@@ -1065,7 +1087,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () => {
-          if (isStxEnabledOnClient) {
+          if (isStxEnabledOnClient || quoteResponse.quote.gasless7702) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
@@ -1105,6 +1127,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     try {
       // Add swap or bridge tx to history
       this.#addTxToHistory({
+        accountAddress: selectedAccount.address,
         bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
         statusRequest: {
           ...getStatusRequestParams(quoteResponse),
@@ -1146,17 +1169,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
-      | typeof UnifiedSwapBridgeEventName.Completed,
+      | typeof UnifiedSwapBridgeEventName.Completed
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
   >(
     eventName: T,
     txMetaId?: string,
     eventProperties?: Pick<RequiredEventContextFromClient, T>[T],
   ) => {
+    const baseProperties = {
+      action_type: MetricsActionType.SWAPBRIDGE_V1,
+      ...(eventProperties ?? {}),
+    };
+
     if (!txMetaId) {
       this.messagingSystem.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
-        eventProperties ?? {},
+        baseProperties,
       );
       return;
     }
@@ -1185,10 +1214,33 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ({ id }) => id === historyItem.approvalTxId,
     );
 
+    const requestParamProperties = getRequestParamFromHistory(historyItem);
+
+    if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
+      const {
+        chain_id_source,
+        chain_id_destination,
+        token_address_source,
+        token_address_destination,
+      } = requestParamProperties;
+      this.messagingSystem.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
+        eventName,
+        {
+          ...baseProperties,
+          chain_id_source,
+          chain_id_destination,
+          token_address_source,
+          token_address_destination,
+          refresh_count: historyItem.attempts?.counter ?? 0,
+        },
+      );
+      return;
+    }
+
     const requiredEventProperties = {
-      action_type: MetricsActionType.SWAPBRIDGE_V1,
-      ...(eventProperties ?? {}),
-      ...getRequestParamFromHistory(historyItem),
+      ...baseProperties,
+      ...requestParamProperties,
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),
       ...getTradeDataFromHistory(historyItem),
       ...getTxStatusesFromHistory(historyItem),

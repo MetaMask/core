@@ -42,6 +42,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
+- [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
@@ -69,6 +70,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
@@ -103,6 +105,7 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
+  gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
@@ -130,6 +133,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  subscription_controller(["@metamask/subscription-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
@@ -137,6 +141,7 @@ linkStyle default opacity:0.5
   account_tree_controller --> accounts_controller;
   account_tree_controller --> keyring_controller;
   accounts_controller --> base_controller;
+  accounts_controller --> controller_utils;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
   address_book_controller --> base_controller;
@@ -201,6 +206,7 @@ linkStyle default opacity:0.5
   gas_fee_controller --> controller_utils;
   gas_fee_controller --> polling_controller;
   gas_fee_controller --> network_controller;
+  gator_permissions_controller --> base_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   logging_controller --> base_controller;

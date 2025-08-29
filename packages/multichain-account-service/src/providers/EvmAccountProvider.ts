@@ -8,13 +8,12 @@ import type {
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
-  BaseAccountProvider,
-} from './BaseAccountProvider';
+  BaseBip44AccountProvider,
+} from './BaseBip44AccountProvider';
 
 /**
  * Asserts an internal account exists.
@@ -30,7 +29,7 @@ function assertInternalAccountExists(
   }
 }
 
-export class EvmAccountProvider extends BaseAccountProvider {
+export class EvmAccountProvider extends BaseBip44AccountProvider {
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&

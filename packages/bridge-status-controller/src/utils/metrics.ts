@@ -91,7 +91,10 @@ export const getFinalizedTxProperties = (
     approvalTxMeta?.submittedTime ??
     txMeta?.submittedTime ??
     historyItem.startTime;
-  const completionTime = historyItem.completionTime ?? txMeta?.time;
+  const completionTime =
+    txMeta?.type === TransactionType.swap
+      ? txMeta?.time
+      : historyItem.completionTime;
 
   const actualGas = calcActualGasUsed(
     historyItem,
@@ -160,6 +163,40 @@ export const getPriceImpactFromQuote = (
   quote: QuoteResponse['quote'],
 ): Pick<QuoteFetchData, 'price_impact'> => {
   return { price_impact: Number(quote.priceData?.priceImpact ?? '0') };
+};
+
+/**
+ * Before the tx is confirmed, its data is not available in txHistory
+ * The quote is used to populate event properties before confirmation
+ *
+ * @param quoteResponse - The quote response
+ * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+ * @param isHardwareAccount - whether the tx is submitted using a hardware wallet
+ * @returns The properties for the pre-confirmation event
+ */
+export const getPreConfirmationPropertiesFromQuote = (
+  quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+  isStxEnabledOnClient: boolean,
+  isHardwareAccount: boolean,
+) => {
+  const { quote } = quoteResponse;
+  return {
+    ...getPriceImpactFromQuote(quote),
+    ...getTradeDataFromQuote(quoteResponse),
+    chain_id_source: formatChainIdToCaip(quote.srcChainId),
+    token_symbol_source: quote.srcAsset.symbol,
+    chain_id_destination: formatChainIdToCaip(quote.destChainId),
+    token_symbol_destination: quote.destAsset.symbol,
+    is_hardware_wallet: isHardwareAccount,
+    swap_type: getSwapType(
+      quoteResponse.quote.srcChainId,
+      quoteResponse.quote.destChainId,
+    ),
+    usd_amount_source: Number(quoteResponse.sentAmount?.usd ?? 0),
+    stx_enabled: isStxEnabledOnClient,
+    action_type: MetricsActionType.SWAPBRIDGE_V1,
+    custom_slippage: false, // TODO detect whether the user changed the default slippage
+  };
 };
 
 export const getTradeDataFromHistory = (
