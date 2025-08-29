@@ -433,45 +433,46 @@ const removeURLFromBlocklistPaths = (
 ) => {
   const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
   const { hostname, pathname } = new URL(urlWithProtocol);
-  const [path1, path2, path3] = pathname.split('/').filter(Boolean);
+  const pathComponents = pathname.split('/').filter(Boolean);
+  const [path1, path2, path3] = pathComponents;
 
   if (!path1) return;
 
   const hostnamePath1Key = `${hostname}/${path1}`;
+  const componentCount = pathComponents.length;
 
   if (!blocklistPaths[hostnamePath1Key]) return;
 
-  if (!path2) {
-    delete blocklistPaths[hostnamePath1Key];
-    return;
-  }
+  switch (componentCount) {
+    case 1: {
+      if (!isLevel1Blocking(blocklistPaths[hostnamePath1Key])) return;
 
-  if (!blocklistPaths[hostnamePath1Key][path2]) return;
-
-  if (!path3) {
-    // Remove the entire path2 entry
-    delete blocklistPaths[hostnamePath1Key][path2];
-    if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
-      // If the hostname/path1 key has no values after removing the path2 value,
-      // we must remove the hostname/path1 key as the path2 key would never
-      // have been added as we do not add path2 keys if the path1 key already exists.
       delete blocklistPaths[hostnamePath1Key];
+      break;
     }
-    return;
-  }
+    case 2: {
+      if (!isLevel2Blocking(blocklistPaths[hostnamePath1Key][path2])) return;
 
-  const path3Index = blocklistPaths[hostnamePath1Key][path2].indexOf(path3);
-  if (path3Index > -1) {
-    blocklistPaths[hostnamePath1Key][path2].splice(path3Index, 1);
-
-    if (blocklistPaths[hostnamePath1Key][path2].length === 0) {
-      // Same as removing a hostname/path1 key, if the hostname/path1/path2 key has no values,
-      // we must remove it as we do not add path3 value if the path2 key already exists.
       delete blocklistPaths[hostnamePath1Key][path2];
       if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
-        // This is removing the hostname/path1 key if the hostname/path1/path2 key has no values.
         delete blocklistPaths[hostnamePath1Key];
       }
+      break;
+    }
+    default: {
+      if (!blocklistPaths[hostnamePath1Key][path2]) return;
+
+      const path3Index = blocklistPaths[hostnamePath1Key][path2].indexOf(path3);
+      if (path3Index === -1) return;
+
+      blocklistPaths[hostnamePath1Key][path2].splice(path3Index, 1);
+      if (blocklistPaths[hostnamePath1Key][path2].length === 0) {
+        delete blocklistPaths[hostnamePath1Key][path2];
+        if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
+          delete blocklistPaths[hostnamePath1Key];
+        }
+      }
+      break;
     }
   }
 };
