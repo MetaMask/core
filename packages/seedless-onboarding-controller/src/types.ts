@@ -6,7 +6,7 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import type { NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
 import type {
@@ -195,7 +195,7 @@ export type SeedlessOnboardingControllerGetStateAction =
 export type SeedlessOnboardingControllerActions =
   SeedlessOnboardingControllerGetStateAction;
 
-export type AllowedActions = never;
+type AllowedActions = never;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
@@ -206,9 +206,7 @@ export type SeedlessOnboardingControllerStateChangeEvent =
 export type SeedlessOnboardingControllerEvents =
   SeedlessOnboardingControllerStateChangeEvent;
 
-export type AllowedEvents =
-  | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
 // Messenger
 export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
@@ -350,10 +348,6 @@ export type MutuallyExclusiveCallback<Result> = ({
  */
 export type VaultData = {
   /**
-   * The node auth tokens from OAuth User authentication after the Social login.
-   */
-  authTokens: NodeAuthTokens;
-  /**
    * The encryption key to encrypt the seed phrase.
    */
   toprfEncryptionKey: string;
@@ -374,6 +368,15 @@ export type VaultData = {
    * The access token used for pairing with profile sync auth service and to access other services.
    */
   accessToken: string;
+};
+
+export type DeserializedVaultData = Pick<
+  VaultData,
+  'accessToken' | 'revokeToken'
+> & {
+  toprfEncryptionKey: Uint8Array;
+  toprfPwEncryptionKey: Uint8Array;
+  toprfAuthKeyPair: KeyPair;
 };
 
 export type SecretDataType = Uint8Array | string | number;
