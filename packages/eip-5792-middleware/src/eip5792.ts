@@ -10,6 +10,7 @@ import type {
   SendCallsResult,
 } from '@metamask/eth-json-rpc-middleware';
 import { GetCallsStatusCode } from '@metamask/eth-json-rpc-middleware';
+import type { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
