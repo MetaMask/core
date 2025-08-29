@@ -13,7 +13,7 @@ import { v4 as uuidV4 } from 'uuid';
 /**
  * A JSON-RPC request conforming to the EIP-1193 specification.
  */
-type Eip1193Request<Params extends JsonRpcParams> = {
+type Eip1193Request<Params extends JsonRpcParams = JsonRpcParams> = {
   id?: JsonRpcId;
   jsonrpc?: JsonRpcVersion2;
   method: string;
@@ -26,11 +26,9 @@ type Eip1193Request<Params extends JsonRpcParams> = {
  * @param eip1193Request - The EIP-1193 request to convert.
  * @returns The corresponding JSON-RPC request.
  */
-export function convertEip1193RequestToJsonRpcRequest<
-  Params extends JsonRpcParams,
->(
-  eip1193Request: Eip1193Request<Params>,
-): JsonRpcRequest<Params | Record<never, never>> {
+export function convertEip1193RequestToJsonRpcRequest(
+  eip1193Request: Eip1193Request,
+): JsonRpcRequest {
   const { id = uuidV4(), jsonrpc = '2.0', method, params } = eip1193Request;
   return params
     ? {
@@ -78,15 +76,10 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    * @param eip1193Request - The request to send.
    * @returns The JSON-RPC response.
    */
-  async request<Params extends JsonRpcParams, Result extends Json>(
-    eip1193Request: Eip1193Request<Params>,
-  ): Promise<Result> {
+  async request(eip1193Request: Eip1193Request): Promise<Json> {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    const response = await this.#engine.handle<
-      Params | Record<never, never>,
-      Result
-    >(jsonRpcRequest);
+    const response = await this.#engine.handle(jsonRpcRequest);
 
     if ('result' in response) {
       return response.result;

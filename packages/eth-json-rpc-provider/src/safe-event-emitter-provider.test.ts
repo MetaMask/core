@@ -171,6 +171,82 @@ describe('SafeEventEmitterProvider', () => {
       expect(result).toBe(42);
     });
 
+    it('handles a successful EIP-1193 object request without params', async () => {
+      const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
+      engine.push((_req, res, _next, end) => {
+        req = _req;
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        method: 'test',
+      };
+      jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
+
+      const result = await provider.request(exampleRequest);
+
+      expect(req).toStrictEqual({
+        id: 'mock-id',
+        jsonrpc: '2.0' as const,
+        method: 'test',
+      });
+      expect(result).toBe(42);
+    });
+
+    it('handles a successful EIP-1193 object request with params empty object', async () => {
+      const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
+      engine.push((_req, res, _next, end) => {
+        req = _req;
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        method: 'test',
+        params: {},
+      };
+      jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
+
+      const result = await provider.request(exampleRequest);
+
+      expect(req).toStrictEqual({
+        id: 'mock-id',
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {},
+      });
+      expect(result).toBe(42);
+    });
+
+    it('handles a successful EIP-1193 object request with params empty array', async () => {
+      const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
+      engine.push((_req, res, _next, end) => {
+        req = _req;
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        method: 'test',
+        params: [],
+      };
+      jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
+
+      const result = await provider.request(exampleRequest);
+
+      expect(req).toStrictEqual({
+        id: 'mock-id',
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: [],
+      });
+      expect(result).toBe(42);
+    });
+
     it('handles a failure with a non-JSON-RPC error', async () => {
       const engine = new JsonRpcEngine();
       engine.push((_req, _res, _next, end) => {
