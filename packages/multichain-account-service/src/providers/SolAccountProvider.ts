@@ -64,7 +64,10 @@ export class SolAccountProvider extends SnapAccountProvider {
     return accounts;
   }
 
-  async discoverAndCreateAccounts(_: { entropySource: EntropySourceId }) {
+  async discoverAndCreateAccounts(_: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }) {
     return []; // TODO: Implement account discovery.
   }
 }
