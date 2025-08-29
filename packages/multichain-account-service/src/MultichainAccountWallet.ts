@@ -341,37 +341,86 @@ export class MultichainAccountWallet<
   }: {
     skippedProviders: AccountProviderType[];
   }): Promise<{
-    [providerType: string]: Bip44Account<KeyringAccount>[];
+    [AccountProviderType]: Bip44Account<KeyringAccount>[];
   }> {
-    const discoverAndCreateAccountPromises = [];
-    for (const provider of this.#providers) {
-      // Update AccountProvider type to avoid type errors.
-      if (skippedProviders.includes(provider.providerType)) {
-        continue;
-      }
+    const providers = this.#providers.filter(
+      (provider) => !skippedProviders.includes(provider.providerType),
+    );
 
-      discoverAndCreateAccountPromises.push([
-        provider.providerType,
-        provider.discoverAndCreateAccounts({
-          entropySource: this.#entropySource,
-        }),
-      ]);
+    const results: Record<AccountProviderType, Bip44Account<KeyringAccount>[]> =
+      {};
+    const nextIndex = new Map<Bip44Provider, number>(
+      providers.map((p) => [p, 0]),
+    );
+    const stopped = new Set<Bip44Provider>();
+    const inFlight = new Map<Bip44Provider, Promise<void>>();
+
+    let high = 0;
+
+    const schedule = (p: Bip44Provider, index: number) => {
+      const run = (async () => {
+        try {
+          const accounts = await p.discoverAndCreateAccounts({
+            entropySource: this.#entropySource,
+            groupIndex: index,
+          });
+
+          inFlight.delete(p);
+
+          if (accounts.length > 0) {
+            stopped.add(p);
+          } else {
+            results[p.providerType] = [
+              ...(results[p.providerType] ?? []),
+              ...accounts,
+            ];
+
+            const next = index + 1;
+            nextIndex.set(p, next);
+            if (next > high) {
+              high = next;
+
+              for (const q of providers) {
+                if (
+                  !stopped.has(q) &&
+                  !inFlight.has(q) &&
+                  (nextIndex.get(q) ?? 0) < high
+                ) {
+                  schedule(q, high);
+                }
+              }
+            }
+
+            if (!stopped.has(p)) {
+              const target = Math.max(high, nextIndex.get(p) ?? 0);
+              schedule(p, target);
+            }
+          }
+        } catch {
+          inFlight.delete(p);
+          stopped.add(p);
+        }
+      })();
+
+      inFlight.set(p, run);
+    };
+
+    for (const p of providers) {
+      schedule(p, 0);
     }
-    await Promise.allSettled(discoverAndCreateAccountPromises.map((p) => p[1]));
-    const result = discoverAndCreateAccountPromises.reduce((acc, tuple) => {
-      const [providerType, promise] = tuple;
-      if (promise.status === 'fulfilled') {
-        acc[providerType] = promise.value;
-      }
-      return acc;
-    }, {});
 
-    // TODO: align groups here, not sure if the data flow from keyring controller -> accounts controller -> multichain service group creation
-    // would have took place at this point yet.
+    while (inFlight.size > 0) {
+      await Promise.race(inFlight.values());
+    }
 
-    // result type is as it is because the clients expect to know
-    // the count of accounts for each provider, might change to just a count
-    // instead of the array of actual accounts.
-    return result;
+    await this.alignGroups();
+
+    const out: Record<AccountProviderType, Bip44Account<KeyringAccount>[]> = {};
+
+    for (const p of providers) {
+      out[p.providerType] = results[p.providerType] ?? [];
+    }
+
+    return out;
   }
 }
