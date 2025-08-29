@@ -12,6 +12,7 @@ export type {
   RequestParams,
   RequestMetadata,
   TxStatusData,
+  QuoteFetchData,
 } from './utils/metrics/types';
 
 export {
@@ -104,6 +105,7 @@ export {
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
+  isBitcoinChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
   isCrossChain,

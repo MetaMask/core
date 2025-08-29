@@ -10,10 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of the subscription controller ([#6233](https://github.com/MetaMask/core/pull/6233))
-  - This controller allows MM extension and mobile users to manage user subscription, create new subscription, check subscription status.
-  - The current controller contains the following methods:
-    - `getSubscription`: Retrieve current user subscription info if exist.
-    - `cancelSubscription`: Cancel user active subscription.
-    - `startShieldSubscriptionWithCard`: start shield subscription via card (with trial option)
+  - `getSubscription`: Retrieve current user subscription info if exist.
+  - `cancelSubscription`: Cancel user active subscription.
+- `startShieldSubscriptionWithCard`: start shield subscription via card (with trial option) ([#6300](https://github.com/MetaMask/core/pull/6300))
 
 [Unreleased]: https://github.com/MetaMask/core/

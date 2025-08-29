@@ -1,7 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
+import BN from 'bn.js';
 
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import { reduceInBatchesSerially } from './assetsUtil';
 
 // https://github.com/mds1/multicall/blob/main/deployments.json
@@ -288,6 +290,36 @@ const multicallAbi = [
   },
 ];
 
+// Multicall3 ABI for aggregate3 function
+const multicall3Abi = [
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+];
+
 export type Call = {
   contract: Contract;
   functionSignature: string;
@@ -295,6 +327,64 @@ export type Call = {
 };
 
 export type MulticallResult = { success: boolean; value: unknown };
+
+export type Aggregate3Call = {
+  target: string;
+  allowFailure: boolean;
+  callData: string;
+};
+
+export type Aggregate3Result = {
+  success: boolean;
+  returnData: string;
+};
+
+// Constants for encoded strings and addresses
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const BALANCE_OF_FUNCTION = 'balanceOf(address)';
+const GET_ETH_BALANCE_FUNCTION = 'getEthBalance';
+const GET_SHARES_FUNCTION = 'getShares';
+const CONVERT_TO_ASSETS_FUNCTION = 'convertToAssets';
+
+// ERC20 balanceOf ABI
+const ERC20_BALANCE_OF_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+];
+
+// Multicall3 getEthBalance ABI
+const MULTICALL3_GET_ETH_BALANCE_ABI = [
+  {
+    name: 'getEthBalance',
+    type: 'function',
+    inputs: [{ name: 'addr', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+];
+
+// Staking contract ABI with both getShares and convertToAssets
+const STAKING_CONTRACT_ABI = [
+  {
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    name: 'getShares',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+    name: 'convertToAssets',
+    outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+];
 
 const multicall = async (
   calls: Call[],
@@ -373,6 +463,7 @@ const fallback = async (
  * Executes an array of contract calls. If the chain supports multicalls,
  * the calls will be executed in single RPC requests (up to maxCallsPerMulticall).
  * Otherwise the calls will be executed separately in parallel (up to maxCallsParallel).
+ *
  * @param calls - An array of contract calls to execute.
  * @param chainId - The hexadecimal chain id.
  * @param provider - An ethers rpc provider.
@@ -415,4 +506,616 @@ export const multicallOrFallback = async (
   }
 
   return await fallback(calls, maxCallsParallel);
+};
+
+/**
+ * Execute multiple contract calls using Multicall3's aggregate3 function.
+ * This allows for more efficient batch calls with individual failure handling.
+ *
+ * @param calls - Array of calls to execute via aggregate3
+ * @param chainId - The hexadecimal chain id
+ * @param provider - An ethers rpc provider
+ * @returns Promise resolving to array of results from aggregate3
+ */
+export const aggregate3 = async (
+  calls: Aggregate3Call[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<Aggregate3Result[]> => {
+  if (calls.length === 0) {
+    return [];
+  }
+
+  const multicall3Address = MULTICALL_CONTRACT_BY_CHAINID[chainId];
+  const multicall3Contract = new Contract(
+    multicall3Address,
+    multicall3Abi,
+    provider,
+  );
+
+  return await multicall3Contract.callStatic.aggregate3(calls);
+};
+
+/**
+ * Processes and decodes balance results from aggregate3 calls
+ *
+ * @param results - Array of results from aggregate3 calls
+ * @param callMapping - Array mapping call indices to token and user addresses
+ * @param chainId - The hexadecimal chain id
+ * @param provider - An ethers rpc provider
+ * @param includeStaked - Whether to include staked balances
+ * @returns Map of token address to map of user address to balance
+ */
+const processBalanceResults = (
+  results: Aggregate3Result[],
+  callMapping: {
+    tokenAddress: string;
+    userAddress: string;
+    callType: 'erc20' | 'native' | 'staking';
+  }[],
+  chainId: Hex,
+  provider: Web3Provider,
+  includeStaked: boolean,
+): {
+  tokenBalances: Record<string, Record<string, BN>>;
+  stakedBalances?: Record<string, BN>;
+} => {
+  const balanceMap: Record<string, Record<string, BN>> = {};
+  const stakedBalanceMap: Record<string, BN> = {};
+
+  // Create contract instances for decoding
+  const erc20Contract = new Contract(
+    ZERO_ADDRESS,
+    ERC20_BALANCE_OF_ABI,
+    provider,
+  );
+
+  const multicall3Address = MULTICALL_CONTRACT_BY_CHAINID[chainId];
+  const multicall3Contract = new Contract(
+    multicall3Address,
+    MULTICALL3_GET_ETH_BALANCE_ABI,
+    provider,
+  );
+
+  // Staking contracts are now handled separately in two-step process
+
+  results.forEach((result, index) => {
+    if (result.success) {
+      const { tokenAddress, userAddress, callType } = callMapping[index];
+      if (callType === 'native') {
+        // For native token, decode the getEthBalance result
+        const balanceRaw = multicall3Contract.interface.decodeFunctionResult(
+          GET_ETH_BALANCE_FUNCTION,
+          result.returnData,
+        )[0];
+
+        if (!balanceMap[tokenAddress]) {
+          balanceMap[tokenAddress] = {};
+        }
+        balanceMap[tokenAddress][userAddress] = new BN(balanceRaw.toString());
+      } else if (callType === 'staking') {
+        // Staking is now handled separately in two-step process
+        // This case should not occur anymore
+        console.warn(
+          'Staking callType found in main processing - this should not happen',
+        );
+      } else {
+        // For ERC20 tokens, decode the balanceOf result
+        const balanceRaw = erc20Contract.interface.decodeFunctionResult(
+          BALANCE_OF_FUNCTION,
+          result.returnData,
+        )[0];
+
+        if (!balanceMap[tokenAddress]) {
+          balanceMap[tokenAddress] = {};
+        }
+        balanceMap[tokenAddress][userAddress] = new BN(balanceRaw.toString());
+      }
+    }
+  });
+
+  const result: {
+    tokenBalances: Record<string, Record<string, BN>>;
+    stakedBalances?: Record<string, BN>;
+  } = { tokenBalances: balanceMap };
+
+  if (includeStaked && Object.keys(stakedBalanceMap).length > 0) {
+    result.stakedBalances = stakedBalanceMap;
+  }
+
+  return result;
+};
+
+/**
+ * Fallback function to get native token balances using individual eth_getBalance calls
+ * when Multicall3 is not supported on the chain.
+ *
+ * @param userAddresses - Array of user addresses to check balances for
+ * @param provider - An ethers rpc provider
+ * @param maxCallsParallel - Maximum number of parallel calls (default: 20)
+ * @returns Promise resolving to map of user address to balance
+ */
+const getNativeBalancesFallback = async (
+  userAddresses: string[],
+  provider: Web3Provider,
+  maxCallsParallel = 20,
+): Promise<Record<string, BN>> => {
+  const balanceMap: Record<string, BN> = {};
+
+  await reduceInBatchesSerially<string, void>({
+    values: userAddresses,
+    batchSize: maxCallsParallel,
+    initialResult: undefined,
+    eachBatch: async (_, batch) => {
+      const results = await Promise.allSettled(
+        batch.map(async (userAddress) => {
+          const balance = await provider.getBalance(userAddress);
+          return {
+            success: true,
+            balance: new BN(balance.toString()),
+            userAddress,
+          };
+        }),
+      );
+
+      results.forEach((result) => {
+        if (
+          result.status === 'fulfilled' &&
+          result.value.success &&
+          result.value.balance !== null
+        ) {
+          balanceMap[result.value.userAddress] = result.value.balance;
+        }
+      });
+    },
+  });
+
+  return balanceMap;
+};
+
+/**
+ * Fallback function to get token balances using individual calls
+ * when Multicall3 is not supported or when aggregate3 calls fail.
+ *
+ * @param tokenAddresses - Array of ERC20 token contract addresses
+ * @param userAddresses - Array of user addresses to check balances for
+ * @param provider - An ethers rpc provider
+ * @param includeNative - Whether to include native token balances (default: true)
+ * @param maxCallsParallel - Maximum number of parallel calls (default: 20)
+ * @returns Promise resolving to map of token address to map of user address to balance
+ */
+const getTokenBalancesFallback = async (
+  tokenAddresses: string[],
+  userAddresses: string[],
+  provider: Web3Provider,
+  includeNative: boolean,
+  maxCallsParallel: number,
+): Promise<Record<string, Record<string, BN>>> => {
+  const balanceMap: Record<string, Record<string, BN>> = {};
+
+  // Handle ERC20 token balances using the existing fallback function
+  if (tokenAddresses.length > 0) {
+    const erc20Calls: Call[] = [];
+    const callMapping: { tokenAddress: string; userAddress: string }[] = [];
+
+    tokenAddresses.forEach((tokenAddress) => {
+      userAddresses.forEach((userAddress) => {
+        const contract = new Contract(
+          tokenAddress,
+          ERC20_BALANCE_OF_ABI,
+          provider,
+        );
+        erc20Calls.push({
+          contract,
+          functionSignature: BALANCE_OF_FUNCTION,
+          arguments: [userAddress],
+        });
+        callMapping.push({ tokenAddress, userAddress });
+      });
+    });
+
+    const erc20Results = await fallback(erc20Calls, maxCallsParallel);
+    erc20Results.forEach((result, index) => {
+      if (result.success) {
+        const { tokenAddress, userAddress } = callMapping[index];
+        if (!balanceMap[tokenAddress]) {
+          balanceMap[tokenAddress] = {};
+        }
+        balanceMap[tokenAddress][userAddress] = result.value as BN;
+      }
+    });
+  }
+
+  // Handle native token balances using the native fallback function
+  if (includeNative) {
+    const nativeBalances = await getNativeBalancesFallback(
+      userAddresses,
+      provider,
+      maxCallsParallel,
+    );
+    if (Object.keys(nativeBalances).length > 0) {
+      balanceMap[ZERO_ADDRESS] = nativeBalances;
+    }
+  }
+
+  return balanceMap;
+};
+
+/**
+ * Fallback function to get staked balances using individual calls
+ * when Multicall3 is not supported or when aggregate3 calls fail.
+ *
+ * @param userAddresses - Array of user addresses to check staked balances for
+ * @param chainId - The hexadecimal chain id
+ * @param provider - An ethers rpc provider
+ * @param maxCallsParallel - Maximum number of parallel calls (default: 20)
+ * @returns Promise resolving to map of user address to staked balance
+ */
+const getStakedBalancesFallback = async (
+  userAddresses: string[],
+  chainId: Hex,
+  provider: Web3Provider,
+  maxCallsParallel: number,
+): Promise<Record<string, BN>> => {
+  const stakedBalanceMap: Record<string, BN> = {};
+
+  const stakingContractAddress =
+    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+    ];
+
+  if (!stakingContractAddress) {
+    // No staking support for this chain
+    return stakedBalanceMap;
+  }
+
+  const stakingCalls: Call[] = [];
+  const callMapping: { userAddress: string }[] = [];
+
+  userAddresses.forEach((userAddress) => {
+    const contract = new Contract(
+      stakingContractAddress,
+      STAKING_CONTRACT_ABI,
+      provider,
+    );
+    stakingCalls.push({
+      contract,
+      functionSignature: GET_SHARES_FUNCTION,
+      arguments: [userAddress],
+    });
+    callMapping.push({ userAddress });
+  });
+
+  const stakingResults = await fallback(stakingCalls, maxCallsParallel);
+  stakingResults.forEach((result, index) => {
+    if (result.success) {
+      const { userAddress } = callMapping[index];
+      stakedBalanceMap[userAddress] = result.value as BN;
+    }
+  });
+
+  return stakedBalanceMap;
+};
+
+/**
+ * Get staked balances for multiple addresses using two-step process:
+ * 1. Get shares for all addresses
+ * 2. Convert non-zero shares to assets
+ *
+ * @param userAddresses - Array of user addresses to check
+ * @param chainId - Chain ID as hex string
+ * @param provider - Ethers provider
+ * @returns Promise resolving to map of user address to staked balance
+ */
+export const getStakedBalancesForAddresses = async (
+  userAddresses: string[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<Record<string, BN>> => {
+  const stakingContractAddress =
+    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+    ];
+
+  if (!stakingContractAddress) {
+    return {};
+  }
+
+  const stakingContract = new Contract(
+    stakingContractAddress,
+    STAKING_CONTRACT_ABI,
+    provider,
+  );
+
+  try {
+    // Step 1: Get shares for all addresses
+    const shareCalls: Aggregate3Call[] = userAddresses.map((userAddress) => ({
+      target: stakingContractAddress,
+      allowFailure: true,
+      callData: stakingContract.interface.encodeFunctionData(
+        GET_SHARES_FUNCTION,
+        [userAddress],
+      ),
+    }));
+
+    const shareResults = await aggregate3(shareCalls, chainId, provider);
+
+    // Step 2: For addresses with non-zero shares, convert to assets
+    const nonZeroSharesData: { address: string; shares: BN }[] = [];
+    shareResults.forEach((result, index) => {
+      if (result.success) {
+        const sharesRaw = stakingContract.interface.decodeFunctionResult(
+          GET_SHARES_FUNCTION,
+          result.returnData,
+        )[0];
+        const shares = new BN(sharesRaw.toString());
+
+        if (shares.gt(new BN(0))) {
+          nonZeroSharesData.push({
+            address: userAddresses[index],
+            shares,
+          });
+        }
+      }
+    });
+
+    if (nonZeroSharesData.length === 0) {
+      return {};
+    }
+
+    // Step 3: Convert shares to assets for addresses with non-zero shares
+    const assetCalls: Aggregate3Call[] = nonZeroSharesData.map(
+      ({ shares }) => ({
+        target: stakingContractAddress,
+        allowFailure: true,
+        callData: stakingContract.interface.encodeFunctionData(
+          CONVERT_TO_ASSETS_FUNCTION,
+          [shares.toString()],
+        ),
+      }),
+    );
+
+    const assetResults = await aggregate3(assetCalls, chainId, provider);
+
+    // Step 4: Build final result mapping
+    const result: Record<string, BN> = {};
+    assetResults.forEach((assetResult, index) => {
+      if (assetResult.success) {
+        const assetsRaw = stakingContract.interface.decodeFunctionResult(
+          CONVERT_TO_ASSETS_FUNCTION,
+          assetResult.returnData,
+        )[0];
+        const assets = new BN(assetsRaw.toString());
+
+        const { address } = nonZeroSharesData[index];
+        result[address] = assets;
+      }
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error fetching staked balances:', error);
+    return {};
+  }
+};
+
+/**
+ * Get token balances (both ERC20 and native) for multiple addresses using aggregate3.
+ * This is more efficient than individual balanceOf calls for multiple addresses and tokens.
+ * Native token balances are mapped to the zero address (0x0000000000000000000000000000000000000000).
+ *
+ * @param accountTokenGroups - Array of objects containing account addresses and their associated token addresses
+ * @param chainId - The hexadecimal chain id
+ * @param provider - An ethers rpc provider
+ * @param includeNative - Whether to include native token balances (default: true)
+ * @param includeStaked - Whether to include staked balances from supported staking contracts (default: false)
+ * @returns Promise resolving to object containing tokenBalances map and optional stakedBalances map
+ */
+export const getTokenBalancesForMultipleAddresses = async (
+  accountTokenGroups: { accountAddress: Hex; tokenAddresses: Hex[] }[],
+  chainId: Hex,
+  provider: Web3Provider,
+  includeNative: boolean,
+  includeStaked: boolean,
+): Promise<{
+  tokenBalances: Record<string, Record<string, BN>>;
+  stakedBalances?: Record<string, BN>;
+}> => {
+  // Return early if no groups provided
+  if (accountTokenGroups.length === 0 && !includeNative && !includeStaked) {
+    return { tokenBalances: {} };
+  }
+
+  // Extract unique token addresses and user addresses from groups
+  const uniqueTokenAddresses = Array.from(
+    new Set(accountTokenGroups.flatMap((group) => group.tokenAddresses)),
+  ).filter((tokenAddress) => tokenAddress !== ZERO_ADDRESS); // Exclude native token from ERC20 calls
+
+  const uniqueUserAddresses = Array.from(
+    new Set(accountTokenGroups.map((group) => group.accountAddress)),
+  );
+
+  // Check if Multicall3 is supported on this chain
+  if (
+    !MULTICALL_CONTRACT_BY_CHAINID[
+      chainId as keyof typeof MULTICALL_CONTRACT_BY_CHAINID
+    ]
+  ) {
+    // Fallback to individual balance calls when Multicall3 is not supported
+    const tokenBalances = await getTokenBalancesFallback(
+      uniqueTokenAddresses,
+      uniqueUserAddresses,
+      provider,
+      includeNative,
+      20,
+    );
+
+    const result: {
+      tokenBalances: Record<string, Record<string, BN>>;
+      stakedBalances?: Record<string, BN>;
+    } = { tokenBalances };
+
+    // Handle staked balances fallback if requested
+    if (includeStaked) {
+      const stakedBalances = await getStakedBalancesFallback(
+        uniqueUserAddresses,
+        chainId,
+        provider,
+        20,
+      );
+
+      if (Object.keys(stakedBalances).length > 0) {
+        result.stakedBalances = stakedBalances;
+      }
+    }
+
+    return result;
+  }
+
+  try {
+    // Create calls directly from pairs
+    const allCalls: Aggregate3Call[] = [];
+    const allCallMapping: {
+      tokenAddress: string;
+      userAddress: string;
+      callType: 'erc20' | 'native' | 'staking';
+    }[] = [];
+
+    // Create a temporary ERC20 contract for encoding
+    const tempERC20Contract = new Contract(
+      ZERO_ADDRESS,
+      ERC20_BALANCE_OF_ABI,
+      provider,
+    );
+
+    // Create ERC20 balance calls for all account-token combinations
+    accountTokenGroups.forEach((group) => {
+      group.tokenAddresses
+        .filter((tokenAddress) => tokenAddress !== ZERO_ADDRESS)
+        .forEach((tokenAddress) => {
+          allCalls.push({
+            target: tokenAddress,
+            allowFailure: true,
+            callData: tempERC20Contract.interface.encodeFunctionData(
+              BALANCE_OF_FUNCTION,
+              [group.accountAddress],
+            ),
+          });
+          allCallMapping.push({
+            tokenAddress,
+            userAddress: group.accountAddress,
+            callType: 'erc20',
+          });
+        });
+    });
+
+    // Add native token balance calls if requested
+    if (includeNative) {
+      const multicall3Address = MULTICALL_CONTRACT_BY_CHAINID[chainId];
+      const multicall3TempContract = new Contract(
+        multicall3Address,
+        MULTICALL3_GET_ETH_BALANCE_ABI,
+        provider,
+      );
+
+      uniqueUserAddresses.forEach((userAddress) => {
+        allCalls.push({
+          target: multicall3Address,
+          allowFailure: true,
+          callData: multicall3TempContract.interface.encodeFunctionData(
+            GET_ETH_BALANCE_FUNCTION,
+            [userAddress],
+          ),
+        });
+        allCallMapping.push({
+          tokenAddress: ZERO_ADDRESS,
+          userAddress,
+          callType: 'native',
+        });
+      });
+    }
+
+    // Note: Staking balances will be handled separately in two steps after token/native calls
+
+    // Execute all calls in batches
+    const maxCallsPerBatch = 300; // Limit calls per batch to avoid gas/size limits
+    const allResults: Aggregate3Result[] = [];
+
+    await reduceInBatchesSerially<Aggregate3Call, void>({
+      values: allCalls,
+      batchSize: maxCallsPerBatch,
+      initialResult: undefined,
+      eachBatch: async (_, batch) => {
+        const batchResults = await aggregate3(batch, chainId, provider);
+        allResults.push(...batchResults);
+      },
+    });
+
+    // Handle staking balances in two steps if requested
+    let stakedBalances: Record<string, BN> = {};
+    if (includeStaked) {
+      stakedBalances = await getStakedBalancesForAddresses(
+        uniqueUserAddresses,
+        chainId,
+        provider,
+      );
+    }
+
+    // Process and return results
+    const result = processBalanceResults(
+      allResults,
+      allCallMapping,
+      chainId,
+      provider,
+      false, // Don't include staked from main processing
+    );
+
+    // Add staked balances to result
+    if (includeStaked && Object.keys(stakedBalances).length > 0) {
+      result.stakedBalances = stakedBalances;
+    }
+
+    return result;
+  } catch (error) {
+    // Fallback only on revert
+    // https://docs.ethers.org/v5/troubleshooting/errors/#help-CALL_EXCEPTION
+    if (
+      !error ||
+      typeof error !== 'object' ||
+      !('code' in error) ||
+      error.code !== 'CALL_EXCEPTION'
+    ) {
+      throw error;
+    }
+
+    // Fallback to individual balance calls when aggregate3 fails
+    const tokenBalances = await getTokenBalancesFallback(
+      uniqueTokenAddresses,
+      uniqueUserAddresses,
+      provider,
+      includeNative,
+      20,
+    );
+
+    const result: {
+      tokenBalances: Record<string, Record<string, BN>>;
+      stakedBalances?: Record<string, BN>;
+    } = { tokenBalances };
+
+    // Handle staked balances fallback if requested
+    if (includeStaked) {
+      const stakedBalances = await getStakedBalancesFallback(
+        uniqueUserAddresses,
+        chainId,
+        provider,
+        20,
+      );
+
+      if (Object.keys(stakedBalances).length > 0) {
+        result.stakedBalances = stakedBalances;
+      }
+    }
+
+    return result;
+  }
 };

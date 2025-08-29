@@ -24,8 +24,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import { AccountTreeController } from './AccountTreeController';
-import type { AccountGroupObject } from './group';
-import { BaseRule } from './rule';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -1732,38 +1730,6 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('BaseRule', () => {
-    it('fallbacks to emptry group name if we cannot get its account', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
-
-      rootMessenger.registerActionHandler(
-        'AccountsController:getAccount',
-        () => undefined,
-      );
-
-      const group: AccountGroupObject = {
-        id: toMultichainAccountGroupId(
-          toMultichainAccountWalletId('test'),
-          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-        ),
-        type: AccountGroupType.MultichainAccount,
-        accounts: [MOCK_HD_ACCOUNT_1.id],
-        metadata: {
-          name: MOCK_HD_ACCOUNT_1.metadata.name,
-          entropy: {
-            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-          },
-          pinned: false,
-          hidden: false,
-        },
-      };
-
-      expect(rule.getDefaultAccountGroupName(group)).toBe('');
-    });
-  });
-
   describe('Persistence - Custom Names', () => {
     it('persists custom account group names across init calls', () => {
       const { controller } = setup({
@@ -2106,6 +2072,629 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountWalletsMetadata[nonExistentWalletId],
       ).toBeUndefined();
+    });
+  });
+
+  describe('Fallback Naming', () => {
+    it('detects new groups based on account import time', () => {
+      const serviceStartTime = Date.now();
+      const mockAccountWithNewImportTime: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 0,
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          importTime: serviceStartTime + 1000, // Imported after service start
+        },
+      };
+
+      const mockAccountWithOldImportTime: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_2,
+        options: {
+          ...MOCK_HD_ACCOUNT_2.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_2.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 1,
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_2.metadata,
+          importTime: serviceStartTime - 1000, // Imported before service start
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccountWithOldImportTime, mockAccountWithNewImportTime],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const expectedGroupId1 = toMultichainAccountGroupId(
+        expectedWalletId,
+        mockAccountWithNewImportTime.options.entropy.groupIndex,
+      );
+
+      const expectedGroupId2 = toMultichainAccountGroupId(
+        expectedWalletId,
+        mockAccountWithOldImportTime.options.entropy.groupIndex,
+      );
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+      const group2 = wallet?.groups[expectedGroupId2];
+
+      // Groups should be named by index within the wallet
+      expect(group1?.metadata.name).toBe('Account 1');
+      expect(group2?.metadata.name).toBe('Account 2');
+    });
+
+    it('uses fallback naming when rule-based naming returns empty string', () => {
+      // Create accounts with empty names to trigger fallback naming
+      const mockAccountWithEmptyName1: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-1',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name will cause rule-based naming to fail
+        },
+      };
+
+      const mockAccountWithEmptyName2: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-2',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            groupIndex: 1, // Different group index
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name will cause rule-based naming to fail
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccountWithEmptyName1, mockAccountWithEmptyName2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      const expectedGroupId1 = toMultichainAccountGroupId(
+        expectedWalletId,
+        0, // First group
+      );
+
+      const expectedGroupId2 = toMultichainAccountGroupId(
+        expectedWalletId,
+        1, // Second group
+      );
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group1 = wallet?.groups[expectedGroupId1];
+      const group2 = wallet?.groups[expectedGroupId2];
+
+      // Verify fallback naming: "Account 1", "Account 2" within the same wallet
+      expect(group1?.metadata.name).toBe('Account 1');
+      expect(group2?.metadata.name).toBe('Account 2');
+    });
+
+    it('handles adding new accounts to existing groups correctly', () => {
+      const serviceStartTime = Date.now();
+      // Create an existing account (imported before service start)
+      const existingAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'existing-account',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 0,
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name to trigger naming logic
+          importTime: serviceStartTime - 1000, // Imported before service start
+        },
+      };
+
+      // Create a new account (imported after service start) for the same group
+      const newAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'new-account',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 0, // Same group as existing account
+          },
+        },
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name to trigger naming logic
+          importTime: serviceStartTime + 1000, // Imported after service start
+        },
+      };
+
+      const { controller, messenger, mocks } = setup({
+        accounts: [existingAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Add the new account to the existing group
+      mocks.AccountsController.accounts = [existingAccount, newAccount];
+      messenger.publish('AccountsController:accountAdded', newAccount);
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(
+        expectedWalletId,
+        0, // Same group index
+      );
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group = wallet?.groups[expectedGroupId];
+
+      // The group should now be treated as "new" and use fallback naming
+      expect(group?.metadata.name).toBe('Account 1');
+      expect(group?.accounts).toHaveLength(2);
+      expect(group?.accounts).toContain(existingAccount.id);
+      expect(group?.accounts).toContain(newAccount.id);
+    });
+
+    it('handles groups not in WeakMap (fallback to false)', () => {
+      // Create an account with empty name to trigger naming logic
+      const mockAccountWithEmptyName: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-with-empty-name',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name will cause rule-based naming to fail
+          importTime: Date.now() - 1000, // Old account (not new)
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccountWithEmptyName],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group = wallet?.groups[expectedGroupId];
+
+      // Should use computed name first since it's not a new group, then fallback to default
+      // Since the account has empty name, computed name will be empty, so it falls back to default
+      expect(group?.metadata.name).toBe('Account 1');
+    });
+  });
+
+  describe('actions', () => {
+    const walletId = toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id);
+    const groupId = toMultichainAccountGroupId(
+      walletId,
+      MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+    );
+
+    it('gets a multichain account with AccountTreeController:getSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call('AccountTreeController:getSelectedAccountGroup');
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('gets a multichain account with AccountTreeController:setSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call('AccountTreeController:setSelectedAccountGroup', groupId);
+      expect(spy).toHaveBeenCalledWith(groupId);
+    });
+
+    it('gets a multichain account with AccountTreeController:getAccountsFromSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getAccountsFromSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      );
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountWalletName', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountWalletName',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const name = 'Test';
+
+      messenger.call(
+        'AccountTreeController:setAccountWalletName',
+        walletId,
+        name,
+      );
+      expect(spy).toHaveBeenCalledWith(walletId, name);
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountGroupName', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountGroupName',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const name = 'Test';
+
+      messenger.call(
+        'AccountTreeController:setAccountGroupName',
+        groupId,
+        name,
+      );
+      expect(spy).toHaveBeenCalledWith(groupId, name);
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountGroupPinned', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountGroupPinned',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const pinned = true;
+
+      messenger.call(
+        'AccountTreeController:setAccountGroupPinned',
+        groupId,
+        pinned,
+      );
+      expect(spy).toHaveBeenCalledWith(groupId, pinned);
+    });
+
+    it('gets a multichain account with AccountTreeController:setAccountGroupHidden', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'setAccountGroupHidden',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const hidden = false;
+
+      messenger.call(
+        'AccountTreeController:setAccountGroupHidden',
+        groupId,
+        hidden,
+      );
+      expect(spy).toHaveBeenCalledWith(groupId, hidden);
+    });
+  });
+
+  describe('Event Emissions', () => {
+    it('does NOT emit accountTreeChange when tree is initialized', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+
+      expect(accountTreeChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('emits accountTreeChange when account is added', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish('AccountsController:accountAdded', {
+        ...MOCK_HD_ACCOUNT_2,
+      });
+
+      expect(accountTreeChangeListener).toHaveBeenCalledWith(
+        controller.state.accountTree,
+      );
+      expect(accountTreeChangeListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits accountTreeChange when account is removed', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const accountTreeChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        accountTreeChangeListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_2.id,
+      );
+
+      expect(accountTreeChangeListener).toHaveBeenCalledWith(
+        controller.state.accountTree,
+      );
+      expect(accountTreeChangeListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits selectedAccountGroupChange when account removal causes empty group and auto-selection', () => {
+      // Set up with two accounts in different groups to ensure group change on removal
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      // Set selected group to be the group we're about to empty
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 1);
+      controller.setSelectedAccountGroup(groupId);
+
+      jest.clearAllMocks();
+
+      // Remove the only account in the selected group, which should trigger auto-selection
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_SNAP_ACCOUNT_1.id,
+      );
+
+      const newSelectedGroup =
+        controller.state.accountTree.selectedAccountGroup;
+
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        newSelectedGroup,
+        groupId,
+      );
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit selectedAccountGroupChange when tree is initialized', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('emits selectedAccountGroupChange when setSelectedAccountGroup is called', () => {
+      // Use different keyring types to ensure different groups
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      const initialSelectedGroup =
+        controller.state.accountTree.selectedAccountGroup;
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const targetGroupId = toMultichainAccountGroupId(walletId, 1);
+
+      jest.clearAllMocks();
+
+      controller.setSelectedAccountGroup(targetGroupId);
+
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        targetGroupId,
+        initialSelectedGroup,
+      );
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits selectedAccountGroupChange when selected account changes via AccountsController', () => {
+      // Use different keyring types to ensure different groups
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      const initialSelectedGroup =
+        controller.state.accountTree.selectedAccountGroup;
+
+      jest.clearAllMocks();
+
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_SNAP_ACCOUNT_1,
+      );
+
+      const newSelectedGroup =
+        controller.state.accountTree.selectedAccountGroup;
+
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        newSelectedGroup,
+        initialSelectedGroup,
+      );
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit selectedAccountGroupChange when the same account group is already selected', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      jest.clearAllMocks();
+
+      // Try to trigger selectedAccountChange with same account
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_1,
+      );
+
+      expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('does NOT emit selectedAccountGroupChange when setSelectedAccountGroup is called with same group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      jest.clearAllMocks();
+
+      controller.setSelectedAccountGroup(groupId);
+
+      expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
     });
   });
 });

@@ -22,13 +22,6 @@ const ENV_URLS: Record<Env, EnvUrlsEntry> = {
   },
 };
 
-export const SUBSCRIPTION_PRODUCTS = {
-  SHIELD: 'shield',
-} as const;
-
-export type SubscriptionProduct =
-  (typeof SUBSCRIPTION_PRODUCTS)[keyof typeof SUBSCRIPTION_PRODUCTS];
-
 /**
  * Validates and returns correct environment endpoints
  *

@@ -8,6 +8,7 @@ import {
 } from '../constants';
 import { SimulationChainNotSupportedError, SimulationError } from '../errors';
 import { projectLogger } from '../logger';
+import type { GetSimulationConfig } from '../types';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
@@ -52,6 +53,11 @@ export type SimulationRequest = {
   blockOverrides?: {
     time?: Hex;
   };
+
+  /**
+   * Function to get the simulation configuration.
+   */
+  getSimulationConfig: GetSimulationConfig;
 
   /**
    * Overrides to the state of the blockchain, keyed by address.
@@ -237,6 +243,14 @@ export type SimulationResponseTransaction = {
 export type SimulationResponse = {
   /** Simulation data for each transaction in the request. */
   transactions: SimulationResponseTransaction[];
+
+  sponsorship: {
+    /** Whether the gas costs are sponsored meaning a transfer is not required. */
+    isSponsored: boolean;
+
+    /** Error message for the determination of sponsorship. */
+    error: string | null;
+  };
 };
 
 /** Data for a network supported by the Simulation API. */
@@ -266,7 +280,13 @@ export async function simulateTransactions(
   chainId: Hex,
   request: SimulationRequest,
 ): Promise<SimulationResponse> {
-  const url = await getSimulationUrl(chainId);
+  let url = await getSimulationUrl(chainId);
+
+  const { newUrl, authorization } =
+    (await request.getSimulationConfig(url)) || {};
+  if (newUrl) {
+    url = newUrl;
+  }
 
   const requestId = requestIdCounter;
   requestIdCounter += 1;
@@ -275,8 +295,18 @@ export async function simulateTransactions(
 
   log('Sending request', url, request);
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add optional authorization header, if provided.
+  if (authorization) {
+    headers.Authorization = authorization;
+  }
+
   const response = await fetch(url, {
     method: 'POST',
+    headers,
     body: JSON.stringify({
       id: String(requestId),
       jsonrpc: '2.0',

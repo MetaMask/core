@@ -168,6 +168,10 @@ export const QuoteSchema = type({
    * The amount received, in atomic amount
    */
   destTokenAmount: string(),
+  /**
+   * The minimum amount that will be received, in atomic amount
+   */
+  minDestTokenAmount: string(),
   feeData: type({
     [FeeType.METABRIDGE]: FeeDataSchema,
     /**
@@ -185,6 +189,10 @@ export const QuoteSchema = type({
     ),
   }),
   gasIncluded: optional(boolean()),
+  /**
+   * Whether the quote can use EIP-7702 delegated gasless execution
+   */
+  gasless7702: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),

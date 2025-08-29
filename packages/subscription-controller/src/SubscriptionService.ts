@@ -5,17 +5,17 @@ import {
 } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
+  AuthUtils,
+  GetSubscriptionsResponse,
   ISubscriptionService,
-  Subscription,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
   env: Env;
-  auth: {
-    getAccessToken: () => Promise<string>;
-  };
+  auth: AuthUtils;
+  fetchFn: typeof globalThis.fetch;
 };
 
 type ErrorMessage = {
@@ -27,121 +27,78 @@ export const SUBSCRIPTION_URL = (env: Env, path: string) =>
   `${getEnvUrls(env).subscriptionApiUrl}/api/v1/${path}`;
 
 export class SubscriptionService implements ISubscriptionService {
-  readonly #config: SubscriptionServiceConfig;
-
   readonly #env: Env;
+
+  readonly #fetch: typeof globalThis.fetch;
+
+  public authUtils: AuthUtils;
 
   constructor(config: SubscriptionServiceConfig) {
     this.#env = config.env;
-    this.#config = config;
+    this.authUtils = config.auth;
+    this.#fetch = config.fetchFn;
   }
 
-  async getSubscription(): Promise<Subscription | null> {
-    const path = 'subscription';
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-      });
-
-      if (response.status === 404) {
-        return null;
-      }
-
-      if (!response.ok) {
-        const responseBody = (await response.json()) as ErrorMessage;
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
-      }
-
-      const res = (await response.json()) as { data: Subscription | null };
-      return res.data;
-    } catch (e) {
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? '');
-
-      throw new SubscriptionServiceError(
-        `failed to get subscription. ${errorMessage}`,
-      );
-    }
+  async getSubscriptions(): Promise<GetSubscriptionsResponse> {
+    const path = 'subscriptions';
+    return await this.#makeRequest(path);
   }
 
   async cancelSubscription(params: { subscriptionId: string }): Promise<void> {
-    const path = `subscription/${params.subscriptionId}/cancel`;
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = new URL(SUBSCRIPTION_URL(this.#env, path));
-      const response = await fetch(url.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-      });
-
-      if (!response.ok) {
-        const responseBody = (await response.json()) as ErrorMessage;
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
-      }
-    } catch (e) {
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? '');
-
-      throw new SubscriptionServiceError(
-        `failed to cancel subscription. ${errorMessage}`,
-      );
-    }
+    const path = `subscriptions/${params.subscriptionId}`;
+    return await this.#makeRequest(path, 'DELETE');
   }
 
   async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
-    const path = 'subscriptions/card';
     if (request.products.length === 0) {
       throw new SubscriptionServiceError(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
     }
+    const path = 'subscriptions/card';
 
+    return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async #makeRequest<Result>(
+    path: string,
+    method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
+    body?: Record<string, unknown>,
+  ): Promise<Result> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const url = new URL(SUBSCRIPTION_URL(this.#env, path));
-      const response = await fetch(url.toString(), {
-        method: 'POST',
+
+      const response = await this.#fetch(url.toString(), {
+        method,
         headers: {
           'Content-Type': 'application/json',
           ...headers,
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(body),
       });
 
+      const responseBody = await response.json();
       if (!response.ok) {
-        const responseBody = (await response.json()) as ErrorMessage;
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
+        const { message, error } = responseBody as ErrorMessage;
+        throw new Error(`HTTP error message: ${message}, error: ${error}`);
       }
 
-      return (await response.json()) as StartSubscriptionResponse;
+      return responseBody as Result;
     } catch (e) {
       const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+        e instanceof Error ? e.message : JSON.stringify(e ?? 'unknown error');
 
       throw new SubscriptionServiceError(
-        `failed to start subscription. ${errorMessage}`,
+        `failed to make request. ${errorMessage}`,
       );
     }
   }
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
-    const accessToken = await this.#config.auth.getAccessToken();
+    const accessToken = await this.authUtils.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
   }
 }

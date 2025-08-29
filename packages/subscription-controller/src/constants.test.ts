@@ -1,9 +1,4 @@
-import {
-  Env,
-  getEnvUrls,
-  controllerName,
-  SubscriptionControllerErrorMessage,
-} from './constants';
+import { Env, getEnvUrls, controllerName } from './constants';
 
 describe('constants', () => {
   describe('getEnvUrls', () => {
@@ -43,25 +38,6 @@ describe('constants', () => {
   describe('controllerName', () => {
     it('should be defined and equal to expected value', () => {
       expect(controllerName).toBe('SubscriptionController');
-    });
-  });
-
-  describe('Env enum', () => {
-    it('should have correct values', () => {
-      expect(Env.DEV).toBe('dev');
-      expect(Env.UAT).toBe('uat');
-      expect(Env.PRD).toBe('prd');
-    });
-  });
-
-  describe('SubscriptionControllerErrorMessage', () => {
-    it('should have correct error messages', () => {
-      expect(SubscriptionControllerErrorMessage.UserAlreadySubscribed).toBe(
-        'SubscriptionController - User is already subscribed',
-      );
-      expect(SubscriptionControllerErrorMessage.UserNotSubscribed).toBe(
-        'SubscriptionController - User is not subscribed',
-      );
     });
   });
 });

@@ -9,9 +9,9 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import {
-  assertIsBip44Account,
-  BaseAccountProvider,
-} from './BaseAccountProvider';
+  assertAreBip44Accounts,
+  BaseBip44AccountProvider,
+} from './BaseBip44AccountProvider';
 
 /**
  * Asserts an internal account exists.
@@ -27,7 +27,7 @@ function assertInternalAccountExists(
   }
 }
 
-export class EvmAccountProvider extends BaseAccountProvider {
+export class EvmAccountProvider extends BaseBip44AccountProvider {
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
@@ -69,9 +69,11 @@ export class EvmAccountProvider extends BaseAccountProvider {
 
     // We MUST have the associated internal account.
     assertInternalAccountExists(account);
-    assertIsBip44Account(account);
 
-    return [account];
+    const accountsArray = [account];
+    assertAreBip44Accounts(accountsArray);
+
+    return accountsArray;
   }
 
   async discoverAndCreateAccounts(_: {

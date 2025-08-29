@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "18.4.1",
+  "version": "19.0.0",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
@@ -47,12 +47,12 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.1.0",
-    "@metamask/controller-utils": "^11.11.0"
+    "@metamask/base-controller": "^8.2.0",
+    "@metamask/controller-utils": "^11.12.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^22.1.1",
+    "@metamask/keyring-controller": "^23.0.0",
     "@metamask/utils": "^11.4.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -64,7 +64,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^22.0.0"
+    "@metamask/keyring-controller": "^23.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

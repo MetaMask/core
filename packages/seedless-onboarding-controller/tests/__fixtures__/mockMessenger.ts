@@ -1,10 +1,10 @@
 import { Messenger } from '@metamask/base-controller';
 
 import type {
-  AllowedActions,
-  AllowedEvents,
-  SeedlessOnboardingControllerMessenger,
-} from '../../src/types';
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
+import { type SeedlessOnboardingControllerMessenger } from '../../src/types';
 
 /**
  * creates a custom seedless onboarding messenger, in case tests need different permissions
@@ -12,7 +12,10 @@ import type {
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
  */
 export function createCustomSeedlessOnboardingMessenger() {
-  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
+  const baseMessenger = new Messenger<
+    ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
+    ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
+  >();
   const messenger = baseMessenger.getRestricted({
     name: 'SeedlessOnboardingController',
     allowedActions: [],
@@ -26,7 +29,10 @@ export function createCustomSeedlessOnboardingMessenger() {
 }
 
 type OverrideMessengers = {
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
+  baseMessenger: Messenger<
+    ExtractAvailableAction<SeedlessOnboardingControllerMessenger>,
+    ExtractAvailableEvent<SeedlessOnboardingControllerMessenger>
+  >;
   messenger: SeedlessOnboardingControllerMessenger;
 };
 

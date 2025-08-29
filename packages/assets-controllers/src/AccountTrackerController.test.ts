@@ -7,7 +7,7 @@ import {
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
-import * as sinon from 'sinon';
+import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
 import type {
   AccountTrackerControllerMessenger,
@@ -31,6 +31,7 @@ jest.mock('@metamask/controller-utils', () => {
   return {
     ...jest.requireActual('@metamask/controller-utils'),
     query: jest.fn(),
+    safelyExecuteWithTimeout: jest.fn(),
   };
 });
 
@@ -57,17 +58,34 @@ const mockedQuery = query as jest.Mock<
   Parameters<typeof query>
 >;
 
+const { safelyExecuteWithTimeout } = jest.requireMock(
+  '@metamask/controller-utils',
+);
+const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
+
 describe('AccountTrackerController', () => {
-  let clock: sinon.SinonFakeTimers;
+  let clock: SinonFakeTimers;
 
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
+    clock = useFakeTimers();
     mockedQuery.mockReturnValue(Promise.resolve('0x0'));
+
+    // Mock safelyExecuteWithTimeout to execute the operation normally by default
+    mockedSafelyExecuteWithTimeout.mockImplementation(
+      async (operation: () => Promise<unknown>) => {
+        try {
+          return await operation();
+        } catch {
+          return undefined;
+        }
+      },
+    );
   });
 
   afterEach(() => {
-    sinon.restore();
+    clock.restore();
     mockedQuery.mockRestore();
+    mockedSafelyExecuteWithTimeout.mockRestore();
   });
 
   it('should set default state', async () => {
@@ -332,7 +350,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -348,7 +366,7 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_1]: { balance: '0xa' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
@@ -369,7 +387,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -383,7 +401,7 @@ describe('AccountTrackerController', () => {
                     balance: '0x0',
                   },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: {
                     balance: '0x10',
                   },
@@ -407,7 +425,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -420,7 +438,7 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
@@ -443,7 +461,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
             networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
-                chainId: '0x5',
+                chainId: '0xe705',
               }),
             },
           },
@@ -456,7 +474,7 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
                 },
-                '0x5': {
+                '0xe705': {
                   [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
                   [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
                 },
@@ -616,6 +634,199 @@ describe('AccountTrackerController', () => {
           },
         );
       });
+
+      it('should handle unsupported chains gracefully', async () => {
+        const networkClientId = 'networkClientId1';
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        await withController(
+          {
+            options: {
+              state: {
+                accountsByChainId: {
+                  '0x1': {
+                    [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+                    foo: { balance: '0x2' },
+                  },
+                  '0x2': {
+                    [CHECKSUM_ADDRESS_1]: { balance: '0xa' },
+                    foo: { balance: '0xb' },
+                  },
+                },
+              },
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5', // Goerli - may not be supported by all balance fetchers
+              }),
+            },
+          },
+          async ({ controller, refresh }) => {
+            // Should not throw an error, even for unsupported chains
+            await refresh(clock, ['networkClientId1']);
+
+            // State should still be updated with chain entry from syncAccounts
+            expect(controller.state.accountsByChainId).toHaveProperty('0x5');
+            expect(controller.state.accountsByChainId['0x5']).toHaveProperty(
+              CHECKSUM_ADDRESS_1,
+            );
+            expect(controller.state.accountsByChainId['0x5']).toHaveProperty(
+              CHECKSUM_ADDRESS_2,
+            );
+
+            consoleWarnSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should handle timeout error correctly', async () => {
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        await withController(
+          {
+            options: {
+              state: {
+                accountsByChainId: {
+                  '0x1': {
+                    [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+                  },
+                },
+              },
+              useAccountsAPI: false, // Disable API balance fetchers to force RPC usage
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh, controller }) => {
+            // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
+            mockedSafelyExecuteWithTimeout.mockImplementation(
+              async () => undefined, // Simulates timeout behavior
+            );
+
+            // Start refresh with the mocked timeout behavior
+            await refresh(clock, ['mainnet']);
+
+            // With safelyExecuteWithTimeout, timeouts are handled gracefully
+            // The system should continue operating without throwing errors
+            // No specific timeout error message should be logged
+            expect(consoleWarnSpy).not.toHaveBeenCalledWith(
+              expect.stringContaining('Timeout after'),
+            );
+
+            // Verify that the controller state remains intact despite the timeout
+            expect(controller.state.accountsByChainId).toHaveProperty('0x1');
+            expect(controller.state.accountsByChainId['0x1']).toHaveProperty(
+              CHECKSUM_ADDRESS_1,
+            );
+
+            consoleWarnSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should use default allowExternalServices when not provided (covers line 390)', async () => {
+        // Mock fetch to simulate API balance fetcher behavior
+        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        } as Response);
+
+        await withController(
+          {
+            options: {
+              useAccountsAPI: true,
+              // allowExternalServices not provided - should default to () => true (line 390)
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock RPC query to return balance
+            mockedQuery.mockResolvedValue('0x0');
+
+            // Refresh balances for mainnet (supported by API)
+            await refresh(clock, ['mainnet']);
+
+            // Since allowExternalServices defaults to () => true (line 390), and useAccountsAPI is true,
+            // the API fetcher should be used, which means fetch should be called
+            expect(fetchSpy).toHaveBeenCalled();
+
+            fetchSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should respect allowExternalServices when set to true', async () => {
+        // Mock fetch to simulate API balance fetcher behavior
+        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        } as Response);
+
+        await withController(
+          {
+            options: {
+              useAccountsAPI: true,
+              allowExternalServices: () => true, // Explicitly set to true
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock RPC query to return balance
+            mockedQuery.mockResolvedValue('0x0');
+
+            // Refresh balances for mainnet (supported by API)
+            await refresh(clock, ['mainnet']);
+
+            // Since allowExternalServices is true and useAccountsAPI is true,
+            // the API fetcher should be used, which means fetch should be called
+            expect(fetchSpy).toHaveBeenCalled();
+
+            fetchSpy.mockRestore();
+          },
+        );
+      });
+
+      it('should respect allowExternalServices when set to false', async () => {
+        // Mock fetch to simulate API balance fetcher behavior
+        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        } as Response);
+
+        await withController(
+          {
+            options: {
+              useAccountsAPI: true,
+              allowExternalServices: () => false, // Explicitly set to false
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ refresh }) => {
+            // Mock RPC query to return balance
+            mockedQuery.mockResolvedValue('0x0');
+
+            // Refresh balances for mainnet
+            await refresh(clock, ['mainnet']);
+
+            // Since allowExternalServices is false, the API fetcher should NOT be used
+            // Only RPC calls should be made, so fetch should NOT be called
+            expect(fetchSpy).not.toHaveBeenCalled();
+            // RPC fetcher should be used as the only balance fetcher
+            // (mockedQuery may or may not be called depending on implementation details)
+
+            fetchSpy.mockRestore();
+          },
+        );
+      });
     });
   });
 
@@ -684,7 +895,7 @@ describe('AccountTrackerController', () => {
       async ({ controller }) => {
         jest.spyOn(controller, 'refresh').mockResolvedValue();
 
-        await controller.startPolling({
+        controller.startPolling({
           networkClientIds: ['networkClientId1'],
         });
         await advanceTime({ clock, duration: 1 });
@@ -785,7 +996,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller: AccountTrackerController;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   refresh: (
-    clock: sinon.SinonFakeTimers,
+    clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
   ) => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -890,6 +1101,23 @@ async function withController<ReturnValue>(
                 '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000acac5457a3517e0000000000000000000000000000000000000000000027548bd9e4026c918d4b',
             },
           },
+          // Mock balanceOf call for zero address - returns same balance data for consistency
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: '0xcA11bde05977b3631167028862bE2a173976CA11',
+                  data: '0x70a082310000000000000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000acac5457a3517e0000000000000000000000000000000000000000000027548bd9e4026c918d4b',
+            },
+          },
         ],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any;
@@ -911,6 +1139,7 @@ async function withController<ReturnValue>(
     ...getDefaultNetworkControllerState(),
     chainId: initialChainId,
   });
+
   messenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkState,
@@ -939,7 +1168,7 @@ async function withController<ReturnValue>(
   });
 
   const refresh = async (
-    clock: sinon.SinonFakeTimers,
+    clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
   ) => {
     const promise = controller.refresh(networkClientIds);
@@ -953,3 +1182,365 @@ async function withController<ReturnValue>(
     refresh,
   });
 }
+
+describe('AccountTrackerController batch update methods', () => {
+  describe('updateNativeBalances', () => {
+    it('should update multiple native token balances in a single operation', async () => {
+      await withController({}, async ({ controller }) => {
+        const balanceUpdates = [
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000' as const, // 2 ETH
+          },
+          {
+            address: CHECKSUM_ADDRESS_2,
+            chainId: '0x1' as const,
+            balance: '0x38d7ea4c68000' as const, // 1 ETH
+          },
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x89' as const, // Polygon
+            balance: '0x56bc75e2d630eb20' as const, // 6.25 MATIC
+          },
+        ];
+
+        controller.updateNativeBalances(balanceUpdates);
+
+        expect(controller.state.accountsByChainId).toStrictEqual({
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x1bc16d674ec80000' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x38d7ea4c68000' },
+          },
+          '0x89': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x56bc75e2d630eb20' },
+          },
+        });
+      });
+    });
+
+    it('should create new chain entries when updating balances for new chains', async () => {
+      await withController({}, async ({ controller }) => {
+        const balanceUpdates = [
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0xa4b1' as const, // Arbitrum
+            balance: '0x2386f26fc10000' as const, // 0.01 ETH
+          },
+        ];
+
+        controller.updateNativeBalances(balanceUpdates);
+
+        expect(controller.state.accountsByChainId['0xa4b1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x2386f26fc10000' },
+        });
+      });
+    });
+
+    it('should create new account entries when updating balances for new addresses', async () => {
+      await withController({}, async ({ controller }) => {
+        // First set an existing balance
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000',
+          },
+        ]);
+
+        // Then add a new address on the same chain
+        const newAddress = '0x1234567890123456789012345678901234567890';
+        controller.updateNativeBalances([
+          {
+            address: newAddress,
+            chainId: '0x1' as const,
+            balance: '0x38d7ea4c68000',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x1bc16d674ec80000' },
+          [newAddress]: { balance: '0x38d7ea4c68000' },
+        });
+      });
+    });
+
+    it('should update existing balances without affecting other properties', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x0',
+                    stakedBalance: '0x5',
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          // Update only native balance
+          controller.updateNativeBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              balance: '0x1bc16d674ec80000',
+            },
+          ]);
+
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1],
+          ).toStrictEqual({
+            balance: '0x1bc16d674ec80000',
+            stakedBalance: '0x5', // Should remain unchanged
+          });
+        },
+      );
+    });
+
+    it('should handle empty balance updates array', async () => {
+      await withController({}, async ({ controller }) => {
+        const initialState = controller.state.accountsByChainId;
+
+        controller.updateNativeBalances([]);
+
+        expect(controller.state.accountsByChainId).toStrictEqual(initialState);
+      });
+    });
+
+    it('should handle zero balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x0',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+        });
+      });
+    });
+  });
+
+  describe('updateStakedBalances', () => {
+    it('should update multiple staked balances in a single operation', async () => {
+      await withController({}, async ({ controller }) => {
+        const stakedBalanceUpdates = [
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x1bc16d674ec80000', // 2 ETH staked
+          },
+          {
+            address: CHECKSUM_ADDRESS_2,
+            chainId: '0x1' as const,
+            stakedBalance: '0x38d7ea4c68000', // 1 ETH staked
+          },
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x89' as const, // Polygon
+            stakedBalance: '0x56bc75e2d630eb20', // 6.25 MATIC staked
+          },
+        ];
+
+        controller.updateStakedBalances(stakedBalanceUpdates);
+
+        expect(controller.state.accountsByChainId).toStrictEqual({
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x0',
+              stakedBalance: '0x1bc16d674ec80000',
+            },
+            [CHECKSUM_ADDRESS_2]: {
+              balance: '0x0',
+              stakedBalance: '0x38d7ea4c68000',
+            },
+          },
+          '0x89': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x0',
+              stakedBalance: '0x56bc75e2d630eb20',
+            },
+          },
+        });
+      });
+    });
+
+    it('should handle undefined staked balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: undefined,
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x0', stakedBalance: undefined },
+        });
+      });
+    });
+
+    it('should create new chain and account entries for staked balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0xa4b1' as const, // Arbitrum
+            stakedBalance: '0x2386f26fc10000',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0xa4b1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: {
+            balance: '0x0',
+            stakedBalance: '0x2386f26fc10000',
+          },
+        });
+      });
+    });
+
+    it('should update staked balances without affecting native balances', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x1bc16d674ec80000',
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          // Update only staked balance
+          controller.updateStakedBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              stakedBalance: '0x38d7ea4c68000',
+            },
+          ]);
+
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1],
+          ).toStrictEqual({
+            balance: '0x1bc16d674ec80000', // Should remain unchanged
+            stakedBalance: '0x38d7ea4c68000',
+          });
+        },
+      );
+    });
+
+    it('should handle zero staked balances', async () => {
+      await withController({}, async ({ controller }) => {
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x0',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: { balance: '0x0', stakedBalance: '0x0' },
+        });
+      });
+    });
+
+    it('should handle empty staked balance updates array', async () => {
+      await withController({}, async ({ controller }) => {
+        const initialState = controller.state.accountsByChainId;
+
+        controller.updateStakedBalances([]);
+
+        expect(controller.state.accountsByChainId).toStrictEqual(initialState);
+      });
+    });
+  });
+
+  describe('combined native and staked balance updates', () => {
+    it('should handle both native and staked balance updates for the same account', async () => {
+      await withController({}, async ({ controller }) => {
+        // Update native balance first
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000',
+          },
+        ]);
+
+        // Then update staked balance
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x38d7ea4c68000',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId['0x1']).toStrictEqual({
+          [CHECKSUM_ADDRESS_1]: {
+            balance: '0x1bc16d674ec80000',
+            stakedBalance: '0x38d7ea4c68000',
+          },
+        });
+      });
+    });
+
+    it('should maintain independent state for different chains', async () => {
+      await withController({}, async ({ controller }) => {
+        // Update balances on mainnet
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            balance: '0x1bc16d674ec80000',
+          },
+        ]);
+
+        controller.updateStakedBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x1' as const,
+            stakedBalance: '0x38d7ea4c68000',
+          },
+        ]);
+
+        // Update balances on polygon
+        controller.updateNativeBalances([
+          {
+            address: CHECKSUM_ADDRESS_1,
+            chainId: '0x89' as const,
+            balance: '0x56bc75e2d630eb20',
+          },
+        ]);
+
+        expect(controller.state.accountsByChainId).toStrictEqual({
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x1bc16d674ec80000',
+              stakedBalance: '0x38d7ea4c68000',
+            },
+          },
+          '0x89': {
+            [CHECKSUM_ADDRESS_1]: {
+              balance: '0x56bc75e2d630eb20',
+            },
+          },
+        });
+      });
+    });
+  });
+});

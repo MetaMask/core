@@ -3,25 +3,31 @@ import nock, { cleanAll, isDone } from 'nock';
 import {
   Env,
   getEnvUrls,
-  SUBSCRIPTION_PRODUCTS,
   SubscriptionControllerErrorMessage,
 } from './constants';
 import { SubscriptionServiceError } from './errors';
-import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
-import type { Subscription, StartSubscriptionRequest } from './types';
+import { SubscriptionService } from './SubscriptionService';
+import type { StartSubscriptionRequest, Subscription } from './types';
+import { PaymentType, ProductType } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
-  createdDate: '2024-01-01T00:00:00Z',
+  products: [
+    {
+      name: ProductType.SHIELD,
+      id: 'prod_shield_basic',
+      currency: 'USD',
+      amount: 9.99,
+    },
+  ],
+  currentPeriodStart: '2024-01-01T00:00:00Z',
+  currentPeriodEnd: '2024-02-01T00:00:00Z',
   status: 'active',
-  paymentStatus: 'completed',
-  paymentMethod: 'card',
-  paymentType: 'monthly',
-  paymentAmount: 9.99,
-  paymentCurrency: 'USD',
-  paymentDate: '2024-01-01T00:00:00Z',
-  paymentId: 'pay_123456789',
+  interval: 'month',
+  paymentMethod: {
+    type: PaymentType.CARD,
+  },
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
@@ -32,7 +38,7 @@ const MOCK_ERROR_RESPONSE = {
 };
 
 const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
-  products: [SUBSCRIPTION_PRODUCTS.SHIELD],
+  products: [ProductType.SHIELD],
   isTrialRequested: true,
 };
 
@@ -43,15 +49,21 @@ const MOCK_START_SUBSCRIPTION_RESPONSE = {
 /**
  * Creates a mock subscription service config for testing
  *
- * @param env - The environment to use for the config
+ * @param params - The parameters object
+ * @param [params.env] - The environment to use for the config
+ * @param [params.fetchFn] - The fetch function to use for the config
  * @returns The mock configuration object
  */
-function createMockConfig(env: Env = Env.DEV) {
+function createMockConfig({
+  env = Env.DEV,
+  fetchFn = fetch,
+}: { env?: Env; fetchFn?: typeof fetch } = {}) {
   return {
     env,
     auth: {
       getAccessToken: jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
     },
+    fetchFn,
   };
 }
 
@@ -65,11 +77,26 @@ function getTestUrl(env: Env): string {
   return getEnvUrls(env).subscriptionApiUrl;
 }
 
-describe('SubscriptionService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+/**
+ * Helper function to create a mock subscription service and call a function with it
+ *
+ * @param fn - The function to call with the mock subscription service
+ * @returns The result of the function call
+ */
+function withMockSubscriptionService(
+  fn: (params: {
+    service: SubscriptionService;
+    config: ReturnType<typeof createMockConfig>;
+    testUrl: string;
+  }) => Promise<void>,
+) {
+  const config = createMockConfig();
+  const service = new SubscriptionService(config);
+  const testUrl = getTestUrl(config.env);
+  return fn({ service, config, testUrl });
+}
 
+describe('SubscriptionService', () => {
   afterEach(() => {
     cleanAll();
   });
@@ -83,9 +110,9 @@ describe('SubscriptionService', () => {
     });
 
     it('should create instance with different environments', () => {
-      const devConfig = createMockConfig(Env.DEV);
-      const uatConfig = createMockConfig(Env.UAT);
-      const prdConfig = createMockConfig(Env.PRD);
+      const devConfig = createMockConfig({ env: Env.DEV });
+      const uatConfig = createMockConfig({ env: Env.UAT });
+      const prdConfig = createMockConfig({ env: Env.PRD });
 
       expect(() => new SubscriptionService(devConfig)).not.toThrow();
       expect(() => new SubscriptionService(uatConfig)).not.toThrow();
@@ -93,379 +120,133 @@ describe('SubscriptionService', () => {
     });
   });
 
-  describe('SUBSCRIPTION_URL', () => {
-    it('should construct correct URL for dev environment', () => {
-      const url = SUBSCRIPTION_URL(Env.DEV, 'subscription');
-      expect(url).toBe(
-        'https://subscription-service.dev-api.cx.metamask.io/api/v1/subscription',
+  describe('getSubscriptions', () => {
+    it('should fetch subscriptions successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, testUrl, config }) => {
+          nock(testUrl)
+            .get('/api/v1/subscriptions')
+            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+            .reply(200, {
+              customerId: 'cus_1',
+              subscriptions: [MOCK_SUBSCRIPTION],
+              trialedProducts: [],
+            });
+
+          const result = await service.getSubscriptions();
+
+          expect(result).toStrictEqual({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+          expect(isDone()).toBe(true);
+        },
       );
-    });
-
-    it('should construct correct URL for uat environment', () => {
-      const url = SUBSCRIPTION_URL(Env.UAT, 'subscription');
-      expect(url).toBe(
-        'https://subscription-service.uat-api.cx.metamask.io/api/v1/subscription',
-      );
-    });
-
-    it('should construct correct URL for prd environment', () => {
-      const url = SUBSCRIPTION_URL(Env.PRD, 'subscription');
-      expect(url).toBe(
-        'https://subscription-service.api.cx.metamask.io/api/v1/subscription',
-      );
-    });
-
-    it('should construct URL with custom path', () => {
-      const url = SUBSCRIPTION_URL(Env.DEV, 'subscription/123/cancel');
-      expect(url).toBe(
-        'https://subscription-service.dev-api.cx.metamask.io/api/v1/subscription/123/cancel',
-      );
-    });
-  });
-
-  describe('getSubscription', () => {
-    it('should fetch subscription successfully', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .get('/api/v1/subscription')
-        .reply(200, { data: MOCK_SUBSCRIPTION });
-
-      const result = await service.getSubscription();
-
-      expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
-      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return null for 404 response', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').reply(404, MOCK_ERROR_RESPONSE);
-
-      const result = await service.getSubscription();
-
-      expect(result).toBeNull();
-    });
-
-    it('should throw SubscriptionServiceError for non-404 error responses', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').reply(500, MOCK_ERROR_RESPONSE);
-
-      await expect(service.getSubscription()).rejects.toThrow(
-        /Subscription not found/u,
-      );
-    });
-
-    it('should throw SubscriptionServiceError for network errors', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').replyWithError('Network error');
-
-      await expect(service.getSubscription()).rejects.toThrow(/Network error/u);
-    });
-
-    it('should throw SubscriptionServiceError for authentication errors', async () => {
-      const config = createMockConfig();
-      config.auth.getAccessToken.mockRejectedValue(
-        new Error('Authentication failed'),
-      );
-      const service = new SubscriptionService(config);
-
-      await expect(service.getSubscription()).rejects.toThrow(
-        SubscriptionServiceError,
-      );
-      await expect(service.getSubscription()).rejects.toThrow(
-        'failed to get subscription. Authentication failed',
-      );
-    });
-
-    it('should handle non-Error exceptions', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').replyWithError('String error');
-
-      await expect(service.getSubscription()).rejects.toThrow(/String error/u);
-    });
-
-    it('should handle null/undefined exceptions', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').replyWithError('Network error');
-
-      await expect(service.getSubscription()).rejects.toThrow(/Network error/u);
-    });
-
-    it('should handle non-Error exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Use nock to simulate a non-Error exception from the HTTP request
-      // nock's replyWithError can take a string, which will be wrapped as an Error,
-      // but to simulate a non-Error, we need to use the error option with a non-Error value.
-      // However, nock always wraps the value as an Error, so to simulate a non-Error thrown,
-      // we can mock the underlying http.request to throw a string, but that's complex.
-      // Instead, we can simulate a non-Error thrown from the auth.getAccessToken mock:
-      config.auth.getAccessToken.mockRejectedValue('string error');
-
-      await expect(service.getSubscription()).rejects.toThrow(
-        /failed to get subscription\. "string error"/u,
-      );
-    });
-
-    it('should handle null exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw null to test the false branch with null value
-      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
-
-      await expect(service.getSubscription()).rejects.toThrow(
-        /failed to get subscription\. ""/u,
-      );
-    });
-
-    it('should use correct environment URL', async () => {
-      const config = createMockConfig(Env.PRD);
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.PRD);
-
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
-
-      await service.getSubscription();
-
-      // Verify the correct URL was used
-      expect(isDone()).toBe(true);
-    });
-
-    it('should include correct headers', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
-
-      await service.getSubscription();
-
-      // Verify the correct headers were sent
-      expect(isDone()).toBe(true);
-    });
-  });
-
-  describe('cancelSubscription', () => {
-    it('should cancel subscription successfully', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .reply(200, {});
-
-      await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-
-      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
     });
 
     it('should throw SubscriptionServiceError for error responses', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl)
+          .get('/api/v1/subscriptions')
+          .reply(404, MOCK_ERROR_RESPONSE);
 
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .reply(400, MOCK_ERROR_RESPONSE);
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(/Subscription not found/u);
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+      });
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl)
+          .get('/api/v1/subscriptions')
+          .replyWithError('Network error');
 
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .replyWithError('Network error');
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(/Network error/u);
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+      });
     });
 
-    it('should throw SubscriptionServiceError for authentication errors', async () => {
-      const config = createMockConfig();
-      config.auth.getAccessToken.mockRejectedValue(
-        new Error('Authentication failed'),
-      );
+    it('should handle get access token error', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        // Simulate a non-Error thrown from the auth.getAccessToken mock
+        config.auth.getAccessToken.mockRejectedValue('string error');
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+      });
+    });
+
+    it('should handle null exceptions in catch block', async () => {
+      const fetchMock = jest.fn().mockRejectedValueOnce(null);
+      const config = createMockConfig({ fetchFn: fetchMock });
       const service = new SubscriptionService(config);
 
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
       ).rejects.toThrow(SubscriptionServiceError);
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow('failed to cancel subscription. Authentication failed');
+    });
+  });
+
+  describe('cancelSubscription', () => {
+    it('should cancel subscription successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, testUrl, config }) => {
+          nock(testUrl)
+            .delete('/api/v1/subscriptions/sub_123456789')
+            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+            .reply(200, {});
+
+          await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
+
+          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+          expect(isDone()).toBe(true);
+        },
+      );
     });
 
-    it('should handle non-Error exceptions', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
+    it('should throw SubscriptionServiceError for error responses', async () => {
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl)
+          .delete('/api/v1/subscriptions/sub_123456789')
+          .reply(400, MOCK_ERROR_RESPONSE);
 
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .replyWithError('String error');
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(/String error/u);
-    });
-
-    it('should handle null/undefined exceptions', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .replyWithError(new Error('Network error'));
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(/Network error/u);
-    });
-
-    it('should handle non-Error exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw a non-Error object
-      const originalFetch = global.fetch;
-      jest
-        .spyOn(global, 'fetch')
-        .mockImplementation()
-        .mockRejectedValue('string error');
-
-      try {
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(SubscriptionServiceError);
+        ).rejects.toThrow(/Subscription not found/u);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl)
+          .delete('/api/v1/subscriptions/sub_123456789')
+          .replyWithError('Network error');
+
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/failed to cancel subscription\. "string error"/u);
-      } finally {
-        global.fetch = originalFetch;
-      }
-    });
-
-    it('should handle null exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw null
-      const originalFetch = global.fetch;
-      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
-
-      try {
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(SubscriptionServiceError);
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/failed to cancel subscription\. ""/u);
-      } finally {
-        global.fetch = originalFetch;
-      }
-    });
-
-    it('should use correct environment URL', async () => {
-      const config = createMockConfig(Env.UAT);
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.UAT);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .reply(200, {});
-
-      await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-
-      // Verify the correct URL was used
-      expect(isDone()).toBe(true);
-    });
-
-    it('should include correct headers and method', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .reply(200, {});
-
-      await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-
-      // Verify the correct headers and method were used
-      expect(isDone()).toBe(true);
-    });
-
-    it('should handle empty subscription ID', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).post('/api/v1/subscription//cancel').reply(200, {});
-
-      await service.cancelSubscription({ subscriptionId: '' });
-
-      expect(isDone()).toBe(true);
-    });
-
-    it('should handle special characters in subscription ID', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123-456_789/cancel')
-        .reply(200, {});
-
-      await service.cancelSubscription({ subscriptionId: 'sub_123-456_789' });
-
-      expect(isDone()).toBe(true);
+        ).rejects.toThrow(/Network error/u);
+      });
     });
   });
 
   describe('startSubscription', () => {
     it('should start subscription successfully', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl)
+          .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+          .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
 
-      nock(testUrl)
-        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+        const result = await service.startSubscriptionWithCard(
+          MOCK_START_SUBSCRIPTION_REQUEST,
+        );
 
-      const result = await service.startSubscriptionWithCard(
-        MOCK_START_SUBSCRIPTION_REQUEST,
-      );
-
-      expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
-      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+        expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+      });
     });
 
     it('should start subscription without trial', async () => {
@@ -473,7 +254,7 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
       const request: StartSubscriptionRequest = {
-        products: [SUBSCRIPTION_PRODUCTS.SHIELD],
+        products: [ProductType.SHIELD],
         isTrialRequested: false,
       };
 
@@ -484,67 +265,6 @@ describe('SubscriptionService', () => {
       const result = await service.startSubscriptionWithCard(request);
 
       expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
-    });
-
-    it('should throw SubscriptionServiceError for error responses', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-        .reply(400, MOCK_ERROR_RESPONSE);
-
-      await expect(
-        service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
-      ).rejects.toThrow(/Subscription not found/u);
-    });
-
-    it('should throw SubscriptionServiceError for network errors', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl)
-        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-        .replyWithError('Network error');
-
-      await expect(
-        service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
-      ).rejects.toThrow(/Network error/u);
-    });
-
-    it('should throw SubscriptionServiceError for authentication errors', async () => {
-      const config = createMockConfig();
-      config.auth.getAccessToken.mockRejectedValue(
-        new Error('Authentication failed'),
-      );
-      const service = new SubscriptionService(config);
-
-      await expect(
-        service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
-      ).rejects.toThrow(SubscriptionServiceError);
-    });
-
-    it('should handle null exceptions in catch block', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-
-      // Mock fetch to throw null to test the false branch with null value
-      const originalFetch = global.fetch;
-      jest.spyOn(global, 'fetch').mockImplementation().mockRejectedValue(null);
-
-      try {
-        await expect(
-          service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
-        ).rejects.toThrow(SubscriptionServiceError);
-        await expect(
-          service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
-        ).rejects.toThrow(/failed to start subscription\. ""/u);
-      } finally {
-        // Clean up
-        global.fetch = originalFetch;
-      }
     });
 
     it('should handle empty products array', async () => {
@@ -558,61 +278,6 @@ describe('SubscriptionService', () => {
       await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
-    });
-  });
-
-  describe('authentication integration', () => {
-    it('should call getAccessToken for each request', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .reply(200, {});
-
-      nock(testUrl)
-        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
-
-      await service.getSubscription();
-      await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-      await service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST);
-
-      expect(config.auth.getAccessToken).toHaveBeenCalledTimes(3);
-    });
-
-    it('should handle getAccessToken returning different tokens', async () => {
-      const config = createMockConfig();
-      const firstToken = 'token-1';
-      const secondToken = 'token-2';
-      const thirdToken = 'token-3';
-
-      config.auth.getAccessToken
-        .mockResolvedValueOnce(firstToken)
-        .mockResolvedValueOnce(secondToken)
-        .mockResolvedValueOnce(thirdToken);
-
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
-
-      nock(testUrl).get('/api/v1/subscription').reply(200, MOCK_SUBSCRIPTION);
-
-      nock(testUrl)
-        .post('/api/v1/subscription/sub_123456789/cancel')
-        .reply(200, {});
-
-      nock(testUrl)
-        .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
-
-      await service.getSubscription();
-      await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
-      await service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST);
-
-      expect(isDone()).toBe(true);
     });
   });
 });

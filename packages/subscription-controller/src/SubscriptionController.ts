@@ -1,22 +1,78 @@
-import { BaseController, type StateMetadata } from '@metamask/base-controller';
+import {
+  BaseController,
+  type StateMetadata,
+  type ControllerStateChangeEvent,
+  type ControllerGetStateAction,
+  type RestrictedMessenger,
+} from '@metamask/base-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import {
   controllerName,
-  Env,
-  SUBSCRIPTION_PRODUCTS,
   SubscriptionControllerErrorMessage,
 } from './constants';
-// import { projectLogger, createModuleLogger } from './logger';
-import { SubscriptionService } from './SubscriptionService';
-import type {
-  ISubscriptionService,
-  SubscriptionControllerConfig,
-  SubscriptionControllerMessenger,
-  SubscriptionControllerOptions,
-  SubscriptionControllerState,
-} from './types';
+import type { ISubscriptionService, ProductType, StartSubscriptionRequest, Subscription } from './types';
 
-// const log = createModuleLogger(projectLogger, controllerName);
+export type SubscriptionControllerState = {
+  subscriptions: Subscription[];
+};
+
+// Messenger Actions
+type CreateActionsObj<Controller extends keyof SubscriptionController> = {
+  [K in Controller]: {
+    type: `${typeof controllerName}:${K}`;
+    handler: SubscriptionController[K];
+  };
+};
+type ActionsObj = CreateActionsObj<'getSubscriptions' | 'cancelSubscription'>;
+
+export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  SubscriptionControllerState
+>;
+export type SubscriptionControllerActions =
+  | ActionsObj[keyof ActionsObj]
+  | SubscriptionControllerGetStateAction;
+
+export type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerToken;
+
+// Events
+export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  SubscriptionControllerState
+>;
+export type SubscriptionControllerEvents =
+  SubscriptionControllerStateChangeEvent;
+
+export type AllowedEvents =
+  AuthenticationController.AuthenticationControllerStateChangeEvent;
+
+// Messenger
+export type SubscriptionControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  SubscriptionControllerActions | AllowedActions,
+  SubscriptionControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+
+/**
+ * Subscription Controller Options.
+ */
+export type SubscriptionControllerOptions = {
+  messenger: SubscriptionControllerMessenger;
+
+  /**
+   * Initial state to set on this controller.
+   */
+  state?: Partial<SubscriptionControllerState>;
+
+  /**
+   * Subscription service to use for the subscription controller.
+   */
+  subscriptionService: ISubscriptionService;
+};
 
 /**
  * Get the default state for the Subscription Controller.
@@ -24,7 +80,9 @@ import type {
  * @returns The default state for the Subscription Controller.
  */
 export function getDefaultSubscriptionControllerState(): SubscriptionControllerState {
-  return {};
+  return {
+    subscriptions: [],
+  };
 }
 
 /**
@@ -36,17 +94,9 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
  */
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
-    subscription: {
+    subscriptions: {
       persist: true,
-      anonymous: true,
-    },
-    pendingPaymentTransactions: {
-      persist: true,
-      anonymous: true,
-    },
-    authTokenRef: {
-      persist: true,
-      anonymous: true,
+      anonymous: false,
     },
   };
 
@@ -57,23 +107,17 @@ export class SubscriptionController extends BaseController<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
-  readonly #config: SubscriptionControllerConfig = {
-    env: Env.PRD,
-  };
-
   /**
    * Creates a new SubscriptionController instance.
    *
    * @param options - The options for the SubscriptionController.
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.config - Configuration for this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
    */
   constructor({
     messenger,
     state,
-    config,
     subscriptionService,
   }: SubscriptionControllerOptions) {
     super({
@@ -86,57 +130,76 @@ export class SubscriptionController extends BaseController<
       messenger,
     });
 
-    this.#config = {
-      ...this.#config,
-      ...config,
-    };
+    this.#subscriptionService = subscriptionService;
 
-    this.#subscriptionService =
-      subscriptionService ??
-      new SubscriptionService({
-        env: this.#config.env,
-        auth: {
-          getAccessToken: () =>
-            this.messagingSystem.call(
-              'AuthenticationController:getBearerToken',
-            ),
-        },
-      });
+    this.#registerMessageHandlers();
   }
 
-  async getSubscription() {
-    const subscription = await this.#subscriptionService.getSubscription();
+  /**
+   * Constructor helper for registering this controller's messaging system
+   * actions.
+   */
+  #registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getSubscriptions',
+      this.getSubscriptions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:cancelSubscription',
+      this.cancelSubscription.bind(this),
+    );
+  }
+
+  async getSubscriptions() {
+    const { subscriptions } =
+      await this.#subscriptionService.getSubscriptions();
 
     this.update((state) => {
-      state.subscription = subscription ?? undefined;
+      state.subscriptions = subscriptions;
     });
 
-    return subscription;
+    return subscriptions;
   }
 
-  async cancelSubscription(subscriptionId: string) {
-    this.#assertIsUserSubscribed();
+  async cancelSubscription(request: { subscriptionId: string }) {
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    await this.#subscriptionService.cancelSubscription({ subscriptionId });
-  }
+    await this.#subscriptionService.cancelSubscription({
+      subscriptionId: request.subscriptionId,
+    });
 
-  async startShieldSubscriptionWithCard() {
-    this.#assertIsUserNotSubscribed();
-
-    return await this.#subscriptionService.startSubscriptionWithCard({
-      products: [SUBSCRIPTION_PRODUCTS.SHIELD],
-      isTrialRequested: true,
+    this.update((state) => {
+      state.subscriptions = state.subscriptions.map((subscription) =>
+        subscription.id === request.subscriptionId
+          ? { ...subscription, status: 'cancelled' }
+          : subscription,
+      );
     });
   }
 
-  #assertIsUserNotSubscribed() {
-    if (this.state.subscription) {
+  async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
+    this.#assertIsUserNotSubscribed({ products: request.products });
+
+    return await this.#subscriptionService.startSubscriptionWithCard(request);
+  }
+
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+    if (
+      this.state.subscriptions.find((subscription) =>
+        subscription.products.some((p) => products.includes(p.name)),
+      )
+    ) {
       throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
     }
   }
 
-  #assertIsUserSubscribed() {
-    if (!this.state.subscription) {
+  #assertIsUserSubscribed(request: { subscriptionId: string }) {
+    if (
+      !this.state.subscriptions.find(
+        (subscription) => subscription.id === request.subscriptionId,
+      )
+    ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
   }

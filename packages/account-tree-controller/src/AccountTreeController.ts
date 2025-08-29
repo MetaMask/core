@@ -1,7 +1,8 @@
 import type {
   AccountGroupId,
-  AccountSelector,
   AccountWalletId,
+  AccountGroupType,
+  AccountSelector,
 } from '@metamask/account-api';
 import { AccountWalletType, select } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
@@ -11,6 +12,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
+import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
@@ -18,7 +20,7 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
-import type { AccountWalletObject } from './wallet';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -76,9 +78,13 @@ export class AccountTreeController extends BaseController<
   AccountTreeControllerState,
   AccountTreeControllerMessenger
 > {
+  readonly #serviceStartTime = Date.now();
+
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
+
+  readonly #newGroupsMap: WeakMap<AccountGroupObject, boolean>;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
@@ -89,6 +95,7 @@ export class AccountTreeController extends BaseController<
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
    */
+
   constructor({
     messenger,
     state,
@@ -111,6 +118,9 @@ export class AccountTreeController extends BaseController<
 
     // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
+
+    // Temporary map to track which groups contain new accounts (for naming optimization)
+    this.#newGroupsMap = new WeakMap();
 
     // Rules to apply to construct the wallets tree.
     this.#rules = [
@@ -252,6 +262,34 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets the appropriate rule instance for a given wallet type.
+   *
+   * @param wallet - The wallet object to get the rule for.
+   * @returns The rule instance that handles the wallet's type.
+   */
+  #getRuleForWallet<WalletType extends AccountWalletType>(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): Rule<WalletType, AccountGroupType> {
+    switch (wallet.type) {
+      case AccountWalletType.Entropy:
+        return this.#getEntropyRule() as unknown as Rule<
+          WalletType,
+          AccountGroupType
+        >;
+      case AccountWalletType.Snap:
+        return this.#getSnapRule() as unknown as Rule<
+          WalletType,
+          AccountGroupType
+        >;
+      default:
+        return this.#getKeyringRule() as unknown as Rule<
+          WalletType,
+          AccountGroupType
+        >;
+    }
+  }
+
+  /**
    * Applies group metadata updates (name, pinned, hidden flags) by checking
    * the persistent state first, and then fallbacks to default values (based
    * on the wallet's
@@ -270,22 +308,36 @@ export class AccountTreeController extends BaseController<
     if (persistedMetadata?.name !== undefined) {
       group.metadata.name = persistedMetadata.name.value;
     } else if (!group.metadata.name) {
-      // Generate default name if none exists
-      if (wallet.type === AccountWalletType.Entropy) {
-        group.metadata.name = this.#getEntropyRule().getDefaultAccountGroupName(
-          // Get the group from the wallet, to get the proper type inference.
-          wallet.groups[group.id],
-        );
-      } else if (wallet.type === AccountWalletType.Snap) {
-        group.metadata.name = this.#getSnapRule().getDefaultAccountGroupName(
-          // Same here.
-          wallet.groups[group.id],
-        );
-      } else {
-        group.metadata.name = this.#getKeyringRule().getDefaultAccountGroupName(
-          // Same here.
-          wallet.groups[group.id],
-        );
+      // Get the appropriate rule for this wallet type
+      const rule = this.#getRuleForWallet(wallet);
+      const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
+      const typedGroup = typedWallet.groups[group.id] as AccountGroupObject;
+
+      // Calculate group index based on position within sorted group IDs
+      // We sort to ensure consistent ordering across all wallet types:
+      // - Entropy: group IDs like "entropy:abc/0", "entropy:abc/1" sort to logical order
+      // - Snap/Keyring: group IDs like "keyring:ledger/0xABC" get consistent alphabetical order
+      const sortedGroupIds = Object.keys(wallet.groups).sort();
+      let groupIndex = sortedGroupIds.indexOf(group.id);
+
+      // Defensive fallback: if group.id is not found in sortedGroupIds (should never happen
+      // in normal operation since we iterate over wallet.groups), use index 0 to prevent
+      // passing -1 to getDefaultAccountGroupName which would result in "Account 0"
+      /* istanbul ignore next */
+      if (groupIndex === -1) {
+        groupIndex = 0;
+      }
+
+      // For new groups, use default naming. For existing groups, try computed name first
+      const isNewGroup = this.#newGroupsMap.get(group) || false;
+      group.metadata.name = isNewGroup
+        ? rule.getDefaultAccountGroupName(groupIndex)
+        : rule.getComputedAccountGroupName(typedGroup) ||
+          rule.getDefaultAccountGroupName(groupIndex);
+
+      // Clear the flag after use to prevent stale state across rebuilds
+      if (isNewGroup) {
+        this.#newGroupsMap.delete(group);
       }
     }
 
@@ -410,6 +462,10 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
+    this.messagingSystem.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
+    );
   }
 
   /**
@@ -423,6 +479,9 @@ export class AccountTreeController extends BaseController<
 
     if (context) {
       const { walletId, groupId } = context;
+
+      const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
+      let selectedGroupChanged = false;
 
       this.update((state) => {
         const accounts =
@@ -439,8 +498,11 @@ export class AccountTreeController extends BaseController<
               accounts.length === 0
             ) {
               // The currently selected group is now empty, find a new group to select
-              state.accountTree.selectedAccountGroup =
-                this.#getDefaultAccountGroupId(state.accountTree.wallets);
+              const newSelectedGroup = this.#getDefaultAccountGroupId(
+                state.accountTree.wallets,
+              );
+              state.accountTree.selectedAccountGroup = newSelectedGroup;
+              selectedGroupChanged = newSelectedGroup !== previousSelectedGroup;
             }
           }
           if (accounts.length === 0) {
@@ -448,6 +510,19 @@ export class AccountTreeController extends BaseController<
           }
         }
       });
+      this.messagingSystem.publish(
+        `${controllerName}:accountTreeChange`,
+        this.state.accountTree,
+      );
+
+      // Emit selectedAccountGroupChange event if the selected group changed
+      if (selectedGroupChanged) {
+        this.messagingSystem.publish(
+          `${controllerName}:selectedAccountGroupChange`,
+          this.state.accountTree.selectedAccountGroup,
+          previousSelectedGroup,
+        );
+      }
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
@@ -544,6 +619,9 @@ export class AccountTreeController extends BaseController<
       this.#getSnapRule().match(account) ??
       this.#getKeyringRule().match(account); // This one cannot fail.
 
+    // Determine if this account is new (created after service start)
+    const isNewAccount = account.metadata.importTime > this.#serviceStartTime;
+
     // Update controller's state.
     const walletId = result.wallet.id;
     let wallet = wallets[walletId];
@@ -578,9 +656,17 @@ export class AccountTreeController extends BaseController<
       } as AccountGroupObject;
       group = wallet.groups[groupId];
 
+      // Store whether this is a new group (has new accounts) for naming logic
+      // We use a WeakMap to avoid polluting the group object with temporary data
+      this.#newGroupsMap.set(group, isNewAccount);
+
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
     } else {
+      // If adding to existing group, update the "new" status if this account is new
+      if (isNewAccount) {
+        this.#newGroupsMap.set(group, true);
+      }
       group.accounts.push(account.id);
     }
 
@@ -643,10 +729,10 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID to select.
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedGroup === groupId) {
       return;
     }
 
@@ -660,6 +746,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      groupId,
+      previousSelectedGroup,
+    );
 
     // Update AccountsController - this will trigger selectedAccountChange event,
     // but our handler is idempotent so it won't cause infinite loop
@@ -708,10 +799,10 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedGroup === groupId) {
       return;
     }
 
@@ -719,6 +810,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      groupId,
+      previousSelectedGroup,
+    );
   }
 
   /**
@@ -933,6 +1029,26 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountWalletName`,
+      this.setAccountWalletName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupName`,
+      this.setAccountGroupName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupPinned`,
+      this.setAccountGroupPinned.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupHidden`,
+      this.setAccountGroupHidden.bind(this),
     );
   }
 }

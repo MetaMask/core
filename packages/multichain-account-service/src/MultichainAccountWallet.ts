@@ -35,6 +35,8 @@ export class MultichainAccountWallet<
 
   readonly #accountGroups: Map<number, MultichainAccountGroup<Account>>;
 
+  #isAlignmentInProgress: boolean = false;
+
   constructor({
     providers,
     entropySource,
@@ -305,5 +307,52 @@ export class MultichainAccountWallet<
     MultichainAccountGroup<Account>
   > {
     return this.createMultichainAccountGroup(this.getNextGroupIndex());
+  }
+
+  /**
+   * Gets whether alignment is currently in progress for this wallet.
+   *
+   * @returns True if alignment is in progress, false otherwise.
+   */
+  getIsAlignmentInProgress(): boolean {
+    return this.#isAlignmentInProgress;
+  }
+
+  /**
+   * Align all multichain account groups.
+   */
+  async alignGroups(): Promise<void> {
+    if (this.#isAlignmentInProgress) {
+      return; // Prevent concurrent alignments
+    }
+
+    this.#isAlignmentInProgress = true;
+    try {
+      const groups = this.getMultichainAccountGroups();
+      await Promise.all(groups.map((g) => g.align()));
+    } finally {
+      this.#isAlignmentInProgress = false;
+    }
+  }
+
+  /**
+   * Align a specific multichain account group.
+   *
+   * @param groupIndex - The group index to align.
+   */
+  async alignGroup(groupIndex: number): Promise<void> {
+    if (this.#isAlignmentInProgress) {
+      return; // Prevent concurrent alignments
+    }
+
+    this.#isAlignmentInProgress = true;
+    try {
+      const group = this.getMultichainAccountGroup(groupIndex);
+      if (group) {
+        await group.align();
+      }
+    } finally {
+      this.#isAlignmentInProgress = false;
+    }
   }
 }

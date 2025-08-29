@@ -17,6 +17,7 @@ import {
   type SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
+import type { GetSimulationConfig } from '../types';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 
@@ -25,6 +26,7 @@ export type GetGasFeeTokensRequest = {
   isEIP7702GasFeeTokensEnabled: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
+  getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
   transactionMeta: TransactionMeta;
@@ -39,6 +41,7 @@ export type GetGasFeeTokensRequest = {
  * @param request.messenger - The messenger instance.
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
  * @param request.transactionMeta - The transaction metadata.
+ * @param request.getSimulationConfig - Optional transaction simulation parameters.
  * @returns An array of gas fee tokens.
  */
 export async function getGasFeeTokens({
@@ -47,6 +50,7 @@ export async function getGasFeeTokens({
   messenger,
   publicKeyEIP7702,
   transactionMeta,
+  getSimulationConfig,
 }: GetGasFeeTokensRequest) {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
@@ -81,6 +85,7 @@ export async function getGasFeeTokens({
 
   try {
     const response = await simulateTransactions(chainId, {
+      getSimulationConfig,
       transactions: [
         {
           authorizationList,
@@ -106,7 +111,7 @@ export async function getGasFeeTokens({
     return result;
   } catch (error) {
     log('Failed to gas fee tokens', error);
-    return [];
+    return { gasFeeTokens: [], isGasFeeSponsored: false };
   }
 }
 
@@ -114,28 +119,36 @@ export async function getGasFeeTokens({
  * Extract gas fee tokens from a simulation response.
  *
  * @param response - The simulation response.
- * @returns An array of gas fee tokens.
+ * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored
  */
-function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
+function parseGasFeeTokens(response: SimulationResponse): {
+  gasFeeTokens: GasFeeToken[];
+  isGasFeeSponsored: boolean;
+} {
   const feeLevel = response.transactions?.[0]
     ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
+  const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
+
   const tokenFees = feeLevel?.tokenFees ?? [];
 
-  return tokenFees.map((tokenFee) => ({
-    amount: tokenFee.balanceNeededToken,
-    balance: tokenFee.currentBalanceToken,
-    decimals: tokenFee.token.decimals,
-    fee: tokenFee.serviceFee,
-    gas: feeLevel.gas,
-    gasTransfer: tokenFee.transferEstimate,
-    maxFeePerGas: feeLevel.maxFeePerGas,
-    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
-    rateWei: tokenFee.rateWei,
-    recipient: tokenFee.feeRecipient,
-    symbol: tokenFee.token.symbol,
-    tokenAddress: tokenFee.token.address,
-  }));
+  return {
+    gasFeeTokens: tokenFees.map((tokenFee) => ({
+      amount: tokenFee.balanceNeededToken,
+      balance: tokenFee.currentBalanceToken,
+      decimals: tokenFee.token.decimals,
+      fee: tokenFee.serviceFee,
+      gas: feeLevel.gas,
+      gasTransfer: tokenFee.transferEstimate,
+      maxFeePerGas: feeLevel.maxFeePerGas,
+      maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+      rateWei: tokenFee.rateWei,
+      recipient: tokenFee.feeRecipient,
+      symbol: tokenFee.token.symbol,
+      tokenAddress: tokenFee.token.address,
+    })),
+    isGasFeeSponsored,
+  };
 }
 
 /**
