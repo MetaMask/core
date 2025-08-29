@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+### Deprecated
+
+- Deprecate `lookupNetworkByClientId` ([#6308](https://github.com/MetaMask/core/pull/6308))
+  - `lookupNetwork` already supports passing in a network client ID; please use this going forward instead.
+
 ## [24.1.0]
 
 ### Added

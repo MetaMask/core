@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0]
+
+### Added
+
+- Add `AccountTreeController:accountTreeChange` event ([#6400](https://github.com/MetaMask/core/pull/6400))
+- Add `AccountTreeController:selectedAccountGroupChange` event ([#6400](https://github.com/MetaMask/core/pull/6400))
+
+## [0.11.0]
+
+### Added
+
+- Add missing export for `AccountTreeControllerGetAccountsFromSelectedAccountGroupAction` ([#6404](https://github.com/MetaMask/core/pull/6404))
+- Add `AccountTreeController:setAccount{WalletName,GroupName,GroupPinned,GroupHidden}` actions ([#6404](https://github.com/MetaMask/core/pull/6404))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
 ## [0.10.0]
 
 ### Changed
@@ -136,7 +154,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.10.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...HEAD
+[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.11.0...@metamask/account-tree-controller@0.12.0
+[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.10.0...@metamask/account-tree-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.9.0...@metamask/account-tree-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.8.0...@metamask/account-tree-controller@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.7.0...@metamask/account-tree-controller@0.8.0
