@@ -52,5 +52,6 @@
   "metamask/foundryup": "team-mobile-platform,team-extension-platform",
   "metamask/seedless-onboarding-controller": "team-web3auth",
   "metamask/shield-controller": "team-web3auth",
+  "metamask/subscription-controller": "team-web3auth",
   "metamask/network-enablement-controller": "team-assets"
 }
