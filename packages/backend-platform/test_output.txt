@@ -1,0 +1,45 @@
+(node:61676) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+watchman warning:  Recrawled this watch 1 time, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/christiantran/Dev/MetaMask/core' ; watchman watch-project '/Users/christiantran/Dev/MetaMask/core'`
+
+ts-jest[versions] (WARN) Version 5.2.2 of typescript installed has not been tested with ts-jest. If you're experiencing issues, consider using a supported version (>=3.8.0 <5.0.0-0). Please do not report issues in ts-jest if you are using unsupported versions.
+
+  ● Test suite failed to run
+
+    [96msrc/WebsocketService.test.ts[0m:[93m337[0m:[93m11[0m - [91merror[0m[90m TS2322: [0mType 'Date' is not assignable to type 'number'.
+
+    [7m337[0m           connectedAt: new Date(),
+    [7m   [0m [91m          ~~~~~~~~~~~[0m
+
+      [96msrc/WebsocketService.ts[0m:[93m151[0m:[93m3[0m
+        [7m151[0m   connectedAt?: number;
+        [7m   [0m [96m  ~~~~~~~~~~~[0m
+        The expected type comes from property 'connectedAt' which is declared here on type 'WebSocketConnectionInfo'
+    [96msrc/WebsocketService.test.ts[0m:[93m513[0m:[93m29[0m - [91merror[0m[90m TS2345: [0mArgument of type '(channel: string) => { subscriptionId: string; unsubscribe: Mock<any, any>; isActive: Mock<any, any>; } | undefined' is not assignable to parameter of type '(channel: string) => SubscriptionInfo | undefined'.
+      Type '{ subscriptionId: string; unsubscribe: Mock<any, any>; isActive: Mock<any, any>; } | undefined' is not assignable to type 'SubscriptionInfo | undefined'.
+        Property 'channels' is missing in type '{ subscriptionId: string; unsubscribe: jest.Mock<any, any>; isActive: jest.Mock<any, any>; }' but required in type 'SubscriptionInfo'.
+
+    [7m513[0m         .mockImplementation((channel) => {
+    [7m   [0m [91m                            ~~~~~~~~~~~~~~[0m
+
+      [96msrc/WebsocketService.ts[0m:[93m124[0m:[93m3[0m
+        [7m124[0m   channels: string[];
+        [7m   [0m [96m  ~~~~~~~~[0m
+        'channels' is declared here.
+
+Jest: "global" coverage threshold for statements (100%) not met: 0%
+Jest: "global" coverage threshold for branches (100%) not met: 0%
+Jest: "global" coverage threshold for lines (100%) not met: 0%
+Jest: "global" coverage threshold for functions (100%) not met: 0%
+---------------------|---------|----------|---------|---------|-------------------
+File                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+---------------------|---------|----------|---------|---------|-------------------
+All files            |       0 |        0 |       0 |       0 |                   
+ WebsocketService.ts |       0 |        0 |       0 |       0 | 3-1157            
+ test-setup.ts       |       0 |        0 |     100 |       0 | 6-11              
+---------------------|---------|----------|---------|---------|-------------------
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+
+} 
