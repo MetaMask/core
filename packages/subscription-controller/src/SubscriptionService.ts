@@ -77,7 +77,7 @@ export class SubscriptionService implements ISubscriptionService {
           'Content-Type': 'application/json',
           ...headers,
         },
-        body: JSON.stringify(body),
+        body: body ? JSON.stringify(body) : undefined,
       });
 
       const responseBody = await response.json();

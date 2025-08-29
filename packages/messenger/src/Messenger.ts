@@ -356,14 +356,6 @@ export class Messenger<
     actionType: ActionType,
   ) {
     this.#actions.delete(actionType);
-    const delegationTargets = this.#actionDelegationTargets.get(actionType);
-    if (!delegationTargets) {
-      return;
-    }
-    for (const messenger of delegationTargets) {
-      messenger._internalUnregisterDelegatedActionHandler(actionType);
-    }
-    this.#actionDelegationTargets.delete(actionType);
   }
 
   /**
@@ -763,7 +755,7 @@ export class Messenger<
           | undefined;
         if (!actionHandler) {
           throw new Error(
-            `Cannot call '${actionType}', action not registered.`,
+            `A handler for ${actionType} has not been registered`,
           );
         }
         return actionHandler(...args);

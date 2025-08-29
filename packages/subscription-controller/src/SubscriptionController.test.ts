@@ -392,7 +392,8 @@ describe('SubscriptionController', () => {
       );
     });
   });
-  describe('startShieldSubscription', () => {
+
+  describe('startShieldSubscriptionWithCard', () => {
     const MOCK_START_SUBSCRIPTION_RESPONSE = {
       checkoutSessionUrl: 'https://checkout.example.com/session/123',
     };
