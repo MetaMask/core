@@ -1,7 +1,6 @@
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 import type {
   Json,
-  JsonRpcId,
   JsonRpcParams,
   JsonRpcRequest,
   JsonRpcResponse,
@@ -103,7 +102,8 @@ export class JsonRpcServer {
       if (result !== undefined) {
         return {
           jsonrpc,
-          id: originalId as JsonRpcId,
+          // @ts-expect-error - Reassign the original id, regardless of its type.
+          id: originalId,
           result,
         };
       }
@@ -113,9 +113,8 @@ export class JsonRpcServer {
       if (isRequest) {
         return {
           jsonrpc,
-          // Remap the original id to the error response, regardless of its
-          // type, which is not our problem.
-          id: originalId as JsonRpcId,
+          // @ts-expect-error - Reassign the original id, regardless of its type.
+          id: originalId,
           error: serializeError(error, {
             shouldIncludeStack: false,
             shouldPreserveMessage: true,
