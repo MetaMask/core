@@ -584,6 +584,7 @@ const expectedMockResult = {
       symbol: 'GHO',
       isNative: false,
       decimals: 18,
+      rawBalance: '0x56BC75E2D63100000',
       balance: '100',
       fiat: {
         balance: 21.6,
@@ -603,6 +604,7 @@ const expectedMockResult = {
       symbol: 'SUSHI',
       isNative: false,
       decimals: 18,
+      rawBalance: '0xAD78EBC5AC6200000',
       balance: '200',
       fiat: {
         balance: 960,
@@ -621,6 +623,7 @@ const expectedMockResult = {
       symbol: 'ETH',
       isNative: true,
       decimals: 18,
+      rawBalance: '0x8AC7230489E80000',
       balance: '10',
       fiat: {
         balance: 24000,
@@ -642,6 +645,7 @@ const expectedMockResult = {
       symbol: 'USDC',
       isNative: false,
       decimals: 6,
+      rawBalance: '0x3B9ACA00',
       balance: '1000',
       fiat: {
         balance: 12000,
@@ -660,6 +664,7 @@ const expectedMockResult = {
       symbol: 'ETH',
       isNative: true,
       decimals: 18,
+      rawBalance: '0xDE0B6B3A7640000',
       balance: '1',
       fiat: {
         balance: 2400,
@@ -680,6 +685,7 @@ const expectedMockResult = {
       symbol: 'SOL',
       isNative: true,
       decimals: 9,
+      rawBalance: '0x2540be400',
       balance: '10',
       fiat: {
         balance: 1635.5,
@@ -699,6 +705,7 @@ const expectedMockResult = {
       symbol: 'JUP',
       isNative: false,
       decimals: 6,
+      rawBalance: '0xbebc200',
       balance: '200',
       fiat: {
         balance: 92.7462,
@@ -749,6 +756,7 @@ describe('token-selectors', () => {
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
         assetId: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+        rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
         decimals: 18,
@@ -781,6 +789,7 @@ describe('token-selectors', () => {
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
         assetId: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
         decimals: 18,
@@ -828,6 +837,7 @@ describe('token-selectors', () => {
         accountId: '40fe5e20-525a-4434-bb83-c51ce5560a8c',
         assetId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
+        rawBalance: '0x5f5e100',
         balance: '100',
         chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         decimals: 6,
@@ -856,6 +866,7 @@ describe('token-selectors', () => {
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         assetId: '0x0000000000000000000000000000000000001010',
         address: '0x0000000000000000000000000000000000001010',
+        rawBalance: '0x8AC7230489E80000',
         chainId: '0x89',
         name: 'POL',
         symbol: 'POL',

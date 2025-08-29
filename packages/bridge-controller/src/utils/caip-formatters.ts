@@ -1,7 +1,7 @@
 import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import {
@@ -18,6 +18,7 @@ import {
 
 import {
   getNativeAssetForChainId,
+  isBitcoinChainId,
   isNativeAddress,
   isSolanaChainId,
 } from './bridge';
@@ -42,6 +43,9 @@ export const formatChainIdToCaip = (
   if (isSolanaChainId(chainId)) {
     return SolScope.Mainnet;
   }
+  if (isBitcoinChainId(chainId)) {
+    return BtcScope.Mainnet;
+  }
   return toEvmCaipChainId(numberToHex(Number(chainId)));
 };
 
@@ -59,6 +63,9 @@ export const formatChainIdToDec = (
   }
   if (chainId === SolScope.Mainnet) {
     return ChainId.SOLANA;
+  }
+  if (chainId === BtcScope.Mainnet) {
+    return ChainId.BTC;
   }
   if (isCaipChainId(chainId)) {
     return Number(chainId.split(':').at(-1));
@@ -140,6 +147,7 @@ export const formatAddressToAssetId = (
   if (chainId === SolScope.Mainnet) {
     return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
   }
+
   // EVM assets
   if (!isStrictHexString(addressOrAssetId)) {
     return undefined;
