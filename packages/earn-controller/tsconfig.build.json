@@ -17,6 +17,9 @@
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../account-tree-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
