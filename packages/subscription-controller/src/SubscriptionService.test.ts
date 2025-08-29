@@ -3,7 +3,7 @@ import nock, { cleanAll, isDone } from 'nock';
 import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
-import type { Subscription } from './types';
+import type { Subscription, PricingResponse } from './types';
 import { PaymentType, ProductType } from './types';
 
 // Mock data
@@ -218,6 +218,28 @@ describe('SubscriptionService', () => {
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
         ).rejects.toThrow(/Network error/u);
       });
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: {
+        type: 'crypto',
+        chains: [],
+      },
+    };
+
+    it('should fetch pricing successfully', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl).get('/api/v1/pricing').reply(200, mockPricingResponse);
+
+      const result = await service.getPricing();
+
+      expect(result).toStrictEqual(mockPricingResponse);
     });
   });
 });

@@ -11,7 +11,11 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { ISubscriptionService, Subscription } from './types';
+import type {
+  ISubscriptionService,
+  Subscription,
+  PricingResponse,
+} from './types';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
@@ -149,6 +153,15 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
     );
+  }
+
+  /**
+   * Gets the pricing information from the subscription service.
+   *
+   * @returns The pricing information.
+   */
+  async getPricing(): Promise<PricingResponse> {
+    return await this.#subscriptionService.getPricing();
   }
 
   async getSubscriptions() {
