@@ -143,7 +143,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     pendingToBeRevokedTokens: {
       persist: true,
-      anonymous: true,
+      anonymous: false,
     },
     // stays in vault
     accessToken: {
@@ -1879,39 +1879,46 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Revoke all pending refresh tokens.
    *
    * This method is to be called after user is authenticated.
+   *
+   * @returns A Promise that resolves to void.
    */
   async revokePendingRefreshTokens() {
-    this.#assertIsAuthenticatedUser(this.state);
-    const { pendingToBeRevokedTokens } = this.state;
-    if (!pendingToBeRevokedTokens || pendingToBeRevokedTokens.length === 0) {
-      return;
-    }
+    return await this.#withControllerLock(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+      const { pendingToBeRevokedTokens } = this.state;
+      if (!pendingToBeRevokedTokens || pendingToBeRevokedTokens.length === 0) {
+        return;
+      }
 
-    // revoke all pending refresh tokens in parallel
-    const promises = pendingToBeRevokedTokens.map(({ revokeToken }) => {
-      const revokePromise = async () => {
-        try {
-          await this.#revokePendingRefreshToken(revokeToken);
-        } catch (error) {
-          log('Error revoking refresh token', error);
-        }
-      };
-      return revokePromise();
+      // revoke all pending refresh tokens in parallel
+      const promises = pendingToBeRevokedTokens.map(({ revokeToken }) => {
+        const revokePromise = async (): Promise<string | null> => {
+          try {
+            await this.#revokeRefreshToken({
+              connection: this.state.authConnection as AuthConnection,
+              revokeToken,
+            });
+            return revokeToken;
+          } catch (error) {
+            log('Error revoking refresh token', error);
+            return null;
+          }
+        };
+        return revokePromise();
+      });
+      const result = await Promise.all(promises); // no need to do Promise.allSettled because the promise already handle try catch
+      // filter out the null values
+      const revokedTokens = result.filter((token) => token !== null);
+      if (revokedTokens.length > 0) {
+        // update the state to remove the revoked tokens once all concurrent token revoke finish
+        this.update((state) => {
+          state.pendingToBeRevokedTokens =
+            state.pendingToBeRevokedTokens?.filter(
+              (token) => !revokedTokens.includes(token.revokeToken),
+            );
+        });
+      }
     });
-    await Promise.all(promises); // no need to do Promise.allSettled because the promise already handle try catch
-  }
-
-  /**
-   * Revoke a single pending refresh token.
-   *
-   * @param revokeToken - The revoke token to revoke.
-   */
-  async #revokePendingRefreshToken(revokeToken: string) {
-    await this.#revokeRefreshToken({
-      connection: this.state.authConnection as AuthConnection,
-      revokeToken,
-    });
-    this.#removePendingRefreshToken({ revokeToken });
   }
 
   /**
@@ -1933,20 +1940,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         ...(state.pendingToBeRevokedTokens || []),
         { refreshToken, revokeToken },
       ];
-    });
-  }
-
-  /**
-   * Remove a pending refresh, revoke token from the state.
-   *
-   * @param params - The parameters for removing a pending refresh, revoke token.
-   * @param params.revokeToken - The revoke token to remove.
-   */
-  #removePendingRefreshToken({ revokeToken }: { revokeToken: string }) {
-    this.update((state) => {
-      state.pendingToBeRevokedTokens = state.pendingToBeRevokedTokens?.filter(
-        (token) => token.revokeToken !== revokeToken,
-      );
     });
   }
 
