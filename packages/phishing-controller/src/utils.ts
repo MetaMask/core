@@ -43,16 +43,17 @@ const splitStringByPeriod = <Start extends string, End extends string>(
   ];
 };
 
-const isValidURL = (url: string): URL | null => {
+const newURL = (url: string): URL | null => {
   try {
-    return new URL(url);
+    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+    return new URL(urlWithProtocol);
   } catch {
     return null;
   }
 };
 
 const hasPath = (url: string): boolean => {
-  const urlObj = isValidURL(url);
+  const urlObj = newURL(url);
   if (!urlObj) {
     return false;
   }
@@ -303,7 +304,8 @@ export const doesURLPathExist = (
   url: string,
   urlPaths: Record<string, Record<string, string[]>>,
 ) => {
-  const { hostname, pathname } = new URL(url);
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  const { hostname, pathname } = new URL(urlWithProtocol);
   const [path1, path2, path3] = pathname.split('/').filter(Boolean);
 
   if (!path1) return false;
@@ -324,6 +326,50 @@ export const doesURLPathExist = (
 };
 
 /**
+ * isLevel1Blocking checks if a level1 entry blocks all paths after it.
+ * If the level1Entry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
+ * If the level1Entry has keys, that means the blocking path extends to the next level and we return true.
+ * @param level1Entry - the level1 entry to check.
+ * @returns true if the level1 entry blocks all paths after it, false otherwise.
+ */
+const isLevel1Blocking = (
+  level1Entry: Record<string, string[]> | undefined,
+): boolean => {
+  return level1Entry !== undefined && Object.keys(level1Entry).length === 0;
+};
+
+/**
+ * isLevel2Blocking checks if a level2 entry blocks all paths after it.
+ * If the level2Entry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
+ * If the level2Entry has keys, that means the blocking path extends to the next level and we return true.
+ * @param level2Entry - the level2 entry to check.
+ * @returns true if the level2 entry blocks all paths after it, false otherwise.
+ */
+const isLevel2Blocking = (level2Entry: string[] | undefined): boolean => {
+  return level2Entry !== undefined && level2Entry.length === 0;
+};
+
+/**
+ * initializeBlocklistPath initializes a blocklist path if it doesn't exist.
+ * @param blocklistPaths - the blocklistPaths structure to modify.
+ * @param hostnamePath1Key - the hostname/path1 key to initialize.
+ * @param path2 - the path2 key to initialize.
+ */
+const initializeBlocklistPath = (
+  blocklistPaths: Record<string, Record<string, string[]>>,
+  hostnamePath1Key: string,
+  path2?: string,
+) => {
+  if (!blocklistPaths[hostnamePath1Key]) {
+    blocklistPaths[hostnamePath1Key] = {};
+  }
+
+  if (path2 && !blocklistPaths[hostnamePath1Key][path2]) {
+    blocklistPaths[hostnamePath1Key][path2] = [];
+  }
+};
+
+/**
  * Adds a URL to the blocklistPaths structure.
  * Parses the URL and adds the path components to the appropriate nested structure.
  *
@@ -334,34 +380,42 @@ const addURLToBlocklistPaths = (
   url: string,
   blocklistPaths: Record<string, Record<string, string[]>>,
 ) => {
-  const { hostname, pathname } = new URL(url);
-  const [path1, path2, path3] = pathname.split('/').filter(Boolean);
+  const urlObj = newURL(url);
+  if (!urlObj) return;
+
+  const { hostname, pathname } = urlObj;
+  const pathComponents = pathname.split('/').filter(Boolean);
+  const [path1, path2, path3] = pathComponents;
 
   if (!path1) return;
 
   const hostnamePath1Key = `${hostname}/${path1}`;
-  if (!blocklistPaths[hostnamePath1Key]) {
-    blocklistPaths[hostnamePath1Key] = {};
-  }
-  if (!path2) {
-    // As a URL entry with only one path component, that would take precedence over a URL entry with 2 path components
-    // that has the same hostname and path1 component. Hence, we need to remove the values of the hostname/path1 key.
-    blocklistPaths[hostnamePath1Key] = {};
-    return;
-  }
+  const componentCount = pathComponents.length;
 
-  if (!blocklistPaths[hostnamePath1Key][path2]) {
-    blocklistPaths[hostnamePath1Key][path2] = [];
-  }
-  if (!path3) {
-    // As a URL entry with only two path components, that would take precedence over a URL entry with 3 path components
-    // that has the same hostname, path1, and path2 components. Hence, we need to remove the values of the hostname/path1/path2 key.
-    blocklistPaths[hostnamePath1Key][path2] = [];
-    return;
-  }
+  switch (componentCount) {
+    case 1:
+      blocklistPaths[hostnamePath1Key] = {};
+      break;
+    case 2: {
+      const level1Entry = blocklistPaths[hostnamePath1Key];
+      if (isLevel1Blocking(level1Entry)) return;
 
-  if (!blocklistPaths[hostnamePath1Key][path2].includes(path3)) {
-    blocklistPaths[hostnamePath1Key][path2].push(path3);
+      initializeBlocklistPath(blocklistPaths, hostnamePath1Key);
+      blocklistPaths[hostnamePath1Key][path2] = [];
+      break;
+    }
+    default: {
+      const level1Entry = blocklistPaths[hostnamePath1Key];
+      if (isLevel1Blocking(level1Entry)) return;
+      const level2Entry = level1Entry?.[path2];
+      if (isLevel2Blocking(level2Entry)) return;
+
+      initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2);
+      if (blocklistPaths[hostnamePath1Key][path2].includes(path3)) return;
+
+      blocklistPaths[hostnamePath1Key][path2].push(path3);
+      break;
+    }
   }
 };
 
