@@ -162,7 +162,9 @@ export class PhishingDetector {
     const source = domainToParts(fqdn);
 
     for (const { blocklistPaths, name, version } of this.#configs) {
-      if (!blocklistPaths) continue;
+      if (!blocklistPaths) {
+        continue;
+      }
       const pathMatch = doesURLPathExist(url, blocklistPaths);
       if (pathMatch) {
         return {

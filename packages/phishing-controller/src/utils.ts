@@ -61,6 +61,244 @@ const hasPath = (url: string): boolean => {
 };
 
 /**
+ * isLevelBlocking checks if a level entry blocks all paths after it. Only used for level 1 and 2.
+ * If the levelEntry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
+ * If the levelEntry has keys, that means the blocking path extends to the next level and we return true.
+ *
+ * @param levelEntry - the level entry to check.
+ * @returns true if the level entry blocks all paths after it, false otherwise.
+ */
+const isLevelBlocking = (levelEntry?: Record<string, unknown>): boolean => {
+  return levelEntry !== undefined && Object.keys(levelEntry).length === 0;
+};
+
+/**
+ * isLevel3Blocking checks if a level3 entry blocks all paths after it.
+ * If the level3Entry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
+ * If the level3Entry has items, that means there are specific remaining paths blocked.
+ *
+ * @param level3Entry - the level3 entry to check.
+ * @returns true if the level3 entry blocks all paths after it, false otherwise.
+ */
+const isLevel3Blocking = (level3Entry: string[] | undefined): boolean => {
+  return level3Entry !== undefined && level3Entry.length === 0;
+};
+
+/**
+ * initializeBlocklistPath initializes a blocklist path if it doesn't exist.
+ *
+ * @param blocklistPaths - the blocklistPaths structure to modify.
+ * @param hostnamePath1Key - the hostname/path1 key to initialize.
+ * @param path2 - the path2 key to initialize.
+ * @param path3 - the path3 key to initialize.
+ */
+const initializeBlocklistPath = (
+  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
+  hostnamePath1Key: string,
+  path2?: string,
+  path3?: string,
+) => {
+  if (!blocklistPaths[hostnamePath1Key]) {
+    blocklistPaths[hostnamePath1Key] = {};
+  }
+
+  if (path2 && !blocklistPaths[hostnamePath1Key][path2]) {
+    blocklistPaths[hostnamePath1Key][path2] = {};
+  }
+
+  if (path2 && path3 && !blocklistPaths[hostnamePath1Key][path2][path3]) {
+    blocklistPaths[hostnamePath1Key][path2][path3] = [];
+  }
+};
+/**
+ * Adds a URL to the blocklistPaths structure.
+ * Parses the URL and adds the path components to the appropriate nested structure.
+ *
+ * @param url - The URL to add.
+ * @param blocklistPaths - The blocklistPaths structure to modify.
+ */
+const addURLToBlocklistPaths = (
+  url: string,
+  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
+) => {
+  const urlObj = newURL(url);
+  if (!urlObj) {
+    return;
+  }
+
+  const { hostname, pathname } = urlObj;
+  const pathComponents = pathname.split('/').filter(Boolean);
+  const [path1, path2, path3] = pathComponents;
+
+  if (!path1) {
+    return;
+  }
+
+  const hostnamePath1Key = `${hostname}/${path1}`;
+  const componentCount = pathComponents.length;
+
+  switch (componentCount) {
+    case 1:
+      blocklistPaths[hostnamePath1Key] = {};
+      break;
+    case 2: {
+      const level1Entry = blocklistPaths[hostnamePath1Key];
+      if (isLevelBlocking(level1Entry)) {
+        return;
+      }
+
+      initializeBlocklistPath(blocklistPaths, hostnamePath1Key);
+      blocklistPaths[hostnamePath1Key][path2] = {};
+      break;
+    }
+    case 3: {
+      const level1Entry = blocklistPaths[hostnamePath1Key];
+      if (isLevelBlocking(level1Entry)) {
+        return;
+      }
+      const level2Entry = level1Entry?.[path2];
+      if (isLevelBlocking(level2Entry)) {
+        return;
+      }
+
+      initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2);
+      blocklistPaths[hostnamePath1Key][path2][path3] = [];
+      break;
+    }
+    default: {
+      const level1Entry = blocklistPaths[hostnamePath1Key];
+      if (isLevelBlocking(level1Entry)) {
+        return;
+      }
+      const level2Entry = level1Entry?.[path2];
+      if (isLevelBlocking(level2Entry)) {
+        return;
+      }
+      const level3Entry = level2Entry?.[path3];
+      if (isLevel3Blocking(level3Entry)) {
+        return;
+      }
+
+      const remainingPaths = pathComponents.slice(3);
+      const remainingPath = remainingPaths.join('/');
+
+      initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2, path3);
+      if (
+        !blocklistPaths[hostnamePath1Key][path2][path3].includes(remainingPath)
+      ) {
+        blocklistPaths[hostnamePath1Key][path2][path3].push(remainingPath);
+      }
+      break;
+    }
+  }
+};
+
+/**
+ * Removes a URL from the blocklistPaths structure.
+ * Parses the URL and removes the path components from the appropriate nested structure.
+ * Cleans up empty nested objects/arrays.
+ *
+ * @param url - The URL to remove.
+ * @param blocklistPaths - The blocklistPaths structure to modify.
+ */
+const removeURLFromBlocklistPaths = (
+  url: string,
+  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
+) => {
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  const { hostname, pathname } = new URL(urlWithProtocol);
+  const pathComponents = pathname.split('/').filter(Boolean);
+  const [path1, path2, path3] = pathComponents;
+
+  if (!path1) {
+    return;
+  }
+
+  const hostnamePath1Key = `${hostname}/${path1}`;
+  const componentCount = pathComponents.length;
+
+  if (!blocklistPaths[hostnamePath1Key]) {
+    return;
+  }
+
+  switch (componentCount) {
+    case 1: {
+      if (!isLevelBlocking(blocklistPaths[hostnamePath1Key])) {
+        return;
+      }
+
+      delete blocklistPaths[hostnamePath1Key];
+      break;
+    }
+    case 2: {
+      if (!blocklistPaths[hostnamePath1Key][path2]) {
+        return;
+      }
+      if (!isLevelBlocking(blocklistPaths[hostnamePath1Key][path2])) {
+        return;
+      }
+
+      delete blocklistPaths[hostnamePath1Key][path2];
+      if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
+        delete blocklistPaths[hostnamePath1Key];
+      }
+      break;
+    }
+    case 3: {
+      if (!blocklistPaths[hostnamePath1Key][path2]) {
+        return;
+      }
+      if (!blocklistPaths[hostnamePath1Key][path2][path3]) {
+        return;
+      }
+      if (!isLevel3Blocking(blocklistPaths[hostnamePath1Key][path2][path3])) {
+        return;
+      }
+
+      delete blocklistPaths[hostnamePath1Key][path2][path3];
+      if (Object.keys(blocklistPaths[hostnamePath1Key][path2]).length === 0) {
+        delete blocklistPaths[hostnamePath1Key][path2];
+        if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
+          delete blocklistPaths[hostnamePath1Key];
+        }
+      }
+      break;
+    }
+    default: {
+      if (!blocklistPaths[hostnamePath1Key][path2]) {
+        return;
+      }
+      if (!blocklistPaths[hostnamePath1Key][path2][path3]) {
+        return;
+      }
+
+      const remainingPaths = pathComponents.slice(3);
+      const remainingPath = remainingPaths.join('/');
+
+      const remainingPathsArray =
+        blocklistPaths[hostnamePath1Key][path2][path3];
+      const remainingPathIndex = remainingPathsArray.indexOf(remainingPath);
+      if (remainingPathIndex === -1) {
+        return;
+      }
+
+      remainingPathsArray.splice(remainingPathIndex, 1);
+
+      if (remainingPathsArray.length === 0) {
+        delete blocklistPaths[hostnamePath1Key][path2][path3];
+        if (Object.keys(blocklistPaths[hostnamePath1Key][path2]).length === 0) {
+          delete blocklistPaths[hostnamePath1Key][path2];
+          if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
+            delete blocklistPaths[hostnamePath1Key];
+          }
+        }
+      }
+      break;
+    }
+  }
+};
+
+/**
  * Determines which diffs are applicable to the listState, then applies those diffs.
  *
  * @param listState - the stalelist or the existing liststate that diffs will be applied to.
@@ -309,231 +547,52 @@ export const doesURLPathExist = (
   const pathComponents = pathname.split('/').filter(Boolean);
   const [path1, path2, path3, ...remainingPaths] = pathComponents;
 
-  if (!path1) return false;
+  if (!path1) {
+    return false;
+  }
 
   // Level 1: hostname/path1
   const level1Entry = urlPaths[`${hostname}/${path1}`];
-  if (!level1Entry) return false;
-  if (Object.keys(level1Entry).length === 0) return true; // Blocks everything under hostname/path1
+  if (!level1Entry) {
+    return false;
+  }
+  if (Object.keys(level1Entry).length === 0) {
+    return true; // Blocks everything under hostname/path1
+  }
 
-  if (!path2) return false;
+  if (!path2) {
+    return false;
+  }
 
   // Level 2: path2
   const level2Entry = level1Entry[path2];
-  if (!level2Entry) return false;
-  if (Object.keys(level2Entry).length === 0) return true; // Blocks everything under hostname/path1/path2
+  if (!level2Entry) {
+    return false;
+  }
+  if (Object.keys(level2Entry).length === 0) {
+    return true; // Blocks everything under hostname/path1/path2
+  }
 
-  if (!path3) return false;
+  if (!path3) {
+    return false;
+  }
 
   // Level 3: path3
   const level3Entry = level2Entry[path3];
-  if (!level3Entry) return false;
-  if (level3Entry.length === 0) return true; // Blocks everything under hostname/path1/path2/path3
+  if (!level3Entry) {
+    return false;
+  }
+  if (level3Entry.length === 0) {
+    return true; // Blocks everything under hostname/path1/path2/path3
+  }
 
   // Level 4: remaining path segments
-  if (remainingPaths.length === 0) return true; // Exact match at 3-segment level
+  if (remainingPaths.length === 0) {
+    return true; // Exact match at 3-segment level
+  }
 
   const remainingPath = remainingPaths.join('/');
   return level3Entry.includes(remainingPath);
-};
-
-/**
- * isLevelBlocking checks if a level entry blocks all paths after it. Only used for level 1 and 2.
- * If the levelEntry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
- * If the levelEntry has keys, that means the blocking path extends to the next level and we return true.
- * @param levelEntry - the level entry to check.
- * @returns true if the level entry blocks all paths after it, false otherwise.
- */
-const isLevelBlocking = (v?: Record<string, unknown>): boolean => {
-  return v !== undefined && Object.keys(v).length === 0;
-};
-
-/**
- * isLevel3Blocking checks if a level3 entry blocks all paths after it.
- * If the level3Entry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
- * If the level3Entry has items, that means there are specific remaining paths blocked.
- * @param level3Entry - the level3 entry to check.
- * @returns true if the level3 entry blocks all paths after it, false otherwise.
- */
-const isLevel3Blocking = (level3Entry: string[] | undefined): boolean => {
-  return level3Entry !== undefined && level3Entry.length === 0;
-};
-
-/**
- * initializeBlocklistPath initializes a blocklist path if it doesn't exist.
- * @param blocklistPaths - the blocklistPaths structure to modify.
- * @param hostnamePath1Key - the hostname/path1 key to initialize.
- * @param path2 - the path2 key to initialize.
- * @param path3 - the path3 key to initialize.
- */
-const initializeBlocklistPath = (
-  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
-  hostnamePath1Key: string,
-  path2?: string,
-  path3?: string,
-) => {
-  if (!blocklistPaths[hostnamePath1Key]) {
-    blocklistPaths[hostnamePath1Key] = {};
-  }
-
-  if (path2 && !blocklistPaths[hostnamePath1Key][path2]) {
-    blocklistPaths[hostnamePath1Key][path2] = {};
-  }
-
-  if (path2 && path3 && !blocklistPaths[hostnamePath1Key][path2][path3]) {
-    blocklistPaths[hostnamePath1Key][path2][path3] = [];
-  }
-};
-
-/**
- * Adds a URL to the blocklistPaths structure.
- * Parses the URL and adds the path components to the appropriate nested structure.
- *
- * @param url - The URL to add.
- * @param blocklistPaths - The blocklistPaths structure to modify.
- */
-const addURLToBlocklistPaths = (
-  url: string,
-  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
-) => {
-  const urlObj = newURL(url);
-  if (!urlObj) return;
-
-  const { hostname, pathname } = urlObj;
-  const pathComponents = pathname.split('/').filter(Boolean);
-  const [path1, path2, path3] = pathComponents;
-
-  if (!path1) return;
-
-  const hostnamePath1Key = `${hostname}/${path1}`;
-  const componentCount = pathComponents.length;
-
-  switch (componentCount) {
-    case 1:
-      blocklistPaths[hostnamePath1Key] = {};
-      break;
-    case 2: {
-      const level1Entry = blocklistPaths[hostnamePath1Key];
-      if (isLevelBlocking(level1Entry)) return;
-
-      initializeBlocklistPath(blocklistPaths, hostnamePath1Key);
-      blocklistPaths[hostnamePath1Key][path2] = {};
-      break;
-    }
-    case 3: {
-      const level1Entry = blocklistPaths[hostnamePath1Key];
-      if (isLevelBlocking(level1Entry)) return;
-      const level2Entry = level1Entry?.[path2];
-      if (isLevelBlocking(level2Entry)) return;
-
-      initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2);
-      blocklistPaths[hostnamePath1Key][path2][path3] = [];
-      break;
-    }
-    default: {
-      const level1Entry = blocklistPaths[hostnamePath1Key];
-      if (isLevelBlocking(level1Entry)) return;
-      const level2Entry = level1Entry?.[path2];
-      if (isLevelBlocking(level2Entry)) return;
-      const level3Entry = level2Entry?.[path3];
-      if (isLevel3Blocking(level3Entry)) return;
-
-      const remainingPaths = pathComponents.slice(3);
-      const remainingPath = remainingPaths.join('/');
-
-      initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2, path3);
-      if (
-        !blocklistPaths[hostnamePath1Key][path2][path3].includes(remainingPath)
-      ) {
-        blocklistPaths[hostnamePath1Key][path2][path3].push(remainingPath);
-      }
-      break;
-    }
-  }
-};
-
-/**
- * Removes a URL from the blocklistPaths structure.
- * Parses the URL and removes the path components from the appropriate nested structure.
- * Cleans up empty nested objects/arrays.
- *
- * @param url - The URL to remove.
- * @param blocklistPaths - The blocklistPaths structure to modify.
- */
-const removeURLFromBlocklistPaths = (
-  url: string,
-  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
-) => {
-  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-  const { hostname, pathname } = new URL(urlWithProtocol);
-  const pathComponents = pathname.split('/').filter(Boolean);
-  const [path1, path2, path3] = pathComponents;
-
-  if (!path1) return;
-
-  const hostnamePath1Key = `${hostname}/${path1}`;
-  const componentCount = pathComponents.length;
-
-  if (!blocklistPaths[hostnamePath1Key]) return;
-
-  switch (componentCount) {
-    case 1: {
-      if (!isLevelBlocking(blocklistPaths[hostnamePath1Key])) return;
-
-      delete blocklistPaths[hostnamePath1Key];
-      break;
-    }
-    case 2: {
-      if (!blocklistPaths[hostnamePath1Key][path2]) return;
-      if (!isLevelBlocking(blocklistPaths[hostnamePath1Key][path2])) return;
-
-      delete blocklistPaths[hostnamePath1Key][path2];
-      if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
-        delete blocklistPaths[hostnamePath1Key];
-      }
-      break;
-    }
-    case 3: {
-      if (!blocklistPaths[hostnamePath1Key][path2]) return;
-      if (!blocklistPaths[hostnamePath1Key][path2][path3]) return;
-      if (!isLevel3Blocking(blocklistPaths[hostnamePath1Key][path2][path3]))
-        return;
-
-      delete blocklistPaths[hostnamePath1Key][path2][path3];
-      if (Object.keys(blocklistPaths[hostnamePath1Key][path2]).length === 0) {
-        delete blocklistPaths[hostnamePath1Key][path2];
-        if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
-          delete blocklistPaths[hostnamePath1Key];
-        }
-      }
-      break;
-    }
-    default: {
-      if (!blocklistPaths[hostnamePath1Key][path2]) return;
-      if (!blocklistPaths[hostnamePath1Key][path2][path3]) return;
-
-      const remainingPaths = pathComponents.slice(3);
-      const remainingPath = remainingPaths.join('/');
-
-      const remainingPathsArray =
-        blocklistPaths[hostnamePath1Key][path2][path3];
-      const remainingPathIndex = remainingPathsArray.indexOf(remainingPath);
-      if (remainingPathIndex === -1) return;
-
-      remainingPathsArray.splice(remainingPathIndex, 1);
-
-      if (remainingPathsArray.length === 0) {
-        delete blocklistPaths[hostnamePath1Key][path2][path3];
-        if (Object.keys(blocklistPaths[hostnamePath1Key][path2]).length === 0) {
-          delete blocklistPaths[hostnamePath1Key][path2];
-          if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
-            delete blocklistPaths[hostnamePath1Key];
-          }
-        }
-      }
-      break;
-    }
-  }
 };
 
 /**
