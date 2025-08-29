@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Allow disabling namespace checks in unit tests using the new `DISABLE_NAMESPACE` constant ([#6420](https://github.com/MetaMask/core/pull/6420))
+  - To disable namespace checks, use `string` as the `Namespace` type parameter, and use `DISABLE_NAMESPACE` as the `namespace` constructor parameter.
+
 ### Changed
 
 - Keep delegated handlers when unregistering actions ([#6395](https://github.com/MetaMask/core/pull/6395))
