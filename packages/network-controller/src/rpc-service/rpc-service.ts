@@ -3,6 +3,7 @@ import type {
   ServicePolicy,
 } from '@metamask/controller-utils';
 import {
+  BrokenCircuitError,
   CircuitState,
   HttpError,
   createServicePolicy,
@@ -18,6 +19,7 @@ import {
   type JsonRpcResponse,
 } from '@metamask/utils';
 import deepmerge from 'deepmerge';
+import type { Logger } from 'loglevel';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
 import type { AddToCockatielEventData, FetchOptions } from './shared';
@@ -51,6 +53,10 @@ export type RpcServiceOptions = {
    * overridden on the request level (e.g. to add headers).
    */
   fetchOptions?: FetchOptions;
+  /**
+   * A `loglevel` logger.
+   */
+  logger?: Pick<Logger, 'info'>;
   /**
    * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
    * not accepted, as it is overwritten. See {@link createServicePolicy}.
@@ -236,11 +242,6 @@ export class RpcService implements AbstractRpcService {
   readonly #fetch: typeof fetch;
 
   /**
-   * The URL of the RPC endpoint.
-   */
-  readonly endpointUrl: URL;
-
-  /**
    * A common set of options that the request options will extend.
    */
   readonly #fetchOptions: FetchOptions;
@@ -252,9 +253,19 @@ export class RpcService implements AbstractRpcService {
   readonly #failoverService: RpcServiceOptions['failoverService'];
 
   /**
+   * A `loglevel` logger.
+   */
+  readonly #logger: RpcServiceOptions['logger'];
+
+  /**
    * The policy that wraps the request.
    */
   readonly #policy: ServicePolicy;
+
+  /**
+   * The URL of the RPC endpoint.
+   */
+  readonly endpointUrl: URL;
 
   /**
    * Constructs a new RpcService object.
@@ -267,6 +278,7 @@ export class RpcService implements AbstractRpcService {
       endpointUrl,
       failoverService,
       fetch: givenFetch,
+      logger,
       fetchOptions = {},
       policyOptions = {},
     } = options;
@@ -280,6 +292,7 @@ export class RpcService implements AbstractRpcService {
     );
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#failoverService = failoverService;
+    this.#logger = logger;
 
     const policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
@@ -565,6 +578,12 @@ export class RpcService implements AbstractRpcService {
       } else if (isJsonParseError(error)) {
         throw rpcErrors.parse({
           message: 'RPC endpoint did not return JSON.',
+        });
+      } else if (error instanceof BrokenCircuitError) {
+        this.#logger?.info(error);
+        throw rpcErrors.resourceUnavailable({
+          message:
+            'RPC endpoint returned too many errors. Please try a different endpoint.',
         });
       }
       throw error;

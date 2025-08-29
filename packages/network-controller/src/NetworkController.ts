@@ -2800,6 +2800,7 @@ export class NetworkController extends BaseController<
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          logger: this.#log,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][

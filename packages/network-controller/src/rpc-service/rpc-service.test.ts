@@ -1144,6 +1144,50 @@ function testsForRetriableFetchErrors({
         endpointUrl: `${endpointUrl}/`,
       });
     });
+
+    it('throws a specific error (logging the CircuitBreakError) if a request is attempted while the circuit is open', async () => {
+      const clock = getClock();
+      const mockFetch = jest.fn(() => {
+        throw producedError;
+      });
+      const endpointUrl = 'https://rpc.example.chain';
+      const logger = { info: jest.fn() };
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl,
+        logger,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+      await ignoreRejection(service.request(jsonRpcRequest));
+
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expect.objectContaining({
+          code: errorCodes.rpc.resourceUnavailable,
+          message:
+            'RPC endpoint returned too many errors. Please try a different endpoint.',
+        }),
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Execution prevented because the circuit breaker is open',
+        }),
+      );
+    });
   });
 
   describe('if a failover service is provided', () => {
@@ -1341,6 +1385,72 @@ function testsForRetriableFetchErrors({
         endpointUrl: `${endpointUrl}/`,
         failoverEndpointUrl: `${failoverEndpointUrl}/`,
       });
+    });
+
+    it('throws a specific error (logging the CircuitBreakError) if a request is attempted while the circuit is open', async () => {
+      const clock = getClock();
+      const mockFetch = jest.fn(() => {
+        throw producedError;
+      });
+      const endpointUrl = 'https://rpc.example.chain';
+      const failoverEndpointUrl = 'https://failover.endpoint';
+      const logger = { info: jest.fn() };
+      const failoverService = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl: failoverEndpointUrl,
+        logger,
+      });
+      failoverService.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+      const onBreakListener = jest.fn();
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl,
+        failoverService,
+        logger,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+      service.onBreak(onBreakListener);
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      // Get through the first two rounds of retries on the primary
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      // The last retry breaks the circuit and sends the request to the failover
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      // Get through the first two rounds of retries on the failover
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+
+      // The last retry breaks the circuit on the failover
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expect.objectContaining({
+          code: errorCodes.rpc.resourceUnavailable,
+          message:
+            'RPC endpoint returned too many errors. Please try a different endpoint.',
+        }),
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Execution prevented because the circuit breaker is open',
+        }),
+      );
     });
   });
 }
