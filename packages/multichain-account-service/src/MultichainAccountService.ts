@@ -7,10 +7,12 @@ import type {
   Bip44Account,
   AccountProvider,
 } from '@metamask/account-api';
+import { BaseController } from '@metamask/base-controller';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
+import type { MultichainAccountWalletTransientState } from './MultichainAccountWallet';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import {
   AccountProviderWrapper,
@@ -18,9 +20,22 @@ import {
 } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+import type { TransientStateMetadata } from './transient-state';
+import type {
+  MultichainAccountServiceMessenger,
+  MultichainAccountServiceTransientState,
+} from './types';
 
 export const serviceName = 'MultichainAccountService';
+
+const serviceMetadata: TransientStateMetadata<MultichainAccountServiceTransientState> =
+  {
+    accountWalletsTransientState: {
+      // Transient states are never persisted.
+      persist: false,
+      anonymous: false,
+    },
+  };
 
 /**
  * The options that {@link MultichainAccountService} takes.
@@ -39,7 +54,11 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 /**
  * Service to expose multichain accounts capabilities.
  */
-export class MultichainAccountService {
+export class MultichainAccountService extends BaseController<
+  typeof serviceName,
+  MultichainAccountServiceTransientState,
+  MultichainAccountServiceMessenger
+> {
   readonly #messenger: MultichainAccountServiceMessenger;
 
   readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
@@ -69,6 +88,15 @@ export class MultichainAccountService {
    * providers.
    */
   constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
+    super({
+      messenger,
+      name: serviceName,
+      metadata: serviceMetadata,
+      state: {
+        accountWalletsTransientState: {},
+      },
+    });
+
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
@@ -150,9 +178,12 @@ export class MultichainAccountService {
 
         // This will automatically "associate" all multichain accounts for that wallet
         // (based on the accounts owned by each account providers).
+        const walletId = toMultichainAccountWalletId(entropySource);
         const wallet = new MultichainAccountWallet({
           entropySource,
           providers: this.#providers,
+          transientState:
+            this.#getMultichainAccoultWalletTransientStateProxy(walletId),
         });
         this.#wallets.set(wallet.id, wallet);
 
@@ -169,6 +200,54 @@ export class MultichainAccountService {
     }
   }
 
+  #getMultichainAccoultWalletTransientStateProxy(
+    walletId: MultichainAccountWalletId,
+  ): MultichainAccountWalletTransientState {
+    // eslint-disable-next-line consistent-this, @typescript-eslint/no-this-alias
+    const service = this;
+
+    const getTransientState = <Return>(
+      state: MultichainAccountServiceTransientState,
+      then: (transientState: MultichainAccountWalletTransientState) => Return,
+    ) => {
+      return then(state.accountWalletsTransientState[walletId]);
+    };
+
+    const setTransientState = (
+      state: MultichainAccountServiceTransientState,
+      then: (transientState: MultichainAccountWalletTransientState) => void,
+    ) => {
+      then(state.accountWalletsTransientState[walletId]);
+    };
+
+    // Create initial transient state for this wallet if it does not exists yet.
+    if (!service.state.accountWalletsTransientState[walletId]) {
+      this.update((state) => {
+        state.accountWalletsTransientState[walletId] = {
+          isAlignmentInProgress: false,
+        };
+      });
+    }
+
+    return {
+      get isAlignmentInProgress(): boolean {
+        return getTransientState(
+          service.state,
+          (transientState) => transientState.isAlignmentInProgress,
+        );
+      },
+      set isAlignmentInProgress(inProgress: boolean) {
+        service.update((state) => {
+          setTransientState(
+            state,
+            (transientState) =>
+              (transientState.isAlignmentInProgress = inProgress),
+          );
+        });
+      },
+    };
+  }
+
   #handleOnAccountAdded(account: KeyringAccount): void {
     // We completely omit non-BIP-44 accounts!
     if (!isBip44Account(account)) {
@@ -177,6 +256,7 @@ export class MultichainAccountService {
 
     let sync = true;
 
+    const walletId = toMultichainAccountWalletId(account.options.entropy.id);
     let wallet = this.#wallets.get(
       toMultichainAccountWalletId(account.options.entropy.id),
     );
@@ -185,6 +265,8 @@ export class MultichainAccountService {
       wallet = new MultichainAccountWallet({
         entropySource: account.options.entropy.id,
         providers: this.#providers,
+        transientState:
+          this.#getMultichainAccoultWalletTransientStateProxy(walletId),
       });
       this.#wallets.set(wallet.id, wallet);
 
