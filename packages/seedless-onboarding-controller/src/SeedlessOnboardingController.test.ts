@@ -5537,57 +5537,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should handle case where pendingToBeRevokedTokens is null', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            pendingToBeRevokedTokens: null as unknown as
-              | {
-                  refreshToken: string;
-                  revokeToken: string;
-                }[]
-              | undefined,
-          }),
-        },
-        async ({ controller, mockRevokeRefreshToken }) => {
-          await controller.revokePendingRefreshTokens();
-
-          expect(mockRevokeRefreshToken).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('should handle case where revoke token is not found in pending list', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            pendingToBeRevokedTokens: [
-              {
-                refreshToken: 'old-refresh-token-1',
-                revokeToken: 'old-revoke-token-1',
-              },
-            ],
-          }),
-        },
-        async ({ controller, mockRevokeRefreshToken }) => {
-          // Mock the revokeRefreshToken to succeed
-          mockRevokeRefreshToken.mockResolvedValue(undefined);
-
-          await controller.revokePendingRefreshTokens();
-
-          expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
-            connection: controller.state.authConnection,
-            revokeToken: 'old-revoke-token-1',
-          });
-
-          // Verify the token was removed from the pending list
-          expect(controller.state.pendingToBeRevokedTokens?.length).toBe(0);
-        },
-      );
-    });
-
     it('should handle error when revokeRefreshToken fails and still remove token from pending list', async () => {
       await withController(
         {

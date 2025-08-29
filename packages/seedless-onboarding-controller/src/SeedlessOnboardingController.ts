@@ -1860,7 +1860,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         });
 
         // add the old refresh token to the list to be revoked later when possible
-        this.#addPendingRefreshToken({
+        this.#addRefreshTokenToRevokeList({
           refreshToken,
           revokeToken,
         });
@@ -1928,7 +1928,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param params.refreshToken - The refresh token to add.
    * @param params.revokeToken - The revoke token to add.
    */
-  #addPendingRefreshToken({
+  #addRefreshTokenToRevokeList({
     refreshToken,
     revokeToken,
   }: {
