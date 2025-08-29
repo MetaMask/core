@@ -10,7 +10,6 @@ import type {
   SendCallsResult,
 } from '@metamask/eth-json-rpc-middleware';
 import { GetCallsStatusCode } from '@metamask/eth-json-rpc-middleware';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -37,17 +36,11 @@ import type { Hex, JsonRpcRequest } from '@metamask/utils';
 import { bytesToHex } from '@metamask/utils';
 import { parse, v4 as uuid } from 'uuid';
 
-// TODO: [ffmcgee] extract this
-const KEYRING_TYPES_SUPPORTING_7702 = [KeyringTypes.hd, KeyringTypes.simple];
-
-// TODO: [ffmcgee] extract this
-// Matthew Walsh --> To be moved to @metamask/rpc-errors in future.
-enum EIP5792ErrorCode {
-  UnsupportedNonOptionalCapability = 5700,
-  UnsupportedChainId = 5710,
-  UnknownBundleId = 5730,
-  RejectedUpgrade = 5750,
-}
+import {
+  EIP5792ErrorCode,
+  KEYRING_TYPES_SUPPORTING_7702,
+  MESSAGE_TYPE,
+} from './constants';
 
 type Actions =
   | AccountsControllerGetStateAction
@@ -363,7 +356,7 @@ async function processSingleTransaction({
   };
 
   const securityRequest: ValidateSecurityRequest = {
-    method: 'eth_sendTransaction', // TODO: [ffmcgee] constant
+    method: MESSAGE_TYPE.ETH_SEND_TRANSACTION,
     params: [txParams],
     origin,
   };
