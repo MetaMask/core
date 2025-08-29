@@ -6,6 +6,7 @@
   "references": [
     { "path": "../../packages/base-controller" },
     { "path": "../../packages/controller-utils" },
+    { "path": "../../packages/messenger" },
     { "path": "../../packages/network-controller" }
   ],
   "include": ["../../types", "./src"],
