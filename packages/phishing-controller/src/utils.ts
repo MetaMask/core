@@ -338,29 +338,14 @@ export const doesURLPathExist = (
 };
 
 /**
- * isLevel1Blocking checks if a level1 entry blocks all paths after it.
- * If the level1Entry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
- * If the level1Entry has keys, that means the blocking path extends to the next level and we return true.
- * @param level1Entry - the level1 entry to check.
- * @returns true if the level1 entry blocks all paths after it, false otherwise.
+ * isLevelBlocking checks if a level entry blocks all paths after it. Only used for level 1 and 2.
+ * If the levelEntry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
+ * If the levelEntry has keys, that means the blocking path extends to the next level and we return true.
+ * @param levelEntry - the level entry to check.
+ * @returns true if the level entry blocks all paths after it, false otherwise.
  */
-const isLevel1Blocking = (
-  level1Entry: Record<string, Record<string, string[]>> | undefined,
-): boolean => {
-  return level1Entry !== undefined && Object.keys(level1Entry).length === 0;
-};
-
-/**
- * isLevel2Blocking checks if a level2 entry blocks all paths after it.
- * If the level2Entry is undefined, we return false (as that means there is no entry for it i.e. it is not in blocklistPaths)
- * If the level2Entry has keys, that means the blocking path extends to the next level and we return true.
- * @param level2Entry - the level2 entry to check.
- * @returns true if the level2 entry blocks all paths after it, false otherwise.
- */
-const isLevel2Blocking = (
-  level2Entry: Record<string, string[]> | undefined,
-): boolean => {
-  return level2Entry !== undefined && Object.keys(level2Entry).length === 0;
+const isLevelBlocking = (v?: Record<string, unknown>): boolean => {
+  return v !== undefined && Object.keys(v).length === 0;
 };
 
 /**
@@ -401,22 +386,6 @@ const initializeBlocklistPath = (
 };
 
 /**
- * Adds remaining path segments to the blocklist if they don't already exist.
- */
-const addRemainingPathIfNotExists = (
-  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>,
-  hostnamePath1Key: string,
-  path2: string,
-  path3: string,
-  remainingPath: string,
-) => {
-  const remainingPathsArray = blocklistPaths[hostnamePath1Key][path2][path3];
-  if (!remainingPathsArray.includes(remainingPath)) {
-    remainingPathsArray.push(remainingPath);
-  }
-};
-
-/**
  * Adds a URL to the blocklistPaths structure.
  * Parses the URL and adds the path components to the appropriate nested structure.
  *
@@ -445,7 +414,7 @@ const addURLToBlocklistPaths = (
       break;
     case 2: {
       const level1Entry = blocklistPaths[hostnamePath1Key];
-      if (isLevel1Blocking(level1Entry)) return;
+      if (isLevelBlocking(level1Entry)) return;
 
       initializeBlocklistPath(blocklistPaths, hostnamePath1Key);
       blocklistPaths[hostnamePath1Key][path2] = {};
@@ -453,9 +422,9 @@ const addURLToBlocklistPaths = (
     }
     case 3: {
       const level1Entry = blocklistPaths[hostnamePath1Key];
-      if (isLevel1Blocking(level1Entry)) return;
+      if (isLevelBlocking(level1Entry)) return;
       const level2Entry = level1Entry?.[path2];
-      if (isLevel2Blocking(level2Entry)) return;
+      if (isLevelBlocking(level2Entry)) return;
 
       initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2);
       blocklistPaths[hostnamePath1Key][path2][path3] = [];
@@ -463,9 +432,9 @@ const addURLToBlocklistPaths = (
     }
     default: {
       const level1Entry = blocklistPaths[hostnamePath1Key];
-      if (isLevel1Blocking(level1Entry)) return;
+      if (isLevelBlocking(level1Entry)) return;
       const level2Entry = level1Entry?.[path2];
-      if (isLevel2Blocking(level2Entry)) return;
+      if (isLevelBlocking(level2Entry)) return;
       const level3Entry = level2Entry?.[path3];
       if (isLevel3Blocking(level3Entry)) return;
 
@@ -473,13 +442,11 @@ const addURLToBlocklistPaths = (
       const remainingPath = remainingPaths.join('/');
 
       initializeBlocklistPath(blocklistPaths, hostnamePath1Key, path2, path3);
-      addRemainingPathIfNotExists(
-        blocklistPaths,
-        hostnamePath1Key,
-        path2,
-        path3,
-        remainingPath,
-      );
+      if (
+        !blocklistPaths[hostnamePath1Key][path2][path3].includes(remainingPath)
+      ) {
+        blocklistPaths[hostnamePath1Key][path2][path3].push(remainingPath);
+      }
       break;
     }
   }
@@ -511,14 +478,14 @@ const removeURLFromBlocklistPaths = (
 
   switch (componentCount) {
     case 1: {
-      if (!isLevel1Blocking(blocklistPaths[hostnamePath1Key])) return;
+      if (!isLevelBlocking(blocklistPaths[hostnamePath1Key])) return;
 
       delete blocklistPaths[hostnamePath1Key];
       break;
     }
     case 2: {
       if (!blocklistPaths[hostnamePath1Key][path2]) return;
-      if (!isLevel2Blocking(blocklistPaths[hostnamePath1Key][path2])) return;
+      if (!isLevelBlocking(blocklistPaths[hostnamePath1Key][path2])) return;
 
       delete blocklistPaths[hostnamePath1Key][path2];
       if (Object.keys(blocklistPaths[hostnamePath1Key]).length === 0) {
@@ -555,7 +522,6 @@ const removeURLFromBlocklistPaths = (
 
       remainingPathsArray.splice(remainingPathIndex, 1);
 
-      // Clean up empty structures
       if (remainingPathsArray.length === 0) {
         delete blocklistPaths[hostnamePath1Key][path2][path3];
         if (Object.keys(blocklistPaths[hostnamePath1Key][path2]).length === 0) {
