@@ -431,7 +431,8 @@ const removeURLFromBlocklistPaths = (
   url: string,
   blocklistPaths: Record<string, Record<string, string[]>>,
 ) => {
-  const { hostname, pathname } = new URL(url);
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  const { hostname, pathname } = new URL(urlWithProtocol);
   const [path1, path2, path3] = pathname.split('/').filter(Boolean);
 
   if (!path1) return;
@@ -441,7 +442,6 @@ const removeURLFromBlocklistPaths = (
   if (!blocklistPaths[hostnamePath1Key]) return;
 
   if (!path2) {
-    // Remove the entire hostname/path1 entry
     delete blocklistPaths[hostnamePath1Key];
     return;
   }
