@@ -18,7 +18,6 @@ import {
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { Bip44AccountProvider } from './types';
 import { isSnapAccountProvider } from './providers';
 
 /**
