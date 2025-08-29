@@ -37,7 +37,7 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
-export abstract class BaseAccountProvider
+export abstract class BaseBip44AccountProvider
   implements AccountProvider<Bip44Account<KeyringAccount>>
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
