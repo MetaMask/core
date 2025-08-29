@@ -76,13 +76,14 @@ type GasPricesResponse = {
  * @example
  *
  * ``` ts
+ * import { Messenger } from '@metamask/base-controller';
  * import type {
  *   SampleGasPricesServiceActions,
- *   SampleGasPricesServiceEvents
+ *   SampleGasPricesServiceEvents,
  * } from '@metamask/sample-controllers';
  *
  * const globalMessenger = new Messenger<
- *   SampleGasPricesServiceActions
+ *   SampleGasPricesServiceActions,
  *   SampleGasPricesServiceEvents
  * >();
  * const gasPricesServiceMessenger = globalMessenger.getRestricted({
