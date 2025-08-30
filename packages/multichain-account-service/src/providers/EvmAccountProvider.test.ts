@@ -1,12 +1,21 @@
 import type { Messenger } from '@metamask/base-controller';
-import type { KeyringMetadata } from '@metamask/keyring-controller';
+import { EthAccountType, EthScope } from '@metamask/keyring-api';
+import {
+  KeyringTypes,
+  type KeyringMetadata,
+} from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+} from '@metamask/network-controller';
 
 import { EvmAccountProvider } from './EvmAccountProvider';
 import {
+  ETH_EOA_METHODS,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_HD_ACCOUNT_1,
@@ -21,6 +30,7 @@ import type {
   MultichainAccountServiceEvents,
 } from '../types';
 
+
 class MockEthKeyring implements EthKeyring {
   readonly type = 'MockEthKeyring';
 
@@ -29,7 +39,7 @@ class MockEthKeyring implements EthKeyring {
     name: '',
   };
 
-  readonly accounts: InternalAccount[];
+  accounts: InternalAccount[];
 
   constructor(accounts: InternalAccount[]) {
     this.accounts = accounts;
@@ -56,6 +66,7 @@ class MockEthKeyring implements EthKeyring {
         MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
           .withUuid()
           .withAddressSuffix(`${this.accounts.length}`)
+          .withGroupIndex(this.accounts.length)
           .get(),
       );
     }
@@ -63,6 +74,13 @@ class MockEthKeyring implements EthKeyring {
     return this.accounts
       .slice(newAccountsIndex)
       .map((account) => account.address);
+  });
+
+  removeAccount = jest.fn().mockImplementation((address: string) => {
+    const index = this.accounts.findIndex((a) => a.address === address);
+    if (index >= 0) {
+      this.accounts.splice(index, 1);
+    }
   });
 }
 
@@ -92,6 +110,7 @@ function setup({
   keyring: MockEthKeyring;
   mocks: {
     getAccountByAddress: jest.Mock;
+    mockProviderRequest: jest.Mock;
   };
 } {
   const keyring = new MockEthKeyring(accounts);
@@ -106,6 +125,14 @@ function setup({
     .mockImplementation((address: string) =>
       keyring.accounts.find((account) => account.address === address),
     );
+
+  const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
+    if (method === 'eth_getTransactionCount') {
+      return '0x2';
+    }
+    throw new Error(`Unknown method: ${method}`);
+  });
+
   messenger.registerActionHandler(
     'AccountsController:getAccountByAddress',
     mockGetAccountByAddress,
@@ -114,6 +141,24 @@ function setup({
   messenger.registerActionHandler(
     'KeyringController:withKeyring',
     async (_, operation) => operation({ keyring, metadata: keyring.metadata }),
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    () => 'mock-network-client-id',
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    () => {
+      const provider = {
+        request: mockProviderRequest,
+      };
+
+      return {
+        provider,
+      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+    },
   );
 
   const provider = new EvmAccountProvider(
@@ -126,6 +171,7 @@ function setup({
     keyring,
     mocks: {
       getAccountByAddress: mockGetAccountByAddress,
+      mockProviderRequest,
     },
   };
 }
@@ -223,17 +269,87 @@ describe('EvmAccountProvider', () => {
     ).rejects.toThrow('Internal account does not exist');
   });
 
-  it('discover accounts', async () => {
+  it('discover accounts at the next group index', async () => {
     const { provider } = setup({
-      accounts: [], // No accounts by defaults, so we can discover them
+      accounts: [MOCK_HD_ACCOUNT_1], // There should always be one account by the time discovery is called.
     });
 
-    // TODO: Update this once we really implement the account discovery.
+    const expectedAccount = {
+      id: expect.any(String),
+      address: `${MOCK_HD_ACCOUNT_1.address}1`,
+      options: {
+        entropy: {
+          id: MOCK_HD_KEYRING_1.metadata.id,
+          type: 'mnemonic',
+          groupIndex: 1,
+          derivationPath: '',
+        },
+      },
+      methods: [...ETH_EOA_METHODS],
+      scopes: [EthScope.Eoa],
+      type: EthAccountType.Eoa,
+      metadata: {
+        name: 'Account 1',
+        keyring: { type: KeyringTypes.hd },
+        importTime: 0,
+        lastSelected: 0,
+        nameLastUpdatedAt: 0,
+      },
+    };
+
+    // Discovery starts at index + 1 for EVM.
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([expectedAccount]);
+
+    expect(provider.getAccounts()).toStrictEqual([
+      MOCK_HD_ACCOUNT_1,
+      expectedAccount,
+    ]);
+  });
+
+  it('removes discovered account if no transaction history is found', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    mocks.mockProviderRequest.mockReturnValue('0x0');
+
+    // Discovery starts at index + 1 for EVM.
     expect(
       await provider.discoverAndCreateAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
     ).toStrictEqual([]);
+
+    expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+  });
+
+  it('returns an existing account if it already exists', async () => {
+    const MOCK_ACCOUNT_2 = {
+      ...MOCK_HD_ACCOUNT_1,
+      address: '0x456',
+      options: {
+        entropy: {
+          ...MOCK_HD_ACCOUNT_1.options.entropy,
+          groupIndex: 1,
+        },
+      },
+    };
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1, MOCK_ACCOUNT_2],
+    });
+
+    // Discovery starts at index + 1 for EVM.
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([MOCK_ACCOUNT_2]);
   });
 });

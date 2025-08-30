@@ -18,7 +18,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuid } from 'uuid';
 
-const ETH_EOA_METHODS = [
+export const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
   EthMethod.Sign,
   EthMethod.SignTransaction,
