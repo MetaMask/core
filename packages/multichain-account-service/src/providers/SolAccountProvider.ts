@@ -1,12 +1,16 @@
 import { type Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { SolScope } from '@metamask/keyring-api';
 import {
   KeyringAccountEntropyTypeOption,
   SolAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import { assertAreBip44Accounts } from './BaseBip44AccountProvider';
@@ -15,8 +19,30 @@ import { SnapAccountProvider } from './SnapAccountProvider';
 export class SolAccountProvider extends SnapAccountProvider {
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
+  readonly #client: KeyringClient;
+
   constructor(messenger: MultichainAccountServiceMessenger) {
     super(SolAccountProvider.SOLANA_SNAP_ID, messenger);
+    this.#client = this.#getKeyringClientFromSnapId(
+      SolAccountProvider.SOLANA_SNAP_ID,
+    );
+  }
+
+  #getKeyringClientFromSnapId(snapId: string): KeyringClient {
+    return new KeyringClient({
+      send: async (request: JsonRpcRequest) => {
+        const response = await this.messenger.call(
+          'SnapController:handleRequest',
+          {
+            snapId: snapId as SnapId,
+            origin: 'metamask',
+            handler: HandlerType.OnKeyringRequest,
+            request,
+          },
+        );
+        return response as Promise<Json>;
+      },
+    });
   }
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
@@ -60,10 +86,26 @@ export class SolAccountProvider extends SnapAccountProvider {
     return accounts;
   }
 
-  async discoverAndCreateAccounts(_: {
+  async discoverAndCreateAccounts({
+    entropySource,
+    groupIndex,
+  }: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return []; // TODO: Implement account discovery.
+    const discoveredAccounts = await this.#client.discoverAccounts(
+      [SolScope.Mainnet],
+      entropySource,
+      groupIndex,
+    );
+
+    const createdAccounts = await Promise.all(
+      discoveredAccounts.map(
+        async (_account) =>
+          await this.createAccounts({ entropySource, groupIndex }),
+      ),
+    );
+
+    return createdAccounts.flat();
   }
 }
