@@ -11,7 +11,12 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { ISubscriptionService, ProductType, StartSubscriptionRequest, Subscription } from './types';
+import type {
+  ISubscriptionService,
+  ProductType,
+  StartSubscriptionRequest,
+  Subscription,
+} from './types';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
