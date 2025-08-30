@@ -247,9 +247,8 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     ].includes(transactionMeta.status)
       ? StatusTypes.FAILED
       : StatusTypes.COMPLETE,
-    error_message: transactionMeta.error?.message
-      ? 'Failed to finalize swap tx'
-      : undefined,
+    error_message:
+      transactionMeta.error?.message ?? 'Failed to finalize swap tx',
     chain_id_source: formatChainIdToCaip(transactionMeta.chainId),
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
