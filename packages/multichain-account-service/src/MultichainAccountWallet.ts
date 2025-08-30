@@ -18,6 +18,7 @@ import {
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
+import { isSnapAccountProvider } from './providers';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -354,5 +355,107 @@ export class MultichainAccountWallet<
     } finally {
       this.#isAlignmentInProgress = false;
     }
+  }
+
+  /**
+   * Discover and create accounts for all providers.
+   *
+   * NOTE: This method should only be called on a newly created wallet.
+   *
+   * @returns The accounts for each provider.
+   */
+  async discoverAndCreateAccounts(): Promise<Record<string, number>> {
+    const providers = this.#providers;
+    const providerContexts = new Map<
+      Bip44AccountProvider,
+      {
+        stopped: boolean;
+        running?: Promise<void>;
+        index: number;
+        count: number;
+      }
+    >();
+
+    for (const p of providers) {
+      providerContexts.set(p, { stopped: false, index: 0, count: 0 });
+    }
+
+    let maxGroupIndex = 0;
+
+    const schedule = (p: Bip44AccountProvider, index: number) => {
+      const providerCtx = providerContexts.get(p);
+      if (!providerCtx) {
+        throw new Error(`Provider ${p} not found in providerContexts`);
+      }
+
+      if (providerCtx.stopped || providerCtx.running) {
+        return;
+      }
+
+      providerCtx.index = index;
+
+      providerCtx.running = (async () => {
+        try {
+          const accounts = await p.discoverAndCreateAccounts({
+            entropySource: this.#entropySource,
+            groupIndex: index,
+          });
+
+          if (!accounts.length) {
+            providerCtx.stopped = true;
+            return;
+          }
+
+          providerCtx.count += accounts.length;
+
+          const next = index + 1;
+          providerCtx.index = next;
+
+          if (next > maxGroupIndex) {
+            maxGroupIndex = next;
+            for (const [q, qCtx] of providerContexts) {
+              if (
+                !qCtx.stopped &&
+                !qCtx.running &&
+                qCtx.index < maxGroupIndex
+              ) {
+                schedule(q, maxGroupIndex);
+              }
+            }
+          }
+        } catch (err) {
+          providerCtx.stopped = true;
+          console.error(err);
+        } finally {
+          providerCtx.running = undefined;
+          if (!providerCtx.stopped) {
+            const target = Math.max(maxGroupIndex, providerCtx.index);
+            schedule(p, target);
+          }
+        }
+      })();
+    };
+
+    for (const p of providers) {
+      schedule(p, 0);
+    }
+
+    while ([...providerContexts.values()].some((ctx) => Boolean(ctx.running))) {
+      const racers = [...providerContexts.values()]
+        .map((c) => c.running)
+        .filter(Boolean) as Promise<void>[];
+      await Promise.race(racers);
+    }
+
+    await this.alignGroups();
+
+    const discoveredAccounts: Record<string, number> = {};
+
+    for (const [p, ctx] of providerContexts) {
+      const groupKey = isSnapAccountProvider(p) ? p.snapId : 'Evm';
+      discoveredAccounts[groupKey] = ctx.count;
+    }
+
+    return discoveredAccounts;
   }
 }

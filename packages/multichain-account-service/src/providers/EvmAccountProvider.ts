@@ -6,10 +6,12 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
   assertAreBip44Accounts,
+  assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 
@@ -33,6 +35,23 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       account.type === EthAccountType.Eoa &&
       account.metadata.keyring.type === (KeyringTypes.hd as string)
     );
+  }
+
+  /**
+   * Get the Evm provider.
+   *
+   * @returns The Evm provider.
+   */
+  getEvmProvider(): Provider {
+    const networkClientId = this.messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      '0x1',
+    );
+    const { provider } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    return provider;
   }
 
   async createAccounts({
@@ -76,10 +95,62 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return accountsArray;
   }
 
-  async discoverAndCreateAccounts(_: {
+  /**
+   * Discover and create accounts for the Evm provider.
+   *
+   * NOTE: This method should only be called on a newly created wallet.
+   * There should be already one existing account on this associated entropy source.
+   *
+   * @param opts - The options for the discovery and creation of accounts.
+   * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
+   * @param opts.groupIndex - The index of the group to create the accounts for.
+   * @returns The accounts for the Evm provider.
+   */
+  async discoverAndCreateAccounts(opts: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }) {
-    return []; // TODO: Implement account discovery.
+    const provider = this.getEvmProvider();
+    const { entropySource, groupIndex } = opts;
+    // groupIndex starts as +1, because we already have one account in the associated keyring.
+    const actualGroupIndex = groupIndex + 1;
+
+    const [address, didCreate] = await this.withKeyring<
+      EthKeyring,
+      [Hex, boolean]
+    >({ id: entropySource }, async ({ keyring }) => {
+      const existing = await keyring.getAccounts();
+      if (actualGroupIndex < existing.length) {
+        return [existing[actualGroupIndex], false];
+      }
+      const need = actualGroupIndex - existing.length + 1;
+      const added = await keyring.addAccounts(need);
+      const target = added[added.length - 1];
+      return [target, true];
+    });
+
+    const countHex = (await provider.request({
+      method: 'eth_getTransactionCount',
+      params: [address, 'latest'],
+    })) as Hex;
+    const count = parseInt(countHex, 16);
+
+    if (count === 0 && didCreate) {
+      await this.withKeyring<EthKeyring>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          keyring.removeAccount?.(address);
+        },
+      );
+      return [];
+    }
+
+    const account = this.messenger.call(
+      'AccountsController:getAccountByAddress',
+      address,
+    );
+    assertInternalAccountExists(account);
+    assertIsBip44Account(account);
+    return [account];
   }
 }
