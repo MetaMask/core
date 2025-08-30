@@ -30,7 +30,6 @@ import type {
   MultichainAccountServiceEvents,
 } from '../types';
 
-
 class MockEthKeyring implements EthKeyring {
   readonly type = 'MockEthKeyring';
 
@@ -39,7 +38,7 @@ class MockEthKeyring implements EthKeyring {
     name: '',
   };
 
-  accounts: InternalAccount[];
+  readonly accounts: InternalAccount[];
 
   constructor(accounts: InternalAccount[]) {
     this.accounts = accounts;
