@@ -11,7 +11,12 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { ISubscriptionService, Subscription } from './types';
+import type {
+  ISubscriptionService,
+  ProductType,
+  StartSubscriptionRequest,
+  Subscription,
+} from './types';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
@@ -176,6 +181,22 @@ export class SubscriptionController extends BaseController<
           : subscription,
       );
     });
+  }
+
+  async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
+    this.#assertIsUserNotSubscribed({ products: request.products });
+
+    return await this.#subscriptionService.startSubscriptionWithCard(request);
+  }
+
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+    if (
+      this.state.subscriptions.find((subscription) =>
+        subscription.products.some((p) => products.includes(p.name)),
+      )
+    ) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {

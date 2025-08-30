@@ -108,16 +108,19 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
+  const mockStartSubscriptionWithCard = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
+    startSubscriptionWithCard: mockStartSubscriptionWithCard,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
+    mockStartSubscriptionWithCard,
   };
 }
 
@@ -385,6 +388,89 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('startShieldSubscriptionWithCard', () => {
+    const MOCK_START_SUBSCRIPTION_RESPONSE = {
+      checkoutSessionUrl: 'https://checkout.example.com/session/123',
+    };
+
+    it('should start shield subscription successfully when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          const result = await controller.startShieldSubscriptionWithCard({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+          });
+
+          expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+          });
+        },
+      );
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.startShieldSubscriptionWithCard({
+              products: [ProductType.SHIELD],
+              isTrialRequested: true,
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.startSubscriptionWithCard).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors during start subscription', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const errorMessage = 'Failed to start subscription';
+          mockService.startSubscriptionWithCard.mockRejectedValue(
+            new SubscriptionServiceError(errorMessage),
+          );
+
+          await expect(
+            controller.startShieldSubscriptionWithCard({
+              products: [ProductType.SHIELD],
+              isTrialRequested: true,
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+          });
         },
       );
     });

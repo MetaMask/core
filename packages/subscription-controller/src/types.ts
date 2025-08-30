@@ -41,6 +41,15 @@ export type GetSubscriptionsResponse = {
   trialedProducts: ProductType[];
 };
 
+export type StartSubscriptionRequest = {
+  products: ProductType[];
+  isTrialRequested: boolean;
+};
+
+export type StartSubscriptionResponse = {
+  checkoutSessionUrl: string;
+};
+
 export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
@@ -48,4 +57,7 @@ export type AuthUtils = {
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
+  startSubscriptionWithCard(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse>;
 };

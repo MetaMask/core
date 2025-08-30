@@ -39,4 +39,5 @@ export function getEnvUrls(env: Env): EnvUrlsEntry {
 export enum SubscriptionControllerErrorMessage {
   UserAlreadySubscribed = `${controllerName} - User is already subscribed`,
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
+  SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
 }

@@ -1,9 +1,13 @@
 import nock, { cleanAll, isDone } from 'nock';
 
-import { Env, getEnvUrls } from './constants';
+import {
+  Env,
+  getEnvUrls,
+  SubscriptionControllerErrorMessage,
+} from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
-import type { Subscription } from './types';
+import type { StartSubscriptionRequest, Subscription } from './types';
 import { PaymentType, ProductType } from './types';
 
 // Mock data
@@ -31,6 +35,15 @@ const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 const MOCK_ERROR_RESPONSE = {
   message: 'Subscription not found',
   error: 'NOT_FOUND',
+};
+
+const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
+  products: [ProductType.SHIELD],
+  isTrialRequested: true,
+};
+
+const MOCK_START_SUBSCRIPTION_RESPONSE = {
+  checkoutSessionUrl: 'https://checkout.example.com/session/123',
 };
 
 /**
@@ -218,6 +231,53 @@ describe('SubscriptionService', () => {
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
         ).rejects.toThrow(/Network error/u);
       });
+    });
+  });
+
+  describe('startSubscription', () => {
+    it('should start subscription successfully', async () => {
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl)
+          .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+          .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+
+        const result = await service.startSubscriptionWithCard(
+          MOCK_START_SUBSCRIPTION_REQUEST,
+        );
+
+        expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+      });
+    });
+
+    it('should start subscription without trial', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+      const request: StartSubscriptionRequest = {
+        products: [ProductType.SHIELD],
+        isTrialRequested: false,
+      };
+
+      nock(testUrl)
+        .post('/api/v1/subscriptions/card', request)
+        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+
+      const result = await service.startSubscriptionWithCard(request);
+
+      expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+    });
+
+    it('should handle empty products array', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const request: StartSubscriptionRequest = {
+        products: [],
+        isTrialRequested: true,
+      };
+
+      await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
     });
   });
 });
