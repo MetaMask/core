@@ -166,9 +166,7 @@ describe('AccountTrackerController', () => {
           },
           async ({ controller, refresh }) => {
             await refresh(clock, ['mainnet']);
-            
 
-            
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
                 '0x1': {
@@ -230,7 +228,7 @@ describe('AccountTrackerController', () => {
           },
           stakedBalances: {},
         });
-        
+
         await withController(
           {
             isMultiAccountBalancesEnabled: false,
@@ -254,7 +252,7 @@ describe('AccountTrackerController', () => {
 
       it('should update all address balances when multi-account is enabled', async () => {
         // Mock for multi-address balance update
-        // When multi-account is enabled, the fetcher requests lowercase addresses  
+        // When multi-account is enabled, the fetcher requests lowercase addresses
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
@@ -264,7 +262,7 @@ describe('AccountTrackerController', () => {
           },
           stakedBalances: {},
         });
-        
+
         await withController(
           {
             isMultiAccountBalancesEnabled: true,
@@ -428,7 +426,7 @@ describe('AccountTrackerController', () => {
           },
           stakedBalances: {},
         });
-        
+
         const networkClientId = 'networkClientId1';
         await withController(
           {
@@ -670,7 +668,7 @@ describe('AccountTrackerController', () => {
           },
           stakedBalances: {}, // No staked balances when includeStakedAssets is false
         });
-        
+
         const networkClientId = 'holesky';
 
         await withController(
@@ -773,7 +771,7 @@ describe('AccountTrackerController', () => {
           },
           // No stakedBalances property at all since polygon network doesn't support staked assets
         });
-        
+
         const networkClientId = 'polygon';
 
         await withController(

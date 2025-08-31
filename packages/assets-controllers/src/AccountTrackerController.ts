@@ -536,7 +536,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         if (success && value !== undefined) {
           const checksumAddress = toChecksumHexAddress(account);
           const hexValue = `0x${value.toString(16)}`;
-          const checksumAccount = toChecksumHexAddress(account);
 
           if (token === ZERO_ADDRESS) {
             // Native balance
