@@ -1,7 +1,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { DiscoveredAccount, EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -130,6 +130,12 @@ export const MOCK_SOL_ACCOUNT_1: Bip44Account<InternalAccount> = {
     importTime: 0,
     lastSelected: 0,
   },
+};
+
+export const MOCK_SOL_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [SolScope.Mainnet],
+  derivationPath: `m/44'/501'/0'/0'`,
 };
 
 export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
