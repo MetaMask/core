@@ -99,13 +99,11 @@ export class SolAccountProvider extends SnapAccountProvider {
       groupIndex,
     );
 
-    const createdAccounts = await Promise.all(
-      discoveredAccounts.map(
-        async (_account) =>
-          await this.createAccounts({ entropySource, groupIndex }),
-      ),
-    );
+    // Solana Snap always returns one discovered account.
+    if (discoveredAccounts.length === 1) {
+      return this.createAccounts({ entropySource, groupIndex });
+    }
 
-    return createdAccounts.flat();
+    return Promise.resolve([]);
   }
 }
