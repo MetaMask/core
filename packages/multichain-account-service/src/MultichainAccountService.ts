@@ -8,7 +8,8 @@ import type {
   AccountProvider,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import { KeyringMetadata, KeyringTypes } from '@metamask/keyring-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -19,6 +20,8 @@ import {
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
+import { assert, Hex } from '@metamask/utils';
+
 
 export const serviceName = 'MultichainAccountService';
 
@@ -291,6 +294,58 @@ export class MultichainAccountService {
     Bip44Account<KeyringAccount>
   >[] {
     return Array.from(this.#wallets.values());
+  }
+
+  /**
+   * Creates a new multichain account wallet with the given mnemonic.
+   *
+   * NOTE: This method should only be called in client code where a mutex lock is acquired.
+   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
+   *
+   * @param options - Options.
+   * @param options.mnemonic - The mnemonic to use to create the new wallet.
+   * @returns The a tuple of the new multichain account wallet and the entropy source id.
+   */
+  async createMultichainAccountWallet({
+    mnemonic,
+  }: {
+    mnemonic: string;
+  }): Promise<
+    [MultichainAccountWallet<Bip44Account<KeyringAccount>>, EntropySourceId]
+  > {
+    // create a new wallet with the given mnemonic
+    const result = (await this.#messenger.call(
+      'KeyringController:withKeyring',
+      // We intentionally use index -1 to create a new keyring.
+      { type: KeyringTypes.hd, index: -1 },
+      async ({
+        keyring,
+        metadata,
+      }: {
+        keyring: EthKeyring;
+        metadata: KeyringMetadata;
+      }) => {
+        const accounts = await keyring.getAccounts();
+        return [accounts, metadata];
+      },
+      { createIfMissing: true, createWithData: { mnemonic } },
+    )) as [Hex[], KeyringMetadata];
+
+    const [accounts, metadata] = result;
+    // Make sure the keyring has no accounts after creating it.
+    assert(
+      accounts.length === 0 && metadata.id,
+      `Expected keyring with no accounts`,
+    );
+
+    const wallet = new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: metadata.id,
+    });
+
+    this.#wallets.set(wallet.id, wallet);
+
+    return [wallet, metadata.id];
   }
 
   /**
