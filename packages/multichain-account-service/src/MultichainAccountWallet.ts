@@ -363,7 +363,7 @@ export class MultichainAccountWallet<
    *
    * NOTE: This method should only be called on a newly created wallet.
    *
-   * @returns The discoveredaccounts for each provider.
+   * @returns The discovered accounts for each provider.
    */
   async discoverAndCreateAccounts(): Promise<Record<string, number>> {
     const providers = this.#providers;
