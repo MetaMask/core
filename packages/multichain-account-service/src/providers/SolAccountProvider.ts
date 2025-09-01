@@ -40,7 +40,7 @@ export class SolAccountProvider extends SnapAccountProvider {
             request,
           },
         );
-        return response as Promise<Json>;
+        return response as Json;
       },
     });
   }
