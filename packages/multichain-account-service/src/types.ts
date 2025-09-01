@@ -11,8 +11,10 @@ import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
-  KeyringControllerWithKeyringAction,
+  KeyringMetadata,
+  KeyringSelector,
 } from '@metamask/keyring-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -105,7 +107,7 @@ export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
-  | KeyringControllerWithKeyringAction
+  | KeyringControllerWithKeyringWithOptionsAction
   | KeyringControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction;
@@ -134,3 +136,27 @@ export type MultichainAccountServiceMessenger = RestrictedMessenger<
 export type Bip44AccountProvider = AccountProvider<
   Bip44Account<KeyringAccount>
 >;
+
+/**
+ * Locally widen the withKeyring action so the messenger accepts the optional options
+ * parameter (createIfMissing/createWithData) in addition to selector and operation.
+ */
+export type KeyringControllerWithKeyringWithOptionsAction = {
+  type: 'KeyringController:withKeyring';
+  handler: <
+    SelectedKeyring extends EthKeyring = EthKeyring,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+    options?:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown },
+  ) => Promise<CallbackResult>;
+};
