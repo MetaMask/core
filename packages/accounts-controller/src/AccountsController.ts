@@ -1,10 +1,8 @@
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type ExtractEventPayload,
-  type RestrictedMessenger,
   BaseController,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import {
   type SnapKeyringAccountAssetListUpdatedEvent,
   type SnapKeyringAccountBalancesUpdatedEvent,
@@ -29,6 +27,7 @@ import {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
+import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
@@ -212,12 +211,10 @@ export type AccountsControllerEvents =
   | AccountsControllerAccountTransactionsUpdatedEvent
   | AccountsControllerAccountAssetListUpdatedEvent;
 
-export type AccountsControllerMessenger = RestrictedMessenger<
+export type AccountsControllerMessenger = Messenger<
   typeof controllerName,
   AccountsControllerActions | AllowedActions,
-  AccountsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AccountsControllerEvents | AllowedEvents
 >;
 
 const accountsControllerMetadata = {
@@ -484,7 +481,7 @@ export class AccountsController extends BaseController<
       state.internalAccounts.selectedAccount = account.id;
     });
 
-    this.messagingSystem.publish(
+    this.messenger.publish(
       'AccountsController:accountRenamed',
       internalAccount,
     );
@@ -528,7 +525,7 @@ export class AccountsController extends BaseController<
     });
 
     if (metadata.name) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'AccountsController:accountRenamed',
         internalAccount,
       );
@@ -548,9 +545,7 @@ export class AccountsController extends BaseController<
     const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
       {};
 
-    const { keyrings } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
       const keyringTypeName = keyringTypeToName(keyring.type);
 
@@ -707,7 +702,7 @@ export class AccountsController extends BaseController<
    * @returns The Snap keyring if available.
    */
   #getSnapKeyring(): SnapKeyring | undefined {
-    const [snapKeyring] = this.messagingSystem.call(
+    const [snapKeyring] = this.messenger.call(
       'KeyringController:getKeyringsByType',
       SnapKeyring.type,
     );
@@ -731,7 +726,7 @@ export class AccountsController extends BaseController<
     event: EventType,
     ...payload: ExtractEventPayload<AccountsControllerEvents, EventType>
   ): void {
-    this.messagingSystem.publish(event, ...payload);
+    this.messenger.publish(event, ...payload);
   }
 
   /**
@@ -882,11 +877,11 @@ export class AccountsController extends BaseController<
 
     // Now publish events
     for (const id of diff.removed) {
-      this.messagingSystem.publish('AccountsController:accountRemoved', id);
+      this.messenger.publish('AccountsController:accountRemoved', id);
     }
 
     for (const account of diff.added) {
-      this.messagingSystem.publish('AccountsController:accountAdded', account);
+      this.messenger.publish('AccountsController:accountAdded', account);
     }
 
     // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
@@ -939,12 +934,12 @@ export class AccountsController extends BaseController<
       // `selectedAccount` to be non-empty.
       if (account) {
         if (isEvmAccountType(account.type)) {
-          this.messagingSystem.publish(
+          this.messenger.publish(
             'AccountsController:selectedEvmAccountChange',
             account,
           );
         }
-        this.messagingSystem.publish(
+        this.messenger.publish(
           'AccountsController:selectedAccountChange',
           account,
         );
@@ -1186,17 +1181,15 @@ export class AccountsController extends BaseController<
    * Subscribes to message events.
    */
   #subscribeToMessageEvents() {
-    this.messagingSystem.subscribe(
-      'SnapController:stateChange',
-      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
+    this.messenger.subscribe('SnapController:stateChange', (snapStateState) =>
+      this.#handleOnSnapStateChange(snapStateState),
     );
 
-    this.messagingSystem.subscribe(
-      'KeyringController:stateChange',
-      (keyringState) => this.#handleOnKeyringStateChange(keyringState),
+    this.messenger.subscribe('KeyringController:stateChange', (keyringState) =>
+      this.#handleOnKeyringStateChange(keyringState),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'SnapKeyring:accountAssetListUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
@@ -1205,7 +1198,7 @@ export class AccountsController extends BaseController<
         ),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'SnapKeyring:accountBalancesUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
@@ -1214,7 +1207,7 @@ export class AccountsController extends BaseController<
         ),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'SnapKeyring:accountTransactionsUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
@@ -1224,7 +1217,7 @@ export class AccountsController extends BaseController<
     );
 
     // Handle account change when multichain network is changed
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'MultichainNetworkController:networkDidChange',
       (id) => this.#handleOnMultichainNetworkDidChange(id),
     );
@@ -1234,62 +1227,62 @@ export class AccountsController extends BaseController<
    * Registers message handlers for the AccountsController.
    */
   #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:listAccounts`,
       this.listAccounts.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:listMultichainAccounts`,
       this.listMultichainAccounts.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setAccountName`,
       this.setAccountName.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:setAccountNameAndSelectAccount`,
       this.setAccountNameAndSelectAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:updateAccounts`,
       this.updateAccounts.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getSelectedAccount`,
       this.getSelectedAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getSelectedMultichainAccount`,
       this.getSelectedMultichainAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:getNextAvailableAccountName`,
       this.getNextAvailableAccountName.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `AccountsController:updateAccountMetadata`,
       this.updateAccountMetadata.bind(this),
     );
