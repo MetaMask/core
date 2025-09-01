@@ -112,21 +112,17 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }) {
     const provider = this.getEvmProvider();
     const { entropySource, groupIndex } = opts;
-    // groupIndex starts as +1, because we already have one account in the associated keyring.
-    const actualGroupIndex = groupIndex + 1;
 
     const [address, didCreate] = await this.withKeyring<
       EthKeyring,
       [Hex, boolean]
     >({ id: entropySource }, async ({ keyring }) => {
       const existing = await keyring.getAccounts();
-      if (actualGroupIndex < existing.length) {
-        return [existing[actualGroupIndex], false];
+      if (groupIndex < existing.length) {
+        return [existing[groupIndex], false];
       }
-      const need = actualGroupIndex - existing.length + 1;
-      const added = await keyring.addAccounts(need);
-      const target = added[added.length - 1];
-      return [target, true];
+      const [added] = await keyring.addAccounts(1);
+      return [added, true];
     });
 
     const countHex = (await provider.request({
@@ -135,7 +131,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     })) as Hex;
     const count = parseInt(countHex, 16);
 
-    if (count === 0 && didCreate) {
+    // We don't want to remove the account if it's the first one.
+    if (count === 0 && didCreate && groupIndex !== 0) {
       await this.withKeyring<EthKeyring>(
         { id: entropySource },
         async ({ keyring }) => {
