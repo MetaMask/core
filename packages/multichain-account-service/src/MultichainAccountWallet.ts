@@ -455,6 +455,10 @@ export class MultichainAccountWallet<
       await Promise.race(racers);
     }
 
+    // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
+    // We can potentially remove this if we know that this race condition is not an issue in practice.
+    this.sync();
+
     await this.alignGroups();
 
     const discoveredAccounts: Record<string, number> = {};
