@@ -7,16 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `discoverAndCreateAccounts` methods for Evm and Solana providers ([#6397](https://github.com/MetaMask/core/pull/6397))
+- Add `discoverAndCreateAccounts` method to `MultichainAccountWallet` to orchestrate provider discovery ([#6397](https://github.com/MetaMask/core/pull/6397))
+- Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6397](https://github.com/MetaMask/core/pull/6397))
+  - An action handler was also registered for this method so that it can be called from the clients.
+
 ## [0.6.0]
 
 ### Added
 
 - Add `setBasicFunctionality` method to control providers state and trigger wallets alignment ([#6332](https://github.com/MetaMask/core/pull/6332))
   - Add `AccountProviderWrapper` to handle Snap account providers behavior according to the basic functionality flag.
-- Add `discoverAndCreateAccounts` methods for Evm and Solana providers ([#6397](https://github.com/MetaMask/core/pull/6397))
-- Add `discoverAndCreateAccounts` method to `MultichainAccountWallet` to orchestrate provider discovery ([#6397](https://github.com/MetaMask/core/pull/6397))
-- Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6397](https://github.com/MetaMask/core/pull/6397))
-- Register action handler for `createMultichainAccountWallet` method ([#6397](https://github.com/MetaMask/core/pull/6397))
 
 ### Changed
 
