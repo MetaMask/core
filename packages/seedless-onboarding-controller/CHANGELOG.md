@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Removed `Keyring:lock` and `Keyring:unlock` events from the controller allowed events. ([#6295](https://github.com/MetaMask/core/pull/6292))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 ## [3.0.0]
