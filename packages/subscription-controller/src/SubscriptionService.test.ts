@@ -8,7 +8,12 @@ import {
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
 import type { StartSubscriptionRequest, Subscription } from './types';
-import { PaymentType, ProductType, RecurringInterval } from './types';
+import {
+  PaymentType,
+  ProductType,
+  RecurringInterval,
+  SubscriptionStatus,
+} from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -23,7 +28,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: 'active',
+  status: SubscriptionStatus.active,
   interval: RecurringInterval.month,
   paymentMethod: {
     type: PaymentType.CARD,

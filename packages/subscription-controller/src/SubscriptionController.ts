@@ -11,11 +11,12 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type {
-  ISubscriptionService,
-  ProductType,
-  StartSubscriptionRequest,
-  Subscription,
+import {
+  SubscriptionStatus,
+  type ISubscriptionService,
+  type ProductType,
+  type StartSubscriptionRequest,
+  type Subscription,
 } from './types';
 
 export type SubscriptionControllerState = {
@@ -177,7 +178,7 @@ export class SubscriptionController extends BaseController<
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, status: 'cancelled' }
+          ? { ...subscription, status: SubscriptionStatus.canceled }
           : subscription,
       );
     });

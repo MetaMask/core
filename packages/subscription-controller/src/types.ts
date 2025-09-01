@@ -28,20 +28,40 @@ export type PaymentMethod = {
   };
 };
 
+export enum SubscriptionStatus {
+  // Initial states
+  incomplete = 'incomplete',
+  incompleteExpired = 'incomplete_expired',
+
+  // Active states
+  trialingPending = 'trialing_pending',
+  trialing = 'trialing',
+  active = 'active',
+
+  // Payment issues
+  pastDue = 'past_due',
+  unpaid = 'unpaid',
+
+  // Cancelled states
+  canceled = 'canceled',
+
+  // Paused states
+  paused = 'paused',
+}
+
 // state
 export type Subscription = {
   id: string;
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
-  billingCycles?: number;
-  status: 'active' | 'inactive' | 'trialing' | 'cancelled';
+  status: SubscriptionStatus;
   interval: RecurringInterval;
   paymentMethod: PaymentMethod;
 };
 
 export type GetSubscriptionsResponse = {
-  customerId: string;
+  customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
 };
