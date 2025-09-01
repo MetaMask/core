@@ -129,6 +129,10 @@ export class MultichainAccountService {
       'MultichainAccountService:getIsAlignmentInProgress',
       () => this.getIsAlignmentInProgress(),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:createMultichainAccountWallet',
+      (...args) => this.createMultichainAccountWallet(...args),
+    );
 
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
       this.#handleOnAccountAdded(account),
