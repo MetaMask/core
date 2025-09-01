@@ -54,6 +54,7 @@ type Mocks = {
   KeyringController: {
     keyrings: KeyringObject[];
     getState: jest.Mock;
+    withKeyring: jest.Mock;
   };
   AccountsController: {
     listMultichainAccounts: jest.Mock;
@@ -102,6 +103,7 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      withKeyring: jest.fn(),
     },
     AccountsController: {
       listMultichainAccounts: jest.fn(),
@@ -118,6 +120,11 @@ function setup({
   messenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:withKeyring',
+    mocks.KeyringController.withKeyring,
   );
 
   if (accounts) {
@@ -952,6 +959,50 @@ describe('MultichainAccountService', () => {
       // Test with false return
       (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
+    });
+  });
+
+  describe('createMultichainAccountWallet', () => {
+    it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
+      const { mocks, service } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      // Make the messenger withKeyring call invoke our operation so the service code runs
+      mocks.KeyringController.withKeyring.mockImplementationOnce(
+        async (_selector, op, _opts) => {
+          const keyring = { getAccounts: jest.fn().mockResolvedValue([]) };
+          const metadata = { id: 'abc', type: KeyringTypes.hd };
+          return op({ keyring, metadata });
+        },
+      );
+
+      const [wallet, entropySource] =
+        await service.createMultichainAccountWallet({
+          mnemonic: 'test',
+        });
+
+      expect(wallet).toBeDefined();
+      expect(entropySource).toBe('abc');
+    });
+
+    it("throws an error if there's already an existing keyring with accounts", async () => {
+      const { service, mocks } = setup({ accounts: [], keyrings: [] });
+
+      mocks.KeyringController.withKeyring.mockImplementationOnce(
+        async (_selector, op, _opts) => {
+          const keyring = {
+            getAccounts: jest.fn().mockResolvedValue(['0xabc']),
+          };
+          const metadata = { id: 'abc', type: KeyringTypes.hd };
+          return op({ keyring, metadata });
+        },
+      );
+
+      await expect(
+        service.createMultichainAccountWallet({ mnemonic: 'test' }),
+      ).rejects.toThrow('Expected keyring with no accounts');
     });
   });
 });
