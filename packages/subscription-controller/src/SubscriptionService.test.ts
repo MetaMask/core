@@ -3,7 +3,7 @@ import nock, { cleanAll, isDone } from 'nock';
 import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
-import type { Subscription } from './types';
+import type { PriceInfoResponse, Subscription } from './types';
 import { PaymentType, ProductType } from './types';
 
 // Mock data
@@ -31,6 +31,11 @@ const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 const MOCK_ERROR_RESPONSE = {
   message: 'Subscription not found',
   error: 'NOT_FOUND',
+};
+
+const MOCK_PRICE_INFO_RESPONSE: PriceInfoResponse = {
+  products: [MOCK_SUBSCRIPTION.products[0]],
+  paymentMethods: [MOCK_SUBSCRIPTION.paymentMethod],
 };
 
 /**
@@ -217,6 +222,35 @@ describe('SubscriptionService', () => {
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
         ).rejects.toThrow(/Network error/u);
+      });
+    });
+  });
+
+  describe('get price info', () => {
+    it('should get price info successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, testUrl, config }) => {
+          nock(testUrl)
+            .get('/api/v1/pricing')
+            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+            .reply(200, MOCK_PRICE_INFO_RESPONSE);
+
+          const result = await service.getPriceInfo();
+
+          expect(result).toStrictEqual(MOCK_PRICE_INFO_RESPONSE);
+          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+          expect(isDone()).toBe(true);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for error responses', async () => {
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        nock(testUrl).get('/api/v1/pricing').reply(400, MOCK_ERROR_RESPONSE);
+
+        await expect(service.getPriceInfo()).rejects.toThrow(
+          /Subscription not found/u,
+        );
       });
     });
   });

@@ -14,7 +14,7 @@ import {
   type SubscriptionControllerOptions,
   type SubscriptionControllerState,
 } from './SubscriptionController';
-import type { Subscription } from './types';
+import type { PriceInfoResponse, Subscription } from './types';
 import { PaymentType, ProductType } from './types';
 
 // Mock data
@@ -35,6 +35,11 @@ const MOCK_SUBSCRIPTION: Subscription = {
   paymentMethod: {
     type: PaymentType.CARD,
   },
+};
+
+const MOCK_PRICE_INFO_RESPONSE: PriceInfoResponse = {
+  products: [MOCK_SUBSCRIPTION.products[0]],
+  paymentMethods: [MOCK_SUBSCRIPTION.paymentMethod],
 };
 
 /**
@@ -108,16 +113,19 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
+  const mockGetPriceInfo = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
+    getPriceInfo: mockGetPriceInfo,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
+    mockGetPriceInfo,
   };
 }
 
@@ -387,6 +395,17 @@ describe('SubscriptionController', () => {
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
         },
       );
+    });
+  });
+
+  describe('getPriceInfo', () => {
+    it('should get price info successfully', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getPriceInfo.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
+        const result = await controller.getPriceInfo();
+        expect(result).toStrictEqual(MOCK_PRICE_INFO_RESPONSE);
+        expect(mockService.getPriceInfo).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

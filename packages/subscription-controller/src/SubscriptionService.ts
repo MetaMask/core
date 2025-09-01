@@ -4,6 +4,7 @@ import type {
   AuthUtils,
   GetSubscriptionsResponse,
   ISubscriptionService,
+  PriceInfoResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -41,6 +42,11 @@ export class SubscriptionService implements ISubscriptionService {
   async cancelSubscription(params: { subscriptionId: string }): Promise<void> {
     const path = `subscriptions/${params.subscriptionId}`;
     return await this.#makeRequest(path, 'DELETE');
+  }
+
+  async getPriceInfo(): Promise<PriceInfoResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest(path);
   }
 
   async #makeRequest<Result>(

@@ -24,7 +24,9 @@ type CreateActionsObj<Controller extends keyof SubscriptionController> = {
     handler: SubscriptionController[K];
   };
 };
-type ActionsObj = CreateActionsObj<'getSubscriptions' | 'cancelSubscription'>;
+type ActionsObj = CreateActionsObj<
+  'getSubscriptions' | 'cancelSubscription' | 'getPriceInfo'
+>;
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -149,6 +151,11 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getPriceInfo',
+      this.getPriceInfo.bind(this),
+    );
   }
 
   async getSubscriptions() {
@@ -176,6 +183,10 @@ export class SubscriptionController extends BaseController<
           : subscription,
       );
     });
+  }
+
+  async getPriceInfo() {
+    return await this.#subscriptionService.getPriceInfo();
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
