@@ -15,7 +15,7 @@ import {
   type SubscriptionControllerState,
 } from './SubscriptionController';
 import type { Subscription } from './types';
-import { PaymentType, ProductType } from './types';
+import { PaymentType, ProductType, RecurringInterval } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -31,7 +31,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
   status: 'active',
-  interval: 'month',
+  interval: RecurringInterval.month,
   paymentMethod: {
     type: PaymentType.CARD,
   },
@@ -413,6 +413,7 @@ describe('SubscriptionController', () => {
           const result = await controller.startShieldSubscriptionWithCard({
             products: [ProductType.SHIELD],
             isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
           });
 
           expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
@@ -436,6 +437,7 @@ describe('SubscriptionController', () => {
             controller.startShieldSubscriptionWithCard({
               products: [ProductType.SHIELD],
               isTrialRequested: true,
+              recurringInterval: RecurringInterval.month,
             }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserAlreadySubscribed,
@@ -464,6 +466,7 @@ describe('SubscriptionController', () => {
             controller.startShieldSubscriptionWithCard({
               products: [ProductType.SHIELD],
               isTrialRequested: true,
+              recurringInterval: RecurringInterval.month,
             }),
           ).rejects.toThrow(SubscriptionServiceError);
 

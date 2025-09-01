@@ -8,7 +8,7 @@ import {
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
 import type { StartSubscriptionRequest, Subscription } from './types';
-import { PaymentType, ProductType } from './types';
+import { PaymentType, ProductType, RecurringInterval } from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -24,7 +24,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
   status: 'active',
-  interval: 'month',
+  interval: RecurringInterval.month,
   paymentMethod: {
     type: PaymentType.CARD,
   },
@@ -40,6 +40,7 @@ const MOCK_ERROR_RESPONSE = {
 const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
   products: [ProductType.SHIELD],
   isTrialRequested: true,
+  recurringInterval: RecurringInterval.month,
 };
 
 const MOCK_START_SUBSCRIPTION_RESPONSE = {
@@ -256,6 +257,7 @@ describe('SubscriptionService', () => {
       const request: StartSubscriptionRequest = {
         products: [ProductType.SHIELD],
         isTrialRequested: false,
+        recurringInterval: RecurringInterval.month,
       };
 
       nock(testUrl)
@@ -273,6 +275,7 @@ describe('SubscriptionService', () => {
       const request: StartSubscriptionRequest = {
         products: [],
         isTrialRequested: true,
+        recurringInterval: RecurringInterval.month,
       };
 
       await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(

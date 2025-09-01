@@ -14,6 +14,11 @@ export enum PaymentType {
   CRYPTO = 'crypto',
 }
 
+export enum RecurringInterval {
+  month = 'month',
+  year = 'year',
+}
+
 export type PaymentMethod = {
   type: PaymentType;
   crypto?: {
@@ -31,7 +36,7 @@ export type Subscription = {
   currentPeriodEnd: string; // ISO 8601
   billingCycles?: number;
   status: 'active' | 'inactive' | 'trialing' | 'cancelled';
-  interval: 'month' | 'year';
+  interval: RecurringInterval;
   paymentMethod: PaymentMethod;
 };
 
@@ -44,6 +49,7 @@ export type GetSubscriptionsResponse = {
 export type StartSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;
+  recurringInterval: RecurringInterval;
 };
 
 export type StartSubscriptionResponse = {
