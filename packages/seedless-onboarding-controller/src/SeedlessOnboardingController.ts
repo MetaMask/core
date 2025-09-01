@@ -250,15 +250,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
-
-    // setup subscriptions to the keyring lock event
-    // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.setLocked();
-    });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.#setUnlocked();
-    });
   }
 
   async fetchMetadataAccessCreds(): Promise<{
@@ -1683,17 +1674,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     authPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
   }> {
+    this.#assertIsAuthenticatedUser(this.state);
     const {
       nodeAuthTokens,
       authConnectionId,
       groupedAuthConnectionId,
       userId,
     } = this.state;
-    if (!nodeAuthTokens || !authConnectionId || !userId) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
 
     const { authPubKey, keyIndex: latestKeyIndex } = await this.toprfClient
       .fetchAuthPubKey({

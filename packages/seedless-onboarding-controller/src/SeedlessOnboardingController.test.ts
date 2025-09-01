@@ -2642,29 +2642,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw an error if the old password is incorrect', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, encryptor, baseMessenger }) => {
-          // unlock the controller
-          baseMessenger.publish('KeyringController:unlock');
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockRejectedValueOnce(new Error('Incorrect password'));
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, 'INCORRECT_PASSWORD'),
-          ).rejects.toThrow('Incorrect password');
-        },
-      );
-    });
-
     it('should throw an error if failed to change password', async () => {
       await withController(
         {
@@ -2749,40 +2726,6 @@ describe('SeedlessOnboardingController', () => {
               newKeyShareIndex: LATEST_KEY_INDEX,
               newPassword: NEW_MOCK_PASSWORD,
             }),
-          );
-        },
-      );
-    });
-
-    it('should throw error when authentication info is missing for assertPasswordInSync', async () => {
-      await withController(
-        {
-          state: {
-            // Create a state with vault but missing auth info
-            vault: JSON.stringify({ mockVault: 'data' }),
-            authPubKey: MOCK_AUTH_PUB_KEY,
-            socialBackupsMetadata: [],
-            // Intentionally missing nodeAuthTokens, authConnectionId, userId
-          },
-        },
-        async ({ controller, baseMessenger, encryptor }) => {
-          // Mock the encryptor to pass verifyVaultPassword
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockResolvedValueOnce('mock decrypted data');
-
-          // unlock the controller
-          baseMessenger.publish('KeyringController:unlock');
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-          );
-
-          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
-            false,
           );
         },
       );
@@ -2992,73 +2935,6 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
-        },
-      );
-    });
-
-    it('should lock the controller when the keyring is locked', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, baseMessenger, toprfClient }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            MOCK_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          baseMessenger.publish('KeyringController:lock');
-
-          await expect(
-            controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
-              keyringId: MOCK_KEYRING_ID,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
-          );
-        },
-      );
-    });
-
-    it('should unlock the controller when the keyring is unlocked', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, baseMessenger }) => {
-          await expect(
-            controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
-              keyringId: MOCK_KEYRING_ID,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
-          );
-
-          baseMessenger.publish('KeyringController:unlock');
-
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          controller.updateBackupMetadataState({
-            keyringId: MOCK_KEYRING_ID,
-            data: MOCK_SEED_PHRASE,
-            type: SecretType.Mnemonic,
-          });
-
-          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
-          expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            {
-              type: SecretType.Mnemonic,
-              keyringId: MOCK_KEYRING_ID,
-              hash: MOCK_SEED_PHRASE_HASH,
-            },
-          ]);
         },
       );
     });
