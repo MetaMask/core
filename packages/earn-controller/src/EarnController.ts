@@ -11,6 +11,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -455,7 +456,7 @@ export class EarnController extends BaseController<
   #getSelectedEvmAccount(): InternalAccount | undefined {
     return this.messagingSystem
       .call('AccountTreeController:getAccountsFromSelectedAccountGroup')
-      .find((account: InternalAccount) => account.type.startsWith('eip155:'));
+      .find((account: InternalAccount) => isEvmAccountType(account.type));
   }
 
   /**
