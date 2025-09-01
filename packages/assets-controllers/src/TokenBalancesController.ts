@@ -9,8 +9,9 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
+  BNToHex,
   isValidHexAddress,
-  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
@@ -132,6 +133,9 @@ const draft = <T>(base: T, fn: (d: T) => void): T => produce(base, fn);
 
 const ZERO_ADDRESS =
   '0x0000000000000000000000000000000000000000' as ChecksumAddress;
+
+const checksum = (addr: string): ChecksumAddress =>
+  toChecksumHexAddress(addr) as ChecksumAddress;
 // endregion
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -190,7 +194,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
-      this.#onTokensChanged,
+      (tokensState: TokensControllerState) => {
+        this.#onTokensChanged(tokensState).catch((error) => {
+          console.warn('Error handling token state change:', error);
+        });
+      },
     );
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
@@ -266,18 +274,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       try {
-        const balances = await safelyExecuteWithTimeout(
-          async () => {
-            return await fetcher.fetch({
-              chainIds: supportedChains,
-              queryAllAccounts: this.#queryAllAccounts,
-              selectedAccount: selected as ChecksumAddress,
-              allAccounts,
-            });
-          },
-          false,
-          this.getIntervalLength(),
-        );
+        const balances = await fetcher.fetch({
+          chainIds: supportedChains,
+          queryAllAccounts: this.#queryAllAccounts,
+          selectedAccount: selected as ChecksumAddress,
+          allAccounts,
+        });
 
         if (balances && balances.length > 0) {
           aggregated.push(...balances);
@@ -316,7 +318,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (chainTokens?.[account]) {
             Object.values(chainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress = checksum(token.address);
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -329,7 +331,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           if (detectedChainTokens?.[account]) {
             Object.values(detectedChainTokens[account]).forEach(
               (token: { address: string }) => {
-                const tokenAddress = token.address as ChecksumAddress;
+                const tokenAddress = checksum(token.address);
                 ((d.tokenBalances[account] ??= {})[chainId] ??= {})[
                   tokenAddress
                 ] = '0x0';
@@ -342,7 +344,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // Then update with actual fetched balances where available
       aggregated.forEach(({ success, value, account, token, chainId }) => {
         if (success && value !== undefined) {
-          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[token] =
+          ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
             toHex(value);
         }
       });
@@ -360,7 +362,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         const balanceUpdates = nativeBalances.map((balance) => ({
           address: balance.account,
           chainId: balance.chainId,
-          balance: balance.value?.toString() ?? '0',
+          balance: balance.value ? BNToHex(balance.value) : '0x0',
         }));
 
         this.messagingSystem.call(
@@ -387,7 +389,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         const stakedBalanceUpdates = stakedBalances.map((balance) => ({
           address: balance.account,
           chainId: balance.chainId,
-          stakedBalance: balance.value?.toString() ?? '0',
+          stakedBalance: balance.value ? toHex(balance.value) : '0x0',
         }));
 
         this.messagingSystem.call(

@@ -46,6 +46,7 @@ describe('metrics utils', () => {
       requestId: 'test-request-id',
       srcTokenAmount: '1000000000000000000',
       destTokenAmount: '990000000000000000',
+      minDestTokenAmount: '940000000000000000',
       feeData: {
         [FeeType.METABRIDGE]: {
           amount: '10000000000000000',

@@ -97,6 +97,6 @@ export function assertIsValidVaultData(
     !('accessToken' in value) || // accessToken is not defined
     typeof value.accessToken !== 'string' // accessToken is not a string
   ) {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
   }
 }

@@ -206,6 +206,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -295,6 +300,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -349,6 +359,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -379,6 +390,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -449,6 +465,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -479,6 +496,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -530,6 +552,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.SOLANA,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -560,6 +583,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -610,6 +638,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -640,6 +669,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -691,6 +725,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -721,6 +756,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -772,6 +812,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -802,6 +843,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -853,6 +899,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -883,6 +930,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -1059,6 +1111,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -1088,6 +1141,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {

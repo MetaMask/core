@@ -56,7 +56,6 @@ export enum SeedlessOnboardingControllerErrorMessage {
   SRPNotBackedUpError = `${controllerName} - SRP not backed up`,
   EncryptedKeyringEncryptionKeyNotSet = `${controllerName} - Encrypted keyring encryption key is not set`,
   EncryptedSeedlessEncryptionKeyNotSet = `${controllerName} - Encrypted seedless encryption key is not set`,
-  VaultEncryptionKeyUndefined = `${controllerName} - Vault encryption key is not available`,
   MaxKeyChainLengthExceeded = `${controllerName} - Max key chain length exceeded`,
   FailedToFetchAuthPubKey = `${controllerName} - Failed to fetch latest auth pub key`,
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
