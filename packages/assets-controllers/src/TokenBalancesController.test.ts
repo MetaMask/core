@@ -2837,6 +2837,381 @@ describe('TokenBalancesController', () => {
 
       controller.stopAllPolling();
     });
+
+    it('should preserve original chainIds across config updates even when chains have no tokens', async () => {
+      // Test the design flaw fix: original chainIds should be preserved, not replaced with chainIdsWithTokens
+      const testClock = useFakeTimers();
+
+      const tokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          // Note: '0x89' and '0xa4b1' have NO tokens
+        },
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+      };
+
+      const { controller } = setupController({
+        config: { 
+          interval: 1000,
+          chainPollingIntervals: {
+            '0x1': { interval: 1000 },   // Ethereum
+            '0x89': { interval: 2000 },  // Polygon  
+            '0xa4b1': { interval: 3000 }, // Arbitrum
+          },
+        },
+        tokens,
+      });
+
+      const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+      // Start polling for 3 chains: only Ethereum has tokens, others don't
+      controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
+
+      // Initial polls - all 3 chains should be polled despite only Ethereum having tokens
+      await advanceTime({ clock: testClock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(3); // All three chains polled
+
+      // Verify all originally requested chains are being polled
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });    // Ethereum (has tokens)
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });   // Polygon (no tokens)
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0xa4b1'] }); // Arbitrum (no tokens)
+
+      pollSpy.mockClear();
+
+      // Update polling configs - this should NOT lose chains without tokens
+      controller.updateChainPollingConfigs({
+        '0x89': { interval: 1000 }, // Change Polygon to same interval as Ethereum
+      });
+
+      // All originally requested chains should still be polled (not just chains with tokens)
+      await advanceTime({ clock: testClock, duration: 1000 });
+      
+      // ✅ KEY VERIFICATION: All originally requested chains are still being polled,
+      // including Polygon and Arbitrum which have NO tokens!
+      // The exact grouping doesn't matter - what matters is that all original chains are preserved
+      const allCalledChains = pollSpy.mock.calls.flatMap(call => call[0].chainIds);
+      expect(allCalledChains).toEqual(expect.arrayContaining(['0x1', '0x89', '0xa4b1']));
+      
+      // Verify that chains without tokens are NOT filtered out (this was the bug)
+      expect(allCalledChains).toContain('0x89');   // Polygon (no tokens) - ✅ PRESERVED!
+      expect(allCalledChains).toContain('0xa4b1'); // Arbitrum (no tokens) - ✅ PRESERVED!
+
+      controller.stopAllPolling();
+      testClock.restore();
+    });
+
+    it('should preserve original chainIds when tokens are added or removed during polling', async () => {
+      // Test that token changes don't affect original polling intent
+      const testClock = useFakeTimers();
+      
+      const initialTokens = {
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          // '0x89' and '0xa4b1' start with no tokens
+        },
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+      };
+
+      const { controller, messenger } = setupController({
+        config: { interval: 1000 },
+        tokens: initialTokens,
+      });
+
+      const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+      // Start polling for 3 chains, only Ethereum has tokens initially
+      controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
+
+      // Initial state: all 3 chains polled (they use default interval so grouped together)
+      await advanceTime({ clock: testClock, duration: 1 });
+      expect(pollSpy).toHaveBeenCalledTimes(1); // All chains use same default interval, so grouped
+      expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89', '0xa4b1'] });
+      pollSpy.mockClear();
+
+      // Simulate tokens being added to Polygon via TokensController state change
+      const newTokensState = {
+        ...initialTokens,
+        allTokens: {
+          '0x1': {
+            '0x123': [{ address: '0xtoken1', symbol: 'T1', decimals: 18 }],
+          },
+          '0x89': {
+            '0x123': [{ address: '0xtoken2', symbol: 'T2', decimals: 18 }],
+          },
+        },
+        allIgnoredTokens: {},
+      };
+      
+      // Trigger the tokens change handler via messaging system
+      messenger.publish('TokensController:stateChange', newTokensState, [
+        { op: 'replace', path: [], value: newTokensState },
+      ]);
+
+      // Wait for async token change processing
+      await new Promise(process.nextTick);
+      pollSpy.mockClear();
+
+      // After token change, should still poll all originally requested chains
+      await advanceTime({ clock: testClock, duration: 1000 });
+      
+      // ✅ KEY VERIFICATION: All originally requested chains are still being polled 
+      // even after token state changes (not filtered by chainIdsWithTokens)
+      const allCalledChains = pollSpy.mock.calls.flatMap(call => call[0].chainIds);
+      expect(allCalledChains).toEqual(expect.arrayContaining(['0x1', '0x89', '0xa4b1']));
+      
+      // Verify that chains without tokens are NOT filtered out after token changes
+      expect(allCalledChains).toContain('0x89');   // Polygon (now has tokens)
+      expect(allCalledChains).toContain('0xa4b1'); // Arbitrum (still no tokens) - ✅ PRESERVED!
+
+      controller.stopAllPolling();
+      testClock.restore();
+    });
+
+    describe('immediateUpdate option', () => {
+      it('should not trigger immediate polling by default when updating configs', async () => {
+        const testClock = useFakeTimers();
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+        const tokens = {
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+        };
+
+        const { controller } = setupController({
+          config: { interval: 30000 },
+          tokens,
+        });
+
+        const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+        // Start polling
+        controller.startPolling({ chainIds: [chainId] });
+
+        // Wait for initial poll
+        await advanceTime({ clock: testClock, duration: 1 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+        pollSpy.mockClear();
+
+        // Update config without immediateUpdate option (default behavior)
+        controller.updateChainPollingConfigs({
+          [chainId]: { interval: 15000 },
+        });
+
+        // Should NOT trigger immediate polling
+        expect(pollSpy).not.toHaveBeenCalled();
+
+        // But should poll on the new interval
+        await advanceTime({ clock: testClock, duration: 15000 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+
+        controller.stopAllPolling();
+        testClock.restore();
+      });
+
+      it('should not trigger immediate polling when immediateUpdate is false', async () => {
+        const testClock = useFakeTimers();
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+        const tokens = {
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+        };
+
+        const { controller } = setupController({
+          config: { interval: 30000 },
+          tokens,
+        });
+
+        const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+        // Start polling
+        controller.startPolling({ chainIds: [chainId] });
+
+        // Wait for initial poll
+        await advanceTime({ clock: testClock, duration: 1 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+        pollSpy.mockClear();
+
+        // Update config with explicit immediateUpdate: false
+        controller.updateChainPollingConfigs({
+          [chainId]: { interval: 15000 },
+        }, { immediateUpdate: false });
+
+        // Should NOT trigger immediate polling
+        expect(pollSpy).not.toHaveBeenCalled();
+
+        // But should poll on the new interval
+        await advanceTime({ clock: testClock, duration: 15000 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+
+        controller.stopAllPolling();
+        testClock.restore();
+      });
+
+      it('should trigger immediate polling when immediateUpdate is true', async () => {
+        const testClock = useFakeTimers();
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+        const tokens = {
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+        };
+
+        const { controller } = setupController({
+          config: { interval: 30000 },
+          tokens,
+        });
+
+        const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+        // Start polling
+        controller.startPolling({ chainIds: [chainId] });
+
+        // Wait for initial poll
+        await advanceTime({ clock: testClock, duration: 1 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+        pollSpy.mockClear();
+
+        // Update config with immediateUpdate: true
+        controller.updateChainPollingConfigs({
+          [chainId]: { interval: 15000 },
+        }, { immediateUpdate: true });
+
+        // Should trigger immediate polling
+        await advanceTime({ clock: testClock, duration: 1 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+        expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
+
+        pollSpy.mockClear();
+
+        // And should continue polling on the new interval
+        await advanceTime({ clock: testClock, duration: 15000 });
+        expect(pollSpy).toHaveBeenCalledTimes(1);
+
+        controller.stopAllPolling();
+        testClock.restore();
+      });
+
+      it('should handle immediateUpdate option when polling is not active', () => {
+        const chainId = '0x1';
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+        const tokens = {
+          allTokens: {
+            [chainId]: {
+              [accountAddress]: [
+                { address: tokenAddress, symbol: 'TEST', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+        };
+
+        const { controller } = setupController({
+          config: { interval: 30000 },
+          tokens,
+        });
+
+        const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+        // DON'T start polling - controller is inactive
+        
+        // Update config with immediateUpdate: true (should have no effect when not polling)
+        controller.updateChainPollingConfigs({
+          [chainId]: { interval: 15000 },
+        }, { immediateUpdate: true });
+
+        // Should NOT trigger any polling since controller is not active
+        expect(pollSpy).not.toHaveBeenCalled();
+
+        // Config should still be updated
+        expect(controller.getChainPollingConfig(chainId)).toStrictEqual({
+          interval: 15000,
+        });
+      });
+
+      it('should handle immediateUpdate with multiple chains and different intervals', async () => {
+        const testClock = useFakeTimers();
+        const accountAddress = '0x0000000000000000000000000000000000000000';
+
+        const tokens = {
+          allTokens: {
+            '0x1': {
+              [accountAddress]: [
+                { address: '0xtoken1', symbol: 'T1', decimals: 18 },
+              ],
+            },
+            '0x89': {
+              [accountAddress]: [
+                { address: '0xtoken2', symbol: 'T2', decimals: 18 },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+        };
+
+        const { controller } = setupController({
+          config: { interval: 30000 },
+          tokens,
+        });
+
+        const pollSpy = jest.spyOn(controller, '_executePoll').mockImplementation();
+
+        // Start polling
+        controller.startPolling({ chainIds: ['0x1', '0x89'] });
+
+        // Wait for initial polls
+        await advanceTime({ clock: testClock, duration: 1 });
+        expect(pollSpy).toHaveBeenCalledTimes(1); // Both chains use default interval
+        pollSpy.mockClear();
+
+        // Update configs with different intervals and immediateUpdate: true
+        controller.updateChainPollingConfigs({
+          '0x1': { interval: 10000 },  // Ethereum: 10s
+          '0x89': { interval: 20000 }, // Polygon: 20s
+        }, { immediateUpdate: true });
+
+        // Should trigger immediate polling for all chains
+        await advanceTime({ clock: testClock, duration: 1 });
+        expect(pollSpy).toHaveBeenCalledTimes(2); // Now different intervals, so separate calls
+        expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
+        expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
+
+        controller.stopAllPolling();
+        testClock.restore();
+      });
+    });
   });
 
   describe('Error handling and edge cases', () => {
@@ -3010,36 +3385,17 @@ describe('TokenBalancesController', () => {
         config: { useAccountsAPI: false }, // Force use of RpcBalanceFetcher
       });
 
-      // Use fake timers to control setTimeout behavior
-      jest.useFakeTimers();
+      // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
+      mockedSafelyExecuteWithTimeout.mockImplementation(
+        async () => undefined, // Simulates timeout behavior
+      );
 
-      // Mock the multicall function to never resolve (simulating a hanging request)
-      const mockGetTokenBalances = jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockImplementation(
-          () =>
-            new Promise(() => {
-              // Never resolves - intentional hanging promise for timeout test
-            }),
-        ); // Never resolves
+      // Start the balance update - should complete gracefully despite timeout
+      await controller.updateBalances({
+        chainIds: [chainId],
+      });
 
-      // Start the balance update - this should timeout after 15000ms
-      const updatePromise = controller.updateBalances({ chainIds: [chainId] });
-
-      // Allow microtasks to run so the Promise.race starts
-      await Promise.resolve();
-
-      // Fast-forward time past the timeout threshold (15000ms)
-      jest.advanceTimersByTime(15001);
-
-      // Allow the timeout to process
-      await Promise.resolve();
-
-      // The update should complete (with timeout handling)
-      await updatePromise;
-
-      // Verify that the test completes without hanging (main goal of timeout test)
-      expect(controller).toBeDefined();
+      // With safelyExecuteWithTimeout timeout simulation, the system should continue operating
       // The controller should have initialized the token with 0 balance despite timeout
       expect(controller.state.tokenBalances).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
@@ -3049,9 +3405,17 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      // Restore timers and mocks
-      jest.useRealTimers();
-      mockGetTokenBalances.mockRestore();
+      // Restore the mock to its default behavior
+      mockedSafelyExecuteWithTimeout.mockImplementation(
+        async (operation: () => Promise<unknown>) => {
+          try {
+            return await operation();
+          } catch (error) {
+            console.error(error);
+            return undefined;
+          }
+        },
+      );
     });
 
     it('should handle constructor with different configurations', () => {

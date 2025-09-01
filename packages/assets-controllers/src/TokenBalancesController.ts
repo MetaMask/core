@@ -129,6 +129,11 @@ export type ChainPollingConfig = {
   interval: number;
 };
 
+export type UpdateChainPollingConfigsOptions = {
+  /** Whether to immediately fetch balances after updating configs */
+  immediateUpdate?: boolean;
+};
+
 export type TokenBalancesControllerOptions = {
   messenger: TokenBalancesControllerMessenger;
   /** Default interval for chains not specified in chainPollingIntervals */
@@ -186,6 +191,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   /** Track if controller-level polling is active */
   #isControllerPollingActive = false;
+
+  /** Store original chainIds from startPolling to preserve intent */
+  #requestedChainIds: ChainIdHex[] = [];
 
   constructor({
     messenger,
@@ -297,16 +305,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * @param options0.chainIds - Chain IDs to start polling for
    */
   _startPolling({ chainIds }: { chainIds: ChainIdHex[] }) {
+    // Store the original chainIds to preserve intent across config updates
+    this.#requestedChainIds = [...chainIds];
     this.#isControllerPollingActive = true;
-    this.#startIntervalGroupPolling(chainIds);
+    this.#startIntervalGroupPolling(chainIds, true);
   }
 
   /**
-   * Group chains by their polling intervals and start separate polling loops
+   * Start or restart interval-based polling for multiple chains
    *
-   * @param chainIds - Chain IDs to group and poll
+   * @param chainIds - Chain IDs to start polling for
+   * @param immediate - Whether to poll immediately before starting timers (default: true)
    */
-  #startIntervalGroupPolling(chainIds: ChainIdHex[]) {
+  #startIntervalGroupPolling(chainIds: ChainIdHex[], immediate = true) {
     // Stop any existing interval timers
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();
@@ -322,8 +333,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
 
     // Start separate polling loop for each interval group
-    for (const [interval, chainsForInterval] of intervalGroups) {
-      this.#startPollingForInterval(interval, chainsForInterval);
+    for (const [interval, chainIdsGroup] of intervalGroups) {
+      this.#startPollingForInterval(interval, chainIdsGroup, immediate);
     }
   }
 
@@ -332,8 +343,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    *
    * @param interval - The polling interval in milliseconds
    * @param chainIds - Chain IDs that share this interval
+   * @param immediate - Whether to poll immediately before starting the timer (default: true)
    */
-  #startPollingForInterval(interval: number, chainIds: ChainIdHex[]) {
+  #startPollingForInterval(interval: number, chainIds: ChainIdHex[], immediate = true) {
     const pollFunction = async () => {
       if (!this.#isControllerPollingActive) {
         return;
@@ -348,15 +360,28 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     };
 
-    // Poll immediately first
-    pollFunction().catch((error) => {
-      console.warn(
-        `Immediate polling failed for chains ${chainIds.join(', ')}:`,
-        error,
-      );
-    });
+    // Poll immediately first if requested
+    if (immediate) {
+      pollFunction().catch((error) => {
+        console.warn(
+          `Immediate polling failed for chains ${chainIds.join(', ')}:`,
+          error,
+        );
+      });
+    }
 
     // Then start regular interval polling
+    this.#setPollingTimer(interval, chainIds, pollFunction);
+  }
+
+  /**
+   * Helper method to set up polling timer
+   *
+   * @param interval - The polling interval in milliseconds
+   * @param chainIds - Chain IDs for this interval
+   * @param pollFunction - The function to call on each poll
+   */
+  #setPollingTimer(interval: number, chainIds: ChainIdHex[], pollFunction: () => Promise<void>) {
     // Clear any existing timer for this interval first
     const existingTimer = this.#intervalPollingTimers.get(interval);
     if (existingTimer) {
@@ -379,6 +404,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    */
   _stopPollingByPollingTokenSetId() {
     this.#isControllerPollingActive = false;
+    this.#requestedChainIds = []; // Clear original intent when stopping
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();
   }
@@ -406,16 +432,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * Update multiple chain polling configurations at once
    *
    * @param configs - Object mapping chain IDs to polling configurations
+   * @param options - Optional configuration for the update behavior
+   * @param options.immediateUpdate - Whether to immediately fetch balances after updating configs (default: false)
    */
   updateChainPollingConfigs(
     configs: Record<ChainIdHex, ChainPollingConfig>,
+    options: UpdateChainPollingConfigsOptions = {},
   ): void {
     Object.assign(this.#chainPollingConfig, configs);
 
     // If polling is currently active, restart with new interval groupings
     if (this.#isControllerPollingActive) {
-      const currentChains = this.#chainIdsWithTokens();
-      this.#startIntervalGroupPolling(currentChains);
+      // Restart polling with or without immediate fetch based on options
+      this.#startIntervalGroupPolling(this.#requestedChainIds, options.immediateUpdate);
     }
   }
 
@@ -664,12 +693,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#allTokens = state.allTokens;
     this.#detectedTokens = state.allDetectedTokens;
 
-    // If polling is active and we have relevant changes, restart polling with new chain groupings
-    if (this.#isControllerPollingActive && relevantChainIds.length > 0) {
-      const currentChains = this.#chainIdsWithTokens();
-      this.#startIntervalGroupPolling(currentChains);
-    } else if (changed.length && !hasChanges) {
-      // Only update balances for chains that still have tokens (and only if we haven't already updated state)
+    // Only update balances for chains that still have tokens (and only if we haven't already updated state)
+    if (changed.length && !hasChanges) {
       this.updateBalances({ chainIds: changed }).catch((error) => {
         console.warn('Error updating balances after token change:', error);
       });
