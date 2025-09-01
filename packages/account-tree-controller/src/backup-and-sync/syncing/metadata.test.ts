@@ -1,6 +1,6 @@
 import { compareAndSyncMetadata } from './metadata';
-import type { BackupAndSyncContext } from '../types';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import type { BackupAndSyncContext } from '../types';
 
 describe('BackupAndSync - Syncing - Metadata', () => {
   let mockContext: BackupAndSyncContext;

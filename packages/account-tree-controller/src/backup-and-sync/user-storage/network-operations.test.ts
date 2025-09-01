@@ -1,3 +1,16 @@
+import { SDK } from '@metamask/profile-sync-controller';
+
+import {
+  USER_STORAGE_WALLETS_FEATURE_KEY,
+  USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
+  USER_STORAGE_GROUPS_FEATURE_KEY,
+} from './constants';
+import {
+  formatWalletForUserStorageUsage,
+  formatGroupForUserStorageUsage,
+  parseWalletFromUserStorageResponse,
+  parseGroupFromUserStorageResponse,
+} from './format-utils';
 import {
   getWalletFromUserStorage,
   pushWalletToUserStorage,
@@ -7,22 +20,10 @@ import {
   pushGroupToUserStorageBatch,
   getLegacyUserStorageData,
 } from './network-operations';
-import {
-  formatWalletForUserStorageUsage,
-  formatGroupForUserStorageUsage,
-  parseWalletFromUserStorageResponse,
-  parseGroupFromUserStorageResponse,
-} from './format-utils';
 import { executeWithRetry } from './network-utils';
-import {
-  USER_STORAGE_WALLETS_FEATURE_KEY,
-  USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
-  USER_STORAGE_GROUPS_FEATURE_KEY,
-} from './constants';
-import { SDK } from '@metamask/profile-sync-controller';
-import type { BackupAndSyncContext } from '../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type { BackupAndSyncContext } from '../types';
 import { contextualLogger } from '../utils';
 
 jest.mock('./format-utils');
@@ -89,7 +90,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const walletData = '{"name":{"value":"Test Wallet"}}';
       const parsedWallet = { name: { value: 'Test Wallet' } } as any;
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(walletData);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(walletData);
       mockParseWalletFromUserStorageResponse.mockReturnValue(parsedWallet);
 
       const result = await getWalletFromUserStorage(
@@ -109,7 +113,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('should return null when no wallet data found', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue(null);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(null);
 
       const result = await getWalletFromUserStorage(
         mockContext,
@@ -122,7 +129,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
 
     it('should return null when parsing fails', async () => {
       const walletData = 'invalid json';
-      mockContext.messenger.call = jest.fn().mockResolvedValue(walletData);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(walletData);
       mockParseWalletFromUserStorageResponse.mockImplementation(() => {
         throw new Error('Parse error');
       });
@@ -147,7 +157,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       mockExecuteWithRetry.mockImplementation(async (fn) => fn());
 
       // Set up messenger to return wallet data
-      debugContext.messenger.call = jest.fn().mockResolvedValue('wallet-data');
+      jest
+        .spyOn(debugContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue('wallet-data');
 
       // Mock the parser to throw a non-Error object
       mockParseWalletFromUserStorageResponse.mockImplementation(() => {
@@ -171,7 +184,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const formattedWallet = { name: { value: 'Formatted Wallet' } } as any;
 
       mockFormatWalletForUserStorageUsage.mockReturnValue(formattedWallet);
-      mockContext.messenger.call = jest.fn().mockResolvedValue(undefined);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(undefined);
 
       await pushWalletToUserStorage(mockContext, mockWallet);
 
@@ -209,7 +225,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const groupsData = ['{"groupIndex":0}', '{"groupIndex":1}'];
       const parsedGroups = [{ groupIndex: 0 }, { groupIndex: 1 }] as any;
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(groupsData);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(groupsData);
       mockParseGroupFromUserStorageResponse
         .mockReturnValueOnce(parsedGroups[0])
         .mockReturnValueOnce(parsedGroups[1]);
@@ -224,18 +243,21 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         USER_STORAGE_GROUPS_FEATURE_KEY,
         'test-entropy-id',
       );
-      expect(result).toEqual(parsedGroups);
+      expect(result).toStrictEqual(parsedGroups);
     });
 
     it('should return empty array when no group data found', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue(null);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(null);
 
       const result = await getAllGroupsFromUserStorage(
         mockContext,
         'test-entropy-id',
       );
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('should filter out invalid groups when parsing fails', async () => {
@@ -246,7 +268,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       ];
       const validGroups = [{ groupIndex: 0 }, { groupIndex: 1 }] as any;
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(groupsData);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(groupsData);
       mockParseGroupFromUserStorageResponse
         .mockReturnValueOnce(validGroups[0])
         .mockImplementationOnce(() => {
@@ -260,7 +285,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toEqual(validGroups);
+      expect(result).toStrictEqual(validGroups);
     });
 
     it('covers non-Error exception handling in getAllGroups debug logging', async () => {
@@ -274,8 +299,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       mockExecuteWithRetry.mockImplementation(async (fn) => fn());
 
       // Set up messenger to return groups data with one invalid entry
-      debugContext.messenger.call = jest
-        .fn()
+      jest
+        .spyOn(debugContext.messenger, 'call')
+        .mockImplementation()
         .mockResolvedValue(['valid-json', 'invalid-json']);
 
       // Mock the parser - first call succeeds, second throws non-Error
@@ -290,7 +316,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toEqual([{ groupIndex: 0 }]);
+      expect(result).toStrictEqual([{ groupIndex: 0 }]);
       expect(contextualLogger.warn).toHaveBeenCalledWith(
         'Failed to parse group data from user storage: String error for group parsing',
       );
@@ -302,7 +328,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const groupData = '{"groupIndex":0}';
       const parsedGroup = { groupIndex: 0 } as any;
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(groupData);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(groupData);
       mockParseGroupFromUserStorageResponse.mockReturnValue(parsedGroup);
 
       const result = await getGroupFromUserStorage(
@@ -320,7 +349,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('should return null when parsing fails', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue('invalid json');
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue('invalid json');
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw new Error('Parse error');
       });
@@ -335,7 +367,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('should return null when there is no group data', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue(null);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(null);
 
       const result = await getGroupFromUserStorage(
         mockContext,
@@ -347,7 +382,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('should log debug warning when parsing fails and debug logging is enabled', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue('invalid json');
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue('invalid json');
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw new Error('Parse error');
       });
@@ -366,7 +404,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('should handle non-Error objects in debug logging', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue('invalid json');
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue('invalid json');
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw 'String error'; // Non-Error object
       });
@@ -450,7 +491,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         { a: 'address2', n: 'name2', nlu: 456 },
       ];
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(rawAccountsData);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(rawAccountsData);
 
       const result = await getLegacyUserStorageData(
         mockContext,
@@ -462,18 +506,21 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         SDK.USER_STORAGE_FEATURE_NAMES.accounts,
         'test-entropy-id',
       );
-      expect(result).toEqual(expectedData);
+      expect(result).toStrictEqual(expectedData);
     });
 
     it('should return empty array when no legacy data found', async () => {
-      mockContext.messenger.call = jest.fn().mockResolvedValue(null);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(null);
 
       const result = await getLegacyUserStorageData(
         mockContext,
         'test-entropy-id',
       );
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 });

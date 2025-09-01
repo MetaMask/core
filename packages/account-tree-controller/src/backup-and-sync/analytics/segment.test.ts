@@ -9,7 +9,7 @@ import {
 describe('BackupAndSyncAnalytics - Segment', () => {
   describe('BackupAndSyncAnalyticsEvents', () => {
     it('should contain all expected event names', () => {
-      expect(BackupAndSyncAnalyticsEvents).toEqual({
+      expect(BackupAndSyncAnalyticsEvents).toStrictEqual({
         WALLET_RENAMED: 'wallet_renamed',
         GROUP_ADDED: 'group_added',
         GROUP_RENAMED: 'group_renamed',
@@ -38,7 +38,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
         additional_description: '',
       };
 
-      expect(result).toEqual(expected);
+      expect(result).toStrictEqual(expected);
     });
 
     it('should format analytics event with additional description', () => {
@@ -51,7 +51,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
 
       const result = formatAnalyticsEvent(params);
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         feature_name: 'Multichain Account Syncing',
         action: 'group_renamed',
         profile_id: mockProfileId,
@@ -77,7 +77,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
 
         const result = formatAnalyticsEvent(params);
 
-        expect(result).toEqual({
+        expect(result).toStrictEqual({
           feature_name: 'Multichain Account Syncing',
           action,
           profile_id: mockProfileId,

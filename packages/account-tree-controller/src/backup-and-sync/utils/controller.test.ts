@@ -1,6 +1,6 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
-import type { BackupAndSyncContext } from '../types';
+import { contextualLogger } from './contextual-logger';
 import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
@@ -8,7 +8,7 @@ import {
   restoreStateFromSnapshot,
   type StateSnapshot,
 } from './controller';
-import { contextualLogger } from './contextual-logger';
+import type { BackupAndSyncContext } from '../types';
 
 // Mock the contextual logger
 jest.mock('./contextual-logger', () => ({
@@ -65,7 +65,7 @@ describe('BackupAndSyncUtils - Controller', () => {
   describe('getLocalEntropyWallets', () => {
     it('should return empty array when no wallets exist', () => {
       const result = getLocalEntropyWallets(mockContext);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('should return only entropy wallets', () => {
@@ -127,7 +127,7 @@ describe('BackupAndSyncUtils - Controller', () => {
         'entropy:non-existent' as any,
       );
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
       expect(contextualLogger.warn).toHaveBeenCalled();
     });
 
@@ -178,7 +178,7 @@ describe('BackupAndSyncUtils - Controller', () => {
         'entropy:wallet-1' as any,
       );
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 
@@ -201,16 +201,16 @@ describe('BackupAndSyncUtils - Controller', () => {
 
       const snapshot = createStateSnapshot(mockContext);
 
-      expect(snapshot.accountGroupsMetadata).toEqual(
+      expect(snapshot.accountGroupsMetadata).toStrictEqual(
         originalState.accountGroupsMetadata,
       );
-      expect(snapshot.accountWalletsMetadata).toEqual(
+      expect(snapshot.accountWalletsMetadata).toStrictEqual(
         originalState.accountWalletsMetadata,
       );
       expect(snapshot.selectedAccountGroup).toBe(
         originalState.selectedAccountGroup,
       );
-      expect(snapshot.accountTreeWallets).toEqual(originalState.wallets);
+      expect(snapshot.accountTreeWallets).toStrictEqual(originalState.wallets);
     });
 
     it('should create independent copies (deep clone)', () => {
@@ -221,10 +221,10 @@ describe('BackupAndSyncUtils - Controller', () => {
       const snapshot = createStateSnapshot(mockContext);
 
       // Modify original state
-      mockController.state.accountGroupsMetadata['test'].name = 'Modified';
+      mockController.state.accountGroupsMetadata.test.name = 'Modified';
 
       // Snapshot should remain unchanged
-      expect((snapshot.accountGroupsMetadata as any)['test'].name).toBe(
+      expect((snapshot.accountGroupsMetadata as any).test.name).toBe(
         'Original',
       );
     });
@@ -247,16 +247,16 @@ describe('BackupAndSyncUtils - Controller', () => {
     it('should restore all snapshot properties to state', () => {
       restoreStateFromSnapshot(mockContext, mockSnapshot);
 
-      expect(mockController.state.accountGroupsMetadata).toEqual(
+      expect(mockController.state.accountGroupsMetadata).toStrictEqual(
         mockSnapshot.accountGroupsMetadata,
       );
-      expect(mockController.state.accountWalletsMetadata).toEqual(
+      expect(mockController.state.accountWalletsMetadata).toStrictEqual(
         mockSnapshot.accountWalletsMetadata,
       );
-      expect(mockController.state.accountTree.selectedAccountGroup).toEqual(
-        mockSnapshot.selectedAccountGroup,
-      );
-      expect(mockController.state.accountTree.wallets).toEqual(
+      expect(
+        mockController.state.accountTree.selectedAccountGroup,
+      ).toStrictEqual(mockSnapshot.selectedAccountGroup);
+      expect(mockController.state.accountTree.wallets).toStrictEqual(
         mockSnapshot.accountTreeWallets,
       );
     });
@@ -290,7 +290,7 @@ describe('BackupAndSyncUtils - Controller', () => {
 
       restoreStateFromSnapshot(mockContext, mockSnapshot);
 
-      expect(callOrder).toEqual(['updateFn', 'init']);
+      expect(callOrder).toStrictEqual(['updateFn', 'init']);
     });
   });
 });

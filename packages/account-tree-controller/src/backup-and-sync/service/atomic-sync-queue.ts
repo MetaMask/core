@@ -24,6 +24,7 @@ export class AtomicSyncQueue {
   constructor(getEnableDebugLogging?: () => boolean) {
     this.#getEnableDebugLogging = getEnableDebugLogging ?? (() => false);
   }
+
   /**
    * Enqueues an atomic sync function for processing.
    *

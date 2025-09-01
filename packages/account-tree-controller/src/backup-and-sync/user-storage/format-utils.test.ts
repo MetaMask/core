@@ -8,9 +8,9 @@ import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
 } from './validation';
-import type { BackupAndSyncContext } from '../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type { BackupAndSyncContext } from '../types';
 
 jest.mock('./validation');
 
@@ -64,13 +64,13 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
 
       const result = formatWalletForUserStorageUsage(mockContext, mockWallet);
 
-      expect(result).toEqual(walletMetadata);
+      expect(result).toStrictEqual(walletMetadata);
     });
 
     it('should return empty object when no wallet metadata exists', () => {
       const result = formatWalletForUserStorageUsage(mockContext, mockWallet);
 
-      expect(result).toEqual({});
+      expect(result).toStrictEqual({});
     });
 
     it('should merge extended metadata when provided', () => {
@@ -89,7 +89,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
         extendedMetadata,
       );
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         ...walletMetadata,
         ...extendedMetadata,
       });
@@ -107,7 +107,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
 
       const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         ...groupMetadata,
         groupIndex: 0,
       });
@@ -116,7 +116,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
     it('should return only groupIndex when no group metadata exists', () => {
       const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         groupIndex: 0,
       });
     });
@@ -133,7 +133,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
 
       const result = parseWalletFromUserStorageResponse(walletString);
 
-      expect(result).toEqual(walletData);
+      expect(result).toStrictEqual(walletData);
       expect(mockAssertValidUserStorageWallet).toHaveBeenCalledWith(walletData);
     });
 
@@ -171,7 +171,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
 
       const result = parseGroupFromUserStorageResponse(groupString);
 
-      expect(result).toEqual(groupData);
+      expect(result).toStrictEqual(groupData);
       expect(mockAssertValidUserStorageGroup).toHaveBeenCalledWith(groupData);
     });
 

@@ -1,5 +1,8 @@
-import { BackupAndSyncService } from './index';
+import { AccountWalletType } from '@metamask/account-api';
+
+import { BackupAndSyncService } from '.';
 import { AtomicSyncQueue } from './atomic-sync-queue';
+import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
 import {
   createLocalGroupsFromUserStorage,
@@ -8,6 +11,7 @@ import {
   syncSingleGroupMetadata,
   syncWalletMetadata,
 } from '../syncing';
+import type { BackupAndSyncContext } from '../types';
 import {
   getAllGroupsFromUserStorage,
   getGroupFromUserStorage,
@@ -20,9 +24,6 @@ import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
 } from '../utils';
-import { TraceName } from '../analytics';
-import { AccountWalletType } from '@metamask/account-api';
-import type { BackupAndSyncContext } from '../types';
 
 jest.mock('./atomic-sync-queue');
 jest.mock('../authentication');
@@ -155,7 +156,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
   describe('getIsMultichainAccountsRemoteFeatureFlagEnabled', () => {
     it('should call messenger to check feature flag', () => {
-      mockContext.messenger.call = jest.fn().mockReturnValue(true);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockReturnValue(true);
 
       const result =
         backupAndSyncService.getIsMultichainAccountsRemoteFeatureFlagEnabled();
@@ -229,7 +233,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockGetProfileId.mockResolvedValue('test-profile-id');
       mockGetWalletFromUserStorage.mockResolvedValue(null);
       mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
-      mockContext.messenger.call = jest.fn().mockReturnValue(true);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockReturnValue(true);
     });
 
     it('should skip when multichain syncing is disabled', async () => {
@@ -283,7 +290,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
     it('should skip further syncing when multichain feature flag is disabled after legacy sync', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue(null);
-      mockContext.messenger.call = jest.fn().mockReturnValue(false);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockReturnValue(false);
       mockContext.enableDebugLogging = true;
 
       await backupAndSyncService.performFullSync();
@@ -423,7 +433,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         },
       } as any;
 
-      mockContext.messenger.call = jest.fn().mockReturnValue(true);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockReturnValue(true);
       mockGetProfileId.mockResolvedValue('test-profile-id');
       mockGetWalletFromUserStorage.mockResolvedValue({} as any);
       mockSyncWalletMetadata.mockResolvedValue(undefined); // Reset to success
@@ -487,7 +500,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         'entropy:wallet-1/group-1' as any,
         'entropy:wallet-1' as any,
       );
-      mockContext.messenger.call = jest.fn().mockReturnValue(true);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockReturnValue(true);
       mockGetProfileId.mockResolvedValue('test-profile-id');
       mockGetGroupFromUserStorage.mockResolvedValue({} as any);
 

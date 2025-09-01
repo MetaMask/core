@@ -5,7 +5,7 @@ import { TraceName, traceFallback } from './traces';
 describe('BackupAndSyncAnalytics - Traces', () => {
   describe('TraceName', () => {
     it('should contain expected trace names', () => {
-      expect(TraceName).toEqual({
+      expect(TraceName).toStrictEqual({
         AccountSyncFull: 'Multichain Account Syncing - Full',
       });
     });

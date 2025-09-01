@@ -247,6 +247,10 @@ function getAccountTreeControllerMessenger(
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - Accounts to use for AccountsController:listMultichainAccounts handler.
  * @param options.keyrings - Keyring objects to use for KeyringController:getState handler.
+ * @param options.config - Configuration options for the controller.
+ * @param options.config.backupAndSync - Configuration options for backup and sync.
+ * @param options.config.backupAndSync.onBackupAndSyncEvent - Event handler for backup and sync events.
+ * @param options.config.backupAndSync.enableDebugLogging - Flag to enable debug logging.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
@@ -2853,15 +2857,15 @@ describe('AccountTreeController', () => {
       );
 
       // Verify metadata exists
-      expect(controller.state.accountGroupsMetadata).not.toEqual({});
-      expect(controller.state.accountWalletsMetadata).not.toEqual({});
+      expect(controller.state.accountGroupsMetadata).not.toStrictEqual({});
+      expect(controller.state.accountWalletsMetadata).not.toStrictEqual({});
 
       // Clear the metadata
       controller.clearPersistedMetadataAndSyncingState();
 
       // Verify everything is cleared
-      expect(controller.state.accountGroupsMetadata).toEqual({});
-      expect(controller.state.accountWalletsMetadata).toEqual({});
+      expect(controller.state.accountGroupsMetadata).toStrictEqual({});
+      expect(controller.state.accountWalletsMetadata).toStrictEqual({});
       expect(controller.state.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(
         false,
       );

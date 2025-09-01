@@ -1,12 +1,12 @@
+import { compareAndSyncMetadata } from './metadata';
 import {
   syncWalletMetadataAndCheckIfPushNeeded,
   syncWalletMetadata,
 } from './wallet';
-import { compareAndSyncMetadata } from './metadata';
-import { pushWalletToUserStorage } from '../user-storage/network-operations';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import { pushWalletToUserStorage } from '../user-storage/network-operations';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');

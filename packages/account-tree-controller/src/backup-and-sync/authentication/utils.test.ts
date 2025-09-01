@@ -1,5 +1,5 @@
-import type { BackupAndSyncContext } from '../types';
 import { getProfileId } from './utils';
+import type { BackupAndSyncContext } from '../types';
 
 describe('BackupAndSyncAuthentication - Utils', () => {
   describe('getProfileId', () => {

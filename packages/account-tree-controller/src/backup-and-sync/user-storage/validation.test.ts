@@ -1,8 +1,9 @@
+import * as superstruct from '@metamask/superstruct';
+
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
 } from './validation';
-import * as superstruct from '@metamask/superstruct';
 
 describe('BackupAndSync - UserStorage - Validation', () => {
   describe('assertValidUserStorageWallet', () => {

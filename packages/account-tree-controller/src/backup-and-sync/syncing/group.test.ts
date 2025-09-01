@@ -4,18 +4,18 @@ import {
   syncGroupsMetadata,
 } from './group';
 import * as metadataExports from './metadata';
-import {
-  pushGroupToUserStorage,
-  pushGroupToUserStorageBatch,
-} from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
 } from '../types';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import {
+  pushGroupToUserStorage,
+  pushGroupToUserStorageBatch,
+} from '../user-storage/network-operations';
+import { getLocalGroupsForEntropyWallet } from '../utils';
 import { contextualLogger } from '../utils';
 
 jest.mock('./metadata');
@@ -96,7 +96,10 @@ describe('BackupAndSync - Syncing - Group', () => {
         { groupIndex: 1 } as any,
       ];
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(undefined);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(undefined);
 
       await createLocalGroupsFromUserStorage(
         mockContext,
@@ -175,8 +178,9 @@ describe('BackupAndSync - Syncing - Group', () => {
         { groupIndex: 1 } as any,
       ];
 
-      mockContext.messenger.call = jest
-        .fn()
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
         .mockRejectedValueOnce(new Error('Creation failed'))
         .mockResolvedValueOnce(undefined);
       mockContext.enableDebugLogging = true;
@@ -196,8 +200,9 @@ describe('BackupAndSync - Syncing - Group', () => {
       const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 } as any];
 
       // Reject with a non-Error object to test the String(error) branch
-      mockContext.messenger.call = jest
-        .fn()
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
         .mockRejectedValueOnce('String error');
       mockContext.enableDebugLogging = true;
 
@@ -236,7 +241,10 @@ describe('BackupAndSync - Syncing - Group', () => {
         { groupIndex: 2 } as any,
       ];
 
-      mockContext.messenger.call = jest.fn().mockResolvedValue(undefined);
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(undefined);
 
       await createLocalGroupsFromUserStorage(
         {
@@ -597,7 +605,9 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('calls applyLocalUpdate when metadata sync requires local update', async () => {
       const testGroupName = 'Updated Name';
       const testContext = { ...mockContext };
-      testContext.controller.setAccountGroupName = jest.fn();
+      jest
+        .spyOn(testContext.controller, 'setAccountGroupName')
+        .mockImplementation();
 
       testContext.controller.state.accountGroupsMetadata = {
         [mockLocalGroup.id]: {
