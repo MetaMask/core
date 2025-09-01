@@ -498,4 +498,109 @@ describe('MultichainAccountWallet', () => {
       expect(providers[1].createAccounts).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('discoverAndCreateAccounts', () => {
+    it('fast-forwards lagging providers to the highest group index', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1], []],
+      });
+
+      // Fast provider: succeeds at indices 1,2 then stops at 3
+      providers[0].discoverAndCreateAccounts
+        .mockImplementationOnce(() =>
+          Promise.resolve([{} as unknown as Bip44Account<InternalAccount>]),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve([{} as unknown as Bip44Account<InternalAccount>]),
+        )
+        .mockImplementationOnce(() => Promise.resolve([]));
+
+      // Slow provider: first call (index 0) resolves on a later tick, then it should be
+      // rescheduled directly at index 3 (the high-water) and stop there
+      providers[1].discoverAndCreateAccounts
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () => resolve([{} as unknown as Bip44Account<InternalAccount>]),
+                100,
+              ),
+            ),
+        )
+        .mockImplementationOnce(() => Promise.resolve([]));
+
+      // Avoid side-effects from alignment for this orchestrator behavior test
+      jest.spyOn(wallet, 'alignGroups').mockResolvedValue(undefined);
+
+      await wallet.discoverAndCreateAccounts();
+
+      // Assert call order per provider shows skipping ahead
+      const fastIndices = Array.from(
+        providers[0].discoverAndCreateAccounts.mock.calls,
+      ).map((c) => Number(c[0].groupIndex));
+      expect(fastIndices).toStrictEqual([0, 1, 2]);
+
+      const slowIndices = Array.from(
+        providers[1].discoverAndCreateAccounts.mock.calls,
+      ).map((c) => Number(c[0].groupIndex));
+      expect(slowIndices).toStrictEqual([0, 2]);
+    });
+
+    it('stops scheduling a provider when it returns no accounts', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1], []],
+      });
+
+      // p1 finds one at 0 then stops at 1
+      providers[0].discoverAndCreateAccounts
+        .mockImplementationOnce(() =>
+          Promise.resolve([{} as unknown as Bip44Account<InternalAccount>]),
+        )
+        .mockImplementationOnce(() => Promise.resolve([]));
+
+      // p2 stops immediately at 0
+      providers[1].discoverAndCreateAccounts.mockImplementationOnce(() =>
+        Promise.resolve([]),
+      );
+
+      jest.spyOn(wallet, 'alignGroups').mockResolvedValue(undefined);
+
+      await wallet.discoverAndCreateAccounts();
+
+      expect(providers[0].discoverAndCreateAccounts).toHaveBeenCalledTimes(2);
+      expect(providers[1].discoverAndCreateAccounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks a provider stopped on error and does not reschedule it', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1], []],
+      });
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      jest.spyOn(wallet, 'alignGroups').mockResolvedValue(undefined);
+
+      // First provider throws on its first step
+      providers[0].discoverAndCreateAccounts.mockImplementationOnce(() =>
+        Promise.reject(new Error('Failed to discover accounts')),
+      );
+      // Second provider stops immediately
+      providers[1].discoverAndCreateAccounts.mockImplementationOnce(() =>
+        Promise.resolve([]),
+      );
+
+      await wallet.discoverAndCreateAccounts();
+
+      // Thrown provider should have been called once and not rescheduled
+      expect(providers[0].discoverAndCreateAccounts).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
+      expect((consoleSpy.mock.calls[0][0] as Error).message).toBe(
+        'Failed to discover accounts',
+      );
+
+      // Other provider proceeds normally
+      expect(providers[1].discoverAndCreateAccounts).toHaveBeenCalledTimes(1);
+
+      consoleSpy.mockRestore();
+    });
+  });
 });
