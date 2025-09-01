@@ -34,7 +34,7 @@ export enum SubscriptionStatus {
   incompleteExpired = 'incomplete_expired',
 
   // Active states
-  trialingPending = 'trialing_pending',
+  provisional = 'provisional',
   trialing = 'trialing',
   active = 'active',
 
