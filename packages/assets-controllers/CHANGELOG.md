@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/523.0.0 ([#6415](https://github.com/MetaMask/core/pull/6415))
+
 ### Changed
 
 - Refactor `AccountTrackerController` to eliminate duplicate code by replacing custom `AccountTrackerRpcBalanceFetcher` with existing `RpcBalanceFetcher` ([#6425](https://github.com/MetaMask/core/pull/6425))
