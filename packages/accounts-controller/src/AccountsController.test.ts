@@ -234,16 +234,12 @@ function setExpectedLastSelectedAsAny(
 }
 
 /**
- * Builds a new instance of the Messenger class for the AccountsController.
+ * Builds a new instance of the Root Messenger.
  *
- * @returns A new instance of the Messenger class for the AccountsController.
+ * @returns A new instance of the Root Messenger.
  */
-function buildMessenger() {
-  return new Messenger<
-    string,
-    AllAccountsControllerActions,
-    AllAccountsControllerEvents
-  >({ namespace: DISABLE_NAMESPACE });
+function buildMessenger(): RootMessenger {
+  return new Messenger({ namespace: DISABLE_NAMESPACE });
 }
 
 /**
