@@ -28,6 +28,7 @@ import {
 import { gcm } from '@noble/ciphers/aes';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
+import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
 
 import {
@@ -2911,6 +2912,10 @@ describe('SeedlessOnboardingController', () => {
     const MOCK_PASSWORD = 'mock-password';
 
     it('should lock the controller', async () => {
+      const mutexAcquireSpy = jest
+        .spyOn(Mutex.prototype, 'acquire')
+        .mockResolvedValueOnce(jest.fn());
+
       await withController(
         {
           state: getMockInitialControllerState({
@@ -2926,7 +2931,10 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
 
-          controller.setLocked();
+          await controller.setLocked();
+
+          // verify that the mutex acquire was called
+          expect(mutexAcquireSpy).toHaveBeenCalled();
 
           await expect(
             controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
@@ -3159,7 +3167,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await controller.submitGlobalPassword({
             globalPassword: GLOBAL_PASSWORD,
@@ -3327,7 +3335,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await controller.submitGlobalPassword({
             globalPassword: GLOBAL_PASSWORD,
@@ -3644,7 +3652,7 @@ describe('SeedlessOnboardingController', () => {
           // We still need verifyPassword to work conceptually, even if unlock is bypassed
           // verifyPasswordSpy.mockResolvedValueOnce(); // Don't mock, let the real one run inside syncLatestGlobalPassword
 
-          controller.setLocked();
+          await controller.setLocked();
 
           // Mock recoverEncKey for the global password
           const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);

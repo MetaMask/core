@@ -678,17 +678,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
    *
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
+   *
+   * @returns A promise that resolves to the success of the operation.
    */
-  setLocked() {
-    this.update((state) => {
-      delete state.vaultEncryptionKey;
-      delete state.vaultEncryptionSalt;
-      delete state.revokeToken;
-      delete state.accessToken;
-    });
+  async setLocked() {
+    return await this.#withControllerLock(async () => {
+      this.update((state) => {
+        delete state.vaultEncryptionKey;
+        delete state.vaultEncryptionSalt;
+        delete state.revokeToken;
+        delete state.accessToken;
+      });
 
-    this.#cachedDecryptedVaultData = undefined;
-    this.#isUnlocked = false;
+      this.#cachedDecryptedVaultData = undefined;
+      this.#isUnlocked = false;
+    });
   }
 
   /**
