@@ -2,6 +2,11 @@ import { AccountWalletType } from '@metamask/account-api';
 
 import { BackupAndSyncService } from '.';
 import { AtomicSyncQueue } from './atomic-sync-queue';
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletSnapObject,
+} from '../../wallet';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
 import {
@@ -25,11 +30,6 @@ import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
 } from '../utils';
-import type { AccountGroupMultichainAccountObject } from 'src/group';
-import type {
-  AccountWalletEntropyObject,
-  AccountWalletSnapObject,
-} from 'src/wallet';
 
 jest.mock('./atomic-sync-queue');
 jest.mock('../authentication');

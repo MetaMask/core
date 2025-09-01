@@ -8,12 +8,12 @@ import {
   restoreStateFromSnapshot,
   type StateSnapshot,
 } from './controller';
-import type { BackupAndSyncContext } from '../types';
-import type { AccountTreeController } from 'src/AccountTreeController';
+import type { AccountTreeController } from '../../AccountTreeController';
 import type {
   AccountWalletEntropyObject,
   AccountWalletKeyringObject,
-} from 'src/wallet';
+} from '../../wallet';
+import type { BackupAndSyncContext } from '../types';
 
 // Mock the contextual logger
 jest.mock('./contextual-logger', () => ({

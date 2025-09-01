@@ -1,6 +1,6 @@
 import { getProfileId } from './utils';
+import type { AccountTreeController } from '../../AccountTreeController';
 import type { BackupAndSyncContext } from '../types';
-import type { AccountTreeController } from 'src/AccountTreeController';
 
 describe('BackupAndSyncAuthentication - Utils', () => {
   describe('getProfileId', () => {

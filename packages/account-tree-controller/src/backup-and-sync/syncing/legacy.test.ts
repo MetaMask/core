@@ -2,12 +2,12 @@ import {
   performLegacyAccountSyncing,
   disableLegacyAccountSyncingForAllWallets,
 } from './legacy';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import { getProfileId } from '../authentication/utils';
 import type { BackupAndSyncContext } from '../types';
 import { pushWalletToUserStorage } from '../user-storage';
 import { getLocalEntropyWallets } from '../utils';
-import type { AccountWalletEntropyObject } from 'src/wallet';
 
 jest.mock('../authentication/utils');
 jest.mock('../user-storage');
