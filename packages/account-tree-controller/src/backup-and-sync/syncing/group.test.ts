@@ -307,6 +307,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       let applyNameUpdate: Function;
 
       mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
+        /* eslint-disable jest/no-conditional-in-test */
         if (
           options.userStorageMetadata &&
           'value' in options.userStorageMetadata &&
@@ -316,6 +317,7 @@ describe('BackupAndSync - Syncing - Group', () => {
           applyNameUpdate = options.applyLocalUpdate;
         }
         return false;
+        /* eslint-enable jest/no-conditional-in-test */
       });
 
       await syncSingleGroupMetadata(
@@ -346,6 +348,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       let applyPinnedUpdate: Function;
 
       mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
+        /* eslint-disable jest/no-conditional-in-test */
         if (
           options.userStorageMetadata &&
           'value' in options.userStorageMetadata &&
@@ -355,6 +358,7 @@ describe('BackupAndSync - Syncing - Group', () => {
           applyPinnedUpdate = options.applyLocalUpdate;
         }
         return false;
+        /* eslint-enable jest/no-conditional-in-test */
       });
 
       await syncSingleGroupMetadata(
@@ -386,6 +390,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       let applyHiddenUpdate: Function;
 
       mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
+        /* eslint-disable jest/no-conditional-in-test */
         if (
           options.userStorageMetadata &&
           'value' in options.userStorageMetadata &&
@@ -395,6 +400,7 @@ describe('BackupAndSync - Syncing - Group', () => {
           applyHiddenUpdate = options.applyLocalUpdate;
         }
         return false;
+        /* eslint-enable jest/no-conditional-in-test */
       });
 
       await syncSingleGroupMetadata(

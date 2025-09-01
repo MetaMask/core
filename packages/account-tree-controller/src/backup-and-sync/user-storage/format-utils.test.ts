@@ -129,7 +129,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       };
       const walletString = JSON.stringify(walletData);
 
-      mockAssertValidUserStorageWallet.mockImplementation(() => {});
+      mockAssertValidUserStorageWallet.mockImplementation(() => true);
 
       const result = parseWalletFromUserStorageResponse(walletString);
 
@@ -167,7 +167,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       };
       const groupString = JSON.stringify(groupData);
 
-      mockAssertValidUserStorageGroup.mockImplementation(() => {});
+      mockAssertValidUserStorageGroup.mockImplementation(() => true);
 
       const result = parseGroupFromUserStorageResponse(groupString);
 
@@ -200,9 +200,11 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       const walletData = { valid: 'data' };
       const walletString = JSON.stringify(walletData);
 
+      /* eslint-disable @typescript-eslint/only-throw-error */
       mockAssertValidUserStorageWallet.mockImplementation(() => {
         throw 'String error'; // Throw a non-Error object
       });
+      /* eslint-enable @typescript-eslint/only-throw-error */
 
       expect(() => parseWalletFromUserStorageResponse(walletString)).toThrow(
         'Error trying to parse wallet from user storage response: String error',
@@ -213,9 +215,11 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       const groupData = { valid: 'data' };
       const groupString = JSON.stringify(groupData);
 
+      /* eslint-disable @typescript-eslint/only-throw-error */
       mockAssertValidUserStorageGroup.mockImplementation(() => {
         throw { message: 'Object error' }; // Throw a non-Error object
       });
+      /* eslint-enable @typescript-eslint/only-throw-error */
 
       expect(() => parseGroupFromUserStorageResponse(groupString)).toThrow(
         'Error trying to parse group from user storage response: [object Object]',

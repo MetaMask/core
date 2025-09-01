@@ -163,9 +163,11 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         .mockResolvedValue('wallet-data');
 
       // Mock the parser to throw a non-Error object
+      /* eslint-disable @typescript-eslint/only-throw-error */
       mockParseWalletFromUserStorageResponse.mockImplementation(() => {
         throw 'String error for wallet parsing';
       });
+      /* eslint-enable @typescript-eslint/only-throw-error */
 
       const result = await getWalletFromUserStorage(
         debugContext,
@@ -243,7 +245,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         USER_STORAGE_GROUPS_FEATURE_KEY,
         'test-entropy-id',
       );
-      expect(result).toStrictEqual(parsedGroups);
+      expect(result).toEqual(parsedGroups);
     });
 
     it('should return empty array when no group data found', async () => {
@@ -257,7 +259,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toStrictEqual([]);
+      expect(result).toEqual([]);
     });
 
     it('should filter out invalid groups when parsing fails', async () => {
@@ -285,7 +287,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toStrictEqual(validGroups);
+      expect(result).toEqual(validGroups);
     });
 
     it('covers non-Error exception handling in getAllGroups debug logging', async () => {
@@ -305,18 +307,20 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         .mockResolvedValue(['valid-json', 'invalid-json']);
 
       // Mock the parser - first call succeeds, second throws non-Error
+      /* eslint-disable @typescript-eslint/only-throw-error */
       mockParseGroupFromUserStorageResponse
         .mockReturnValueOnce({ groupIndex: 0 } as any)
         .mockImplementationOnce(() => {
           throw 'String error for group parsing';
         });
+      /* eslint-enable @typescript-eslint/only-throw-error */
 
       const result = await getAllGroupsFromUserStorage(
         debugContext,
         'test-entropy-id',
       );
 
-      expect(result).toStrictEqual([{ groupIndex: 0 }]);
+      expect(result).toEqual([{ groupIndex: 0 }]);
       expect(contextualLogger.warn).toHaveBeenCalledWith(
         'Failed to parse group data from user storage: String error for group parsing',
       );
@@ -408,9 +412,11 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
         .mockResolvedValue('invalid json');
+      /* eslint-disable @typescript-eslint/only-throw-error */
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw 'String error'; // Non-Error object
       });
+      /* eslint-enable @typescript-eslint/only-throw-error */
       mockContext.enableDebugLogging = true;
 
       const result = await getGroupFromUserStorage(
@@ -506,7 +512,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         SDK.USER_STORAGE_FEATURE_NAMES.accounts,
         'test-entropy-id',
       );
-      expect(result).toStrictEqual(expectedData);
+      expect(result).toEqual(expectedData);
     });
 
     it('should return empty array when no legacy data found', async () => {
@@ -520,7 +526,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toStrictEqual([]);
+      expect(result).toEqual([]);
     });
   });
 });

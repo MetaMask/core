@@ -1,5 +1,3 @@
-import * as superstruct from '@metamask/superstruct';
-
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,

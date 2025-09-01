@@ -126,7 +126,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       messenger: {
         call: jest.fn(),
       },
-      traceFn: jest.fn().mockImplementation((config, fn) => fn()),
+      traceFn: jest.fn().mockImplementation((_config, fn) => fn()),
       groupIdToWalletId: new Map(),
       enableDebugLogging: false,
       disableMultichainAccountSyncing: false,
