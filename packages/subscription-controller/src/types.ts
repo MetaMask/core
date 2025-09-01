@@ -10,8 +10,8 @@ export type Product = {
 };
 
 export enum PaymentType {
-  CARD = 'card',
-  CRYPTO = 'crypto',
+  byCard = 'card',
+  byCrypto = 'crypto',
 }
 
 export enum RecurringInterval {

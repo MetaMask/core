@@ -38,7 +38,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   status: SubscriptionStatus.active,
   interval: RecurringInterval.month,
   paymentMethod: {
-    type: PaymentType.CARD,
+    type: PaymentType.byCard,
   },
 };
 
