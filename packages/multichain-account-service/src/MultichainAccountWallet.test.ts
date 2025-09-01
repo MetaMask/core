@@ -502,21 +502,17 @@ describe('MultichainAccountWallet', () => {
   describe('discoverAndCreateAccounts', () => {
     it('fast-forwards lagging providers to the highest group index', async () => {
       const { wallet, providers } = setup({
-        accounts: [[MOCK_HD_ACCOUNT_1], []],
+        accounts: [[], []],
       });
 
-      // Fast provider: succeeds at indices 1,2 then stops at 3
+      // Fast provider: succeeds at indices 0,1 then stops at 2
       providers[0].discoverAndCreateAccounts
-        .mockImplementationOnce(() =>
-          Promise.resolve([{} as unknown as Bip44Account<InternalAccount>]),
-        )
-        .mockImplementationOnce(() =>
-          Promise.resolve([{} as unknown as Bip44Account<InternalAccount>]),
-        )
+        .mockImplementationOnce(() => Promise.resolve([{}]))
+        .mockImplementationOnce(() => Promise.resolve([{}]))
         .mockImplementationOnce(() => Promise.resolve([]));
 
       // Slow provider: first call (index 0) resolves on a later tick, then it should be
-      // rescheduled directly at index 3 (the high-water) and stop there
+      // rescheduled directly at index 2 (the high-water) and stop there
       providers[1].discoverAndCreateAccounts
         .mockImplementationOnce(
           () =>
@@ -551,14 +547,12 @@ describe('MultichainAccountWallet', () => {
         accounts: [[MOCK_HD_ACCOUNT_1], []],
       });
 
-      // p1 finds one at 0 then stops at 1
+      // First provider finds one at 0 then stops at 1
       providers[0].discoverAndCreateAccounts
-        .mockImplementationOnce(() =>
-          Promise.resolve([{} as unknown as Bip44Account<InternalAccount>]),
-        )
+        .mockImplementationOnce(() => Promise.resolve([{}]))
         .mockImplementationOnce(() => Promise.resolve([]));
 
-      // p2 stops immediately at 0
+      // Second provider stops immediately at 0
       providers[1].discoverAndCreateAccounts.mockImplementationOnce(() =>
         Promise.resolve([]),
       );
@@ -573,7 +567,7 @@ describe('MultichainAccountWallet', () => {
 
     it('marks a provider stopped on error and does not reschedule it', async () => {
       const { wallet, providers } = setup({
-        accounts: [[MOCK_HD_ACCOUNT_1], []],
+        accounts: [[], []],
       });
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -599,8 +593,6 @@ describe('MultichainAccountWallet', () => {
 
       // Other provider proceeds normally
       expect(providers[1].discoverAndCreateAccounts).toHaveBeenCalledTimes(1);
-
-      consoleSpy.mockRestore();
     });
   });
 });
