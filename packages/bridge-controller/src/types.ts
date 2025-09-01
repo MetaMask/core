@@ -30,6 +30,7 @@ import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
   FeeDataSchema,
+  IntentSchema,
   PlatformConfigSchema,
   ProtocolSchema,
   QuoteResponseSchema,
@@ -255,6 +256,8 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 export type Quote = Infer<typeof QuoteSchema>;
 
 export type TxData = Infer<typeof TxDataSchema>;
+export type Intent = Infer<typeof IntentSchema>;
+export type CowSwapOrderLike = Intent['order'];
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
