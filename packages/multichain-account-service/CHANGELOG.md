@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `setBasicFunctionality` method to control providers state and trigger wallets alignment ([#6332](https://github.com/MetaMask/core/pull/6332))
   - Add `AccountProviderWrapper` to handle Snap account providers behavior according to the basic functionality flag.
 
+- Add `discoverAndCreateAccounts` methods for Evm and Solana providers ([#6396](https://github.com/MetaMask/core/pull/6397))
+
+- Add `discoverAndCreateAccounts` method to `MultichainAccountWallet` to orchestrate provider discovery ([#6396](https://github.com/MetaMask/core/pull/6397))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
