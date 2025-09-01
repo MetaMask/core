@@ -839,6 +839,26 @@ describe('MultichainAccountService', () => {
 
       expect(isInProgress).toBe(false);
     });
+
+    it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
+      const { messenger, mocks } = setup({ accounts: [], keyrings: [] });
+
+      mocks.KeyringController.withKeyring.mockImplementationOnce(
+        async (_selector, op, _opts) => {
+          const keyring = { getAccounts: jest.fn().mockResolvedValue([]) };
+          const metadata = { id: 'abc', type: KeyringTypes.hd };
+          return op({ keyring, metadata });
+        },
+      );
+
+      const [wallet, entropySource] = await messenger.call(
+        'MultichainAccountService:createMultichainAccountWallet',
+        { mnemonic: 'test' },
+      );
+
+      expect(wallet).toBeDefined();
+      expect(entropySource).toBe('abc');
+    });
   });
 
   describe('setBasicFunctionality', () => {
