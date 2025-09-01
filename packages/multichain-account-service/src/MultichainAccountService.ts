@@ -8,8 +8,12 @@ import type {
   AccountProvider,
 } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { KeyringMetadata, KeyringTypes } from '@metamask/keyring-controller';
+import {
+  type KeyringMetadata,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
+import { type Hex } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -20,8 +24,6 @@ import {
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
-import { assert, Hex } from '@metamask/utils';
-
 
 export const serviceName = 'MultichainAccountService';
 
@@ -332,11 +334,11 @@ export class MultichainAccountService {
     )) as [Hex[], KeyringMetadata];
 
     const [accounts, metadata] = result;
+
     // Make sure the keyring has no accounts after creating it.
-    assert(
-      accounts.length === 0 && metadata.id,
-      `Expected keyring with no accounts`,
-    );
+    if (accounts.length > 0) {
+      throw new Error('Expected keyring with no accounts');
+    }
 
     const wallet = new MultichainAccountWallet({
       providers: this.#providers,
