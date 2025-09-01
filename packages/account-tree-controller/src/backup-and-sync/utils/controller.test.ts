@@ -9,6 +9,11 @@ import {
   type StateSnapshot,
 } from './controller';
 import type { BackupAndSyncContext } from '../types';
+import type { AccountTreeController } from 'src/AccountTreeController';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletKeyringObject,
+} from 'src/wallet';
 
 // Mock the contextual logger
 jest.mock('./contextual-logger', () => ({
@@ -23,7 +28,7 @@ jest.mock('./contextual-logger', () => ({
 
 describe('BackupAndSyncUtils - Controller', () => {
   let mockContext: BackupAndSyncContext;
-  let mockController: any;
+  let mockController: AccountTreeController;
   let mockControllerStateUpdateFn: jest.Mock;
 
   beforeEach(() => {
@@ -33,18 +38,18 @@ describe('BackupAndSyncUtils - Controller', () => {
       state: {
         accountTree: {
           wallets: {},
-          selectedAccountGroup: null,
+          selectedAccountGroup: '',
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       },
       init: jest.fn(),
-    };
+    } as unknown as AccountTreeController;
 
     mockContext = {
       controller: mockController,
       controllerStateUpdateFn: mockControllerStateUpdateFn,
-      messenger: {} as any,
+      messenger: {} as unknown as BackupAndSyncContext['messenger'],
       traceFn: jest.fn(),
       groupIdToWalletId: new Map(),
       emitAnalyticsEventFn: jest.fn(),
@@ -70,18 +75,18 @@ describe('BackupAndSyncUtils - Controller', () => {
 
     it('should return only entropy wallets', () => {
       const entropyWallet = {
-        id: 'entropy:wallet-1' as any,
+        id: 'entropy:wallet-1',
         type: AccountWalletType.Entropy,
         name: 'Entropy Wallet',
         groups: {},
-      };
+      } as unknown as AccountWalletEntropyObject;
 
       const keyringWallet = {
-        id: 'keyring:wallet-2' as any,
+        id: 'keyring:wallet-2',
         type: AccountWalletType.Keyring,
         name: 'Keyring Wallet',
         groups: {},
-      };
+      } as unknown as AccountWalletKeyringObject;
 
       mockController.state.accountTree.wallets = {
         'entropy:wallet-1': entropyWallet,
@@ -98,16 +103,13 @@ describe('BackupAndSyncUtils - Controller', () => {
       mockController.state.accountTree.wallets = {
         'entropy:wallet-1': {
           type: AccountWalletType.Entropy,
-          name: 'Entropy 1',
-        },
+        } as unknown as AccountWalletEntropyObject,
         'keyring:wallet-2': {
           type: AccountWalletType.Keyring,
-          name: 'Keyring 1',
-        },
+        } as unknown as AccountWalletKeyringObject,
         'entropy:wallet-3': {
           type: AccountWalletType.Entropy,
-          name: 'Entropy 2',
-        },
+        } as unknown as AccountWalletEntropyObject,
       };
 
       const result = getLocalEntropyWallets(mockContext);
@@ -124,7 +126,7 @@ describe('BackupAndSyncUtils - Controller', () => {
 
       const result = getLocalGroupsForEntropyWallet(
         mockContext,
-        'entropy:non-existent' as any,
+        'entropy:non-existent',
       );
 
       expect(result).toStrictEqual([]);
@@ -133,20 +135,20 @@ describe('BackupAndSyncUtils - Controller', () => {
 
     it('should return groups for entropy wallet', () => {
       const group = {
-        id: 'entropy:wallet-1/group-1' as any,
+        id: 'entropy:wallet-1/group-1',
         type: AccountGroupType.MultichainAccount,
         name: 'Group 1',
         metadata: { entropy: { groupIndex: 0 } },
       };
 
       const entropyWallet = {
-        id: 'entropy:wallet-1' as any,
+        id: 'entropy:wallet-1',
         type: AccountWalletType.Entropy,
         name: 'Entropy Wallet',
         groups: {
           'entropy:wallet-1/group-1': group,
         },
-      };
+      } as unknown as AccountWalletEntropyObject;
 
       mockController.state.accountTree.wallets = {
         'entropy:wallet-1': entropyWallet,
@@ -154,7 +156,7 @@ describe('BackupAndSyncUtils - Controller', () => {
 
       const result = getLocalGroupsForEntropyWallet(
         mockContext,
-        'entropy:wallet-1' as any,
+        'entropy:wallet-1',
       );
 
       expect(result).toHaveLength(1);
@@ -163,11 +165,11 @@ describe('BackupAndSyncUtils - Controller', () => {
 
     it('should return empty array for wallet without groups', () => {
       const entropyWallet = {
-        id: 'entropy:wallet-1' as any,
+        id: 'entropy:wallet-1',
         type: AccountWalletType.Entropy,
         name: 'Entropy Wallet',
         groups: {},
-      };
+      } as unknown as AccountWalletEntropyObject;
 
       mockController.state.accountTree.wallets = {
         'entropy:wallet-1': entropyWallet,
@@ -175,7 +177,7 @@ describe('BackupAndSyncUtils - Controller', () => {
 
       const result = getLocalGroupsForEntropyWallet(
         mockContext,
-        'entropy:wallet-1' as any,
+        'entropy:wallet-1',
       );
 
       expect(result).toStrictEqual([]);
@@ -187,8 +189,10 @@ describe('BackupAndSyncUtils - Controller', () => {
       const originalState = {
         accountGroupsMetadata: { test: { name: 'Test' } },
         accountWalletsMetadata: { test: { name: 'Test' } },
-        selectedAccountGroup: 'entropy:test-group/group',
-        wallets: { 'entropy:test': { name: 'Test Wallet' } as any },
+        selectedAccountGroup: 'entropy:test-group/group' as const,
+        wallets: {
+          'entropy:test': { name: 'Test Wallet' },
+        } as unknown as AccountWalletEntropyObject,
       };
 
       mockController.state.accountGroupsMetadata =
@@ -214,19 +218,34 @@ describe('BackupAndSyncUtils - Controller', () => {
     });
 
     it('should create independent copies (deep clone)', () => {
-      const originalGroupsMetadata = { test: { name: 'Original' } };
+      const originalGroupsMetadata = {
+        'entropy:test-group/test': {
+          name: {
+            value: 'Original',
+            lastUpdatedAt: 1234567890,
+          },
+        },
+      };
 
       mockController.state.accountGroupsMetadata = originalGroupsMetadata;
 
       const snapshot = createStateSnapshot(mockContext);
 
       // Modify original state
-      mockController.state.accountGroupsMetadata.test.name = 'Modified';
+      mockController.state.accountGroupsMetadata[
+        'entropy:test-group/test'
+      ].name = {
+        value: 'Modified',
+        lastUpdatedAt: Date.now(),
+      };
 
       // Snapshot should remain unchanged
-      expect((snapshot.accountGroupsMetadata as any).test.name).toBe(
-        'Original',
-      );
+      expect(
+        snapshot.accountGroupsMetadata['entropy:test-group/test'].name,
+      ).toStrictEqual({
+        value: 'Original',
+        lastUpdatedAt: 1234567890,
+      });
     });
   });
 
@@ -235,13 +254,13 @@ describe('BackupAndSyncUtils - Controller', () => {
 
     beforeEach(() => {
       mockSnapshot = {
-        accountGroupsMetadata: { test: { name: 'Restored Group' } } as any,
-        accountWalletsMetadata: { test: { name: 'Restored Wallet' } } as any,
-        selectedAccountGroup: 'entropy:restored-group/group' as any,
+        accountGroupsMetadata: { test: { name: 'Restored Group' } },
+        accountWalletsMetadata: { test: { name: 'Restored Wallet' } },
+        selectedAccountGroup: 'entropy:restored-group/group',
         accountTreeWallets: {
           'entropy:test': { name: 'Restored Wallet Object' },
-        } as any,
-      };
+        },
+      } as unknown as StateSnapshot;
     });
 
     it('should restore all snapshot properties to state', () => {
@@ -284,7 +303,7 @@ describe('BackupAndSyncUtils - Controller', () => {
         updateFn(mockController.state);
       });
 
-      mockController.init.mockImplementation(() => {
+      (mockController.init as jest.Mock).mockImplementation(() => {
         callOrder.push('init');
       });
 

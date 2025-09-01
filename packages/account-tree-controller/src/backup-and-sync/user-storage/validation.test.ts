@@ -19,7 +19,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       };
 
       expect(() => assertValidUserStorageWallet(invalidWalletData)).toThrow(
-        /Invalid user storage wallet data:/,
+        /Invalid user storage wallet data:/u,
       );
     });
 
@@ -27,7 +27,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       const invalidData = 'not an object';
 
       expect(() => assertValidUserStorageWallet(invalidData)).toThrow(
-        /Invalid user storage wallet data:/,
+        /Invalid user storage wallet data:/u,
       );
     });
 
@@ -39,13 +39,13 @@ describe('BackupAndSync - UserStorage - Validation', () => {
 
     it('should handle null data', () => {
       expect(() => assertValidUserStorageWallet(null)).toThrow(
-        /Invalid user storage wallet data:/,
+        /Invalid user storage wallet data:/u,
       );
     });
 
     it('should handle undefined data', () => {
       expect(() => assertValidUserStorageWallet(undefined)).toThrow(
-        /Invalid user storage wallet data:/,
+        /Invalid user storage wallet data:/u,
       );
     });
   });
@@ -69,7 +69,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       };
 
       expect(() => assertValidUserStorageGroup(invalidGroupData)).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
 
@@ -77,7 +77,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       const invalidData = null;
 
       expect(() => assertValidUserStorageGroup(invalidData)).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
 
@@ -95,31 +95,31 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       };
 
       expect(() => assertValidUserStorageGroup(dataWithNestedIssues)).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
 
     it('should handle array input', () => {
       expect(() => assertValidUserStorageGroup([])).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
 
     it('should handle string input', () => {
       expect(() => assertValidUserStorageGroup('invalid')).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
 
     it('should handle number input', () => {
       expect(() => assertValidUserStorageGroup(123)).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
 
     it('should handle boolean input', () => {
       expect(() => assertValidUserStorageGroup(true)).toThrow(
-        /Invalid user storage group data:/,
+        /Invalid user storage group data:/u,
       );
     });
   });

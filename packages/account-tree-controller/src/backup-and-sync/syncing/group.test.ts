@@ -70,18 +70,18 @@ describe('BackupAndSync - Syncing - Group', () => {
       },
       emitAnalyticsEventFn: jest.fn(),
       enableDebugLogging: false,
-    } as any;
+    } as unknown as BackupAndSyncContext;
 
     mockLocalGroup = {
       id: 'entropy:test-entropy/group-1',
       name: 'Test Group',
       metadata: { entropy: { groupIndex: 0 } },
-    } as any;
+    } as unknown as AccountGroupMultichainAccountObject;
 
     mockWallet = {
       id: 'entropy:test-entropy',
       name: 'Test Wallet',
-    } as any;
+    } as unknown as AccountWalletEntropyObject;
   });
 
   afterEach(() => {
@@ -91,9 +91,9 @@ describe('BackupAndSync - Syncing - Group', () => {
   describe('createLocalGroupsFromUserStorage', () => {
     it('should sort groups by groupIndex and create them', async () => {
       const unsortedGroups: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: 2 } as any,
-        { groupIndex: 0 } as any,
-        { groupIndex: 1 } as any,
+        { groupIndex: 2 },
+        { groupIndex: 0 },
+        { groupIndex: 1 },
       ];
 
       jest
@@ -128,9 +128,10 @@ describe('BackupAndSync - Syncing - Group', () => {
 
     it('should skip groups with invalid groupIndex', async () => {
       const groupsWithInvalid: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: -1 } as any,
-        { groupIndex: 0 } as any,
-        { groupIndex: null as any } as any,
+        { groupIndex: -1 },
+        { groupIndex: 0 },
+        /* eslint-disable-next-line */
+        { groupIndex: null as any },
       ];
 
       mockContext.enableDebugLogging = true;
@@ -155,10 +156,10 @@ describe('BackupAndSync - Syncing - Group', () => {
       ].groups = {
         'entropy:test-entropy/group-1': {
           metadata: { entropy: { groupIndex: 0 } },
-        } as any,
+        } as unknown as AccountGroupMultichainAccountObject,
       };
 
-      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 } as any];
+      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
       mockContext.enableDebugLogging = true;
 
@@ -174,8 +175,8 @@ describe('BackupAndSync - Syncing - Group', () => {
 
     it('should continue on creation errors', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: 0 } as any,
-        { groupIndex: 1 } as any,
+        { groupIndex: 0 },
+        { groupIndex: 1 },
       ];
 
       jest
@@ -197,7 +198,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     });
 
     it('should handle non-Error exceptions in debug logging', async () => {
-      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 } as any];
+      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
       // Reject with a non-Error object to test the String(error) branch
       jest
@@ -220,7 +221,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     });
 
     it('should emit analytics events for successful creations', async () => {
-      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 } as any];
+      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
       await createLocalGroupsFromUserStorage(
         mockContext,
@@ -237,8 +238,8 @@ describe('BackupAndSync - Syncing - Group', () => {
 
     it('should log when group is out of sequence', async () => {
       const unsortedGroups: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: 0 } as any,
-        { groupIndex: 2 } as any,
+        { groupIndex: 0 },
+        { groupIndex: 2 },
       ];
 
       jest
@@ -272,7 +273,9 @@ describe('BackupAndSync - Syncing - Group', () => {
       await syncSingleGroupMetadata(
         mockContext,
         mockLocalGroup,
-        { name: { value: 'Remote Name', lastUpdatedAt: 2000 } } as any,
+        {
+          name: { value: 'Remote Name', lastUpdatedAt: 2000 },
+        } as unknown as UserStorageSyncedWalletGroup,
         'test-entropy',
         'test-profile',
       );
@@ -290,7 +293,9 @@ describe('BackupAndSync - Syncing - Group', () => {
       await syncSingleGroupMetadata(
         mockContext,
         mockLocalGroup,
-        { name: { value: 'Remote Name', lastUpdatedAt: 2000 } } as any,
+        {
+          name: { value: 'Remote Name', lastUpdatedAt: 2000 },
+        } as unknown as UserStorageSyncedWalletGroup,
         'test-entropy',
         'test-profile',
       );
@@ -303,40 +308,64 @@ describe('BackupAndSync - Syncing - Group', () => {
         name: { value: 'Local Name', lastUpdatedAt: 1000 },
       };
 
-      let validateNameFunction: Function;
-      let applyNameUpdate: Function;
+      let validateNameFunction:
+        | Parameters<
+            typeof metadataExports.compareAndSyncMetadata
+          >[0]['validateUserStorageValue']
+        | undefined;
+      let applyNameUpdate:
+        | Parameters<
+            typeof metadataExports.compareAndSyncMetadata
+          >[0]['applyLocalUpdate']
+        | undefined;
 
-      mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
-        /* eslint-disable jest/no-conditional-in-test */
-        if (
-          options.userStorageMetadata &&
-          'value' in options.userStorageMetadata &&
-          typeof options.userStorageMetadata.value === 'string'
-        ) {
-          validateNameFunction = options.validateUserStorageValue;
-          applyNameUpdate = options.applyLocalUpdate;
-        }
-        return false;
-        /* eslint-enable jest/no-conditional-in-test */
-      });
+      mockCompareAndSyncMetadata.mockImplementation(
+        async (
+          options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
+        ) => {
+          /* eslint-disable jest/no-conditional-in-test */
+          if (
+            options.userStorageMetadata &&
+            'value' in options.userStorageMetadata &&
+            typeof options.userStorageMetadata.value === 'string'
+          ) {
+            validateNameFunction = options.validateUserStorageValue;
+            applyNameUpdate = options.applyLocalUpdate;
+          }
+          return false;
+          /* eslint-enable jest/no-conditional-in-test */
+        },
+      );
 
       await syncSingleGroupMetadata(
         mockContext,
         mockLocalGroup,
-        { name: { value: 'Remote Name', lastUpdatedAt: 2000 } } as any,
+        {
+          name: { value: 'Remote Name', lastUpdatedAt: 2000 },
+        } as unknown as UserStorageSyncedWalletGroup,
         'test-entropy',
         'test-profile',
       );
 
-      expect(validateNameFunction!('New Name')).toBe(true);
-      expect(validateNameFunction!('Local Name')).toBe(true);
-      expect(validateNameFunction!(null)).toBe(false);
+      expect(validateNameFunction).toBeDefined();
+      expect(applyNameUpdate).toBeDefined();
+      /* eslint-disable jest/no-conditional-in-test */
+      /* eslint-disable jest/no-conditional-expect */
+      if (validateNameFunction) {
+        expect(validateNameFunction('New Name')).toBe(true);
+        expect(validateNameFunction('Local Name')).toBe(true);
+        expect(validateNameFunction(null)).toBe(false);
+      }
 
-      await applyNameUpdate!('New Name');
-      expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
-        mockLocalGroup.id,
-        'New Name',
-      );
+      if (applyNameUpdate) {
+        await applyNameUpdate('New Name');
+        expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
+          mockLocalGroup.id,
+          'New Name',
+        );
+      }
+      /* eslint-enable jest/no-conditional-in-test */
+      /* eslint-enable jest/no-conditional-expect */
     });
 
     it('should handle pinned metadata validation and apply local update', async () => {
@@ -344,41 +373,64 @@ describe('BackupAndSync - Syncing - Group', () => {
         pinned: { value: false, lastUpdatedAt: 1000 },
       };
 
-      let validatePinnedFunction: Function;
-      let applyPinnedUpdate: Function;
+      let validatePinnedFunction:
+        | Parameters<
+            typeof metadataExports.compareAndSyncMetadata
+          >[0]['validateUserStorageValue']
+        | undefined;
+      let applyPinnedUpdate:
+        | Parameters<
+            typeof metadataExports.compareAndSyncMetadata
+          >[0]['applyLocalUpdate']
+        | undefined;
 
-      mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
-        /* eslint-disable jest/no-conditional-in-test */
-        if (
-          options.userStorageMetadata &&
-          'value' in options.userStorageMetadata &&
-          typeof options.userStorageMetadata.value === 'boolean'
-        ) {
-          validatePinnedFunction = options.validateUserStorageValue;
-          applyPinnedUpdate = options.applyLocalUpdate;
-        }
-        return false;
-        /* eslint-enable jest/no-conditional-in-test */
-      });
+      mockCompareAndSyncMetadata.mockImplementation(
+        async (
+          options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
+        ) => {
+          /* eslint-disable jest/no-conditional-in-test */
+          if (
+            options.userStorageMetadata &&
+            'value' in options.userStorageMetadata &&
+            typeof options.userStorageMetadata.value === 'boolean'
+          ) {
+            validatePinnedFunction = options.validateUserStorageValue;
+            applyPinnedUpdate = options.applyLocalUpdate;
+          }
+          return false;
+          /* eslint-enable jest/no-conditional-in-test */
+        },
+      );
 
       await syncSingleGroupMetadata(
         mockContext,
         mockLocalGroup,
-        { pinned: { value: true, lastUpdatedAt: 2000 } } as any,
+        {
+          pinned: { value: true, lastUpdatedAt: 2000 },
+        } as unknown as UserStorageSyncedWalletGroup,
         'test-entropy',
         'test-profile',
       );
 
-      expect(validatePinnedFunction!(true)).toBe(true);
-      expect(validatePinnedFunction!(false)).toBe(true);
-      expect(validatePinnedFunction!('invalid')).toBe(false);
-      expect(validatePinnedFunction!(null)).toBe(false);
+      expect(validatePinnedFunction).toBeDefined();
+      expect(applyPinnedUpdate).toBeDefined();
+      /* eslint-disable jest/no-conditional-in-test */
+      /* eslint-disable jest/no-conditional-expect */
+      if (validatePinnedFunction) {
+        expect(validatePinnedFunction(true)).toBe(true);
+        expect(validatePinnedFunction(false)).toBe(true);
+        expect(validatePinnedFunction('invalid')).toBe(false);
+        expect(validatePinnedFunction(null)).toBe(false);
+      }
 
-      await applyPinnedUpdate!(true);
-      expect(mockContext.controller.setAccountGroupPinned).toHaveBeenCalledWith(
-        mockLocalGroup.id,
-        true,
-      );
+      if (applyPinnedUpdate) {
+        await applyPinnedUpdate(true);
+        expect(
+          mockContext.controller.setAccountGroupPinned,
+        ).toHaveBeenCalledWith(mockLocalGroup.id, true);
+      }
+      /* eslint-enable jest/no-conditional-in-test */
+      /* eslint-enable jest/no-conditional-expect */
     });
 
     it('should handle hidden metadata validation and apply local update', async () => {
@@ -386,41 +438,64 @@ describe('BackupAndSync - Syncing - Group', () => {
         hidden: { value: false, lastUpdatedAt: 1000 },
       };
 
-      let validateHiddenFunction: Function;
-      let applyHiddenUpdate: Function;
+      let validateHiddenFunction:
+        | Parameters<
+            typeof metadataExports.compareAndSyncMetadata
+          >[0]['validateUserStorageValue']
+        | undefined;
+      let applyHiddenUpdate:
+        | Parameters<
+            typeof metadataExports.compareAndSyncMetadata
+          >[0]['applyLocalUpdate']
+        | undefined;
 
-      mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
-        /* eslint-disable jest/no-conditional-in-test */
-        if (
-          options.userStorageMetadata &&
-          'value' in options.userStorageMetadata &&
-          typeof options.userStorageMetadata.value === 'boolean'
-        ) {
-          validateHiddenFunction = options.validateUserStorageValue;
-          applyHiddenUpdate = options.applyLocalUpdate;
-        }
-        return false;
-        /* eslint-enable jest/no-conditional-in-test */
-      });
+      mockCompareAndSyncMetadata.mockImplementation(
+        async (
+          options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
+        ) => {
+          /* eslint-disable jest/no-conditional-in-test */
+          if (
+            options.userStorageMetadata &&
+            'value' in options.userStorageMetadata &&
+            typeof options.userStorageMetadata.value === 'boolean'
+          ) {
+            validateHiddenFunction = options.validateUserStorageValue;
+            applyHiddenUpdate = options.applyLocalUpdate;
+          }
+          return false;
+          /* eslint-enable jest/no-conditional-in-test */
+        },
+      );
 
       await syncSingleGroupMetadata(
         mockContext,
         mockLocalGroup,
-        { hidden: { value: true, lastUpdatedAt: 2000 } } as any,
+        {
+          hidden: { value: true, lastUpdatedAt: 2000 },
+        } as unknown as UserStorageSyncedWalletGroup,
         'test-entropy',
         'test-profile',
       );
 
-      expect(validateHiddenFunction!(true)).toBe(true);
-      expect(validateHiddenFunction!(false)).toBe(true);
-      expect(validateHiddenFunction!('invalid')).toBe(false);
-      expect(validateHiddenFunction!(123)).toBe(false);
+      expect(validateHiddenFunction).toBeDefined();
+      expect(applyHiddenUpdate).toBeDefined();
+      /* eslint-disable jest/no-conditional-in-test */
+      /* eslint-disable jest/no-conditional-expect */
+      if (validateHiddenFunction) {
+        expect(validateHiddenFunction(true)).toBe(true);
+        expect(validateHiddenFunction(false)).toBe(true);
+        expect(validateHiddenFunction('invalid')).toBe(false);
+        expect(validateHiddenFunction(123)).toBe(false);
+      }
 
-      await applyHiddenUpdate!(false);
-      expect(mockContext.controller.setAccountGroupHidden).toHaveBeenCalledWith(
-        mockLocalGroup.id,
-        false,
-      );
+      if (applyHiddenUpdate) {
+        await applyHiddenUpdate(false);
+        expect(
+          mockContext.controller.setAccountGroupHidden,
+        ).toHaveBeenCalledWith(mockLocalGroup.id, false);
+      }
+      /* eslint-enable jest/no-conditional-in-test */
+      /* eslint-enable jest/no-conditional-expect */
     });
   });
 
@@ -430,16 +505,16 @@ describe('BackupAndSync - Syncing - Group', () => {
         {
           id: 'entropy:test-entropy/group-1',
           metadata: { entropy: { groupIndex: 0 } },
-        } as any,
+        },
         {
           id: 'entropy:test-entropy/group-2',
           metadata: { entropy: { groupIndex: 1 } },
-        } as any,
-      ];
+        },
+      ] as unknown as AccountGroupMultichainAccountObject[];
       const userStorageGroups = [
-        { groupIndex: 0, name: { value: 'Remote 1' } } as any,
-        { groupIndex: 1, name: { value: 'Remote 2' } } as any,
-      ];
+        { groupIndex: 0, name: { value: 'Remote 1' } },
+        { groupIndex: 1, name: { value: 'Remote 2' } },
+      ] as unknown as UserStorageSyncedWalletGroup[];
 
       mockGetLocalGroupsForEntropyWallet.mockReturnValue(localGroups);
       mockCompareAndSyncMetadata.mockResolvedValue(true);
@@ -468,7 +543,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         {
           id: 'entropy:test-entropy/group-1',
           metadata: { entropy: { groupIndex: 0 } },
-        } as any,
+        } as unknown as AccountGroupMultichainAccountObject,
       ];
 
       mockGetLocalGroupsForEntropyWallet.mockReturnValue(localGroups);
@@ -489,7 +564,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       const localGroup = {
         id: 'entropy:test-entropy/group-1',
         metadata: { entropy: { groupIndex: 0 } },
-      } as any;
+      } as unknown as AccountGroupMultichainAccountObject;
 
       mockContext.controller.state.accountGroupsMetadata[localGroup.id] = {
         name: { value: 'Local Name', lastUpdatedAt: 1000 },
@@ -510,7 +585,7 @@ describe('BackupAndSync - Syncing - Group', () => {
             pinned: { value: false, lastUpdatedAt: 2000 },
             hidden: { value: true, lastUpdatedAt: 2000 },
           },
-        ] as any,
+        ],
         'test-entropy',
         'test-profile',
       );
@@ -626,16 +701,20 @@ describe('BackupAndSync - Syncing - Group', () => {
         name: { value: testGroupName, lastUpdatedAt: 2000 },
       };
 
-      mockCompareAndSyncMetadata.mockImplementation(async (config: any) => {
-        // Simulate calling applyLocalUpdate
-        config.applyLocalUpdate(testGroupName);
-        return false; // No push needed
-      });
+      mockCompareAndSyncMetadata.mockImplementation(
+        async (
+          config: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
+        ) => {
+          // Simulate calling applyLocalUpdate
+          await config.applyLocalUpdate(testGroupName);
+          return false; // No push needed
+        },
+      );
 
       await syncSingleGroupMetadata(
         testContext,
         mockLocalGroup,
-        groupFromUserStorage as any,
+        groupFromUserStorage,
         'test-entropy',
         'test-profile',
       );

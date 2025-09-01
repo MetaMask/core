@@ -36,18 +36,18 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
           accountGroupsMetadata: {},
         },
       },
-    } as any;
+    } as unknown as BackupAndSyncContext;
 
     mockWallet = {
       id: 'entropy:wallet-1',
       name: 'Test Wallet',
-    } as any;
+    } as unknown as AccountWalletEntropyObject;
 
     mockGroup = {
       id: 'entropy:wallet-1/group-1',
       name: 'Test Group',
       metadata: { entropy: { groupIndex: 0 } },
-    } as any;
+    } as unknown as AccountGroupMultichainAccountObject;
   });
 
   afterEach(() => {

@@ -52,8 +52,9 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       const originalSetTimeout = setTimeout;
       const mockSetTimeout = jest.fn().mockImplementation((callback) => {
         callback(); // Execute immediately
-        return 'timeout-id' as any;
+        return 'timeout-id';
       });
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       global.setTimeout = mockSetTimeout as any;
 
       try {

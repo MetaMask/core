@@ -23,7 +23,11 @@ import {
 import { executeWithRetry } from './network-utils';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types';
 import { contextualLogger } from '../utils';
 
 jest.mock('./format-utils');
@@ -65,17 +69,17 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         call: jest.fn(),
       },
       enableDebugLogging: false,
-    } as any;
+    } as unknown as BackupAndSyncContext;
 
     mockWallet = {
       id: 'entropy:wallet-1',
       metadata: { entropy: { id: 'test-entropy-id' } },
-    } as any;
+    } as unknown as AccountWalletEntropyObject;
 
     mockGroup = {
       id: 'entropy:wallet-1/group-1',
       metadata: { entropy: { groupIndex: 0 } },
-    } as any;
+    } as unknown as AccountGroupMultichainAccountObject;
 
     // Default mock implementation that just calls the operation
     mockExecuteWithRetry.mockImplementation(async (operation) => operation());
@@ -88,7 +92,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   describe('getWalletFromUserStorage', () => {
     it('should return parsed wallet data when found', async () => {
       const walletData = '{"name":{"value":"Test Wallet"}}';
-      const parsedWallet = { name: { value: 'Test Wallet' } } as any;
+      const parsedWallet = {
+        name: { value: 'Test Wallet' },
+      } as unknown as UserStorageSyncedWallet;
 
       jest
         .spyOn(mockContext.messenger, 'call')
@@ -183,7 +189,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
 
   describe('pushWalletToUserStorage', () => {
     it('should format and push wallet to user storage', async () => {
-      const formattedWallet = { name: { value: 'Formatted Wallet' } } as any;
+      const formattedWallet = {
+        name: { value: 'Formatted Wallet' },
+      } as unknown as UserStorageSyncedWallet;
 
       mockFormatWalletForUserStorageUsage.mockReturnValue(formattedWallet);
       jest
@@ -207,7 +215,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('should include extended metadata when provided', async () => {
-      const formattedWallet = { name: { value: 'Formatted Wallet' } } as any;
+      const formattedWallet = {
+        name: { value: 'Formatted Wallet' },
+      } as unknown as UserStorageSyncedWallet;
       const extendedMetadata = { isLegacyAccountSyncingDisabled: true };
 
       mockFormatWalletForUserStorageUsage.mockReturnValue(formattedWallet);
@@ -225,7 +235,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   describe('getAllGroupsFromUserStorage', () => {
     it('should return parsed groups array when found', async () => {
       const groupsData = ['{"groupIndex":0}', '{"groupIndex":1}'];
-      const parsedGroups = [{ groupIndex: 0 }, { groupIndex: 1 }] as any;
+      const parsedGroups = [
+        { groupIndex: 0 },
+        { groupIndex: 1 },
+      ] as unknown as UserStorageSyncedWalletGroup[];
 
       jest
         .spyOn(mockContext.messenger, 'call')
@@ -245,7 +258,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         USER_STORAGE_GROUPS_FEATURE_KEY,
         'test-entropy-id',
       );
-      expect(result).toEqual(parsedGroups);
+      expect(result).toStrictEqual(parsedGroups);
     });
 
     it('should return empty array when no group data found', async () => {
@@ -259,7 +272,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('should filter out invalid groups when parsing fails', async () => {
@@ -268,7 +281,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'invalid json',
         '{"groupIndex":1}',
       ];
-      const validGroups = [{ groupIndex: 0 }, { groupIndex: 1 }] as any;
+      const validGroups = [
+        { groupIndex: 0 },
+        { groupIndex: 1 },
+      ] as unknown as UserStorageSyncedWalletGroup[];
 
       jest
         .spyOn(mockContext.messenger, 'call')
@@ -287,7 +303,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toEqual(validGroups);
+      expect(result).toStrictEqual(validGroups);
     });
 
     it('covers non-Error exception handling in getAllGroups debug logging', async () => {
@@ -309,7 +325,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       // Mock the parser - first call succeeds, second throws non-Error
       /* eslint-disable @typescript-eslint/only-throw-error */
       mockParseGroupFromUserStorageResponse
-        .mockReturnValueOnce({ groupIndex: 0 } as any)
+        .mockReturnValueOnce({ groupIndex: 0 })
         .mockImplementationOnce(() => {
           throw 'String error for group parsing';
         });
@@ -320,7 +336,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toEqual([{ groupIndex: 0 }]);
+      expect(result).toStrictEqual([{ groupIndex: 0 }]);
       expect(contextualLogger.warn).toHaveBeenCalledWith(
         'Failed to parse group data from user storage: String error for group parsing',
       );
@@ -330,7 +346,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   describe('getGroupFromUserStorage', () => {
     it('should return parsed group when found', async () => {
       const groupData = '{"groupIndex":0}';
-      const parsedGroup = { groupIndex: 0 } as any;
+      const parsedGroup = { groupIndex: 0 };
 
       jest
         .spyOn(mockContext.messenger, 'call')
@@ -437,7 +453,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const formattedGroup = {
         groupIndex: 0,
         name: { value: 'Test Group' },
-      } as any;
+      } as unknown as UserStorageSyncedWalletGroup;
 
       mockFormatGroupForUserStorageUsage.mockReturnValue(formattedGroup);
 
@@ -461,11 +477,11 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const groups = [
         mockGroup,
         { ...mockGroup, metadata: { entropy: { groupIndex: 1 } } },
-      ] as any;
+      ] as unknown as AccountGroupMultichainAccountObject[];
       const formattedGroups = [
         { groupIndex: 0, name: { value: 'Group 1' } },
         { groupIndex: 1, name: { value: 'Group 2' } },
-      ] as any;
+      ] as unknown as UserStorageSyncedWalletGroup[];
 
       mockFormatGroupForUserStorageUsage
         .mockReturnValueOnce(formattedGroups[0])
@@ -512,7 +528,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         SDK.USER_STORAGE_FEATURE_NAMES.accounts,
         'test-entropy-id',
       );
-      expect(result).toEqual(expectedData);
+      expect(result).toStrictEqual(expectedData);
     });
 
     it('should return empty array when no legacy data found', async () => {
@@ -526,7 +542,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         'test-entropy-id',
       );
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 });

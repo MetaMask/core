@@ -7,6 +7,7 @@ import { getProfileId } from '../authentication/utils';
 import type { BackupAndSyncContext } from '../types';
 import { pushWalletToUserStorage } from '../user-storage';
 import { getLocalEntropyWallets } from '../utils';
+import type { AccountWalletEntropyObject } from 'src/wallet';
 
 jest.mock('../authentication/utils');
 jest.mock('../user-storage');
@@ -31,7 +32,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         call: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
-    } as any;
+    } as unknown as BackupAndSyncContext;
   });
 
   afterEach(() => {
@@ -60,7 +61,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       const mockWallets = [
         { id: 'entropy:wallet-1' },
         { id: 'entropy:wallet-2' },
-      ] as any;
+      ] as unknown as AccountWalletEntropyObject[];
 
       mockGetLocalEntropyWallets.mockReturnValue(mockWallets);
       mockPushWalletToUserStorage.mockResolvedValue();

@@ -18,12 +18,18 @@ import {
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage';
+import type { StateSnapshot } from '../utils';
 import {
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
 } from '../utils';
+import type { AccountGroupMultichainAccountObject } from 'src/group';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletSnapObject,
+} from 'src/wallet';
 
 jest.mock('./atomic-sync-queue');
 jest.mock('../authentication');
@@ -109,7 +115,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       clear: jest.fn(),
     };
     mockAtomicSyncQueue.mockImplementation(
-      () => mockAtomicSyncQueueInstance as any,
+      () => mockAtomicSyncQueueInstance as unknown as AtomicSyncQueue,
     );
 
     mockContext = {
@@ -130,7 +136,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       groupIdToWalletId: new Map(),
       enableDebugLogging: false,
       disableMultichainAccountSyncing: false,
-    } as any;
+    } as unknown as BackupAndSyncContext;
 
     backupAndSyncService = new BackupAndSyncService(mockContext);
   });
@@ -176,7 +182,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
 
-      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1' as any);
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).toHaveBeenCalledWith(
         expect.any(Function),
@@ -188,7 +194,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         false;
 
-      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1' as any);
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).not.toHaveBeenCalled();
     });
@@ -199,9 +205,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
 
-      backupAndSyncService.enqueueSingleGroupSync(
-        'entropy:wallet-1/group-1' as any,
-      );
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).toHaveBeenCalledWith(
         expect.any(Function),
@@ -213,9 +217,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         false;
 
-      backupAndSyncService.enqueueSingleGroupSync(
-        'entropy:wallet-1/group-1' as any,
-      );
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).not.toHaveBeenCalled();
     });
@@ -227,9 +229,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         {
           id: 'entropy:wallet-1',
           type: AccountWalletType.Entropy,
-          metadata: { entropy: { id: 'test-entropy-id' } },
+          groups: {},
+          metadata: { entropy: { id: 'test-entropy-id' }, name: '' },
         },
-      ] as any);
+      ]);
       mockGetProfileId.mockResolvedValue('test-profile-id');
       mockGetWalletFromUserStorage.mockResolvedValue(null);
       mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
@@ -281,7 +284,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     it('should perform legacy syncing when isLegacyAccountSyncingDisabled is false', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: false,
-      } as any);
+      });
 
       await backupAndSyncService.performFullSync();
 
@@ -303,10 +306,12 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('should push groups to user storage when no remote groups exist', async () => {
-      const mockLocalGroups = [{ id: 'group-1' }] as any;
+      const mockLocalGroups = [
+        { id: 'group-1' },
+      ] as unknown as AccountGroupMultichainAccountObject[];
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
-      } as any);
+      });
       mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
       mockGetLocalGroupsForEntropyWallet.mockReturnValue(mockLocalGroups);
 
@@ -320,12 +325,12 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('should create local groups and sync metadata when remote groups exist', async () => {
-      const mockRemoteGroups = [{ groupIndex: 0 }] as any;
+      const mockRemoteGroups = [{ groupIndex: 0 }];
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
-      } as any);
+      });
       mockGetAllGroupsFromUserStorage.mockResolvedValue(mockRemoteGroups);
-      mockCreateStateSnapshot.mockReturnValue({} as any);
+      mockCreateStateSnapshot.mockReturnValue({} as unknown as StateSnapshot);
 
       await backupAndSyncService.performFullSync();
 
@@ -339,10 +344,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('should handle wallet sync errors with rollback', async () => {
-      const mockSnapshot = { test: 'snapshot' } as any;
+      const mockSnapshot = { test: 'snapshot' } as unknown as StateSnapshot;
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
-      } as any);
+      });
       mockCreateStateSnapshot.mockReturnValue(mockSnapshot);
       mockSyncWalletMetadata.mockRejectedValue(new Error('Sync failed'));
       mockContext.enableDebugLogging = true;
@@ -359,12 +364,12 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockGetLocalEntropyWallets.mockReturnValue([
         { id: 'entropy:wallet-1', metadata: { entropy: { id: 'test-1' } } },
         { id: 'entropy:wallet-2', metadata: { entropy: { id: 'test-2' } } },
-      ] as any);
+      ] as unknown as AccountWalletEntropyObject[]);
 
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
-      } as any);
-      mockCreateStateSnapshot.mockReturnValue({} as any);
+      });
+      mockCreateStateSnapshot.mockReturnValue({} as unknown as StateSnapshot);
       mockSyncWalletMetadata.mockRejectedValueOnce(new Error('Sync failed'));
       mockRestoreStateFromSnapshot.mockImplementation(() => {
         throw new Error('Rollback failed');
@@ -379,7 +384,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     it('should set sync state flags correctly', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
-      } as any);
+      });
 
       await backupAndSyncService.performFullSync();
 
@@ -413,7 +418,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     it('should clear atomic sync queue when starting', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
-      } as any);
+      });
 
       await backupAndSyncService.performFullSync();
 
@@ -429,19 +434,20 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         'entropy:wallet-1': {
           id: 'entropy:wallet-1',
           type: AccountWalletType.Entropy,
-          metadata: { entropy: { id: 'test-entropy-id' } },
+          groups: {},
+          metadata: { entropy: { id: 'test-entropy-id' }, name: '' },
         },
-      } as any;
+      };
 
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
         .mockReturnValue(true);
       mockGetProfileId.mockResolvedValue('test-profile-id');
-      mockGetWalletFromUserStorage.mockResolvedValue({} as any);
+      mockGetWalletFromUserStorage.mockResolvedValue({});
       mockSyncWalletMetadata.mockResolvedValue(undefined); // Reset to success
 
-      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1' as any);
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
 
       // Get the enqueued function and execute it
       const enqueuedFunction =
@@ -463,10 +469,10 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         'keyring:wallet-1': {
           id: 'keyring:wallet-1',
           type: AccountWalletType.Keyring,
-        },
-      } as any;
+        } as unknown as AccountWalletSnapObject,
+      };
 
-      backupAndSyncService.enqueueSingleWalletSync('keyring:wallet-1' as any);
+      backupAndSyncService.enqueueSingleWalletSync('keyring:wallet-1');
 
       const enqueuedFunction =
         mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
@@ -481,7 +487,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const mockGroup = {
         id: 'entropy:wallet-1/group-1',
         metadata: { entropy: { groupIndex: 0 } },
-      } as any;
+      } as unknown as AccountGroupMultichainAccountObject;
 
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
@@ -489,27 +495,25 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         'entropy:wallet-1': {
           id: 'entropy:wallet-1',
           type: AccountWalletType.Entropy,
-          metadata: { entropy: { id: 'test-entropy-id' } },
+          metadata: { entropy: { id: 'test-entropy-id' }, name: '' },
           groups: {
             'entropy:wallet-1/group-1': mockGroup,
           },
         },
-      } as any;
+      };
 
       mockContext.groupIdToWalletId.set(
-        'entropy:wallet-1/group-1' as any,
-        'entropy:wallet-1' as any,
+        'entropy:wallet-1/group-1',
+        'entropy:wallet-1',
       );
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
         .mockReturnValue(true);
       mockGetProfileId.mockResolvedValue('test-profile-id');
-      mockGetGroupFromUserStorage.mockResolvedValue({} as any);
+      mockGetGroupFromUserStorage.mockResolvedValue(null);
 
-      backupAndSyncService.enqueueSingleGroupSync(
-        'entropy:wallet-1/group-1' as any,
-      );
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       const enqueuedFunction =
         mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
@@ -518,7 +522,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockSyncSingleGroupMetadata).toHaveBeenCalledWith(
         mockContext,
         mockGroup,
-        {},
+        null,
         'test-entropy-id',
         'test-profile-id',
       );
@@ -528,9 +532,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
 
-      backupAndSyncService.enqueueSingleGroupSync(
-        'entropy:wallet-1/group-1' as any,
-      );
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       const enqueuedFunction =
         mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];

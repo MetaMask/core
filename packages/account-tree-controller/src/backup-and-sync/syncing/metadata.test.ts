@@ -13,7 +13,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
 
     mockContext = {
       emitAnalyticsEventFn: jest.fn(),
-    } as any;
+    } as unknown as BackupAndSyncContext;
   });
 
   afterEach(() => {

@@ -24,6 +24,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import { AccountTreeController } from './AccountTreeController';
+import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
@@ -269,7 +270,9 @@ function setup({
   keyrings?: KeyringObject[];
   config?: {
     backupAndSync?: {
-      onBackupAndSyncEvent?: (event: any) => void;
+      onBackupAndSyncEvent?: (
+        event: BackupAndSyncAnalyticsEventPayload,
+      ) => void;
       enableDebugLogging?: boolean;
     };
   };

@@ -1,5 +1,6 @@
 import { getProfileId } from './utils';
 import type { BackupAndSyncContext } from '../types';
+import type { AccountTreeController } from 'src/AccountTreeController';
 
 describe('BackupAndSyncAuthentication - Utils', () => {
   describe('getProfileId', () => {
@@ -8,7 +9,7 @@ describe('BackupAndSyncAuthentication - Utils', () => {
     };
     const mockContext: BackupAndSyncContext = {
       messenger: mockMessenger as unknown as BackupAndSyncContext['messenger'],
-      controller: {} as any,
+      controller: {} as AccountTreeController,
       controllerStateUpdateFn: jest.fn(),
       traceFn: jest.fn(),
       groupIdToWalletId: new Map(),

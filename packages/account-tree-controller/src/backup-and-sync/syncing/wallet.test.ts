@@ -37,16 +37,16 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         setAccountWalletName: jest.fn(),
       },
       enableDebugLogging: false,
-    } as any;
+    } as unknown as BackupAndSyncContext;
 
     mockLocalWallet = {
       id: 'entropy:wallet-1',
       name: 'Test Wallet',
-    } as any;
+    } as unknown as AccountWalletEntropyObject;
 
     mockWalletFromUserStorage = {
       name: { value: 'Remote Wallet', lastUpdatedAt: 2000 },
-    } as any;
+    } as unknown as UserStorageSyncedWallet;
   });
 
   afterEach(() => {
@@ -118,11 +118,15 @@ describe('BackupAndSync - Syncing - Wallet', () => {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
         };
 
-      let applyLocalUpdate: Function;
-      mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
-        applyLocalUpdate = options.applyLocalUpdate;
-        return false;
-      });
+      let applyLocalUpdate:
+        | Parameters<typeof compareAndSyncMetadata>[0]['applyLocalUpdate']
+        | undefined;
+      mockCompareAndSyncMetadata.mockImplementation(
+        async (options: Parameters<typeof compareAndSyncMetadata>[0]) => {
+          applyLocalUpdate = options.applyLocalUpdate;
+          return false;
+        },
+      );
 
       await syncWalletMetadataAndCheckIfPushNeeded(
         mockContext,
@@ -131,11 +135,17 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         'test-profile',
       );
 
-      await applyLocalUpdate!('New Name');
-      expect(mockContext.controller.setAccountWalletName).toHaveBeenCalledWith(
-        mockLocalWallet.id,
-        'New Name',
-      );
+      expect(applyLocalUpdate).toBeDefined();
+      /* eslint-disable jest/no-conditional-in-test */
+      /* eslint-disable jest/no-conditional-expect */
+      if (applyLocalUpdate) {
+        await applyLocalUpdate('New Name');
+        expect(
+          mockContext.controller.setAccountWalletName,
+        ).toHaveBeenCalledWith(mockLocalWallet.id, 'New Name');
+      }
+      /* eslint-enable jest/no-conditional-in-test */
+      /* eslint-enable jest/no-conditional-expect */
     });
 
     it('should validate user storage values using the schema validator', async () => {
@@ -144,11 +154,17 @@ describe('BackupAndSync - Syncing - Wallet', () => {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
         };
 
-      let validateUserStorageValue: Function;
-      mockCompareAndSyncMetadata.mockImplementation(async (options: any) => {
-        validateUserStorageValue = options.validateUserStorageValue;
-        return false;
-      });
+      let validateUserStorageValue:
+        | Parameters<
+            typeof compareAndSyncMetadata
+          >[0]['validateUserStorageValue']
+        | undefined;
+      mockCompareAndSyncMetadata.mockImplementation(
+        async (options: Parameters<typeof compareAndSyncMetadata>[0]) => {
+          validateUserStorageValue = options.validateUserStorageValue;
+          return false;
+        },
+      );
 
       await syncWalletMetadataAndCheckIfPushNeeded(
         mockContext,
@@ -157,10 +173,17 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         'test-profile',
       );
 
-      expect(validateUserStorageValue!('valid string')).toBe(true);
-      expect(validateUserStorageValue!(123)).toBe(false);
-      expect(validateUserStorageValue!(null)).toBe(false);
-      expect(validateUserStorageValue!(undefined)).toBe(false);
+      expect(validateUserStorageValue).toBeDefined();
+      /* eslint-disable jest/no-conditional-in-test */
+      /* eslint-disable jest/no-conditional-expect */
+      if (validateUserStorageValue) {
+        expect(validateUserStorageValue('valid string')).toBe(true);
+        expect(validateUserStorageValue(123)).toBe(false);
+        expect(validateUserStorageValue(null)).toBe(false);
+        expect(validateUserStorageValue(undefined)).toBe(false);
+      }
+      /* eslint-enable jest/no-conditional-in-test */
+      /* eslint-enable jest/no-conditional-expect */
     });
   });
 

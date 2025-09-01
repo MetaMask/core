@@ -75,7 +75,11 @@ export class AtomicSyncQueue {
 
     try {
       while (this.#queue.length > 0) {
-        const event = this.#queue.shift()!; // Non-null assertion since length > 0
+        const event = this.#queue.shift();
+        /* istanbul ignore next */
+        if (!event) {
+          break;
+        }
 
         try {
           await event.execute();
