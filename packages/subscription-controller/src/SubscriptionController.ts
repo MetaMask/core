@@ -34,6 +34,13 @@ type ActionsObj = CreateActionsObj<
   'getSubscriptions' | 'cancelSubscription' | 'startShieldSubscriptionWithCard'
 >;
 
+export type SubscriptionControllerGetSubscriptionsAction =
+  ActionsObj['getSubscriptions'];
+export type SubscriptionControllerCancelSubscriptionAction =
+  ActionsObj['cancelSubscription'];
+export type SubscriptionControllerStartShieldSubscriptionWithCardAction =
+  ActionsObj['startShieldSubscriptionWithCard'];
+
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
