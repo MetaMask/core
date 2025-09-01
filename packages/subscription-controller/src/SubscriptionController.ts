@@ -30,7 +30,9 @@ type CreateActionsObj<Controller extends keyof SubscriptionController> = {
     handler: SubscriptionController[K];
   };
 };
-type ActionsObj = CreateActionsObj<'getSubscriptions' | 'cancelSubscription'>;
+type ActionsObj = CreateActionsObj<
+  'getSubscriptions' | 'cancelSubscription' | 'startShieldSubscriptionWithCard'
+>;
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -154,6 +156,11 @@ export class SubscriptionController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:startShieldSubscriptionWithCard',
+      this.startShieldSubscriptionWithCard.bind(this),
     );
   }
 
