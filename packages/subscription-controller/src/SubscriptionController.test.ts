@@ -318,7 +318,7 @@ describe('SubscriptionController', () => {
             }),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: 'cancelled' },
+            { ...MOCK_SUBSCRIPTION, status: SubscriptionStatus.canceled },
             mockSubscription2,
           ]);
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
@@ -425,6 +425,7 @@ describe('SubscriptionController', () => {
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
             products: [ProductType.SHIELD],
             isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
           });
         },
       );
@@ -478,6 +479,7 @@ describe('SubscriptionController', () => {
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
             products: [ProductType.SHIELD],
             isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
           });
         },
       );
