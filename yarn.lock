@@ -2407,6 +2407,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.2.0"
     "@metamask/keyring-api": "npm:^20.1.0"
     "@metamask/keyring-controller": "npm:^23.0.0"
+    "@metamask/messenger": "npm:^0.1.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
     "@metamask/snaps-sdk": "npm:^9.0.0"
