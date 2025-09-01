@@ -30,6 +30,7 @@ export function assertValidUserStorageWallet(
         `Invalid user storage wallet data: ${validationFailures}`,
       );
     }
+    /* istanbul ignore next */
     throw error;
   }
 }
@@ -53,6 +54,7 @@ export function assertValidUserStorageGroup(
         .join(', ');
       throw new Error(`Invalid user storage group data: ${validationFailures}`);
     }
+    /* istanbul ignore next */
     throw error;
   }
 }

@@ -20,7 +20,7 @@ export async function executeWithRetry<T>(
       lastError = error instanceof Error ? error : new Error(String(error));
 
       if (attempt === maxRetries) {
-        throw lastError;
+        break; // Exit loop after final attempt
       }
 
       // Calculate exponential backoff delay
@@ -31,5 +31,6 @@ export async function executeWithRetry<T>(
     }
   }
 
+  // This will only be reached if all attempts failed
   throw lastError;
 }

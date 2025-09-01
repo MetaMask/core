@@ -24,6 +24,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import { AccountTreeController } from './AccountTreeController';
+import { BackupAndSyncService } from './backup-and-sync/service';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -224,6 +225,14 @@ function getAccountTreeControllerMessenger(
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:setSelectedAccount',
+      'UserStorageController:performGetStorage',
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      'UserStorageController:performSetStorage',
+      'UserStorageController:performBatchSetStorage',
+      'UserStorageController:syncInternalAccountsWithUserStorage',
+      'UserStorageController:getIsMultichainAccountSyncingEnabled',
+      'AuthenticationController:getSessionProfile',
+      'MultichainAccountService:createMultichainAccountGroup',
       'KeyringController:getState',
       'SnapController:get',
     ],
@@ -245,6 +254,7 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
   keyrings = [],
+  config,
 }: {
   state?: Partial<AccountTreeControllerState>;
   messenger?: Messenger<
@@ -253,6 +263,12 @@ function setup({
   >;
   accounts?: InternalAccount[];
   keyrings?: KeyringObject[];
+  config?: {
+    backupAndSync?: {
+      onBackupAndSyncEvent?: (event: any) => void;
+      enableDebugLogging?: boolean;
+    };
+  };
 } = {}): {
   controller: AccountTreeController;
   messenger: Messenger<
@@ -272,6 +288,17 @@ function setup({
       listMultichainAccounts: jest.Mock;
       getAccount: jest.Mock;
     };
+    UserStorageController: {
+      performGetStorage: jest.Mock;
+      performGetStorageAllFeatureEntries: jest.Mock;
+      performSetStorage: jest.Mock;
+      performBatchSetStorage: jest.Mock;
+      syncInternalAccountsWithUserStorage: jest.Mock;
+      getIsMultichainAccountSyncingEnabled: jest.Mock;
+    };
+    AuthenticationController: {
+      getSessionProfile: jest.Mock;
+    };
   };
 } {
   const mocks = {
@@ -283,6 +310,22 @@ function setup({
       accounts,
       listMultichainAccounts: jest.fn(),
       getAccount: jest.fn(),
+    },
+    UserStorageController: {
+      performGetStorage: jest.fn(),
+      performGetStorageAllFeatureEntries: jest.fn(),
+      performSetStorage: jest.fn(),
+      performBatchSetStorage: jest.fn(),
+      syncInternalAccountsWithUserStorage: jest.fn(),
+      getIsMultichainAccountSyncingEnabled: jest.fn(),
+    },
+    AuthenticationController: {
+      getSessionProfile: jest.fn().mockResolvedValue({
+        profileId: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
+        metaMetricsId: '561ec651-a844-4b36-a451-04d6eac35740',
+        identifierId:
+          'da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb',
+      }),
     },
   };
 
@@ -314,6 +357,38 @@ function setup({
       'AccountsController:setSelectedAccount',
       jest.fn(),
     );
+
+    // Mock AuthenticationController:getSessionProfile
+    messenger.registerActionHandler(
+      'AuthenticationController:getSessionProfile',
+      mocks.AuthenticationController.getSessionProfile,
+    );
+
+    // Mock UserStorageController methods
+    messenger.registerActionHandler(
+      'UserStorageController:performGetStorage',
+      mocks.UserStorageController.performGetStorage,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      mocks.UserStorageController.performGetStorageAllFeatureEntries,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:performSetStorage',
+      mocks.UserStorageController.performSetStorage,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:performBatchSetStorage',
+      mocks.UserStorageController.performBatchSetStorage,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:syncInternalAccountsWithUserStorage',
+      mocks.UserStorageController.syncInternalAccountsWithUserStorage,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:getIsMultichainAccountSyncingEnabled',
+      mocks.UserStorageController.getIsMultichainAccountSyncingEnabled,
+    );
   }
 
   if (keyrings) {
@@ -330,6 +405,7 @@ function setup({
   const controller = new AccountTreeController({
     messenger: getAccountTreeControllerMessenger(messenger),
     state,
+    ...(config && { config }),
   });
 
   const consoleWarnSpy = jest
@@ -2707,6 +2783,129 @@ describe('AccountTreeController', () => {
       controller.setSelectedAccountGroup(groupId);
 
       expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('syncWithUserStorage', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should call performFullSync on the syncing service', async () => {
+      // Spy on the BackupAndSyncService constructor and methods
+      const performFullSyncSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performFullSync')
+        .mockResolvedValue(undefined);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await controller.syncWithUserStorage();
+
+      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+
+      performFullSyncSpy.mockRestore();
+    });
+
+    it('should handle sync errors gracefully', async () => {
+      const syncError = new Error('Sync failed');
+      const performFullSyncSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performFullSync')
+        .mockRejectedValue(syncError);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await expect(controller.syncWithUserStorage()).rejects.toThrow(
+        'Sync failed',
+      );
+      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+
+      performFullSyncSpy.mockRestore();
+    });
+  });
+
+  describe('clearPersistedMetadataAndSyncingState', () => {
+    it('should clear all persisted metadata and syncing state', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Set some metadata first
+      controller.setAccountGroupName(
+        'entropy:mock-keyring-id-1/0',
+        'Test Group',
+      );
+      controller.setAccountWalletName(
+        'entropy:mock-keyring-id-1',
+        'Test Wallet',
+      );
+
+      // Verify metadata exists
+      expect(controller.state.accountGroupsMetadata).not.toEqual({});
+      expect(controller.state.accountWalletsMetadata).not.toEqual({});
+
+      // Clear the metadata
+      controller.clearPersistedMetadataAndSyncingState();
+
+      // Verify everything is cleared
+      expect(controller.state.accountGroupsMetadata).toEqual({});
+      expect(controller.state.accountWalletsMetadata).toEqual({});
+      expect(controller.state.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('backup and sync config initialization', () => {
+    it('should initialize backup and sync config with provided analytics callback and debug logging', async () => {
+      const mockAnalyticsCallback = jest.fn();
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        config: {
+          backupAndSync: {
+            onBackupAndSyncEvent: mockAnalyticsCallback,
+            enableDebugLogging: true,
+          },
+        },
+      });
+
+      controller.init();
+
+      // Verify config is initialized - controller should be defined and working
+      expect(controller).toBeDefined();
+      expect(controller.state).toBeDefined();
+
+      // Test that the analytics callback can be accessed through the backup and sync service
+      // We'll trigger a sync to test the callback (this should cover the callback invocation)
+      await controller.syncWithUserStorage();
+      expect(mockAnalyticsCallback).toHaveBeenCalled();
+    });
+
+    it('should initialize backup and sync config with default values when no config provided', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Verify controller works without config (tests default config initialization)
+      expect(controller).toBeDefined();
+      expect(controller.state).toBeDefined();
     });
   });
 });

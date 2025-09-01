@@ -21,10 +21,9 @@ export class AtomicSyncQueue {
    */
   readonly #getEnableDebugLogging: () => boolean;
 
-  constructor(getEnableDebugLogging: () => boolean = () => false) {
-    this.#getEnableDebugLogging = getEnableDebugLogging;
+  constructor(getEnableDebugLogging?: () => boolean) {
+    this.#getEnableDebugLogging = getEnableDebugLogging ?? (() => false);
   }
-
   /**
    * Enqueues an atomic sync function for processing.
    *
@@ -75,10 +74,7 @@ export class AtomicSyncQueue {
 
     try {
       while (this.#queue.length > 0) {
-        const event = this.#queue.shift();
-        if (!event) {
-          break;
-        }
+        const event = this.#queue.shift()!; // Non-null assertion since length > 0
 
         try {
           await event.execute();
