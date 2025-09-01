@@ -270,17 +270,17 @@ describe('EvmAccountProvider', () => {
 
   it('discover accounts at the next group index', async () => {
     const { provider } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1], // There should always be one account by the time discovery is called.
+      accounts: [],
     });
 
     const expectedAccount = {
       id: expect.any(String),
-      address: `${MOCK_HD_ACCOUNT_1.address}1`,
+      address: `${MOCK_HD_ACCOUNT_1.address}0`,
       options: {
         entropy: {
           id: MOCK_HD_KEYRING_1.metadata.id,
           type: 'mnemonic',
-          groupIndex: 1,
+          groupIndex: 0,
           derivationPath: '',
         },
       },
@@ -296,7 +296,6 @@ describe('EvmAccountProvider', () => {
       },
     };
 
-    // Discovery starts at index + 1 for EVM.
     expect(
       await provider.discoverAndCreateAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -304,10 +303,7 @@ describe('EvmAccountProvider', () => {
       }),
     ).toStrictEqual([expectedAccount]);
 
-    expect(provider.getAccounts()).toStrictEqual([
-      MOCK_HD_ACCOUNT_1,
-      expectedAccount,
-    ]);
+    expect(provider.getAccounts()).toStrictEqual([expectedAccount]);
   });
 
   it('removes discovered account if no transaction history is found', async () => {
@@ -317,30 +313,21 @@ describe('EvmAccountProvider', () => {
 
     mocks.mockProviderRequest.mockReturnValue('0x0');
 
-    // Discovery starts at index + 1 for EVM.
     expect(
       await provider.discoverAndCreateAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        groupIndex: 1,
       }),
     ).toStrictEqual([]);
+
+    await Promise.resolve();
 
     expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
 
   it('returns an existing account if it already exists', async () => {
-    const MOCK_ACCOUNT_2 = {
-      ...MOCK_HD_ACCOUNT_1,
-      address: '0x456',
-      options: {
-        entropy: {
-          ...MOCK_HD_ACCOUNT_1.options.entropy,
-          groupIndex: 1,
-        },
-      },
-    };
     const { provider } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1, MOCK_ACCOUNT_2],
+      accounts: [MOCK_HD_ACCOUNT_1],
     });
 
     // Discovery starts at index + 1 for EVM.
@@ -349,6 +336,6 @@ describe('EvmAccountProvider', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
-    ).toStrictEqual([MOCK_ACCOUNT_2]);
+    ).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
 });
