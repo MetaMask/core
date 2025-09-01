@@ -1147,6 +1147,14 @@ export class AccountTreeController extends BaseController<
     );
   }
 
+  /**
+   * Bi-directionally syncs the account tree with user storage.
+   * This will perform a full sync, including both pulling updates
+   * from user storage and pushing local changes to user storage.
+   * This also performs legacy account syncing if needed.
+   *
+   * @returns A promise that resolves when the sync is complete.
+   */
   async syncWithUserStorage(): Promise<void> {
     return this.#syncingService.performFullSync();
   }
