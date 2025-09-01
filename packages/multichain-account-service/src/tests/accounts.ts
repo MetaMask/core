@@ -1,7 +1,11 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import { isBip44Account } from '@metamask/account-api';
-import type { DiscoveredAccount, EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  DiscoveredAccount,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
