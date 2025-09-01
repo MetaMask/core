@@ -28,12 +28,8 @@ import type { V4Options } from 'uuid';
 import * as uuid from 'uuid';
 
 import type {
-  AccountsControllerActions,
-  AccountsControllerEvents,
   AccountsControllerMessenger,
   AccountsControllerState,
-  AllowedActions,
-  AllowedEvents,
 } from './AccountsController';
 import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
 import {
