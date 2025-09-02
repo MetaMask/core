@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "MetaMask",
