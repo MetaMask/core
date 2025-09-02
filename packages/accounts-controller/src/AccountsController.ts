@@ -604,10 +604,10 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
-      /* eslint-disable max-depth */
-      /* @ts-ignore */
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - This can make the compiler fails sometimes. This is probably
+      // because of the `Json` type (recursive type) used for `options`.
       state.internalAccounts.accounts = internalAccounts;
-      /* eslint-enable max-depth */
     });
   }
 
