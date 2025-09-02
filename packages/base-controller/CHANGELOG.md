@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Note that this is a breaking change, but it's not labelled as such because it only impacts the experimental `next` export.
   - The `anonymous` metadata property has been renamed to `includeInDebugSnapshot`
   - Two additional metadata properties have been added: `includeInStateLogs` and `usedInUi`. State derivation is disallowed for `usedInUi`.
+  - Add `deriveStateFromMetadata` export, which can derive state for any metadata property
+  - Deprecate `getPersistentState` and `getAnonymizedState`, recommending `deriveStateFromMetadata` instead
 
 ## [8.2.0]
 
