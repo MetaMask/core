@@ -198,6 +198,13 @@ export class AccountTreeController extends BaseController<
         // No group is selected yet, re-sync with the AccountsController.
         state.accountTree.selectedAccountGroup =
           this.#getDefaultSelectedAccountGroup(wallets);
+
+        // Also publish initial group that has been selected.
+        this.messagingSystem.publish(
+          `${controllerName}:selectedAccountGroupChange`,
+          state.accountTree.selectedAccountGroup,
+          '', // No group was initially selected.
+        );
       }
     });
   }

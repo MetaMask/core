@@ -270,6 +270,7 @@ function setup({
     AccountsController: {
       accounts: InternalAccount[];
       listMultichainAccounts: jest.Mock;
+      getSelectedAccount: jest.Mock;
       getAccount: jest.Mock;
     };
   };
@@ -283,6 +284,7 @@ function setup({
       accounts,
       listMultichainAccounts: jest.fn(),
       getAccount: jest.fn(),
+      getSelectedAccount: jest.fn(),
     },
   };
 
@@ -304,9 +306,12 @@ function setup({
     );
 
     // Mock AccountsController:getSelectedAccount to return the first account
+    mocks.AccountsController.getSelectedAccount.mockImplementation(
+      () => accounts[0] || MOCK_HD_ACCOUNT_1,
+    );
     messenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
-      () => accounts[0] || MOCK_HD_ACCOUNT_1,
+      mocks.AccountsController.getSelectedAccount,
     );
 
     // Mock AccountsController:setSelectedAccount
@@ -2561,11 +2566,15 @@ describe('AccountTreeController', () => {
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
     });
 
-    it('does NOT emit selectedAccountGroupChange when tree is initialized', () => {
-      const { controller, messenger } = setup({
+    it('emits selectedAccountGroupChange when tree is initialized', () => {
+      const { controller, messenger, mocks } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
       });
+
+      mocks.AccountsController.getSelectedAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_1,
+      );
 
       const selectedAccountGroupChangeListener = jest.fn();
       messenger.subscribe(
@@ -2575,7 +2584,15 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
+      const defaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        defaultAccountGroupId,
+        '',
+      );
     });
 
     it('emits selectedAccountGroupChange when setSelectedAccountGroup is called', () => {
