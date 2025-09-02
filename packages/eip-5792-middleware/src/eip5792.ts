@@ -59,6 +59,50 @@ export enum AtomicCapabilityStatus {
   Unsupported = 'unsupported',
 }
 
+/**
+ * Type definition for the hooks parameter of processSendCalls function.
+ */
+export type ProcessSendCallsHooks = {
+  addTransactionBatch: TransactionController['addTransactionBatch'];
+  addTransaction: TransactionController['addTransaction'];
+  getDismissSmartAccountSuggestionEnabled: () => boolean;
+  isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
+  validateSecurity: (
+    securityAlertId: string,
+    request: ValidateSecurityRequest,
+    chainId: Hex,
+  ) => Promise<void>;
+};
+
+/**
+ * Type definition for the request parameter of processSendCalls function.
+ */
+export type ProcessSendCallsRequest = JsonRpcRequest & {
+  networkClientId: string;
+  origin?: string;
+};
+
+/**
+ * Type definition for the hooks parameter of getCapabilities function.
+ */
+export type GetCapabilitiesHooks = {
+  getDismissSmartAccountSuggestionEnabled: () => boolean;
+  getIsSmartTransaction: (chainId: Hex) => boolean;
+  isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
+  isRelaySupported: (chainId: Hex) => Promise<boolean>;
+  getSendBundleSupportedChains: (
+    chainIds: Hex[],
+  ) => Promise<Record<string, boolean>>;
+};
+
+/**
+ * Type definition for the parameters of getCallsStatus function.
+ */
+export type GetCallsStatusParams = {
+  messenger: EIP5792Messenger;
+  id: Hex;
+};
+
 const VERSION = '2.0.0';
 
 /**
@@ -76,20 +120,10 @@ const VERSION = '2.0.0';
  * @returns Promise resolving to a SendCallsResult containing the batch ID.
  */
 export async function processSendCalls(
-  hooks: {
-    addTransactionBatch: TransactionController['addTransactionBatch'];
-    addTransaction: TransactionController['addTransaction'];
-    getDismissSmartAccountSuggestionEnabled: () => boolean;
-    isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
-    validateSecurity: (
-      securityAlertId: string,
-      request: ValidateSecurityRequest,
-      chainId: Hex,
-    ) => Promise<void>;
-  },
+  hooks: ProcessSendCallsHooks,
   messenger: EIP5792Messenger,
   params: SendCalls,
-  req: JsonRpcRequest & { networkClientId: string; origin?: string },
+  req: ProcessSendCallsRequest,
 ): Promise<SendCallsResult> {
   const {
     addTransactionBatch,
@@ -217,15 +251,7 @@ export function getCallsStatus(
  * @returns Promise resolving to GetCapabilitiesResult mapping chain IDs to their capabilities.
  */
 export async function getCapabilities(
-  hooks: {
-    getDismissSmartAccountSuggestionEnabled: () => boolean;
-    getIsSmartTransaction: (chainId: Hex) => boolean;
-    isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
-    isRelaySupported: (chainId: Hex) => Promise<boolean>;
-    getSendBundleSupportedChains: (
-      chainIds: Hex[],
-    ) => Promise<Record<string, boolean>>;
-  },
+  hooks: GetCapabilitiesHooks,
   messenger: EIP5792Messenger,
   address: Hex,
   chainIds: Hex[] | undefined,
