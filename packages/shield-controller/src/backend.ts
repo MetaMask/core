@@ -84,11 +84,14 @@ export class ShieldRemoteBackend implements ShieldBackend {
   async #initCoverageCheck(
     reqBody: InitCoverageCheckRequest,
   ): Promise<InitCoverageCheckResponse> {
-    const res = await this.#fetch(`${this.#baseUrl}/api/v1/coverage/init`, {
-      method: 'POST',
-      headers: await this.#createHeaders(),
-      body: JSON.stringify(reqBody),
-    });
+    const res = await this.#fetch(
+      `${this.#baseUrl}/v1/transaction/coverage/init`,
+      {
+        method: 'POST',
+        headers: await this.#createHeaders(),
+        body: JSON.stringify(reqBody),
+      },
+    );
     if (res.status !== 200) {
       throw new Error(`Failed to init coverage check: ${res.status}`);
     }
@@ -118,7 +121,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
         while (!timeoutReached) {
           const startTime = Date.now();
           const res = await this.#fetch(
-            `${this.#baseUrl}/api/v1/coverage/result`,
+            `${this.#baseUrl}/v1/transaction/coverage/result`,
             {
               method: 'POST',
               headers,
