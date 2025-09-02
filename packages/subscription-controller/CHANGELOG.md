@@ -12,5 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the subscription controller ([#6233](https://github.com/MetaMask/core/pull/6233))
   - `getSubscription`: Retrieve current user subscription info if exist.
   - `cancelSubscription`: Cancel user active subscription.
+- `startShieldSubscriptionWithCard`: start shield subscription via card (with trial option) ([#6300](https://github.com/MetaMask/core/pull/6300))
 
 [Unreleased]: https://github.com/MetaMask/core/
