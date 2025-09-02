@@ -96,7 +96,7 @@ export type MessengerEvents<
 
 /**
  * Messenger namespace checks can be disabled by using this as the `namespace` constructor
- * parameter, and using `string` as the Namespace type parameter.
+ * parameter, and using `MockAnyNamespace` as the Namespace type parameter.
  *
  * This is useful for mocking a variety of different actions/events in unit tests. Please do not
  * use this in production code.
