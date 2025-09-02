@@ -406,10 +406,19 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SampleGasPricesControllerMessenger {
-  return new Messenger({
+  const messenger: SampleGasPricesControllerMessenger = new Messenger({
     namespace: 'SampleGasPricesController',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: [
+      'NetworkController:getNetworkClientById',
+      'SampleGasPricesService:fetchGasPrices',
+    ],
+    events: ['NetworkController:stateChange'],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
