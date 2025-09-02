@@ -7,17 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed
-
-- **BREAKING:** Remove `submissionRequests` state property and `getSubmissionRequests` action
+## [40.2.0]
 
 ### Added
 
-- Add `gas_included_7702` metric from quote ([#6363](https://github.com/MetaMask/core/pull/6363))
-
-### Changed
-
-- Update EVM transaction batch handling to enable EIP-7702 when `gasIncluded7702` is true ([#6363](https://github.com/MetaMask/core/pull/6363))
+- Publish `StatusValidationFailed` event for invalid getTxStatus responses ([#6362](https://github.com/MetaMask/core/pull/6362))
 
 ## [40.1.0]
 
@@ -519,7 +513,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.2.0...HEAD
+[40.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...@metamask/bridge-status-controller@40.2.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.0.0...@metamask/bridge-status-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@39.0.0...@metamask/bridge-status-controller@40.0.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.1.0...@metamask/bridge-status-controller@39.0.0

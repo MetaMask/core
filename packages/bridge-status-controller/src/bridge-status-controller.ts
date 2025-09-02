@@ -588,12 +588,26 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.quote,
         srcTxHash,
       );
-      const status = await fetchBridgeTxStatus(
+      const { status, validationFailures } = await fetchBridgeTxStatus(
         statusRequest,
         this.#clientId,
         this.#fetchFn,
         this.#config.customBridgeApiBaseUrl,
       );
+
+      if (validationFailures.length > 0) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.StatusValidationFailed,
+          bridgeTxMetaId,
+          {
+            failures: validationFailures,
+          },
+        );
+        throw new Error(
+          `Bridge status validation failed: ${validationFailures.join(', ')}`,
+        );
+      }
+
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
@@ -637,7 +651,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
       }
     } catch (e) {
-      console.log('Failed to fetch bridge tx status', e);
+      console.warn('Failed to fetch bridge tx status', e);
       this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
@@ -1162,7 +1176,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
       | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
-      | typeof UnifiedSwapBridgeEventName.Completed,
+      | typeof UnifiedSwapBridgeEventName.Completed
+      | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
   >(
     eventName: T,
     txMetaId?: string,
@@ -1206,9 +1221,33 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ({ id }) => id === historyItem.approvalTxId,
     );
 
+    const requestParamProperties = getRequestParamFromHistory(historyItem);
+
+    if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
+      const {
+        chain_id_source,
+        chain_id_destination,
+        token_address_source,
+        token_address_destination,
+      } = requestParamProperties;
+      this.messagingSystem.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
+        eventName,
+        {
+          ...baseProperties,
+          chain_id_source,
+          chain_id_destination,
+          token_address_source,
+          token_address_destination,
+          refresh_count: historyItem.attempts?.counter ?? 0,
+        },
+      );
+      return;
+    }
+
     const requiredEventProperties = {
       ...baseProperties,
-      ...getRequestParamFromHistory(historyItem),
+      ...requestParamProperties,
       ...getRequestMetadataFromHistory(historyItem, selectedAccount),
       ...getTradeDataFromHistory(historyItem),
       ...getTxStatusesFromHistory(historyItem),

@@ -3655,6 +3655,37 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `Array []`;
 
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 1`] = `
+Array [
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Status Failed Validation",
+  Object {
+    "action_type": "swapbridge-v1",
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "failures": Array [
+      "across|status",
+    ],
+    "refresh_count": 0,
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+  },
+]
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 2`] = `
+Array [
+  Array [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status, across|srcChain],
+  ],
+  Array [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status],
+  ],
+]
+`;
+
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
 Array [
   Array [

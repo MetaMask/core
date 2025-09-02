@@ -151,6 +151,9 @@ describe('fetch', () => {
 
   describe('fetchBridgeQuotes', () => {
     it('should fetch bridge quotes successfully, no approvals', async () => {
+      const mockConsoleWarn = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(jest.fn());
       mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20);
       const { signal } = new AbortController();
 
@@ -184,13 +187,26 @@ describe('fetch', () => {
         },
       );
 
-      expect(result).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.quotes).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.validationFailures).toStrictEqual([]);
+      expect(mockConsoleWarn).not.toHaveBeenCalled();
     });
 
     it('should fetch bridge quotes successfully, with approvals', async () => {
+      const mockConsoleWarn = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(jest.fn());
       mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20,
-        { ...mockBridgeQuotesErc20Erc20[0], approval: null },
+        {
+          ...mockBridgeQuotesErc20Erc20[0],
+          quote: {
+            ...mockBridgeQuotesErc20Erc20[0].quote,
+            bridges: ['lifi'],
+            bridgeId: 'lifi',
+          },
+          approval: null,
+        },
         { ...mockBridgeQuotesErc20Erc20[0], trade: null },
       ]);
       const { signal } = new AbortController();
@@ -225,12 +241,17 @@ describe('fetch', () => {
         },
       );
 
-      expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.quotes).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.validationFailures).toStrictEqual([
+        'lifi|approval',
+        'socket|trade',
+      ]);
+      expect(mockConsoleWarn).toHaveBeenCalledTimes(1);
     });
 
     it('should filter out malformed bridge quotes', async () => {
-      const mockConsoleError = jest
-        .spyOn(console, 'error')
+      const mockConsoleWarn = jest
+        .spyOn(console, 'warn')
         .mockImplementation(jest.fn());
       mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20,
@@ -240,7 +261,8 @@ describe('fetch', () => {
         {
           ...mockBridgeQuotesErc20Erc20[0],
           quote: {
-            bridgeId: 'socket',
+            bridges: ['lifi'],
+            bridgeId: 'lifi',
             srcAsset: {
               ...mockBridgeQuotesErc20Erc20[0].quote.srcAsset,
               decimals: undefined,
@@ -250,6 +272,7 @@ describe('fetch', () => {
         {
           ...mockBridgeQuotesErc20Erc20[1],
           quote: {
+            bridges: ['socket'],
             bridgeId: 'socket',
             destAsset: {
               ...mockBridgeQuotesErc20Erc20[1].quote.destAsset,
@@ -290,9 +313,34 @@ describe('fetch', () => {
         },
       );
 
-      expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.quotes).toStrictEqual(mockBridgeQuotesErc20Erc20);
+      expect(result.validationFailures).toMatchInlineSnapshot(`
+        Array [
+          "unknown|quote",
+          "lifi|quote.requestId",
+          "lifi|quote.srcChainId",
+          "lifi|quote.srcAsset.decimals",
+          "lifi|quote.srcTokenAmount",
+          "lifi|quote.destChainId",
+          "lifi|quote.destAsset",
+          "lifi|quote.destTokenAmount",
+          "lifi|quote.minDestTokenAmount",
+          "lifi|quote.feeData",
+          "lifi|quote.steps",
+          "socket|quote.requestId",
+          "socket|quote.srcChainId",
+          "socket|quote.srcAsset",
+          "socket|quote.srcTokenAmount",
+          "socket|quote.destChainId",
+          "socket|quote.destAsset.address",
+          "socket|quote.destTokenAmount",
+          "socket|quote.minDestTokenAmount",
+          "socket|quote.feeData",
+          "socket|quote.steps",
+        ]
+      `);
       // eslint-disable-next-line jest/no-restricted-matchers
-      expect(mockConsoleError.mock.calls).toMatchSnapshot();
+      expect(mockConsoleWarn.mock.calls).toMatchSnapshot();
     });
 
     it('should fetch bridge quotes successfully, with aggIds, bridgeIds and noFee=true', async () => {
@@ -332,7 +380,8 @@ describe('fetch', () => {
         },
       );
 
-      expect(result).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.quotes).toStrictEqual(mockBridgeQuotesNativeErc20);
+      expect(result.validationFailures).toStrictEqual([]);
     });
   });
 

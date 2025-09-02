@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [60.1.0]
+
 ### Added
 
+- Add optional `batchTransactionsOptions` to `TransactionMeta` ([#6368](https://github.com/MetaMask/core/pull/6368))
+  - Add optional `isAfter` property to `batchTransactions` entries in `TransactionMeta`.
+  - Add `BatchTransaction` type.
 - Add optional `metamaskPay` and `requiredTransactionIds` properties to `TransactionMeta` ([#6361](https://github.com/MetaMask/core/pull/6361))
   - Add `updateRequiredTransactionIds` method.
 - Add `getSimulationConfig` constructor property ([#6281](https://github.com/MetaMask/core/pull/6281))
@@ -1777,7 +1782,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.1.0...HEAD
+[60.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.0.0...@metamask/transaction-controller@60.1.0
 [60.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.2.0...@metamask/transaction-controller@60.0.0
 [59.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.1.0...@metamask/transaction-controller@59.2.0
 [59.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.0.0...@metamask/transaction-controller@59.1.0

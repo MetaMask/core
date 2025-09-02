@@ -7,21 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
-### Changed
-
-- **BREAKING** Rename `gasless7702` field from `QuoteRequest` (and quote schema) to `gasIncluded7702` ([#6363](https://github.com/MetaMask/core/pull/6363))
-- Include 7702 gas-included quotes when computing `includedTxFees` ([#6363](https://github.com/MetaMask/core/pull/6363))
+## [41.4.0]
 
 ### Added
 
-- Add `gas_included_7702` metric from quote ([#6363](https://github.com/MetaMask/core/pull/6363))
+- Add Bitcoin as a supported bridge chain ([#6389](https://github.com/MetaMask/core/pull/6389))
+- Export `isBitcoinChainId` utility function ([#6389](https://github.com/MetaMask/core/pull/6389))
+
+## [41.3.0]
+
+### Added
+
+- Publish `QuotesValidationFailed` and `StatusValidationFailed` events ([#6362](https://github.com/MetaMask/core/pull/6362))
 
 ## [41.2.0]
-
-### Uncategorized
-
-- Release/511.0.0 ([#6372](https://github.com/MetaMask/core/pull/6372))
 
 ### Changed
 
@@ -545,7 +544,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...HEAD
+[41.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.3.0...@metamask/bridge-controller@41.4.0
+[41.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...@metamask/bridge-controller@41.3.0
 [41.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.1.0...@metamask/bridge-controller@41.2.0
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.0.0...@metamask/bridge-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@40.0.0...@metamask/bridge-controller@41.0.0

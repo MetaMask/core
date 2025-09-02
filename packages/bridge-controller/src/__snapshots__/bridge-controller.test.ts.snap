@@ -190,6 +190,20 @@ Array [
 ]
 `;
 
+exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the StatusValidationFailed event 1`] = `
+Array [
+  Array [
+    "Unified SwapBridge Status Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "failures": Array [
+        "Failed to submit tx",
+      ],
+    },
+  ],
+]
+`;
+
 exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller calls should track the Submitted event 1`] = `
 Array [
   Array [
@@ -1029,6 +1043,60 @@ Array [
 ]
 `;
 
+exports[`BridgeController updateBridgeQuoteRequestParams: should append solanaFees for Solana quotes 2`] = `Array []`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 1`] = `
+Array [
+  Array [
+    "SnapController:handleRequest",
+    Object {
+      "handler": "onProtocolRequest",
+      "origin": "metamask",
+      "request": Object {
+        "jsonrpc": "2.0",
+        "method": " ",
+        "params": Object {
+          "request": Object {
+            "id": "test-uuid-1234",
+            "jsonrpc": "2.0",
+            "method": "getMinimumBalanceForRentExemption",
+            "params": Array [
+              0,
+              Object {
+                "commitment": "confirmed",
+              },
+            ],
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+      },
+      "snapId": "npm:@metamask/solana-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle malformed quotes 2`] = `
+Array [
+  Array [
+    "Unified SwapBridge Quotes Failed Validation",
+    Object {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "failures": Array [
+        "socket|quote.srcAsset.decimals",
+        "socket|quote.destAsset.address",
+        "lifi|quote.srcAsset.decimals",
+      ],
+      "refresh_count": 0,
+      "token_address_destination": "eip155:1/slip44:60",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+    },
+  ],
+]
+`;
+
 exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 1`] = `
 Array [
   Array [
@@ -1060,4 +1128,8 @@ Array [
 ]
 `;
 
+exports[`BridgeController updateBridgeQuoteRequestParams: should handle mixed Solana and non-Solana quotes by not appending fees 2`] = `Array []`;
+
 exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 1`] = `Array []`;
+
+exports[`BridgeController updateBridgeQuoteRequestParams: should not append solanaFees if selected account is not a snap 2`] = `Array []`;
