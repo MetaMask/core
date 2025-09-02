@@ -1,7 +1,7 @@
 import type { Patch } from 'immer';
 import sinon from 'sinon';
 
-import { Messenger, DISABLE_NAMESPACE } from './Messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
 
 describe('Messenger', () => {
   afterEach(() => {
@@ -27,13 +27,13 @@ describe('Messenger', () => {
       expect(count).toBe(1);
     });
 
-    it('allows registering and calling an action handler for a different namespace using DISABLE_NAMESPACE', () => {
+    it('allows registering and calling an action handler for a different namespace using MOCK_ANY_NAMESPACE', () => {
       type CountAction = {
         type: 'Fixture:count';
         handler: (increment: number) => void;
       };
       const messenger = new Messenger<string, CountAction, never>({
-        namespace: DISABLE_NAMESPACE,
+        namespace: MOCK_ANY_NAMESPACE,
       });
 
       let count = 0;
@@ -224,10 +224,10 @@ describe('Messenger', () => {
       );
     });
 
-    it('throws when calling an action from a different namespace that has been unregistered using DISABLE_NAMESPACE', () => {
+    it('throws when calling an action from a different namespace that has been unregistered using MOCK_ANY_NAMESPACE', () => {
       type PingAction = { type: 'Fixture:ping'; handler: () => void };
       const messenger = new Messenger<string, PingAction, never>({
-        namespace: DISABLE_NAMESPACE,
+        namespace: MOCK_ANY_NAMESPACE,
       });
 
       expect(() => {
@@ -338,10 +338,10 @@ describe('Messenger', () => {
       expect(handler.callCount).toBe(1);
     });
 
-    it('publishes event from different namespace using DISABLE_NAMESPACE', () => {
+    it('publishes event from different namespace using MOCK_ANY_NAMESPACE', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<string, never, MessageEvent>({
-        namespace: DISABLE_NAMESPACE,
+        namespace: MOCK_ANY_NAMESPACE,
       });
 
       const handler = sinon.stub();
@@ -521,7 +521,7 @@ describe('Messenger', () => {
       });
     });
 
-    describe('on first state change with an initial payload function from another namespace registered (using DISABLE_NAMESPACE)', () => {
+    describe('on first state change with an initial payload function from another namespace registered (using MOCK_ANY_NAMESPACE)', () => {
       it('publishes event if selected payload differs', () => {
         const state = {
           propA: 1,
@@ -532,7 +532,7 @@ describe('Messenger', () => {
           payload: [typeof state];
         };
         const messenger = new Messenger<string, never, MessageEvent>({
-          namespace: DISABLE_NAMESPACE,
+          namespace: MOCK_ANY_NAMESPACE,
         });
         messenger.registerInitialEventPayload({
           eventType: 'Fixture:complexMessage',
@@ -562,7 +562,7 @@ describe('Messenger', () => {
           payload: [typeof state];
         };
         const messenger = new Messenger<string, never, MessageEvent>({
-          namespace: DISABLE_NAMESPACE,
+          namespace: MOCK_ANY_NAMESPACE,
         });
         messenger.registerInitialEventPayload({
           eventType: 'Fixture:complexMessage',

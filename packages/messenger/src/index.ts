@@ -14,4 +14,4 @@ export type {
   NotNamespacedBy,
   NamespacedName,
 } from './Messenger';
-export { DISABLE_NAMESPACE, Messenger } from './Messenger';
+export { MOCK_ANY_NAMESPACE, Messenger } from './Messenger';

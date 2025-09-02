@@ -101,7 +101,7 @@ export type MessengerEvents<
  * This is useful for mocking a variety of different actions/events in unit tests. Please do not
  * use this in production code.
  */
-export const DISABLE_NAMESPACE = 'DISABLE_NAMESPACE';
+export const MOCK_ANY_NAMESPACE = 'MOCK_ANY_NAMESPACE';
 
 /**
  * Metadata for a single event subscription.
@@ -990,14 +990,14 @@ export class Messenger<
   /**
    * Determine whether the given name is within the current namespace.
    *
-   * If the current namespace is DISABLE_NAMESPACE, this check always returns true.
+   * If the current namespace is MOCK_ANY_NAMESPACE, this check always returns true.
    *
    * @param name - The name to check
    * @returns Whether the name is within the current namespace
    */
   #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
     return (
-      this.#namespace === DISABLE_NAMESPACE ||
+      this.#namespace === MOCK_ANY_NAMESPACE ||
       name.startsWith(`${this.#namespace}:`)
     );
   }
