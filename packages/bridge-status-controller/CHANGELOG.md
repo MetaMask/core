@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Set the Solana tx signature as the `txHistory` key to support lookups by hash ([#6424](https://github.com/MetaMask/core/pull/6424))
+
 ## [40.2.0]
 
 ### Added
