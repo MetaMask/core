@@ -94,7 +94,7 @@ export type ProductPricing = {
   prices: ProductPrice[];
 };
 
-export type ChainPaymentDetails = {
+export type ChainPaymentInfo = {
   chainId: string;
   paymentAddress: string;
   tokens: {
@@ -109,7 +109,7 @@ export type ChainPaymentDetails = {
 
 export type PricingPaymentMethod = {
   type: PaymentType;
-  chains?: ChainPaymentDetails[];
+  chains?: ChainPaymentInfo[];
 };
 
 export type PricingResponse = {

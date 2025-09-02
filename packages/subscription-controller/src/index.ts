@@ -25,7 +25,7 @@ export type {
   ProductType,
   ProductPrice,
   ProductPricing,
-  ChainPaymentDetails,
+  ChainPaymentInfo,
   PricingPaymentMethod,
   PricingResponse,
 } from './types';
