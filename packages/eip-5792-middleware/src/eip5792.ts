@@ -59,10 +59,7 @@ export enum AtomicCapabilityStatus {
   Unsupported = 'unsupported',
 }
 
-/**
- * Type definition for the hooks parameter of processSendCalls function.
- */
-export type ProcessSendCallsHooks = {
+type ProcessSendCallsHooks = {
   addTransactionBatch: TransactionController['addTransactionBatch'];
   addTransaction: TransactionController['addTransaction'];
   getDismissSmartAccountSuggestionEnabled: () => boolean;
@@ -74,18 +71,12 @@ export type ProcessSendCallsHooks = {
   ) => Promise<void>;
 };
 
-/**
- * Type definition for the request parameter of processSendCalls function.
- */
-export type ProcessSendCallsRequest = JsonRpcRequest & {
+type ProcessSendCallsRequest = JsonRpcRequest & {
   networkClientId: string;
   origin?: string;
 };
 
-/**
- * Type definition for the hooks parameter of getCapabilities function.
- */
-export type GetCapabilitiesHooks = {
+type GetCapabilitiesHooks = {
   getDismissSmartAccountSuggestionEnabled: () => boolean;
   getIsSmartTransaction: (chainId: Hex) => boolean;
   isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
@@ -93,14 +84,6 @@ export type GetCapabilitiesHooks = {
   getSendBundleSupportedChains: (
     chainIds: Hex[],
   ) => Promise<Record<string, boolean>>;
-};
-
-/**
- * Type definition for the parameters of getCallsStatus function.
- */
-export type GetCallsStatusParams = {
-  messenger: EIP5792Messenger;
-  id: Hex;
 };
 
 const VERSION = '2.0.0';
