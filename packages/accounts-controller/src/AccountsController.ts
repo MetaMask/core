@@ -40,6 +40,7 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
   getEvmDerivationPathForIndex,
@@ -604,7 +605,8 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
-      state.internalAccounts.accounts = internalAccounts;
+      (state as AccountsControllerStrictState).internalAccounts.accounts =
+        internalAccounts;
     });
   }
 
@@ -615,9 +617,11 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState) => {
-        currentState.internalAccounts = backup.internalAccounts;
-      });
+      this.update(
+        (currentState: WritableDraft<AccountsControllerStrictState>) => {
+          currentState.internalAccounts = backup.internalAccounts;
+        },
+      );
     }
   }
 
@@ -906,13 +910,20 @@ export class AccountsController extends BaseController<
    *
    * @param callback - Callback for updating state, passed a draft state object.
    */
-  #update(callback: (state: WritableDraft<AccountsControllerState>) => void) {
+  #update(
+    callback: (state: WritableDraft<AccountsControllerStrictState>) => void,
+  ) {
     // The currently selected account might get deleted during the update, so keep track
     // of it before doing any change.
     const previouslySelectedAccount =
       this.state.internalAccounts.selectedAccount;
 
-    this.update((state) => {
+    this.update((draft: WritableDraft<AccountsControllerState>) => {
+      // By-passing recursive-type issue. We have other type-assertion that checks that both
+      // types are compatible.
+      const state = draft as WritableDraft<AccountsControllerStrictState>;
+
+      // We're casting this type to avoid having this same error in every `#update` calls.
       callback(state);
 
       // If the account no longer exists (or none is selected), we need to re-select another one.
