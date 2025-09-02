@@ -538,7 +538,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
     });
 
-    it('should not push when no groups need updates', async () => {
+    it('should push group if it is not present in user storage', async () => {
       const localGroups = [
         {
           id: 'entropy:test-entropy/group-1',
@@ -547,7 +547,6 @@ describe('BackupAndSync - Syncing - Group', () => {
       ];
 
       mockGetLocalGroupsForEntropyWallet.mockReturnValue(localGroups);
-      mockCompareAndSyncMetadata.mockResolvedValue(false);
 
       await syncGroupsMetadata(
         mockContext,
@@ -557,7 +556,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         'test-profile',
       );
 
-      expect(mockPushGroupToUserStorageBatch).not.toHaveBeenCalled();
+      expect(mockPushGroupToUserStorageBatch).toHaveBeenCalled();
     });
 
     it('should handle metadata sync for name, pinned, and hidden fields', async () => {
@@ -619,7 +618,7 @@ describe('BackupAndSync - Syncing - Group', () => {
   });
 
   describe('syncSingleGroupMetadata - debug logging coverage', () => {
-    it('logs when group does not exist in user storage but has local metadata', async () => {
+    it('logs when group does not exist in user storage', async () => {
       const testContext = {
         ...mockContext,
         enableDebugLogging: true,
@@ -645,42 +644,12 @@ describe('BackupAndSync - Syncing - Group', () => {
       // Verify that the warning was logged
       expect(contextualLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'does not exist in user storage, but has local metadata',
+          'did not exist in user storage, pushing to user storage',
         ),
       );
 
       // Should push the group since it has local metadata
       expect(mockPushGroupToUserStorage).toHaveBeenCalled();
-    });
-
-    it('logs when group does not exist in user storage and has no local metadata', async () => {
-      const testContext = {
-        ...mockContext,
-        enableDebugLogging: true,
-      } as BackupAndSyncContext;
-
-      testContext.controller.state.accountGroupsMetadata = {};
-
-      mockGetLocalGroupsForEntropyWallet.mockReturnValue([mockLocalGroup]);
-      mockPushGroupToUserStorage.mockResolvedValue();
-
-      await syncSingleGroupMetadata(
-        testContext,
-        mockLocalGroup,
-        null, // groupFromUserStorage is null
-        'test-entropy',
-        'test-profile',
-      );
-
-      // Verify that the warning was logged
-      expect(contextualLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'does not exist in user storage and has no local metadata',
-        ),
-      );
-
-      // Should not push the group since it has no metadata
-      expect(mockPushGroupToUserStorage).not.toHaveBeenCalled();
     });
 
     it('calls applyLocalUpdate when metadata sync requires local update', async () => {

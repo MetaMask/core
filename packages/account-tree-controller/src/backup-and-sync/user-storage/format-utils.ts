@@ -8,7 +8,6 @@ import type {
   BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-  UserStorageWalletExtendedMetadata,
 } from '../types';
 
 /**
@@ -18,13 +17,11 @@ import type {
  *
  * @param context - The backup and sync context.
  * @param wallet - The wallet object to format.
- * @param extendedMetadata - Optional extended metadata to include in the formatted wallet.
  * @returns The formatted wallet for user storage.
  */
 export const formatWalletForUserStorageUsage = (
   context: BackupAndSyncContext,
   wallet: AccountWalletEntropyObject,
-  extendedMetadata?: UserStorageWalletExtendedMetadata,
 ): UserStorageSyncedWallet => {
   // This can be null if the user has not manually set a name
   const persistedWalletMetadata =
@@ -32,7 +29,7 @@ export const formatWalletForUserStorageUsage = (
 
   return {
     ...(persistedWalletMetadata ?? {}),
-    ...extendedMetadata,
+    isLegacyAccountSyncingDisabled: true, // If we're here, it means legacy account syncing has been performed at least once, so we can disable it for this wallet.
   };
 };
 

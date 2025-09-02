@@ -1,8 +1,6 @@
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import { getProfileId } from '../authentication/utils';
 import type { BackupAndSyncContext } from '../types';
-import { pushWalletToUserStorage } from '../user-storage';
-import { getLocalEntropyWallets } from '../utils';
 
 /**
  * Performs legacy account syncing.
@@ -22,24 +20,4 @@ export const performLegacyAccountSyncing = async (
     action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
     profileId: primarySrpProfileId,
   });
-};
-
-/**
- * Disables legacy account syncing for all local wallets by pushing them to user storage
- * with the `isLegacyAccountSyncingDisabled` flag set to true.
- *
- * @param context - The backup and sync context containing controller and messenger.
- * @returns Promise that resolves when all wallets have been updated.
- */
-export const disableLegacyAccountSyncingForAllWallets = async (
-  context: BackupAndSyncContext,
-): Promise<void> => {
-  const allLocalEntropyWallets = getLocalEntropyWallets(context);
-  await Promise.all(
-    allLocalEntropyWallets.map(async (wallet) => {
-      await pushWalletToUserStorage(context, wallet, {
-        isLegacyAccountSyncingDisabled: true,
-      });
-    }),
-  );
 };

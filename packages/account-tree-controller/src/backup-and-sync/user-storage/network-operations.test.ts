@@ -204,30 +204,12 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(mockFormatWalletForUserStorageUsage).toHaveBeenCalledWith(
         mockContext,
         mockWallet,
-        undefined,
       );
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:performSetStorage',
         `${USER_STORAGE_WALLETS_FEATURE_KEY}.${USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY}`,
         JSON.stringify(formattedWallet),
         'test-entropy-id',
-      );
-    });
-
-    it('should include extended metadata when provided', async () => {
-      const formattedWallet = {
-        name: { value: 'Formatted Wallet' },
-      } as unknown as UserStorageSyncedWallet;
-      const extendedMetadata = { isLegacyAccountSyncingDisabled: true };
-
-      mockFormatWalletForUserStorageUsage.mockReturnValue(formattedWallet);
-
-      await pushWalletToUserStorage(mockContext, mockWallet, extendedMetadata);
-
-      expect(mockFormatWalletForUserStorageUsage).toHaveBeenCalledWith(
-        mockContext,
-        mockWallet,
-        extendedMetadata,
       );
     });
   });

@@ -212,14 +212,9 @@ export class BackupAndSyncService {
             }
 
             // If we reach this point, we are either:
-            // 1. Not performing legacy account syncing at all (new wallets)
-            // 2. Legacy account syncing has been performed and we are now ready to proceed with
-            //    multichain account syncing.
-            // 2.3 Disable legacy account syncing for all wallets
-            // This will ensure that we do not perform legacy account syncing again in the future for these wallets.
-
-            // TEMP !!!! DO NOT DISABLE LEGACY ACCOUNT SYNCING FOR ALL WALLETS YET !!!!!
-            // await disableLegacyAccountSyncingForAllWallets(context);
+            // - Not performing legacy account syncing at all (new wallets)
+            // - Legacy account syncing has been performed and we are now ready to proceed with
+            //   multichain account syncing.
 
             // 3. Execute multichain account syncing
             // 3.1 Wallet syncing

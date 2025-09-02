@@ -115,21 +115,13 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     context.controller.state.accountGroupsMetadata[localGroup.id];
 
   if (!groupFromUserStorage) {
-    if (groupPersistedMetadata) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Group ${localGroup.id} does not exist in user storage, but has local metadata. Uploading it.`,
-        );
-      }
-      return true; // If group does not exist in user storage, we need to push it
-    }
     if (context.enableDebugLogging) {
       contextualLogger.warn(
-        `Group ${localGroup.id} does not exist in user storage and has no local metadata, skipping sync`,
+        `Group ${localGroup.id} did not exist in user storage, pushing to user storage...`,
       );
     }
 
-    return false; // No metadata to sync, nothing to push
+    return true;
   }
 
   // Track if we need to push this group to user storage

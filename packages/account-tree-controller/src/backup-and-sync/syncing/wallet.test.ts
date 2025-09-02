@@ -71,7 +71,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false when wallet does not exist in user storage and has no local metadata', async () => {
+    it('should return true when wallet does not exist in user storage and has no local metadata', async () => {
       mockContext.enableDebugLogging = true;
 
       const result = await syncWalletMetadataAndCheckIfPushNeeded(
@@ -81,7 +81,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         'test-profile',
       );
 
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
     it('should sync name metadata and return push decision', async () => {

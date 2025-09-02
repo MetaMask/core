@@ -10,7 +10,7 @@ import {
 } from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
+import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 
 jest.mock('./validation');
 
@@ -56,42 +56,25 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
 
   describe('formatWalletForUserStorageUsage', () => {
     it('should return wallet metadata when it exists', () => {
-      const walletMetadata = {
+      const walletMetadata: UserStorageSyncedWallet = {
         name: { value: 'Wallet Name', lastUpdatedAt: 123456 },
       };
       mockContext.controller.state.accountWalletsMetadata[mockWallet.id] =
         walletMetadata;
 
       const result = formatWalletForUserStorageUsage(mockContext, mockWallet);
-
-      expect(result).toStrictEqual(walletMetadata);
-    });
-
-    it('should return empty object when no wallet metadata exists', () => {
-      const result = formatWalletForUserStorageUsage(mockContext, mockWallet);
-
-      expect(result).toStrictEqual({});
-    });
-
-    it('should merge extended metadata when provided', () => {
-      const walletMetadata = {
-        name: { value: 'Wallet Name', lastUpdatedAt: 123456 },
-      };
-      const extendedMetadata = {
-        isLegacyAccountSyncingDisabled: true,
-      };
-      mockContext.controller.state.accountWalletsMetadata[mockWallet.id] =
-        walletMetadata;
-
-      const result = formatWalletForUserStorageUsage(
-        mockContext,
-        mockWallet,
-        extendedMetadata,
-      );
 
       expect(result).toStrictEqual({
         ...walletMetadata,
-        ...extendedMetadata,
+        isLegacyAccountSyncingDisabled: true,
+      });
+    });
+
+    it('should return default object when no wallet metadata exists', () => {
+      const result = formatWalletForUserStorageUsage(mockContext, mockWallet);
+
+      expect(result).toStrictEqual({
+        isLegacyAccountSyncingDisabled: true,
       });
     });
   });

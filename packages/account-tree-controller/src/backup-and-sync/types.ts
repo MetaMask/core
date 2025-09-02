@@ -56,11 +56,7 @@ export const UserStorageSyncedWalletGroupSchema = object({
   groupIndex: number(),
 });
 
-export type UserStorageWalletExtendedMetadata = {
-  isLegacyAccountSyncingDisabled?: boolean;
-};
 export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata &
-  UserStorageWalletExtendedMetadata &
   Infer<typeof UserStorageSyncedWalletSchema>;
 
 export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
