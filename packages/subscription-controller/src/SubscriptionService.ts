@@ -1,9 +1,15 @@
-import { getEnvUrls, type Env } from './constants';
+import {
+  getEnvUrls,
+  SubscriptionControllerErrorMessage,
+  type Env,
+} from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
   GetSubscriptionsResponse,
   ISubscriptionService,
+  StartSubscriptionRequest,
+  StartSubscriptionResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -43,9 +49,23 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'DELETE');
   }
 
+  async startSubscriptionWithCard(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse> {
+    if (request.products.length === 0) {
+      throw new SubscriptionServiceError(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+    const path = 'subscriptions/card';
+
+    return await this.#makeRequest(path, 'POST', request);
+  }
+
   async #makeRequest<Result>(
     path: string,
     method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
+    body?: Record<string, unknown>,
   ): Promise<Result> {
     try {
       const headers = await this.#getAuthorizationHeader();
@@ -57,6 +77,7 @@ export class SubscriptionService implements ISubscriptionService {
           'Content-Type': 'application/json',
           ...headers,
         },
+        body: body ? JSON.stringify(body) : undefined,
       });
 
       const responseBody = await response.json();

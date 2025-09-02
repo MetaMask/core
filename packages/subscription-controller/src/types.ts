@@ -10,8 +10,13 @@ export type Product = {
 };
 
 export enum PaymentType {
-  CARD = 'card',
-  CRYPTO = 'crypto',
+  byCard = 'card',
+  byCrypto = 'crypto',
+}
+
+export enum RecurringInterval {
+  month = 'month',
+  year = 'year',
 }
 
 export type PaymentMethod = {
@@ -23,22 +28,52 @@ export type PaymentMethod = {
   };
 };
 
+export enum SubscriptionStatus {
+  // Initial states
+  incomplete = 'incomplete',
+  incompleteExpired = 'incomplete_expired',
+
+  // Active states
+  provisional = 'provisional',
+  trialing = 'trialing',
+  active = 'active',
+
+  // Payment issues
+  pastDue = 'past_due',
+  unpaid = 'unpaid',
+
+  // Cancelled states
+  canceled = 'canceled',
+
+  // Paused states
+  paused = 'paused',
+}
+
 // state
 export type Subscription = {
   id: string;
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
-  billingCycles?: number;
-  status: 'active' | 'inactive' | 'trialing' | 'cancelled';
-  interval: 'month' | 'year';
+  status: SubscriptionStatus;
+  interval: RecurringInterval;
   paymentMethod: PaymentMethod;
 };
 
 export type GetSubscriptionsResponse = {
-  customerId: string;
+  customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
+};
+
+export type StartSubscriptionRequest = {
+  products: ProductType[];
+  isTrialRequested: boolean;
+  recurringInterval: RecurringInterval;
+};
+
+export type StartSubscriptionResponse = {
+  checkoutSessionUrl: string;
 };
 
 export type AuthUtils = {
@@ -48,4 +83,7 @@ export type AuthUtils = {
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
+  startSubscriptionWithCard(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse>;
 };
