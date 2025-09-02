@@ -7,7 +7,7 @@ import {
   isHexString,
   remove0x,
   getChecksumAddress,
-  isHexChecksumAddress,
+  isValidHexAddress as isValidHexAddressUtil,
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
@@ -366,7 +366,7 @@ function isValidHexAddressUnmemoized(
   // We used to rely on `isValidAddress` from `@ethereumjs/util` which allows
   // for upper-case characters too. So we preserve this behavior and use our
   // faster and memoized validation function instead.
-  return isHexChecksumAddress(addressToCheck);
+  return isValidHexAddressUtil(addressToCheck);
 }
 
 /**
