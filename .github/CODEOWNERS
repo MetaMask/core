@@ -61,6 +61,7 @@
 /packages/eip1193-permission-middleware    @MetaMask/wallet-api-platform-engineers
 /packages/multichain-api-middleware        @MetaMask/wallet-api-platform-engineers
 /packages/selected-network-controller      @MetaMask/wallet-api-platform-engineers
+/packages/eip-5792-middleware              @MetaMask/wallet-api-platform-engineers
 
 ## Core Platform Team
 /packages/base-controller              @MetaMask/core-platform
