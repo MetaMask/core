@@ -347,10 +347,6 @@
   "packages/seedless-onboarding-controller/src/errors.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
-  "packages/selected-network-controller/src/SelectedNetworkController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "prettier/prettier": 6
-  },
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1
   },
