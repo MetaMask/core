@@ -92,7 +92,7 @@ export async function getCapabilities(
     try {
       const keyringType = getAccountKeyringType(address, messenger);
       isSupportedAccount = KEYRING_TYPES_SUPPORTING_7702.includes(keyringType);
-    } catch (error) {
+    } catch {
       // Intentionally empty
     }
 
