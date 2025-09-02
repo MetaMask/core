@@ -1,5 +1,7 @@
 import {
   Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
@@ -300,9 +302,7 @@ describe('SampleGasPricesController', () => {
  * required by the controller under test.
  */
 type RootMessenger = Messenger<
-  // Use `string` rather than 'Root' here to allow registering actions and publishing events from
-  // any namespace in tests.
-  string,
+  MockAnyNamespace,
   MessengerActions<SampleGasPricesControllerMessenger>,
   MessengerEvents<SampleGasPricesControllerMessenger>
 >;
@@ -330,7 +330,7 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: 'Root' });
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
