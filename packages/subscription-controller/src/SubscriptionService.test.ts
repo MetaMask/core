@@ -274,7 +274,7 @@ describe('SubscriptionService', () => {
       expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
     });
 
-    it('should handle empty products array', async () => {
+    it('throws when products array is empty', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
       const request: StartSubscriptionRequest = {
