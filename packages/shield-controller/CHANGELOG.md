@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed backend URL paths ([#6433](https://github.com/MetaMask/core/pull/6433))
+
 ## [0.1.1]
 
 ### Fixed
