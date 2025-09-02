@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Allow disabling namespace checks in unit tests using the new `DISABLE_NAMESPACE` constant ([#6420](https://github.com/MetaMask/core/pull/6420))
-  - To disable namespace checks, use `string` as the `Namespace` type parameter, and use `DISABLE_NAMESPACE` as the `namespace` constructor parameter.
+- Allow disabling namespace checks in unit tests using the new `MOCK_ANY_NAMESPACE` constant and `MockAnyNamespace` type ([#6420](https://github.com/MetaMask/core/pull/6420))
+  - To disable namespace checks, use `MockAnyNamespace` as the `Namespace` type parameter, and use `MOCK_ANY_NAMESPACE` as the `namespace` constructor parameter.
 
 ### Changed
 
