@@ -7,6 +7,7 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 
+import { AccountProviderWrapper } from './AccountProviderWrapper';
 import { SolAccountProvider } from './SolAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
@@ -23,7 +24,6 @@ import type {
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
 } from '../types';
-import { AccountProviderWrapper } from './AccountProviderWrapper';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
