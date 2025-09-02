@@ -1,7 +1,11 @@
 import type { Patch } from 'immer';
 import sinon from 'sinon';
 
-import { Messenger } from './Messenger';
+import {
+  type MockAnyNamespace,
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+} from './Messenger';
 
 describe('Messenger', () => {
   afterEach(() => {
@@ -16,6 +20,24 @@ describe('Messenger', () => {
       };
       const messenger = new Messenger<'Fixture', CountAction, never>({
         namespace: 'Fixture',
+      });
+
+      let count = 0;
+      messenger.registerActionHandler('Fixture:count', (increment: number) => {
+        count += increment;
+      });
+      messenger.call('Fixture:count', 1);
+
+      expect(count).toBe(1);
+    });
+
+    it('allows registering and calling an action handler for a different namespace using MOCK_ANY_NAMESPACE', () => {
+      type CountAction = {
+        type: 'Fixture:count';
+        handler: (increment: number) => void;
+      };
+      const messenger = new Messenger<MockAnyNamespace, CountAction, never>({
+        namespace: MOCK_ANY_NAMESPACE,
       });
 
       let count = 0;
@@ -168,6 +190,67 @@ describe('Messenger', () => {
       }).toThrow('A handler for Fixture:ping has not been registered');
     });
 
+    it('throws when registering an action handler for a different namespace', () => {
+      type CountAction = {
+        type: 'Fixture:count';
+        handler: (increment: number) => void;
+      };
+      const messenger = new Messenger<'Different', CountAction, never>({
+        namespace: 'Different',
+      });
+
+      expect(() =>
+        // @ts-expect-error Intentionally invalid parameter
+        messenger.registerActionHandler('Fixture:count', jest.fn()),
+      ).toThrow(
+        `Only allowed registering action handlers prefixed by 'Different:'`,
+      );
+    });
+
+    it('throws when unregistering an action handler for a different namespace', () => {
+      type CountAction = {
+        type: 'Source:count';
+        handler: (increment: number) => void;
+      };
+      const sourceMessenger = new Messenger<'Source', CountAction, never>({
+        namespace: 'Source',
+      });
+      const messenger = new Messenger<'Destination', CountAction, never>({
+        namespace: 'Destination',
+      });
+      sourceMessenger.delegate({ actions: ['Source:count'], messenger });
+
+      expect(() =>
+        // @ts-expect-error Intentionally invalid parameter
+        messenger.unregisterActionHandler('Source:count'),
+      ).toThrow(
+        `Only allowed unregistering action handlers prefixed by 'Destination:'`,
+      );
+    });
+
+    it('throws when calling an action from a different namespace that has been unregistered using MOCK_ANY_NAMESPACE', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<MockAnyNamespace, PingAction, never>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+
+      let pingCount = 0;
+      messenger.registerActionHandler('Fixture:ping', () => {
+        pingCount += 1;
+      });
+
+      messenger.unregisterActionHandler('Fixture:ping');
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+      expect(pingCount).toBe(0);
+    });
+
     it('throws when calling an action that has been unregistered', () => {
       type PingAction = { type: 'Fixture:ping'; handler: () => void };
       const messenger = new Messenger<'Fixture', PingAction, never>({
@@ -249,6 +332,20 @@ describe('Messenger', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
+      });
+
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler.calledWithExactly('hello')).toBe(true);
+      expect(handler.callCount).toBe(1);
+    });
+
+    it('publishes event from different namespace using MOCK_ANY_NAMESPACE', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+        namespace: MOCK_ANY_NAMESPACE,
       });
 
       const handler = sinon.stub();
@@ -410,6 +507,66 @@ describe('Messenger', () => {
         };
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
+        });
+        messenger.registerInitialEventPayload({
+          eventType: 'Fixture:complexMessage',
+          getPayload: () => [state],
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
+
+        messenger.publish('Fixture:complexMessage', state);
+
+        expect(handler.callCount).toBe(0);
+      });
+    });
+
+    describe('on first state change with an initial payload function from another namespace registered (using MOCK_ANY_NAMESPACE)', () => {
+      it('publishes event if selected payload differs', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+          namespace: MOCK_ANY_NAMESPACE,
+        });
+        messenger.registerInitialEventPayload({
+          eventType: 'Fixture:complexMessage',
+          getPayload: () => [state],
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
+
+        state.propA += 1;
+        messenger.publish('Fixture:complexMessage', state);
+
+        expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
+        expect(handler.callCount).toBe(1);
+      });
+
+      it('does not publish event if selected payload is the same', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+          namespace: MOCK_ANY_NAMESPACE,
         });
         messenger.registerInitialEventPayload({
           eventType: 'Fixture:complexMessage',
@@ -725,6 +882,42 @@ describe('Messenger', () => {
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
 
       expect(stub.callCount).toBe(0);
+    });
+
+    it('throws when publishing an event from another namespace', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Other', never, MessageEvent>({
+        namespace: 'Other',
+      });
+      const handler = jest.fn();
+      messenger.subscribe('Fixture:message', handler);
+
+      // @ts-expect-error Intentionally invalid parameter
+      expect(() => messenger.publish('Fixture:message', 'hello')).toThrow(
+        `Only allowed publishing events prefixed by 'Other:'`,
+      );
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('throws when registering an initial event payload from another namespace', () => {
+      type MessageEvent = {
+        type: 'Fixture:complexMessage';
+        payload: [null];
+      };
+      const messenger = new Messenger<'Other', never, MessageEvent>({
+        namespace: 'Other',
+      });
+
+      expect(() =>
+        messenger.registerInitialEventPayload({
+          // @ts-expect-error Intentionally invalid parameter
+          eventType: 'Fixture:complexMessage',
+          // @ts-expect-error Intentionally invalid parameter
+          getPayload: () => [null],
+        }),
+      ).toThrow(
+        `Only allowed registering initial payloads for events prefixed by 'Other:'`,
+      );
     });
 
     it('throws when unsubscribing when there are no subscriptions', () => {
