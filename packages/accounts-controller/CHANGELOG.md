@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- disable ESLint max-depth rule and TypeScript checking when assigning internal accounts to state due to nested object structure requirements ([#6344](https://github.com/MetaMask/core/pull/6344))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 ## [33.0.0]
