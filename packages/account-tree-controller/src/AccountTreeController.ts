@@ -201,22 +201,28 @@ export class AccountTreeController extends BaseController<
       }
     }
 
-    // No group is selected yet OR group no longer exists, re-sync with the
-    // AccountsController.
-    const syncSelectedAccountGroup =
-      !previousSelectedAccountGroupStillExists ||
-      previousSelectedAccountGroup === '';
-
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
-      if (syncSelectedAccountGroup) {
+      if (
+        !previousSelectedAccountGroupStillExists ||
+        previousSelectedAccountGroup === ''
+      ) {
+        // No group is selected yet OR group no longer exists, re-sync with the
+        // AccountsController.
         state.accountTree.selectedAccountGroup =
           this.#getDefaultSelectedAccountGroup(wallets);
       }
     });
 
-    if (syncSelectedAccountGroup) {
+    // We still compare the previous and new value, the previous one could have been
+    // an empty string and `#getDefaultSelectedAccountGroup` could also return an
+    // empty string too, thus, we would re-use the same value here again. In that
+    // case, no need to fire any event.
+    if (
+      previousSelectedAccountGroup !==
+      this.state.accountTree.selectedAccountGroup
+    ) {
       this.messagingSystem.publish(
         `${controllerName}:selectedAccountGroupChange`,
         this.state.accountTree.selectedAccountGroup,
