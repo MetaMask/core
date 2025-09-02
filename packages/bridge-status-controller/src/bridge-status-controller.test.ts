@@ -1154,55 +1154,6 @@ describe('BridgeStatusController', () => {
     });
   });
 
-  describe('getCurrentSubmissionRequest', () => {
-    it('returns undefined when no submission request exists', () => {
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        state: EMPTY_INIT_STATE,
-      });
-      expect(bridgeStatusController.getSubmissionRequests()).toStrictEqual(
-        EMPTY_INIT_STATE.submissionRequests,
-      );
-    });
-
-    it('returns the submission requests when it exists', () => {
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        state: {
-          txHistory: {
-            ...MockTxHistory.getPending(),
-            ...MockTxHistory.getPendingSwap(),
-            ...MockTxHistory.getPending({
-              txMetaId: 'bridgeTxMetaId1WithApproval',
-              approvalTxId: 'bridgeApprovalTxMetaId1' as never,
-            }),
-          },
-          submissionRequests: {
-            '1': {
-              bridgeApprovalTxMetaId1: {
-                gasIncluded7702: true,
-                isBridgeTx: true,
-              },
-            },
-          },
-        },
-      });
-      expect(bridgeStatusController.getSubmissionRequests()).toBeDefined();
-    });
-  });
-
   describe('getBridgeHistoryItemByTxMetaId', () => {
     it('returns the bridge history item when it exists', async () => {
       const { bridgeStatusController } =

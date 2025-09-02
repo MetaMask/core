@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `submissionRequests` state property and `getSubmissionRequests` action
+
 ### Added
 
 - Add `gas_included_7702` metric from quote ([#6363](https://github.com/MetaMask/core/pull/6363))
-- Add new state prop `submissionRequests` and `getSubmissionRequests` action ([#6363](https://github.com/MetaMask/core/pull/6363))
 
 ### Changed
 

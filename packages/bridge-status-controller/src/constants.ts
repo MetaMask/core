@@ -8,7 +8,6 @@ export const BRIDGE_STATUS_CONTROLLER_NAME = 'BridgeStatusController';
 export const DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE: BridgeStatusControllerState =
   {
     txHistory: {},
-    submissionRequests: {},
   };
 
 export const BRIDGE_PROD_API_BASE_URL = 'https://bridge.api.cx.metamask.io';
