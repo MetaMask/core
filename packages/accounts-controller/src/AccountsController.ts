@@ -906,12 +906,7 @@ export class AccountsController extends BaseController<
     const previouslySelectedAccount =
       this.state.internalAccounts.selectedAccount;
 
-    this.update((draft: WritableDraft<AccountsControllerState>) => {
-      // By-passing recursive-type issue. We have other type-assertion that checks that both
-      // types are compatible.
-      const state = draft as WritableDraft<AccountsControllerStrictState>;
-
-      // We're casting this type to avoid having this same error in every `#update` calls.
+    this.update((state: WritableDraft<AccountsControllerStrictState>) => {
       callback(state);
 
       // If the account no longer exists (or none is selected), we need to re-select another one.
