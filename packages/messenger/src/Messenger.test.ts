@@ -1,7 +1,11 @@
 import type { Patch } from 'immer';
 import sinon from 'sinon';
 
-import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
+import {
+  type MockAnyNamespace,
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+} from './Messenger';
 
 describe('Messenger', () => {
   afterEach(() => {
@@ -32,7 +36,7 @@ describe('Messenger', () => {
         type: 'Fixture:count';
         handler: (increment: number) => void;
       };
-      const messenger = new Messenger<string, CountAction, never>({
+      const messenger = new Messenger<MockAnyNamespace, CountAction, never>({
         namespace: MOCK_ANY_NAMESPACE,
       });
 
@@ -226,7 +230,7 @@ describe('Messenger', () => {
 
     it('throws when calling an action from a different namespace that has been unregistered using MOCK_ANY_NAMESPACE', () => {
       type PingAction = { type: 'Fixture:ping'; handler: () => void };
-      const messenger = new Messenger<string, PingAction, never>({
+      const messenger = new Messenger<MockAnyNamespace, PingAction, never>({
         namespace: MOCK_ANY_NAMESPACE,
       });
 
@@ -340,7 +344,7 @@ describe('Messenger', () => {
 
     it('publishes event from different namespace using MOCK_ANY_NAMESPACE', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-      const messenger = new Messenger<string, never, MessageEvent>({
+      const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
         namespace: MOCK_ANY_NAMESPACE,
       });
 
@@ -531,7 +535,7 @@ describe('Messenger', () => {
           type: 'Fixture:complexMessage';
           payload: [typeof state];
         };
-        const messenger = new Messenger<string, never, MessageEvent>({
+        const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
           namespace: MOCK_ANY_NAMESPACE,
         });
         messenger.registerInitialEventPayload({
@@ -561,7 +565,7 @@ describe('Messenger', () => {
           type: 'Fixture:complexMessage';
           payload: [typeof state];
         };
-        const messenger = new Messenger<string, never, MessageEvent>({
+        const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
           namespace: MOCK_ANY_NAMESPACE,
         });
         messenger.registerInitialEventPayload({

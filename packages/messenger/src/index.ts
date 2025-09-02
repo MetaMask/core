@@ -10,6 +10,7 @@ export type {
   EventConstraint,
   MessengerActions,
   MessengerEvents,
+  MockAnyNamespace,
   NamespacedBy,
   NotNamespacedBy,
   NamespacedName,

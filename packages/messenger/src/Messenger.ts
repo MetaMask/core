@@ -104,6 +104,14 @@ export type MessengerEvents<
 export const MOCK_ANY_NAMESPACE = 'MOCK_ANY_NAMESPACE';
 
 /**
+ * A type representing any namespace.
+ *
+ * This is useful for mocking a variety of different actions/events in unit tests. Please do not
+ * use this in production code.
+ */
+export type MockAnyNamespace = string;
+
+/**
  * Metadata for a single event subscription.
  *
  * @template Event - The event this subscription is for.
