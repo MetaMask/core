@@ -23,6 +23,11 @@ export type {
   PaymentType,
   Product,
   ProductType,
+  ProductPrice,
+  ProductPricing,
+  ChainPaymentDetails,
+  PricingPaymentMethod,
+  PricingResponse,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';

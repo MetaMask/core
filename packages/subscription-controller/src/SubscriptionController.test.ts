@@ -533,10 +533,7 @@ describe('SubscriptionController', () => {
   describe('getPricing', () => {
     const mockPricingResponse: PricingResponse = {
       products: [],
-      paymentMethods: {
-        type: 'crypto',
-        chains: [],
-      },
+      paymentMethods: [],
     };
 
     it('should return pricing response', async () => {

@@ -80,33 +80,41 @@ export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
 
-export type PricingResponse = {
-  products: {
-    name: string;
-    prices: {
-      interval: string; // "month" | "year"
-      unitAmount: string; // amount in the smallest unit of the currency, e.g., cents
-      unitDecimals: number; // number of decimals for the smallest unit of the currency
-      currency: string; // "usd"
-      trialPeriodDays: number;
-      minBillingCycles: number;
-    }[];
+export type ProductPrice = {
+  interval: string; // "month" | "year"
+  unitAmount: string; // amount in the smallest unit of the currency, e.g., cents
+  unitDecimals: number; // number of decimals for the smallest unit of the currency
+  currency: string; // "usd"
+  trialPeriodDays: number;
+  minBillingCycles: number;
+};
+
+export type ProductPricing = {
+  name: string;
+  prices: ProductPrice[];
+};
+
+export type ChainPaymentDetails = {
+  chainId: string;
+  paymentAddress: string;
+  tokens: {
+    symbol: string;
+    address: string;
+    decimals: number;
+    conversionRate: {
+      usd: string;
+    };
   }[];
-  paymentMethods: {
-    type: string; // "crypto" | "card"
-    chains: {
-      chainId: string; // "0x1",
-      paymentAddress: string; // "0x...",
-      tokens: {
-        symbol: string; // "USDC" | "USDT"
-        address: string; // "0x..."
-        decimals: number; // 18
-        conversionRate: {
-          usd: string; // "1.0"
-        };
-      }[];
-    }[];
-  };
+};
+
+export type PricingPaymentMethod = {
+  type: PaymentType;
+  chains?: ChainPaymentDetails[];
+};
+
+export type PricingResponse = {
+  products: ProductPricing[];
+  paymentMethods: PricingPaymentMethod[];
 };
 
 export type ISubscriptionService = {
