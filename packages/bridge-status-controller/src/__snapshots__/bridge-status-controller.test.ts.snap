@@ -1004,6 +1004,7 @@ Array [
     Object {
       "disable7702": true,
       "from": "0xaccount1",
+      "isGasFeeIncluded": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2511,8 +2512,6 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 1`] = `undefined`;
-
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
 Object {
   "batchId": "batchId1",
@@ -2691,6 +2690,7 @@ Array [
     Object {
       "disable7702": true,
       "from": "0xaccount1",
+      "isGasFeeIncluded": undefined,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -3658,17 +3658,38 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 1`] = `
 Array [
   "BridgeController:trackUnifiedSwapBridgeEvent",
-  "Unified SwapBridge Status Failed Validation",
+  "Unified SwapBridge Completed",
   Object {
     "action_type": "swapbridge-v1",
+    "actual_time_minutes": -28812170.954983335,
+    "allowance_reset_transaction": undefined,
+    "approval_transaction": "COMPLETE",
     "chain_id_destination": "eip155:10",
     "chain_id_source": "eip155:42161",
-    "failures": Array [
-      "across|status",
-    ],
-    "refresh_count": 0,
+    "custom_slippage": true,
+    "destination_transaction": "COMPLETE",
+    "gas_included": false,
+    "gas_included_7702": false,
+    "is_hardware_wallet": false,
+    "price_impact": 0,
+    "provider": "lifi_across",
+    "quote_vs_execution_ratio": 0,
+    "quoted_time_minutes": 0.25,
+    "quoted_vs_used_gas_ratio": 0,
+    "security_warnings": Array [],
+    "slippage_limit": 0,
+    "source_transaction": "COMPLETE",
+    "stx_enabled": false,
+    "swap_type": "crosschain",
     "token_address_destination": "eip155:10/slip44:60",
     "token_address_source": "eip155:42161/slip44:60",
+    "token_symbol_destination": "ETH",
+    "token_symbol_source": "ETH",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 0,
+    "usd_quoted_gas": 2.5778,
+    "usd_quoted_return": 0,
   },
 ]
 `;

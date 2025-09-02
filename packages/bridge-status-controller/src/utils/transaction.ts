@@ -347,6 +347,7 @@ export const getAddTransactionBatchParams = async ({
     TransactionController['addTransactionBatch']
   >[0] = {
     disable7702,
+    isGasFeeIncluded: gasIncluded7702,
     networkClientId,
     requireApproval,
     origin: 'metamask',

@@ -1356,8 +1356,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should enable 7702 (disable7702 = false) when gasIncluded7702 is true
       expect(result.disable7702).toBe(false);
+      expect(result.isGasFeeIncluded).toBe(true);
 
       // Should use txFee for gas calculation when gasIncluded7702 is true
       expect(result.transactions).toHaveLength(2);
@@ -1378,8 +1378,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should disable 7702 when gasIncluded7702 is false
       expect(result.disable7702).toBe(true);
+      expect(result.isGasFeeIncluded).toBe(false);
 
       // Should not use txFee for gas calculation when both gasIncluded and gasIncluded7702 are false
       expect(result.transactions).toHaveLength(1);
@@ -1402,13 +1402,64 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should disable 7702 when gasIncluded7702 is not true
       expect(result.disable7702).toBe(true);
+      expect(result.isGasFeeIncluded).toBe(false);
 
       // Should use txFee for gas calculation when gasIncluded is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
+    });
+
+    it('should leave isGasFeeIncluded undefined and set disable7702 to true when gasIncluded7702 is undefined', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: undefined,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBeUndefined();
+      expect(result.disable7702).toBe(true);
+    });
+
+    it('should set isGasFeeIncluded to true and disable7702 to false when gasIncluded7702 is true', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(true);
+      expect(result.disable7702).toBe(false);
+    });
+
+    it('should set isGasFeeIncluded to false and disable7702 to true when gasIncluded7702 is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: false,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(false);
+      expect(result.disable7702).toBe(true);
     });
   });
 
