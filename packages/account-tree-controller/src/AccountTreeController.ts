@@ -173,9 +173,13 @@ export class AccountTreeController extends BaseController<
   init() {
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
-    // Clear mappings for fresh rebuild
+    // Clear mappings for fresh rebuild.
     this.#accountIdToContext.clear();
     this.#groupIdToWalletId.clear();
+
+    // Keep the current selected group to check if it's still part of the tree
+    // after rebuilding it.
+    const { selectedAccountGroup } = this.state.accountTree;
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
@@ -183,30 +187,40 @@ export class AccountTreeController extends BaseController<
     }
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
+    let selectedAccountGroupStillExists = false;
     for (const wallet of Object.values(wallets)) {
       this.#applyAccountWalletMetadata(wallet);
 
       for (const group of Object.values(wallet.groups)) {
         this.#applyAccountGroupMetadata(wallet, group);
+
+        if (group.id === selectedAccountGroup) {
+          selectedAccountGroupStillExists = true;
+        }
       }
     }
+
+    // No group is selected yet OR group no longer exists, re-sync with the
+    // AccountsController.
+    const syncSelectedAccountGroup =
+      !selectedAccountGroupStillExists || selectedAccountGroup === '';
 
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
-      if (state.accountTree.selectedAccountGroup === '') {
-        // No group is selected yet, re-sync with the AccountsController.
+      if (syncSelectedAccountGroup) {
         state.accountTree.selectedAccountGroup =
           this.#getDefaultSelectedAccountGroup(wallets);
-
-        // Also publish initial group that has been selected.
-        this.messagingSystem.publish(
-          `${controllerName}:selectedAccountGroupChange`,
-          state.accountTree.selectedAccountGroup,
-          '', // No group was initially selected.
-        );
       }
     });
+
+    if (syncSelectedAccountGroup) {
+      this.messagingSystem.publish(
+        `${controllerName}:selectedAccountGroupChange`,
+        this.state.accountTree.selectedAccountGroup,
+        '', // No group was initially selected.
+      );
+    }
   }
 
   /**

@@ -642,6 +642,45 @@ describe('AccountTreeController', () => {
         controller.state.accountTree.wallets[wallet2Id]?.metadata.name,
       ).toBe('HD Wallet');
     });
+
+    it('re-select a new group when tree is re-initialized and current selected group no longer exists', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.AccountsController.getSelectedAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_1,
+      );
+
+      controller.init();
+
+      const defaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+        defaultAccountGroupId,
+      );
+
+      mocks.AccountsController.accounts = [MOCK_HD_ACCOUNT_2];
+      mocks.KeyringController.keyrings = [MOCK_HD_KEYRING_2];
+      mocks.AccountsController.getSelectedAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_2,
+      );
+
+      controller.init();
+
+      const newDefaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_2.options.entropy.id),
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+        newDefaultAccountGroupId,
+      );
+    });
   });
 
   describe('getAccountGroupObject', () => {
@@ -2591,6 +2630,55 @@ describe('AccountTreeController', () => {
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         defaultAccountGroupId,
+        '',
+      );
+    });
+
+    it('emits selectedAccountGroupChange when tree is re-initialized and current selected group no longer exists', () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.AccountsController.getSelectedAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_1,
+      );
+
+      controller.init();
+
+      const defaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+        defaultAccountGroupId,
+      );
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      mocks.AccountsController.accounts = [MOCK_HD_ACCOUNT_2];
+      mocks.KeyringController.keyrings = [MOCK_HD_KEYRING_2];
+      mocks.AccountsController.getSelectedAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_2,
+      );
+
+      controller.init();
+
+      const newDefaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_2.options.entropy.id),
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+        newDefaultAccountGroupId,
+      );
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        newDefaultAccountGroupId,
         '',
       );
     });
