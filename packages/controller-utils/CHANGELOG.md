@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace (now a package internal function) `isHexChecksumAddress` with `isValidChecksumAddress`. ([#6430](https://github.com/MetaMask/core/pull/6430))
+
 ## [11.12.0]
 
 ### Added
