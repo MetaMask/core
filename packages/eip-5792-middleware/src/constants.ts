@@ -1,12 +1,20 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
 
+export const VERSION = '2.0.0';
+
 export const KEYRING_TYPES_SUPPORTING_7702 = [
   KeyringTypes.hd,
   KeyringTypes.simple,
 ];
 
-export enum MESSAGE_TYPE {
-  ETH_SEND_TRANSACTION = 'eth_sendTransaction',
+export enum MessageType {
+  SendTransaction = 'eth_sendTransaction',
+}
+
+export enum AtomicCapabilityStatus {
+  Supported = 'supported',
+  Ready = 'ready',
+  Unsupported = 'unsupported',
 }
 
 // To be moved to @metamask/rpc-errors in future.
