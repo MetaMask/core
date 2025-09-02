@@ -1,7 +1,9 @@
 import { Web3Provider } from '@ethersproject/providers';
+import type { AccountGroupId } from '@metamask/account-api';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
-  AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerState,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
@@ -259,7 +261,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  * All events that EarnController subscribes to internally.
  */
 export type AllowedEvents =
-  | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | AccountTreeControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkDidChangeEvent;
 
@@ -288,6 +290,8 @@ export class EarnController extends BaseController<
   #earnSDK: EarnSdk | null = null;
 
   #selectedNetworkClientId: string;
+
+  #selectedAccountGroup: AccountGroupId | '' = '';
 
   readonly #earnApiService: EarnApiService;
 
@@ -360,15 +364,20 @@ export class EarnController extends BaseController<
 
     // Listen for account changes
     this.messagingSystem.subscribe(
-      'AccountTreeController:selectedAccountGroupChange',
-      () => {
-        const address = this.#getSelectedEvmAccountAddress();
+      'AccountTreeController:stateChange',
+      (accountTreeState: AccountTreeControllerState) => {
+        if (
+          accountTreeState.accountTree.selectedAccountGroup !==
+          this.#selectedAccountGroup
+        ) {
+          this.#selectedAccountGroup =
+            accountTreeState.accountTree.selectedAccountGroup;
+          const address = this.#getSelectedEvmAccountAddress();
 
-        // TODO: temp solution, this will refresh lending eligibility also
-        // we could have a more general check, as what is happening is a compliance address check
-        this.refreshEarnEligibility({ address }).catch(console.error);
-        this.refreshPooledStakes({ address }).catch(console.error);
-        this.refreshLendingPositions({ address }).catch(console.error);
+          this.refreshEarnEligibility({ address }).catch(console.error);
+          this.refreshPooledStakes({ address }).catch(console.error);
+          this.refreshLendingPositions({ address }).catch(console.error);
+        }
       },
     );
 

@@ -110,7 +110,7 @@ function getEarnControllerMessenger(
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
-      'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
   });
@@ -1432,8 +1432,8 @@ describe('EarnController', () => {
       });
     });
 
-    describe('On selected account change', () => {
-      it('updates earn eligibility, pooled stakes, and lending positions', async () => {
+    describe('On account tree state change', () => {
+      it('updates earn eligibility, pooled stakes, and lending positions when selectedAccountGroup changes', async () => {
         const { controller, messenger } = await setupController();
 
         jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
@@ -1441,9 +1441,16 @@ describe('EarnController', () => {
         jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
 
         messenger.publish(
-          'AccountTreeController:selectedAccountGroupChange',
-          '',
-          '',
+          'AccountTreeController:stateChange',
+          {
+            accountTree: {
+              wallets: {},
+              selectedAccountGroup: 'entropy:test/0',
+            },
+            accountGroupsMetadata: {},
+            accountWalletsMetadata: {},
+          },
+          [],
         );
 
         // Expect address argument to be the EVM address from mockGetAccountsFromSelectedAccountGroup
@@ -1456,6 +1463,33 @@ describe('EarnController', () => {
         expect(controller.refreshLendingPositions).toHaveBeenNthCalledWith(1, {
           address: mockAccount1Address,
         });
+      });
+
+      it('does not update when selectedAccountGroup remains the same', async () => {
+        const { controller, messenger } = await setupController();
+
+        jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
+
+        // Publish state change with same selectedAccountGroup (empty string is the initial value)
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          {
+            accountTree: {
+              wallets: {},
+              selectedAccountGroup: '',
+            },
+            accountGroupsMetadata: {},
+            accountWalletsMetadata: {},
+          },
+          [],
+        );
+
+        // None of the refresh methods should be called
+        expect(controller.refreshEarnEligibility).not.toHaveBeenCalled();
+        expect(controller.refreshPooledStakes).not.toHaveBeenCalled();
+        expect(controller.refreshLendingPositions).not.toHaveBeenCalled();
       });
     });
 
