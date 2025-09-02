@@ -179,7 +179,8 @@ export class AccountTreeController extends BaseController<
 
     // Keep the current selected group to check if it's still part of the tree
     // after rebuilding it.
-    const { selectedAccountGroup } = this.state.accountTree;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
@@ -187,15 +188,15 @@ export class AccountTreeController extends BaseController<
     }
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
-    let selectedAccountGroupStillExists = false;
+    let previousSelectedAccountGroupStillExists = false;
     for (const wallet of Object.values(wallets)) {
       this.#applyAccountWalletMetadata(wallet);
 
       for (const group of Object.values(wallet.groups)) {
         this.#applyAccountGroupMetadata(wallet, group);
 
-        if (group.id === selectedAccountGroup) {
-          selectedAccountGroupStillExists = true;
+        if (group.id === previousSelectedAccountGroup) {
+          previousSelectedAccountGroupStillExists = true;
         }
       }
     }
@@ -203,7 +204,8 @@ export class AccountTreeController extends BaseController<
     // No group is selected yet OR group no longer exists, re-sync with the
     // AccountsController.
     const syncSelectedAccountGroup =
-      !selectedAccountGroupStillExists || selectedAccountGroup === '';
+      !previousSelectedAccountGroupStillExists ||
+      previousSelectedAccountGroup === '';
 
     this.update((state) => {
       state.accountTree.wallets = wallets;
@@ -218,7 +220,7 @@ export class AccountTreeController extends BaseController<
       this.messagingSystem.publish(
         `${controllerName}:selectedAccountGroupChange`,
         this.state.accountTree.selectedAccountGroup,
-        '', // No group was initially selected.
+        previousSelectedAccountGroup,
       );
     }
   }
@@ -501,8 +503,9 @@ export class AccountTreeController extends BaseController<
     if (context) {
       const { walletId, groupId } = context;
 
-      const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
-      let selectedGroupChanged = false;
+      const previousSelectedAccountGroup =
+        this.state.accountTree.selectedAccountGroup;
+      let selectedAccountGroupChanged = false;
 
       this.update((state) => {
         const accounts =
@@ -519,11 +522,12 @@ export class AccountTreeController extends BaseController<
               accounts.length === 0
             ) {
               // The currently selected group is now empty, find a new group to select
-              const newSelectedGroup = this.#getDefaultAccountGroupId(
+              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
                 state.accountTree.wallets,
               );
-              state.accountTree.selectedAccountGroup = newSelectedGroup;
-              selectedGroupChanged = newSelectedGroup !== previousSelectedGroup;
+              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
+              selectedAccountGroupChanged =
+                newSelectedAccountGroup !== previousSelectedAccountGroup;
             }
           }
           if (accounts.length === 0) {
@@ -537,11 +541,11 @@ export class AccountTreeController extends BaseController<
       );
 
       // Emit selectedAccountGroupChange event if the selected group changed
-      if (selectedGroupChanged) {
+      if (selectedAccountGroupChanged) {
         this.messagingSystem.publish(
           `${controllerName}:selectedAccountGroupChange`,
           this.state.accountTree.selectedAccountGroup,
-          previousSelectedGroup,
+          previousSelectedAccountGroup,
         );
       }
 
@@ -750,10 +754,11 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID to select.
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
-    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (previousSelectedGroup === groupId) {
+    if (previousSelectedAccountGroup === groupId) {
       return;
     }
 
@@ -770,7 +775,7 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
-      previousSelectedGroup,
+      previousSelectedAccountGroup,
     );
 
     // Update AccountsController - this will trigger selectedAccountChange event,
@@ -820,10 +825,11 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const previousSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (previousSelectedGroup === groupId) {
+    if (previousSelectedAccountGroup === groupId) {
       return;
     }
 
@@ -834,7 +840,7 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
-      previousSelectedGroup,
+      previousSelectedAccountGroup,
     );
   }
 

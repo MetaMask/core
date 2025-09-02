@@ -2669,6 +2669,7 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
+      const oldDefaultAccountGroupId = defaultAccountGroupId;
       const newDefaultAccountGroupId = toMultichainAccountGroupId(
         toMultichainAccountWalletId(MOCK_HD_ACCOUNT_2.options.entropy.id),
         MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
@@ -2679,7 +2680,7 @@ describe('AccountTreeController', () => {
       );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         newDefaultAccountGroupId,
-        '',
+        oldDefaultAccountGroupId,
       );
     });
 
