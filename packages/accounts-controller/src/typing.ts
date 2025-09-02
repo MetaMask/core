@@ -19,6 +19,7 @@ export type StrictInternalAccount = Omit<InternalAccount, 'options'> & {
   // In anyway, we should rarely have to use those "untyped" options.
   options: {
     entropy?: KeyringAccountEntropyOptions;
+    exportable?: boolean;
   };
 };
 
