@@ -260,7 +260,7 @@ export type TransactionMeta = {
    */
   isExternalSign?: boolean;
 
-  /** Whether the gas fee is included in the transaction. */
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
   /**
@@ -1678,7 +1678,7 @@ export type TransactionBatchRequest = {
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
-  /** Whether the gas fee is included in the transaction. */
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
   /** ID of the network client to submit the transaction. */
