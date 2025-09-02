@@ -363,6 +363,8 @@ export class EarnController extends BaseController<
     );
 
     // Listen for account changes
+    // Use stateChange event instead of selectedAccountGroupChange event as the former gets emitted
+    // when the AccountTreeController initializes but the latter does not
     this.messagingSystem.subscribe(
       'AccountTreeController:stateChange',
       (accountTreeState: AccountTreeControllerState) => {
