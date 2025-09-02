@@ -1419,6 +1419,68 @@ describe('Messenger', () => {
       expect(handler).toHaveBeenCalledWith('test');
     });
 
+    it('allows calling delegated action that was registered before delegation, unregistered, then registered again', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => number;
+      };
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        ExampleAction,
+        never
+      >({ namespace: 'Destination' });
+      const handler1 = jest.fn((input) => input.length);
+      const handler2 = jest.fn((input) => input.length);
+      // registration happens before delegation
+      sourceMessenger.registerActionHandler('Source:getLength', handler1);
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+      });
+      sourceMessenger.unregisterActionHandler('Source:getLength');
+      sourceMessenger.registerActionHandler('Source:getLength', handler2);
+
+      const result = delegatedMessenger.call('Source:getLength', 'test');
+      expect(result).toBe(4);
+      expect(handler1).not.toHaveBeenCalled();
+      expect(handler2).toHaveBeenCalledWith('test');
+    });
+
+    it('allows calling delegated action that was registered after delegation, unregistered, then registered again', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => number;
+      };
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        ExampleAction,
+        never
+      >({ namespace: 'Destination' });
+      const handler1 = jest.fn((input) => input.length);
+      const handler2 = jest.fn((input) => input.length);
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+      });
+      // registration happens after delegation
+      sourceMessenger.registerActionHandler('Source:getLength', handler1);
+      sourceMessenger.unregisterActionHandler('Source:getLength');
+      sourceMessenger.registerActionHandler('Source:getLength', handler2);
+
+      const result = delegatedMessenger.call('Source:getLength', 'test');
+      expect(result).toBe(4);
+      expect(handler1).not.toHaveBeenCalled();
+      expect(handler2).toHaveBeenCalledWith('test');
+    });
+
     it('throws an error when an action is delegated a second time', () => {
       type ExampleAction = {
         type: 'Source:getLength';
@@ -1467,6 +1529,33 @@ describe('Messenger', () => {
         messenger: delegatedMessenger,
         actions: ['Source:getLength'],
       });
+
+      expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
+        `A handler for Source:getLength has not been registered`,
+      );
+    });
+
+    it('throws an error when delegated action is called after an action is unregistered', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => number;
+      };
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        ExampleAction,
+        never
+      >({ namespace: 'Destination' });
+      const handler = jest.fn((input) => input.length);
+      sourceMessenger.registerActionHandler('Source:getLength', handler);
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+      });
+      sourceMessenger.unregisterActionHandler('Source:getLength');
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
         `A handler for Source:getLength has not been registered`,
