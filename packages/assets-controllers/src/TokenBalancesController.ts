@@ -130,7 +130,7 @@ export type ChainPollingConfig = {
 };
 
 export type UpdateChainPollingConfigsOptions = {
-  /** Whether to immediately fetch balances after updating configs */
+  /** Whether to immediately fetch balances after updating configs (default: true) */
   immediateUpdate?: boolean;
 };
 
@@ -345,7 +345,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * @param chainIds - Chain IDs that share this interval
    * @param immediate - Whether to poll immediately before starting the timer (default: true)
    */
-  #startPollingForInterval(interval: number, chainIds: ChainIdHex[], immediate = true) {
+  #startPollingForInterval(
+    interval: number,
+    chainIds: ChainIdHex[],
+    immediate = true,
+  ) {
     const pollFunction = async () => {
       if (!this.#isControllerPollingActive) {
         return;
@@ -381,7 +385,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * @param chainIds - Chain IDs for this interval
    * @param pollFunction - The function to call on each poll
    */
-  #setPollingTimer(interval: number, chainIds: ChainIdHex[], pollFunction: () => Promise<void>) {
+  #setPollingTimer(
+    interval: number,
+    chainIds: ChainIdHex[],
+    pollFunction: () => Promise<void>,
+  ) {
     // Clear any existing timer for this interval first
     const existingTimer = this.#intervalPollingTimers.get(interval);
     if (existingTimer) {
@@ -433,18 +441,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    *
    * @param configs - Object mapping chain IDs to polling configurations
    * @param options - Optional configuration for the update behavior
-   * @param options.immediateUpdate - Whether to immediately fetch balances after updating configs (default: false)
+   * @param options.immediateUpdate - Whether to immediately fetch balances after updating configs (default: true)
    */
   updateChainPollingConfigs(
     configs: Record<ChainIdHex, ChainPollingConfig>,
-    options: UpdateChainPollingConfigsOptions = {},
+    options: UpdateChainPollingConfigsOptions = { immediateUpdate: true },
   ): void {
     Object.assign(this.#chainPollingConfig, configs);
 
     // If polling is currently active, restart with new interval groupings
     if (this.#isControllerPollingActive) {
-      // Restart polling with or without immediate fetch based on options
-      this.#startIntervalGroupPolling(this.#requestedChainIds, options.immediateUpdate);
+      // Restart polling with immediate fetch by default, unless explicitly disabled
+      this.#startIntervalGroupPolling(
+        this.#requestedChainIds,
+        options.immediateUpdate,
+      );
     }
   }
 
@@ -724,12 +735,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
 
     if (removedNetworks.length > 0) {
-      // Clean up per-chain polling config for removed networks
-      for (const removedNetwork of removedNetworks) {
-        const chainId = removedNetwork as ChainIdHex;
-        delete this.#chainPollingConfig[chainId];
-      }
-
       this.update((s) => {
         // Remove balances for all accounts on the deleted networks
         for (const address of Object.keys(s.tokenBalances)) {
