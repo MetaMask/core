@@ -480,14 +480,8 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
-      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
-      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
-      // which sometimes fail when compiling locally.
-      (state as AccountsControllerState).internalAccounts.accounts[account.id] =
-        internalAccount;
-      (state as AccountsControllerState).internalAccounts.selectedAccount =
-        account.id;
+      state.internalAccounts.accounts[account.id] = internalAccount;
+      state.internalAccounts.selectedAccount = account.id;
     });
 
     this.messagingSystem.publish(
@@ -530,12 +524,7 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
-      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
-      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
-      // which sometimes fail when compiling locally.
-      (state as AccountsControllerState).internalAccounts.accounts[accountId] =
-        internalAccount;
+      state.internalAccounts.accounts[accountId] = internalAccount;
     });
 
     if (metadata.name) {
@@ -605,8 +594,7 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
-      (state as AccountsControllerStrictState).internalAccounts.accounts =
-        internalAccounts;
+      state.internalAccounts.accounts = internalAccounts;
     });
   }
 
