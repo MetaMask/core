@@ -24,29 +24,27 @@ export type SubscriptionControllerState = {
 };
 
 // Messenger Actions
-type CreateActionsObj<Controller extends keyof SubscriptionController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: SubscriptionController[K];
-  };
+export type SubscriptionControllerGetSubscriptionsAction = {
+  type: `${typeof controllerName}:getSubscriptions`;
+  handler: SubscriptionController['getSubscriptions'];
 };
-type ActionsObj = CreateActionsObj<
-  'getSubscriptions' | 'cancelSubscription' | 'startShieldSubscriptionWithCard'
->;
-
-export type SubscriptionControllerGetSubscriptionsAction =
-  ActionsObj['getSubscriptions'];
-export type SubscriptionControllerCancelSubscriptionAction =
-  ActionsObj['cancelSubscription'];
-export type SubscriptionControllerStartShieldSubscriptionWithCardAction =
-  ActionsObj['startShieldSubscriptionWithCard'];
+export type SubscriptionControllerCancelSubscriptionAction = {
+  type: `${typeof controllerName}:cancelSubscription`;
+  handler: SubscriptionController['cancelSubscription'];
+};
+export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
+  type: `${typeof controllerName}:startShieldSubscriptionWithCard`;
+  handler: SubscriptionController['startShieldSubscriptionWithCard'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
 >;
 export type SubscriptionControllerActions =
-  | ActionsObj[keyof ActionsObj]
+  | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerCancelSubscriptionAction
+  | SubscriptionControllerStartShieldSubscriptionWithCardAction
   | SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
