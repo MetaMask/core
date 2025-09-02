@@ -1,6 +1,7 @@
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
+  assertValidLegacyUserStorageAccount,
 } from './validation';
 
 describe('BackupAndSync - UserStorage - Validation', () => {
@@ -121,6 +122,99 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       expect(() => assertValidUserStorageGroup(true)).toThrow(
         /Invalid user storage group data:/u,
       );
+    });
+  });
+
+  describe('assertValidLegacyUserStorageAccount', () => {
+    it('should pass for valid legacy account data', () => {
+      const validAccountData = {
+        v: '1.0',
+        i: 'identifier123',
+        a: '0x1234567890abcdef',
+        n: 'My Account',
+        nlu: 1234567890,
+      };
+
+      expect(() =>
+        assertValidLegacyUserStorageAccount(validAccountData),
+      ).not.toThrow();
+    });
+
+    it('should pass for minimal legacy account data', () => {
+      const minimalAccountData = {}; // All fields are optional
+
+      expect(() =>
+        assertValidLegacyUserStorageAccount(minimalAccountData),
+      ).not.toThrow();
+    });
+
+    it('should pass for partial legacy account data', () => {
+      const partialAccountData = {
+        a: '0x1234567890abcdef',
+        n: 'My Account',
+      };
+
+      expect(() =>
+        assertValidLegacyUserStorageAccount(partialAccountData),
+      ).not.toThrow();
+    });
+
+    it('should throw error for invalid legacy account data with detailed message', () => {
+      const invalidAccountData = {
+        v: 123, // should be string
+        i: true, // should be string
+        a: null, // should be string or undefined
+        n: [], // should be string
+        nlu: 'not a number', // should be number
+      };
+
+      expect(() =>
+        assertValidLegacyUserStorageAccount(invalidAccountData),
+      ).toThrow(/Invalid legacy user storage account data:/u);
+    });
+
+    it('should throw error for null input', () => {
+      expect(() => assertValidLegacyUserStorageAccount(null)).toThrow(
+        /Invalid legacy user storage account data:/u,
+      );
+    });
+
+    it('should throw error for undefined input', () => {
+      expect(() => assertValidLegacyUserStorageAccount(undefined)).toThrow(
+        /Invalid legacy user storage account data:/u,
+      );
+    });
+
+    it('should throw error for string input', () => {
+      expect(() => assertValidLegacyUserStorageAccount('invalid')).toThrow(
+        /Invalid legacy user storage account data:/u,
+      );
+    });
+
+    it('should handle multiple validation failures', () => {
+      const multipleFailuresData = {
+        v: 123, // wrong type
+        a: true, // wrong type
+        n: {}, // wrong type
+        nlu: 'string', // wrong type
+      };
+
+      let errorMessage = '';
+      try {
+        assertValidLegacyUserStorageAccount(multipleFailuresData);
+      } catch (error) {
+        // eslint-disable-next-line jest/no-conditional-in-test
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(errorMessage).toMatch(
+        /Invalid legacy user storage account data:/u,
+      );
+      // Should contain multiple validation failures
+      expect(errorMessage).toContain('v');
+      expect(errorMessage).toContain('a');
+      expect(errorMessage).toContain('n');
+      expect(errorMessage).toContain('nlu');
     });
   });
 });

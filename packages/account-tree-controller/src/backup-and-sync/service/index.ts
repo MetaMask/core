@@ -64,12 +64,6 @@ export class BackupAndSyncService {
     return this.#context.controller.state.isAccountTreeSyncingInProgress;
   }
 
-  getIsMultichainAccountsRemoteFeatureFlagEnabled(): boolean {
-    return this.#context.messenger.call(
-      'UserStorageController:getIsMultichainAccountSyncingEnabled',
-    );
-  }
-
   /**
    * Enqueues a single wallet sync operation.
    *
@@ -146,9 +140,6 @@ export class BackupAndSyncService {
 
     // Encapsulate the sync logic in a function to allow tracing
     const bigSyncFn = async () => {
-      // Do only once, since legacy account syncing iterates over all wallets
-      let hasLegacyAccountSyncingBeenPerformed = false;
-
       try {
         this.#context.controllerStateUpdateFn(
           (state: AccountTreeControllerState) => {
@@ -186,29 +177,21 @@ export class BackupAndSyncService {
 
             // 2.1 Decide if we need to perform legacy account syncing
             if (
-              !walletFromUserStorage ||
-              (!walletFromUserStorage.isLegacyAccountSyncingDisabled &&
-                !hasLegacyAccountSyncingBeenPerformed)
+              // -------------------------------------------------------
+              // TODO: RE-ENABLE THIS! THIS IS FOR TESTING PURPOSES
+              // SO WE DON'T GET BRICKED OUT OF TESTING LEGACY SYNCING!
+              // -------------------------------------------------------
+              !walletFromUserStorage
+              // || !walletFromUserStorage.isLegacyAccountSyncingDisabled
             ) {
               // 2.2 Perform legacy account syncing
-              // This will also update the `isLegacyAccountSyncingDisabled` remote flag for all wallets.
-
-              // This might add new InternalAccounts and / or update existing ones' names.
-              // This in turn will be picked up by our `#handleAccountAdded` and `#handleAccountRenamed` methods
-              // to update the account tree.
-              await performLegacyAccountSyncing(this.#context);
-              hasLegacyAccountSyncingBeenPerformed = true;
-
-              if (!this.getIsMultichainAccountsRemoteFeatureFlagEnabled()) {
-                // If multichain account syncing is disabled, we can stop here
-                // and not perform any further syncing.
-                if (this.#context.enableDebugLogging) {
-                  contextualLogger.log(
-                    'Multichain account syncing is disabled, skipping further syncing.',
-                  );
-                }
-                return;
-              }
+              // This will migrate legacy account data to the new structure.
+              // This operation will only be performed once.
+              await performLegacyAccountSyncing(
+                this.#context,
+                entropySourceId,
+                walletProfileId,
+              );
             }
 
             // If we reach this point, we are either:
@@ -328,10 +311,7 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   async #performSingleWalletSync(walletId: AccountWalletId): Promise<void> {
-    if (
-      this.#context.disableMultichainAccountSyncing ||
-      !this.getIsMultichainAccountsRemoteFeatureFlagEnabled()
-    ) {
+    if (this.#context.disableMultichainAccountSyncing) {
       if (this.#context.enableDebugLogging) {
         contextualLogger.warn(
           'Multichain account syncing is disabled. Skipping single wallet sync operation.',
@@ -380,10 +360,7 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   async #performSingleGroupSync(groupId: AccountGroupId): Promise<void> {
-    if (
-      this.#context.disableMultichainAccountSyncing ||
-      !this.getIsMultichainAccountsRemoteFeatureFlagEnabled()
-    ) {
+    if (this.#context.disableMultichainAccountSyncing) {
       if (this.#context.enableDebugLogging) {
         contextualLogger.warn(
           'Multichain account syncing is disabled. Skipping single group sync operation.',

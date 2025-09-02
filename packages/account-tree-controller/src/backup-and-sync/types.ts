@@ -56,12 +56,27 @@ export const UserStorageSyncedWalletGroupSchema = object({
   groupIndex: number(),
 });
 
+/**
+ * Superstruct schema for LegacyUserStorageSyncedAccount validation.
+ */
+export const LegacyUserStorageSyncedAccountSchema = object({
+  v: optional(string()),
+  i: optional(string()),
+  a: optional(string()),
+  n: optional(string()),
+  nlu: optional(number()),
+});
+
 export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata &
   Infer<typeof UserStorageSyncedWalletSchema>;
 
 export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
   groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];
 } & Infer<typeof UserStorageSyncedWalletGroupSchema>;
+
+export type LegacyUserStorageSyncedAccount = Infer<
+  typeof LegacyUserStorageSyncedAccountSchema
+>;
 
 export type BackupAndSyncContext = {
   messenger: AccountTreeControllerMessenger;

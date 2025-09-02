@@ -1,6 +1,7 @@
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
+import type { BackupAndSyncAnalyticsEvent } from '../analytics';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import {
   UserStorageSyncedWalletGroupSchema,
@@ -12,6 +13,47 @@ import {
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
 import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
+
+/**
+ * Creates a multichain account group.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param entropySourceId - The entropy source ID.
+ * @param groupIndex - The group index.
+ * @param profileId - The profile ID for analytics.
+ * @param analyticsAction - The analytics action to log.
+ */
+export const createMultichainAccountGroup = async (
+  context: BackupAndSyncContext,
+  entropySourceId: string,
+  groupIndex: number,
+  profileId: string,
+  analyticsAction: BackupAndSyncAnalyticsEvent,
+) => {
+  try {
+    // This will be idempotent so we can create the group even if it already exists
+    await context.messenger.call(
+      'MultichainAccountService:createMultichainAccountGroup',
+      {
+        entropySource: entropySourceId,
+        groupIndex,
+      },
+    );
+
+    context.emitAnalyticsEventFn({
+      action: analyticsAction,
+      profileId,
+    });
+  } catch (error) {
+    if (context.enableDebugLogging) {
+      contextualLogger.error(
+        `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    throw error;
+  }
+};
 
 /**
  * Creates local groups from user storage groups.
@@ -70,26 +112,15 @@ export async function createLocalGroupsFromUserStorage(
     }
 
     try {
-      // This will be idempotent so we can create the group even if it already exists
-      await context.messenger.call(
-        'MultichainAccountService:createMultichainAccountGroup',
-        {
-          entropySource: entropySourceId,
-          groupIndex,
-        },
-      );
-
-      context.emitAnalyticsEventFn({
-        action: BackupAndSyncAnalyticsEvents.GROUP_ADDED,
+      await createMultichainAccountGroup(
+        context,
+        entropySourceId,
+        groupIndex,
         profileId,
-      });
-    } catch (error) {
-      if (context.enableDebugLogging) {
-        contextualLogger.error(
-          `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
-          error instanceof Error ? error.message : String(error),
-        );
-      }
+        BackupAndSyncAnalyticsEvents.GROUP_ADDED,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Continue with other groups instead of failing completely
       continue;
     }

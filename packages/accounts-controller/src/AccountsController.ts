@@ -604,7 +604,10 @@ export class AccountsController extends BaseController<
     }
 
     this.#update((state) => {
+      /* eslint-disable max-depth */
+      /* @ts-expect-error max-depth */
       state.internalAccounts.accounts = internalAccounts;
+      /* eslint-enable max-depth */
     });
   }
 

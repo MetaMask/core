@@ -1,12 +1,14 @@
 import { assert, StructError } from '@metamask/superstruct';
 
 import type {
+  LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
 import {
   UserStorageSyncedWalletSchema,
   UserStorageSyncedWalletGroupSchema,
+  LegacyUserStorageSyncedAccountSchema,
 } from '../types';
 
 /**
@@ -53,6 +55,32 @@ export function assertValidUserStorageGroup(
         .map(({ path, message }) => `[${path.join('.')}] ${message}`)
         .join(', ');
       throw new Error(`Invalid user storage group data: ${validationFailures}`);
+    }
+    /* istanbul ignore next */
+    throw error;
+  }
+}
+
+/**
+ * Validates and asserts legacy user storage account data, throwing detailed errors if invalid.
+ *
+ * @param accountData - The account data from user storage to validate.
+ * @throws StructError if the account data is invalid.
+ */
+export function assertValidLegacyUserStorageAccount(
+  accountData: unknown,
+): asserts accountData is LegacyUserStorageSyncedAccount {
+  try {
+    assert(accountData, LegacyUserStorageSyncedAccountSchema);
+  } catch (error) {
+    if (error instanceof StructError) {
+      const validationFailures = error
+        .failures()
+        .map(({ path, message }) => `[${path.join('.')}] ${message}`)
+        .join(', ');
+      throw new Error(
+        `Invalid legacy user storage account data: ${validationFailures}`,
+      );
     }
     /* istanbul ignore next */
     throw error;

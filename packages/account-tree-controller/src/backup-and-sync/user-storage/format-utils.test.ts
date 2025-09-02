@@ -3,10 +3,12 @@ import {
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
+  parseLegacyAccountFromUserStorageResponse,
 } from './format-utils';
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
+  assertValidLegacyUserStorageAccount,
 } from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
@@ -21,6 +23,10 @@ const mockAssertValidUserStorageWallet =
 const mockAssertValidUserStorageGroup =
   assertValidUserStorageGroup as jest.MockedFunction<
     typeof assertValidUserStorageGroup
+  >;
+const mockAssertValidLegacyUserStorageAccount =
+  assertValidLegacyUserStorageAccount as jest.MockedFunction<
+    typeof assertValidLegacyUserStorageAccount
   >;
 
 describe('BackupAndSync - UserStorage - FormatUtils', () => {
@@ -206,6 +212,70 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
 
       expect(() => parseGroupFromUserStorageResponse(groupString)).toThrow(
         'Error trying to parse group from user storage response: [object Object]',
+      );
+    });
+  });
+
+  describe('parseLegacyAccountFromUserStorageResponse', () => {
+    it('should parse valid legacy account JSON', () => {
+      const accountData = {
+        n: 'Test Account',
+        a: '0x123456789abcdef',
+        v: '1',
+        i: 'test-id',
+        nlu: 1234567890,
+      };
+      const accountString = JSON.stringify(accountData);
+
+      mockAssertValidLegacyUserStorageAccount.mockImplementation(() => true);
+
+      const result = parseLegacyAccountFromUserStorageResponse(accountString);
+
+      expect(result).toStrictEqual(accountData);
+      expect(mockAssertValidLegacyUserStorageAccount).toHaveBeenCalledWith(
+        accountData,
+      );
+    });
+
+    it('should throw error for invalid JSON', () => {
+      const invalidJson = 'invalid json string';
+
+      expect(() =>
+        parseLegacyAccountFromUserStorageResponse(invalidJson),
+      ).toThrow(
+        'Error trying to parse legacy account from user storage response:',
+      );
+    });
+
+    it('should throw error when validation fails', () => {
+      const accountData = { invalid: 'data' };
+      const accountString = JSON.stringify(accountData);
+
+      mockAssertValidLegacyUserStorageAccount.mockImplementation(() => {
+        throw new Error('Validation failed');
+      });
+
+      expect(() =>
+        parseLegacyAccountFromUserStorageResponse(accountString),
+      ).toThrow(
+        'Error trying to parse legacy account from user storage response: Validation failed',
+      );
+    });
+
+    it('should handle non-Error thrown objects in legacy account parsing', () => {
+      const accountData = { valid: 'data' };
+      const accountString = JSON.stringify(accountData);
+
+      /* eslint-disable @typescript-eslint/only-throw-error */
+      mockAssertValidLegacyUserStorageAccount.mockImplementation(() => {
+        throw 'String error'; // Throw a non-Error object
+      });
+      /* eslint-enable @typescript-eslint/only-throw-error */
+
+      expect(() =>
+        parseLegacyAccountFromUserStorageResponse(accountString),
+      ).toThrow(
+        'Error trying to parse legacy account from user storage response: String error',
       );
     });
   });

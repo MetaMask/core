@@ -5,6 +5,7 @@ export const BackupAndSyncAnalyticsEvents = {
   GROUP_HIDDEN_STATUS_CHANGED: 'group_hidden_status_changed',
   GROUP_PINNED_STATUS_CHANGED: 'group_pinned_status_changed',
   LEGACY_SYNCING_DONE: 'legacy_syncing_done',
+  LEGACY_GROUP_ADDED_FROM_ACCOUNT: 'legacy_group_added_from_account',
 } as const;
 
 const BACKUP_AND_SYNC_EVENT_FEATURE_NAME = 'Multichain Account Syncing';

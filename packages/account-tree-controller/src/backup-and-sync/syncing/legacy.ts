@@ -1,23 +1,101 @@
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+
+import { createMultichainAccountGroup } from './group';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
-import { getProfileId } from '../authentication/utils';
 import type { BackupAndSyncContext } from '../types';
+import { getAllLegacyUserStorageAccounts } from '../user-storage';
+import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
 
 /**
- * Performs legacy account syncing.
+ * Performs a stripped down version of legacy account syncing, replacing the current
+ * UserStorageController:syncInternalAccountsWithUserStorage call.
+ * This ensures legacy (V1) account syncing data is correctly migrated to
+ * the new AccountTreeController data structure. It should only happen
+ * once per wallet.
  *
- * @param context - The backup and sync context containing controller and messenger
- * @returns Promise that resolves to true if multichain syncing should continue, false otherwise.
+ * @param context - The sync context containing controller and messenger.
+ * @param entropySourceId - The entropy source ID.
+ * @param profileId - The profile ID for analytics.
  */
 export const performLegacyAccountSyncing = async (
   context: BackupAndSyncContext,
-): Promise<void> => {
-  await context.messenger.call(
-    'UserStorageController:syncInternalAccountsWithUserStorage',
+  entropySourceId: string,
+  profileId: string,
+) => {
+  // 1. Get V1 data
+  const legacyAccountsFromUserStorage = await getAllLegacyUserStorageAccounts(
+    context,
+    entropySourceId,
   );
+  if (legacyAccountsFromUserStorage.length === 0) {
+    if (context.enableDebugLogging) {
+      contextualLogger.info(
+        'No legacy accounts, skipping legacy account syncing',
+      );
+    }
 
-  const primarySrpProfileId = await getProfileId(context);
+    context.emitAnalyticsEventFn({
+      action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+      profileId,
+    });
+
+    return;
+  }
+
+  // 2. Create account groups if needed
+  const localAccountGroups = getLocalGroupsForEntropyWallet(
+    context,
+    `entropy:${entropySourceId}`,
+  );
+  const numberOfAccountGroupsToCreate =
+    legacyAccountsFromUserStorage.length - localAccountGroups.length || 0;
+
+  if (numberOfAccountGroupsToCreate > 0) {
+    for (let i = 0; i < numberOfAccountGroupsToCreate; i++) {
+      await createMultichainAccountGroup(
+        context,
+        entropySourceId,
+        i,
+        profileId,
+        BackupAndSyncAnalyticsEvents.LEGACY_GROUP_ADDED_FROM_ACCOUNT,
+      );
+    }
+  }
+
+  // 3. Rename account groups if needed
+  const refreshedLocalAccountGroups = getLocalGroupsForEntropyWallet(
+    context,
+    `entropy:${entropySourceId}`,
+  );
+  for (const legacyAccount of legacyAccountsFromUserStorage) {
+    // n: name
+    // a: EVM address
+    const { n, a } = legacyAccount;
+    if (!a || !n) {
+      if (context.enableDebugLogging) {
+        contextualLogger.warn(
+          `Legacy account data is missing name or address, skipping account: ${JSON.stringify(
+            legacyAccount,
+          )}`,
+        );
+      }
+      continue;
+    }
+    const localGroupId = getUUIDFromAddressOfNormalAccount(a);
+
+    if (n) {
+      // Find the local group that corresponds to this EVM address
+      const localGroup = refreshedLocalAccountGroups.find((group) =>
+        group.accounts.some((accountId) => accountId === localGroupId),
+      );
+      if (localGroup) {
+        context.controller.setAccountGroupName(localGroup.id, n);
+      }
+    }
+  }
+
   context.emitAnalyticsEventFn({
     action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
-    profileId: primarySrpProfileId,
+    profileId,
   });
 };

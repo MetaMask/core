@@ -1,11 +1,13 @@
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
+  assertValidLegacyUserStorageAccount,
 } from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
   BackupAndSyncContext,
+  LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
@@ -98,6 +100,29 @@ export const parseGroupFromUserStorageResponse = (
   } catch (error: unknown) {
     throw new Error(
       `Error trying to parse group from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
+/**
+ * Parses the legacy account from user storage response.
+ * This function attempts to parse the account data from a string format
+ * and returns it as a LegacyUserStorageSyncedAccount object.
+ *
+ * @param account - The account data in string format.
+ * @returns The parsed LegacyUserStorageSyncedAccount object.
+ * @throws If the account data is not in valid JSON format or fails validation.
+ */
+export const parseLegacyAccountFromUserStorageResponse = (
+  account: string,
+): LegacyUserStorageSyncedAccount => {
+  try {
+    const accountData = JSON.parse(account);
+    assertValidLegacyUserStorageAccount(accountData);
+    return accountData;
+  } catch (error: unknown) {
+    throw new Error(
+      `Error trying to parse legacy account from user storage response: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 };

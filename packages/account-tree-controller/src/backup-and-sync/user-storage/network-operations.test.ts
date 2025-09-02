@@ -10,6 +10,7 @@ import {
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
+  parseLegacyAccountFromUserStorageResponse,
 } from './format-utils';
 import {
   getWalletFromUserStorage,
@@ -18,7 +19,7 @@ import {
   getGroupFromUserStorage,
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
-  getLegacyUserStorageData,
+  getAllLegacyUserStorageAccounts,
 } from './network-operations';
 import { executeWithRetry } from './network-utils';
 import type { AccountGroupMultichainAccountObject } from '../../group';
@@ -53,6 +54,10 @@ const mockParseWalletFromUserStorageResponse =
 const mockParseGroupFromUserStorageResponse =
   parseGroupFromUserStorageResponse as jest.MockedFunction<
     typeof parseGroupFromUserStorageResponse
+  >;
+const mockParseLegacyAccountFromUserStorageResponse =
+  parseLegacyAccountFromUserStorageResponse as jest.MockedFunction<
+    typeof parseLegacyAccountFromUserStorageResponse
   >;
 const mockExecuteWithRetry = executeWithRetry as jest.MockedFunction<
   typeof executeWithRetry
@@ -484,7 +489,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
   });
 
-  describe('getLegacyUserStorageData', () => {
+  describe('getAllLegacyUserStorageAccounts', () => {
     it('should return parsed legacy account data', async () => {
       const rawAccountsData = [
         '{"a":"address1","n":"name1","nlu":123}',
@@ -499,8 +504,11 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
         .mockResolvedValue(rawAccountsData);
+      mockParseLegacyAccountFromUserStorageResponse
+        .mockReturnValueOnce(expectedData[0])
+        .mockReturnValueOnce(expectedData[1]);
 
-      const result = await getLegacyUserStorageData(
+      const result = await getAllLegacyUserStorageAccounts(
         mockContext,
         'test-entropy-id',
       );
@@ -519,12 +527,115 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         .mockImplementation()
         .mockResolvedValue(null);
 
-      const result = await getLegacyUserStorageData(
+      const result = await getAllLegacyUserStorageAccounts(
         mockContext,
         'test-entropy-id',
       );
 
       expect(result).toStrictEqual([]);
+    });
+
+    it('should filter out invalid legacy accounts and log warnings when debug enabled', async () => {
+      const rawAccountsData = [
+        '{"a":"address1","n":"name1","nlu":123}', // Valid
+        '{"invalid":"data"}', // Invalid - will throw error
+        '{"a":"address2","n":"name2","nlu":456}', // Valid
+      ];
+      const expectedValidData = [
+        { a: 'address1', n: 'name1', nlu: 123 },
+        { a: 'address2', n: 'name2', nlu: 456 },
+      ];
+
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(rawAccountsData);
+
+      mockParseLegacyAccountFromUserStorageResponse
+        .mockReturnValueOnce(expectedValidData[0])
+        .mockImplementationOnce(() => {
+          throw new Error('Parse error for invalid data');
+        })
+        .mockReturnValueOnce(expectedValidData[1]);
+
+      const mockContextWithDebug = {
+        ...mockContext,
+        enableDebugLogging: true,
+      };
+
+      const result = await getAllLegacyUserStorageAccounts(
+        mockContextWithDebug,
+        'test-entropy-id',
+      );
+
+      expect(result).toStrictEqual(expectedValidData);
+      expect(contextualLogger.warn).toHaveBeenCalledWith(
+        'Failed to parse legacy account data from user storage: Parse error for invalid data',
+      );
+    });
+
+    it('should filter out invalid legacy accounts without logging when debug disabled', async () => {
+      const rawAccountsData = [
+        '{"a":"address1","n":"name1","nlu":123}', // Valid
+        '{"invalid":"data"}', // Invalid
+      ];
+      const expectedValidData = [{ a: 'address1', n: 'name1', nlu: 123 }];
+
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(rawAccountsData);
+
+      mockParseLegacyAccountFromUserStorageResponse
+        .mockReturnValueOnce(expectedValidData[0])
+        .mockImplementationOnce(() => {
+          throw new Error('Parse error for invalid data');
+        });
+
+      const mockContextWithoutDebug = {
+        ...mockContext,
+        enableDebugLogging: false,
+      };
+
+      const result = await getAllLegacyUserStorageAccounts(
+        mockContextWithoutDebug,
+        'test-entropy-id',
+      );
+
+      expect(result).toStrictEqual(expectedValidData);
+      expect(contextualLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should handle non-Error objects thrown during parsing', async () => {
+      const rawAccountsData = ['{"invalid":"data"}'];
+
+      jest
+        .spyOn(mockContext.messenger, 'call')
+        .mockImplementation()
+        .mockResolvedValue(rawAccountsData);
+
+      /* eslint-disable @typescript-eslint/only-throw-error */
+      mockParseLegacyAccountFromUserStorageResponse.mockImplementationOnce(
+        () => {
+          throw 'String error'; // Non-Error object
+        },
+      );
+      /* eslint-enable @typescript-eslint/only-throw-error */
+
+      const mockContextWithDebug = {
+        ...mockContext,
+        enableDebugLogging: true,
+      };
+
+      const result = await getAllLegacyUserStorageAccounts(
+        mockContextWithDebug,
+        'test-entropy-id',
+      );
+
+      expect(result).toStrictEqual([]);
+      expect(contextualLogger.warn).toHaveBeenCalledWith(
+        'Failed to parse legacy account data from user storage: String error',
+      );
     });
   });
 });

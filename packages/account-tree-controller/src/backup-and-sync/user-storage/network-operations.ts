@@ -10,12 +10,14 @@ import {
   formatGroupForUserStorageUsage,
   parseWalletFromUserStorageResponse,
   parseGroupFromUserStorageResponse,
+  parseLegacyAccountFromUserStorageResponse,
 } from './format-utils';
 import { executeWithRetry } from './network-utils';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
   BackupAndSyncContext,
+  LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
@@ -210,38 +212,45 @@ export const pushGroupToUserStorageBatch = async (
 };
 
 /**
- * Retrieves legacy user storage data for a specific entropy source ID.
+ * Retrieves legacy user storage accounts for a specific entropy source ID.
  *
  * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID to retrieve data for.
- * @returns A promise that resolves with the legacy user storage data.
+ * @returns A promise that resolves with the legacy user storage accounts.
  */
-export const getLegacyUserStorageData = async (
+export const getAllLegacyUserStorageAccounts = async (
   context: BackupAndSyncContext,
   entropySourceId: string,
-): Promise<
-  {
-    a: string;
-    n: string;
-    nlu: number;
-  }[]
-> => {
+): Promise<LegacyUserStorageSyncedAccount[]> => {
   return executeWithRetry(async () => {
-    const rawAccountsListResponse = await context.messenger.call(
+    const accountsData = await context.messenger.call(
       'UserStorageController:performGetStorageAllFeatureEntries',
       SDK.USER_STORAGE_FEATURE_NAMES.accounts,
       entropySourceId,
     );
 
-    return (
-      rawAccountsListResponse?.map(
-        (rawAccount) =>
-          JSON.parse(rawAccount) as {
-            a: string;
-            n: string;
-            nlu: number;
-          },
-      ) ?? []
-    );
+    if (!accountsData) {
+      return [];
+    }
+
+    return accountsData
+      .map((accountStringifiedJSON) => {
+        try {
+          return parseLegacyAccountFromUserStorageResponse(
+            accountStringifiedJSON,
+          );
+        } catch (error) {
+          if (context.enableDebugLogging) {
+            contextualLogger.warn(
+              `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+          return null;
+        }
+      })
+      .filter(
+        (account): account is LegacyUserStorageSyncedAccount =>
+          account !== null,
+      );
   });
 };
