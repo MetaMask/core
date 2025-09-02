@@ -1535,7 +1535,7 @@ describe('Messenger', () => {
       );
     });
 
-    it('throws an error when delegated action is called after an action is undregistered', () => {
+    it('throws an error when delegated action is called after an action is unregistered', () => {
       type ExampleAction = {
         type: 'Source:getLength';
         handler: (input: string) => number;
