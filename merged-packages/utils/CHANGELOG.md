@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.7.0]
+
+### Added
+
+- Add Tron CAIP namespace ([#266](https://github.com/MetaMask/utils/pull/266))
+
+### Fixed
+
+- Fix API docs generation ([#264](https://github.com/MetaMask/utils/pull/264))
+
 ## [11.6.0]
 
 ### Added
@@ -451,7 +461,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v11.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.7.0...HEAD
+[11.7.0]: https://github.com/MetaMask/utils/compare/v11.6.0...v11.7.0
 [11.6.0]: https://github.com/MetaMask/utils/compare/v11.5.0...v11.6.0
 [11.5.0]: https://github.com/MetaMask/utils/compare/v11.4.2...v11.5.0
 [11.4.2]: https://github.com/MetaMask/utils/compare/v11.4.1...v11.4.2
