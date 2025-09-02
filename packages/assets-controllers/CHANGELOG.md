@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Add dynamic polling per chain support to `TokenBalancesController` allowing different networks to have configurable polling intervals, with automatic grouping of chains by interval for optimal performance and runtime configuration updates
+- Enhance `TokenBalancesController` with internal dynamic polling per chain support, enabling configurable polling intervals for different networks with automatic interval grouping for improved performance (transparent to existing API) ([#6357](https://github.com/MetaMask/core/pull/6357))
 
 ### Changed
 
