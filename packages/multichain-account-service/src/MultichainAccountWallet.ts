@@ -491,11 +491,6 @@ export class MultichainAccountWallet<
     const discoveredAccounts: Record<string, number> = {};
 
     for (const [p, ctx] of providerContexts) {
-      /* istanbul ignore next
-       * In production, Snap providers exist and hit the `isSnapAccountProvider`
-       * branch. Unit tests here mock generic providers only, so that path is
-       * not exercised.
-       */
       const groupKey = p.getName();
       discoveredAccounts[groupKey] = ctx.count;
     }
