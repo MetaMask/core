@@ -2,8 +2,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { CoverageResult, CoverageStatus, ShieldBackend } from './types';
 
-export const BASE_URL = 'https://rule-engine.metamask.io';
-
 export type InitCoverageCheckRequest = {
   txParams: [
     {
@@ -45,13 +43,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
     getAccessToken,
     getCoverageResultTimeout = 5000, // milliseconds
     getCoverageResultPollInterval = 1000, // milliseconds
-    baseUrl = BASE_URL,
+    baseUrl,
     fetch: fetchFn,
   }: {
     getAccessToken: () => Promise<string>;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;
-    baseUrl?: string;
+    baseUrl: string;
     fetch: typeof globalThis.fetch;
   }) {
     this.#getAccessToken = getAccessToken;
@@ -86,11 +84,14 @@ export class ShieldRemoteBackend implements ShieldBackend {
   async #initCoverageCheck(
     reqBody: InitCoverageCheckRequest,
   ): Promise<InitCoverageCheckResponse> {
-    const res = await this.#fetch(`${this.#baseUrl}/api/v1/coverage/init`, {
-      method: 'POST',
-      headers: await this.#createHeaders(),
-      body: JSON.stringify(reqBody),
-    });
+    const res = await this.#fetch(
+      `${this.#baseUrl}/v1/transaction/coverage/init`,
+      {
+        method: 'POST',
+        headers: await this.#createHeaders(),
+        body: JSON.stringify(reqBody),
+      },
+    );
     if (res.status !== 200) {
       throw new Error(`Failed to init coverage check: ${res.status}`);
     }
@@ -120,7 +121,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
         while (!timeoutReached) {
           const startTime = Date.now();
           const res = await this.#fetch(
-            `${this.#baseUrl}/api/v1/coverage/result`,
+            `${this.#baseUrl}/v1/transaction/coverage/result`,
             {
               method: 'POST',
               headers,
