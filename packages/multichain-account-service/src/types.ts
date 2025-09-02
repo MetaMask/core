@@ -1,4 +1,3 @@
-import type { AccountProvider, Bip44Account } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
@@ -7,7 +6,6 @@ import type {
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
-import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -137,10 +135,6 @@ export type MultichainAccountServiceMessenger = RestrictedMessenger<
   MultichainAccountServiceEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
->;
-
-export type Bip44AccountProvider = AccountProvider<
-  Bip44Account<KeyringAccount>
 >;
 
 /**

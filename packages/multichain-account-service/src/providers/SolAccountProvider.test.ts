@@ -23,6 +23,7 @@ import type {
   MultichainAccountServiceActions,
   MultichainAccountServiceEvents,
 } from '../types';
+import { AccountProviderWrapper } from './AccountProviderWrapper';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -99,7 +100,7 @@ function setup({
   >;
   accounts?: InternalAccount[];
 } = {}): {
-  provider: SolAccountProvider;
+  provider: AccountProviderWrapper;
   messenger: Messenger<
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
@@ -140,8 +141,10 @@ function setup({
       }),
   );
 
-  const provider = new SolAccountProvider(
-    getMultichainAccountServiceMessenger(messenger),
+  const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
+  const provider = new AccountProviderWrapper(
+    multichainMessenger,
+    new SolAccountProvider(multichainMessenger),
   );
 
   return {
@@ -158,6 +161,11 @@ function setup({
 }
 
 describe('SolAccountProvider', () => {
+  it('getName returns Solana', () => {
+    const { provider } = setup({ accounts: [] });
+    expect(provider.getName()).toBe('Solana');
+  });
+
   it('gets accounts', () => {
     const accounts = [MOCK_SOL_ACCOUNT_1];
     const { provider } = setup({
@@ -276,7 +284,7 @@ describe('SolAccountProvider', () => {
     expect(discovered).toStrictEqual([MOCK_SOL_ACCOUNT_1]);
   });
 
-  it('should not return any accounts if no account is discovered', async () => {
+  it('does not return any accounts if no account is discovered', async () => {
     const { provider, mocks } = setup({
       accounts: [],
     });

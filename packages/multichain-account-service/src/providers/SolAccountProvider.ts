@@ -28,6 +28,10 @@ export class SolAccountProvider extends SnapAccountProvider {
     );
   }
 
+  getName(): string {
+    return 'Solana';
+  }
+
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {
     return new KeyringClient({
       send: async (request: JsonRpcRequest) => {

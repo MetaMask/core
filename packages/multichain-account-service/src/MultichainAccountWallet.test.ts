@@ -63,6 +63,12 @@ function setup({
 }
 
 describe('MultichainAccountWallet', () => {
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
   describe('constructor', () => {
     it('constructs a multichain account wallet', () => {
       const entropySource = MOCK_WALLET_1_ENTROPY_SOURCE;
@@ -505,6 +511,9 @@ describe('MultichainAccountWallet', () => {
         accounts: [[], []],
       });
 
+      providers[0].getName.mockImplementation(() => 'EVM');
+      providers[1].getName.mockImplementation(() => 'Solana');
+
       // Fast provider: succeeds at indices 0,1 then stops at 2
       providers[0].discoverAndCreateAccounts
         .mockImplementationOnce(() => Promise.resolve([{}]))
@@ -512,23 +521,23 @@ describe('MultichainAccountWallet', () => {
         .mockImplementationOnce(() => Promise.resolve([]));
 
       // Slow provider: first call (index 0) resolves on a later tick, then it should be
-      // rescheduled directly at index 2 (the high-water) and stop there
+      // rescheduled directly at index 2 (the max group index) and stop there
       providers[1].discoverAndCreateAccounts
         .mockImplementationOnce(
-          () =>
-            new Promise((resolve) =>
-              setTimeout(
-                () => resolve([{} as unknown as Bip44Account<InternalAccount>]),
-                100,
-              ),
-            ),
+          () => new Promise((resolve) => setTimeout(() => resolve([{}]), 100)),
         )
         .mockImplementationOnce(() => Promise.resolve([]));
 
       // Avoid side-effects from alignment for this orchestrator behavior test
       jest.spyOn(wallet, 'alignGroups').mockResolvedValue(undefined);
 
-      await wallet.discoverAndCreateAccounts();
+      jest.useFakeTimers();
+      const discovery = wallet.discoverAndCreateAccounts();
+      // Allow fast provider microtasks to run and advance maxGroupIndex first
+      await Promise.resolve();
+      await Promise.resolve();
+      jest.advanceTimersByTime(100);
+      await discovery;
 
       // Assert call order per provider shows skipping ahead
       const fastIndices = Array.from(
@@ -546,6 +555,9 @@ describe('MultichainAccountWallet', () => {
       const { wallet, providers } = setup({
         accounts: [[MOCK_HD_ACCOUNT_1], []],
       });
+
+      providers[0].getName.mockImplementation(() => 'EVM');
+      providers[1].getName.mockImplementation(() => 'Solana');
 
       // First provider finds one at 0 then stops at 1
       providers[0].discoverAndCreateAccounts
@@ -569,6 +581,9 @@ describe('MultichainAccountWallet', () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
       });
+
+      providers[0].getName.mockImplementation(() => 'EVM');
+      providers[1].getName.mockImplementation(() => 'Solana');
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       jest.spyOn(wallet, 'alignGroups').mockResolvedValue(undefined);

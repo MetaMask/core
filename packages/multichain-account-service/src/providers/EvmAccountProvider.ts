@@ -37,6 +37,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     );
   }
 
+  getName(): string {
+    return 'EVM';
+  }
+
   /**
    * Get the Evm provider.
    *

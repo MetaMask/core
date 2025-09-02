@@ -11,15 +11,13 @@ import type {
   MultichainAccountWallet as MultichainAccountWalletDefinition,
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import {
   type EntropySourceId,
   type KeyringAccount,
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { isSnapAccountProvider } from './providers';
-import type { Bip44AccountProvider } from './types';
+import type { NamedAccountProvider } from './providers';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -31,7 +29,7 @@ export class MultichainAccountWallet<
 {
   readonly #id: MultichainAccountWalletId;
 
-  readonly #providers: AccountProvider<Account>[];
+  readonly #providers: NamedAccountProvider<Account>[];
 
   readonly #entropySource: EntropySourceId;
 
@@ -43,7 +41,7 @@ export class MultichainAccountWallet<
     providers,
     entropySource,
   }: {
-    providers: AccountProvider<Account>[];
+    providers: NamedAccountProvider<Account>[];
     entropySource: EntropySourceId;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
@@ -368,31 +366,47 @@ export class MultichainAccountWallet<
   async discoverAndCreateAccounts(): Promise<Record<string, number>> {
     const providers = this.#providers;
     const providerContexts = new Map<
-      Bip44AccountProvider,
+      NamedAccountProvider,
       {
         stopped: boolean;
         running?: Promise<void>;
-        index: number;
+        groupIndex: number;
         count: number;
       }
     >();
 
     for (const p of providers) {
-      providerContexts.set(p, { stopped: false, index: 0, count: 0 });
+      providerContexts.set(p, { stopped: false, groupIndex: 0, count: 0 });
     }
 
     let maxGroupIndex = 0;
 
-    const schedule = (p: Bip44AccountProvider, index: number) => {
+    const schedule = async (p: NamedAccountProvider, index: number) => {
       // Ok to cast here because we know that the ctx will always be set.
       const providerCtx = providerContexts.get(p) as {
         stopped: boolean;
         running?: Promise<void>;
-        index: number;
+        groupIndex: number;
         count: number;
       };
 
-      providerCtx.index = index;
+      /* istanbul ignore next
+       * Reason: This guard triggers only if `schedule` is invoked for the same
+       * provider while a previous step is still pending. Because the
+       * coordinator self‑reschedules in `finally` and catch‑up scheduling checks
+       * `!qCtx.running`, creating this exact interleaving in unit tests without
+       * racy sleeps is brittle. We keep the guard for safety and exclude it from
+       * coverage.
+       */
+      if (providerCtx.running) {
+        // Wait for current scheduled job before starting a new one.
+        await providerCtx.running.catch((error) => {
+          console.error(error);
+        });
+        providerCtx.running = undefined;
+      }
+
+      providerCtx.groupIndex = index;
 
       providerCtx.running = (async () => {
         try {
@@ -401,6 +415,7 @@ export class MultichainAccountWallet<
             groupIndex: index,
           });
 
+          // Stopping condition: Account discovery is halted if no accounts are returned by the provider.
           if (!accounts.length) {
             providerCtx.stopped = true;
             return;
@@ -409,7 +424,7 @@ export class MultichainAccountWallet<
           providerCtx.count += accounts.length;
 
           const next = index + 1;
-          providerCtx.index = next;
+          providerCtx.groupIndex = next;
 
           if (next > maxGroupIndex) {
             maxGroupIndex = next;
@@ -425,9 +440,9 @@ export class MultichainAccountWallet<
               if (
                 !qCtx.stopped &&
                 !qCtx.running &&
-                qCtx.index < maxGroupIndex
+                qCtx.groupIndex < maxGroupIndex
               ) {
-                schedule(q, maxGroupIndex);
+                qCtx.running = schedule(q, maxGroupIndex);
               }
             }
           }
@@ -437,23 +452,35 @@ export class MultichainAccountWallet<
         } finally {
           providerCtx.running = undefined;
           if (!providerCtx.stopped) {
-            const target = Math.max(maxGroupIndex, providerCtx.index);
-            schedule(p, target);
+            const target = Math.max(maxGroupIndex, providerCtx.groupIndex);
+            providerCtx.running = schedule(p, target);
           }
         }
       })();
     };
 
+    const currentGroupIndex = this.getNextGroupIndex();
+    // Start discovery for all providers.
     for (const p of providers) {
-      schedule(p, 0);
+      const pCtx = providerContexts.get(p) as {
+        stopped: boolean;
+        running?: Promise<void>;
+        groupIndex: number;
+        count: number;
+      };
+      pCtx.running = schedule(p, currentGroupIndex);
     }
 
-    while ([...providerContexts.values()].some((ctx) => Boolean(ctx.running))) {
-      const racers = [...providerContexts.values()]
+    let racers: Promise<void>[] = [];
+    do {
+      racers = [...providerContexts.values()]
         .map((c) => c.running)
         .filter(Boolean) as Promise<void>[];
-      await Promise.race(racers);
-    }
+
+      if (racers.length) {
+        await Promise.race(racers);
+      }
+    } while (racers.length);
 
     // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
     // We can potentially remove this if we know that this race condition is not an issue in practice.
@@ -469,7 +496,7 @@ export class MultichainAccountWallet<
        * branch. Unit tests here mock generic providers only, so that path is
        * not exercised.
        */
-      const groupKey = isSnapAccountProvider(p) ? p.snapId : 'Evm';
+      const groupKey = p.getName();
       discoveredAccounts[groupKey] = ctx.count;
     }
 

@@ -176,6 +176,11 @@ function setup({
 }
 
 describe('EvmAccountProvider', () => {
+  it('getName returns EVM', () => {
+    const { provider } = setup({ accounts: [] });
+    expect(provider.getName()).toBe('EVM');
+  });
+
   it('gets accounts', () => {
     const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
     const { provider } = setup({
