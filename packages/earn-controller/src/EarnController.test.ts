@@ -1436,10 +1436,25 @@ describe('EarnController', () => {
       it('updates earn eligibility, pooled stakes, and lending positions when selectedAccountGroup changes', async () => {
         const { controller, messenger } = await setupController();
 
+        // Publish an initial state
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          {
+            accountTree: {
+              wallets: {},
+              selectedAccountGroup: '',
+            },
+            accountGroupsMetadata: {},
+            accountWalletsMetadata: {},
+          },
+          [],
+        );
+
         jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
         jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
         jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
 
+        // Publish state change with different selectedAccountGroup
         messenger.publish(
           'AccountTreeController:stateChange',
           {
@@ -1468,11 +1483,7 @@ describe('EarnController', () => {
       it('does not update when selectedAccountGroup remains the same', async () => {
         const { controller, messenger } = await setupController();
 
-        jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
-        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
-        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
-
-        // Publish state change with same selectedAccountGroup (empty string is the initial value)
+        // Publish an initial state
         messenger.publish(
           'AccountTreeController:stateChange',
           {
@@ -1486,7 +1497,24 @@ describe('EarnController', () => {
           [],
         );
 
-        // None of the refresh methods should be called
+        jest.spyOn(controller, 'refreshEarnEligibility').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshLendingPositions').mockResolvedValue();
+
+        // Publish state change with same selectedAccountGroup
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          {
+            accountTree: {
+              wallets: {},
+              selectedAccountGroup: '',
+            },
+            accountGroupsMetadata: {},
+            accountWalletsMetadata: {},
+          },
+          [],
+        );
+
         expect(controller.refreshEarnEligibility).not.toHaveBeenCalled();
         expect(controller.refreshPooledStakes).not.toHaveBeenCalled();
         expect(controller.refreshLendingPositions).not.toHaveBeenCalled();

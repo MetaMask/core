@@ -1,5 +1,4 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { AccountGroupId } from '@metamask/account-api';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerState,
@@ -291,8 +290,6 @@ export class EarnController extends BaseController<
 
   #selectedNetworkClientId: string;
 
-  #selectedAccountGroup: AccountGroupId | '' = '';
-
   readonly #earnApiService: EarnApiService;
 
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
@@ -362,25 +359,19 @@ export class EarnController extends BaseController<
       },
     );
 
-    // Listen for account changes
+    // Listen for selected account group changes
     // Use stateChange event instead of selectedAccountGroupChange event as the former gets emitted
-    // when the AccountTreeController initializes but the latter does not
+    // when the AccountTreeController initializes but the latter currently does not
     this.messagingSystem.subscribe(
       'AccountTreeController:stateChange',
-      (accountTreeState: AccountTreeControllerState) => {
-        if (
-          accountTreeState.accountTree.selectedAccountGroup !==
-          this.#selectedAccountGroup
-        ) {
-          this.#selectedAccountGroup =
-            accountTreeState.accountTree.selectedAccountGroup;
-          const address = this.#getSelectedEvmAccountAddress();
-
-          this.refreshEarnEligibility({ address }).catch(console.error);
-          this.refreshPooledStakes({ address }).catch(console.error);
-          this.refreshLendingPositions({ address }).catch(console.error);
-        }
+      () => {
+        const address = this.#getSelectedEvmAccountAddress();
+        this.refreshEarnEligibility({ address }).catch(console.error);
+        this.refreshPooledStakes({ address }).catch(console.error);
+        this.refreshLendingPositions({ address }).catch(console.error);
       },
+      (accountTreeState: AccountTreeControllerState) =>
+        accountTreeState.accountTree.selectedAccountGroup,
     );
 
     // Listen for confirmed staking transactions
