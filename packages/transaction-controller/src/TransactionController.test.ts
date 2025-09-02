@@ -484,7 +484,6 @@ const SIMULATION_DATA_RESULT_MOCK: SimulationData = {
       isDecrease: false,
     },
   ],
-  // gasUsed: '0x5208',
 };
 
 const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
