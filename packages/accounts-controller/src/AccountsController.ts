@@ -605,8 +605,7 @@ export class AccountsController extends BaseController<
 
     this.#update((state) => {
       /* eslint-disable max-depth */
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      /* @ts-expect-error max-depth */
+      /* @ts-ignore */
       state.internalAccounts.accounts = internalAccounts;
       /* eslint-enable max-depth */
     });
