@@ -310,6 +310,7 @@ export class MultichainAccountService {
    *
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
+   * @throws If the mnemonic has already been imported.
    * @returns The a tuple of the new multichain account wallet and the entropy source id.
    */
   async createMultichainAccountWallet({
