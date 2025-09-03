@@ -4155,7 +4155,6 @@ describe('KeyringController', () => {
 
     describe('addNewKeyring', () => {
       it('should call addNewKeyring', async () => {
-        // Mock implementation to avoid having to use real mnemonics.
         const mockKeyringMetadata: KeyringMetadata = {
           id: 'mock-id',
           name: 'mock-keyring',
@@ -4167,22 +4166,18 @@ describe('KeyringController', () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller, messenger }) => {
-            const mockKeyringType = KeyringTypes.hd;
-            const mockKeyringOptions = {
-              mnemonic: 'mock-mnemonic',
-              numberOfAccounts: 1,
-            };
+            const mockKeyringOptions = {};
 
             expect(
               await messenger.call(
                 'KeyringController:addNewKeyring',
-                KeyringTypes.hd,
+                MockKeyring.type,
                 mockKeyringOptions,
               ),
             ).toStrictEqual(mockKeyringMetadata);
 
             expect(controller.addNewKeyring).toHaveBeenCalledWith(
-              mockKeyringType,
+              MockKeyring.type,
               mockKeyringOptions,
             );
           },
