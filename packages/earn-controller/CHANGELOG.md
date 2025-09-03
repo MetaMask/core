@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.0]
 
-### Uncategorized
-
-- Release/529.0.0 ([#6440](https://github.com/MetaMask/core/pull/6440))
-- Release 513.0.0 ([#6381](https://github.com/MetaMask/core/pull/6381))
-
 ### Added
 
 - Added `@metamask/keyring-api` as a dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
