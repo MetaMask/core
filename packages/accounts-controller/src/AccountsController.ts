@@ -40,6 +40,7 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
   getEvmDerivationPathForIndex,
@@ -479,14 +480,8 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
-      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
-      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
-      // which sometimes fail when compiling locally.
-      (state as AccountsControllerState).internalAccounts.accounts[account.id] =
-        internalAccount;
-      (state as AccountsControllerState).internalAccounts.selectedAccount =
-        account.id;
+      state.internalAccounts.accounts[account.id] = internalAccount;
+      state.internalAccounts.selectedAccount = account.id;
     });
 
     this.messagingSystem.publish(
@@ -529,12 +524,7 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
-      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
-      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
-      // which sometimes fail when compiling locally.
-      (state as AccountsControllerState).internalAccounts.accounts[accountId] =
-        internalAccount;
+      state.internalAccounts.accounts[accountId] = internalAccount;
     });
 
     if (metadata.name) {
@@ -615,9 +605,11 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState) => {
-        currentState.internalAccounts = backup.internalAccounts;
-      });
+      this.update(
+        (currentState: WritableDraft<AccountsControllerStrictState>) => {
+          currentState.internalAccounts = backup.internalAccounts;
+        },
+      );
     }
   }
 
@@ -906,13 +898,15 @@ export class AccountsController extends BaseController<
    *
    * @param callback - Callback for updating state, passed a draft state object.
    */
-  #update(callback: (state: WritableDraft<AccountsControllerState>) => void) {
+  #update(
+    callback: (state: WritableDraft<AccountsControllerStrictState>) => void,
+  ) {
     // The currently selected account might get deleted during the update, so keep track
     // of it before doing any change.
     const previouslySelectedAccount =
       this.state.internalAccounts.selectedAccount;
 
-    this.update((state) => {
+    this.update((state: WritableDraft<AccountsControllerStrictState>) => {
       callback(state);
 
       // If the account no longer exists (or none is selected), we need to re-select another one.

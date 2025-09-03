@@ -30,6 +30,7 @@ function setup({
     getCoverageResultTimeout,
     getCoverageResultPollInterval,
     fetch,
+    baseUrl: 'https://rule-engine.metamask.io',
   });
 
   return {
