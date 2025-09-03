@@ -3110,7 +3110,7 @@ Object {
   "destinationTokenDecimals": 18,
   "destinationTokenSymbol": "ETH",
   "hash": "signature",
-  "id": "test-uuid-1234",
+  "id": "signature",
   "isBridgeTx": true,
   "isSolana": true,
   "networkClientId": "test-snap",
@@ -3132,7 +3132,7 @@ Object {
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 3`] = `
 Object {
-  "bridgeTxMetaId": "test-uuid-1234",
+  "bridgeTxMetaId": "signature",
 }
 `;
 
@@ -3233,7 +3233,7 @@ Object {
     "status": "PENDING",
   },
   "targetContractAddress": undefined,
-  "txMetaId": "test-uuid-1234",
+  "txMetaId": "signature",
 }
 `;
 
@@ -3439,7 +3439,7 @@ Object {
   "destinationTokenDecimals": 18,
   "destinationTokenSymbol": "USDC",
   "hash": "signature",
-  "id": "test-uuid-1234",
+  "id": "signature",
   "isBridgeTx": false,
   "isSolana": true,
   "networkClientId": "test-snap",
@@ -3554,7 +3554,7 @@ Object {
     "status": "PENDING",
   },
   "targetContractAddress": undefined,
-  "txMetaId": "test-uuid-1234",
+  "txMetaId": "signature",
 }
 `;
 
@@ -3681,7 +3681,6 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "PENDING",
-      "error_message": undefined,
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -3727,7 +3726,7 @@ Array [
     "chain_id_source": "eip155:42161",
     "custom_slippage": true,
     "destination_transaction": "FAILED",
-    "error_message": undefined,
+    "error_message": "",
     "gas_included": false,
     "is_hardware_wallet": false,
     "price_impact": 0,
@@ -3763,7 +3762,7 @@ Array [
     "chain_id_destination": "eip155:42161",
     "chain_id_source": "eip155:42161",
     "custom_slippage": false,
-    "error_message": undefined,
+    "error_message": "",
     "gas_included": false,
     "is_hardware_wallet": false,
     "price_impact": 0,
@@ -3799,7 +3798,7 @@ Array [
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
-      "error_message": undefined,
+      "error_message": "",
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -3846,7 +3845,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "FAILED",
-      "error_message": undefined,
+      "error_message": "",
       "gas_included": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -3883,7 +3882,7 @@ Array [
     "chain_id_destination": "eip155:42161",
     "chain_id_source": "eip155:42161",
     "custom_slippage": false,
-    "error_message": undefined,
+    "error_message": "",
     "gas_included": false,
     "is_hardware_wallet": false,
     "price_impact": 0,

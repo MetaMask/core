@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Remove support for `AccountsController:accountRenamed` event handling ([#6438](https://github.com/MetaMask/core/pull/6438))
+
+## [0.12.1]
+
+### Fixed
+
+- Publish `AccountTreeController:selectedAccountGroupChange` during `init` ([#6431](https://github.com/MetaMask/core/pull/6431))
+
 ## [0.12.0]
 
 ### Added
@@ -154,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.1...HEAD
+[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...@metamask/account-tree-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.11.0...@metamask/account-tree-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.10.0...@metamask/account-tree-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.9.0...@metamask/account-tree-controller@0.10.0
