@@ -775,6 +775,33 @@ describe('Batch Utils', () => {
       );
     });
 
+    it.each([true, false])(
+      'passes isGasFeeIncluded flag (%s) through to addTransaction when provided (EIP-7702 path)',
+      async (isGasFeeIncluded) => {
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: true,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        request.request.isGasFeeIncluded = isGasFeeIncluded;
+
+        await addTransactionBatch(request);
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            isGasFeeIncluded,
+          }),
+        );
+      },
+    );
+
     describe('validates security', () => {
       it('using transaction params', async () => {
         isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
