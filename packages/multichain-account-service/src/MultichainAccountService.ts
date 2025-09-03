@@ -327,9 +327,9 @@ export class MultichainAccountService {
 
     const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
       return (
-        Buffer.from(
-          convertEnglishWordlistIndicesToCodepoints(keyring.mnemonic),
-        ).toString('utf8') === mnemonic
+        convertEnglishWordlistIndicesToCodepoints(keyring.mnemonic).toString(
+          'utf8',
+        ) === mnemonic
       );
     });
 
