@@ -22,6 +22,9 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuid } from 'uuid';
 
+export const MOCK_MNEMONIC =
+  'abandon ability able about above absent absorb abstract absurd abuse access accident';
+
 export const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
   EthMethod.Sign,

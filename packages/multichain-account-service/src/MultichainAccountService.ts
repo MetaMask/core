@@ -12,7 +12,6 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
-import { type Hex } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -24,6 +23,7 @@ import {
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
+import { convertEnglishWordlistIndicesToCodepoints } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -319,39 +319,37 @@ export class MultichainAccountService {
   }): Promise<
     [MultichainAccountWallet<Bip44Account<KeyringAccount>>, EntropySourceId]
   > {
-    // create a new wallet with the given mnemonic
-    const result = (await this.#messenger.call(
-      'KeyringController:withKeyring',
-      // We intentionally use index -1 to create a new keyring.
-      { type: KeyringTypes.hd, index: -1 },
-      async ({
-        keyring,
-        metadata,
-      }: {
-        keyring: EthKeyring;
-        metadata: KeyringMetadata;
-      }) => {
-        const accounts = await keyring.getAccounts();
-        return [accounts, metadata];
-      },
-      { createIfMissing: true, createWithData: { mnemonic } },
-    )) as [Hex[], KeyringMetadata];
+    const existingKeyrings = this.#messenger.call(
+      'KeyringController:getKeyringsByType',
+      KeyringTypes.hd,
+    ) as (EthKeyring & { mnemonic: Uint8Array })[];
 
-    const [accounts, metadata] = result;
+    const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
+      return (
+        Buffer.from(
+          convertEnglishWordlistIndicesToCodepoints(keyring.mnemonic),
+        ).toString('utf8') === mnemonic
+      );
+    });
 
-    // Make sure the keyring has no accounts after creating it.
-    if (accounts.length > 0) {
-      throw new Error('Expected keyring with no accounts');
+    if (alreadyHasImportedSrp) {
+      throw new Error('This Secret Recovery Phrase has already been imported.');
     }
+
+    const result = (await this.#messenger.call(
+      'KeyringController:addNewKeyring',
+      KeyringTypes.hd,
+      { mnemonic },
+    )) as KeyringMetadata;
 
     const wallet = new MultichainAccountWallet({
       providers: this.#providers,
-      entropySource: metadata.id,
+      entropySource: result.id,
     });
 
     this.#wallets.set(wallet.id, wallet);
 
-    return [wallet, metadata.id];
+    return [wallet, result.id];
   }
 
   /**

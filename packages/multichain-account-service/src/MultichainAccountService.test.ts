@@ -14,6 +14,7 @@ import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
+  MOCK_MNEMONIC,
   MOCK_SNAP_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
@@ -35,6 +36,7 @@ import type {
   MultichainAccountServiceEvents,
   MultichainAccountServiceMessenger,
 } from './types';
+import { convertMnemonicToWordlistIndices } from './utils';
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
@@ -54,7 +56,8 @@ type Mocks = {
   KeyringController: {
     keyrings: KeyringObject[];
     getState: jest.Mock;
-    withKeyring: jest.Mock;
+    getKeyringsByType: jest.Mock;
+    addNewKeyring: jest.Mock;
   };
   AccountsController: {
     listMultichainAccounts: jest.Mock;
@@ -103,7 +106,8 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
-      withKeyring: jest.fn(),
+      getKeyringsByType: jest.fn(),
+      addNewKeyring: jest.fn(),
     },
     AccountsController: {
       listMultichainAccounts: jest.fn(),
@@ -126,8 +130,13 @@ function setup({
   );
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
-    mocks.KeyringController.withKeyring,
+    'KeyringController:getKeyringsByType',
+    mocks.KeyringController.getKeyringsByType,
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:addNewKeyring',
+    mocks.KeyringController.addNewKeyring,
   );
 
   if (accounts) {
@@ -846,17 +855,18 @@ describe('MultichainAccountService', () => {
     it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
       const { messenger, mocks } = setup({ accounts: [], keyrings: [] });
 
-      mocks.KeyringController.withKeyring.mockImplementationOnce(
-        async (_selector, op, _opts) => {
-          const keyring = { getAccounts: jest.fn().mockResolvedValue([]) };
-          const metadata = { id: 'abc', type: KeyringTypes.hd };
-          return op({ keyring, metadata });
-        },
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
+        () => [],
       );
+
+      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+        id: 'abc',
+        name: '',
+      }));
 
       const [wallet, entropySource] = await messenger.call(
         'MultichainAccountService:createMultichainAccountWallet',
-        { mnemonic: 'test' },
+        { mnemonic: MOCK_MNEMONIC },
       );
 
       expect(wallet).toBeDefined();
@@ -992,40 +1002,40 @@ describe('MultichainAccountService', () => {
         keyrings: [],
       });
 
-      // Make the messenger withKeyring call invoke our operation so the service code runs
-      mocks.KeyringController.withKeyring.mockImplementationOnce(
-        async (_selector, op, _opts) => {
-          const keyring = { getAccounts: jest.fn().mockResolvedValue([]) };
-          const metadata = { id: 'abc', type: KeyringTypes.hd };
-          return op({ keyring, metadata });
-        },
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
+        () => [],
       );
+
+      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+        id: 'abc',
+        name: '',
+      }));
 
       const [wallet, entropySource] =
         await service.createMultichainAccountWallet({
-          mnemonic: 'test',
+          mnemonic: MOCK_MNEMONIC,
         });
 
       expect(wallet).toBeDefined();
       expect(entropySource).toBe('abc');
     });
 
-    it("throws an error if there's already an existing keyring with accounts", async () => {
+    it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
       const { service, mocks } = setup({ accounts: [], keyrings: [] });
 
-      mocks.KeyringController.withKeyring.mockImplementationOnce(
-        async (_selector, op, _opts) => {
-          const keyring = {
-            getAccounts: jest.fn().mockResolvedValue(['0xabc']),
-          };
-          const metadata = { id: 'abc', type: KeyringTypes.hd };
-          return op({ keyring, metadata });
+      const convertedMnemonic = convertMnemonicToWordlistIndices(MOCK_MNEMONIC);
+
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+        {
+          mnemonic: convertedMnemonic,
         },
-      );
+      ]);
 
       await expect(
-        service.createMultichainAccountWallet({ mnemonic: 'test' }),
-      ).rejects.toThrow('Expected keyring with no accounts');
+        service.createMultichainAccountWallet({ mnemonic: MOCK_MNEMONIC }),
+      ).rejects.toThrow(
+        'This Secret Recovery Phrase has already been imported.',
+      );
     });
   });
 });

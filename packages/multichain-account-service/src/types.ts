@@ -7,13 +7,12 @@ import type {
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type {
+  KeyringControllerAddNewKeyringAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
-  KeyringMetadata,
-  KeyringSelector,
+  KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
-import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
@@ -112,11 +111,12 @@ export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
-  | KeyringControllerWithKeyringWithOptionsAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | KeyringControllerGetKeyringsByTypeAction;
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerAddNewKeyringAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
@@ -138,27 +138,3 @@ export type MultichainAccountServiceMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-/**
- * Locally widen the withKeyring action so the messenger accepts the optional options
- * parameter (createIfMissing/createWithData) in addition to selector and operation.
- */
-export type KeyringControllerWithKeyringWithOptionsAction = {
-  type: 'KeyringController:withKeyring';
-  handler: <
-    SelectedKeyring extends EthKeyring = EthKeyring,
-    CallbackResult = void,
-  >(
-    selector: KeyringSelector,
-    operation: ({
-      keyring,
-      metadata,
-    }: {
-      keyring: SelectedKeyring;
-      metadata: KeyringMetadata;
-    }) => Promise<CallbackResult>,
-    options?:
-      | { createIfMissing?: false }
-      | { createIfMissing: true; createWithData?: unknown },
-  ) => Promise<CallbackResult>;
-};
