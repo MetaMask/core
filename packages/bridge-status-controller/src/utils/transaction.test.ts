@@ -1190,11 +1190,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
         request: {
           id: expect.any(String),
           jsonrpc: '2.0',
-          method: 'signAndSendTransactionWithoutConfirmation',
+          method: 'ClientRequest:signAndSendTransaction',
           params: {
-            account: { address: '0x123456' },
             transaction: 'ABCD',
-            scope: SolScope.Mainnet,
+            scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            accountId: 'test-account-id',
           },
         },
       });

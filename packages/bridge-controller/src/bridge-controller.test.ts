@@ -602,7 +602,7 @@ describe('BridgeController', function () {
                       asset: {
                         unit: 'SOL',
                         type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
-                        amount: '0.000000014', // 14 lamports in SOL
+                        amount: (14 / 1e9).toString(), // Properly convert 14 lamports to SOL
                         fungible: true,
                       },
                     },
@@ -1654,8 +1654,8 @@ describe('BridgeController', function () {
                         unit: 'SOL',
                         type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
                         amount: expectedFees
-                          ? `0.000000${expectedFees.padStart(3, '0')}`
-                          : '0', // Convert lamports to SOL
+                          ? (parseFloat(expectedFees) / 1e9).toString()
+                          : '0', // Properly convert lamports to SOL
                         fungible: true,
                       },
                     },
