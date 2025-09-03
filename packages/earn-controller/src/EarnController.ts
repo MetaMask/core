@@ -6,11 +6,11 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
@@ -263,12 +263,10 @@ export type AllowedEvents =
  * The messenger which is restricted to actions and events accessed by
  * EarnController.
  */
-export type EarnControllerMessenger = RestrictedMessenger<
+export type EarnControllerMessenger = Messenger<
   typeof controllerName,
   EarnControllerActions | AllowedActions,
-  EarnControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  EarnControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
@@ -334,7 +332,7 @@ export class EarnController extends BaseController<
     this.refreshLendingData().catch(console.error);
 
     // Listen for network changes
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:networkDidChange',
       (networkControllerState) => {
         this.#selectedNetworkClientId =
@@ -355,7 +353,7 @@ export class EarnController extends BaseController<
     );
 
     // Listen for account changes
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedAccountChange',
       (account) => {
         const address = account?.address;
@@ -374,7 +372,7 @@ export class EarnController extends BaseController<
     );
 
     // Listen for confirmed staking transactions
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         /**
@@ -414,7 +412,7 @@ export class EarnController extends BaseController<
    * @param networkClientId - The network client id to initialize the Earn SDK for.
    */
   async #initializeSDK(networkClientId: string) {
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -455,7 +453,7 @@ export class EarnController extends BaseController<
    * @returns The current account.
    */
   #getCurrentAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   /**

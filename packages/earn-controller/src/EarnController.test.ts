@@ -1,7 +1,13 @@
 /* eslint-disable jest/no-conditional-in-test */
 import type { AccountsController } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import {
   EarnSdk,
@@ -17,10 +23,6 @@ import {
   EarnController,
   type EarnControllerState,
   type EarnControllerMessenger,
-  type EarnControllerEvents,
-  type EarnControllerActions,
-  type AllowedActions,
-  type AllowedEvents,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
 } from './EarnController';
 import type { TransactionMeta } from '../../transaction-controller/src';
@@ -28,6 +30,16 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../transaction-controller/src';
+
+type AllEarnControllerActions = MessengerActions<EarnControllerMessenger>;
+
+type AllEarnControllerEvents = MessengerEvents<EarnControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllEarnControllerActions,
+  AllEarnControllerEvents
+>;
 
 jest.mock('@metamask/stake-sdk', () => ({
   EarnSdk: {
@@ -81,39 +93,45 @@ jest.mock('@metamask/stake-sdk', () => ({
 }));
 
 /**
- * Builds a new instance of the Messenger class for the AccountsController.
+ * Builds a new instance of the root messenger.
  *
- * @returns A new instance of the Messenger class for the AccountsController.
+ * @returns A new instance of the root messenger.
  */
-function buildMessenger() {
-  return new Messenger<
-    EarnControllerActions | AllowedActions,
-    EarnControllerEvents | AllowedEvents
-  >();
+function buildMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
- * Constructs the messenger which is restricted to relevant EarnController
- * actions and events.
+ * Constructs the messenger for EarnController.
  *
- * @param rootMessenger - The root messenger to restrict.
+ * @param rootMessenger - The root messenger to set as parent.
  * @returns The restricted messenger.
  */
 function getEarnControllerMessenger(
   rootMessenger = buildMessenger(),
 ): EarnControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'EarnController',
-    allowedActions: [
+  const earnControllerMessenger = new Messenger<
+    'EarnController',
+    AllEarnControllerActions,
+    AllEarnControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'EarnController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: earnControllerMessenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'AccountsController:getSelectedAccount',
     ],
-    allowedEvents: [
+    events: [
       'NetworkController:networkDidChange',
       'AccountsController:selectedAccountChange',
       'TransactionController:transactionConfirmed',
     ],
   });
+  return earnControllerMessenger;
 }
 
 type InternalAccount = ReturnType<AccountsController['getSelectedAccount']>;
@@ -1457,10 +1475,7 @@ describe('EarnController', () => {
 
     describe('On transaction confirmed', () => {
       let controller: EarnController;
-      let messenger: Messenger<
-        EarnControllerActions | AllowedActions,
-        EarnControllerEvents | AllowedEvents
-      >;
+      let messenger: RootMessenger;
 
       beforeEach(async () => {
         const earnController = await setupController();
