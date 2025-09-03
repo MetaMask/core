@@ -1,5 +1,3 @@
-import { object, boolean, nullable, string } from '@metamask/superstruct';
-
 import type {
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
@@ -31,12 +29,3 @@ export type GetUserStorageAllFeatureEntriesResponse = {
   HashedKey: string;
   Data: string;
 }[];
-
-/**
- * Feature flag structure for multichain accounts features
- */
-export const MultichainAccountsFeatureFlagSchema = object({
-  enabled: boolean(),
-  featureVersion: nullable(string()),
-  minimumVersion: nullable(string()),
-});

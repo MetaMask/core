@@ -120,8 +120,6 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntries
   | UserStorageController.UserStorageControllerPerformSetStorage
   | UserStorageController.UserStorageControllerPerformBatchSetStorage
-  | UserStorageController.UserStorageControllerSyncInternalAccountsWithUserStorage
-  | UserStorageController.UserStorageControllerGetIsMultichainAccountSyncingEnabled
   | AuthenticationController.AuthenticationControllerGetSessionProfile
   | MultichainAccountServiceCreateMultichainAccountGroupAction;
 

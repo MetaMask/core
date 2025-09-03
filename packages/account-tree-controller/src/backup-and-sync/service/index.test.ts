@@ -222,7 +222,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
-        .mockReturnValue(true);
+        .mockReturnValue('');
     });
 
     it('should skip when multichain syncing is disabled', async () => {
@@ -417,7 +417,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
-        .mockReturnValue(true);
+        .mockReturnValue('');
       mockGetProfileId.mockResolvedValue('test-profile-id');
       mockGetWalletFromUserStorage.mockResolvedValue({});
       mockSyncWalletMetadata.mockResolvedValue(undefined); // Reset to success
@@ -484,7 +484,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
-        .mockReturnValue(true);
+        .mockReturnValue('');
       mockGetProfileId.mockResolvedValue('test-profile-id');
       mockGetGroupFromUserStorage.mockResolvedValue(null);
 

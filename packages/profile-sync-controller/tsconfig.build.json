@@ -9,7 +9,6 @@
   "references": [
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../keyring-controller/tsconfig.build.json" },
-    { "path": "../accounts-controller/tsconfig.build.json" },
     { "path": "../address-book-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" }
   ],

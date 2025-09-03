@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
+### Removed
+
+- **BREAKING:** Remove `@metamask/accounts-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Remove `@metamask/remote-feature-flag-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Remove all account syncing code & logic ([#6344](https://github.com/MetaMask/core/pull/6344))
+  - `UserStorageController` now only holds the account syncing enablement status, but the logic itself has been moved to `@metamask/account-tree-controller`
+- Remove `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action
+
 ## [24.0.0]
 
 ### Added

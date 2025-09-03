@@ -229,8 +229,6 @@ function getAccountTreeControllerMessenger(
       'UserStorageController:performGetStorageAllFeatureEntries',
       'UserStorageController:performSetStorage',
       'UserStorageController:performBatchSetStorage',
-      'UserStorageController:syncInternalAccountsWithUserStorage',
-      'UserStorageController:getIsMultichainAccountSyncingEnabled',
       'AuthenticationController:getSessionProfile',
       'MultichainAccountService:createMultichainAccountGroup',
       'KeyringController:getState',
@@ -301,7 +299,6 @@ function setup({
       performSetStorage: jest.Mock;
       performBatchSetStorage: jest.Mock;
       syncInternalAccountsWithUserStorage: jest.Mock;
-      getIsMultichainAccountSyncingEnabled: jest.Mock;
     };
     AuthenticationController: {
       getSessionProfile: jest.Mock;
@@ -325,7 +322,6 @@ function setup({
       performSetStorage: jest.fn(),
       performBatchSetStorage: jest.fn(),
       syncInternalAccountsWithUserStorage: jest.fn(),
-      getIsMultichainAccountSyncingEnabled: jest.fn(),
     },
     AuthenticationController: {
       getSessionProfile: jest.fn().mockResolvedValue({
@@ -391,14 +387,6 @@ function setup({
     messenger.registerActionHandler(
       'UserStorageController:performBatchSetStorage',
       mocks.UserStorageController.performBatchSetStorage,
-    );
-    messenger.registerActionHandler(
-      'UserStorageController:syncInternalAccountsWithUserStorage',
-      mocks.UserStorageController.syncInternalAccountsWithUserStorage,
-    );
-    messenger.registerActionHandler(
-      'UserStorageController:getIsMultichainAccountSyncingEnabled',
-      mocks.UserStorageController.getIsMultichainAccountSyncingEnabled,
     );
   }
 
