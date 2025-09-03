@@ -14,8 +14,13 @@ import {
   type SubscriptionControllerOptions,
   type SubscriptionControllerState,
 } from './SubscriptionController';
-import type { Subscription } from './types';
-import { PaymentType, ProductType } from './types';
+import type { Subscription, PricingResponse } from './types';
+import {
+  PaymentType,
+  ProductType,
+  RecurringInterval,
+  SubscriptionStatus,
+} from './types';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -30,10 +35,10 @@ const MOCK_SUBSCRIPTION: Subscription = {
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: 'active',
-  interval: 'month',
+  status: SubscriptionStatus.active,
+  interval: RecurringInterval.month,
   paymentMethod: {
-    type: PaymentType.CARD,
+    type: PaymentType.byCard,
   },
 };
 
@@ -108,16 +113,22 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
+  const mockStartSubscriptionWithCard = jest.fn();
+  const mockGetPricing = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
+    startSubscriptionWithCard: mockStartSubscriptionWithCard,
+    getPricing: mockGetPricing,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
+    mockStartSubscriptionWithCard,
+    mockGetPricing,
   };
 }
 
@@ -310,7 +321,7 @@ describe('SubscriptionController', () => {
             }),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: 'cancelled' },
+            { ...MOCK_SUBSCRIPTION, status: SubscriptionStatus.canceled },
             mockSubscription2,
           ]);
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
@@ -390,6 +401,94 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('startShieldSubscriptionWithCard', () => {
+    const MOCK_START_SUBSCRIPTION_RESPONSE = {
+      checkoutSessionUrl: 'https://checkout.example.com/session/123',
+    };
+
+    it('should start shield subscription successfully when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          const result = await controller.startShieldSubscriptionWithCard({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
+          });
+
+          expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
+          });
+        },
+      );
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.startShieldSubscriptionWithCard({
+              products: [ProductType.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RecurringInterval.month,
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.startSubscriptionWithCard).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors during start subscription', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const errorMessage = 'Failed to start subscription';
+          mockService.startSubscriptionWithCard.mockRejectedValue(
+            new SubscriptionServiceError(errorMessage),
+          );
+
+          await expect(
+            controller.startShieldSubscriptionWithCard({
+              products: [ProductType.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RecurringInterval.month,
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
+          });
+        },
+      );
+    });
+  });
+
   describe('integration scenarios', () => {
     it('should handle complete subscription lifecycle with updated logic', async () => {
       await withController(async ({ controller, mockService }) => {
@@ -427,6 +526,23 @@ describe('SubscriptionController', () => {
         expect(mockService.cancelSubscription).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
         });
+      });
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: [],
+    };
+
+    it('should return pricing response', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getPricing.mockResolvedValue(mockPricingResponse);
+
+        const result = await controller.getPricing();
+
+        expect(result).toStrictEqual(mockPricingResponse);
       });
     });
   });
