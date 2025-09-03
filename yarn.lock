@@ -3047,6 +3047,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
+    "@metamask/account-tree-controller": ^0.12.1
     "@metamask/network-controller": ^24.0.0
   languageName: unknown
   linkType: soft

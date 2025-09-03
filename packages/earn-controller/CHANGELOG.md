@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `@metamask/keyring-api` as a dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
+- Added `@metamask/account-tree-controller` as a dev and peer dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
+
 ### Changed
 
-- **BREAKING:** Migrated from `AccountsController:getSelectedAccount` to `AccountTreeController:getAccountsFromSelectedAccountGroup` for retrieving BIP-44 selected account information ([#6402](https://github.com/MetaMask/core/pull/6402))
-- **BREAKING:** Migrated from `AccountsController:selectedAccountChange` to `AccountTreeController:selectedAccountGroupChange` for BIP-44 account change management ([#6402](https://github.com/MetaMask/core/pull/6402))
-- **BREAKING:** `EarnController` messenger must now allow `AccountTreeController:selectedAccountGroupChange` and `AccountTreeController:getAccountsFromSelectedAccountGroup` and must not allow `AccountsController:selectedAccountChange` and `AccountsController:getSelectedAccount` ([#6402](https://github.com/MetaMask/core/pull/6402))
+- **BREAKING:** `EarnController` messenger must now allow `AccountTreeController:selectedAccountGroupChange` and `AccountTreeController:getAccountsFromSelectedAccountGroup` for BIP-44 compatibility and must not allow `AccountsController:selectedAccountChange` and `AccountsController:getSelectedAccount` ([#6402](https://github.com/MetaMask/core/pull/6402))
+- `executeLendingDeposit`, `executeLendingWithdraw` and `executeLendingTokenApprove` now throw errors if no selected address is found ([#6402](https://github.com/MetaMask/core/pull/6402))
+- `getLendingTokenAllowance`, `getLendingTokenMaxWithdraw` and `getLendingTokenMaxDeposit` now return `undefined` is no selected address is found ([#6402](https://github.com/MetaMask/core/pull/6402))
+- Removed `@metamask/accounts-controller` as a dev and peer dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 ## [6.0.0]

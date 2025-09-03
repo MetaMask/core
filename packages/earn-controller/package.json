@@ -69,6 +69,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
+    "@metamask/account-tree-controller": "^0.12.1",
     "@metamask/network-controller": "^24.0.0"
   },
   "engines": {
