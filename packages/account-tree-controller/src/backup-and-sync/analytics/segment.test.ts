@@ -17,6 +17,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
         GROUP_PINNED_STATUS_CHANGED: 'group_pinned_status_changed',
         LEGACY_SYNCING_DONE: 'legacy_syncing_done',
         LEGACY_GROUP_ADDED_FROM_ACCOUNT: 'legacy_group_added_from_account',
+        LEGACY_GROUP_RENAMED: 'legacy_group_renamed',
       });
     });
   });

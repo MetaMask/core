@@ -177,12 +177,8 @@ export class BackupAndSyncService {
 
             // 2.1 Decide if we need to perform legacy account syncing
             if (
-              // -------------------------------------------------------
-              // TODO: RE-ENABLE THIS! THIS IS FOR TESTING PURPOSES
-              // SO WE DON'T GET BRICKED OUT OF TESTING LEGACY SYNCING!
-              // -------------------------------------------------------
-              !walletFromUserStorage
-              // || !walletFromUserStorage.isLegacyAccountSyncingDisabled
+              !walletFromUserStorage ||
+              !walletFromUserStorage.isLegacyAccountSyncingDisabled
             ) {
               // 2.2 Perform legacy account syncing
               // This will migrate legacy account data to the new structure.
@@ -193,11 +189,6 @@ export class BackupAndSyncService {
                 walletProfileId,
               );
             }
-
-            // If we reach this point, we are either:
-            // - Not performing legacy account syncing at all (new wallets)
-            // - Legacy account syncing has been performed and we are now ready to proceed with
-            //   multichain account syncing.
 
             // 3. Execute multichain account syncing
             // 3.1 Wallet syncing

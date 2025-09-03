@@ -90,6 +90,12 @@ export const performLegacyAccountSyncing = async (
       );
       if (localGroup) {
         context.controller.setAccountGroupName(localGroup.id, n);
+
+        context.emitAnalyticsEventFn({
+          action: BackupAndSyncAnalyticsEvents.LEGACY_GROUP_RENAMED,
+          profileId,
+          additionalDescription: `Renamed legacy group ${localGroup.id} to ${n}`,
+        });
       }
     }
   }

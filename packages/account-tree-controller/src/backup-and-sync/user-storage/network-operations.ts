@@ -45,6 +45,11 @@ export const getWalletFromUserStorage = async (
     }
 
     try {
+      if (context.enableDebugLogging) {
+        contextualLogger.info(
+          `Retrieved wallet data from user storage: ${JSON.stringify(walletData)}`,
+        );
+      }
       return parseWalletFromUserStorageResponse(walletData);
     } catch (error) {
       if (context.enableDebugLogging) {
@@ -71,6 +76,12 @@ export const pushWalletToUserStorage = async (
   return executeWithRetry(async () => {
     const formattedWallet = formatWalletForUserStorageUsage(context, wallet);
     const entropySourceId = wallet.metadata.entropy.id;
+
+    if (context.enableDebugLogging) {
+      contextualLogger.info(
+        `Pushing wallet to user storage: ${JSON.stringify(formattedWallet)}`,
+      );
+    }
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
@@ -102,7 +113,7 @@ export const getAllGroupsFromUserStorage = async (
       return [];
     }
 
-    return groupData
+    const allGroups = groupData
       .map((groupStringifiedJSON) => {
         try {
           return parseGroupFromUserStorageResponse(groupStringifiedJSON);
@@ -116,6 +127,14 @@ export const getAllGroupsFromUserStorage = async (
         }
       })
       .filter((group): group is UserStorageSyncedWalletGroup => group !== null);
+
+    if (context.enableDebugLogging) {
+      contextualLogger.info(
+        `Retrieved groups from user storage: ${JSON.stringify(allGroups)}`,
+      );
+    }
+
+    return allGroups;
   });
 };
 
@@ -171,6 +190,12 @@ export const pushGroupToUserStorage = async (
   return executeWithRetry(async () => {
     const formattedGroup = formatGroupForUserStorageUsage(context, group);
 
+    if (context.enableDebugLogging) {
+      contextualLogger.info(
+        `Pushing group to user storage: ${JSON.stringify(formattedGroup)}`,
+      );
+    }
+
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_GROUPS_FEATURE_KEY}.${formattedGroup.groupIndex}`,
@@ -201,6 +226,12 @@ export const pushGroupToUserStorageBatch = async (
       String(group.groupIndex),
       JSON.stringify(group),
     ]);
+
+    if (context.enableDebugLogging) {
+      contextualLogger.info(
+        `Pushing groups to user storage: ${JSON.stringify(formattedGroups)}`,
+      );
+    }
 
     return await context.messenger.call(
       'UserStorageController:performBatchSetStorage',
@@ -233,7 +264,7 @@ export const getAllLegacyUserStorageAccounts = async (
       return [];
     }
 
-    return accountsData
+    const allAccounts = accountsData
       .map((accountStringifiedJSON) => {
         try {
           return parseLegacyAccountFromUserStorageResponse(
@@ -252,5 +283,13 @@ export const getAllLegacyUserStorageAccounts = async (
         (account): account is LegacyUserStorageSyncedAccount =>
           account !== null,
       );
+
+    if (context.enableDebugLogging) {
+      contextualLogger.info(
+        `Retrieved legacy accounts from user storage: ${JSON.stringify(allAccounts)}`,
+      );
+    }
+
+    return allAccounts;
   });
 };

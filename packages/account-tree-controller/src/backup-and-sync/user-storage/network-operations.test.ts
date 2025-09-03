@@ -35,6 +35,7 @@ jest.mock('./format-utils');
 jest.mock('./network-utils');
 jest.mock('../utils', () => ({
   contextualLogger: {
+    info: jest.fn(),
     warn: jest.fn(),
   },
 }));
@@ -437,6 +438,12 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
 
   describe('pushGroupToUserStorage', () => {
     it('should format and push group to user storage', async () => {
+      // Set up context with debug logging enabled
+      const debugContext = {
+        ...mockContext,
+        enableDebugLogging: true,
+      };
+
       const formattedGroup = {
         groupIndex: 0,
         name: { value: 'Test Group' },
@@ -444,13 +451,13 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
 
       mockFormatGroupForUserStorageUsage.mockReturnValue(formattedGroup);
 
-      await pushGroupToUserStorage(mockContext, mockGroup, 'test-entropy-id');
+      await pushGroupToUserStorage(debugContext, mockGroup, 'test-entropy-id');
 
       expect(mockFormatGroupForUserStorageUsage).toHaveBeenCalledWith(
-        mockContext,
+        debugContext,
         mockGroup,
       );
-      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+      expect(debugContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:performSetStorage',
         `${USER_STORAGE_GROUPS_FEATURE_KEY}.0`,
         JSON.stringify(formattedGroup),
