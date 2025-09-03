@@ -13,6 +13,7 @@ export type {
 } from './BaseController';
 export {
   BaseController,
+  deriveStateFromMetadata,
   getAnonymizedState,
   getPersistentState,
   isBaseController,
