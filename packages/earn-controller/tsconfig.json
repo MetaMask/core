@@ -12,9 +12,6 @@
       "path": "../network-controller"
     },
     {
-      "path": "../accounts-controller"
-    },
-    {
       "path": "../transaction-controller"
     },
     {
