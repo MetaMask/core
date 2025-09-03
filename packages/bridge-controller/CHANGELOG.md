@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/529.0.0 ([#6440](https://github.com/MetaMask/core/pull/6440))
+- Release/525.0.0 ([#6429](https://github.com/MetaMask/core/pull/6429))
+- Release/521.0.0 ([#6413](https://github.com/MetaMask/core/pull/6413))
+- Release/519.0.0 ([#6408](https://github.com/MetaMask/core/pull/6408))
+
 ### Changed
 
 - **BREAKING** Rename QuotesError and InputSourceDestinationSwitched events to match segment schema ([#6447](https://github.com/MetaMask/core/pull/6447))
