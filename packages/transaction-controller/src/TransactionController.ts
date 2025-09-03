@@ -4198,7 +4198,7 @@ export class TransactionController extends BaseController<
       },
       tokenBalanceChanges: [],
     };
-
+    let gasUsed: Hex | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
     let isGasFeeSponsored = false;
 
@@ -4206,7 +4206,7 @@ export class TransactionController extends BaseController<
       this.#skipSimulationTransactionIds.has(transactionId);
 
     if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
-      simulationData = await this.#trace(
+      const balanceChangesResult = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
           getBalanceChanges({
@@ -4218,6 +4218,8 @@ export class TransactionController extends BaseController<
             txParams,
           }),
       );
+      simulationData = balanceChangesResult.simulationData;
+      gasUsed = balanceChangesResult.gasUsed;
 
       if (
         blockTime &&
@@ -4264,7 +4266,7 @@ export class TransactionController extends BaseController<
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
         txMeta.isGasFeeSponsored = isGasFeeSponsored;
-        txMeta.gasUsed = simulationData.gasUsed;
+        txMeta.gasUsed = gasUsed;
 
         if (!isBalanceChangesSkipped) {
           txMeta.simulationData = simulationData;

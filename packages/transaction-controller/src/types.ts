@@ -240,7 +240,7 @@ export type TransactionMeta = {
   gasLimitNoBuffer?: string;
 
   /**
-   * The gas used by the transaction in the simulation.
+   * The estimated gas used by the transaction, after any refunds. Generated from transaction simulation.
    */
   gasUsed?: Hex;
 
@@ -1488,9 +1488,6 @@ export type SimulationData = {
 
   /** Data concerning a change to the user's token balances. */
   tokenBalanceChanges: SimulationTokenBalanceChange[];
-
-  /** The gas used by the transaction in the simulation. */
-  gasUsed?: Hex;
 };
 
 /** Gas fee properties for a legacy transaction. */
