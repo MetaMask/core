@@ -1,12 +1,14 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
 import { flushPromises } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers';
 
 describe('SampleGasPricesController', () => {
@@ -300,8 +302,9 @@ describe('SampleGasPricesController', () => {
  * required by the controller under test.
  */
 type RootMessenger = Messenger<
-  ExtractAvailableAction<SampleGasPricesControllerMessenger>,
-  ExtractAvailableEvent<SampleGasPricesControllerMessenger>
+  MockAnyNamespace,
+  MessengerActions<SampleGasPricesControllerMessenger>,
+  MessengerEvents<SampleGasPricesControllerMessenger>
 >;
 
 /**
@@ -327,7 +330,7 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
@@ -340,14 +343,19 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SampleGasPricesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SampleGasPricesController',
-    allowedActions: [
-      'SampleGasPricesService:fetchGasPrices',
-      'NetworkController:getNetworkClientById',
-    ],
-    allowedEvents: ['NetworkController:stateChange'],
+  const messenger: SampleGasPricesControllerMessenger = new Messenger({
+    namespace: 'SampleGasPricesController',
+    parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: [
+      'NetworkController:getNetworkClientById',
+      'SampleGasPricesService:fetchGasPrices',
+    ],
+    events: ['NetworkController:stateChange'],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
