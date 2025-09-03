@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/superstruct` for data validation
   - `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies
 
+### Fixed
+
+- Publish `AccountTreeController:selectedAccountGroupChange` during `init` ([#6431](https://github.com/MetaMask/core/pull/6431))
+
 ## [0.12.0]
 
 ### Added
