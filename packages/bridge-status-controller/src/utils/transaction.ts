@@ -2,6 +2,7 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
   ChainId,
+  formatChainIdToCaip,
   formatChainIdToHex,
   getEthUsdtResetData,
   isCrossChain,
@@ -9,8 +10,8 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
+import { signAndSendTransactionRequest } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import type {
   BatchTransactionParams,
   TransactionController,
@@ -99,9 +100,19 @@ export const getTxMetaFields = (
   };
 };
 
+/**
+ * Handles the response from non-EVM transaction submission
+ * Works with the new unified ClientRequest:signAndSendTransaction interface
+ *
+ * @param snapResponse - The response from the snap after transaction submission
+ * @param quoteResponse - The quote response containing trade details and metadata
+ * @param selectedAccount - The selected account information
+ * @returns The transaction metadata including Solana-specific fields
+ */
 export const handleSolanaTxResponse = (
   snapResponse:
     | string
+    | { transactionId: string } // New unified interface response
     | { result: Record<string, string> }
     | { signature: string },
   quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
@@ -114,9 +125,12 @@ export const handleSolanaTxResponse = (
   if (typeof snapResponse === 'string') {
     hash = snapResponse;
   } else if (snapResponse && typeof snapResponse === 'object') {
-    // If it's an object with result property, try to get the signature
-    if (
-      typeof snapResponse === 'object' &&
+    // Check for new unified interface response format first
+    if ('transactionId' in snapResponse && snapResponse.transactionId) {
+      hash = snapResponse.transactionId;
+    }
+    // Legacy: If it's an object with result property, try to get the signature
+    else if (
       'result' in snapResponse &&
       snapResponse.result &&
       typeof snapResponse.result === 'object'
@@ -128,8 +142,8 @@ export const handleSolanaTxResponse = (
         snapResponse.result.hash ||
         snapResponse.result.txHash;
     }
-    if (
-      typeof snapResponse === 'object' &&
+    // Legacy: Direct signature property
+    else if (
       'signature' in snapResponse &&
       snapResponse.signature &&
       typeof snapResponse.signature === 'string'
@@ -195,27 +209,27 @@ export const handleMobileHardwareWalletDelay = async (
   }
 };
 
+/**
+ * Creates a request to sign and send a transaction for non-EVM chains
+ * Uses the new unified ClientRequest:signAndSendTransaction interface
+ *
+ * @param quoteResponse - The quote response containing trade details and metadata
+ * @param selectedAccount - The selected account information
+ * @returns The snap request object for signing and sending transaction
+ */
 export const getClientRequest = (
   quoteResponse: Omit<QuoteResponse<string>, 'approval'> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  const clientReqId = uuid();
+  const scope = formatChainIdToCaip(quoteResponse.quote.srcChainId);
 
-  return {
-    origin: 'metamask',
-    snapId: selectedAccount.metadata.snap?.id as never,
-    handler: 'onClientRequest' as never,
-    request: {
-      id: clientReqId,
-      jsonrpc: '2.0',
-      method: 'signAndSendTransactionWithoutConfirmation',
-      params: {
-        account: { address: selectedAccount.address },
-        transaction: quoteResponse.trade,
-        scope: SolScope.Mainnet,
-      },
-    },
-  };
+  // Use the new unified interface
+  return signAndSendTransactionRequest(
+    selectedAccount.metadata.snap?.id as string,
+    quoteResponse.trade as string,
+    scope,
+    selectedAccount.id,
+  );
 };
 
 export const toBatchTxParams = (
