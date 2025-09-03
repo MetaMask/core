@@ -1,12 +1,12 @@
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import {
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
@@ -51,12 +51,10 @@ export type CurrencyRateControllerActions = GetCurrencyRateState;
 
 type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
-type CurrencyRateMessenger = RestrictedMessenger<
+export type CurrencyRateMessenger = Messenger<
   typeof name,
   CurrencyRateControllerActions | AllowedActions,
-  CurrencyRateControllerEvents,
-  AllowedActions['type'],
-  never
+  CurrencyRateControllerEvents
 >;
 
 const metadata = {
@@ -103,7 +101,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param options - Constructor options.
    * @param options.includeUsdRate - Keep track of the USD rate in addition to the current currency rate.
    * @param options.interval - The polling interval, in milliseconds.
-   * @param options.messenger - A reference to the messaging system.
+   * @param options.messenger - A reference to the messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.useExternalServices - Feature Switch for using external services (default: true)
    * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
