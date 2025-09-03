@@ -56,6 +56,7 @@
     "@metamask/controller-utils": "^11.12.0",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/keyring-api": "^20.1.0",
+    "@metamask/messenger": "^0.1.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-network-controller": "^0.12.0",
     "@metamask/polling-controller": "^14.0.0",
