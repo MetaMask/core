@@ -25,6 +25,7 @@ import type {
   KeyringControllerState,
   KeyringControllerOptions,
   KeyringControllerActions,
+  KeyringMetadata,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -4147,6 +4148,43 @@ describe('KeyringController', () => {
             );
 
             expect(actionReturnValue).toBe(MockKeyring.type);
+          },
+        );
+      });
+    });
+
+    describe('addNewKeyring', () => {
+      it('should call addNewKeyring', async () => {
+        // Mock implementation to avoid having to use real mnemonics.
+        const mockKeyringMetadata: KeyringMetadata = {
+          id: 'mock-id',
+          name: 'mock-keyring',
+        };
+        jest
+          .spyOn(KeyringController.prototype, 'addNewKeyring')
+          .mockImplementationOnce(async () => mockKeyringMetadata);
+
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller, messenger }) => {
+            const mockKeyringType = KeyringTypes.hd;
+            const mockKeyringOptions = {
+              mnemonic: 'mock-mnemonic',
+              numberOfAccounts: 1,
+            };
+
+            expect(
+              await messenger.call(
+                'KeyringController:addNewKeyring',
+                KeyringTypes.hd,
+                mockKeyringOptions,
+              ),
+            ).toStrictEqual(mockKeyringMetadata);
+
+            expect(controller.addNewKeyring).toHaveBeenCalledWith(
+              mockKeyringType,
+              mockKeyringOptions,
+            );
           },
         );
       });
