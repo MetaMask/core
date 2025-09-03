@@ -7,6 +7,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type {
+  KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
   KeyringMetadata,
@@ -114,7 +115,8 @@ export type AllowedActions =
   | KeyringControllerWithKeyringWithOptionsAction
   | KeyringControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction;
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | KeyringControllerGetKeyringsByTypeAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
