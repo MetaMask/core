@@ -15,10 +15,11 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
+  MOCK_ANY_NAMESPACE,
   Messenger,
-  DISABLE_NAMESPACE,
   type MessengerActions,
   type MessengerEvents,
+  type MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
@@ -49,7 +50,7 @@ type AllAccountsControllerActions =
 type AllAccountsControllerEvents = MessengerEvents<AccountsControllerMessenger>;
 
 type RootMessenger = Messenger<
-  string,
+  MockAnyNamespace,
   AllAccountsControllerActions,
   AllAccountsControllerEvents
 >;
@@ -235,7 +236,7 @@ function setExpectedLastSelectedAsAny(
  * @returns A new instance of the Root Messenger.
  */
 function buildMessenger(): RootMessenger {
-  return new Messenger({ namespace: DISABLE_NAMESPACE });
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
