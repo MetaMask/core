@@ -1,4 +1,3 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
 import {
   ChainId,
   NetworkType,
@@ -10,9 +9,9 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   MOCK_ANY_NAMESPACE,
   Messenger,
-  MessengerActions,
-  MessengerEvents,
-  MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
 } from '@metamask/messenger';
 import {
   getDefaultNetworkControllerState,
@@ -44,11 +43,7 @@ import {
 } from './multi-chain-accounts-service/mocks/mock-get-balances';
 import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './multi-chain-accounts-service/mocks/mock-get-supported-networks';
 import { TOKEN_END_POINT_API } from './token-service';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  TokenDetectionControllerMessenger,
-} from './TokenDetectionController';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 import {
   STATIC_MAINNET_TOKEN_LIST,
   TokenDetectionController,
@@ -3758,12 +3753,15 @@ async function withController<ReturnValue>(
       .mockResolvedValue(undefined),
   );
 
-  const callActionSpy = jest.spyOn(messenger, 'call');
+  const tokenDetectionControllerMessenger =
+    buildTokenDetectionControllerMessenger(messenger);
+
+  const callActionSpy = jest.spyOn(tokenDetectionControllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
-    messenger: buildTokenDetectionControllerMessenger(messenger),
+    messenger: tokenDetectionControllerMessenger,
     useAccountsAPI: false,
     platform: 'extension',
     ...options,
