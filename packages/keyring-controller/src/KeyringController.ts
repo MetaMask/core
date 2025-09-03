@@ -184,6 +184,11 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerAddNewKeyringAction = {
+  type: `${typeof name}:addNewKeyring`;
+  handler: KeyringController['addNewKeyring'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -220,7 +225,8 @@ export type KeyringControllerActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
-  | KeyringControllerWithKeyringAction;
+  | KeyringControllerWithKeyringAction
+  | KeyringControllerAddNewKeyringAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1744,6 +1750,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:withKeyring`,
       this.withKeyring.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:addNewKeyring`,
+      this.addNewKeyring.bind(this),
     );
   }
 

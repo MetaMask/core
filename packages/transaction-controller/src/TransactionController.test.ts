@@ -515,6 +515,10 @@ const METHOD_DATA_MOCK: MethodData = {
 };
 
 describe('TransactionController', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   const uuidModuleMock = jest.mocked(uuidModule);
   const EthQueryMock = jest.mocked(EthQuery);
   const updateGasMock = jest.mocked(updateGas);
@@ -1022,6 +1026,9 @@ describe('TransactionController', () => {
 
     signMock = jest.fn().mockImplementation(async (transaction) => transaction);
     isEIP7702GasFeeTokensEnabledMock = jest.fn().mockResolvedValue(false);
+    getBalanceChangesMock.mockResolvedValue({
+      simulationData: SIMULATION_DATA_RESULT_MOCK,
+    });
   });
 
   describe('constructor', () => {
@@ -2479,9 +2486,9 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
 
         const { controller } = setupController();
 
@@ -2518,10 +2525,34 @@ describe('TransactionController', () => {
         );
       });
 
-      it('with getSimulationConfig', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
+      it('sets gasUsed on transaction meta from simulation response', async () => {
+        const testGasUsed = toHex(21123);
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+          gasUsed: testGasUsed,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
         );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasUsed).toBe(testGasUsed);
+      });
+
+      it('with getSimulationConfig', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
 
         const getSimulationConfigMock: GetSimulationConfig = jest
           .fn()
@@ -2558,9 +2589,9 @@ describe('TransactionController', () => {
       });
 
       it('with error if simulation disabled', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
 
         const { controller } = setupController({
           options: { isSimulationEnabled: () => false },
@@ -2587,9 +2618,9 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getBalanceChangesMock.mockResolvedValueOnce(
-          SIMULATION_DATA_RESULT_MOCK,
-        );
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
 
         const { controller } = setupController();
 
