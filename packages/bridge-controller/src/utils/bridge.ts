@@ -190,9 +190,7 @@ export const isBitcoinChainId = (
   return chainId.toString() === ChainId.BTC.toString();
 };
 
-export const isTronChainId = (
-  chainId: Hex | number | CaipChainId | string,
-) => {
+export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
   if (isCaipChainId(chainId)) {
     return chainId === 'tron:0x2b6653dc'; // Tron mainnet CAIP-2 identifier
   }
@@ -202,7 +200,11 @@ export const isTronChainId = (
 export const isNonEvmChainId = (
   chainId: GenericQuoteRequest['srcChainId'],
 ): boolean => {
-  return isSolanaChainId(chainId) || isBitcoinChainId(chainId) || isTronChainId(chainId);
+  return (
+    isSolanaChainId(chainId) ||
+    isBitcoinChainId(chainId) ||
+    isTronChainId(chainId)
+  );
 };
 
 /**

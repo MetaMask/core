@@ -756,7 +756,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const requestResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       request,
-    )) as string | { transactionId: string } | { result: Record<string, string> } | { signature: string };
+    )) as
+      | string
+      | { transactionId: string }
+      | { result: Record<string, string> }
+      | { signature: string };
 
     // The extension client actually redirects before it can do anything with this meta
     const txMeta = handleSolanaTxResponse(
