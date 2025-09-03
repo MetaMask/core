@@ -2241,7 +2241,7 @@ describe('NetworkController', () => {
                   },
                   infuraProjectId,
                 },
-                async ({ controller, messenger }) => {
+                async ({ controller, networkControllerMessenger }) => {
                   const fakeProvider = buildFakeProvider([
                     // Called during provider initialization
                     {
@@ -2265,7 +2265,7 @@ describe('NetworkController', () => {
                   const lookupNetworkPromise = controller.lookupNetwork();
                   const error = new Error('oops');
                   jest
-                    .spyOn(messenger, 'unsubscribe')
+                    .spyOn(networkControllerMessenger, 'unsubscribe')
                     .mockImplementation((eventType) => {
                       // This is okay.
                       // eslint-disable-next-line jest/no-conditional-in-test
