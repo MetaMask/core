@@ -134,7 +134,7 @@ export type StateDeriverConstraint = (value: never) => Json;
  * This type can be assigned to any `StatePropertyMetadata` type.
  */
 export type StatePropertyMetadataConstraint = {
-  [P in keyof StatePropertyMetadata<Json>]: boolean | StateDeriverConstraint;
+  [P in keyof StatePropertyMetadata<Json>]: StatePropertyMetadata<Json>[P];
 };
 
 /**
