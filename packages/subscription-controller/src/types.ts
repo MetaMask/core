@@ -94,17 +94,19 @@ export type ProductPricing = {
   prices: ProductPrice[];
 };
 
+export type TokenPaymentInfo = {
+  symbol: string;
+  address: string;
+  decimals: number;
+  conversionRate: {
+    usd: string;
+  };
+};
+
 export type ChainPaymentInfo = {
   chainId: string;
   paymentAddress: string;
-  tokens: {
-    symbol: string;
-    address: string;
-    decimals: number;
-    conversionRate: {
-      usd: string;
-    };
-  }[];
+  tokens: TokenPaymentInfo[];
 };
 
 export type PricingPaymentMethod = {

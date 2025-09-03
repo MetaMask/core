@@ -25,6 +25,7 @@ export type {
   ProductType,
   ProductPrice,
   ProductPricing,
+  TokenPaymentInfo,
   ChainPaymentInfo,
   PricingPaymentMethod,
   PricingResponse,
