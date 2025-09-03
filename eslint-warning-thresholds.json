@@ -159,6 +159,9 @@
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
   },
+  "packages/eip-5792-middleware/src/methods/processSendCalls.ts": {
+    "@typescript-eslint/no-misused-promises": 1
+  },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1
   },
