@@ -240,6 +240,11 @@ export type TransactionMeta = {
   gasLimitNoBuffer?: string;
 
   /**
+   * The estimated gas used by the transaction, after any refunds. Generated from transaction simulation.
+   */
+  gasUsed?: Hex;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
