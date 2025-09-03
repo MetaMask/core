@@ -39,6 +39,12 @@ describe('CAIP Formatters', () => {
     it('should convert number to CAIP format', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
     });
+
+    it('should convert Tron chainId to CAIP format', () => {
+      expect(formatChainIdToCaip(ChainId.TRON)).toBe('tron:0x2b6653dc');
+      expect(formatChainIdToCaip('728126428')).toBe('tron:0x2b6653dc');
+      expect(formatChainIdToCaip(728126428)).toBe('tron:0x2b6653dc');
+    });
   });
 
   describe('formatChainIdToDec', () => {
@@ -69,6 +75,11 @@ describe('CAIP Formatters', () => {
 
     it('should return same number if number provided', () => {
       expect(formatChainIdToDec(1)).toBe(1);
+    });
+
+    it('should handle Tron mainnet', () => {
+      expect(formatChainIdToDec('tron:0x2b6653dc')).toBe(ChainId.TRON);
+      expect(formatChainIdToDec(ChainId.TRON)).toBe(ChainId.TRON);
     });
   });
 
