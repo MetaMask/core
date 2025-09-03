@@ -103,7 +103,6 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * Discover and create accounts for the Evm provider.
    *
    * NOTE: This method should only be called on a newly created wallet.
-   * There should be already one existing account on this associated entropy source.
    *
    * @param opts - The options for the discovery and creation of accounts.
    * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
