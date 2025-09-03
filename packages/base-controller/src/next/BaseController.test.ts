@@ -36,7 +36,7 @@ export type CountControllerEvent = ControllerStateChangeEvent<
 
 export const countControllerStateMetadata = {
   count: {
-    includeInDebugSnapshot: true,
+    anonymous: true,
     includeInStateLogs: true,
     persist: true,
     usedInUi: true,
@@ -109,7 +109,7 @@ type MessagesControllerEvent = ControllerStateChangeEvent<
 
 const messagesControllerStateMetadata = {
   messages: {
-    includeInDebugSnapshot: true,
+    anonymous: true,
     includeInStateLogs: true,
     persist: true,
     usedInUi: true,
@@ -609,7 +609,7 @@ describe('BaseController', () => {
 
     const visitorControllerStateMetadata = {
       visitors: {
-        includeInDebugSnapshot: true,
+        anonymous: true,
         includeInStateLogs: true,
         persist: true,
         usedInUi: true,
@@ -679,7 +679,7 @@ describe('BaseController', () => {
 
     const visitorOverflowControllerMetadata = {
       maxVisitors: {
-        includeInDebugSnapshot: true,
+        anonymous: true,
         includeInStateLogs: true,
         persist: false,
         usedInUi: true,
@@ -794,7 +794,7 @@ describe('getAnonymizedState', () => {
       { count: 1 },
       {
         count: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -814,25 +814,25 @@ describe('getAnonymizedState', () => {
       },
       {
         password: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
         },
         privateKey: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
         },
         network: {
-          includeInDebugSnapshot: true,
+          anonymous: true,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
         },
         tokens: {
-          includeInDebugSnapshot: true,
+          anonymous: true,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -856,7 +856,7 @@ describe('getAnonymizedState', () => {
       },
       {
         transactionHash: {
-          includeInDebugSnapshot: anonymizeTransactionHash,
+          anonymous: anonymizeTransactionHash,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -881,7 +881,7 @@ describe('getAnonymizedState', () => {
       },
       {
         txMeta: {
-          includeInDebugSnapshot: anonymizeTxMeta,
+          anonymous: anonymizeTxMeta,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -921,7 +921,7 @@ describe('getAnonymizedState', () => {
       },
       {
         txMeta: {
-          includeInDebugSnapshot: anonymizeTxMeta,
+          anonymous: anonymizeTxMeta,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -941,7 +941,7 @@ describe('getAnonymizedState', () => {
       },
       {
         count: {
-          includeInDebugSnapshot: (count) => Number(count),
+          anonymous: (count) => Number(count),
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -963,13 +963,13 @@ describe('getAnonymizedState', () => {
       // @ts-expect-error Intentionally testing invalid state
       {
         privateKey: {
-          includeInDebugSnapshot: true,
+          anonymous: true,
           includeInStateLogs: true,
           persist: true,
           usedInUi: true,
         },
         network: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -999,7 +999,7 @@ describe('getPersistentState', () => {
       { count: 1 },
       {
         count: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -1019,25 +1019,25 @@ describe('getPersistentState', () => {
       },
       {
         password: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: true,
           usedInUi: false,
         },
         privateKey: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: true,
           usedInUi: false,
         },
         network: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
         },
         tokens: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: false,
@@ -1061,7 +1061,7 @@ describe('getPersistentState', () => {
       },
       {
         transactionHash: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: normalizeTransacitonHash,
           usedInUi: false,
@@ -1086,7 +1086,7 @@ describe('getPersistentState', () => {
       },
       {
         txMeta: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: getPersistentTxMeta,
           usedInUi: false,
@@ -1126,7 +1126,7 @@ describe('getPersistentState', () => {
       },
       {
         txMeta: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: getPersistentTxMeta,
           usedInUi: false,
@@ -1146,7 +1146,7 @@ describe('getPersistentState', () => {
       },
       {
         count: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: (count) => Number(count),
           usedInUi: false,
@@ -1168,13 +1168,13 @@ describe('getPersistentState', () => {
       // @ts-expect-error Intentionally testing invalid state
       {
         privateKey: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: true,
           usedInUi: false,
         },
         network: {
-          includeInDebugSnapshot: false,
+          anonymous: false,
           includeInStateLogs: false,
           persist: false,
           usedInUi: true,
@@ -1195,8 +1195,25 @@ describe('deriveStateFromMetadata', () => {
     sinon.restore();
   });
 
+  it('returns an empty object when deriving state for an unset property', () => {
+    const derivedState = deriveStateFromMetadata(
+      { count: 1 },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          // usedInUi is not set
+        },
+      },
+      'usedInUi',
+    );
+
+    expect(derivedState).toStrictEqual({});
+  });
+
   describe.each([
-    'includeInDebugSnapshot',
+    'anonymous',
     'includeInStateLogs',
     'persist',
     'usedInUi',
@@ -1210,7 +1227,7 @@ describe('deriveStateFromMetadata', () => {
         { count: 1 },
         {
           count: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
@@ -1233,28 +1250,28 @@ describe('deriveStateFromMetadata', () => {
         },
         {
           password: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: true,
           },
           privateKey: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: true,
           },
           network: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: false,
           },
           tokens: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
@@ -1282,7 +1299,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             transactionHash: {
-              includeInDebugSnapshot: false,
+              anonymous: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1309,7 +1326,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             txMeta: {
-              includeInDebugSnapshot: false,
+              anonymous: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1351,7 +1368,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             txMeta: {
-              includeInDebugSnapshot: false,
+              anonymous: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1373,7 +1390,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             count: {
-              includeInDebugSnapshot: false,
+              anonymous: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1398,14 +1415,14 @@ describe('deriveStateFromMetadata', () => {
         // @ts-expect-error Intentionally testing invalid state
         {
           privateKey: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: true,
           },
           network: {
-            includeInDebugSnapshot: false,
+            anonymous: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,

@@ -67,7 +67,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * Set this to false if the state may contain personally identifiable information, or if it's
    * too large to include in a debug snapshot.
    */
-  includeInDebugSnapshot: boolean | StateDeriver<ControllerState>;
+  anonymous: boolean | StateDeriver<ControllerState>;
   /**
    * Indicates whether this property should be included in state logs.
    *
@@ -78,7 +78,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * diagnosing errors (e.g. transaction hashes, addresses), but we still attempt to limit the
    * data we expose to what is most useful for helping users.
    */
-  includeInStateLogs: boolean | StateDeriver<ControllerState>;
+  includeInStateLogs?: boolean | StateDeriver<ControllerState>;
   /**
    * Indicates whether this property should be persisted.
    *
@@ -98,7 +98,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * Note that we disallow the use of a state derivation function here to preserve type information
    * for the UI (the state deriver type always returns `Json`).
    */
-  usedInUi: boolean;
+  usedInUi?: boolean;
 };
 
 /**
@@ -364,7 +364,7 @@ export class BaseController<
  * By "anonymized" we mean that it should not contain any information that could be personally
  * identifiable.
  *
- * @deprecated use `deriveStateFromMetadata` instead.
+ * @deprecated Use `deriveStateFromMetadata` instead.
  * @param state - The controller state.
  * @param metadata - The controller state metadata, which describes how to derive the
  * anonymized state.
@@ -374,13 +374,13 @@ export function getAnonymizedState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
 ): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'includeInDebugSnapshot');
+  return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
 
 /**
  * Returns the subset of state that should be persisted.
  *
- * @deprecated use `deriveStateFromMetadata` instead.
+ * @deprecated Use `deriveStateFromMetadata` instead.
  * @param state - The controller state.
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
  * @returns The subset of controller state that should be persisted.
