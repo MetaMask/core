@@ -5,6 +5,7 @@ export type {
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerStartShieldSubscriptionWithCardAction,
+  SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
@@ -22,6 +23,12 @@ export type {
   PaymentType,
   Product,
   ProductType,
+  ProductPrice,
+  ProductPricing,
+  TokenPaymentInfo,
+  ChainPaymentInfo,
+  PricingPaymentMethod,
+  PricingResponse,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';
