@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add multichain account group lifecycle events ([#6441](https://github.com/MetaMask/core/pull/6441))
+  - Add `multichainAccountGroupCreated` event emitted when new groups are created
+  - Add `multichainAccountGroupUpdated` event emitted when groups are synchronized
+
 ## [0.6.0]
 
 ### Added
