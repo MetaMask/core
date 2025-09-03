@@ -233,7 +233,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             id,
-            getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
         if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {

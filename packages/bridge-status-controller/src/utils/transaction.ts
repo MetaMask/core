@@ -148,7 +148,7 @@ export const handleSolanaTxResponse = (
   return {
     ...getTxMetaFields(quoteResponse),
     time: Date.now(),
-    id: uuid(),
+    id: hash ?? uuid(),
     chainId: hexChainId,
     networkClientId: snapId ?? hexChainId,
     txParams: { from: selectedAccountAddress, data: quoteResponse.trade },

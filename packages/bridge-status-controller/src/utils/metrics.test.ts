@@ -986,7 +986,7 @@ describe('metrics utils', () => {
     it('should return correct properties for a successful swap transaction', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
-        error_message: undefined,
+        error_message: '',
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
@@ -1029,7 +1029,7 @@ describe('metrics utils', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
-      expect(result.error_message).toBe('Failed to finalize swap tx');
+      expect(result.error_message).toBe('Transaction failed');
       expect(result.source_transaction).toBe('FAILED');
     });
 
