@@ -1,3 +1,4 @@
+import type { Bip44Account } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
@@ -6,6 +7,7 @@ import type {
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -13,6 +15,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
+import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import type {
   MultichainAccountService,
   serviceName,
@@ -84,11 +87,23 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceGetIsAlignmentInProgressAction;
 
+export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
+  type: `${typeof serviceName}:multichainAccountGroupCreated`;
+  payload: [MultichainAccountGroup<Bip44Account<KeyringAccount>>];
+};
+
+export type MultichainAccountServiceMultichainAccountGroupUpdatedEvent = {
+  type: `${typeof serviceName}:multichainAccountGroupUpdated`;
+  payload: [MultichainAccountGroup<Bip44Account<KeyringAccount>>];
+};
+
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.
  */
-export type MultichainAccountServiceEvents = never;
+export type MultichainAccountServiceEvents =
+  | MultichainAccountServiceMultichainAccountGroupCreatedEvent
+  | MultichainAccountServiceMultichainAccountGroupUpdatedEvent;
 
 /**
  * All actions registered by other modules that {@link MultichainAccountService}

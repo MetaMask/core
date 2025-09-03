@@ -200,6 +200,15 @@ export class MultichainAccountService {
       // it has to re-sync with its providers.
       if (sync) {
         wallet.sync();
+
+        // Emit updated events for all groups in this wallet since wallet.sync()
+        // may affect multiple groups
+        for (const updatedGroup of wallet.getMultichainAccountGroups()) {
+          this.#messenger.publish(
+            'MultichainAccountService:multichainAccountGroupUpdated',
+            updatedGroup,
+          );
+        }
       }
 
       group = wallet.getMultichainAccountGroup(
@@ -215,6 +224,10 @@ export class MultichainAccountService {
     if (group) {
       if (sync) {
         group.sync();
+        this.#messenger.publish(
+          'MultichainAccountService:multichainAccountGroupUpdated',
+          group,
+        );
       }
 
       // Same here, this account should have been already grouped in that
@@ -233,6 +246,15 @@ export class MultichainAccountService {
       const { wallet } = found;
 
       wallet.sync();
+
+      // Emit updated events for all groups in this wallet since wallet.sync()
+      // may affect multiple groups
+      for (const group of wallet.getMultichainAccountGroups()) {
+        this.#messenger.publish(
+          'MultichainAccountService:multichainAccountGroupUpdated',
+          group,
+        );
+      }
     }
 
     // Safe to call delete even if the `id` was not referencing a BIP-44 account.
@@ -348,9 +370,15 @@ export class MultichainAccountService {
   }: {
     entropySource: EntropySourceId;
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
-    return await this.#getWallet(
-      entropySource,
-    ).createNextMultichainAccountGroup();
+    const group =
+      await this.#getWallet(entropySource).createNextMultichainAccountGroup();
+
+    this.#messenger.publish(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      group,
+    );
+
+    return group;
   }
 
   /**
@@ -368,9 +396,17 @@ export class MultichainAccountService {
     groupIndex: number;
     entropySource: EntropySourceId;
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
-    return await this.#getWallet(entropySource).createMultichainAccountGroup(
-      groupIndex,
+    const group =
+      await this.#getWallet(entropySource).createMultichainAccountGroup(
+        groupIndex,
+      );
+
+    this.#messenger.publish(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      group,
     );
+
+    return group;
   }
 
   /**
