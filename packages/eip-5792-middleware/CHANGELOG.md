@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0]
 
 ### Added
-- Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/v1.0.0
+- Initial release ([#6453](https://github.com/MetaMask/core/pull/6453))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eip-5792-middleware@1.0.0
