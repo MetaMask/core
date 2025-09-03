@@ -22,7 +22,7 @@ export const performLegacyAccountSyncing = async (
   entropySourceId: string,
   profileId: string,
 ) => {
-  // 1. Get V1 data
+  // 1. Get legacy account syncing data
   const legacyAccountsFromUserStorage = await getAllLegacyUserStorageAccounts(
     context,
     entropySourceId,
@@ -42,16 +42,20 @@ export const performLegacyAccountSyncing = async (
     return;
   }
 
-  // 2. Create account groups if needed
-  const localAccountGroups = getLocalGroupsForEntropyWallet(
-    context,
-    `entropy:${entropySourceId}`,
-  );
-  const numberOfAccountGroupsToCreate =
-    legacyAccountsFromUserStorage.length - localAccountGroups.length || 0;
+  // 2. Create account groups accordingly
+  const numberOfAccountGroupsToCreate = legacyAccountsFromUserStorage.length;
+
+  if (context.enableDebugLogging) {
+    contextualLogger.info(
+      `Creating ${numberOfAccountGroupsToCreate} account groups for legacy accounts`,
+    );
+  }
 
   if (numberOfAccountGroupsToCreate > 0) {
     for (let i = 0; i < numberOfAccountGroupsToCreate; i++) {
+      if (context.enableDebugLogging) {
+        contextualLogger.info(`Creating account group ${i} for legacy account`);
+      }
       await createMultichainAccountGroup(
         context,
         entropySourceId,
@@ -63,7 +67,7 @@ export const performLegacyAccountSyncing = async (
   }
 
   // 3. Rename account groups if needed
-  const refreshedLocalAccountGroups = getLocalGroupsForEntropyWallet(
+  const localAccountGroups = getLocalGroupsForEntropyWallet(
     context,
     `entropy:${entropySourceId}`,
   );
@@ -85,7 +89,7 @@ export const performLegacyAccountSyncing = async (
 
     if (n) {
       // Find the local group that corresponds to this EVM address
-      const localGroup = refreshedLocalAccountGroups.find((group) =>
+      const localGroup = localAccountGroups.find((group) =>
         group.accounts.some((accountId) => accountId === localGroupId),
       );
       if (localGroup) {

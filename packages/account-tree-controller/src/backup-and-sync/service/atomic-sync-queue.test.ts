@@ -1,4 +1,5 @@
 import { AtomicSyncQueue } from './atomic-sync-queue';
+import type { BackupAndSyncContext } from '../types';
 import { contextualLogger } from '../utils';
 
 jest.mock('../utils', () => ({
@@ -10,6 +11,14 @@ jest.mock('../utils', () => ({
 describe('BackupAndSync - Service - AtomicSyncQueue', () => {
   let mockGetEnableDebugLogging: jest.Mock;
   let atomicSyncQueue: AtomicSyncQueue;
+  const mockContext = {
+    controller: {
+      state: {
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: true,
+      },
+    },
+  } as unknown as BackupAndSyncContext;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,7 +50,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         .fn()
         .mockRejectedValue(new Error('Trigger default function'));
 
-      defaultQueue.enqueue(errorSyncFunction, false);
+      defaultQueue.enqueue(mockContext, errorSyncFunction);
 
       // Process to trigger the error handling which calls this.#getEnableDebugLogging()
       // This will execute the default arrow function () => false
@@ -59,7 +68,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     it('should enqueue sync function when big sync is not in progress', () => {
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction);
 
       expect(atomicSyncQueue.size).toBe(1);
     });
@@ -67,7 +76,35 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     it('should not enqueue when big sync is in progress', () => {
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction, true);
+      atomicSyncQueue.enqueue(
+        {
+          controller: {
+            state: {
+              ...mockContext.controller.state,
+              isAccountTreeSyncingInProgress: true,
+            },
+          },
+        } as unknown as BackupAndSyncContext,
+        mockSyncFunction,
+      );
+
+      expect(atomicSyncQueue.size).toBe(0);
+    });
+
+    it('should not enqueue if big sync has never been ran', () => {
+      const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
+
+      atomicSyncQueue.enqueue(
+        {
+          controller: {
+            state: {
+              ...mockContext.controller.state,
+              hasAccountTreeSyncingSyncedAtLeastOnce: false,
+            },
+          },
+        } as unknown as BackupAndSyncContext,
+        mockSyncFunction,
+      );
 
       expect(atomicSyncQueue.size).toBe(0);
     });
@@ -76,7 +113,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       jest.useFakeTimers();
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction);
 
       expect(atomicSyncQueue.size).toBe(1);
 
@@ -94,8 +131,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1, false);
-      atomicSyncQueue.enqueue(mockSyncFunction2, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction1);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction2);
 
       await atomicSyncQueue.process();
 
@@ -107,12 +144,22 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     it('should not process when big sync is in progress', async () => {
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction, false);
+      atomicSyncQueue.enqueue(
+        {
+          controller: {
+            state: {
+              ...mockContext.controller.state,
+              isAccountTreeSyncingInProgress: true,
+            },
+          },
+        } as unknown as BackupAndSyncContext,
+        mockSyncFunction,
+      );
 
-      await atomicSyncQueue.process(true);
+      await atomicSyncQueue.process();
 
       expect(mockSyncFunction).not.toHaveBeenCalled();
-      expect(atomicSyncQueue.size).toBe(1);
+      expect(atomicSyncQueue.size).toBe(0);
     });
 
     it('should not process when already processing', async () => {
@@ -121,7 +168,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         await atomicSyncQueue.process();
       });
 
-      atomicSyncQueue.enqueue(mockSyncFunction, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction);
 
       await atomicSyncQueue.process();
 
@@ -135,8 +182,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
 
       mockGetEnableDebugLogging.mockReturnValue(true);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1, false);
-      atomicSyncQueue.enqueue(mockSyncFunction2, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction1);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction2);
 
       await atomicSyncQueue.process();
 
@@ -162,8 +209,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1, false);
-      atomicSyncQueue.enqueue(mockSyncFunction2, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction1);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction2);
 
       expect(atomicSyncQueue.size).toBe(2);
 
@@ -177,10 +224,10 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     it('should return correct queue size', () => {
       expect(atomicSyncQueue.size).toBe(0);
 
-      atomicSyncQueue.enqueue(jest.fn(), false);
+      atomicSyncQueue.enqueue(mockContext, jest.fn());
       expect(atomicSyncQueue.size).toBe(1);
 
-      atomicSyncQueue.enqueue(jest.fn(), false);
+      atomicSyncQueue.enqueue(mockContext, jest.fn());
       expect(atomicSyncQueue.size).toBe(2);
     });
 
@@ -191,7 +238,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       });
 
-      atomicSyncQueue.enqueue(slowSyncFunction, false);
+      atomicSyncQueue.enqueue(mockContext, slowSyncFunction);
 
       const processPromise = atomicSyncQueue.process();
 
@@ -209,9 +256,9 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       expect(freshQueue.size).toBe(0);
 
       // Add multiple items
-      freshQueue.enqueue(jest.fn(), false);
-      freshQueue.enqueue(jest.fn(), false);
-      freshQueue.enqueue(jest.fn(), false);
+      freshQueue.enqueue(mockContext, jest.fn());
+      freshQueue.enqueue(mockContext, jest.fn());
+      freshQueue.enqueue(mockContext, jest.fn());
 
       expect(freshQueue.size).toBe(3);
 
@@ -230,7 +277,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       mockGetEnableDebugLogging.mockReturnValue(true);
 
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-      atomicSyncQueue.enqueue(mockSyncFunction, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction);
 
       jest.advanceTimersByTime(1);
       await Promise.resolve();
@@ -256,7 +303,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const debugEnabledQueue = new TestAtomicSyncQueue(() => true);
 
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-      debugEnabledQueue.enqueue(mockSyncFunction, false);
+      debugEnabledQueue.enqueue(mockContext, mockSyncFunction);
 
       // Wait for the setTimeout callback to execute and the error to be caught
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -276,7 +323,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const failingSyncFunction = jest.fn().mockRejectedValue(syncError);
 
       // Enqueue the failing function
-      debugEnabledQueue.enqueue(failingSyncFunction, false);
+      debugEnabledQueue.enqueue(mockContext, failingSyncFunction);
 
       // Process the queue
       await debugEnabledQueue.process();
@@ -302,14 +349,14 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
 
       const noDebugQueue = new TestAtomicSyncQueue(() => false);
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-      noDebugQueue.enqueue(mockSyncFunction, false);
+      noDebugQueue.enqueue(mockContext, mockSyncFunction);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Test sync function error with debug disabled
       const syncError = new Error('Should not be logged either');
       const failingSyncFunction = jest.fn().mockRejectedValue(syncError);
-      debugDisabledQueue.enqueue(failingSyncFunction, false);
+      debugDisabledQueue.enqueue(mockContext, failingSyncFunction);
       await debugDisabledQueue.process();
 
       // Ensure contextualLogger.error was NOT called for disabled debug cases
@@ -322,8 +369,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1, false);
-      atomicSyncQueue.enqueue(mockSyncFunction2, false);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction1);
+      atomicSyncQueue.enqueue(mockContext, mockSyncFunction2);
 
       // Process concurrently to potentially create race conditions
       const promise1 = atomicSyncQueue.process();

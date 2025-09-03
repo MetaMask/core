@@ -76,9 +76,8 @@ export class BackupAndSyncService {
       return;
     }
 
-    this.#atomicSyncQueue.enqueue(
-      () => this.#performSingleWalletSync(walletId),
-      this.isInProgress,
+    this.#atomicSyncQueue.enqueue(this.#context, () =>
+      this.#performSingleWalletSync(walletId),
     );
   }
 
@@ -94,9 +93,8 @@ export class BackupAndSyncService {
       return;
     }
 
-    this.#atomicSyncQueue.enqueue(
-      () => this.#performSingleGroupSync(groupId),
-      this.isInProgress,
+    this.#atomicSyncQueue.enqueue(this.#context, () =>
+      this.#performSingleGroupSync(groupId),
     );
   }
 

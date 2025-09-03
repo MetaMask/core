@@ -95,7 +95,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(contextualLogger.info).not.toHaveBeenCalled();
     });
 
-    it('should create groups when legacy accounts exceed local groups', async () => {
+    it('should create groups', async () => {
       const mockLegacyAccounts = [
         { n: 'Account 1', a: '0x123' },
         { n: 'Account 2', a: '0x456' },
@@ -135,8 +135,8 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
       );
 
-      // Should create 2 additional groups (3 accounts - 1 existing = 2)
-      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledTimes(2);
+      // Should create 3 groups
+      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledTimes(3);
       expect(mockCreateMultichainAccountGroup).toHaveBeenCalledWith(
         mockContext,
         testEntropySourceId,
@@ -151,35 +151,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
         BackupAndSyncAnalyticsEvents.LEGACY_GROUP_ADDED_FROM_ACCOUNT,
       );
-    });
-
-    it('should not create groups when local groups equal or exceed legacy accounts', async () => {
-      const mockLegacyAccounts = [{ n: 'Account 1', a: '0x123' }];
-      const mockLocalGroups = [
-        {
-          id: 'entropy:test-entropy/0' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: { entropy: { groupIndex: 0 } },
-        },
-        {
-          id: 'entropy:test-entropy/1' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-2'],
-          metadata: { entropy: { groupIndex: 1 } },
-        },
-      ] as unknown as AccountGroupMultichainAccountObject[]; // More groups than accounts
-
-      mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValue(mockLocalGroups);
-
-      await performLegacyAccountSyncing(
-        mockContext,
-        testEntropySourceId,
-        testProfileId,
-      );
-
-      expect(mockCreateMultichainAccountGroup).not.toHaveBeenCalled();
     });
 
     it('should rename account groups based on legacy account data', async () => {
@@ -205,7 +176,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       ] as unknown as AccountGroupMultichainAccountObject[];
 
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValueOnce([]);
       mockGetLocalGroupsForEntropyWallet.mockReturnValueOnce(mockLocalGroups);
       mockGetUUIDFromAddressOfNormalAccount
         .mockReturnValueOnce(mockAccountId1)
@@ -334,16 +304,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         { n: 'Savings Account', a: '0x333' },
       ];
 
-      // Start with only 1 existing group
-      const mockInitialLocalGroups = [
-        {
-          id: 'entropy:test-entropy/0' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: [mockAccountId1],
-          metadata: { entropy: { groupIndex: 0 } },
-        },
-      ] as unknown as AccountGroupMultichainAccountObject[];
-
       // After group creation, we have all 3 groups
       const mockRefreshedLocalGroups = [
         {
@@ -367,9 +327,9 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       ] as unknown as AccountGroupMultichainAccountObject[];
 
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet
-        .mockReturnValueOnce(mockInitialLocalGroups) // For group creation logic
-        .mockReturnValueOnce(mockRefreshedLocalGroups); // For renaming logic
+      mockGetLocalGroupsForEntropyWallet.mockReturnValueOnce(
+        mockRefreshedLocalGroups,
+      ); // For renaming logic
       mockCreateMultichainAccountGroup.mockResolvedValue();
       mockGetUUIDFromAddressOfNormalAccount
         .mockReturnValueOnce(mockAccountId1)
@@ -382,8 +342,8 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
       );
 
-      // Should create 2 additional groups (3 accounts - 1 existing = 2)
-      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledTimes(2);
+      // Should create 3 groups
+      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledTimes(3);
 
       // Should rename all 3 groups
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
@@ -403,42 +363,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
         profileId: testProfileId,
       });
-    });
-
-    it('should handle zero numberOfAccountGroupsToCreate when calculation results in negative or zero', async () => {
-      const mockLegacyAccounts = [{ n: 'Account 1', a: '0x123' }];
-      const mockLocalGroups = [
-        {
-          id: 'entropy:test-entropy/0' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: { entropy: { groupIndex: 0 } },
-        },
-        {
-          id: 'entropy:test-entropy/1' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-2'],
-          metadata: { entropy: { groupIndex: 1 } },
-        },
-        {
-          id: 'entropy:test-entropy/2' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-3'],
-          metadata: { entropy: { groupIndex: 2 } },
-        },
-      ] as unknown as AccountGroupMultichainAccountObject[]; // More groups than accounts
-
-      mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValue(mockLocalGroups);
-
-      await performLegacyAccountSyncing(
-        mockContext,
-        testEntropySourceId,
-        testProfileId,
-      );
-
-      // numberOfAccountGroupsToCreate = 1 - 3 = -2, but || 0 makes it 0
-      expect(mockCreateMultichainAccountGroup).not.toHaveBeenCalled();
     });
 
     it('should handle edge case where refreshed local groups return different data', async () => {

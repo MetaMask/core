@@ -168,8 +168,16 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).toHaveBeenCalledWith(
+        {
+          ...mockContext,
+          controller: {
+            state: {
+              ...mockContext.controller.state,
+              hasAccountTreeSyncingSyncedAtLeastOnce: true,
+            },
+          },
+        } as unknown as BackupAndSyncContext,
         expect.any(Function),
-        false,
       );
     });
 
@@ -191,8 +199,16 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).toHaveBeenCalledWith(
+        {
+          ...mockContext,
+          controller: {
+            state: {
+              ...mockContext.controller.state,
+              hasAccountTreeSyncingSyncedAtLeastOnce: true,
+            },
+          },
+        } as unknown as BackupAndSyncContext,
         expect.any(Function),
-        false,
       );
     });
 
@@ -426,7 +442,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
       // Get the enqueued function and execute it
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
       await enqueuedFunction();
 
       expect(mockSyncWalletMetadata).toHaveBeenCalledWith(
@@ -450,7 +466,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleWalletSync('keyring:wallet-1');
 
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
       await enqueuedFunction();
 
       expect(mockSyncWalletMetadata).not.toHaveBeenCalled();
@@ -491,7 +507,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
       await enqueuedFunction();
 
       expect(mockSyncSingleGroupMetadata).toHaveBeenCalledWith(
@@ -510,7 +526,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
       await enqueuedFunction();
 
       expect(mockSyncSingleGroupMetadata).not.toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import type { AtomicSyncEvent } from '../types';
+import type { AtomicSyncEvent, BackupAndSyncContext } from '../types';
 import { contextualLogger } from '../utils';
 
 /**
@@ -28,15 +28,18 @@ export class AtomicSyncQueue {
   /**
    * Enqueues an atomic sync function for processing.
    *
+   * @param context - The backup and sync context.
    * @param syncFunction - The sync function to enqueue.
-   * @param isBigSyncInProgress - Whether big sync is currently running.
    */
   enqueue(
+    context: BackupAndSyncContext,
     syncFunction: () => Promise<void>,
-    isBigSyncInProgress: boolean,
   ): void {
-    // Block enqueueing if big sync is running
-    if (isBigSyncInProgress) {
+    // Block enqueueing if big sync is running or if no initial sync has occurred
+    if (
+      context.controller.state.isAccountTreeSyncingInProgress ||
+      !context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
+    ) {
       return;
     }
 
@@ -59,11 +62,9 @@ export class AtomicSyncQueue {
 
   /**
    * Processes the atomic sync queue.
-   *
-   * @param isBigSyncInProgress - Whether big sync is currently running.
    */
-  async process(isBigSyncInProgress = false): Promise<void> {
-    if (this.#isProcessingInProgress || isBigSyncInProgress) {
+  async process(): Promise<void> {
+    if (this.#isProcessingInProgress) {
       return;
     }
 
