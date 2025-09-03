@@ -5,14 +5,11 @@ import type {
   AccountsControllerGetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import type {
-  RestrictedMessenger,
-  ControllerStateChangeEvent,
-} from '@metamask/base-controller';
 import {
   BaseController,
+  type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import {
   safelyExecute,
   handleFetch,
@@ -29,6 +26,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -264,12 +262,10 @@ export type NftControllerEvents = NftControllerStateChangeEvent;
 /**
  * The messenger of the {@link NftController}.
  */
-export type NftControllerMessenger = RestrictedMessenger<
+export type NftControllerMessenger = Messenger<
   typeof controllerName,
   NftControllerActions | AllowedActions,
-  NftControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  NftControllerEvents | AllowedEvents
 >;
 
 export const getDefaultNftControllerState = (): NftControllerState => ({
@@ -359,7 +355,7 @@ export class NftController extends BaseController<
       },
     });
 
-    this.#selectedAccountId = this.messagingSystem.call(
+    this.#selectedAccountId = this.messenger.call(
       'AccountsController:getSelectedAccount',
     ).id;
     this.#ipfsGateway = ipfsGateway;
@@ -368,14 +364,14 @@ export class NftController extends BaseController<
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
     this.#onNftAdded = onNftAdded;
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'PreferencesController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onPreferencesControllerStateChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -396,7 +392,7 @@ export class NftController extends BaseController<
     openSeaEnabled,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
@@ -703,7 +699,7 @@ export class NftController extends BaseController<
   ): Promise<[string, string]> {
     // try ERC721 uri
     try {
-      const uri = await this.messagingSystem.call(
+      const uri = await this.messenger.call(
         'AssetsContractController:getERC721TokenURI',
         contractAddress,
         tokenId,
@@ -716,7 +712,7 @@ export class NftController extends BaseController<
 
     // try ERC1155 uri
     try {
-      const tokenURI = await this.messagingSystem.call(
+      const tokenURI = await this.messenger.call(
         'AssetsContractController:getERC1155TokenURI',
         contractAddress,
         tokenId,
@@ -759,7 +755,7 @@ export class NftController extends BaseController<
   ): Promise<NftMetadata> {
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -808,12 +804,12 @@ export class NftController extends BaseController<
       Pick<ApiNftContract, 'collection'>
   > {
     const [name, symbol] = await Promise.all([
-      this.messagingSystem.call(
+      this.messenger.call(
         'AssetsContractController:getERC721AssetName',
         contractAddress,
         networkClientId,
       ),
-      this.messagingSystem.call(
+      this.messenger.call(
         'AssetsContractController:getERC721AssetSymbol',
         contractAddress,
         networkClientId,
@@ -1026,7 +1022,7 @@ export class NftController extends BaseController<
       const { allNftContracts } = this.state;
       const {
         configuration: { chainId },
-      } = this.messagingSystem.call(
+      } = this.messenger.call(
         'NetworkController:getNetworkClientById',
         networkClientId as NetworkClientId,
       );
@@ -1379,7 +1375,7 @@ export class NftController extends BaseController<
   ): Promise<boolean> {
     // Checks the ownership for ERC-721.
     try {
-      const owner = await this.messagingSystem.call(
+      const owner = await this.messenger.call(
         'AssetsContractController:getERC721OwnerOf',
         nftAddress,
         tokenId,
@@ -1393,7 +1389,7 @@ export class NftController extends BaseController<
 
     // Checks the ownership for ERC-1155.
     try {
-      const balance = await this.messagingSystem.call(
+      const balance = await this.messenger.call(
         'AssetsContractController:getERC1155BalanceOf',
         ownerAddress,
         nftAddress,
@@ -1513,7 +1509,7 @@ export class NftController extends BaseController<
     );
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -1567,7 +1563,7 @@ export class NftController extends BaseController<
       const unsanitizedResults = await Promise.all(
         nftsWithChecksumAdr.map(async (nft) => {
           // Each NFT should have a chainId; convert nft.chainId to networkClientId
-          const networkClientId = this.messagingSystem.call(
+          const networkClientId = this.messenger.call(
             'NetworkController:findNetworkClientIdByChainId',
             toHex(nft.chainId as number),
           );
@@ -1672,7 +1668,7 @@ export class NftController extends BaseController<
 
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId as NetworkClientId,
     );
@@ -1714,7 +1710,7 @@ export class NftController extends BaseController<
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId as NetworkClientId,
     );
@@ -1765,7 +1761,7 @@ export class NftController extends BaseController<
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId as NetworkClientId,
     );
@@ -1841,7 +1837,7 @@ export class NftController extends BaseController<
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId as NetworkClientId,
     );
@@ -1892,7 +1888,7 @@ export class NftController extends BaseController<
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId as NetworkClientId,
     );
@@ -2063,7 +2059,7 @@ export class NftController extends BaseController<
   }
 
   async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedNftMeta.id,
@@ -2092,7 +2088,7 @@ export class NftController extends BaseController<
     }
 
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
@@ -2205,7 +2201,7 @@ export class NftController extends BaseController<
 
     try {
       // Use bulkScanUrls to check all URLs at once
-      const bulkScanResponse = await this.messagingSystem.call(
+      const bulkScanResponse = await this.messenger.call(
         'PhishingController:bulkScanUrls',
         urlsToCheck,
       );
