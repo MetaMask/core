@@ -3030,7 +3030,7 @@ __metadata:
   dependencies:
     "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/account-tree-controller": "npm:^0.12.0"
+    "@metamask/account-tree-controller": "npm:^0.12.1"
     "@metamask/accounts-controller": "npm:^33.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.2.0"
