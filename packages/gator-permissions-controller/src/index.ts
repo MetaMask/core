@@ -17,7 +17,6 @@ export type {
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
-  MetaMaskBasePermissionData,
   CustomPermission,
   PermissionTypesWithCustom,
   PermissionRequest,
@@ -39,4 +38,5 @@ export type {
   AccountSigner,
   WalletSigner,
   Signer,
+  MetaMaskBasePermissionData,
 } from '@metamask/7715-permission-types';

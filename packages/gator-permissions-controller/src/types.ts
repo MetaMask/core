@@ -7,6 +7,7 @@ import type {
   Erc20TokenStreamPermission,
   Erc20TokenPeriodicPermission,
   Rule,
+  MetaMaskBasePermissionData,
 } from '@metamask/7715-permission-types';
 import type { Hex } from '@metamask/utils';
 
@@ -29,13 +30,6 @@ export enum GatorPermissionsSnapRpcMethod {
    */
   PermissionProviderGetGrantedPermissions = 'permissionsProvider_getGrantedPermissions',
 }
-
-export type MetaMaskBasePermissionData = {
-  /**
-   * A human-readable explanation of why the permission is being requested.
-   */
-  justification?: string;
-};
 
 /**
  * Represents a custom permission that are not of the standard ERC-7715 permission types.

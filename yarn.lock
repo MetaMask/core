@@ -2365,10 +2365,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/7715-permission-types@npm:^0.2.0":
-  version: 0.2.0
-  resolution: "@metamask/7715-permission-types@npm:0.2.0"
-  checksum: 10/63ed53567f20d12b6b91e6fa7d346781e40a88ab10d68fa4fb5b76f7b07ba1fd360f0c1e81fc0f9700e34f7ded6b7ac79bc3ec70676544c21c8dbb3dc8252a28
+"@metamask/7715-permission-types@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@metamask/7715-permission-types@npm:0.3.0"
+  checksum: 10/d30e2a12142555752a60ac1284a094cd0092c2cb1fde93467bb93adc34ed6485e4ac956af90a72e314c19faf69826737003431536fe4e89cb73cd407a34e1c8c
   languageName: node
   linkType: hard
 
@@ -3571,7 +3571,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/7715-permission-types": "npm:^0.2.0"
+    "@metamask/7715-permission-types": "npm:^0.3.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.2.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
