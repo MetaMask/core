@@ -1,7 +1,6 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
@@ -161,7 +160,6 @@ export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
 
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent;
 
