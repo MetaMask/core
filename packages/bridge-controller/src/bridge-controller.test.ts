@@ -588,6 +588,26 @@ describe('BridgeController', function () {
                   resolve('5000');
                 }, 200);
               }
+              // Return the new computeFee response format
+              if (
+                (params as { handler: string })?.handler === 'onClientRequest' &&
+                (params as { request?: { method: string } })?.request?.method === 'ClientRequest:computeFee'
+              ) {
+                return setTimeout(() => {
+                  resolve([
+                    {
+                      type: 'base',
+                      asset: {
+                        unit: 'SOL',
+                        type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
+                        amount: '0.000000014', // 14 lamports in SOL
+                        fungible: true,
+                      },
+                    },
+                  ]);
+                }, 100);
+              }
+              // Legacy format for backward compatibility tests
               return setTimeout(() => {
                 resolve({ value: '14' });
               }, 100);
@@ -1617,6 +1637,26 @@ describe('BridgeController', function () {
                   resolve(expectedMinBalance);
                 }, 200);
               }
+              // Return the new computeFee response format
+              if (
+                (params as { handler: string })?.handler === 'onClientRequest' &&
+                (params as { request?: { method: string } })?.request?.method === 'ClientRequest:computeFee'
+              ) {
+                return setTimeout(() => {
+                  resolve([
+                    {
+                      type: 'base',
+                      asset: {
+                        unit: 'SOL',
+                        type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
+                        amount: expectedFees ? `0.000000${expectedFees.padStart(3, '0')}` : '0', // Convert lamports to SOL
+                        fungible: true,
+                      },
+                    },
+                  ]);
+                }, 100);
+              }
+              // Legacy format for backward compatibility tests
               return setTimeout(() => {
                 resolve({ value: expectedFees });
               }, 100);
