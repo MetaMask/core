@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: migrate eip-5792 & capabilities middleware handlers into monorepo ([#6422](https://github.com/MetaMask/core/pull/6422))
+
 ### Added
 
 - Initial release
