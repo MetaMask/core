@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `deriveStateFromMetadata` export, which can derive state for any metadata property ([#6359](https://github.com/MetaMask/core/pull/6359))
+  - This change has also been made to the experimental `next` export.
+- Add optional `includeInStateLogs` and `usedInUi` metadata properties ([#6359](https://github.com/MetaMask/core/pull/6359))
+  - State derivation is disallowed for `usedInUi`.
+  - This change has also been made to the experimental `next` export.
+
+### Deprecated
+
+- Deprecate `getPersistentState` and `getAnonymizedState`, recommending `deriveStateFromMetadata` instead ([#6359](https://github.com/MetaMask/core/pull/6359))
+  - This change has also been made to the experimental `next` export.
+
 ## [8.2.0]
 
 ### Added
