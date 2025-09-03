@@ -1,9 +1,11 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/messenger';
 
 import {
   AppMetadataController,
   getDefaultAppMetadataControllerState,
   type AppMetadataControllerOptions,
+  type AppMetadataControllerActions,
+  type AppMetadataControllerEvents,
 } from './AppMetadataController';
 
 describe('AppMetadataController', () => {
@@ -148,12 +150,20 @@ function withController<ReturnValue>(
 ): ReturnValue {
   const [options = {}, fn] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<never, never>();
+  const rootMessenger = new Messenger<
+    'Root',
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents
+  >({ namespace: 'Root' });
 
-  const appMetadataControllerMessenger = messenger.getRestricted({
-    name: 'AppMetadataController',
-    allowedActions: [],
-    allowedEvents: [],
+  const appMetadataControllerMessenger = new Messenger<
+    'AppMetadataController',
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'AppMetadataController',
+    parent: rootMessenger,
   });
 
   return fn({
