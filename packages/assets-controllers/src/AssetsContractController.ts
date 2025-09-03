@@ -2,11 +2,8 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type {
-  ActionConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
+import type { Messenger, ActionConstraint } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -205,12 +202,10 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AssetsContractController}.
  */
-export type AssetsContractControllerMessenger = RestrictedMessenger<
+export type AssetsContractControllerMessenger = Messenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
-  AssetsContractControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AssetsContractControllerEvents | AllowedEvents
 >;
 
 export type StakedBalance = string | undefined;

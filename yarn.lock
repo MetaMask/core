@@ -2588,6 +2588,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^23.0.0"
     "@metamask/keyring-internal-api": "npm:^8.1.0"
     "@metamask/keyring-snap-client": "npm:^7.0.0"
+    "@metamask/messenger": "npm:^0.1.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-account-service": "npm:^0.6.0"
     "@metamask/network-controller": "npm:^24.1.0"
