@@ -561,6 +561,49 @@ describe('NetworkEnablementController', () => {
         KnownCaipNamespace.Bip122,
       );
     });
+
+    it('creates new namespace buckets for networks that do not exist', () => {
+      const { controller } = setupController();
+
+      // Start with empty state to test namespace bucket creation
+      controller['update']((state) => {
+        state.enabledNetworkMap = {};
+      });
+
+      jest
+        .spyOn(controller['messagingSystem'], 'call')
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          const responses = {
+            'NetworkController:getState': {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum' },
+              },
+              networksMetadata: {},
+            },
+            'MultichainNetworkController:getState': {
+              multichainNetworkConfigurationsByChainId: {
+                'cosmos:cosmoshub-4': {
+                  chainId: 'cosmos:cosmoshub-4',
+                  name: 'Cosmos Hub',
+                },
+              },
+              selectedMultichainNetworkChainId: 'cosmos:cosmoshub-4',
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            },
+          };
+          return responses[actionType as keyof typeof responses];
+        });
+
+      controller.init();
+
+      // Should have created namespace buckets for both EIP-155 and Cosmos
+      expect(controller.state.enabledNetworkMap).toHaveProperty(
+        KnownCaipNamespace.Eip155,
+      );
+      expect(controller.state.enabledNetworkMap).toHaveProperty('cosmos');
+    });
   });
 
   describe('enableAllPopularNetworks', () => {
@@ -790,6 +833,48 @@ describe('NetworkEnablementController', () => {
       // The non-popular network should remain enabled
       expect(controller.isNetworkEnabled('0x2')).toBe(true); // Test network
     });
+
+    it('enables Bitcoin mainnet when configured in MultichainNetworkController', () => {
+      const { controller } = setupController();
+
+      // Mock the network configurations to include Bitcoin
+      jest
+        .spyOn(controller['messagingSystem'], 'call')
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          const responses = {
+            'NetworkController:getState': {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {},
+              networksMetadata: {},
+            },
+            'MultichainNetworkController:getState': {
+              multichainNetworkConfigurationsByChainId: {
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
+              },
+              selectedMultichainNetworkChainId: BtcScope.Mainnet,
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            },
+          };
+          return responses[actionType as keyof typeof responses];
+        });
+
+      // Initially disable Bitcoin to test enablement
+      controller['update']((state) => {
+        state.enabledNetworkMap[KnownCaipNamespace.Bip122][BtcScope.Mainnet] =
+          false;
+      });
+
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+      // enableAllPopularNetworks should re-enable Bitcoin when it exists in config
+      controller.enableAllPopularNetworks();
+
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+    });
   });
 
   describe('enableNetwork', () => {
@@ -943,6 +1028,23 @@ describe('NetworkEnablementController', () => {
           },
         },
       });
+    });
+
+    it('handles enabling a network in non-existent namespace gracefully', () => {
+      const { controller } = setupController();
+
+      // Remove the BIP122 namespace to test the early return
+      controller['update']((state) => {
+        delete state.enabledNetworkMap[KnownCaipNamespace.Bip122];
+      });
+
+      const initialState = { ...controller.state };
+
+      // Try to enable a Bitcoin network when the namespace doesn't exist
+      controller.enableNetwork('bip122:000000000933ea01ad0ee984209779ba');
+
+      // State should remain unchanged due to early return
+      expect(controller.state).toStrictEqual(initialState);
     });
 
     it('handle no namespace bucket', async () => {
