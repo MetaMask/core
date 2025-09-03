@@ -5,7 +5,11 @@ import {
   TransactionStatus,
   type TransactionMeta,
 } from '@metamask/transaction-controller';
-import { KnownCaipNamespace } from '@metamask/utils';
+import {
+  type CaipChainId,
+  type Hex,
+  KnownCaipNamespace,
+} from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { POPULAR_NETWORKS } from './constants';
@@ -566,29 +570,43 @@ describe('NetworkEnablementController', () => {
       const { controller } = setupController();
 
       // Start with empty state to test namespace bucket creation
+      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         state.enabledNetworkMap = {};
       });
 
       jest
+        // eslint-disable-next-line dot-notation
         .spyOn(controller['messagingSystem'], 'call')
-        .mockImplementation((actionType: string, ..._args: any[]): any => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
             'NetworkController:getState': {
               selectedNetworkClientId: 'mainnet',
               networkConfigurationsByChainId: {
-                '0x1': { chainId: '0x1', name: 'Ethereum' },
+                '0x1': {
+                  chainId: '0x1' as Hex,
+                  name: 'Ethereum',
+                  blockExplorerUrls: [],
+                  defaultRpcEndpointIndex: 0,
+                  nativeCurrency: 'ETH',
+                  rpcEndpoints: [],
+                },
               },
               networksMetadata: {},
             },
             'MultichainNetworkController:getState': {
               multichainNetworkConfigurationsByChainId: {
                 'cosmos:cosmoshub-4': {
-                  chainId: 'cosmos:cosmoshub-4',
+                  chainId: 'cosmos:cosmoshub-4' as CaipChainId,
                   name: 'Cosmos Hub',
+                  isEvm: false as const,
+                  nativeCurrency:
+                    'cosmos:cosmoshub-4/slip44:118' as `${string}:${string}/${string}:${string}`,
                 },
               },
-              selectedMultichainNetworkChainId: 'cosmos:cosmoshub-4',
+              selectedMultichainNetworkChainId:
+                'cosmos:cosmoshub-4' as CaipChainId,
               isEvmSelected: false,
               networksWithTransactionActivity: {},
             },
@@ -839,8 +857,10 @@ describe('NetworkEnablementController', () => {
 
       // Mock the network configurations to include Bitcoin
       jest
+        // eslint-disable-next-line dot-notation
         .spyOn(controller['messagingSystem'], 'call')
-        .mockImplementation((actionType: string, ..._args: any[]): any => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
             'NetworkController:getState': {
               selectedNetworkClientId: 'mainnet',
@@ -852,6 +872,9 @@ describe('NetworkEnablementController', () => {
                 [BtcScope.Mainnet]: {
                   chainId: BtcScope.Mainnet,
                   name: 'Bitcoin Mainnet',
+                  isEvm: false as const,
+                  nativeCurrency:
+                    'bip122:000000000019d6689c085ae165831e93/slip44:0' as `${string}:${string}/${string}:${string}`,
                 },
               },
               selectedMultichainNetworkChainId: BtcScope.Mainnet,
@@ -863,6 +886,7 @@ describe('NetworkEnablementController', () => {
         });
 
       // Initially disable Bitcoin to test enablement
+      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         state.enabledNetworkMap[KnownCaipNamespace.Bip122][BtcScope.Mainnet] =
           false;
@@ -1034,6 +1058,7 @@ describe('NetworkEnablementController', () => {
       const { controller } = setupController();
 
       // Remove the BIP122 namespace to test the early return
+      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         delete state.enabledNetworkMap[KnownCaipNamespace.Bip122];
       });
