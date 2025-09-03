@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(network-controller): Speed up network client tests ([#6377](https://github.com/MetaMask/core/pull/6377))
-- Document recent breaking change to controller-utils ([#6343](https://github.com/MetaMask/core/pull/6343))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
