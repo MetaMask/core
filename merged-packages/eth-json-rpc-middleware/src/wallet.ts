@@ -17,6 +17,14 @@ import type { GetCallsStatusHook } from './methods/wallet-get-calls-status';
 import { walletGetCallsStatus } from './methods/wallet-get-calls-status';
 import type { GetCapabilitiesHook } from './methods/wallet-get-capabilities';
 import { walletGetCapabilities } from './methods/wallet-get-capabilities';
+import {
+  type ProcessRequestExecutionPermissionsHook,
+  walletRequestExecutionPermissions,
+} from './methods/wallet-request-execution-permissions';
+import {
+  type ProcessRevokeExecutionPermissionHook,
+  walletRevokeExecutionPermission,
+} from './methods/wallet-revoke-execution-permission';
 import type { ProcessSendCallsHook } from './methods/wallet-send-calls';
 import { walletSendCalls } from './methods/wallet-send-calls';
 import type { Block } from './types';
@@ -97,6 +105,8 @@ export interface WalletMiddlewareOptions {
     version: string,
   ) => Promise<string>;
   processSendCalls?: ProcessSendCallsHook;
+  processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
+  processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 }
 
 export function createWalletMiddleware({
@@ -112,6 +122,8 @@ export function createWalletMiddleware({
   processTypedMessageV3,
   processTypedMessageV4,
   processSendCalls,
+  processRequestExecutionPermissions,
+  processRevokeExecutionPermission,
 }: // }: WalletMiddlewareOptions): JsonRpcMiddleware<string, Block> {
 WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
   if (!getAccounts) {
@@ -137,15 +149,28 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     personal_ecRecover: createAsyncMiddleware(personalRecover),
 
     // EIP-5792
-    wallet_getCapabilities: createAsyncMiddleware(async (params, req) =>
-      walletGetCapabilities(params, req, { getAccounts, getCapabilities }),
+    wallet_getCapabilities: createAsyncMiddleware(async (req, res) =>
+      walletGetCapabilities(req, res, { getAccounts, getCapabilities }),
     ),
-    wallet_sendCalls: createAsyncMiddleware(async (params, req) =>
-      walletSendCalls(params, req, { getAccounts, processSendCalls }),
+    wallet_sendCalls: createAsyncMiddleware(async (req, res) =>
+      walletSendCalls(req, res, { getAccounts, processSendCalls }),
     ),
-    wallet_getCallsStatus: createAsyncMiddleware(async (params, req) =>
-      walletGetCallsStatus(params, req, {
+    wallet_getCallsStatus: createAsyncMiddleware(async (req, res) =>
+      walletGetCallsStatus(req, res, {
         getCallsStatus,
+      }),
+    ),
+
+    // EIP-7715
+    wallet_requestExecutionPermissions: createAsyncMiddleware(
+      async (req, res) =>
+        walletRequestExecutionPermissions(req, res, {
+          processRequestExecutionPermissions,
+        }),
+    ),
+    wallet_revokeExecutionPermission: createAsyncMiddleware(async (req, res) =>
+      walletRevokeExecutionPermission(req, res, {
+        processRevokeExecutionPermission,
       }),
     ),
   });

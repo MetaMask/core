@@ -21,6 +21,16 @@ export type {
   SendCallsParams,
   SendCallsResult,
 } from './methods/wallet-send-calls';
+export type {
+  RequestExecutionPermissionsRequestParams,
+  RequestExecutionPermissionsResult,
+  ProcessRequestExecutionPermissionsHook,
+} from './methods/wallet-request-execution-permissions';
+export type {
+  ProcessRevokeExecutionPermissionHook,
+  RevokeExecutionPermissionRequestParams,
+  RevokeExecutionPermissionResult,
+} from './methods/wallet-revoke-execution-permission';
 export * from './providerAsMiddleware';
 export * from './retryOnEmpty';
 export * from './wallet';
