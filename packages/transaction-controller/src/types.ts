@@ -260,6 +260,9 @@ export type TransactionMeta = {
    */
   isExternalSign?: boolean;
 
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
+
   /**
    * Whether the transaction is an incoming token transfer.
    */
@@ -1663,8 +1666,20 @@ export type TransactionBatchSingleRequest = {
 export type TransactionBatchRequest = {
   batchId?: Hex;
 
+  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether to disable batch transaction via the `publishBatch` hook. */
+  disableHook?: boolean;
+
+  /** Whether to disable batch transaction via sequential transactions. */
+  disableSequential?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
 
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
@@ -1680,15 +1695,6 @@ export type TransactionBatchRequest = {
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
-
-  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
-  disable7702?: boolean;
-
-  /** Whether to disable batch transaction via the `publishBatch` hook. */
-  disableHook?: boolean;
-
-  /** Whether to disable batch transaction via sequential transactions. */
-  disableSequential?: boolean;
 
   /**
    * Whether to use the publish batch hook to submit the batch.

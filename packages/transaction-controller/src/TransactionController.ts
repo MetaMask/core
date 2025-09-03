@@ -1116,6 +1116,7 @@ export class TransactionController extends BaseController<
    * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
+   * @param options.isGasFeeIncluded - Whether MetaMask will be compensated for the gas fee by the transaction.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
@@ -1139,6 +1140,7 @@ export class TransactionController extends BaseController<
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
+      isGasFeeIncluded?: boolean;
       method?: string;
       nestedTransactions?: NestedTransactionMetadata[];
       networkClientId: NetworkClientId;
@@ -1163,6 +1165,7 @@ export class TransactionController extends BaseController<
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
+      isGasFeeIncluded,
       method,
       nestedTransactions,
       networkClientId,
@@ -1261,6 +1264,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
+          isGasFeeIncluded,
           isFirstTimeInteraction: undefined,
           nestedTransactions,
           networkClientId,
