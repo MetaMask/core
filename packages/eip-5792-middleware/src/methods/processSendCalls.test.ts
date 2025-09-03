@@ -19,7 +19,7 @@ import type { TransactionController } from '@metamask/transaction-controller';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { processSendCalls } from './processSendCalls';
-import type { EIP5792Messenger } from './types';
+import type { EIP5792Messenger } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';
 const CHAIN_ID_2_MOCK = '0xabc';

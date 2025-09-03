@@ -9,8 +9,8 @@ import type {
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { EIP5792ErrorCode, VERSION } from './constants';
-import type { EIP5792Messenger } from './types';
+import { EIP5792ErrorCode, VERSION } from '../constants';
+import type { EIP5792Messenger } from '../types';
 
 /**
  * Retrieves the status of a transaction batch by its ID.

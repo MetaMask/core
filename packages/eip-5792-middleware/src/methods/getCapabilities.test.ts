@@ -11,9 +11,8 @@ import type {
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { AtomicCapabilityStatus } from './constants';
 import { getCapabilities } from './getCapabilities';
-import type { EIP5792Messenger } from './types';
+import type { EIP5792Messenger } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';
 const FROM_MOCK = '0xabc123';
@@ -143,7 +142,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Supported,
+            status: 'supported',
           },
           alternateGasFees: {
             supported: true,
@@ -172,7 +171,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Ready,
+            status: 'ready',
           },
         },
       });
@@ -198,7 +197,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Ready,
+            status: 'ready',
           },
         },
       });
@@ -321,7 +320,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Supported,
+            status: 'supported',
           },
         },
       });
@@ -368,7 +367,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Supported,
+            status: 'supported',
           },
         },
       });
@@ -396,7 +395,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Supported,
+            status: 'supported',
           },
           alternateGasFees: {
             supported: true,
@@ -421,7 +420,7 @@ describe('EIP-5792', () => {
       expect(capabilities).toStrictEqual({
         [CHAIN_ID_MOCK]: {
           atomic: {
-            status: AtomicCapabilityStatus.Ready,
+            status: 'ready',
           },
         },
       });

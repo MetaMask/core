@@ -6,18 +6,23 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import {
-  AtomicCapabilityStatus,
-  KEYRING_TYPES_SUPPORTING_7702,
-} from './constants';
-import type { EIP5792Messenger } from './types';
-import { getAccountKeyringType } from './utils';
+import { KEYRING_TYPES_SUPPORTING_7702 } from '../constants';
+import type { EIP5792Messenger } from '../types';
+import { getAccountKeyringType } from '../utils';
 
-type GetCapabilitiesHooks = {
+/**
+ * Type definition for required controller hooks and utilities of {@link getCapabilities}
+ */
+export type GetCapabilitiesHooks = {
+  /** Function to check if smart account suggestions are disabled */
   getDismissSmartAccountSuggestionEnabled: () => boolean;
+  /** Function to check if a chain supports smart transactions */
   getIsSmartTransaction: (chainId: Hex) => boolean;
+  /** Function to check if atomic batching is supported */
   isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
+  /** Function to check if relay is supported on a chain */
   isRelaySupported: (chainId: Hex) => Promise<boolean>;
+  /** Function to get chains that support send bundle */
   getSendBundleSupportedChains: (
     chainIds: Hex[],
   ) => Promise<Record<string, boolean>>;
@@ -27,11 +32,6 @@ type GetCapabilitiesHooks = {
  * Retrieves the capabilities for atomic transactions on specified chains.
  *
  * @param hooks - Object containing required controller hooks and utilities.
- * @param hooks.getDismissSmartAccountSuggestionEnabled - Function to check if smart account suggestions are disabled.
- * @param hooks.getIsSmartTransaction - Function to check if a chain supports smart transactions.
- * @param hooks.isAtomicBatchSupported - Function to check if atomic batching is supported.
- * @param hooks.isRelaySupported - Function to check if relay is supported on a chain.
- * @param hooks.getSendBundleSupportedChains - Function to get chains that support send bundle.
  * @param messenger - Messenger instance for controller communication.
  * @param address - The account address to check capabilities for.
  * @param chainIds - Array of chain IDs to check capabilities for (if undefined, checks all configured networks).
@@ -106,9 +106,7 @@ export async function getCapabilities(
       return acc;
     }
 
-    const status = isSupported
-      ? AtomicCapabilityStatus.Supported
-      : AtomicCapabilityStatus.Ready;
+    const status = isSupported ? 'supported' : 'ready';
 
     if (acc[chainId as Hex] === undefined) {
       acc[chainId as Hex] = {};

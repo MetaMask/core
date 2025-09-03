@@ -21,15 +21,23 @@ import {
   KEYRING_TYPES_SUPPORTING_7702,
   MessageType,
   VERSION,
-} from './constants';
-import type { EIP5792Messenger } from './types';
-import { getAccountKeyringType } from './utils';
+} from '../constants';
+import type { EIP5792Messenger } from '../types';
+import { getAccountKeyringType } from '../utils';
 
-type ProcessSendCallsHooks = {
+/**
+ * Type definition for required controller hooks and utilities of {@link processSendCalls}
+ */
+export type ProcessSendCallsHooks = {
+  /** Function to add a batch of transactions atomically */
   addTransactionBatch: TransactionController['addTransactionBatch'];
+  /** Function to add a single transaction */
   addTransaction: TransactionController['addTransaction'];
+  /** Function to check if smart account suggestions are disabled */
   getDismissSmartAccountSuggestionEnabled: () => boolean;
+  /** Function to check if atomic batching is supported for given parameters */
   isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
+  /** Function to validate security for transaction requests */
   validateSecurity: (
     securityAlertId: string,
     request: ValidateSecurityRequest,
@@ -37,20 +45,20 @@ type ProcessSendCallsHooks = {
   ) => Promise<void>;
 };
 
-type ProcessSendCallsRequest = JsonRpcRequest & {
+/**
+ * A valid JSON-RPC request object for `wallet_sendCalls`.
+ */
+export type ProcessSendCallsRequest = JsonRpcRequest & {
+  /** The identifier for the network client that has been created for this RPC endpoint */
   networkClientId: string;
+  /** The origin of the RPC request */
   origin?: string;
 };
 
 /**
- * Processes a sendCalls request for EIP-5792 atomic transactions.
+ * Processes a sendCalls request for EIP-5792 transactions.
  *
  * @param hooks - Object containing required controller hooks and utilities.
- * @param hooks.addTransactionBatch - Function to add a batch of transactions atomically.
- * @param hooks.addTransaction - Function to add a single transaction.
- * @param hooks.getDismissSmartAccountSuggestionEnabled - Function to check if smart account suggestions are disabled.
- * @param hooks.isAtomicBatchSupported - Function to check if atomic batching is supported for given parameters.
- * @param hooks.validateSecurity - Function to validate security for transaction requests.
  * @param messenger - Messenger instance for controller communication.
  * @param params - The sendCalls parameters containing transaction calls and metadata.
  * @param req - The original JSON-RPC request.
@@ -290,7 +298,7 @@ function validateSingleSendCall(sendCalls: SendCalls, dappChainId: Hex) {
  * Validates a sendCalls request for multiple transactions.
  *
  * @param sendCalls - The sendCalls request to validate.
- * @param dappChainId - The chain ID that the dApp is connected to.
+ * @param dappChainId - The chain ID that the dApp is connected to
  * @param dismissSmartAccountSuggestionEnabled - Whether smart account suggestions are disabled.
  * @param chainBatchSupport - Information about atomic batch support for the chain.
  * @param keyringType - The type of keyring associated with the account.
