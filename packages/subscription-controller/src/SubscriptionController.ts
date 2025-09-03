@@ -215,12 +215,19 @@ export class SubscriptionController extends BaseController<
           : subscription,
       );
     });
+
+    this.triggerAccessTokenRefresh();
   }
 
   async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
 
-    return await this.#subscriptionService.startSubscriptionWithCard(request);
+    const response =
+      await this.#subscriptionService.startSubscriptionWithCard(request);
+
+    this.triggerAccessTokenRefresh();
+
+    return response;
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
