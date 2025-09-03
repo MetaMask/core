@@ -1,6 +1,12 @@
-import { Messenger } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
@@ -10,24 +16,28 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import BN from 'bn.js';
 import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
-import type {
-  AccountTrackerControllerMessenger,
-  AllowedActions,
-  AllowedEvents,
-} from './AccountTrackerController';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
 import { AccountTrackerController } from './AccountTrackerController';
 import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+
+type AllAccountTrackerControllerActions =
+  MessengerActions<AccountTrackerControllerMessenger>;
+
+type AllAccountTrackerControllerEvents =
+  MessengerEvents<AccountTrackerControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAccountTrackerControllerActions,
+  AllAccountTrackerControllerEvents
+>;
 
 jest.mock('@metamask/controller-utils', () => {
   return {
@@ -1209,10 +1219,9 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<
-    ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
-    ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
   messenger.registerActionHandler(
@@ -1318,16 +1327,25 @@ async function withController<ReturnValue>(
     mockNetworkState,
   );
 
-  const accountTrackerMessenger = messenger.getRestricted({
-    name: 'AccountTrackerController',
-    allowedActions: [
+  const accountTrackerMessenger = new Messenger<
+    'AccountTrackerController',
+    AllAccountTrackerControllerActions,
+    AllAccountTrackerControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'AccountTrackerController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: accountTrackerMessenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedEvmAccountChange'],
+    events: ['AccountsController:selectedEvmAccountChange'],
   });
 
   const triggerSelectedAccountChange = (account: InternalAccount) => {
