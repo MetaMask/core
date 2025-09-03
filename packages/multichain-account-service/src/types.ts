@@ -1,3 +1,4 @@
+import type { MultichainAccountWalletId } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
@@ -17,6 +18,15 @@ import type {
   MultichainAccountService,
   serviceName,
 } from './MultichainAccountService';
+import type { MultichainAccountWalletTransientState } from './MultichainAccountWallet';
+
+export type MultichainAccountServiceTransientState = {
+  accountWalletsTransientState: {
+    [
+      walletId: MultichainAccountWalletId
+    ]: MultichainAccountWalletTransientState;
+  };
+};
 
 export type MultichainAccountServiceGetMultichainAccountGroupAction = {
   type: `${typeof serviceName}:getMultichainAccountGroup`;

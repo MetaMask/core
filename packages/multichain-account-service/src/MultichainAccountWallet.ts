@@ -20,6 +20,17 @@ import {
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 
 /**
+ * Transient state for a multichain account wallet.
+ *
+ * This state WILL NEVER be persisted. It will be shared with the client's UI
+ * so the UI can reflect th current state of the wallet (aligning, discovering, etc...)
+ */
+export type MultichainAccountWalletTransientState = {
+  /** True when the wallet is being aligned (creating missing accounts on each groups). */
+  isAlignmentInProgress: boolean;
+};
+
+/**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
  * group index).
  */
@@ -35,19 +46,22 @@ export class MultichainAccountWallet<
 
   readonly #accountGroups: Map<number, MultichainAccountGroup<Account>>;
 
-  #isAlignmentInProgress: boolean = false;
+  readonly #transientState: MultichainAccountWalletTransientState;
 
   constructor({
     providers,
     entropySource,
+    transientState,
   }: {
     providers: AccountProvider<Account>[];
     entropySource: EntropySourceId;
+    transientState: MultichainAccountWalletTransientState;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
     this.#providers = providers;
     this.#entropySource = entropySource;
     this.#accountGroups = new Map();
+    this.#transientState = transientState;
 
     // Initial synchronization.
     this.sync();
@@ -315,23 +329,23 @@ export class MultichainAccountWallet<
    * @returns True if alignment is in progress, false otherwise.
    */
   getIsAlignmentInProgress(): boolean {
-    return this.#isAlignmentInProgress;
+    return this.#transientState.isAlignmentInProgress;
   }
 
   /**
    * Align all multichain account groups.
    */
   async alignGroups(): Promise<void> {
-    if (this.#isAlignmentInProgress) {
+    if (this.#transientState.isAlignmentInProgress) {
       return; // Prevent concurrent alignments
     }
 
-    this.#isAlignmentInProgress = true;
+    this.#transientState.isAlignmentInProgress = true;
     try {
       const groups = this.getMultichainAccountGroups();
       await Promise.all(groups.map((g) => g.align()));
     } finally {
-      this.#isAlignmentInProgress = false;
+      this.#transientState.isAlignmentInProgress = false;
     }
   }
 
@@ -341,18 +355,18 @@ export class MultichainAccountWallet<
    * @param groupIndex - The group index to align.
    */
   async alignGroup(groupIndex: number): Promise<void> {
-    if (this.#isAlignmentInProgress) {
+    if (this.#transientState.isAlignmentInProgress) {
       return; // Prevent concurrent alignments
     }
 
-    this.#isAlignmentInProgress = true;
+    this.#transientState.isAlignmentInProgress = true;
     try {
       const group = this.getMultichainAccountGroup(groupIndex);
       if (group) {
         await group.align();
       }
     } finally {
-      this.#isAlignmentInProgress = false;
+      this.#transientState.isAlignmentInProgress = false;
     }
   }
 }
