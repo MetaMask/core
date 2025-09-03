@@ -54,7 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add support for `AccountsController:accountRenamed` event handling for state 1 and legacy account syncing compatibility ([#6251](https://github.com/MetaMask/core/pull/6251))
 - Add `AccountTreeController:getAccountsFromSelectedAccountGroup` action ([#6266](https://github.com/MetaMask/core/pull/6266)), ([#6248](https://github.com/MetaMask/core/pull/6248)), ([#6265](https://github.com/MetaMask/core/pull/6265))
   - This action can be used to get all accounts from the currently selected account group.
   - This action also support `AccountSelector` support to filter out accounts based on some criterias.

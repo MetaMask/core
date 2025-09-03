@@ -71,8 +71,6 @@ export type AccountContext = {
   groupId: AccountGroupObject['id'];
 };
 
-const DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX = /^Account ([0-9]+)$/u;
-
 export class AccountTreeController extends BaseController<
   typeof controllerName,
   AccountTreeControllerState,
@@ -150,13 +148,6 @@ export class AccountTreeController extends BaseController<
       'AccountsController:selectedAccountChange',
       (account) => {
         this.#handleSelectedAccountChange(account);
-      },
-    );
-
-    this.messagingSystem.subscribe(
-      'AccountsController:accountRenamed',
-      (account) => {
-        this.#handleAccountRenamed(account);
       },
     );
 
@@ -557,49 +548,6 @@ export class AccountTreeController extends BaseController<
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
-    }
-  }
-
-  /**
-   * Handles "AccountsController:accountRenamed" event to rename
-   * the associated account group which contains the account being
-   * renamed.
-   *
-   * NOTE: This is mainly useful for legacy backup & sync v1.
-   *
-   * @param account - Account being renamed.
-   */
-  #handleAccountRenamed(account: InternalAccount) {
-    // We only consider HD and simple EVM accounts for the moment as they have
-    // an higher priority over others when it comes to naming.
-    // (Similar logic than `EntropyRule.getDefaultAccountGroupName`).
-    // TODO: Rename other kind of accounts, but we need to compute their "default name" with custom prefixes.
-    if (!isEvmAccountType(account.type)) {
-      return;
-    }
-
-    const context = this.#accountIdToContext.get(account.id);
-
-    if (context) {
-      const { walletId, groupId } = context;
-
-      const wallet = this.state.accountTree.wallets[walletId];
-      if (wallet) {
-        const group = wallet.groups[groupId];
-        if (group) {
-          // We both use the same naming conventions for HD and simple accounts,
-          // so we can use the same regex to check if the name is a default one.
-          const isAccountNameDefault =
-            DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX.test(account.metadata.name);
-          const isGroupNameDefault = DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX.test(
-            group.metadata.name,
-          );
-
-          if (isGroupNameDefault && !isAccountNameDefault) {
-            this.setAccountGroupName(groupId, account.metadata.name);
-          }
-        }
-      }
     }
   }
 
