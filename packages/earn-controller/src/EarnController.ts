@@ -1,8 +1,7 @@
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
-  AccountTreeControllerState,
-  AccountTreeControllerStateChangeEvent,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
@@ -260,7 +259,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  * All events that EarnController subscribes to internally.
  */
 export type AllowedEvents =
-  | AccountTreeControllerStateChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkDidChangeEvent;
 
@@ -359,19 +358,18 @@ export class EarnController extends BaseController<
       },
     );
 
-    // Listen for selected account group changes
-    // Use stateChange event instead of selectedAccountGroupChange event as the former gets emitted
-    // when the AccountTreeController initializes but the latter currently does not
+    // Listen for account group changes
     this.messagingSystem.subscribe(
-      'AccountTreeController:stateChange',
+      'AccountTreeController:selectedAccountGroupChange',
       () => {
         const address = this.#getSelectedEvmAccountAddress();
+
+        // TODO: temp solution, this will refresh lending eligibility also
+        // we could have a more general check, as what is happening is a compliance address check
         this.refreshEarnEligibility({ address }).catch(console.error);
         this.refreshPooledStakes({ address }).catch(console.error);
         this.refreshLendingPositions({ address }).catch(console.error);
       },
-      (accountTreeState: AccountTreeControllerState) =>
-        accountTreeState.accountTree.selectedAccountGroup,
     );
 
     // Listen for confirmed staking transactions
