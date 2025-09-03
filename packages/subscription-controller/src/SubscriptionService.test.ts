@@ -7,7 +7,11 @@ import {
 } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
-import type { StartSubscriptionRequest, Subscription } from './types';
+import type {
+  StartSubscriptionRequest,
+  Subscription,
+  PricingResponse,
+} from './types';
 import {
   PaymentType,
   ProductType,
@@ -286,6 +290,25 @@ describe('SubscriptionService', () => {
       await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: [],
+    };
+
+    it('should fetch pricing successfully', async () => {
+      const config = createMockConfig();
+      const service = new SubscriptionService(config);
+      const testUrl = getTestUrl(Env.DEV);
+
+      nock(testUrl).get('/api/v1/pricing').reply(200, mockPricingResponse);
+
+      const result = await service.getPricing();
+
+      expect(result).toStrictEqual(mockPricingResponse);
     });
   });
 });
