@@ -64,12 +64,6 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
   constructor({ engine }: { engine: JsonRpcEngine }) {
     super();
     this.#engine = engine;
-
-    if (engine.on) {
-      engine.on('notification', (message: string) => {
-        this.emit('data', null, message);
-      });
-    }
   }
 
   /**
