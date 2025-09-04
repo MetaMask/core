@@ -1,9 +1,9 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 import { v1 as random } from 'uuid';
 
 import type { Log } from './logTypes';
@@ -54,12 +54,10 @@ export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type LoggingControllerEvents = LoggingControllerStateChangeEvent;
 
-export type LoggingControllerMessenger = RestrictedMessenger<
+export type LoggingControllerMessenger = Messenger<
   typeof name,
   LoggingControllerActions,
-  LoggingControllerEvents,
-  never,
-  never
+  LoggingControllerEvents
 >;
 
 const metadata = {
@@ -102,9 +100,8 @@ export class LoggingController extends BaseController<
       },
     });
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:add` as const,
-      (log: Log) => this.add(log),
+    this.messenger.registerActionHandler(`${name}:add` as const, (log: Log) =>
+      this.add(log),
     );
   }
 
