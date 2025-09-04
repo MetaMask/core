@@ -1,13 +1,15 @@
-import type { Hex } from '@metamask/utils';
-
 import type {
   AccountSigner,
-  CustomPermission,
   Erc20TokenPeriodicPermission,
   Erc20TokenStreamPermission,
   NativeTokenPeriodicPermission,
   NativeTokenStreamPermission,
-  PermissionTypes,
+} from '@metamask/7715-permission-types';
+import type { Hex } from '@metamask/utils';
+
+import type {
+  CustomPermission,
+  PermissionTypesWithCustom,
   StoredGatorPermission,
 } from '../types';
 
@@ -17,14 +19,13 @@ export const mockNativeTokenStreamStorageEntry = (
   permissionResponse: {
     chainId: chainId as Hex,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    expiry: 1750291201,
-    isAdjustmentAllowed: true,
     signer: {
       type: 'account',
       data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
     },
     permission: {
       type: 'native-token-stream',
+      isAdjustmentAllowed: true,
       data: {
         maxAmount: '0x22b1c8c1227a0000',
         initialAmount: '0x6f05b59d3b20000',
@@ -33,10 +34,9 @@ export const mockNativeTokenStreamStorageEntry = (
         justification:
           'This is a very important request for streaming allowance for some very important thing',
       },
-      rules: {},
     },
     context: '0x00000000',
-    accountMeta: [
+    dependencyInfo: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
@@ -55,14 +55,13 @@ export const mockNativeTokenPeriodicStorageEntry = (
   permissionResponse: {
     chainId: chainId as Hex,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    expiry: 1850291200,
-    isAdjustmentAllowed: true,
     signer: {
       type: 'account',
       data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
     },
     permission: {
       type: 'native-token-periodic',
+      isAdjustmentAllowed: true,
       data: {
         periodAmount: '0x22b1c8c1227a0000',
         periodDuration: 1747699200,
@@ -70,10 +69,9 @@ export const mockNativeTokenPeriodicStorageEntry = (
         justification:
           'This is a very important request for streaming allowance for some very important thing',
       },
-      rules: {},
     },
     context: '0x00000000',
-    accountMeta: [
+    dependencyInfo: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
@@ -92,14 +90,13 @@ export const mockErc20TokenStreamStorageEntry = (
   permissionResponse: {
     chainId: chainId as Hex,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    expiry: 1750298200,
-    isAdjustmentAllowed: true,
     signer: {
       type: 'account',
       data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
     },
     permission: {
       type: 'erc20-token-stream',
+      isAdjustmentAllowed: true,
       data: {
         initialAmount: '0x22b1c8c1227a0000',
         maxAmount: '0x6f05b59d3b20000',
@@ -109,10 +106,9 @@ export const mockErc20TokenStreamStorageEntry = (
         justification:
           'This is a very important request for streaming allowance for some very important thing',
       },
-      rules: {},
     },
     context: '0x00000000',
-    accountMeta: [
+    dependencyInfo: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
@@ -131,14 +127,13 @@ export const mockErc20TokenPeriodicStorageEntry = (
   permissionResponse: {
     chainId: chainId as Hex,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    expiry: 1750291600,
-    isAdjustmentAllowed: true,
     signer: {
       type: 'account',
       data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
     },
     permission: {
       type: 'erc20-token-periodic',
+      isAdjustmentAllowed: true,
       data: {
         periodAmount: '0x22b1c8c1227a0000',
         periodDuration: 1747699200,
@@ -147,10 +142,9 @@ export const mockErc20TokenPeriodicStorageEntry = (
         justification:
           'This is a very important request for streaming allowance for some very important thing',
       },
-      rules: {},
     },
     context: '0x00000000',
-    accountMeta: [
+    dependencyInfo: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
@@ -170,23 +164,21 @@ export const mockCustomPermissionStorageEntry = (
   permissionResponse: {
     chainId: chainId as Hex,
     address: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    expiry: 1750291200,
-    isAdjustmentAllowed: true,
     signer: {
       type: 'account',
       data: { address: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63' },
     },
     permission: {
       type: 'custom',
+      isAdjustmentAllowed: true,
       data: {
         justification:
           'This is a very important request for streaming allowance for some very important thing',
         ...data,
       },
-      rules: {},
     },
     context: '0x00000000',
-    accountMeta: [
+    dependencyInfo: [
       {
         factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
         factoryData: '0x0000000',
@@ -226,9 +218,11 @@ export type MockGatorPermissionsStorageEntriesConfig = {
  */
 export function mockGatorPermissionsStorageEntriesFactory(
   config: MockGatorPermissionsStorageEntriesConfig,
-): StoredGatorPermission<AccountSigner, PermissionTypes>[] {
-  const result: StoredGatorPermission<AccountSigner, PermissionTypes>[] = [];
-  let globalIndex = 0;
+): StoredGatorPermission<AccountSigner, PermissionTypesWithCustom>[] {
+  const result: StoredGatorPermission<
+    AccountSigner,
+    PermissionTypesWithCustom
+  >[] = [];
 
   Object.entries(config).forEach(([chainId, counts]) => {
     if (counts.custom.count !== counts.custom.data.length) {
@@ -243,13 +237,14 @@ export function mockGatorPermissionsStorageEntriesFactory(
      */
     const createEntries = (
       count: number,
-      createEntry: () => StoredGatorPermission<AccountSigner, PermissionTypes>,
+      createEntry: () => StoredGatorPermission<
+        AccountSigner,
+        PermissionTypesWithCustom
+      >,
     ) => {
       for (let i = 0; i < count; i++) {
         const entry = createEntry();
-        entry.permissionResponse.expiry += globalIndex;
         result.push(entry);
-        globalIndex += 1;
       }
     };
 
@@ -275,9 +270,7 @@ export function mockGatorPermissionsStorageEntriesFactory(
         chainId as Hex,
         counts.custom.data[i],
       );
-      entry.permissionResponse.expiry += globalIndex;
       result.push(entry);
-      globalIndex += 1;
     }
   });
 
