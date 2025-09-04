@@ -106,7 +106,6 @@ export {
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
-  isTronChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
@@ -143,7 +142,4 @@ export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
 
 export { getBridgeFeatureFlags } from './utils/feature-flags';
 
-export {
-  computeFeeRequest,
-  signAndSendTransactionRequest,
-} from './utils/snaps';
+export { signAndSendTransactionRequest } from './utils/snaps';

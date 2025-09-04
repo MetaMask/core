@@ -762,7 +762,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | { result: Record<string, string> }
       | { signature: string };
 
-    // The extension client actually redirects before it can do anything with this meta
     const txMeta = handleSolanaTxResponse(
       requestResponse,
       quoteResponse,

@@ -729,8 +729,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   /**
-   * Appends transaction fees for non-EVM chains (Solana, BTC, Tron) to quotes
-   * Uses the new unified ClientRequest:computeFee interface
+   * Appends transaction fees for non-EVM chains to quotes
    *
    * @param quotes - Array of quote responses to append fees to
    * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
@@ -738,7 +737,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #appendSolanaFees = async (
     quotes: QuoteResponse[],
   ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
-    // Return early if some of the quotes are not for non-EVM chains
     if (
       quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
@@ -771,20 +769,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             };
           }[];
 
-          // Extract the base fee from the response
           const baseFee = response?.find((fee) => fee.type === 'base');
           let feeInNative = '0';
 
           if (baseFee?.asset?.amount) {
-            // The new interface returns fees in native token amount (e.g., Solana instead of Lamports)
-            // For Solana, we convert to Lamports to maintain compatibility with existing consumers
             if (isSolanaChainId(quote.srcChainId)) {
-              // Convert Solana (9 decimals) to Lamports
-              const solanaAmount = parseFloat(baseFee.asset.amount);
-              feeInNative = Math.floor(solanaAmount * 1e9).toString();
+              // Convert SOL to Lamports (1 SOL = 10^9 Lamports)
+              // Use string manipulation to avoid floating point precision issues
+              const parts = baseFee.asset.amount.split('.');
+              const wholePart = parts[0] || '0';
+              const decimalPart = (parts[1] || '').padEnd(9, '0').slice(0, 9);
+              feeInNative = BigInt(wholePart + decimalPart).toString();
             } else {
               // For other chains (BTC, Tron), use the fee as-is
-              // Note: This may need adjustment based on the specific decimal handling for each chain
               feeInNative = baseFee.asset.amount;
             }
           }

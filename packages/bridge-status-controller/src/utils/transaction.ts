@@ -128,9 +128,7 @@ export const handleSolanaTxResponse = (
     // Check for new unified interface response format first
     if ('transactionId' in snapResponse && snapResponse.transactionId) {
       hash = snapResponse.transactionId;
-    }
-    // Legacy: If it's an object with result property, try to get the signature
-    else if (
+    } else if (
       'result' in snapResponse &&
       snapResponse.result &&
       typeof snapResponse.result === 'object'
@@ -141,9 +139,7 @@ export const handleSolanaTxResponse = (
         snapResponse.result.txid ||
         snapResponse.result.hash ||
         snapResponse.result.txHash;
-    }
-    // Legacy: Direct signature property
-    else if (
+    } else if (
       'signature' in snapResponse &&
       snapResponse.signature &&
       typeof snapResponse.signature === 'string'
