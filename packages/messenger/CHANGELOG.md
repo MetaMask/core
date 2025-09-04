@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0]
 
-### Uncategorized
-
-- test: Add additional tests for delegated action unregistration ([#6419](https://github.com/MetaMask/core/pull/6419))
-- chore: Organize Messenger tests ([#6418](https://github.com/MetaMask/core/pull/6418))
-
 ### Added
 
 - Allow disabling namespace checks in unit tests using the new `MOCK_ANY_NAMESPACE` constant and `MockAnyNamespace` type ([#6420](https://github.com/MetaMask/core/pull/6420))
