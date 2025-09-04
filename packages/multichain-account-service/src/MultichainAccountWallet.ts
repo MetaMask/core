@@ -457,6 +457,8 @@ export class MultichainAccountWallet<
           }
         }
       })();
+
+      return providerCtx.running;
     };
 
     const currentGroupIndex = this.getNextGroupIndex();
