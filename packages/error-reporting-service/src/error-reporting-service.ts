@@ -1,4 +1,4 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 
 /**
  * The action which can be used to report an error.
@@ -37,12 +37,10 @@ type AllowedEvents = never;
  * The messenger restricted to actions and events that
  * {@link ErrorReportingService} needs to access.
  */
-export type ErrorReportingServiceMessenger = RestrictedMessenger<
+export type ErrorReportingServiceMessenger = Messenger<
   'ErrorReportingService',
   ErrorReportingServiceActions | AllowedActions,
-  ErrorReportingServiceEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  ErrorReportingServiceEvents | AllowedEvents
 >;
 
 /**
@@ -69,12 +67,10 @@ type ErrorReportingServiceOptions = {
  *
  * // Define the messenger type for the controller.
  * type AllowedActions = ErrorReportingServiceCaptureExceptionAction;
- * type ExampleControllerMessenger = RestrictedMessenger<
+ * type ExampleControllerMessenger = Messenger<
  *   'ExampleController',
  *   AllowedActions,
  *   never,
- *   AllowedActions['type'],
- *   never
  * >;
  *
  * // Define the controller.
@@ -86,7 +82,7 @@ type ErrorReportingServiceOptions = {
  *   doSomething() {
  *     // Imagine that we do something that produces an error and we want to
  *     // report the error.
- *     this.messagingSystem.call(
+ *     this.messenger.call(
  *       'ErrorReportingService:captureException',
  *       new Error('Something went wrong'),
  *     );
@@ -99,23 +95,43 @@ type ErrorReportingServiceOptions = {
  * import { ErrorReportingService } from '@metamask/error-reporting-service';
  * import { ExampleController } from './example-controller';
  *
+ * type AllActions = MessengerActions<ErrorReportingServiceMessenger>;
+ *
+ * type AllEvents = MessengerEvents<ErrorReportingServiceMessenger>;
+ *
+ * type RootMessenger = Messenger<'Root', AllActions, AllEvents>;
+ *
  * // Create a global messenger.
  * const globalMessenger = new Messenger();
  *
  * // Register handler for the `ErrorReportingService:captureException`
  * // action in the global messenger.
- * const errorReportingServiceMessenger = globalMessenger.getRestricted({
- *   allowedActions: [],
- *   allowedEvents: [],
+ * const errorReportingServiceMessenger = new Messenger<
+ *   'ErrorReportingService',
+ *   MessengerActions<ErrorReportingServiceMessenger>,
+ *   MessengerEvents<ErrorReportingServiceMessenger>,
+ *   RootMessenger
+ * >({
+ *   namespace: 'ErrorReportingService',
+ *   parent: globalMessenger,
  * });
  * const errorReportingService = new ErrorReportingService({
  *   messenger: errorReportingServiceMessenger,
  *   captureException,
  * });
  *
- * const exampleControllerMessenger = globalMessenger.getRestricted({
- *   allowedActions: ['ErrorReportingService:captureException'],
- *   allowedEvents: [],
+ * const exampleControllerMessenger = new Messenger<
+ *  'ExampleController',
+ *  MessengerActions<ExampleControllerMessenger>,
+ *  MessengerEvents<ExampleControllerMessenger>,
+ *  RootMessenger
+ * >({
+ *   namespace: 'ExampleController',
+ *   parent: globalMessenger,
+ * });
+ * globalMessenger.delegate({
+ *   messenger: exampleControllerMessenger,
+ *   actions: ['ErrorReportingService:captureException'],
  * });
  * const exampleController = new ExampleController({
  *   messenger: exampleControllerMessenger,
