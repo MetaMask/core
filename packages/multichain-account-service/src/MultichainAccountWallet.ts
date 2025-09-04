@@ -402,7 +402,7 @@ export class MultichainAccountWallet<
           break;
         }
 
-        if (!accounts?.length) {
+        if (!accounts.length) {
           console.log(step('STOPPED'));
           context.stopped = true;
           break;
