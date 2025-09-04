@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BtcAccountType } from '@metamask/keyring-api';
 
 import * as calculateDefiMetrics from './calculate-defi-metrics';
@@ -19,7 +20,6 @@ import type {
   InternalAccount,
   TransactionMeta,
 } from '../../../transaction-controller/src/types';
-import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 const OWNER_ACCOUNTS = [
   createMockInternalAccount({
