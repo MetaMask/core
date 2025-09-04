@@ -25,7 +25,6 @@ import type { NamedAccountProvider } from './providers';
 export type AccountProviderDiscoveryContext = {
   provider: NamedAccountProvider;
   stopped: boolean;
-  running?: Promise<void>;
   groupIndex: number;
   count: number;
 };
@@ -379,112 +378,59 @@ export class MultichainAccountWallet<
     // from there).
     let maxGroupIndex = this.getNextGroupIndex();
 
-    const providerContexts: AccountProviderDiscoveryContext[] = this.#providers.map(
-      (provider) => ({
-        provider,
-        stopped: false,
-        running: undefined,
-        groupIndex: maxGroupIndex,
-        count: 0,
-      }),
-    );
+    // One serialized loop per provider; all run concurrently
+    const run = async (context: AccountProviderDiscoveryContext) => {
+      const step = (stepName: string) =>
+        `[${context.provider.getName()}] Discover ${stepName} (groupIndex=${context.groupIndex})`;
 
-    const schedule = async (
-      context: AccountProviderDiscoveryContext,
-      groupIndex: number,
-    ) => {
-      /* istanbul ignore next
-       * Reason: This guard triggers only if `schedule` is invoked for the same
-       * provider while a previous step is still pending. Because the
-       * coordinator self‑reschedules in `finally` and catch‑up scheduling checks
-       * `!qCtx.running`, creating this exact interleaving in unit tests without
-       * racy sleeps is brittle. We keep the guard for safety and exclude it from
-       * coverage.
-       */
-      if (context.running) {
-        // Wait for current scheduled job before starting a new one.
-        await context.running.catch((error) => {
-          console.error(error);
-        });
-        context.running = undefined;
-      }
+      while (!context.stopped) {
+        // Fast‑forward to current high‑water mark
+        const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
 
-      // Keep track of the current group index being discovery by this provider.
-      context.groupIndex = groupIndex;
+        console.log(step('STARTED'));
 
-      // Pending promise of the provider's discovery for this group index.
-      return (async (): Promise<void> => {
+        let accounts: undefined | Bip44Account<KeyringAccount>[];
         try {
-          const accounts = await context.provider.discoverAndCreateAccounts({
+          accounts = await context.provider.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
-            groupIndex,
+            groupIndex: targetGroupIndex,
           });
-
-          // Stopping condition: Account discovery is halted if no accounts are returned by the provider.
-          if (!accounts.length) {
-            context.stopped = true;
-            return;
-          }
-
-          context.count += accounts.length;
-
-          const nextGroupIndex = groupIndex + 1;
-          context.groupIndex = nextGroupIndex;
-
-          if (nextGroupIndex > maxGroupIndex) {
-            maxGroupIndex = nextGroupIndex;
-            for (const nextContext of providerContexts) {
-              /* istanbul ignore next
-               * Reason: This branch triggers only when a lagging provider is
-               * momentarily "not running" exactly as another provider advances
-               * the high group index. Because the coordinator self‑reschedules in
-               * `finally`, tests cannot reliably create this timing window without
-               * racy sleeps. We keep this path for robustness and exclude it from
-               * coverage.
-               */
-              if (
-                !nextContext.stopped &&
-                !nextContext.running &&
-                nextContext.groupIndex < maxGroupIndex
-              ) {
-                nextContext.running = schedule(nextContext, maxGroupIndex);
-              }
-            }
-          }
         } catch (error) {
           context.stopped = true;
-          console.error(
-            `Discovery FAILED for "${context.provider.getName()}" provider:`,
-            error,
-          );
-        } finally {
-          context.running = undefined;
-          if (!context.stopped) {
-            const highestGroupIndex = Math.max(
-              maxGroupIndex,
-              context.groupIndex,
-            );
-            context.running = schedule(context, highestGroupIndex);
-          }
+          console.error(error);
+          console.error(step('FAILED'), error);
+          break;
         }
-      })();
+
+        if (!accounts?.length) {
+          console.log(step('STOPPED'));
+          context.stopped = true;
+          break;
+        }
+
+        console.log(step('SUCCEED'));
+
+        context.count += accounts.length;
+
+        const nextGroupIndex = targetGroupIndex + 1;
+        context.groupIndex = nextGroupIndex;
+
+        if (nextGroupIndex > maxGroupIndex) {
+          maxGroupIndex = nextGroupIndex;
+        }
+      }
     };
 
-    // Start discovery for all providers.
-    for (const context of providerContexts) {
-      context.running = schedule(context, maxGroupIndex);
-    }
+    const providerContexts: AccountProviderDiscoveryContext[] =
+      this.#providers.map((provider) => ({
+        provider,
+        stopped: false,
+        groupIndex: maxGroupIndex,
+        count: 0,
+      }));
 
-    let racers: Promise<void>[] = [];
-    do {
-      racers = [...providerContexts.values()]
-        .filter((ctx) => ctx.running !== undefined)
-        .map((ctx) => ctx.running) as Promise<void>[];
-
-      if (racers.length) {
-        await Promise.race(racers);
-      }
-    } while (racers.length);
+    // Start discovery for each providers.
+    await Promise.all(providerContexts.map(run));
 
     // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
     // We can potentially remove this if we know that this race condition is not an issue in practice.
