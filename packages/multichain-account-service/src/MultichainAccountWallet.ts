@@ -407,7 +407,7 @@ export class MultichainAccountWallet<
       context.groupIndex = groupIndex;
 
       // Pending promise of the provider's discovery for this group index.
-      context.running = (async (): Promise<void> => {
+      return (async (): Promise<void> => {
         try {
           const accounts = await context.provider.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
@@ -462,8 +462,6 @@ export class MultichainAccountWallet<
           }
         }
       })();
-
-      return context.running;
     };
 
     // Start discovery for all providers.
