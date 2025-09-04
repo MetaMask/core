@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.0]
+
 ### Added
 
 - Add `deriveStateFromMetadata` export, which can derive state for any metadata property ([#6359](https://github.com/MetaMask/core/pull/6359))
@@ -14,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `includeInStateLogs` and `usedInUi` metadata properties ([#6359](https://github.com/MetaMask/core/pull/6359))
   - State derivation is disallowed for `usedInUi`.
   - This change has also been made to the experimental `next` export.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^0.1.0` to `^0.2.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ### Deprecated
 
@@ -357,7 +363,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...HEAD
+[8.3.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...@metamask/base-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...@metamask/base-controller@8.2.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.0...@metamask/base-controller@8.0.1

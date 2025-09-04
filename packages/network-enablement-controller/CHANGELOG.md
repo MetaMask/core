@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `BtcScope` enum for Bitcoin mainnet and testnet caip chain IDs ([#6455](https://github.com/MetaMask/core/pull/6455))
 - Add Bitcoin network enablement logic to `init()` and `enableAllPopularNetworks()` methods ([#6455](https://github.com/MetaMask/core/pull/6455))
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
 ## [0.4.0]
 
 ### Added
