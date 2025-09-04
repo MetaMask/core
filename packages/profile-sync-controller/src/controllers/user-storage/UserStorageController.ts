@@ -108,36 +108,52 @@ export const defaultState: UserStorageControllerState = {
 
 const metadata: StateMetadata<UserStorageControllerState> = {
   isBackupAndSyncEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   isBackupAndSyncUpdateLoading: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isAccountSyncingEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   isContactSyncingEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   isContactSyncingInProgress: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   hasAccountSyncingSyncedAtLeastOnce: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isAccountSyncingReadyToBeDispatched: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isAccountSyncingInProgress: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
 };
 
