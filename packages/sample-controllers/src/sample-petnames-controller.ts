@@ -41,8 +41,10 @@ export type SamplePetnamesControllerState = {
  */
 const samplePetnamesControllerMetadata = {
   namesByChainIdAndAddress: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 } satisfies StateMetadata<SamplePetnamesControllerState>;
 
