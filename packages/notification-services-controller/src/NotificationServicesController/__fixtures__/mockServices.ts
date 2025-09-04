@@ -8,7 +8,6 @@ import {
   getMockMarkNotificationsAsReadResponse,
   getMockCreatePerpOrderNotification,
 } from '../mocks/mockResponses';
-import { PERPS_API } from '../services/perp-notifications';
 
 type MockReply = {
   status: nock.StatusCode;
