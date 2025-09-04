@@ -33,7 +33,7 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { ChainPaymentInfo, ProductPrice, TokenPaymentInfo } from './types';
+import type { ChainPaymentInfo, ProductPrice, StartCryptoSubscriptionRequest, TokenPaymentInfo } from './types';
 import {
   PaymentType,
   SubscriptionStatus,
@@ -273,6 +273,11 @@ export class SubscriptionController extends BaseController<
     this.#assertIsUserNotSubscribed({ products: request.products });
 
     return await this.#subscriptionService.startSubscriptionWithCard(request);
+  }
+
+  async startCryptoSubscription(request: StartCryptoSubscriptionRequest) {
+    this.#assertIsUserNotSubscribed({ products: request.products });
+    return await this.#subscriptionService.startCryptoSubscription(request);
   }
 
   /**

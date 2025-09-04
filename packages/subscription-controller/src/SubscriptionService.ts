@@ -10,6 +10,8 @@ import type {
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
+  StartCryptoSubscriptionRequest,
+  StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
 } from './types';
@@ -56,6 +58,13 @@ export class SubscriptionService implements ISubscriptionService {
     }
     const path = 'subscriptions/card';
 
+    return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async startCryptoSubscription(
+    request: StartCryptoSubscriptionRequest,
+  ): Promise<StartCryptoSubscriptionResponse> {
+    const path = 'subscriptions/crypto';
     return await this.#makeRequest(path, 'POST', request);
   }
 

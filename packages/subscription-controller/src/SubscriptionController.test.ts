@@ -23,7 +23,14 @@ import {
   type SubscriptionControllerOptions,
   type SubscriptionControllerState,
 } from './SubscriptionController';
-import type { Subscription, PricingResponse, ProductPricing, PricingPaymentMethod } from './types';
+import type {
+  Subscription,
+  PricingResponse,
+  ProductPricing,
+  PricingPaymentMethod,
+  StartCryptoSubscriptionRequest,
+  StartCryptoSubscriptionResponse,
+} from './types';
 import {
   PaymentType,
   ProductType,
@@ -170,12 +177,14 @@ function createMockSubscriptionService() {
   const mockCancelSubscription = jest.fn();
   const mockStartSubscriptionWithCard = jest.fn();
   const mockGetPricing = jest.fn();
+  const mockStartCryptoSubscription = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
     startSubscriptionWithCard: mockStartSubscriptionWithCard,
     getPricing: mockGetPricing,
+    startCryptoSubscription: mockStartCryptoSubscription,
   };
 
   return {
@@ -184,6 +193,7 @@ function createMockSubscriptionService() {
     mockCancelSubscription,
     mockStartSubscriptionWithCard,
     mockGetPricing,
+    mockStartCryptoSubscription,
   };
 }
 
@@ -562,6 +572,44 @@ describe('SubscriptionController', () => {
             isTrialRequested: true,
             recurringInterval: RecurringInterval.month,
           });
+        },
+      );
+    });
+  });
+
+  describe('startCryptoSubscription', () => {
+    it('should start crypto subscription successfully when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const request: StartCryptoSubscriptionRequest = {
+            products: [ProductType.SHIELD],
+            isTrialRequested: false,
+            recurringInterval: RecurringInterval.month,
+            billingCycles: 3,
+            chainId: '0x1',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'USDC',
+            rawTransaction: '0xdeadbeef',
+          };
+
+          const response: StartCryptoSubscriptionResponse = {
+            subscriptionId: 'sub_crypto_123',
+            status: SubscriptionStatus.active,
+          };
+
+          mockService.startCryptoSubscription.mockResolvedValue(response);
+
+          const result = await controller.startCryptoSubscription(request);
+
+          expect(result).toStrictEqual(response);
+          expect(mockService.startCryptoSubscription).toHaveBeenCalledWith(
+            request,
+          );
         },
       );
     });

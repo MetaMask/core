@@ -1,3 +1,5 @@
+import type { Hex } from '@metamask/utils';
+
 export enum ProductType {
   SHIELD = 'shield',
 }
@@ -76,6 +78,25 @@ export type StartSubscriptionResponse = {
   checkoutSessionUrl: string;
 };
 
+export type StartCryptoSubscriptionRequest = {
+  products: ProductType[];
+  isTrialRequested: boolean;
+  recurringInterval: RecurringInterval;
+  billingCycles: number;
+  chainId: string;
+  payerAddress: string;
+  /**
+   * e.g. "USDC"
+   */
+  tokenSymbol: string;
+  rawTransaction: Hex;
+};
+
+export type StartCryptoSubscriptionResponse = {
+  subscriptionId: string;
+  status: SubscriptionStatus;
+};
+
 export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
@@ -133,8 +154,11 @@ export type PricingResponse = {
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
+  getPricing(): Promise<PricingResponse>;
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
-  getPricing(): Promise<PricingResponse>;
+  startCryptoSubscription(
+    request: StartCryptoSubscriptionRequest,
+  ): Promise<StartCryptoSubscriptionResponse>;
 };

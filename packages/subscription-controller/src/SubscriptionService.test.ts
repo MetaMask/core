@@ -10,6 +10,7 @@ import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
 import type {
   StartSubscriptionRequest,
+  StartCryptoSubscriptionRequest,
   Subscription,
   PricingResponse,
 } from './types';
@@ -275,6 +276,37 @@ describe('SubscriptionService', () => {
       await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
+    });
+  });
+
+  describe('startCryptoSubscription', () => {
+    it('should start crypto subscription successfully', async () => {
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        const request: StartCryptoSubscriptionRequest = {
+          products: [ProductType.SHIELD],
+          isTrialRequested: false,
+          recurringInterval: RecurringInterval.month,
+          billingCycles: 3,
+          chainId: '0x1',
+          payerAddress: '0x0000000000000000000000000000000000000001',
+          tokenSymbol: 'USDC',
+          rawTransaction: '0xdeadbeef',
+        };
+
+        const response = {
+          subscriptionId: 'sub_crypto_123',
+          status: SubscriptionStatus.active,
+        };
+
+        nock(testUrl)
+          .post('/v1/subscriptions/crypto', request)
+          .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+          .reply(200, response);
+
+        const result = await service.startCryptoSubscription(request);
+
+        expect(result).toStrictEqual(response);
+      });
     });
   });
 
