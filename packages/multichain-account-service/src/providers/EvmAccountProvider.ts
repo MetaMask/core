@@ -60,12 +60,14 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return provider;
   }
 
-  async createAccount({
+  async #createAccount({
     entropySource,
     groupIndex,
+    throwOnGap = false,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
+    throwOnGap?: boolean;
   }): Promise<[Hex, boolean]> {
     const result = await this.withKeyring<EthKeyring, [Hex, boolean]>(
       { id: entropySource },
@@ -74,6 +76,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         if (groupIndex < existing.length) {
           return [existing[groupIndex], false];
         }
+
+        // For now, we don't allow for gap, so if we need to create a new
+        // account, this has to be the next one.
+        if (groupIndex !== existing.length && throwOnGap) {
+          throw new Error('Trying to create too many accounts');
+        }
+
         const [added] = await keyring.addAccounts(1);
         return [added, true];
       },
@@ -89,9 +98,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }) {
-    const [address] = await this.createAccount({
+    const [address] = await this.#createAccount({
       entropySource,
       groupIndex,
+      throwOnGap: true,
     });
 
     const account = this.messenger.call(
@@ -123,7 +133,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const provider = this.getEvmProvider();
     const { entropySource, groupIndex } = opts;
 
-    const [address, didCreate] = await this.createAccount({
+    const [address, didCreate] = await this.#createAccount({
       entropySource,
       groupIndex,
     });
