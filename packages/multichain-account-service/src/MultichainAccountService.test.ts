@@ -1002,9 +1002,9 @@ describe('MultichainAccountService', () => {
         keyrings: [],
       });
 
-      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
-        () => [],
-      );
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+        {},
+      ]);
 
       mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
         id: 'abc',

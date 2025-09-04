@@ -279,26 +279,10 @@ describe('EvmAccountProvider', () => {
     });
 
     const expectedAccount = {
+      ...MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withAddressSuffix('0')
+        .get(),
       id: expect.any(String),
-      address: `${MOCK_HD_ACCOUNT_1.address}0`,
-      options: {
-        entropy: {
-          id: MOCK_HD_KEYRING_1.metadata.id,
-          type: 'mnemonic',
-          groupIndex: 0,
-          derivationPath: '',
-        },
-      },
-      methods: [...ETH_EOA_METHODS],
-      scopes: [EthScope.Eoa],
-      type: EthAccountType.Eoa,
-      metadata: {
-        name: 'Account 1',
-        keyring: { type: KeyringTypes.hd },
-        importTime: 0,
-        lastSelected: 0,
-        nameLastUpdatedAt: 0,
-      },
     };
 
     expect(
@@ -330,12 +314,30 @@ describe('EvmAccountProvider', () => {
     expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
 
+  it('removes discovered account if RPC request fails', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    mocks.mockProviderRequest.mockImplementation(() => {
+      throw new Error('RPC request failed');
+    });
+
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      }),
+    ).toStrictEqual([]);
+
+    expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+  });
+
   it('returns an existing account if it already exists', async () => {
     const { provider } = setup({
       accounts: [MOCK_HD_ACCOUNT_1],
     });
 
-    // Discovery starts at index + 1 for EVM.
     expect(
       await provider.discoverAndCreateAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
