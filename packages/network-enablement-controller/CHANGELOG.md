@@ -10,13 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Bitcoin network support with automatic enablement when configured in MultichainNetworkController ([#6455](https://github.com/MetaMask/core/pull/6455))
-- Add `BtcScope` enum for Bitcoin mainnet, testnet, and signet CAIP chain IDs ([#6455](https://github.com/MetaMask/core/pull/6455))
+- Add `BtcScope` enum for Bitcoin mainnet and testnet caip chain IDs ([#6455](https://github.com/MetaMask/core/pull/6455))
 - Add Bitcoin network enablement logic to `init()` and `enableAllPopularNetworks()` methods ([#6455](https://github.com/MetaMask/core/pull/6455))
-- Add support for Bitcoin testnet and signet networks with proper chain ID validation ([#6455](https://github.com/MetaMask/core/pull/6455))
 
 ### Changed
-
-- Bitcoin testnet and signet networks now default to disabled state, with only mainnet enabled by default ([#6455](https://github.com/MetaMask/core/pull/6455))
+- Bitcoin testnet and signet networks and add as default to disabled state, with only mainnet enabled by default ([#6474](https://github.com/MetaMask/core/pull/6474))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [0.4.0]
