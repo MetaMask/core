@@ -28,11 +28,13 @@ import {
 } from './processors/process-notifications';
 import * as FeatureNotifications from './services/feature-announcements';
 import * as OnChainNotifications from './services/onchain-notifications';
+import { createPerpOrderNotification } from './services/perp-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
+import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
@@ -451,6 +453,7 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (totalAccounts, prevTotalAccounts) => {
           const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
           if (
@@ -1247,6 +1250,21 @@ export default class NotificationServicesController extends BaseController<
         `${controllerName}:notificationsListUpdated`,
         this.state.metamaskNotificationsList,
       );
+    }
+  }
+
+  /**
+   * Creates an perp order notification subscription.
+   * Requires notifications and auth to be enabled to start receiving this notifications
+   *
+   * @param input perp input
+   */
+  public async sendPerpPlaceOrderNotification(input: OrderInput) {
+    try {
+      const { bearerToken } = await this.#getBearerToken();
+      await createPerpOrderNotification(bearerToken, input);
+    } catch {
+      // Do Nothing
     }
   }
 }
