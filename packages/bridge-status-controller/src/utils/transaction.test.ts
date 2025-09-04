@@ -1411,7 +1411,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
     });
 
-    it('should leave isGasFeeIncluded undefined and set disable7702 to true when gasIncluded7702 is undefined', async () => {
+    it('should set isGasFeeIncluded to false and set disable7702 to true when gasIncluded7702 is undefined', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
         gasIncluded7702: undefined,
       });
@@ -1424,7 +1424,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      expect(result.isGasFeeIncluded).toBeUndefined();
+      expect(result.isGasFeeIncluded).toBe(false);
       expect(result.disable7702).toBe(true);
     });
 
