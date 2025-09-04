@@ -18,7 +18,16 @@ import {
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
-import type { ProviderDiscoveryContext } from './types';
+
+/**
+ * The context for a provider discovery.
+ */
+export type AccountProviderDiscoveryContext = {
+  provider: NamedAccountProvider;
+  stopped: boolean;
+  groupIndex: number;
+  count: number;
+};
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -365,122 +374,78 @@ export class MultichainAccountWallet<
    * @returns The discovered accounts for each provider.
    */
   async discoverAndCreateAccounts(): Promise<Record<string, number>> {
-    const providers = this.#providers;
-    const providerContexts = new Map<
-      NamedAccountProvider,
-      ProviderDiscoveryContext
-    >();
+    // Start with the next available group index (so we can resume the discovery
+    // from there).
+    let maxGroupIndex = this.getNextGroupIndex();
 
-    for (const p of providers) {
-      providerContexts.set(p, { stopped: false, groupIndex: 0, count: 0 });
-    }
+    // One serialized loop per provider; all run concurrently
+    const runProviderDiscovery = async (
+      context: AccountProviderDiscoveryContext,
+    ) => {
+      const step = (stepName: string) =>
+        `[${context.provider.getName()}] Discover ${stepName} (groupIndex=${context.groupIndex})`;
 
-    let maxGroupIndex = 0;
+      while (!context.stopped) {
+        // Fast‑forward to current high‑water mark
+        const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
 
-    const schedule = async (p: NamedAccountProvider, index: number) => {
-      // Ok to cast here because we know that the ctx will always be set.
-      const providerCtx = providerContexts.get(p) as ProviderDiscoveryContext;
+        console.log(step('STARTED'));
 
-      /* istanbul ignore next
-       * Reason: This guard triggers only if `schedule` is invoked for the same
-       * provider while a previous step is still pending. Because the
-       * coordinator self‑reschedules in `finally` and catch‑up scheduling checks
-       * `!qCtx.running`, creating this exact interleaving in unit tests without
-       * racy sleeps is brittle. We keep the guard for safety and exclude it from
-       * coverage.
-       */
-      if (providerCtx.running) {
-        // Wait for current scheduled job before starting a new one.
-        await providerCtx.running.catch((error) => {
-          console.error(error);
-        });
-        providerCtx.running = undefined;
-      }
-
-      providerCtx.groupIndex = index;
-
-      providerCtx.running = (async () => {
+        let accounts: Bip44Account<KeyringAccount>[] = [];
         try {
-          const accounts = await p.discoverAndCreateAccounts({
+          accounts = await context.provider.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
-            groupIndex: index,
+            groupIndex: targetGroupIndex,
           });
-
-          // Stopping condition: Account discovery is halted if no accounts are returned by the provider.
-          if (!accounts.length) {
-            providerCtx.stopped = true;
-            return;
-          }
-
-          providerCtx.count += accounts.length;
-
-          const next = index + 1;
-          providerCtx.groupIndex = next;
-
-          if (next > maxGroupIndex) {
-            maxGroupIndex = next;
-            for (const [q, qCtx] of providerContexts) {
-              /* istanbul ignore next
-               * Reason: This branch triggers only when a lagging provider is
-               * momentarily "not running" exactly as another provider advances
-               * the high group index. Because the coordinator self‑reschedules in
-               * `finally`, tests cannot reliably create this timing window without
-               * racy sleeps. We keep this path for robustness and exclude it from
-               * coverage.
-               */
-              if (
-                !qCtx.stopped &&
-                !qCtx.running &&
-                qCtx.groupIndex < maxGroupIndex
-              ) {
-                qCtx.running = schedule(q, maxGroupIndex);
-              }
-            }
-          }
-        } catch (err) {
-          providerCtx.stopped = true;
-          console.error(err);
-        } finally {
-          providerCtx.running = undefined;
-          if (!providerCtx.stopped) {
-            const target = Math.max(maxGroupIndex, providerCtx.groupIndex);
-            providerCtx.running = schedule(p, target);
-          }
+        } catch (error) {
+          context.stopped = true;
+          console.error(error);
+          console.error(step('FAILED'), error);
+          break;
         }
-      })();
 
-      return providerCtx.running;
+        if (!accounts.length) {
+          console.log(step('STOPPED'));
+          context.stopped = true;
+          break;
+        }
+
+        console.log(step('SUCCEED'));
+
+        context.count += accounts.length;
+
+        const nextGroupIndex = targetGroupIndex + 1;
+        context.groupIndex = nextGroupIndex;
+
+        if (nextGroupIndex > maxGroupIndex) {
+          maxGroupIndex = nextGroupIndex;
+        }
+      }
     };
 
-    const currentGroupIndex = this.getNextGroupIndex();
-    // Start discovery for all providers.
-    for (const p of providers) {
-      const pCtx = providerContexts.get(p) as ProviderDiscoveryContext;
-      pCtx.running = schedule(p, currentGroupIndex);
-    }
+    const providerContexts: AccountProviderDiscoveryContext[] =
+      this.#providers.map((provider) => ({
+        provider,
+        stopped: false,
+        groupIndex: maxGroupIndex,
+        count: 0,
+      }));
 
-    let racers: Promise<void>[] = [];
-    do {
-      racers = [...providerContexts.values()]
-        .map((c) => c.running)
-        .filter(Boolean) as Promise<void>[];
-
-      if (racers.length) {
-        await Promise.race(racers);
-      }
-    } while (racers.length);
+    // Start discovery for each providers.
+    await Promise.all(providerContexts.map(runProviderDiscovery));
 
     // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
     // We can potentially remove this if we know that this race condition is not an issue in practice.
     this.sync();
 
+    // Align missing accounts from group. This is required to create missing account from non-discovered
+    // indexes for some providers.
     await this.alignGroups();
 
     const discoveredAccounts: Record<string, number> = {};
-
-    for (const [p, ctx] of providerContexts) {
-      const groupKey = p.getName();
-      discoveredAccounts[groupKey] = ctx.count;
+    for (const context of providerContexts) {
+      const providerName = context.provider.getName();
+      discoveredAccounts[providerName] = context.count;
     }
 
     return discoveredAccounts;
