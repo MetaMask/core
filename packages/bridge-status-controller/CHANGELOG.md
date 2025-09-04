@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update transaction submission to use new unified Snap interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Replace `signAndSendTransactionWithoutConfirmation` with `ClientRequest:signAndSendTransaction` method
+  - Update response handling to support new `transactionId` format from unified interface
+  - Maintain backward compatibility with legacy response formats
+
 ## [41.0.0]
 
 ### Fixed
