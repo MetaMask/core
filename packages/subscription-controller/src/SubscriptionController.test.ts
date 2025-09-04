@@ -177,14 +177,14 @@ function createMockSubscriptionService() {
   const mockCancelSubscription = jest.fn();
   const mockStartSubscriptionWithCard = jest.fn();
   const mockGetPricing = jest.fn();
-  const mockStartCryptoSubscription = jest.fn();
+  const mockStartSubscriptionWithCrypto = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
     startSubscriptionWithCard: mockStartSubscriptionWithCard,
     getPricing: mockGetPricing,
-    startCryptoSubscription: mockStartCryptoSubscription,
+    startSubscriptionWithCrypto: mockStartSubscriptionWithCrypto,
   };
 
   return {
@@ -193,7 +193,7 @@ function createMockSubscriptionService() {
     mockCancelSubscription,
     mockStartSubscriptionWithCard,
     mockGetPricing,
-    mockStartCryptoSubscription,
+    mockStartSubscriptionWithCrypto,
   };
 }
 
@@ -602,12 +602,12 @@ describe('SubscriptionController', () => {
             status: SubscriptionStatus.active,
           };
 
-          mockService.startCryptoSubscription.mockResolvedValue(response);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(response);
 
-          const result = await controller.startCryptoSubscription(request);
+          const result = await controller.startSubscriptionWithCrypto(request);
 
           expect(result).toStrictEqual(response);
-          expect(mockService.startCryptoSubscription).toHaveBeenCalledWith(
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
             request,
           );
         },
@@ -685,7 +685,7 @@ describe('SubscriptionController', () => {
       ContractCtor.mockImplementation(() => instance);
     });
 
-    it('returns alreadyAllowed when allowance is sufficient', async () => {
+    it('returns undefined when allowance is sufficient', async () => {
       await withController(
         async ({
           controller,
@@ -735,10 +735,10 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           });
 
-          expect(result).toStrictEqual({ alreadyAllowed: true });
+          expect(result).toStrictEqual({ transactionResult: undefined });
           expect(mockAddTransactionFn).not.toHaveBeenCalled();
           expect(mockEstimateGasFeeFn).not.toHaveBeenCalled();
         },
@@ -826,7 +826,7 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           });
 
           expect(result).toStrictEqual({ transactionResult: mockTxResult });
@@ -893,7 +893,7 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Price not found');
       });
@@ -999,7 +999,7 @@ describe('SubscriptionController', () => {
               chainId: '0x1',
               tokenAddress: '0xtoken',
               productType: ProductType.SHIELD,
-              interval: 'month',
+              interval: RecurringInterval.month,
             }),
           ).rejects.toThrow('No provider found');
         },
@@ -1071,7 +1071,7 @@ describe('SubscriptionController', () => {
               chainId: '0x1',
               tokenAddress: '0xtoken',
               productType: ProductType.SHIELD,
-              interval: 'month',
+              interval: RecurringInterval.month,
             }),
           ).rejects.toThrow('Conversion rate not found');
         },
@@ -1126,7 +1126,7 @@ describe('SubscriptionController', () => {
               chainId: '0x1',
               tokenAddress: '0xtoken',
               productType: ProductType.SHIELD,
-              interval: 'month',
+              interval: RecurringInterval.month,
             }),
           ).rejects.toThrow('No wallet address found');
         },

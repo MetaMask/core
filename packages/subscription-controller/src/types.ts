@@ -1,3 +1,4 @@
+import type { Result } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export enum ProductType {
@@ -151,6 +152,27 @@ export type PricingResponse = {
   paymentMethods: PricingPaymentMethod[];
 };
 
+export type CreateCryptoApproveTransactionRequest = {
+  /**
+   * payment chain ID
+   */
+  chainId: string;
+  /**
+   * Payment token address
+   */
+  tokenAddress: string;
+  productType: ProductType;
+  interval: RecurringInterval;
+};
+
+export type CreateCryptoApproveTransactionResponse = {
+  /**
+   * Transaction result.
+   * Return undefined if allowance is already allowed.
+   */
+  transactionResult?: Result;
+};
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
@@ -158,7 +180,7 @@ export type ISubscriptionService = {
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
-  startCryptoSubscription(
+  startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse>;
 };

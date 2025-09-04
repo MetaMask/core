@@ -22,7 +22,6 @@ import type {
 } from '@metamask/network-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
-  type Result,
   TransactionType,
   type TransactionController,
   type TransactionParams,
@@ -35,6 +34,8 @@ import {
 } from './constants';
 import type {
   ChainPaymentInfo,
+  CreateCryptoApproveTransactionRequest,
+  CreateCryptoApproveTransactionResponse,
   ProductPrice,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
@@ -75,9 +76,9 @@ export type SubscriptionControllerCreateCryptoApproveTransactionAction = {
   type: `${typeof controllerName}:createCryptoApproveTransaction`;
   handler: SubscriptionController['createCryptoApproveTransaction'];
 };
-export type SubscriptionControllerStartCryptoSubscriptionAction = {
-  type: `${typeof controllerName}:startCryptoSubscription`;
-  handler: SubscriptionController['startCryptoSubscription'];
+export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
+  type: `${typeof controllerName}:startSubscriptionWithCrypto`;
+  handler: SubscriptionController['startSubscriptionWithCrypto'];
 };
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
@@ -91,7 +92,7 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerCreateCryptoApproveTransactionAction
-  | SubscriptionControllerStartCryptoSubscriptionAction;
+  | SubscriptionControllerStartSubscriptionWithCryptoAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -243,8 +244,8 @@ export class SubscriptionController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'SubscriptionController:startCryptoSubscription',
-      this.startCryptoSubscription.bind(this),
+      'SubscriptionController:startSubscriptionWithCrypto',
+      this.startSubscriptionWithCrypto.bind(this),
     );
   }
 
@@ -290,13 +291,14 @@ export class SubscriptionController extends BaseController<
     return await this.#subscriptionService.startSubscriptionWithCard(request);
   }
 
-  async startCryptoSubscription(request: StartCryptoSubscriptionRequest) {
+  async startSubscriptionWithCrypto(request: StartCryptoSubscriptionRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
-    return await this.#subscriptionService.startCryptoSubscription(request);
+    return await this.#subscriptionService.startSubscriptionWithCrypto(request);
   }
 
   /**
    * Create a crypto approve transaction for subscription payment
+   * Return undefined if allowance amount is already allowed.
    *
    * @param request - The request object
    * @param request.chainId - The chain ID
@@ -305,15 +307,9 @@ export class SubscriptionController extends BaseController<
    * @param request.interval - The interval
    * @returns The transaction raw or already allowed flag
    */
-  async createCryptoApproveTransaction(request: {
-    chainId: string;
-    tokenAddress: string;
-    productType: ProductType;
-    interval: 'month' | 'year';
-  }): Promise<{
-    alreadyAllowed?: boolean;
-    transactionResult?: Result;
-  }> {
+  async createCryptoApproveTransaction(
+    request: CreateCryptoApproveTransactionRequest,
+  ): Promise<CreateCryptoApproveTransactionResponse> {
     const pricing = await this.#subscriptionService.getPricing();
     const product = pricing.products.find(
       (p) => p.name === request.productType,
@@ -369,7 +365,7 @@ export class SubscriptionController extends BaseController<
     });
     if (allowance.gte(tokenApproveAmount)) {
       return {
-        alreadyAllowed: true,
+        transactionResult: undefined,
       };
     }
 

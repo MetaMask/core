@@ -303,7 +303,7 @@ describe('SubscriptionService', () => {
           .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
           .reply(200, response);
 
-        const result = await service.startCryptoSubscription(request);
+        const result = await service.startSubscriptionWithCrypto(request);
 
         expect(result).toStrictEqual(response);
       });
