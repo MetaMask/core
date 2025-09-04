@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: cache vault data while unlock ([#6205](https://github.com/MetaMask/core/pull/6205))
+
 ### Added
 
 - Added `renewRefreshToken` options in SeedlessOnboardingController constructor - A function to renew the refresh token and get new revoke token. ([#6275](https://github.com/MetaMask/core/pull/6275))
