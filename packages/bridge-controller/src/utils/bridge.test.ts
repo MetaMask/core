@@ -9,7 +9,9 @@ import {
   isBitcoinChainId,
   isCrossChain,
   isEthUsdt,
+  isNonEvmChainId,
   isSolanaChainId,
+  isTronChainId,
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
   sumHexes,
@@ -197,6 +199,80 @@ describe('Bridge utils', () => {
       expect(isBitcoinChainId('invalid')).toBe(false);
       expect(isBitcoinChainId('test')).toBe(false);
       expect(isBitcoinChainId('')).toBe(false);
+    });
+  });
+
+  describe('isTronChainId', () => {
+    it('returns true for ChainId.TRON (numeric)', () => {
+      expect(isTronChainId(ChainId.TRON)).toBe(true);
+      expect(isTronChainId(728126428)).toBe(true);
+    });
+
+    it('returns true for ChainId.TRON (string)', () => {
+      expect(isTronChainId('728126428')).toBe(true);
+      expect(isTronChainId(ChainId.TRON.toString())).toBe(true);
+    });
+
+    it('returns true for CAIP-2 Tron mainnet', () => {
+      expect(isTronChainId('tron:0x2b6653dc')).toBe(true);
+    });
+
+    it('returns false for Bitcoin chainIds', () => {
+      expect(isTronChainId(ChainId.BTC)).toBe(false);
+      expect(isTronChainId(BtcScope.Mainnet)).toBe(false);
+      expect(isTronChainId('20000000000001')).toBe(false);
+    });
+
+    it('returns false for Solana chainIds', () => {
+      expect(isTronChainId(ChainId.SOLANA)).toBe(false);
+      expect(isTronChainId(SolScope.Mainnet)).toBe(false);
+      expect(isTronChainId('1151111081099710')).toBe(false);
+    });
+
+    it('returns false for EVM chainIds', () => {
+      expect(isTronChainId('0x1')).toBe(false);
+      expect(isTronChainId(1)).toBe(false);
+      expect(isTronChainId('eip155:1')).toBe(false);
+    });
+
+    it('returns false for invalid chainIds', () => {
+      expect(isTronChainId('invalid')).toBe(false);
+      expect(isTronChainId('test')).toBe(false);
+      expect(isTronChainId('')).toBe(false);
+    });
+  });
+
+  describe('isNonEvmChainId', () => {
+    it('returns true for Solana chainIds', () => {
+      expect(isNonEvmChainId(ChainId.SOLANA)).toBe(true);
+      expect(isNonEvmChainId(SolScope.Mainnet)).toBe(true);
+      expect(isNonEvmChainId('1151111081099710')).toBe(true);
+    });
+
+    it('returns true for Bitcoin chainIds', () => {
+      expect(isNonEvmChainId(ChainId.BTC)).toBe(true);
+      expect(isNonEvmChainId(BtcScope.Mainnet)).toBe(true);
+      expect(isNonEvmChainId('20000000000001')).toBe(true);
+    });
+
+    it('returns true for Tron chainIds', () => {
+      expect(isNonEvmChainId(ChainId.TRON)).toBe(true);
+      expect(isNonEvmChainId('tron:0x2b6653dc')).toBe(true);
+      expect(isNonEvmChainId('728126428')).toBe(true);
+    });
+
+    it('returns false for EVM chainIds', () => {
+      expect(isNonEvmChainId('0x1')).toBe(false);
+      expect(isNonEvmChainId(1)).toBe(false);
+      expect(isNonEvmChainId('eip155:1')).toBe(false);
+      expect(isNonEvmChainId(ChainId.ETH)).toBe(false);
+      expect(isNonEvmChainId(ChainId.POLYGON)).toBe(false);
+    });
+
+    it('returns false for invalid chainIds', () => {
+      expect(isNonEvmChainId('invalid')).toBe(false);
+      expect(isNonEvmChainId('test')).toBe(false);
+      expect(isNonEvmChainId('')).toBe(false);
     });
   });
 

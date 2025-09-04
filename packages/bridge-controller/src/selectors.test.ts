@@ -11,6 +11,7 @@ import {
   selectBridgeQuotes,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectMinimumBalanceForRentExemptionInSOL,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -1110,6 +1111,46 @@ describe('Bridge Selectors', () => {
         chains: {},
         support: false,
       });
+    });
+  });
+
+  describe('selectMinimumBalanceForRentExemptionInSOL', () => {
+    it('should convert lamports to SOL', () => {
+      const state = {
+        minimumBalanceForRentExemptionInLamports: '1000000000', // 1 SOL
+      } as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('1');
+    });
+
+    it('should handle undefined minimumBalanceForRentExemptionInLamports', () => {
+      const state = {} as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('0');
+    });
+
+    it('should handle null minimumBalanceForRentExemptionInLamports', () => {
+      const state = {
+        minimumBalanceForRentExemptionInLamports: null,
+      } as unknown as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('0');
+    });
+
+    it('should handle fractional SOL amounts', () => {
+      const state = {
+        minimumBalanceForRentExemptionInLamports: '500000000', // 0.5 SOL
+      } as BridgeAppState;
+
+      const result = selectMinimumBalanceForRentExemptionInSOL(state);
+
+      expect(result).toBe('0.5');
     });
   });
 });

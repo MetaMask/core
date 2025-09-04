@@ -38,6 +38,7 @@ import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
+  isNonEvmChainId,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -71,7 +72,7 @@ import type {
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 import {
-  getFeeForTransactionRequest,
+  computeFeeRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
 import { FeatureId } from './utils/validators';
@@ -727,51 +728,88 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
   };
 
+  /**
+   * Appends transaction fees for non-EVM chains to quotes
+   *
+   * @param quotes - Array of quote responses to append fees to
+   * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
+   */
   readonly #appendSolanaFees = async (
     quotes: QuoteResponse[],
   ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
-    // Return early if some of the quotes are not for solana
     if (
-      quotes.some(({ quote: { srcChainId } }) => !isSolanaChainId(srcChainId))
+      quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
       return undefined;
     }
 
-    const solanaFeePromises = Promise.allSettled(
+    const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
-        const { trade } = quoteResponse;
+        const { trade, quote } = quoteResponse;
         const selectedAccount = this.#getMultichainSelectedAccount();
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
-          const { value: fees } = (await this.messagingSystem.call(
+          const scope = formatChainIdToCaip(quote.srcChainId);
+
+          const response = (await this.messagingSystem.call(
             'SnapController:handleRequest',
-            getFeeForTransactionRequest(
+            computeFeeRequest(
               selectedAccount.metadata.snap?.id,
               trade,
+              selectedAccount.id,
+              scope,
             ),
-          )) as { value: string };
+          )) as {
+            type: 'base' | 'priority';
+            asset: {
+              unit: string;
+              type: string;
+              amount: string;
+              fungible: true;
+            };
+          }[];
+
+          const baseFee = response?.find((fee) => fee.type === 'base');
+          let feeInNative = '0';
+
+          if (baseFee?.asset?.amount) {
+            if (isSolanaChainId(quote.srcChainId)) {
+              // Convert SOL to Lamports (1 SOL = 10^9 Lamports)
+              // Use string manipulation to avoid floating point precision issues
+              const parts = baseFee.asset.amount.split('.');
+              const wholePart = parts[0] || '0';
+              const decimalPart = (parts[1] || '').padEnd(9, '0').slice(0, 9);
+              feeInNative = BigInt(wholePart + decimalPart).toString();
+            } else {
+              // For other chains (BTC, Tron), use the fee as-is
+              feeInNative = baseFee.asset.amount;
+            }
+          }
 
           return {
             ...quoteResponse,
-            solanaFeesInLamports: fees,
+            solanaFeesInLamports: feeInNative,
           };
         }
         return quoteResponse;
       }),
     );
 
-    const quotesWithSolanaFees = (await solanaFeePromises).reduce<
+    const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
       (QuoteResponse & SolanaFees)[]
     >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
         acc.push(result.value);
       } else if (result.status === 'rejected') {
-        console.error('Error calculating solana fees for quote', result.reason);
+        console.error(
+          'Error calculating non-EVM fees for quote',
+          result.reason,
+        );
       }
       return acc;
     }, []);
 
-    return quotesWithSolanaFees;
+    return quotesWithNonEvmFees;
   };
 
   #getMultichainSelectedAccount() {
