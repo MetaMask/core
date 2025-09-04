@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Migrate the following controllers to the new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - `AccountTrackerController`
+  - `CurrencyRateController`
+  - `DeFiPositionController`
+  - `MultichainAssetsRatesController`
+  - `TokenBalancesController`
+  - `TokenDetectionController`
+  - `TokenListController`
+  - `TokenRatesController`
 - **BREAKING:** Migrate `AssetsContractController`, `NftController`, and `TokensController` to new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
   - Previously, the controllers accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
