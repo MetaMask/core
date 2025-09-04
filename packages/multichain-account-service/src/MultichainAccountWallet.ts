@@ -18,6 +18,7 @@ import {
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
+import { ProviderDiscoveryContext } from './types';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -367,12 +368,7 @@ export class MultichainAccountWallet<
     const providers = this.#providers;
     const providerContexts = new Map<
       NamedAccountProvider,
-      {
-        stopped: boolean;
-        running?: Promise<void>;
-        groupIndex: number;
-        count: number;
-      }
+      ProviderDiscoveryContext
     >();
 
     for (const p of providers) {
@@ -383,12 +379,7 @@ export class MultichainAccountWallet<
 
     const schedule = async (p: NamedAccountProvider, index: number) => {
       // Ok to cast here because we know that the ctx will always be set.
-      const providerCtx = providerContexts.get(p) as {
-        stopped: boolean;
-        running?: Promise<void>;
-        groupIndex: number;
-        count: number;
-      };
+      const providerCtx = providerContexts.get(p) as ProviderDiscoveryContext;
 
       /* istanbul ignore next
        * Reason: This guard triggers only if `schedule` is invoked for the same
@@ -464,12 +455,7 @@ export class MultichainAccountWallet<
     const currentGroupIndex = this.getNextGroupIndex();
     // Start discovery for all providers.
     for (const p of providers) {
-      const pCtx = providerContexts.get(p) as {
-        stopped: boolean;
-        running?: Promise<void>;
-        groupIndex: number;
-        count: number;
-      };
+      const pCtx = providerContexts.get(p) as ProviderDiscoveryContext;
       pCtx.running = schedule(p, currentGroupIndex);
     }
 

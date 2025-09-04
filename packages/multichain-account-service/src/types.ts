@@ -138,3 +138,13 @@ export type MultichainAccountServiceMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+/**
+ * The context for a provider discovery.
+ */
+export type ProviderDiscoveryContext = {
+  stopped: boolean;
+  running?: Promise<void>;
+  groupIndex: number;
+  count: number;
+};
