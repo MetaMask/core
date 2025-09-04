@@ -18,6 +18,7 @@ import {
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -35,18 +36,23 @@ export class MultichainAccountWallet<
 
   readonly #accountGroups: Map<number, MultichainAccountGroup<Account>>;
 
+  readonly #messenger: MultichainAccountServiceMessenger;
+
   #isAlignmentInProgress: boolean = false;
 
   constructor({
     providers,
     entropySource,
+    messenger,
   }: {
     providers: AccountProvider<Account>[];
     entropySource: EntropySourceId;
+    messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
     this.#providers = providers;
     this.#entropySource = entropySource;
+    this.#messenger = messenger;
     this.#accountGroups = new Map();
 
     // Initial synchronization.
@@ -99,6 +105,14 @@ export class MultichainAccountWallet<
       multichainAccount,
     ] of this.#accountGroups.entries()) {
       multichainAccount.sync();
+
+      // Emit update event for synced groups
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        multichainAccount as unknown as MultichainAccountGroup<
+          Bip44Account<KeyringAccount>
+        >,
+      );
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
@@ -227,6 +241,13 @@ export class MultichainAccountWallet<
       // reference.
       group.sync();
 
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        group as unknown as MultichainAccountGroup<
+          Bip44Account<KeyringAccount>
+        >,
+      );
+
       return group;
     }
 
@@ -293,6 +314,11 @@ export class MultichainAccountWallet<
 
     // Register the account to our internal map.
     this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
+
+    this.#messenger.publish(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      group as unknown as MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+    );
 
     return group;
   }
