@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
+
 ### Changed
 
 - Update nonce of existing transaction if converted to batch via `batchTransactions` but not first transaction ([#6528](https://github.com/MetaMask/core/pull/6528))
