@@ -47,7 +47,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.2.0",
+    "@metamask/7715-permission-types": "^0.3.0",
+    "@metamask/base-controller": "^8.3.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/utils": "^11.4.2"
@@ -75,5 +76,10 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false
+    }
   }
 }
