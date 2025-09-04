@@ -33,7 +33,12 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { ChainPaymentInfo, ProductPrice, StartCryptoSubscriptionRequest, TokenPaymentInfo } from './types';
+import type {
+  ChainPaymentInfo,
+  ProductPrice,
+  StartCryptoSubscriptionRequest,
+  TokenPaymentInfo,
+} from './types';
 import {
   PaymentType,
   SubscriptionStatus,
@@ -70,6 +75,10 @@ export type SubscriptionControllerCreateCryptoApproveTransactionAction = {
   type: `${typeof controllerName}:createCryptoApproveTransaction`;
   handler: SubscriptionController['createCryptoApproveTransaction'];
 };
+export type SubscriptionControllerStartCryptoSubscriptionAction = {
+  type: `${typeof controllerName}:startCryptoSubscription`;
+  handler: SubscriptionController['startCryptoSubscription'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -81,7 +90,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerStartShieldSubscriptionWithCardAction
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
-  | SubscriptionControllerCreateCryptoApproveTransactionAction;
+  | SubscriptionControllerCreateCryptoApproveTransactionAction
+  | SubscriptionControllerStartCryptoSubscriptionAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -230,6 +240,11 @@ export class SubscriptionController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'SubscriptionController:createCryptoApproveTransaction',
       this.createCryptoApproveTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:startCryptoSubscription',
+      this.startCryptoSubscription.bind(this),
     );
   }
 
