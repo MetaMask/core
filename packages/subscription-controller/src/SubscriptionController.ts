@@ -66,6 +66,10 @@ export type SubscriptionControllerGetPricingAction = {
   type: `${typeof controllerName}:getPricing`;
   handler: SubscriptionController['getPricing'];
 };
+export type SubscriptionControllerCreateCryptoApproveTransactionAction = {
+  type: `${typeof controllerName}:createCryptoApproveTransaction`;
+  handler: SubscriptionController['createCryptoApproveTransaction'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -76,7 +80,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerStartShieldSubscriptionWithCardAction
   | SubscriptionControllerGetPricingAction
-  | SubscriptionControllerGetStateAction;
+  | SubscriptionControllerGetStateAction
+  | SubscriptionControllerCreateCryptoApproveTransactionAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -220,6 +225,11 @@ export class SubscriptionController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'SubscriptionController:getPricing',
       this.getPricing.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:createCryptoApproveTransaction',
+      this.createCryptoApproveTransaction.bind(this),
     );
   }
 
