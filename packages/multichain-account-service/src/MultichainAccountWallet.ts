@@ -379,7 +379,9 @@ export class MultichainAccountWallet<
     let maxGroupIndex = this.getNextGroupIndex();
 
     // One serialized loop per provider; all run concurrently
-    const run = async (context: AccountProviderDiscoveryContext) => {
+    const runProviderDiscovery = async (
+      context: AccountProviderDiscoveryContext,
+    ) => {
       const step = (stepName: string) =>
         `[${context.provider.getName()}] Discover ${stepName} (groupIndex=${context.groupIndex})`;
 
@@ -430,7 +432,7 @@ export class MultichainAccountWallet<
       }));
 
     // Start discovery for each providers.
-    await Promise.all(providerContexts.map(run));
+    await Promise.all(providerContexts.map(runProviderDiscovery));
 
     // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
     // We can potentially remove this if we know that this race condition is not an issue in practice.
