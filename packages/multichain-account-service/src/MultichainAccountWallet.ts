@@ -389,7 +389,7 @@ export class MultichainAccountWallet<
 
         console.log(step('STARTED'));
 
-        let accounts: undefined | Bip44Account<KeyringAccount>[];
+        let accounts: Bip44Account<KeyringAccount>[] = [];
         try {
           accounts = await context.provider.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
