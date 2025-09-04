@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getBridgeHistoryItemByTxMetaId` method available via messaging system for external access to bridge history items
+- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions
+
+### Changed
+
+- Pass the `isGasFeeIncluded` parameter through transaction utilities
+
 ## [41.0.0]
 
 ### Fixed
