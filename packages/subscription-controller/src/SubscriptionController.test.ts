@@ -23,8 +23,13 @@ import {
   type SubscriptionControllerOptions,
   type SubscriptionControllerState,
 } from './SubscriptionController';
-import type { PriceInfoResponse, ProductPrice, Subscription } from './types';
-import { PaymentType, ProductType } from './types';
+import type { Subscription, PricingResponse, ProductPricing } from './types';
+import {
+  PaymentType,
+  ProductType,
+  RecurringInterval,
+  SubscriptionStatus,
+} from './types';
 
 jest.mock('@ethersproject/contracts');
 
@@ -35,25 +40,25 @@ const MOCK_SUBSCRIPTION: Subscription = {
     {
       name: ProductType.SHIELD,
       id: 'prod_shield_basic',
-      currency: 'USD',
+      currency: 'usd',
       amount: 9.99,
     },
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: 'active',
-  interval: 'month',
+  status: SubscriptionStatus.active,
+  interval: RecurringInterval.month,
   paymentMethod: {
-    type: PaymentType.CARD,
+    type: PaymentType.byCard,
   },
 };
 
-const MOCK_PRODUCT_PRICE: ProductPrice = {
+const MOCK_PRODUCT_PRICE: ProductPricing = {
   name: ProductType.SHIELD,
   prices: [
     {
-      interval: 'month',
-      currency: 'USD',
+      interval: RecurringInterval.month,
+      currency: 'usd',
       unitAmount: 9.99,
       unitDecimals: 18,
       trialPeriodDays: 0,
@@ -62,7 +67,7 @@ const MOCK_PRODUCT_PRICE: ProductPrice = {
   ],
 };
 
-const MOCK_PRICE_INFO_RESPONSE: PriceInfoResponse = {
+const MOCK_PRICE_INFO_RESPONSE: PricingResponse = {
   products: [MOCK_PRODUCT_PRICE],
   paymentMethods: [MOCK_SUBSCRIPTION.paymentMethod],
 };
@@ -145,19 +150,22 @@ function createMockSubscriptionMessenger(): {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
-  const mockGetPriceInfo = jest.fn();
+  const mockStartSubscriptionWithCard = jest.fn();
+  const mockGetPricing = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
-    getPriceInfo: mockGetPriceInfo,
+    startSubscriptionWithCard: mockStartSubscriptionWithCard,
+    getPricing: mockGetPricing,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
-    mockGetPriceInfo,
+    mockStartSubscriptionWithCard,
+    mockGetPricing,
   };
 }
 
@@ -373,7 +381,7 @@ describe('SubscriptionController', () => {
             }),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: 'cancelled' },
+            { ...MOCK_SUBSCRIPTION, status: SubscriptionStatus.canceled },
             mockSubscription2,
           ]);
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
@@ -453,14 +461,91 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('getPriceInfo', () => {
-    it('should get price info successfully', async () => {
-      await withController(async ({ controller, mockService }) => {
-        mockService.getPriceInfo.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
-        const result = await controller.getPriceInfo();
-        expect(result).toStrictEqual(MOCK_PRICE_INFO_RESPONSE);
-        expect(mockService.getPriceInfo).toHaveBeenCalledTimes(1);
-      });
+  describe('startShieldSubscriptionWithCard', () => {
+    const MOCK_START_SUBSCRIPTION_RESPONSE = {
+      checkoutSessionUrl: 'https://checkout.example.com/session/123',
+    };
+
+    it('should start shield subscription successfully when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          const result = await controller.startShieldSubscriptionWithCard({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
+          });
+
+          expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
+          });
+        },
+      );
+    });
+
+    it('should throw error when user is already subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.startShieldSubscriptionWithCard({
+              products: [ProductType.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RecurringInterval.month,
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.startSubscriptionWithCard).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors during start subscription', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const errorMessage = 'Failed to start subscription';
+          mockService.startSubscriptionWithCard.mockRejectedValue(
+            new SubscriptionServiceError(errorMessage),
+          );
+
+          await expect(
+            controller.startShieldSubscriptionWithCard({
+              products: [ProductType.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RecurringInterval.month,
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [ProductType.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RecurringInterval.month,
+          });
+        },
+      );
     });
   });
 
@@ -501,6 +586,23 @@ describe('SubscriptionController', () => {
         expect(mockService.cancelSubscription).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
         });
+      });
+    });
+  });
+
+  describe('getPricing', () => {
+    const mockPricingResponse: PricingResponse = {
+      products: [],
+      paymentMethods: [],
+    };
+
+    it('should return pricing response', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getPricing.mockResolvedValue(mockPricingResponse);
+
+        const result = await controller.getPricing();
+
+        expect(result).toStrictEqual(mockPricingResponse);
       });
     });
   });
@@ -561,14 +663,14 @@ describe('SubscriptionController', () => {
           );
 
           // Provide product pricing and crypto payment info
-          mockService.getPriceInfo.mockResolvedValue({
+          mockService.getPricing.mockResolvedValue({
             products: [
               {
                 name: ProductType.SHIELD,
                 prices: [
                   {
-                    interval: 'month',
-                    currency: 'USD',
+                    interval: RecurringInterval.month,
+                    currency: 'usd',
                     unitAmount: 10,
                     unitDecimals: 18,
                     trialPeriodDays: 0,
@@ -579,7 +681,7 @@ describe('SubscriptionController', () => {
             ],
             paymentMethods: [
               {
-                type: PaymentType.CRYPTO,
+                type: PaymentType.byCrypto,
                 chains: [
                   {
                     chainId: '0x1',
@@ -588,7 +690,7 @@ describe('SubscriptionController', () => {
                       {
                         address: '0xtoken',
                         decimals: 18,
-                        conversionRate: { USD: '1.0' },
+                        conversionRate: { usd: '1.0' },
                       },
                     ],
                   },
@@ -686,14 +788,14 @@ describe('SubscriptionController', () => {
           mockAddTransactionFn.mockResolvedValue(mockTxResult);
 
           // Provide product pricing and crypto payment info with unitDecimals small to avoid integer div to 0
-          mockService.getPriceInfo.mockResolvedValue({
+          mockService.getPricing.mockResolvedValue({
             products: [
               {
                 name: ProductType.SHIELD,
                 prices: [
                   {
-                    interval: 'month',
-                    currency: 'USD',
+                    interval: RecurringInterval.month,
+                    currency: 'usd',
                     unitAmount: 10,
                     unitDecimals: 0,
                     trialPeriodDays: 0,
@@ -704,7 +806,7 @@ describe('SubscriptionController', () => {
             ],
             paymentMethods: [
               {
-                type: PaymentType.CRYPTO,
+                type: PaymentType.byCrypto,
                 chains: [
                   {
                     chainId: '0x1',
@@ -713,7 +815,7 @@ describe('SubscriptionController', () => {
                       {
                         address: '0xtoken',
                         decimals: 18,
-                        conversionRate: { USD: '1.0' },
+                        conversionRate: { usd: '1.0' },
                       },
                     ],
                   },
@@ -751,7 +853,7 @@ describe('SubscriptionController', () => {
 
     it('throws when product price not found', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getPriceInfo.mockResolvedValue({
+        mockService.getPricing.mockResolvedValue({
           products: [],
           paymentMethods: [],
         });
@@ -761,7 +863,7 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Product price not found');
       });
@@ -769,14 +871,14 @@ describe('SubscriptionController', () => {
 
     it('throws when price not found for interval', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getPriceInfo.mockResolvedValue({
+        mockService.getPricing.mockResolvedValue({
           products: [
             {
               name: ProductType.SHIELD,
               prices: [
                 {
-                  interval: 'year',
-                  currency: 'USD',
+                  interval: RecurringInterval.year,
+                  currency: 'usd',
                   unitAmount: 10,
                   unitDecimals: 18,
                   trialPeriodDays: 0,
@@ -801,14 +903,14 @@ describe('SubscriptionController', () => {
 
     it('throws when chains payment info not found', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getPriceInfo.mockResolvedValue({
+        mockService.getPricing.mockResolvedValue({
           products: [
             {
               name: ProductType.SHIELD,
               prices: [
                 {
-                  interval: 'month',
-                  currency: 'USD',
+                  interval: RecurringInterval.month,
+                  currency: 'usd',
                   unitAmount: 10,
                   unitDecimals: 18,
                   trialPeriodDays: 0,
@@ -819,7 +921,7 @@ describe('SubscriptionController', () => {
           ],
           paymentMethods: [
             {
-              type: PaymentType.CARD,
+              type: PaymentType.byCard,
             },
           ],
         });
@@ -829,7 +931,7 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Chains payment info not found');
       });
@@ -837,14 +939,14 @@ describe('SubscriptionController', () => {
 
     it('throws when invalid chain id', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getPriceInfo.mockResolvedValue({
+        mockService.getPricing.mockResolvedValue({
           products: [
             {
               name: ProductType.SHIELD,
               prices: [
                 {
-                  interval: 'month',
-                  currency: 'USD',
+                  interval: RecurringInterval.month,
+                  currency: 'usd',
                   unitAmount: 10,
                   unitDecimals: 18,
                   trialPeriodDays: 0,
@@ -855,7 +957,7 @@ describe('SubscriptionController', () => {
           ],
           paymentMethods: [
             {
-              type: PaymentType.CRYPTO,
+              type: PaymentType.byCrypto,
               chains: [
                 {
                   chainId: '0x2',
@@ -872,7 +974,7 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Invalid chain id');
       });
@@ -880,14 +982,14 @@ describe('SubscriptionController', () => {
 
     it('throws when invalid token address', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.getPriceInfo.mockResolvedValue({
+        mockService.getPricing.mockResolvedValue({
           products: [
             {
               name: ProductType.SHIELD,
               prices: [
                 {
-                  interval: 'month',
-                  currency: 'USD',
+                  interval: RecurringInterval.month,
+                  currency: 'usd',
                   unitAmount: 10,
                   unitDecimals: 18,
                   trialPeriodDays: 0,
@@ -898,7 +1000,7 @@ describe('SubscriptionController', () => {
           ],
           paymentMethods: [
             {
-              type: PaymentType.CRYPTO,
+              type: PaymentType.byCrypto,
               chains: [
                 {
                   chainId: '0x1',
@@ -907,7 +1009,7 @@ describe('SubscriptionController', () => {
                     {
                       address: '0xothertoken',
                       decimals: 18,
-                      conversionRate: { USD: '1.0' },
+                      conversionRate: { usd: '1.0' },
                     },
                   ],
                 },
@@ -921,7 +1023,7 @@ describe('SubscriptionController', () => {
             chainId: '0x1',
             tokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
-            interval: 'month',
+            interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Invalid token address');
       });
@@ -931,14 +1033,14 @@ describe('SubscriptionController', () => {
       await withController(
         async ({ controller, mockService, baseMessenger }) => {
           // Provide full, valid pricing so it reaches provider retrieval
-          mockService.getPriceInfo.mockResolvedValue({
+          mockService.getPricing.mockResolvedValue({
             products: [
               {
                 name: ProductType.SHIELD,
                 prices: [
                   {
-                    interval: 'month',
-                    currency: 'USD',
+                    interval: RecurringInterval.month,
+                    currency: 'usd',
                     unitAmount: 10,
                     unitDecimals: 18,
                     trialPeriodDays: 0,
@@ -949,7 +1051,7 @@ describe('SubscriptionController', () => {
             ],
             paymentMethods: [
               {
-                type: PaymentType.CRYPTO,
+                type: PaymentType.byCrypto,
                 chains: [
                   {
                     chainId: '0x1',
@@ -958,7 +1060,7 @@ describe('SubscriptionController', () => {
                       {
                         address: '0xtoken',
                         decimals: 18,
-                        conversionRate: { USD: '1.0' },
+                        conversionRate: { usd: '1.0' },
                       },
                     ],
                   },
@@ -1006,14 +1108,14 @@ describe('SubscriptionController', () => {
       await withController(
         async ({ controller, mockService, baseMessenger }) => {
           // Valid product and chain/token, but token lacks conversion rate for currency
-          mockService.getPriceInfo.mockResolvedValue({
+          mockService.getPricing.mockResolvedValue({
             products: [
               {
                 name: ProductType.SHIELD,
                 prices: [
                   {
-                    interval: 'month',
-                    currency: 'USD',
+                    interval: RecurringInterval.month,
+                    currency: 'usd',
                     unitAmount: 10,
                     unitDecimals: 18,
                     trialPeriodDays: 0,
@@ -1024,7 +1126,7 @@ describe('SubscriptionController', () => {
             ],
             paymentMethods: [
               {
-                type: PaymentType.CRYPTO,
+                type: PaymentType.byCrypto,
                 chains: [
                   {
                     chainId: '0x1',
@@ -1129,14 +1231,14 @@ describe('SubscriptionController', () => {
               >,
           );
 
-          mockService.getPriceInfo.mockResolvedValue({
+          mockService.getPricing.mockResolvedValue({
             products: [
               {
                 name: ProductType.SHIELD,
                 prices: [
                   {
-                    interval: 'month',
-                    currency: 'USD',
+                    interval: RecurringInterval.month,
+                    currency: 'usd',
                     unitAmount: 800,
                     unitDecimals: 2,
                     trialPeriodDays: 0,
@@ -1147,7 +1249,7 @@ describe('SubscriptionController', () => {
             ],
             paymentMethods: [
               {
-                type: PaymentType.CRYPTO,
+                type: PaymentType.byCrypto,
                 chains: [
                   {
                     chainId: '0x1',
@@ -1156,7 +1258,7 @@ describe('SubscriptionController', () => {
                       {
                         address: '0xtoken',
                         decimals: 18,
-                        conversionRate: { USD: '1.0' },
+                        conversionRate: { usd: '1.0' },
                       },
                     ],
                   },

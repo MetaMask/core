@@ -10,46 +10,35 @@ export type Product = {
 };
 
 export enum PaymentType {
-  CARD = 'card',
-  CRYPTO = 'crypto',
+  byCard = 'card',
+  byCrypto = 'crypto',
 }
 
-export type PaymentMethod = {
-  type: PaymentType;
-  chains?: PaymentMethodChain[];
-};
+export enum RecurringInterval {
+  month = 'month',
+  year = 'year',
+}
 
-export type PaymentMethodChain = {
-  chainId: string;
-  paymentAddress: string;
-  tokens: PaymentToken[];
-};
+export enum SubscriptionStatus {
+  // Initial states
+  incomplete = 'incomplete',
+  incompleteExpired = 'incomplete_expired',
 
-export type PaymentToken = {
-  symbol: string;
-  address: string;
-  decimals: number;
-  /**
-   * example: {
-      usd: '1.0',
-    },
-   */
-  conversionRate: Record<string, string>;
-};
+  // Active states
+  provisional = 'provisional',
+  trialing = 'trialing',
+  active = 'active',
 
-export type PriceInfo = {
-  interval: 'month' | 'year';
-  currency: string;
-  unitAmount: number;
-  unitDecimals: number;
-  trialPeriodDays: number;
-  minBillingCycles: number;
-};
+  // Payment issues
+  pastDue = 'past_due',
+  unpaid = 'unpaid',
 
-export type ProductPrice = {
-  name: ProductType;
-  prices: PriceInfo[];
-};
+  // Cancelled states
+  canceled = 'canceled',
+
+  // Paused states
+  paused = 'paused',
+}
 
 // state
 export type Subscription = {
@@ -57,28 +46,34 @@ export type Subscription = {
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
-  billingCycles?: number;
-  status: 'active' | 'inactive' | 'trialing' | 'cancelled';
-  interval: 'month' | 'year';
-  paymentMethod: {
-    type: PaymentType;
-    crypto?: {
-      payerAddress: string;
-      chainId: string;
-      tokenSymbol: string;
-    };
+  status: SubscriptionStatus;
+  interval: RecurringInterval;
+  paymentMethod: SubscriptionPaymentMethod;
+};
+
+export type SubscriptionPaymentMethod = {
+  type: PaymentType;
+  crypto?: {
+    payerAddress: string;
+    chainId: string;
+    tokenSymbol: string;
   };
 };
 
 export type GetSubscriptionsResponse = {
-  customerId: string;
+  customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
 };
 
-export type PriceInfoResponse = {
-  products: ProductPrice[];
-  paymentMethods: PaymentMethod[];
+export type StartSubscriptionRequest = {
+  products: ProductType[];
+  isTrialRequested: boolean;
+  recurringInterval: RecurringInterval;
+};
+
+export type StartSubscriptionResponse = {
+  checkoutSessionUrl: string;
 };
 
 export type AuthUtils = {
@@ -91,8 +86,55 @@ export type FetchFunction = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
+export type ProductPrice = {
+  interval: RecurringInterval;
+  unitAmount: number; // amount in the smallest unit of the currency, e.g., cents
+  unitDecimals: number; // number of decimals for the smallest unit of the currency
+  currency: string; // "usd"
+  trialPeriodDays: number;
+  minBillingCycles: number;
+};
+
+export type ProductPricing = {
+  name: ProductType;
+  prices: ProductPrice[];
+};
+
+export type TokenPaymentInfo = {
+  symbol: string;
+  address: string;
+  decimals: number;
+  /**
+   * example: {
+      usd: '1.0',
+    },
+   */
+  conversionRate: {
+    usd: string;
+  };
+};
+
+export type ChainPaymentInfo = {
+  chainId: string;
+  paymentAddress: string;
+  tokens: TokenPaymentInfo[];
+};
+
+export type PricingPaymentMethod = {
+  type: PaymentType;
+  chains?: ChainPaymentInfo[];
+};
+
+export type PricingResponse = {
+  products: ProductPricing[];
+  paymentMethods: PricingPaymentMethod[];
+};
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
-  getPriceInfo(): Promise<PriceInfoResponse>;
+  startSubscriptionWithCard(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse>;
+  getPricing(): Promise<PricingResponse>;
 };

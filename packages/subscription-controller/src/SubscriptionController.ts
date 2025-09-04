@@ -33,12 +33,14 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { PaymentToken, PriceInfo } from './types';
+import type { ChainPaymentInfo, ProductPrice, TokenPaymentInfo } from './types';
 import {
   PaymentType,
+  SubscriptionStatus,
   type ISubscriptionService,
-  type PaymentMethodChain,
+  type PricingResponse,
   type ProductType,
+  type StartSubscriptionRequest,
   type Subscription,
 } from './types';
 import { generateActionId, getTxGasEstimates } from './utils';
@@ -48,22 +50,32 @@ export type SubscriptionControllerState = {
 };
 
 // Messenger Actions
-type CreateActionsObj<Controller extends keyof SubscriptionController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: SubscriptionController[K];
-  };
+export type SubscriptionControllerGetSubscriptionsAction = {
+  type: `${typeof controllerName}:getSubscriptions`;
+  handler: SubscriptionController['getSubscriptions'];
 };
-type ActionsObj = CreateActionsObj<
-  'getSubscriptions' | 'cancelSubscription' | 'getPriceInfo'
->;
+export type SubscriptionControllerCancelSubscriptionAction = {
+  type: `${typeof controllerName}:cancelSubscription`;
+  handler: SubscriptionController['cancelSubscription'];
+};
+export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
+  type: `${typeof controllerName}:startShieldSubscriptionWithCard`;
+  handler: SubscriptionController['startShieldSubscriptionWithCard'];
+};
+export type SubscriptionControllerGetPricingAction = {
+  type: `${typeof controllerName}:getPricing`;
+  handler: SubscriptionController['getPricing'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
 >;
 export type SubscriptionControllerActions =
-  | ActionsObj[keyof ActionsObj]
+  | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerCancelSubscriptionAction
+  | SubscriptionControllerStartShieldSubscriptionWithCardAction
+  | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
@@ -201,9 +213,23 @@ export class SubscriptionController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'SubscriptionController:getPriceInfo',
-      this.getPriceInfo.bind(this),
+      'SubscriptionController:startShieldSubscriptionWithCard',
+      this.startShieldSubscriptionWithCard.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getPricing',
+      this.getPricing.bind(this),
+    );
+  }
+
+  /**
+   * Gets the pricing information from the subscription service.
+   *
+   * @returns The pricing information.
+   */
+  async getPricing(): Promise<PricingResponse> {
+    return await this.#subscriptionService.getPricing();
   }
 
   async getSubscriptions() {
@@ -227,14 +253,16 @@ export class SubscriptionController extends BaseController<
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, status: 'cancelled' }
+          ? { ...subscription, status: SubscriptionStatus.canceled }
           : subscription,
       );
     });
   }
 
-  async getPriceInfo() {
-    return await this.#subscriptionService.getPriceInfo();
+  async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
+    this.#assertIsUserNotSubscribed({ products: request.products });
+
+    return await this.#subscriptionService.startSubscriptionWithCard(request);
   }
 
   /**
@@ -256,7 +284,7 @@ export class SubscriptionController extends BaseController<
     alreadyAllowed?: boolean;
     transactionResult?: Result;
   }> {
-    const pricing = await this.#subscriptionService.getPriceInfo();
+    const pricing = await this.#subscriptionService.getPricing();
     const product = pricing.products.find(
       (p) => p.name === request.productType,
     );
@@ -270,7 +298,7 @@ export class SubscriptionController extends BaseController<
     }
 
     const chainsPaymentInfo = pricing.paymentMethods.find(
-      (t) => t.type === PaymentType.CRYPTO,
+      (t) => t.type === PaymentType.byCrypto,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
@@ -403,7 +431,7 @@ export class SubscriptionController extends BaseController<
    */
   async #getCryptoAllowance(request: {
     tokenAddress: string;
-    chainPaymentInfo: PaymentMethodChain;
+    chainPaymentInfo: ChainPaymentInfo;
     chainId: string;
     provider: AutoManagedNetworkClient<CustomNetworkClientConfiguration>['provider'];
   }) {
@@ -437,7 +465,7 @@ export class SubscriptionController extends BaseController<
    * @param price - The price info
    * @returns The price amount
    */
-  #getSubscriptionPriceAmount(price: PriceInfo) {
+  #getSubscriptionPriceAmount(price: ProductPrice) {
     const amount = EthersBigNumber.from(price.unitAmount)
       .div(EthersBigNumber.from(10).pow(price.unitDecimals))
       .mul(price.minBillingCycles);
@@ -451,8 +479,14 @@ export class SubscriptionController extends BaseController<
    * @param tokenPaymentInfo - The token price info
    * @returns The token approve amount
    */
-  #getTokenApproveAmount(price: PriceInfo, tokenPaymentInfo: PaymentToken) {
-    const conversionRate = tokenPaymentInfo.conversionRate[price.currency];
+  #getTokenApproveAmount(
+    price: ProductPrice,
+    tokenPaymentInfo: TokenPaymentInfo,
+  ) {
+    const conversionRate =
+      tokenPaymentInfo.conversionRate[
+        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
     }
@@ -481,6 +515,16 @@ export class SubscriptionController extends BaseController<
       selectedNetworkClientId,
     );
     return networkClient;
+  }
+
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+    if (
+      this.state.subscriptions.find((subscription) =>
+        subscription.products.some((p) => products.includes(p.name)),
+      )
+    ) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {

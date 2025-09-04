@@ -1,11 +1,17 @@
-import { getEnvUrls, type Env } from './constants';
+import {
+  getEnvUrls,
+  SubscriptionControllerErrorMessage,
+  type Env,
+} from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
   FetchFunction,
   GetSubscriptionsResponse,
   ISubscriptionService,
-  PriceInfoResponse,
+  PricingResponse,
+  StartSubscriptionRequest,
+  StartSubscriptionResponse,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -40,14 +46,28 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'DELETE');
   }
 
-  async getPriceInfo(): Promise<PriceInfoResponse> {
+  async startSubscriptionWithCard(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse> {
+    if (request.products.length === 0) {
+      throw new SubscriptionServiceError(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+    const path = 'subscriptions/card';
+
+    return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async getPricing(): Promise<PricingResponse> {
     const path = 'pricing';
-    return await this.#makeRequest(path);
+    return await this.#makeRequest<PricingResponse>(path);
   }
 
   async #makeRequest<Result>(
     path: string,
     method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
+    body?: Record<string, unknown>,
   ): Promise<Result> {
     try {
       const headers = await this.#getAuthorizationHeader();
@@ -59,6 +79,7 @@ export class SubscriptionService implements ISubscriptionService {
           'Content-Type': 'application/json',
           ...headers,
         },
+        body: body ? JSON.stringify(body) : undefined,
       });
 
       return response;
