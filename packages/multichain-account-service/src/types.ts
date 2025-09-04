@@ -1,4 +1,7 @@
-import type { Bip44Account } from '@metamask/account-api';
+import type {
+  Bip44Account,
+  MultichainAccountGroup,
+} from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
@@ -15,7 +18,6 @@ import type {
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
-import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import type {
   MultichainAccountService,
   serviceName,

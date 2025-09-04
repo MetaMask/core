@@ -307,7 +307,7 @@ export class MultichainAccountWallet<
 
     this.#messenger.publish(
       'MultichainAccountService:multichainAccountGroupCreated',
-      group as unknown as MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+      group,
     );
 
     return group;

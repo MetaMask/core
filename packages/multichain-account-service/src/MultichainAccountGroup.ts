@@ -93,7 +93,7 @@ export class MultichainAccountGroup<
     if (emitEvents) {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
-        this as unknown as MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+        this,
       );
     }
   }
