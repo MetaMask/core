@@ -16,6 +16,7 @@ import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import UserStorageController, { defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 describe('UserStorageController', () => {
   describe('constructor', () => {
@@ -860,5 +861,91 @@ describe('UserStorageController', () => {
       messengerMocks.baseMessenger.publish('KeyringController:unlock');
       expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
     });
+  });
+});
+
+describe('metadata', () => {
+  it('includes expected state in debug snapshots', () => {
+    const controller = new UserStorageController({
+      messenger: mockUserStorageMessenger().messenger,
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'anonymous',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isAccountSyncingEnabled": true,
+        "isBackupAndSyncEnabled": true,
+        "isContactSyncingEnabled": true,
+      }
+    `);
+  });
+
+  it('includes expected state in state logs', () => {
+    const controller = new UserStorageController({
+      messenger: mockUserStorageMessenger().messenger,
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "hasAccountSyncingSyncedAtLeastOnce": false,
+        "isAccountSyncingEnabled": true,
+        "isAccountSyncingReadyToBeDispatched": false,
+        "isBackupAndSyncEnabled": true,
+        "isContactSyncingEnabled": true,
+      }
+    `);
+  });
+
+  it('persists expected state', () => {
+    const controller = new UserStorageController({
+      messenger: mockUserStorageMessenger().messenger,
+    });
+
+    expect(
+      deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "hasAccountSyncingSyncedAtLeastOnce": false,
+        "isAccountSyncingEnabled": true,
+        "isAccountSyncingReadyToBeDispatched": false,
+        "isBackupAndSyncEnabled": true,
+        "isContactSyncingEnabled": true,
+      }
+    `);
+  });
+
+  it('exposes expected state to UI', () => {
+    const controller = new UserStorageController({
+      messenger: mockUserStorageMessenger().messenger,
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "hasAccountSyncingSyncedAtLeastOnce": false,
+        "isAccountSyncingEnabled": true,
+        "isAccountSyncingReadyToBeDispatched": false,
+        "isBackupAndSyncEnabled": true,
+        "isBackupAndSyncUpdateLoading": false,
+        "isContactSyncingEnabled": true,
+        "isContactSyncingInProgress": false,
+      }
+    `);
   });
 });
