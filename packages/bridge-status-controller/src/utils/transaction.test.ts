@@ -976,7 +976,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.destinationTokenAmount).toBe('2000000000000000000');
       expect(result.destinationTokenSymbol).toBe('MATIC');
       expect(result.destinationTokenDecimals).toBe(18);
-      expect(result.destinationTokenAddress).toBe('0x0000000000000000000000000000000000000000');
+      expect(result.destinationTokenAddress).toBe(
+        '0x0000000000000000000000000000000000000000',
+      );
       expect(result.swapTokenValue).toBe('1.0');
       expect(result.isSolana).toBe(true);
       expect(result.isBridgeTx).toBe(true);
