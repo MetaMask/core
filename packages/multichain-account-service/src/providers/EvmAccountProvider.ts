@@ -42,9 +42,9 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Get the Evm provider.
+   * Get the EVM provider.
    *
-   * @returns The Evm provider.
+   * @returns The EVM provider.
    */
   getEvmProvider(): Provider {
     const networkClientId = this.messenger.call(
@@ -100,14 +100,14 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Discover and create accounts for the Evm provider.
+   * Discover and create accounts for the EVM provider.
    *
    * NOTE: This method should only be called on a newly created wallet.
    *
    * @param opts - The options for the discovery and creation of accounts.
    * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
    * @param opts.groupIndex - The index of the group to create the accounts for.
-   * @returns The accounts for the Evm provider.
+   * @returns The accounts for the EVM provider.
    */
   async discoverAndCreateAccounts(opts: {
     entropySource: EntropySourceId;
