@@ -317,9 +317,7 @@ export class MultichainAccountService {
     mnemonic,
   }: {
     mnemonic: string;
-  }): Promise<
-    [MultichainAccountWallet<Bip44Account<KeyringAccount>>, EntropySourceId]
-  > {
+  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
     const existingKeyrings = this.#messenger.call(
       'KeyringController:getKeyringsByType',
       KeyringTypes.hd,
@@ -350,7 +348,7 @@ export class MultichainAccountService {
 
     this.#wallets.set(wallet.id, wallet);
 
-    return [wallet, result.id];
+    return wallet;
   }
 
   /**
