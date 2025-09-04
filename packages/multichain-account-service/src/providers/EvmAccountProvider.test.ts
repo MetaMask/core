@@ -1,9 +1,5 @@
 import type { Messenger } from '@metamask/base-controller';
-import { EthAccountType, EthScope } from '@metamask/keyring-api';
-import {
-  KeyringTypes,
-  type KeyringMetadata,
-} from '@metamask/keyring-controller';
+import { type KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
@@ -15,7 +11,6 @@ import type {
 
 import { EvmAccountProvider } from './EvmAccountProvider';
 import {
-  ETH_EOA_METHODS,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_HD_ACCOUNT_1,
