@@ -387,10 +387,6 @@ export class MultichainAccountWallet<
       context: (typeof providerContexts)[number],
       groupIndex: number,
     ) => {
-      const step = (name: string) => {
-        return `Discovery ${name} (provider=${context.provider.getName()}, groupIndex=${groupIndex}).`;
-      };
-
       /* istanbul ignore next
        * Reason: This guard triggers only if `schedule` is invoked for the same
        * provider while a previous step is still pending. Because the
@@ -413,8 +409,6 @@ export class MultichainAccountWallet<
       // Pending promise of the provider's discovery for this group index.
       context.running = (async (): Promise<void> => {
         try {
-          console.log(step('STARTED'));
-
           const accounts = await context.provider.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
             groupIndex,
@@ -423,7 +417,6 @@ export class MultichainAccountWallet<
           // Stopping condition: Account discovery is halted if no accounts are returned by the provider.
           if (!accounts.length) {
             context.stopped = true;
-            console.log(step('STOPPED'));
             return;
           }
 
@@ -452,9 +445,12 @@ export class MultichainAccountWallet<
               }
             }
           }
-        } catch (err) {
+        } catch (error) {
           context.stopped = true;
-          console.error(step('FAILED'), err);
+          console.error(
+            `Discovery FAILED for "${context.provider.getName()}" provider:`,
+            error,
+          );
         } finally {
           context.running = undefined;
           if (!context.stopped) {
@@ -480,7 +476,6 @@ export class MultichainAccountWallet<
       racers = [...providerContexts.values()]
         .filter((ctx) => ctx.running !== undefined)
         .map((ctx) => ctx.running) as Promise<void>[];
-      console.log('-- Racers: ', racers.length);
 
       if (racers.length) {
         await Promise.race(racers);
@@ -491,7 +486,8 @@ export class MultichainAccountWallet<
     // We can potentially remove this if we know that this race condition is not an issue in practice.
     this.sync();
 
-    // Align missing accounts from group.
+    // Align missing accounts from group. This is required to create missing account from non-discovered
+    // indexes for some providers.
     await this.alignGroups();
 
     const discoveredAccounts: Record<string, number> = {};
