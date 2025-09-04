@@ -55,8 +55,8 @@ export class MultichainAccountWallet<
     this.#messenger = messenger;
     this.#accountGroups = new Map();
 
-    // Initial synchronization.
-    this.sync();
+    // Initial synchronization (don't emit events during initialization).
+    this.sync({ emitEvents: false });
   }
 
   /**
@@ -64,8 +64,11 @@ export class MultichainAccountWallet<
    *
    * This can be used if account providers got new accounts that the wallet
    * doesn't know about.
+   *
+   * @param options - Sync options.
+   * @param options.emitEvents - Whether to emit update events. Defaults to true.
    */
-  sync(): void {
+  sync({ emitEvents = true }: { emitEvents?: boolean } = {}): void {
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
@@ -82,6 +85,7 @@ export class MultichainAccountWallet<
             groupIndex: entropy.groupIndex,
             wallet: this,
             providers: this.#providers,
+            messenger: this.#messenger,
           });
 
           // This existing multichain account group might differ from the
@@ -104,15 +108,7 @@ export class MultichainAccountWallet<
       groupIndex,
       multichainAccount,
     ] of this.#accountGroups.entries()) {
-      multichainAccount.sync();
-
-      // Emit update event for synced groups
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        multichainAccount as unknown as MultichainAccountGroup<
-          Bip44Account<KeyringAccount>
-        >,
-      );
+      multichainAccount.sync({ emitEvents });
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
@@ -241,13 +237,6 @@ export class MultichainAccountWallet<
       // reference.
       group.sync();
 
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        group as unknown as MultichainAccountGroup<
-          Bip44Account<KeyringAccount>
-        >,
-      );
-
       return group;
     }
 
@@ -309,6 +298,7 @@ export class MultichainAccountWallet<
         wallet: this,
         providers: this.#providers,
         groupIndex,
+        messenger: this.#messenger,
       });
     }
 

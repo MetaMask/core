@@ -10,6 +10,7 @@ import type { AccountProvider } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -30,23 +31,28 @@ export class MultichainAccountGroup<
 
   readonly #accountToProvider: Map<Account['id'], AccountProvider<Account>>;
 
+  readonly #messenger: MultichainAccountServiceMessenger;
+
   constructor({
     groupIndex,
     wallet,
     providers,
+    messenger,
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
     providers: AccountProvider<Account>[];
+    messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
     this.#groupIndex = groupIndex;
     this.#wallet = wallet;
     this.#providers = providers;
+    this.#messenger = messenger;
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
-    this.sync();
+    this.sync({ emitEvents: false });
   }
 
   /**
@@ -54,8 +60,11 @@ export class MultichainAccountGroup<
    *
    * This can be used if account providers got new accounts that the multichain
    * account doesn't know about.
+   *
+   * @param options - Sync options.
+   * @param options.emitEvents - Whether to emit update events. Defaults to true.
    */
-  sync(): void {
+  sync({ emitEvents = true }: { emitEvents?: boolean } = {}): void {
     // Clear reverse mapping and re-construct it entirely based on the refreshed
     // list of accounts from each providers.
     this.#accountToProvider.clear();
@@ -78,6 +87,14 @@ export class MultichainAccountGroup<
       for (const id of accounts) {
         this.#accountToProvider.set(id, provider);
       }
+    }
+
+    // Emit update event when group is synced (if requested)
+    if (emitEvents) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        this as unknown as MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+      );
     }
   }
 

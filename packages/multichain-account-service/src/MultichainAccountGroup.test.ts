@@ -53,6 +53,7 @@ function setup({
     wallet,
     groupIndex,
     providers,
+    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
   });
 
   return { wallet, group, providers };

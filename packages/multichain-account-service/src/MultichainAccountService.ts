@@ -216,7 +216,7 @@ export class MultichainAccountService {
     // not able to find this multichain account (which should not be possible...)
     if (group) {
       if (sync) {
-        wallet.sync();
+        group.sync();
       }
 
       // Same here, this account should have been already grouped in that
