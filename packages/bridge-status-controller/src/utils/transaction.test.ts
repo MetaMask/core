@@ -7,7 +7,6 @@ import {
   type QuoteResponse,
   type TxData,
 } from '@metamask/bridge-controller';
-import { SolScope } from '@metamask/keyring-api';
 import {
   TransactionStatus,
   TransactionType,
@@ -888,6 +887,99 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       expect(result.hash).toBe('solanaTxHash123');
+    });
+
+    it('should handle new unified interface response with transactionId', () => {
+      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
+          srcTokenAmount: '1000000000',
+          destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
+          srcAsset: {
+            address: 'solanaNativeAddress',
+            decimals: 9,
+            symbol: 'SOL',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'MATIC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: 'ABCD',
+        solanaFeesInLamports: '5000',
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '2.0',
+          valueInCurrency: '3600',
+          usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
+        swapRate: '2.0',
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.15',
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        gasFee: {
+          amount: '0.05',
+          valueInCurrency: '5',
+          usd: '5',
+        },
+        adjustedReturn: {
+          valueInCurrency: '3585',
+          usd: '3585',
+        },
+        cost: {
+          valueInCurrency: '0.1',
+          usd: '0.1',
+        },
+      } as never;
+
+      const snapResponse = { transactionId: 'new-unified-tx-id-123' };
+
+      const result = handleSolanaTxResponse(
+        snapResponse,
+        mockQuoteResponse,
+        mockSolanaAccount,
+      );
+
+      expect(result.hash).toBe('new-unified-tx-id-123');
+      expect(result.chainId).toBe(formatChainIdToHex(ChainId.SOLANA));
+      expect(result.type).toBe(TransactionType.bridge);
+      expect(result.status).toBe(TransactionStatus.submitted);
+      expect(result.destinationTokenAmount).toBe('2000000000000000000');
+      expect(result.destinationTokenSymbol).toBe('MATIC');
+      expect(result.destinationTokenDecimals).toBe(18);
+      expect(result.destinationTokenAddress).toBe('0x0000000000000000000000000000000000000000');
+      expect(result.swapTokenValue).toBe('1.0');
+      expect(result.isSolana).toBe(true);
+      expect(result.isBridgeTx).toBe(true);
     });
 
     it('should handle empty or invalid response', () => {
