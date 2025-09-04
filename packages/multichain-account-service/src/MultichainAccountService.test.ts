@@ -996,7 +996,7 @@ describe('MultichainAccountService', () => {
   });
 
   describe('createMultichainAccountWallet', () => {
-    it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
+    it('creates a new multichain account wallet with the given mnemonic', async () => {
       const { mocks, service } = setup({
         accounts: [],
         keyrings: [],
