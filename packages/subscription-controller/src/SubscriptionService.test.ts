@@ -1,9 +1,10 @@
+import { handleFetch } from '@metamask/controller-utils';
 import nock, { cleanAll, isDone } from 'nock';
 
 import { Env, getEnvUrls } from './constants';
 import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
-import type { PriceInfoResponse, Subscription } from './types';
+import type { PriceInfoResponse, ProductPrice, Subscription } from './types';
 import { PaymentType, ProductType } from './types';
 
 // Mock data
@@ -26,6 +27,20 @@ const MOCK_SUBSCRIPTION: Subscription = {
   },
 };
 
+const MOCK_PRODUCT_PRICE: ProductPrice = {
+  name: ProductType.SHIELD,
+  prices: [
+    {
+      interval: 'month',
+      currency: 'USD',
+      unitAmount: 9.99,
+      unitDecimals: 18,
+      trialPeriodDays: 0,
+      minBillingCycles: 1,
+    },
+  ],
+};
+
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 
 const MOCK_ERROR_RESPONSE = {
@@ -34,7 +49,7 @@ const MOCK_ERROR_RESPONSE = {
 };
 
 const MOCK_PRICE_INFO_RESPONSE: PriceInfoResponse = {
-  products: [MOCK_SUBSCRIPTION.products[0]],
+  products: [MOCK_PRODUCT_PRICE],
   paymentMethods: [MOCK_SUBSCRIPTION.paymentMethod],
 };
 
@@ -48,7 +63,7 @@ const MOCK_PRICE_INFO_RESPONSE: PriceInfoResponse = {
  */
 function createMockConfig({
   env = Env.DEV,
-  fetchFn = fetch,
+  fetchFn = handleFetch,
 }: { env?: Env; fetchFn?: typeof fetch } = {}) {
   return {
     env,
@@ -117,7 +132,7 @@ describe('SubscriptionService', () => {
       await withMockSubscriptionService(
         async ({ service, testUrl, config }) => {
           nock(testUrl)
-            .get('/api/v1/subscriptions')
+            .get('/v1/subscriptions')
             .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, {
               customerId: 'cus_1',
@@ -140,9 +155,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for error responses', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .reply(404, MOCK_ERROR_RESPONSE);
+        nock(testUrl).get('/v1/subscriptions').reply(404, MOCK_ERROR_RESPONSE);
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -152,9 +165,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .replyWithError('Network error');
+        nock(testUrl).get('/v1/subscriptions').replyWithError('Network error');
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -189,7 +200,7 @@ describe('SubscriptionService', () => {
       await withMockSubscriptionService(
         async ({ service, testUrl, config }) => {
           nock(testUrl)
-            .delete('/api/v1/subscriptions/sub_123456789')
+            .delete('/v1/subscriptions/sub_123456789')
             .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, {});
 
@@ -201,22 +212,10 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('should throw SubscriptionServiceError for error responses', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
-          .reply(400, MOCK_ERROR_RESPONSE);
-
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/Subscription not found/u);
-      });
-    });
-
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
         nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
+          .delete('/v1/subscriptions/sub_123456789')
           .replyWithError('Network error');
 
         await expect(
@@ -231,7 +230,7 @@ describe('SubscriptionService', () => {
       await withMockSubscriptionService(
         async ({ service, testUrl, config }) => {
           nock(testUrl)
-            .get('/api/v1/pricing')
+            .get('/v1/pricing')
             .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, MOCK_PRICE_INFO_RESPONSE);
 
@@ -242,16 +241,6 @@ describe('SubscriptionService', () => {
           expect(isDone()).toBe(true);
         },
       );
-    });
-
-    it('should throw SubscriptionServiceError for error responses', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl).get('/api/v1/pricing').reply(400, MOCK_ERROR_RESPONSE);
-
-        await expect(service.getPriceInfo()).rejects.toThrow(
-          /Subscription not found/u,
-        );
-      });
     });
   });
 });

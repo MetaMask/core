@@ -77,13 +77,19 @@ export type GetSubscriptionsResponse = {
 };
 
 export type PriceInfoResponse = {
-  products: Product[];
+  products: ProductPrice[];
   paymentMethods: PaymentMethod[];
 };
 
 export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
+
+export type FetchFunction = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+) => Promise<any>;
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;

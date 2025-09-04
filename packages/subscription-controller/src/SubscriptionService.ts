@@ -2,6 +2,7 @@ import { getEnvUrls, type Env } from './constants';
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  FetchFunction,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PriceInfoResponse,
@@ -10,21 +11,16 @@ import type {
 export type SubscriptionServiceConfig = {
   env: Env;
   auth: AuthUtils;
-  fetchFn: typeof globalThis.fetch;
-};
-
-type ErrorMessage = {
-  message: string;
-  error: string;
+  fetchFn: FetchFunction;
 };
 
 export const SUBSCRIPTION_URL = (env: Env, path: string) =>
-  `${getEnvUrls(env).subscriptionApiUrl}/api/v1/${path}`;
+  `${getEnvUrls(env).subscriptionApiUrl}/v1/${path}`;
 
 export class SubscriptionService implements ISubscriptionService {
   readonly #env: Env;
 
-  readonly #fetch: typeof globalThis.fetch;
+  readonly #fetch: FetchFunction;
 
   public authUtils: AuthUtils;
 
@@ -65,13 +61,7 @@ export class SubscriptionService implements ISubscriptionService {
         },
       });
 
-      const responseBody = await response.json();
-      if (!response.ok) {
-        const { message, error } = responseBody as ErrorMessage;
-        throw new Error(`HTTP error message: ${message}, error: ${error}`);
-      }
-
-      return responseBody as Result;
+      return response;
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? 'unknown error');
