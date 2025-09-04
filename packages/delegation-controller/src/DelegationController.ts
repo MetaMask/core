@@ -1,5 +1,5 @@
-import type { StateMetadata } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { hexToNumber } from '@metamask/utils';
 
@@ -113,7 +113,7 @@ export class DelegationController extends BaseController<
 
     // TODO:: Replace with `SignatureController:newUnsignedTypedMessage`.
     // Waiting on confirmations team to implement this.
-    const signature: string = await this.messagingSystem.call(
+    const signature: string = await this.messenger.call(
       'KeyringController:signTypedMessage',
       data,
       SignTypedDataVersion.V4,
@@ -152,7 +152,7 @@ export class DelegationController extends BaseController<
    * @returns A list of delegation entries that match the filter.
    */
   list(filter?: DelegationFilter) {
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
     const requester = account.address as Address;
