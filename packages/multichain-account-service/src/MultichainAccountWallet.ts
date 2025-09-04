@@ -378,6 +378,7 @@ export class MultichainAccountWallet<
     let maxGroupIndex = 0;
 
     const schedule = async (p: NamedAccountProvider, index: number) => {
+      console.log(`Schedule - ${p.getName()}, index=${index}`);
       // Ok to cast here because we know that the ctx will always be set.
       const providerCtx = providerContexts.get(p) as ProviderDiscoveryContext;
 
@@ -390,6 +391,7 @@ export class MultichainAccountWallet<
        * coverage.
        */
       if (providerCtx.running) {
+        console.log(`Schedule - already running... Awaiting`);
         // Wait for current scheduled job before starting a new one.
         await providerCtx.running.catch((error) => {
           console.error(error);
@@ -399,7 +401,7 @@ export class MultichainAccountWallet<
 
       providerCtx.groupIndex = index;
 
-      providerCtx.running = (async () => {
+      providerCtx.running = (async (): Promise<string> => {
         try {
           const accounts = await p.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
@@ -409,7 +411,7 @@ export class MultichainAccountWallet<
           // Stopping condition: Account discovery is halted if no accounts are returned by the provider.
           if (!accounts.length) {
             providerCtx.stopped = true;
-            return;
+            return 'stopped';
           }
 
           providerCtx.count += accounts.length;
@@ -440,6 +442,7 @@ export class MultichainAccountWallet<
         } catch (err) {
           providerCtx.stopped = true;
           console.error(err);
+          return 'error';
         } finally {
           providerCtx.running = undefined;
           if (!providerCtx.stopped) {
@@ -447,6 +450,7 @@ export class MultichainAccountWallet<
             providerCtx.running = schedule(p, target);
           }
         }
+        return 'succeed';
       })();
 
       return providerCtx.running;
@@ -459,20 +463,29 @@ export class MultichainAccountWallet<
       pCtx.running = schedule(p, currentGroupIndex);
     }
 
-    let racers: Promise<void>[] = [];
+    let racers: Promise<string>[] = [];
     do {
       racers = [...providerContexts.values()]
-        .map((c) => c.running)
-        .filter(Boolean) as Promise<void>[];
+        .filter((ctx) => ctx.running !== undefined)
+        .map((ctx) => ctx.running) as Promise<string>[];
+      console.log('-- Racers: ', racers.length);
+      for (const racer of racers) {
+        const result = await racer;
+        console.log(result);
+      }
 
       if (racers.length) {
         await Promise.race(racers);
       }
     } while (racers.length);
 
+    console.log('-- Sync...');
+
     // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
     // We can potentially remove this if we know that this race condition is not an issue in practice.
     this.sync();
+
+    console.log('-- Align...');
 
     await this.alignGroups();
 
