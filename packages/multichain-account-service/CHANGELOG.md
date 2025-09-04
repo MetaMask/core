@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `discoverAndCreateAccounts` method to `MultichainAccountWallet` to orchestrate provider discovery ([#6397](https://github.com/MetaMask/core/pull/6397))
 - Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6397](https://github.com/MetaMask/core/pull/6397))
   - An action handler was also registered for this method so that it can be called from the clients.
+- **BREAKING** Add additional allowed actions to the `MultichainAccountService` messenger
+  - `NetworkController:getNetworkClientById`, `NetworkController:findNetworkClientIdByChainId`, `KeyringController:getKeyringsByType` and `KeyringController:addNewKeyring` actions were added.
 
 ### Changed
 
