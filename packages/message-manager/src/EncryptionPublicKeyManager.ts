@@ -32,7 +32,7 @@ export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
 };
 
 export type EncryptionPublicKeyManagerMessenger = RestrictedMessenger<
-  string,
+  typeof managerName,
   ActionConstraint,
   | EventConstraint
   | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
@@ -91,6 +91,7 @@ export type EncryptionPublicKeyParamsMetamask =
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export class EncryptionPublicKeyManager extends AbstractMessageManager<
+  typeof managerName,
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
@@ -184,7 +185,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${this.name as string}:unapprovedMessage`, {
+    this.messagingSystem.publish(`${this.name}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });
