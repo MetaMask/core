@@ -4,10 +4,9 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import contractMap from '@metamask/contract-metadata';
 import {
   ASSET_TYPES,
@@ -21,6 +20,7 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -150,12 +150,10 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent;
 
-export type TokenDetectionControllerMessenger = RestrictedMessenger<
+export type TokenDetectionControllerMessenger = Messenger<
   typeof controllerName,
   TokenDetectionControllerActions | AllowedActions,
-  TokenDetectionControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenDetectionControllerEvents | AllowedEvents
 >;
 
 /** The input to start polling for the {@link TokenDetectionController} */
@@ -269,7 +267,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * Creates a TokenDetectionController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger - The controller messaging system.
+   * @param options.messenger - The controller messenger.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
@@ -328,14 +326,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#getCorrectChainIdAndNetworkClientId();
     this.#networkClientId = networkClientId;
 
-    const { tokensChainsCache } = this.messagingSystem.call(
+    const { tokensChainsCache } = this.messenger.call(
       'TokenListController:getState',
     );
 
     this.#tokensChainsCache = tokensChainsCache;
 
-    const { useTokenDetection: defaultUseTokenDetection } =
-      this.messagingSystem.call('PreferencesController:getState');
+    const { useTokenDetection: defaultUseTokenDetection } = this.messenger.call(
+      'PreferencesController:getState',
+    );
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
     this.#isDetectionEnabledForNetwork =
       isTokenDetectionSupportedForNetwork(chainId);
@@ -344,9 +343,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
@@ -358,22 +355,22 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
-   * Constructor helper for registering this controller's messaging system subscriptions to controller events.
+   * Constructor helper for registering this controller's messenger subscriptions to controller events.
    */
   #registerEventListeners() {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+    this.messenger.subscribe('KeyringController:unlock', async () => {
       this.#isUnlocked = true;
       await this.#restartTokenDetection();
     });
 
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
+    this.messenger.subscribe('KeyringController:lock', () => {
       this.#isUnlocked = false;
       this.#stopPolling();
     });
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokenListController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -388,7 +385,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'PreferencesController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -407,12 +404,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (selectedAccount) => {
-        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+        const { networkConfigurationsByChainId } = this.messenger.call(
           'NetworkController:getState',
         );
 
@@ -429,7 +426,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
         await this.detectTokens({
@@ -526,10 +523,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainIds: Hex[] | undefined,
   ): { chainId: Hex; networkClientId: NetworkClientId }[] {
     const { networkConfigurationsByChainId, selectedNetworkClientId } =
-      this.messagingSystem.call('NetworkController:getState');
+      this.messenger.call('NetworkController:getState');
 
     if (!chainIds) {
-      const networkConfiguration = this.messagingSystem.call(
+      const networkConfiguration = this.messenger.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
         selectedNetworkClientId,
       );
@@ -554,12 +551,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   #getCorrectChainIdAndNetworkClientId() {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
     const {
       configuration: { chainId },
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
@@ -668,7 +665,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     if (isMainnetDetectionInactive) {
       this.#tokensChainsCache = this.#getConvertedStaticMainnetTokenList();
     } else {
-      const { tokensChainsCache } = this.messagingSystem.call(
+      const { tokensChainsCache } = this.messenger.call(
         'TokenListController:getState',
       );
       this.#tokensChainsCache = tokensChainsCache ?? {};
@@ -768,7 +765,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     selectedAddress: string;
   }): string[][] {
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
-      this.messagingSystem.call('TokensController:getState');
+      this.messenger.call('TokensController:getState');
     const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
       allTokens,
       allDetectedTokens,
@@ -862,7 +859,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         const isTokenDetectionInactiveInMainnet =
           !this.#isDetectionEnabledFromPreferences &&
           chainId === ChainId.mainnet;
-        const { tokensChainsCache } = this.messagingSystem.call(
+        const { tokensChainsCache } = this.messenger.call(
           'TokenListController:getState',
         );
         this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
@@ -907,12 +904,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             },
           });
 
-          const networkClientId = this.messagingSystem.call(
+          const networkClientId = this.messenger.call(
             'NetworkController:findNetworkClientIdByChainId',
             chainId,
           );
 
-          await this.messagingSystem.call(
+          await this.messenger.call(
             'TokensController:addTokens',
             tokensWithBalance,
             networkClientId,
@@ -1039,7 +1036,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           },
         });
 
-        await this.messagingSystem.call(
+        await this.messenger.call(
           'TokensController:addTokens',
           tokensWithBalance,
           networkClientId,
@@ -1049,12 +1046,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getSelectedAddress() {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );

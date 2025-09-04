@@ -1,4 +1,11 @@
 import { BtcAccountType } from '@metamask/keyring-api';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import * as calculateDefiMetrics from './calculate-defi-metrics';
 import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
@@ -10,11 +17,6 @@ import * as fetchPositions from './fetch-positions';
 import * as groupDeFiPositions from './group-defi-positions';
 import { flushPromises } from '../../../../tests/helpers';
 import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
-import { Messenger } from '../../../base-controller/src/Messenger';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 import type {
   InternalAccount,
   TransactionMeta,
@@ -35,9 +37,16 @@ const OWNER_ACCOUNTS = [
   }),
 ];
 
-type MainMessenger = Messenger<
-  ExtractAvailableAction<DeFiPositionsControllerMessenger>,
-  ExtractAvailableEvent<DeFiPositionsControllerMessenger>
+type AllDefiPositionsControllerActions =
+  MessengerActions<DeFiPositionsControllerMessenger>;
+
+type AllDefiPositionsControllerEvents =
+  MessengerEvents<DeFiPositionsControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllDefiPositionsControllerActions,
+  AllDefiPositionsControllerEvents
 >;
 
 /**
@@ -64,7 +73,9 @@ function setupController({
   mockCalculateDefiMetrics?: jest.Mock;
   mockTrackEvent?: jest.Mock;
 } = {}) {
-  const messenger: MainMessenger = new Messenger();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockListAccounts = jest.fn().mockReturnValue(OWNER_ACCOUNTS);
   messenger.registerActionHandler(
@@ -72,10 +83,19 @@ function setupController({
     mockListAccounts,
   );
 
-  const restrictedMessenger = messenger.getRestricted({
-    name: 'DeFiPositionsController',
-    allowedActions: ['AccountsController:listAccounts'],
-    allowedEvents: [
+  const defiPositionControllerMessenger = new Messenger<
+    'DeFiPositionsController',
+    AllDefiPositionsControllerActions,
+    AllDefiPositionsControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'DeFiPositionsController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: defiPositionControllerMessenger,
+    actions: ['AccountsController:listAccounts'],
+    events: [
       'KeyringController:unlock',
       'KeyringController:lock',
       'TransactionController:transactionConfirmed',
@@ -104,7 +124,7 @@ function setupController({
   groupDeFiPositionsSpy.mockImplementation(mockGroupDeFiPositions);
 
   const controller = new DeFiPositionsController({
-    messenger: restrictedMessenger,
+    messenger: defiPositionControllerMessenger,
     isEnabled,
     trackEvent: mockTrackEvent,
   });

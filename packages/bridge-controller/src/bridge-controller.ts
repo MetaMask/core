@@ -1,7 +1,7 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { StateMetadata } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller/next';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
@@ -213,31 +213,31 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
       this.setChainIntervalLength.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
       this.updateBridgeQuoteRequestParams.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:resetState`,
       this.resetState.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:getBridgeERC20Allowance`,
       this.getBridgeERC20Allowance.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
       this.trackUnifiedSwapBridgeEvent.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
       this.stopPollingForQuotes.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
       this.fetchQuotes.bind(this),
     );
@@ -334,7 +334,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
   ): Promise<QuoteResponse[]> => {
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
@@ -385,9 +385,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getExchangeRateSources = () => {
     return {
-      ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
-      ...this.messagingSystem.call('CurrencyRateController:getState'),
-      ...this.messagingSystem.call('TokenRatesController:getState'),
+      ...this.messenger.call('MultichainAssetsRatesController:getState'),
+      ...this.messenger.call('CurrencyRateController:getState'),
+      ...this.messenger.call('TokenRatesController:getState'),
       ...this.state,
     };
   };
@@ -437,7 +437,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
-    const currency = this.messagingSystem.call(
+    const currency = this.messenger.call(
       'CurrencyRateController:getState',
     ).currentCurrency;
 
@@ -520,7 +520,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   setChainIntervalLength = () => {
     const { state } = this;
     const { srcChainId } = state.quoteRequest;
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
 
     const refreshRateOverride = srcChainId
       ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
@@ -608,7 +608,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
       console.log('Failed to fetch bridge quotes', error);
     }
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
     const { maxRefreshCount } = bridgeFeatureFlags;
 
     // Stop polling if the maximum number of refreshes has been reached
@@ -702,7 +702,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const selectedAccount = this.#getMultichainSelectedAccount();
 
     return isSolanaChainId(srcChainId) && selectedAccount?.metadata?.snap?.id
-      ? this.messagingSystem
+      ? this.messenger
           .call(
             'SnapController:handleRequest',
             getMinimumBalanceForRentExemptionRequest(
@@ -743,7 +743,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         const selectedAccount = this.#getMultichainSelectedAccount();
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
-          const { value: fees } = (await this.messagingSystem.call(
+          const { value: fees } = (await this.messenger.call(
             'SnapController:handleRequest',
             getFeeForTransactionRequest(
               selectedAccount.metadata.snap?.id,
@@ -775,13 +775,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   #getMultichainSelectedAccount() {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'AccountsController:getSelectedMultichainAccount',
     );
   }
 
   #getSelectedNetworkClientId() {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
     // console.log('===selectedNetworkClientId', selectedNetworkClientId);
@@ -790,7 +790,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #getSelectedNetworkClient() {
     const selectedNetworkClientId = this.#getSelectedNetworkClientId();
-    const networkClient = this.messagingSystem.call(
+    const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );

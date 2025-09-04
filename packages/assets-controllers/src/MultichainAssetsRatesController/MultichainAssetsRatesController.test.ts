@@ -1,20 +1,39 @@
-import { Messenger } from '@metamask/base-controller';
 import { SolScope } from '@metamask/keyring-api';
 import { SolMethod } from '@metamask/keyring-api';
 import { SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
 import {
+  type MultichainAssetsRatesControllerMessenger,
   type AllowedActions,
   type AllowedEvents,
 } from './MultichainAssetsRatesController';
 import { advanceTime } from '../../../../tests/helpers';
+
+type AllMultichainAssetsRateControllerActions =
+  MessengerActions<MultichainAssetsRatesControllerMessenger>;
+
+type AllMultichainAssetsRateControllerEvents =
+  MessengerEvents<MultichainAssetsRatesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainAssetsRateControllerActions,
+  AllMultichainAssetsRateControllerEvents
+>;
 
 // A fake non‑EVM account (with Snap metadata) that meets the controller’s criteria.
 const fakeNonEvmAccount: InternalAccount = {
@@ -118,7 +137,9 @@ const setupController = ({
   >;
   accountsAssets?: InternalAccount[];
 } = {}) => {
-  const messenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   messenger.registerActionHandler(
     'MultichainAssetsController:getState',
@@ -155,16 +176,25 @@ const setupController = ({
     currentCurrency: 'USD',
   }));
 
-  const multichainAssetsRatesControllerMessenger = messenger.getRestricted({
-    name: 'MultichainAssetsRatesController',
-    allowedActions: [
+  const multichainAssetsRatesControllerMessenger: Messenger<
+    'MultichainAssetsRatesController',
+    AllMultichainAssetsRateControllerActions,
+    AllMultichainAssetsRateControllerEvents,
+    RootMessenger
+  > = new Messenger({
+    namespace: 'MultichainAssetsRatesController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: multichainAssetsRatesControllerMessenger,
+    actions: [
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
       'CurrencyRateController:getState',
       'MultichainAssetsController:getState',
       'AccountsController:getSelectedMultichainAccount',
     ],
-    allowedEvents: [
+    events: [
       'AccountsController:accountAdded',
       'KeyringController:lock',
       'KeyringController:unlock',
@@ -913,7 +943,9 @@ describe('MultichainAssetsRatesController', () => {
       };
 
       // Set up controller with custom accounts and assets configuration
-      const messenger = new Messenger<AllowedActions, AllowedEvents>();
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
 
       // Mock MultichainAssetsController state with one account having no assets
       messenger.registerActionHandler(
@@ -970,24 +1002,35 @@ describe('MultichainAssetsRatesController', () => {
         snapHandler,
       );
 
+      const multichainAssetsRatesControllerMessenger = new Messenger<
+        'MultichainAssetsRatesController',
+        AllMultichainAssetsRateControllerActions,
+        AllMultichainAssetsRateControllerEvents,
+        RootMessenger
+      >({
+        namespace: 'MultichainAssetsRatesController',
+        parent: messenger,
+      });
+      messenger.delegate({
+        messenger: multichainAssetsRatesControllerMessenger,
+        actions: [
+          'MultichainAssetsController:getState',
+          'AccountsController:listMultichainAccounts',
+          'AccountsController:getSelectedMultichainAccount',
+          'CurrencyRateController:getState',
+          'SnapController:handleRequest',
+        ],
+        events: [
+          'KeyringController:lock',
+          'KeyringController:unlock',
+          'AccountsController:accountAdded',
+          'CurrencyRateController:stateChange',
+          'MultichainAssetsController:accountAssetListUpdated',
+        ],
+      });
+
       const controller = new MultichainAssetsRatesController({
-        messenger: messenger.getRestricted({
-          name: 'MultichainAssetsRatesController',
-          allowedActions: [
-            'MultichainAssetsController:getState',
-            'AccountsController:listMultichainAccounts',
-            'AccountsController:getSelectedMultichainAccount',
-            'CurrencyRateController:getState',
-            'SnapController:handleRequest',
-          ],
-          allowedEvents: [
-            'KeyringController:lock',
-            'KeyringController:unlock',
-            'AccountsController:accountAdded',
-            'CurrencyRateController:stateChange',
-            'MultichainAssetsController:accountAssetListUpdated',
-          ],
-        }),
+        messenger: multichainAssetsRatesControllerMessenger,
       });
 
       await controller.updateAssetsRates();

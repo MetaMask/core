@@ -6,8 +6,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import {
   BNToHex,
   isValidHexAddress,
@@ -15,6 +14,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -104,12 +104,10 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
-export type TokenBalancesControllerMessenger = RestrictedMessenger<
+export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
   TokenBalancesControllerActions | AllowedActions,
-  TokenBalancesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenBalancesControllerEvents | AllowedEvents
 >;
 
 export type TokenBalancesControllerOptions = {
@@ -186,13 +184,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.setIntervalLength(interval);
 
     // initial token state & subscriptions
-    const { allTokens, allDetectedTokens } = this.messagingSystem.call(
+    const { allTokens, allDetectedTokens } = this.messenger.call(
       'TokensController:getState',
     );
     this.#allTokens = allTokens;
     this.#detectedTokens = allDetectedTokens;
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokensController:stateChange',
       (tokensState: TokensControllerState) => {
         this.#onTokensChanged(tokensState).catch((error) => {
@@ -200,11 +198,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         });
       },
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkChanged,
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'KeyringController:accountRemoved',
       this.#onAccountRemoved,
     );
@@ -220,12 +218,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   readonly #getProvider = (chainId: ChainIdHex): Web3Provider => {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    const client = this.messagingSystem.call(
+    const client = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -233,12 +231,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #getNetworkClient = (chainId: ChainIdHex) => {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     const cfg = networkConfigurationsByChainId[chainId];
     const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -254,12 +252,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
 
-    const { address: selected } = this.messagingSystem.call(
+    const { address: selected } = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
-    const allAccounts = this.messagingSystem.call(
-      'AccountsController:listAccounts',
-    );
+    const allAccounts = this.messenger.call('AccountsController:listAccounts');
 
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
@@ -365,7 +361,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           balance: balance.value ? BNToHex(balance.value) : '0x0',
         }));
 
-        this.messagingSystem.call(
+        this.messenger.call(
           'AccountTrackerController:updateNativeBalances',
           balanceUpdates,
         );
@@ -392,7 +388,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           stakedBalance: balance.value ? toHex(balance.value) : '0x0',
         }));
 
-        this.messagingSystem.call(
+        this.messenger.call(
           'AccountTrackerController:updateStakedBalances',
           stakedBalanceUpdates,
         );
