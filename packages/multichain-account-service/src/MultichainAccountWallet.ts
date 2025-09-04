@@ -365,22 +365,31 @@ export class MultichainAccountWallet<
    * @returns The discovered accounts for each provider.
    */
   async discoverAndCreateAccounts(): Promise<Record<string, number>> {
-    const providers = this.#providers;
-    const providerContexts = new Map<
-      NamedAccountProvider,
-      ProviderDiscoveryContext
-    >();
+    // Start with the next available group index (so we can resume the discovery
+    // from there).
+    let maxGroupIndex = this.getNextGroupIndex();
 
-    for (const p of providers) {
-      providerContexts.set(p, { stopped: false, groupIndex: 0, count: 0 });
-    }
+    const providerContexts: {
+      provider: NamedAccountProvider;
+      stopped: boolean;
+      running?: Promise<void>;
+      groupIndex: number;
+      count: number;
+    }[] = this.#providers.map((provider) => ({
+      provider,
+      stopped: false,
+      running: undefined,
+      groupIndex: maxGroupIndex,
+      count: 0,
+    }));
 
-    let maxGroupIndex = 0;
-
-    const schedule = async (p: NamedAccountProvider, index: number) => {
-      console.log(`Schedule - ${p.getName()}, index=${index}`);
-      // Ok to cast here because we know that the ctx will always be set.
-      const providerCtx = providerContexts.get(p) as ProviderDiscoveryContext;
+    const schedule = async (
+      context: (typeof providerContexts)[number],
+      groupIndex: number,
+    ) => {
+      const step = (name: string) => {
+        return `Discovery ${name} (provider=${context.provider.getName()}, groupIndex=${groupIndex}).`;
+      };
 
       /* istanbul ignore next
        * Reason: This guard triggers only if `schedule` is invoked for the same
@@ -390,38 +399,42 @@ export class MultichainAccountWallet<
        * racy sleeps is brittle. We keep the guard for safety and exclude it from
        * coverage.
        */
-      if (providerCtx.running) {
-        console.log(`Schedule - already running... Awaiting`);
+      if (context.running) {
         // Wait for current scheduled job before starting a new one.
-        await providerCtx.running.catch((error) => {
+        await context.running.catch((error) => {
           console.error(error);
         });
-        providerCtx.running = undefined;
+        context.running = undefined;
       }
 
-      providerCtx.groupIndex = index;
+      // Keep track of the current group index being discovery by this provider.
+      context.groupIndex = groupIndex;
 
-      providerCtx.running = (async (): Promise<string> => {
+      // Pending promise of the provider's discovery for this group index.
+      context.running = (async (): Promise<void> => {
         try {
-          const accounts = await p.discoverAndCreateAccounts({
+          console.log(step('STARTED'));
+
+          const accounts = await context.provider.discoverAndCreateAccounts({
             entropySource: this.#entropySource,
-            groupIndex: index,
+            groupIndex,
           });
 
           // Stopping condition: Account discovery is halted if no accounts are returned by the provider.
           if (!accounts.length) {
-            providerCtx.stopped = true;
-            return 'stopped';
+            context.stopped = true;
+            console.log(step('STOPPED'));
+            return;
           }
 
-          providerCtx.count += accounts.length;
+          context.count += accounts.length;
 
-          const next = index + 1;
-          providerCtx.groupIndex = next;
+          const nextGroupIndex = groupIndex + 1;
+          context.groupIndex = nextGroupIndex;
 
-          if (next > maxGroupIndex) {
-            maxGroupIndex = next;
-            for (const [q, qCtx] of providerContexts) {
+          if (nextGroupIndex > maxGroupIndex) {
+            maxGroupIndex = nextGroupIndex;
+            for (const nextContext of providerContexts) {
               /* istanbul ignore next
                * Reason: This branch triggers only when a lagging provider is
                * momentarily "not running" exactly as another provider advances
@@ -431,69 +444,60 @@ export class MultichainAccountWallet<
                * coverage.
                */
               if (
-                !qCtx.stopped &&
-                !qCtx.running &&
-                qCtx.groupIndex < maxGroupIndex
+                !nextContext.stopped &&
+                !nextContext.running &&
+                nextContext.groupIndex < maxGroupIndex
               ) {
-                qCtx.running = schedule(q, maxGroupIndex);
+                nextContext.running = schedule(nextContext, maxGroupIndex);
               }
             }
           }
         } catch (err) {
-          providerCtx.stopped = true;
-          console.error(err);
-          return 'error';
+          context.stopped = true;
+          console.error(step('FAILED'), err);
         } finally {
-          providerCtx.running = undefined;
-          if (!providerCtx.stopped) {
-            const target = Math.max(maxGroupIndex, providerCtx.groupIndex);
-            providerCtx.running = schedule(p, target);
+          context.running = undefined;
+          if (!context.stopped) {
+            const highestGroupIndex = Math.max(
+              maxGroupIndex,
+              context.groupIndex,
+            );
+            context.running = schedule(context, highestGroupIndex);
           }
         }
-        return 'succeed';
       })();
 
-      return providerCtx.running;
+      return context.running;
     };
 
-    const currentGroupIndex = this.getNextGroupIndex();
     // Start discovery for all providers.
-    for (const p of providers) {
-      const pCtx = providerContexts.get(p) as ProviderDiscoveryContext;
-      pCtx.running = schedule(p, currentGroupIndex);
+    for (const context of providerContexts) {
+      context.running = schedule(context, maxGroupIndex);
     }
 
-    let racers: Promise<string>[] = [];
+    let racers: Promise<void>[] = [];
     do {
       racers = [...providerContexts.values()]
         .filter((ctx) => ctx.running !== undefined)
-        .map((ctx) => ctx.running) as Promise<string>[];
+        .map((ctx) => ctx.running) as Promise<void>[];
       console.log('-- Racers: ', racers.length);
-      for (const racer of racers) {
-        const result = await racer;
-        console.log(result);
-      }
 
       if (racers.length) {
         await Promise.race(racers);
       }
     } while (racers.length);
 
-    console.log('-- Sync...');
-
     // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
     // We can potentially remove this if we know that this race condition is not an issue in practice.
     this.sync();
 
-    console.log('-- Align...');
-
+    // Align missing accounts from group.
     await this.alignGroups();
 
     const discoveredAccounts: Record<string, number> = {};
-
-    for (const [p, ctx] of providerContexts) {
-      const groupKey = p.getName();
-      discoveredAccounts[groupKey] = ctx.count;
+    for (const context of providerContexts) {
+      const providerName = context.provider.getName();
+      discoveredAccounts[providerName] = context.count;
     }
 
     return discoveredAccounts;
