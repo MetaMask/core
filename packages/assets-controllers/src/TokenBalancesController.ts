@@ -304,7 +304,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * @param options0 - The polling options
    * @param options0.chainIds - Chain IDs to start polling for
    */
-  _startPolling({ chainIds }: { chainIds: ChainIdHex[] }) {
+  override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }) {
     // Store the original chainIds to preserve intent across config updates
     this.#requestedChainIds = [...chainIds];
     this.#isControllerPollingActive = true;
@@ -410,7 +410,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /**
    * Override to handle our custom polling approach
    */
-  _stopPollingByPollingTokenSetId() {
+  override _stopPollingByPollingTokenSetId() {
     this.#isControllerPollingActive = false;
     this.#requestedChainIds = []; // Clear original intent when stopping
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
@@ -431,7 +431,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
+  override async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
     // This won't be called with our custom implementation, but keep for compatibility
     await this.updateBalances({ chainIds });
   }
@@ -762,7 +762,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /**
    * Clean up all timers and resources when controller is destroyed
    */
-  destroy(): void {
+  override destroy(): void {
     this.#isControllerPollingActive = false;
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();

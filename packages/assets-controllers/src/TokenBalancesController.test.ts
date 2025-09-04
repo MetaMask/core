@@ -19,7 +19,7 @@ import type {
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
-import { advanceTime } from '../../../tests/helpers';
+import { advanceTime, flushPromises } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 
@@ -3561,9 +3561,9 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: [chainId] });
 
       // Allow initial polling to complete
-      await Promise.resolve();
+      await flushPromises();
       jest.runOnlyPendingTimers();
-      await Promise.resolve();
+      await flushPromises();
 
       // Clear spy calls from setup
       executePollSpy.mockClear();
@@ -3574,7 +3574,7 @@ describe('TokenBalancesController', () => {
       // Fast forward time to trigger the next scheduled poll interval
       // This should hit line 335 (early return when !#isControllerPollingActive)
       jest.advanceTimersByTime(150);
-      await Promise.resolve();
+      await flushPromises();
 
       // The scheduled poll should have been prevented by the inactive check (line 335)
       expect(executePollSpy).not.toHaveBeenCalled();
@@ -3608,13 +3608,11 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: [chainId] });
 
       // Allow immediate polling error to be caught (lines 340-343)
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
       // Advance timers to trigger interval polling and error handling
       jest.advanceTimersByTime(150);
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
       // Verify that console.warn was called for polling errors (covers lines 340-343)
       expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3651,9 +3649,9 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: [chainId] });
 
       // Allow polling to run
-      await Promise.resolve();
+      await flushPromises();
       jest.advanceTimersByTime(150);
-      await Promise.resolve();
+      await flushPromises();
 
       // Test that polling is functional
       expect(controller).toBeDefined();
