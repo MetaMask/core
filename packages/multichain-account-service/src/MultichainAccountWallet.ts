@@ -369,8 +369,6 @@ export class MultichainAccountWallet<
   /**
    * Discover and create accounts for all providers.
    *
-   * NOTE: This method should only be called on a newly created wallet.
-   *
    * @returns The discovered accounts for each provider.
    */
   async discoverAndCreateAccounts(): Promise<Record<string, number>> {
