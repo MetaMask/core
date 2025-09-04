@@ -34,6 +34,7 @@ import {
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
 } from './utils/validation';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/gas');
@@ -1441,6 +1442,68 @@ describe('UserOperationController', () => {
           },
         });
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "userOperations": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "userOperations": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "userOperations": Object {},
+        }
+      `);
     });
   });
 });
