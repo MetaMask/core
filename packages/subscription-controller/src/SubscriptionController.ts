@@ -11,27 +11,46 @@ import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
-import type { ISubscriptionService, Subscription } from './types';
+import {
+  SubscriptionStatus,
+  type ISubscriptionService,
+  type PricingResponse,
+  type ProductType,
+  type StartSubscriptionRequest,
+  type Subscription,
+} from './types';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
 };
 
 // Messenger Actions
-type CreateActionsObj<Controller extends keyof SubscriptionController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: SubscriptionController[K];
-  };
+export type SubscriptionControllerGetSubscriptionsAction = {
+  type: `${typeof controllerName}:getSubscriptions`;
+  handler: SubscriptionController['getSubscriptions'];
 };
-type ActionsObj = CreateActionsObj<'getSubscriptions' | 'cancelSubscription'>;
+export type SubscriptionControllerCancelSubscriptionAction = {
+  type: `${typeof controllerName}:cancelSubscription`;
+  handler: SubscriptionController['cancelSubscription'];
+};
+export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
+  type: `${typeof controllerName}:startShieldSubscriptionWithCard`;
+  handler: SubscriptionController['startShieldSubscriptionWithCard'];
+};
+export type SubscriptionControllerGetPricingAction = {
+  type: `${typeof controllerName}:getPricing`;
+  handler: SubscriptionController['getPricing'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
 >;
 export type SubscriptionControllerActions =
-  | ActionsObj[keyof ActionsObj]
+  | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerCancelSubscriptionAction
+  | SubscriptionControllerStartShieldSubscriptionWithCardAction
+  | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
@@ -149,6 +168,25 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:cancelSubscription',
       this.cancelSubscription.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:startShieldSubscriptionWithCard',
+      this.startShieldSubscriptionWithCard.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getPricing',
+      this.getPricing.bind(this),
+    );
+  }
+
+  /**
+   * Gets the pricing information from the subscription service.
+   *
+   * @returns The pricing information.
+   */
+  async getPricing(): Promise<PricingResponse> {
+    return await this.#subscriptionService.getPricing();
   }
 
   async getSubscriptions() {
@@ -172,10 +210,26 @@ export class SubscriptionController extends BaseController<
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, status: 'cancelled' }
+          ? { ...subscription, status: SubscriptionStatus.canceled }
           : subscription,
       );
     });
+  }
+
+  async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
+    this.#assertIsUserNotSubscribed({ products: request.products });
+
+    return await this.#subscriptionService.startSubscriptionWithCard(request);
+  }
+
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+    if (
+      this.state.subscriptions.find((subscription) =>
+        subscription.products.some((p) => products.includes(p.name)),
+      )
+    ) {
+      throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
