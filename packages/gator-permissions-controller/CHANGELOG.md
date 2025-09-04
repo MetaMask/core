@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Added
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
-- Integrate erc7715 types from @metamask/7715-permission-types package ([#6379](https://github.com/MetaMask/core/pull/6379))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/gator-permissions-controller@0.1.0
