@@ -18,7 +18,17 @@ import {
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
-import type { ProviderDiscoveryContext } from './types';
+
+/**
+ * The context for a provider discovery.
+ */
+export type AccountProviderDiscoveryContext = {
+  provider: NamedAccountProvider;
+  stopped: boolean;
+  running?: Promise<void>;
+  groupIndex: number;
+  count: number;
+};
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -369,22 +379,18 @@ export class MultichainAccountWallet<
     // from there).
     let maxGroupIndex = this.getNextGroupIndex();
 
-    const providerContexts: {
-      provider: NamedAccountProvider;
-      stopped: boolean;
-      running?: Promise<void>;
-      groupIndex: number;
-      count: number;
-    }[] = this.#providers.map((provider) => ({
-      provider,
-      stopped: false,
-      running: undefined,
-      groupIndex: maxGroupIndex,
-      count: 0,
-    }));
+    const providerContexts: AccountProviderDiscoveryContext[] = this.#providers.map(
+      (provider) => ({
+        provider,
+        stopped: false,
+        running: undefined,
+        groupIndex: maxGroupIndex,
+        count: 0,
+      }),
+    );
 
     const schedule = async (
-      context: (typeof providerContexts)[number],
+      context: AccountProviderDiscoveryContext,
       groupIndex: number,
     ) => {
       /* istanbul ignore next
