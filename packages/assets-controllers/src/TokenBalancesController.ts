@@ -55,7 +55,12 @@ const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
 
 const metadata = {
-  tokenBalances: { persist: true, anonymous: false },
+  tokenBalances: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 // account → chain → token → balance
