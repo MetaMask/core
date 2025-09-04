@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6397](https://github.com/MetaMask/core/pull/6397))
   - An action handler was also registered for this method so that it can be called from the clients.
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
 ## [0.6.0]
 
 ### Added
