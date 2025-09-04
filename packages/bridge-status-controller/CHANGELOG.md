@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getBridgeHistoryItemByTxMetaId` method available via messaging system for external access to bridge history items
-- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions
+- Add `getBridgeHistoryItemByTxMetaId` method available via messaging system for external access to bridge history items ([#6363](https://github.com/MetaMask/core/pull/6363))
+- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions ([#6363](https://github.com/MetaMask/core/pull/6363))
 
 ### Changed
 
-- Pass the `isGasFeeIncluded` parameter through transaction utilities
+- Pass the `isGasFeeIncluded` parameter through transaction utilities ([#6363](https://github.com/MetaMask/core/pull/6363))
 
 ## [41.0.0]
 
