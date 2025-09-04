@@ -2,6 +2,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
 import {
+  BtcScope,
   EthAccountType,
   EthScope,
   SolAccountType,
@@ -1760,6 +1761,121 @@ describe('BridgeController', function () {
       ).toMatchSnapshot();
     },
   );
+
+  it('should handle BTC chain fees correctly', async () => {
+    jest.useFakeTimers();
+    // Use the actual Solana mock which already has string trade type
+    const btcQuoteResponse = mockBridgeQuotesSolErc20.map((quote) => ({
+      ...quote,
+      quote: {
+        ...quote.quote,
+        srcChainId: ChainId.BTC,
+      },
+    })) as unknown as QuoteResponse[];
+
+    messengerMock.call.mockImplementation(
+      (
+        ...args: Parameters<BridgeControllerMessenger['call']>
+      ): ReturnType<BridgeControllerMessenger['call']> => {
+        const [actionType, params] = args;
+
+        if (actionType === 'AccountsController:getSelectedMultichainAccount') {
+          return {
+            type: 'btc:p2wpkh',
+            id: 'btc-account-1',
+            scopes: [BtcScope.Mainnet],
+            methods: [],
+            address: 'bc1q...',
+            metadata: {
+              name: 'BTC Account 1',
+              importTime: 1717334400,
+              keyring: {
+                type: 'Snap Keyring',
+              },
+              snap: {
+                id: 'btc-snap-id',
+                name: 'BTC Snap',
+              },
+            },
+          } as never;
+        }
+
+        if (actionType === 'SnapController:handleRequest') {
+          return new Promise((resolve) => {
+            if (
+              (params as { handler: string })?.handler === 'onClientRequest' &&
+              (params as { request?: { method: string } })?.request?.method ===
+                'ClientRequest:computeFee'
+            ) {
+              return setTimeout(() => {
+                resolve([
+                  {
+                    type: 'base',
+                    asset: {
+                      unit: 'BTC',
+                      type: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                      amount: '0.00005', // BTC fee
+                      fungible: true,
+                    },
+                  },
+                ]);
+              }, 100);
+            }
+            return setTimeout(() => {
+              resolve('5000');
+            }, 200);
+          });
+        }
+
+        return {
+          provider: jest.fn() as never,
+          selectedNetworkClientId: 'selectedNetworkClientId',
+        } as never;
+      },
+    );
+
+    jest.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
+      quotes: btcQuoteResponse,
+      validationFailures: [],
+    });
+
+    const quoteParams = {
+      srcChainId: ChainId.BTC.toString(),
+      destChainId: '1',
+      srcTokenAddress: 'NATIVE',
+      destTokenAddress: '0x0000000000000000000000000000000000000000',
+      srcTokenAmount: '100000', // satoshis
+      walletAddress: 'bc1q...',
+      destWalletAddress: '0x5342',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Wait for polling to start
+    jest.advanceTimersByTime(201);
+    await flushPromises();
+
+    // Wait for fetch to trigger
+    jest.advanceTimersByTime(295);
+    await flushPromises();
+
+    // Wait for fetch to complete
+    jest.advanceTimersByTime(2601);
+    await flushPromises();
+
+    // Final wait for fee calculation
+    jest.advanceTimersByTime(100);
+    await flushPromises();
+
+    const { quotes } = bridgeController.state;
+    expect(quotes).toHaveLength(2); // mockBridgeQuotesSolErc20 has 2 quotes
+    expect(quotes[0].solanaFeesInLamports).toBe('0.00005'); // BTC fee as-is
+    expect(quotes[1].solanaFeesInLamports).toBe('0.00005'); // BTC fee as-is
+  });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(() => {
