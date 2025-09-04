@@ -48,6 +48,7 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
+  TokenApi,
 } from './types';
 import {
   decodeJWTToken,
@@ -190,11 +191,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
 
   readonly toprfClient: ToprfSecureBackup;
 
-  readonly #refreshJWTToken: RefreshJWTToken;
-
-  readonly #revokeRefreshToken: RevokeRefreshToken;
-
-  readonly #renewRefreshToken: RenewRefreshToken;
+  readonly #tokenApi: TokenApi;
 
   /**
    * The TTL of the password outdated cache in milliseconds.
@@ -224,9 +221,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
    * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
-   * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
-   * @param options.revokeRefreshToken - A function to revoke the refresh token.
-   * @param options.renewRefreshToken - A function to renew the refresh token and get new revoke token.
+   * @param options.tokenApi - Token API to use for handling tokens.
    * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.,
    */
   constructor({
@@ -235,9 +230,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     encryptor,
     toprfKeyDeriver,
     network = Web3AuthNetwork.Mainnet,
-    refreshJWTToken,
-    revokeRefreshToken,
-    renewRefreshToken,
+    tokenApi,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
@@ -257,9 +250,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       keyDeriver: toprfKeyDeriver,
       fetchMetadataAccessCreds: this.fetchMetadataAccessCreds.bind(this),
     });
-    this.#refreshJWTToken = refreshJWTToken;
-    this.#revokeRefreshToken = revokeRefreshToken;
-    this.#renewRefreshToken = renewRefreshToken;
+    this.#tokenApi = tokenApi;
 
     // setup subscriptions to the keyring lock event
     // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
@@ -1749,7 +1740,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     const { refreshToken } = this.state;
 
     try {
-      const res = await this.#refreshJWTToken({
+      const res = await this.#tokenApi.refreshToken({
         connection: this.state.authConnection,
         refreshToken,
       });
@@ -1800,12 +1791,11 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
         );
       }
 
-      const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken(
-        {
+      const { newRevokeToken, newRefreshToken } =
+        await this.#tokenApi.renewRefreshToken({
           connection: this.state.authConnection,
           revokeToken,
-        },
-      );
+        });
 
       if (newRevokeToken && newRefreshToken) {
         this.update((state) => {
@@ -1850,7 +1840,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
       const promises = pendingToBeRevokedTokens.map(({ revokeToken }) => {
         const revokePromise = async (): Promise<string | null> => {
           try {
-            await this.#revokeRefreshToken({
+            await this.#tokenApi.revokeRefreshToken({
               connection: this.state.authConnection as AuthConnection,
               revokeToken,
             });

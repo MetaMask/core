@@ -14,6 +14,10 @@ export type {
   SeedlessOnboardingControllerEvents,
   ToprfKeyDeriver,
   RecoveryErrorData,
+  TokenApi,
+  RefreshJWTToken,
+  RevokeRefreshToken,
+  RenewRefreshToken,
 } from './types';
 export {
   Web3AuthNetwork,

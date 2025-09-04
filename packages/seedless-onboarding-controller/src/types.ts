@@ -267,6 +267,12 @@ export type RenewRefreshToken = (params: {
   newRefreshToken: string;
 }>;
 
+export type TokenApi = {
+  refreshToken: RefreshJWTToken;
+  revokeRefreshToken: RevokeRefreshToken;
+  renewRefreshToken: RenewRefreshToken;
+};
+
 /**
  * Seedless Onboarding Controller Options.
  *
@@ -290,19 +296,9 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
   encryptor: VaultEncryptor<EncryptionKey>;
 
   /**
-   * A function to get a new jwt token using refresh token.
+   * Token API to use for handling tokens.
    */
-  refreshJWTToken: RefreshJWTToken;
-
-  /**
-   * A function to revoke the refresh token.
-   */
-  revokeRefreshToken: RevokeRefreshToken;
-
-  /**
-   * A function to renew the refresh token and get new revoke token.
-   */
-  renewRefreshToken: RenewRefreshToken;
+  tokenApi: TokenApi;
 
   /**
    * Optional key derivation interface for the TOPRF client.
