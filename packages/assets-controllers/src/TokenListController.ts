@@ -77,8 +77,18 @@ export type TokenListControllerMessenger = RestrictedMessenger<
 >;
 
 const metadata = {
-  tokensChainsCache: { persist: true, anonymous: true },
-  preventPollingOnNetworkRestart: { persist: true, anonymous: true },
+  tokensChainsCache: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  preventPollingOnNetworkRestart: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: true,
+    usedInUi: false,
+  },
 };
 
 export const getDefaultTokenListState = (): TokenListState => {

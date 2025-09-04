@@ -68,12 +68,16 @@ export type DeFiPositionsControllerState = {
 
 const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
   allDeFiPositions: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   allDeFiPositionsCount: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
 };
 

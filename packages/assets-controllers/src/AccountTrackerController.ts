@@ -122,8 +122,10 @@ export type AccountTrackerControllerState = {
 
 const accountTrackerMetadata = {
   accountsByChainId: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 

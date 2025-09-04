@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -775,6 +775,108 @@ describe('CurrencyRateController', () => {
       expect(fetchMultiExchangeRateStub).not.toHaveBeenCalled();
 
       controller.destroy();
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new CurrencyRateController({
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "currencyRates": Object {
+            "ETH": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+              "usdConversionRate": null,
+            },
+          },
+          "currentCurrency": "usd",
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new CurrencyRateController({
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "currencyRates": Object {
+            "ETH": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+              "usdConversionRate": null,
+            },
+          },
+          "currentCurrency": "usd",
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new CurrencyRateController({
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "currencyRates": Object {
+            "ETH": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+              "usdConversionRate": null,
+            },
+          },
+          "currentCurrency": "usd",
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new CurrencyRateController({
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "currencyRates": Object {
+            "ETH": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+              "usdConversionRate": null,
+            },
+          },
+          "currentCurrency": "usd",
+        }
+      `);
     });
   });
 });

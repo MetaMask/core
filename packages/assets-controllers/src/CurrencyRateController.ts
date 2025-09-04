@@ -60,8 +60,18 @@ type CurrencyRateMessenger = RestrictedMessenger<
 >;
 
 const metadata = {
-  currentCurrency: { persist: true, anonymous: true },
-  currencyRates: { persist: true, anonymous: true },
+  currentCurrency: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  currencyRates: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
 };
 
 const defaultState = {

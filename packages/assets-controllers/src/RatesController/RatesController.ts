@@ -26,9 +26,24 @@ export enum Cryptocurrency {
 const DEFAULT_INTERVAL = 180000;
 
 const metadata = {
-  fiatCurrency: { persist: true, anonymous: true },
-  rates: { persist: true, anonymous: true },
-  cryptocurrencies: { persist: true, anonymous: true },
+  fiatCurrency: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  rates: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  cryptocurrencies: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: false,
+  },
 };
 
 const defaultState = {
