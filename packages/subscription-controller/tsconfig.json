@@ -5,11 +5,23 @@
   },
   "references": [
     {
+      "path": "../accounts-controller"
+    },
+    {
       "path": "../base-controller"
+    },
+    { 
+      "path": "../gas-fee-controller"
+    },
+    {
+      "path": "../network-controller" 
     },
     {
       "path": "../profile-sync-controller"
-    }
+    },
+    { 
+      "path": "../transaction-controller" 
+    },
   ],
   "include": ["../../types", "./src", "./tests"]
 }
