@@ -384,7 +384,7 @@ export class MultichainAccountWallet<
       context: AccountProviderDiscoveryContext,
     ) => {
       const message = (stepName: string) =>
-        `[${context.provider.getName()}] Discover ${stepName} (groupIndex=${context.groupIndex})`;
+        `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${context.groupIndex})`;
 
       while (!context.stopped) {
         // Fast‑forward to current high‑water mark
@@ -411,7 +411,7 @@ export class MultichainAccountWallet<
           break;
         }
 
-        log(message('SUCCEED'));
+        log(message('SUCCEEDED'));
 
         context.count += accounts.length;
 
