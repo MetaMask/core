@@ -63,7 +63,12 @@ export type LoggingControllerMessenger = RestrictedMessenger<
 >;
 
 const metadata = {
-  logs: { persist: true, anonymous: false },
+  logs: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
 };
 
 const defaultState = {

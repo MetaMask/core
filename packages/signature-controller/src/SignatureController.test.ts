@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { SIWEMessage } from '@metamask/controller-utils';
 import { detectSIWE, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
@@ -1298,6 +1299,72 @@ describe('SignatureController', () => {
       expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
         SignatureRequestStatus.InProgress,
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "signatureRequests": Object {},
+          "unapprovedPersonalMsgCount": 0,
+          "unapprovedPersonalMsgs": Object {},
+          "unapprovedTypedMessages": Object {},
+          "unapprovedTypedMessagesCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "signatureRequests": Object {},
+          "unapprovedPersonalMsgCount": 0,
+          "unapprovedPersonalMsgs": Object {},
+          "unapprovedTypedMessages": Object {},
+          "unapprovedTypedMessagesCount": 0,
+        }
+      `);
     });
   });
 });
