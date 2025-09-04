@@ -1823,7 +1823,7 @@ describe('BridgeController', function () {
 
     it('should track the InputSourceDestinationFlipped event', () => {
       bridgeController.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.InputSourceDestinationFlipped,
+        UnifiedSwapBridgeEventName.InputSourceDestinationSwitched,
         {
           token_symbol_destination: 'USDC',
           token_symbol_source: 'ETH',

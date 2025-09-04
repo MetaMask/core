@@ -327,7 +327,7 @@ Array [
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
 Array [
   Array [
-    "Unified SwapBridge Source Destination Flipped",
+    "Unified SwapBridge Source Destination Switched",
     Object {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
@@ -910,7 +910,7 @@ Array [
     },
   ],
   Array [
-    "Unified SwapBridge Quote Error",
+    "Unified SwapBridge Quotes Error",
     Object {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
