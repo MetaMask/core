@@ -1004,7 +1004,7 @@ Array [
     Object {
       "disable7702": true,
       "from": "0xaccount1",
-      "isGasFeeIncluded": undefined,
+      "isGasFeeIncluded": false,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2690,7 +2690,7 @@ Array [
     Object {
       "disable7702": true,
       "from": "0xaccount1",
-      "isGasFeeIncluded": undefined,
+      "isGasFeeIncluded": false,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
