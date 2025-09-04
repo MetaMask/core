@@ -218,11 +218,13 @@ export class MultichainAccountWallet<
    * Creates a multichain account group for a given group index.
    *
    * @param groupIndex - The group index to use.
+   * @param emitEvents - Whether to emit creation event (defaults to true).
    * @throws If any of the account providers fails to create their accounts.
    * @returns The multichain account group for this group index.
    */
   async createMultichainAccountGroup(
     groupIndex: number,
+    emitEvents = true,
   ): Promise<MultichainAccountGroup<Account>> {
     const nextGroupIndex = this.getNextGroupIndex();
     if (groupIndex > nextGroupIndex) {
@@ -305,10 +307,12 @@ export class MultichainAccountWallet<
     // Register the account to our internal map.
     this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
 
-    this.#messenger.publish(
-      'MultichainAccountService:multichainAccountGroupCreated',
-      group,
-    );
+    if (emitEvents) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
+    }
 
     return group;
   }
@@ -316,13 +320,17 @@ export class MultichainAccountWallet<
   /**
    * Creates the next multichain account group.
    *
+   * @param emitEvents - Whether to emit creation event (defaults to true).
    * @throws If any of the account providers fails to create their accounts.
    * @returns The multichain account group for the next group index available.
    */
-  async createNextMultichainAccountGroup(): Promise<
-    MultichainAccountGroup<Account>
-  > {
-    return this.createMultichainAccountGroup(this.getNextGroupIndex());
+  async createNextMultichainAccountGroup(
+    emitEvents = true,
+  ): Promise<MultichainAccountGroup<Account>> {
+    return this.createMultichainAccountGroup(
+      this.getNextGroupIndex(),
+      emitEvents,
+    );
   }
 
   /**
