@@ -1,7 +1,13 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import * as uuid from 'uuid';
 
-import type { LoggingControllerActions } from './LoggingController';
+import type { LoggingControllerMessenger } from './LoggingController';
 import { LoggingController } from './LoggingController';
 import { LogType } from './logTypes';
 import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
@@ -15,44 +21,56 @@ jest.mock('uuid', () => {
   };
 });
 
-const name = 'LoggingController';
+type AllLoggingControllerActions = MessengerActions<LoggingControllerMessenger>;
+
+type AllLoggingControllerEvents = MessengerEvents<LoggingControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllLoggingControllerActions,
+  AllLoggingControllerEvents
+>;
+
+const namespace = 'LoggingController';
 
 /**
- * Constructs a unrestricted messenger.
+ * Constructs a root messenger instance.
  *
- * @returns A unrestricted messenger.
+ * @returns A root messenger.
  */
-function getUnrestrictedMessenger() {
-  return new Messenger<LoggingControllerActions, never>();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
- * Constructs a restricted messenger.
+ * Constructs a messenger instance for LoggingController.
  *
- * @param messenger - An optional unrestricted messenger
- * @returns A restricted messenger.
+ * @param messenger - An optional root messenger
+ * @returns A controller messenger.
  */
-function getRestrictedMessenger(messenger = getUnrestrictedMessenger()) {
-  return messenger.getRestricted({
-    name,
-    allowedActions: [],
-    allowedEvents: [],
+function getLoggingControllerMessenger(messenger = getRootMessenger()) {
+  return new Messenger<
+    typeof namespace,
+    AllLoggingControllerActions,
+    AllLoggingControllerEvents,
+    RootMessenger
+  >({
+    namespace,
+    parent: messenger,
   });
 }
 
 describe('LoggingController', () => {
   it('action: LoggingController:add with generic log', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
       }),
@@ -70,17 +88,15 @@ describe('LoggingController', () => {
   });
 
   it('action: LoggingController:add for a signing request', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
           signingMethod: SigningMethod.PersonalSign,
@@ -106,8 +122,8 @@ describe('LoggingController', () => {
   });
 
   it('action: LoggingController:add prevents possible collision of ids', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
     const uuidV1Spy = jest.spyOn(uuid, 'v1');
 
     const controller = new LoggingController({
@@ -115,9 +131,7 @@ describe('LoggingController', () => {
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
       }),
@@ -128,9 +142,7 @@ describe('LoggingController', () => {
     uuidV1Spy.mockReturnValueOnce(id);
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log 2`,
       }),
@@ -159,17 +171,15 @@ describe('LoggingController', () => {
   });
 
   it('internal method: clear', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
           signingMethod: SigningMethod.PersonalSign,
