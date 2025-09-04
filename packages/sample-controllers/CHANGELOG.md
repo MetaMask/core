@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Fix mistakes in comment examples ([#6421](https://github.com/MetaMask/core/pull/6421))
-- Release 500.0.0 ([#6303](https://github.com/MetaMask/core/pull/6303))
-- Release/470.0.0 ([#6148](https://github.com/MetaMask/core/pull/6148))
-- Release/459.0.0 ([#6069](https://github.com/MetaMask/core/pull/6069))
-
 ### Added
 
 - `SampleGasPricesController.updateGasPrices` is now callable via the messaging system ([#6168](https://github.com/MetaMask/core/pull/6168))
