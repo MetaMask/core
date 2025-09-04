@@ -53,6 +53,7 @@
     "@metamask/keyring-api": "^20.1.0",
     "@metamask/keyring-internal-api": "^8.1.0",
     "@metamask/keyring-utils": "^3.1.0",
+    "@metamask/messenger": "^0.1.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/superstruct": "^3.1.0",
