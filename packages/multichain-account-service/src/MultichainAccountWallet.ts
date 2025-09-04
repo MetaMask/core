@@ -237,7 +237,7 @@ export class MultichainAccountWallet<
     if (group) {
       // If the group already exists, we just `sync` it and returns the same
       // reference.
-      group.sync();
+      group.sync({ emitEvents });
 
       return group;
     }
