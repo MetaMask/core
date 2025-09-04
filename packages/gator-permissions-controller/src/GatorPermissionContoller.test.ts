@@ -1,4 +1,10 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Hex } from '@metamask/utils';
@@ -19,10 +25,6 @@ import type {
   StoredGatorPermission,
   PermissionTypes,
 } from './types';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
@@ -72,7 +74,7 @@ describe('GatorPermissionsController', () => {
   describe('constructor', () => {
     it('creates GatorPermissionsController with default state', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       expect(controller.state.isGatorPermissionsEnabled).toBe(false);
@@ -102,7 +104,7 @@ describe('GatorPermissionsController', () => {
       };
 
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
         state: customState,
       });
 
@@ -117,7 +119,7 @@ describe('GatorPermissionsController', () => {
 
     it('creates GatorPermissionsController with default config', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       expect(controller.permissionsProviderSnapId).toBe(
@@ -129,7 +131,7 @@ describe('GatorPermissionsController', () => {
 
     it('isFetchingGatorPermissions is false on initialization', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
         state: {
           isFetchingGatorPermissions: true,
         },
@@ -142,7 +144,7 @@ describe('GatorPermissionsController', () => {
   describe('disableGatorPermissions', () => {
     it('disables gator permissions successfully', async () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       await controller.enableGatorPermissions();
@@ -166,7 +168,7 @@ describe('GatorPermissionsController', () => {
   describe('fetchAndUpdateGatorPermissions', () => {
     it('fetches and updates gator permissions successfully', async () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       await controller.enableGatorPermissions();
@@ -215,7 +217,7 @@ describe('GatorPermissionsController', () => {
 
     it('throws error when gator permissions are not enabled', async () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       await controller.disableGatorPermissions();
@@ -231,7 +233,7 @@ describe('GatorPermissionsController', () => {
       });
 
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(rootMessenger),
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
       });
 
       await controller.enableGatorPermissions();
@@ -253,7 +255,7 @@ describe('GatorPermissionsController', () => {
       });
 
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(rootMessenger),
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
       });
 
       await controller.enableGatorPermissions();
@@ -277,7 +279,7 @@ describe('GatorPermissionsController', () => {
       });
 
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(rootMessenger),
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
       });
 
       await controller.enableGatorPermissions();
@@ -293,7 +295,7 @@ describe('GatorPermissionsController', () => {
   describe('gatorPermissionsMap getter tests', () => {
     it('returns parsed gator permissions map', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       const { gatorPermissionsMap } = controller;
@@ -331,7 +333,7 @@ describe('GatorPermissionsController', () => {
       };
 
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
         state: {
           gatorPermissionsMapSerialized: JSON.stringify(mockState),
         },
@@ -345,7 +347,7 @@ describe('GatorPermissionsController', () => {
 
   describe('message handlers tests', () => {
     it('registers all message handlers', () => {
-      const messenger = getMessenger();
+      const messenger = getGatorPermissionsControllerMessenger();
       const mockRegisterActionHandler = jest.spyOn(
         messenger,
         'registerActionHandler',
@@ -373,7 +375,7 @@ describe('GatorPermissionsController', () => {
   describe('enableGatorPermissions', () => {
     it('enables gator permissions successfully', async () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       await controller.enableGatorPermissions();
@@ -386,15 +388,23 @@ describe('GatorPermissionsController', () => {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<GatorPermissionsControllerMessenger>;
+type AllGatorPermissionsControllerActions =
+  MessengerActions<GatorPermissionsControllerMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<GatorPermissionsControllerMessenger>;
+type AllGatorPermissionsControllerEvents =
+  MessengerEvents<GatorPermissionsControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllGatorPermissionsControllerActions,
+  AllGatorPermissionsControllerEvents
+>;
 
 /**
- * Constructs the unrestricted messenger. This can be used to call actions and
+ * Constructs the root messenger. This can be used to call actions and
  * publish events within the tests for this controller.
  *
  * @param args - The arguments to this function.
@@ -418,8 +428,10 @@ function getRootMessenger({
 }: {
   snapControllerHandleRequestActionHandler?: HandleSnapRequest['handler'];
   snapControllerHasActionHandler?: HasSnap['handler'];
-} = {}): Messenger<RootAction, RootEvent> {
-  const rootMessenger = new Messenger<RootAction, RootEvent>();
+} = {}): RootMessenger {
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   rootMessenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -433,18 +445,27 @@ function getRootMessenger({
 }
 
 /**
- * Constructs the messenger which is restricted to relevant SampleGasPricesController
+ * Constructs the messenger supporting relevant SampleGasPricesController
  * actions and events.
  *
  * @param rootMessenger - The root messenger to restrict.
- * @returns The restricted messenger.
+ * @returns The controller messenger.
  */
-function getMessenger(
+function getGatorPermissionsControllerMessenger(
   rootMessenger = getRootMessenger(),
 ): GatorPermissionsControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'GatorPermissionsController',
-    allowedActions: ['SnapController:handleRequest', 'SnapController:has'],
-    allowedEvents: [],
+  const gatorPermissionsControllerMessenger = new Messenger<
+    'GatorPermissionsController',
+    AllGatorPermissionsControllerActions,
+    AllGatorPermissionsControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'GatorPermissionsController',
+    parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger: gatorPermissionsControllerMessenger,
+    actions: ['SnapController:handleRequest', 'SnapController:has'],
+  });
+  return gatorPermissionsControllerMessenger;
 }
