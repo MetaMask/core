@@ -1,20 +1,22 @@
 import * as providersModule from '@ethersproject/providers';
-import { Messenger } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
+import {
   type NetworkController,
   type NetworkState,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   buildMockGetNetworkClientById,
   buildCustomNetworkClientConfiguration,
@@ -23,7 +25,6 @@ import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
 import type {
   EnsControllerState,
   EnsControllerMessenger,
-  AllowedActions,
 } from './EnsController';
 
 const defaultState: EnsControllerState = {
@@ -54,9 +55,14 @@ jest.mock('@ethersproject/providers', () => {
   };
 });
 
+type AllEnsControllerActions = MessengerActions<EnsControllerMessenger>;
+
+type AllEnsControllerEvents = MessengerEvents<EnsControllerMessenger>;
+
 type RootMessenger = Messenger<
-  ExtractAvailableAction<EnsControllerMessenger>,
-  ExtractAvailableEvent<EnsControllerMessenger>
+  MockAnyNamespace,
+  AllEnsControllerActions,
+  AllEnsControllerEvents
 >;
 
 const ZERO_X_ERROR_ADDRESS = '0x';
@@ -76,27 +82,24 @@ const name = 'EnsController';
 /**
  * Constructs the root messenger.
  *
- * @returns A restricted messenger.
+ * @returns A root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger<
-    ExtractAvailableAction<EnsControllerMessenger> | AllowedActions,
-    ExtractAvailableEvent<EnsControllerMessenger> | never
-  >();
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
- * Constructs the messenger restricted to EnsController actions and events.
+ * Constructs the messenger for EnsController actions and events.
  *
- * @param rootMessenger - The root messenger to base the restricted messenger
+ * @param rootMessenger - The root messenger to base the controller messenger
  * off of.
  * @param getNetworkClientByIdMock - Optional mock version of `getNetworkClientById`.
- * @returns A restricted messenger.
+ * @returns A controller messenger for EnsController.
  */
-function getRestrictedMessenger(
+function getEnsControllerMessenger(
   rootMessenger: RootMessenger,
   getNetworkClientByIdMock?: NetworkController['getNetworkClientById'],
-) {
+): EnsControllerMessenger {
   const mockNetworkState = jest.fn<NetworkState, []>().mockReturnValue({
     ...getDefaultNetworkControllerState(),
     selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -115,14 +118,23 @@ function getRestrictedMessenger(
     getNetworkClientByIdMock,
   );
 
-  return rootMessenger.getRestricted<'EnsController', AllowedActions['type']>({
-    name,
-    allowedActions: [
+  const ensControllerMessenger = new Messenger<
+    'EnsController',
+    AllEnsControllerActions,
+    AllEnsControllerEvents,
+    RootMessenger
+  >({
+    namespace: name,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: ensControllerMessenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
     ],
-    allowedEvents: [],
   });
+  return ensControllerMessenger;
 }
 
 /**
@@ -137,7 +149,7 @@ function getProvider() {
 describe('EnsController', () => {
   it('should set default state', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -146,7 +158,7 @@ describe('EnsController', () => {
 
   it('should return registry address for `.`', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -159,7 +171,7 @@ describe('EnsController', () => {
 
   it('should not return registry address for unrecognized chains', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -168,7 +180,7 @@ describe('EnsController', () => {
 
   it('should add a new ENS entry and return true', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -182,7 +194,7 @@ describe('EnsController', () => {
 
   it('should clear ensResolutionsByAddress state propery when resetState is called', async () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
       state: {
@@ -203,7 +215,7 @@ describe('EnsController', () => {
 
   it('should clear ensResolutionsByAddress state propery on networkDidChange', async () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
       state: {
@@ -224,7 +236,7 @@ describe('EnsController', () => {
 
   it('should add a new ENS entry with null address and return true', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -238,7 +250,7 @@ describe('EnsController', () => {
 
   it('should update an ENS entry and return true', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -253,7 +265,7 @@ describe('EnsController', () => {
 
   it('should update an ENS entry with null address and return true', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -268,7 +280,7 @@ describe('EnsController', () => {
 
   it('should not update an ENS entry if the address is the same (valid address) and return false', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -283,7 +295,7 @@ describe('EnsController', () => {
 
   it('should not update an ENS entry if the address is the same (null) and return false', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -298,7 +310,7 @@ describe('EnsController', () => {
 
   it('should add multiple ENS entries and update without side effects', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -325,7 +337,7 @@ describe('EnsController', () => {
 
   it('should get ENS default registry by chainId when asking for `.`', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -339,7 +351,7 @@ describe('EnsController', () => {
 
   it('should get ENS entry by chainId and ensName', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -353,7 +365,7 @@ describe('EnsController', () => {
 
   it('should return null when getting nonexistent name', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -363,7 +375,7 @@ describe('EnsController', () => {
 
   it('should return null when getting nonexistent chainId', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -373,7 +385,7 @@ describe('EnsController', () => {
 
   it('should throw on attempt to set invalid ENS entry: chainId', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -388,7 +400,7 @@ describe('EnsController', () => {
 
   it('should throw on attempt to set invalid ENS entry: ENS name', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -400,7 +412,7 @@ describe('EnsController', () => {
 
   it('should throw on attempt to set invalid ENS entry: address', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -414,7 +426,7 @@ describe('EnsController', () => {
 
   it('should remove an ENS entry and return true', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -425,7 +437,7 @@ describe('EnsController', () => {
 
   it('should remove chain entries completely when all entries are removed', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -440,7 +452,7 @@ describe('EnsController', () => {
 
   it('should return false if an ENS entry was NOT deleted due to unsafe input', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -451,7 +463,7 @@ describe('EnsController', () => {
 
   it('should return false if an ENS entry was NOT deleted', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -467,7 +479,7 @@ describe('EnsController', () => {
 
   it('should add multiple ENS entries and remove without side effects', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -489,7 +501,7 @@ describe('EnsController', () => {
 
   it('should clear all ENS entries', () => {
     const rootMessenger = getRootMessenger();
-    const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
     const controller = new EnsController({
       messenger: ensControllerMessenger,
     });
@@ -506,7 +518,7 @@ describe('EnsController', () => {
   describe('reverseResolveName', () => {
     it('should return undefined when eth provider is not defined', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
       });
@@ -515,7 +527,7 @@ describe('EnsController', () => {
 
     it('should return undefined when network is loading', async function () {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -535,7 +547,7 @@ describe('EnsController', () => {
           chainId: '0x9999999',
         }),
       });
-      const ensControllerMessenger = getRestrictedMessenger(
+      const ensControllerMessenger = getEnsControllerMessenger(
         rootMessenger,
         getNetworkClientById,
       );
@@ -553,7 +565,7 @@ describe('EnsController', () => {
 
     it('should only resolve an ENS name once', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address1);
       jest
@@ -577,7 +589,7 @@ describe('EnsController', () => {
 
     it('should fail if lookupAddress through an error', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'lookupAddress').mockRejectedValue('error');
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
@@ -596,7 +608,7 @@ describe('EnsController', () => {
 
     it('should fail if lookupAddress returns a null value', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'lookupAddress').mockResolvedValue(null);
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
@@ -615,7 +627,7 @@ describe('EnsController', () => {
 
     it('should fail if resolveName through an error', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest
         .spyOn(ethProvider, 'lookupAddress')
@@ -637,7 +649,7 @@ describe('EnsController', () => {
 
     it('should fail if resolveName returns a null value', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(null);
       jest
@@ -659,7 +671,7 @@ describe('EnsController', () => {
 
     it('should fail if registred address is zero x error address', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest
         .spyOn(ethProvider, 'resolveName')
@@ -683,7 +695,7 @@ describe('EnsController', () => {
 
     it('should fail if the name is registered to a different address than the reverse resolved', async () => {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
+      const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
 
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address2);

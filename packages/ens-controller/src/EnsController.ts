@@ -1,6 +1,9 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
@@ -11,6 +14,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -69,16 +73,24 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
+export type EnsControllerActions = ControllerGetStateAction<
+  typeof name,
+  EnsControllerState
+>;
+
+export type EnsControllerEvents = ControllerStateChangeEvent<
+  typeof name,
+  EnsControllerState
+>;
+
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction;
 
-export type EnsControllerMessenger = RestrictedMessenger<
+export type EnsControllerMessenger = Messenger<
   typeof name,
-  AllowedActions,
-  never,
-  AllowedActions['type'],
-  never
+  EnsControllerActions | AllowedActions,
+  EnsControllerEvents
 >;
 
 const metadata = {
@@ -278,7 +290,7 @@ export class EnsController extends BaseController<
   }
 
   #setDefaultEthProvider(registriesByChainId?: Record<number, Hex>) {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
     this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
@@ -291,7 +303,7 @@ export class EnsController extends BaseController<
     const {
       configuration: { chainId: currentChainId },
       provider,
-    } = this.messagingSystem.call(
+    } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
