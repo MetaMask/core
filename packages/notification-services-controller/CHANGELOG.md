@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `sendPerpPlaceOrderNotification` method to `NotificationServicesController` ([#6464](https://github.com/MetaMask/core/pull/6464))
+- Add `createPerpOrderNotification` function to invoke perp notification service ([#6464](https://github.com/MetaMask/core/pull/6464))
+- Add `perps/schema.ts` file from perp notification OpenAPI types ([#6464](https://github.com/MetaMask/core/pull/6464))
+- Add exported `OrderInput` type ([#6464](https://github.com/MetaMask/core/pull/6464))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
