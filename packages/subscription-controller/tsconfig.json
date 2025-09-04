@@ -21,7 +21,7 @@
     },
     { 
       "path": "../transaction-controller" 
-    },
+    }
   ],
   "include": ["../../types", "./src", "./tests"]
 }
