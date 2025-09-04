@@ -30,6 +30,10 @@ export type AccountProviderDiscoveryContext = {
   count: number;
 };
 
+export type AccountDiscoveryMetrics = {
+  [providerName: string]: number;
+};
+
 const log = createProjectLogger('multichain-account-service');
 
 /**
@@ -374,7 +378,7 @@ export class MultichainAccountWallet<
    *
    * @returns The discovered accounts for each provider.
    */
-  async discoverAndCreateAccounts(): Promise<Record<string, number>> {
+  async discoverAndCreateAccounts(): Promise<AccountDiscoveryMetrics> {
     // Start with the next available group index (so we can resume the discovery
     // from there).
     let maxGroupIndex = this.getNextGroupIndex();
