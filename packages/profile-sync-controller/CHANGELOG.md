@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLog` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
+
 ### Changed
 
 - Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
