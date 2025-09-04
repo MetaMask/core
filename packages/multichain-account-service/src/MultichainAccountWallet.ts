@@ -15,6 +15,7 @@ import {
   type EntropySourceId,
   type KeyringAccount,
 } from '@metamask/keyring-api';
+import { createProjectLogger } from '@metamask/utils';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
@@ -28,6 +29,8 @@ export type AccountProviderDiscoveryContext = {
   groupIndex: number;
   count: number;
 };
+
+const log = createProjectLogger('multichain-account-service');
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -380,14 +383,14 @@ export class MultichainAccountWallet<
     const runProviderDiscovery = async (
       context: AccountProviderDiscoveryContext,
     ) => {
-      const step = (stepName: string) =>
+      const message = (stepName: string) =>
         `[${context.provider.getName()}] Discover ${stepName} (groupIndex=${context.groupIndex})`;
 
       while (!context.stopped) {
         // Fast‑forward to current high‑water mark
         const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
 
-        console.log(step('STARTED'));
+        log(message('STARTED'));
 
         let accounts: Bip44Account<KeyringAccount>[] = [];
         try {
@@ -398,17 +401,17 @@ export class MultichainAccountWallet<
         } catch (error) {
           context.stopped = true;
           console.error(error);
-          console.error(step('FAILED'), error);
+          log(message('FAILED'), error);
           break;
         }
 
         if (!accounts.length) {
-          console.log(step('STOPPED'));
+          log(message('STOPPED'));
           context.stopped = true;
           break;
         }
 
-        console.log(step('SUCCEED'));
+        log(message('SUCCEED'));
 
         context.count += accounts.length;
 
