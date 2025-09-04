@@ -2,9 +2,9 @@ import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accou
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   controllerName,
@@ -149,10 +149,8 @@ type AllowedActions =
 
 type AllowedEvents = never;
 
-export type DelegationControllerMessenger = RestrictedMessenger<
+export type DelegationControllerMessenger = Messenger<
   typeof controllerName,
   DelegationControllerActions | AllowedActions,
-  DelegationControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  DelegationControllerEvents | AllowedEvents
 >;

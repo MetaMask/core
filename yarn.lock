@@ -3009,6 +3009,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.2.0"
     "@metamask/keyring-controller": "npm:^23.0.0"
+    "@metamask/messenger": "npm:^0.1.0"
     "@metamask/utils": "npm:^11.4.2"
     "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
