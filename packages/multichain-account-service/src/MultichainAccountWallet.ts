@@ -18,7 +18,7 @@ import {
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
-import { ProviderDiscoveryContext } from './types';
+import type { ProviderDiscoveryContext } from './types';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
