@@ -864,13 +864,13 @@ describe('MultichainAccountService', () => {
         name: '',
       }));
 
-      const [wallet, entropySource] = await messenger.call(
+      const wallet = await messenger.call(
         'MultichainAccountService:createMultichainAccountWallet',
         { mnemonic: MOCK_MNEMONIC },
       );
 
       expect(wallet).toBeDefined();
-      expect(entropySource).toBe('abc');
+      expect(wallet.entropySource).toBe('abc');
     });
   });
 
@@ -1011,13 +1011,12 @@ describe('MultichainAccountService', () => {
         name: '',
       }));
 
-      const [wallet, entropySource] =
-        await service.createMultichainAccountWallet({
-          mnemonic: MOCK_MNEMONIC,
-        });
+      const wallet = await service.createMultichainAccountWallet({
+        mnemonic: MOCK_MNEMONIC,
+      });
 
       expect(wallet).toBeDefined();
-      expect(entropySource).toBe('abc');
+      expect(wallet.entropySource).toBe('abc');
     });
 
     it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
