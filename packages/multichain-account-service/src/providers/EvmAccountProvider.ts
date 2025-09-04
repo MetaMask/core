@@ -60,6 +60,28 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return provider;
   }
 
+  async createAccount({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<[Hex, boolean]> {
+    const result = await this.withKeyring<EthKeyring, [Hex, boolean]>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        const existing = await keyring.getAccounts();
+        if (groupIndex < existing.length) {
+          return [existing[groupIndex], false];
+        }
+        const [added] = await keyring.addAccounts(1);
+        return [added, true];
+      },
+    );
+
+    return result;
+  }
+
   async createAccounts({
     entropySource,
     groupIndex,
@@ -67,25 +89,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }) {
-    const [address] = await this.withKeyring<EthKeyring, Hex[]>(
-      { id: entropySource },
-      async ({ keyring }) => {
-        const accounts = await keyring.getAccounts();
-        if (groupIndex < accounts.length) {
-          // Nothing new to create, we just re-use the existing accounts here,
-          return [accounts[groupIndex]];
-        }
-
-        // For now, we don't allow for gap, so if we need to create a new
-        // account, this has to be the next one.
-        if (groupIndex !== accounts.length) {
-          throw new Error('Trying to create too many accounts');
-        }
-
-        // Create next account (and returns their addresses).
-        return await keyring.addAccounts(1);
-      },
-    );
+    const [address] = await this.createAccount({
+      entropySource,
+      groupIndex,
+    });
 
     const account = this.messenger.call(
       'AccountsController:getAccountByAddress',
@@ -104,8 +111,6 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   /**
    * Discover and create accounts for the EVM provider.
    *
-   * NOTE: This method should only be called on a newly created wallet.
-   *
    * @param opts - The options for the discovery and creation of accounts.
    * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
    * @param opts.groupIndex - The index of the group to create the accounts for.
@@ -118,32 +123,40 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const provider = this.getEvmProvider();
     const { entropySource, groupIndex } = opts;
 
-    const [address, didCreate] = await this.withKeyring<
-      EthKeyring,
-      [Hex, boolean]
-    >({ id: entropySource }, async ({ keyring }) => {
-      const existing = await keyring.getAccounts();
-      if (groupIndex < existing.length) {
-        return [existing[groupIndex], false];
-      }
-      const [added] = await keyring.addAccounts(1);
-      return [added, true];
+    const [address, didCreate] = await this.createAccount({
+      entropySource,
+      groupIndex,
     });
 
-    const countHex = (await provider.request({
-      method: 'eth_getTransactionCount',
-      params: [address, 'latest'],
-    })) as Hex;
-    const count = parseInt(countHex, 16);
-
     // We don't want to remove the account if it's the first one.
-    if (count === 0 && didCreate && groupIndex !== 0) {
-      await this.withKeyring<EthKeyring>(
-        { id: entropySource },
-        async ({ keyring }) => {
-          keyring.removeAccount?.(address);
-        },
-      );
+    const shouldCleanup = didCreate && groupIndex !== 0;
+    try {
+      const countHex = (await provider.request({
+        method: 'eth_getTransactionCount',
+        params: [address, 'latest'],
+      })) as Hex;
+      const count = parseInt(countHex, 16);
+
+      if (count === 0 && shouldCleanup) {
+        await this.withKeyring<EthKeyring>(
+          { id: entropySource },
+          async ({ keyring }) => {
+            keyring.removeAccount?.(address);
+          },
+        );
+        return [];
+      }
+    } catch {
+      // If the RPC request fails and we just created this account for discovery,
+      // remove it to avoid leaving a dangling account.
+      if (shouldCleanup) {
+        await this.withKeyring<EthKeyring>(
+          { id: entropySource },
+          async ({ keyring }) => {
+            keyring.removeAccount?.(address);
+          },
+        );
+      }
       return [];
     }
 

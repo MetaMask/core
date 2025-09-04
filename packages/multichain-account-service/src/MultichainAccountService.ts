@@ -6,12 +6,12 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   type KeyringMetadata,
   KeyringTypes,
 } from '@metamask/keyring-controller';
-import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import { convertEnglishWordlistIndicesToCodepoints } from './mnemonic';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
@@ -311,7 +311,7 @@ export class MultichainAccountService {
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
    * @throws If the mnemonic has already been imported.
-   * @returns The a tuple of the new multichain account wallet and the entropy source id.
+   * @returns The new multichain account wallet.
    */
   async createMultichainAccountWallet({
     mnemonic,
@@ -321,9 +321,12 @@ export class MultichainAccountService {
     const existingKeyrings = this.#messenger.call(
       'KeyringController:getKeyringsByType',
       KeyringTypes.hd,
-    ) as (EthKeyring & { mnemonic: Uint8Array })[];
+    ) as HdKeyring[];
 
     const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
+      if (!keyring.mnemonic) {
+        return false;
+      }
       return (
         convertEnglishWordlistIndicesToCodepoints(keyring.mnemonic).toString(
           'utf8',
