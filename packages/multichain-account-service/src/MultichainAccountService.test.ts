@@ -5,6 +5,7 @@ import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
+import { convertMnemonicToWordlistIndices } from './mnemonic';
 import { MultichainAccountService } from './MultichainAccountService';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
@@ -36,7 +37,6 @@ import type {
   MultichainAccountServiceEvents,
   MultichainAccountServiceMessenger,
 } from './types';
-import { convertMnemonicToWordlistIndices } from './utils';
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {

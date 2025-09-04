@@ -13,6 +13,7 @@ import {
 } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
+import { convertEnglishWordlistIndicesToCodepoints } from './mnemonic';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { NamedAccountProvider } from './providers';
@@ -23,7 +24,6 @@ import {
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
-import { convertEnglishWordlistIndicesToCodepoints } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
