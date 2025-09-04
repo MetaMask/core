@@ -1,16 +1,19 @@
-import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {
-  NetworkControllerGetEIP1559CompatibilityAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerMessenger,
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -30,12 +33,11 @@ import {
 } from './gas-util';
 import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
 import type {
+  GasFeeMessenger,
   GasFeeState,
-  GasFeeStateChange,
   GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
-  GetGasFeeState,
 } from './GasFeeController';
 
 jest.mock('./determineGasFeeCalculations');
@@ -48,39 +50,46 @@ const mockedDetermineGasFeeCalculations =
 
 const name = 'GasFeeController';
 
-type MainMessenger = Messenger<
-  | GetGasFeeState
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
-  GasFeeStateChange | NetworkControllerNetworkDidChangeEvent
->;
+type AllGasFeeControllerActions = MessengerActions<GasFeeMessenger>;
+type AllGasFeeControllerEvents = MessengerEvents<GasFeeMessenger>;
 
-const getMessenger = (): MainMessenger => {
-  return new Messenger();
+type AllNetworkControllerActions = MessengerActions<NetworkControllerMessenger>;
+type AllNetworkControllerEvents = MessengerEvents<NetworkControllerMessenger>;
+
+type AllActions = AllGasFeeControllerActions | AllNetworkControllerActions;
+type AllEvents = AllGasFeeControllerEvents | AllNetworkControllerEvents;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const getRootMessenger = (): RootMessenger => {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 };
 
 const setupNetworkController = async ({
-  unrestrictedMessenger,
+  rootMessenger,
   state,
   clock,
   initializeProvider = true,
 }: {
-  unrestrictedMessenger: MainMessenger;
+  rootMessenger: RootMessenger;
   state: Partial<NetworkState>;
   clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
 }) => {
-  const restrictedMessenger = unrestrictedMessenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: [],
-    allowedEvents: [],
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
   });
 
   const infuraProjectId = '123';
 
   const networkController = new NetworkController({
-    messenger: restrictedMessenger,
+    messenger: networkControllerMessenger,
     state,
     infuraProjectId,
     getRpcServiceOptions: () => ({
@@ -117,16 +126,26 @@ const setupNetworkController = async ({
   return networkController;
 };
 
-const getRestrictedMessenger = (messenger: MainMessenger) => {
-  return messenger.getRestricted({
-    name,
-    allowedActions: [
+const getGasFeeControllerMessenger = (rootMessenger: RootMessenger) => {
+  const gasFeeControllerMessenger = new Messenger<
+    'GasFeeController',
+    AllGasFeeControllerActions,
+    AllGasFeeControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'GasFeeController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: gasFeeControllerMessenger,
+    actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getEIP1559Compatibility',
     ],
-    allowedEvents: ['NetworkController:networkDidChange'],
+    events: ['NetworkController:networkDidChange'],
   });
+  return gasFeeControllerMessenger;
 };
 
 /**
@@ -282,14 +301,14 @@ describe('GasFeeController', () => {
     interval?: number;
     initializeNetworkProvider?: boolean;
   } = {}) {
-    const messenger = getMessenger();
+    const rootMessenger = getRootMessenger();
     networkController = await setupNetworkController({
-      unrestrictedMessenger: messenger,
+      rootMessenger,
       state: networkControllerState,
       clock,
       initializeProvider: initializeNetworkProvider,
     });
-    const restrictedMessenger = getRestrictedMessenger(messenger);
+    const restrictedMessenger = getGasFeeControllerMessenger(rootMessenger);
     gasFeeController = new GasFeeController({
       getProvider: jest.fn(),
       getChainId,

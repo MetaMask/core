@@ -1,4 +1,8 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -36,12 +40,20 @@ const GAS_BUFFER_4_MOCK = 1.4;
 const GAS_BUFFER_5_MOCK = 1.5;
 
 describe('Feature Flags Utils', () => {
-  let baseMessenger: Messenger<
-    RemoteFeatureFlagControllerGetStateAction,
-    never
+  let rootMessenger: Messenger<
+    'Root',
+    MessengerActions<TransactionControllerMessenger>,
+    MessengerEvents<TransactionControllerMessenger>
   >;
 
   let controllerMessenger: TransactionControllerMessenger;
+
+  let remoteFeatureFlagControllerMessenger: Messenger<
+    'RemoteFeatureFlagController',
+    RemoteFeatureFlagControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >;
 
   let getFeatureFlagsMock: jest.MockedFn<
     RemoteFeatureFlagControllerGetStateAction['handler']
@@ -66,17 +78,25 @@ describe('Feature Flags Utils', () => {
 
     getFeatureFlagsMock = jest.fn();
 
-    baseMessenger = new Messenger();
+    rootMessenger = new Messenger({ namespace: 'Root' });
 
-    baseMessenger.registerActionHandler(
+    remoteFeatureFlagControllerMessenger = new Messenger({
+      namespace: 'RemoteFeatureFlagController',
+      parent: rootMessenger,
+    });
+
+    remoteFeatureFlagControllerMessenger.registerActionHandler(
       'RemoteFeatureFlagController:getState',
       getFeatureFlagsMock,
     );
 
-    controllerMessenger = baseMessenger.getRestricted({
-      name: 'TransactionController',
-      allowedActions: ['RemoteFeatureFlagController:getState'],
-      allowedEvents: [],
+    controllerMessenger = new Messenger({
+      namespace: 'TransactionController',
+      parent: rootMessenger,
+    });
+    rootMessenger.delegate({
+      messenger: controllerMessenger,
+      actions: ['RemoteFeatureFlagController:getState'],
     });
 
     isValidSignatureMock.mockReturnValue(true);

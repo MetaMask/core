@@ -1,4 +1,3 @@
-import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -6,6 +5,11 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -13,10 +17,6 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import {
   type BuiltInNetworkClientId,
   type CustomNetworkClientId,
@@ -42,9 +42,16 @@ import type {
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
 
+export type AllNetworkControllerActions =
+  MessengerActions<NetworkControllerMessenger>;
+
+export type AllNetworkControllerEvents =
+  MessengerEvents<NetworkControllerMessenger>;
+
 export type RootMessenger = Messenger<
-  ExtractAvailableAction<NetworkControllerMessenger>,
-  ExtractAvailableEvent<NetworkControllerMessenger>
+  'Root',
+  AllNetworkControllerActions,
+  AllNetworkControllerEvents
 >;
 
 /**
@@ -76,22 +83,56 @@ export const TESTNET = {
  * @returns The messenger.
  */
 export function buildRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({ namespace: 'Root' });
 }
 
 /**
- * Build a restricted messenger for the network controller.
+ * Build a messenger for the network controller.
  *
- * @param messenger - A messenger.
- * @returns The network controller restricted messenger.
+ * @param rootMessenger - The root messenger.
+ * @returns The network controller messenger.
  */
 export function buildNetworkControllerMessenger(
-  messenger = buildRootMessenger(),
+  rootMessenger = buildRootMessenger(),
 ): NetworkControllerMessenger {
-  return messenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: ['ErrorReportingService:captureException'],
-    allowedEvents: [],
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    AllNetworkControllerActions,
+    AllNetworkControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: ['ErrorReportingService:captureException'],
+  });
+  return networkControllerMessenger;
+}
+
+/**
+ * Build a messenger for the error reporting service.
+ *
+ * @param rootMessenger - The root messenger.
+ * @returns The error reporting service messenger.
+ */
+export function buildErrorReportingServiceMessenger(
+  rootMessenger = buildRootMessenger(),
+): Messenger<
+  'ErrorReportingService',
+  AllNetworkControllerActions,
+  AllNetworkControllerEvents,
+  typeof rootMessenger
+> {
+  return new Messenger<
+    'ErrorReportingService',
+    AllNetworkControllerActions,
+    AllNetworkControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'ErrorReportingService',
+    parent: rootMessenger,
   });
 }
 

@@ -1,5 +1,4 @@
 import { BigNumber } from '@ethersproject/bignumber';
-import { Messenger } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -8,12 +7,18 @@ import {
   NetworkType,
 } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type {
   Provider,
   NetworkClientId,
-  NetworkControllerActions,
-  NetworkControllerEvents,
   InfuraNetworkClientConfiguration,
+  NetworkControllerMessenger,
 } from '@metamask/network-controller';
 import {
   NetworkController,
@@ -30,11 +35,23 @@ import {
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { mockNetwork } from '../../../tests/mock-network';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
+
+type AllAssetsContractControllerActions =
+  MessengerActions<AssetsContractControllerMessenger>;
+
+type AllAssetsContractControllerEvents =
+  MessengerEvents<AssetsContractControllerMessenger>;
+
+type AllNetworkControllerActions = MessengerActions<NetworkControllerMessenger>;
+
+type AllNetworkControllerEvents = MessengerEvents<NetworkControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAssetsContractControllerActions | AllNetworkControllerActions,
+  AllAssetsContractControllerEvents | AllNetworkControllerEvents
+>;
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -80,18 +97,19 @@ async function setupAssetContractControllers({
   };
   let provider: Provider;
 
-  const messenger = new Messenger<
-    | ExtractAvailableAction<AssetsContractControllerMessenger>
-    | NetworkControllerActions,
-    | ExtractAvailableEvent<AssetsContractControllerMessenger>
-    | NetworkControllerEvents
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
   const networkController = new NetworkController({
     infuraProjectId,
-    messenger: messenger.getRestricted({
-      name: 'NetworkController',
-      allowedActions: [],
-      allowedEvents: [],
+    messenger: new Messenger<
+      'NetworkController',
+      MessengerActions<NetworkControllerMessenger>,
+      MessengerEvents<NetworkControllerMessenger>,
+      RootMessenger
+    >({
+      namespace: 'NetworkController',
+      parent: messenger,
     }),
     getRpcServiceOptions: () => ({
       fetch,
@@ -121,15 +139,24 @@ async function setupAssetContractControllers({
         }),
   );
 
-  const assetsContractMessenger = messenger.getRestricted({
-    name: 'AssetsContractController',
-    allowedActions: [
+  const assetsContractMessenger = new Messenger<
+    'AssetsContractController',
+    MessengerActions<AssetsContractControllerMessenger>,
+    MessengerEvents<AssetsContractControllerMessenger>,
+    RootMessenger
+  >({
+    namespace: 'AssetsContractController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: assetsContractMessenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'NetworkController:getSelectedNetworkClient',
       'NetworkController:getState',
     ],
-    allowedEvents: [
+    events: [
       'PreferencesController:stateChange',
       'NetworkController:networkDidChange',
     ],

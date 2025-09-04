@@ -1,14 +1,14 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import {
   convertHexToDecimal,
   safelyExecute,
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetEIP1559CompatibilityAction,
@@ -18,7 +18,7 @@ import type {
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerNext } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
@@ -240,12 +240,10 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetEIP1559CompatibilityAction;
 
-type GasFeeMessenger = RestrictedMessenger<
+export type GasFeeMessenger = Messenger<
   typeof name,
   GasFeeControllerActions | AllowedActions,
-  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
-  AllowedActions['type'],
-  NetworkControllerNetworkDidChangeEvent['type']
+  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent
 >;
 
 const defaultState: GasFeeState = {
@@ -264,7 +262,7 @@ type GasFeePollingInput = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends StaticIntervalPollingController<GasFeePollingInput>()<
+export class GasFeeController extends StaticIntervalPollingControllerNext<GasFeePollingInput>()<
   typeof name,
   GasFeeState,
   GasFeeMessenger
@@ -376,14 +374,14 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      const { selectedNetworkClientId } = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messenger.call(
         'NetworkController:getState',
       );
-      this.currentChainId = this.messagingSystem.call(
+      this.currentChainId = this.messenger.call(
         'NetworkController:getNetworkClientById',
         selectedNetworkClientId,
       ).configuration.chainId;
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'NetworkController:networkDidChange',
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -443,7 +441,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       decimalChainId: number;
 
     if (networkClientId !== undefined) {
-      const networkClient = this.messagingSystem.call(
+      const networkClient = this.messenger.call(
         'NetworkController:getNetworkClientById',
         networkClientId,
       );
@@ -452,7 +450,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       decimalChainId = convertHexToDecimal(networkClient.configuration.chainId);
 
       try {
-        const result = await this.messagingSystem.call(
+        const result = await this.messenger.call(
           'NetworkController:getEIP1559Compatibility',
           networkClientId,
         );
@@ -610,7 +608,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
   async #onNetworkControllerDidChange({
     selectedNetworkClientId,
   }: NetworkState) {
-    const newChainId = this.messagingSystem.call(
+    const newChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     ).configuration.chainId;
