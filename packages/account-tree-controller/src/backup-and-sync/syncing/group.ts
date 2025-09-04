@@ -121,7 +121,12 @@ export async function createLocalGroupsFromUserStorage(
       );
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
-      // Continue with other groups instead of failing completely
+      // This can happen if the Snap Keyring is not ready yet when invoking
+      // `MultichainAccountService:createMultichainAccountGroup`.
+      // Since `MultichainAccountService:createMultichainAccountGroup` will at
+      // least create the EVM account and the account group before throwing, we can safely
+      // ignore this error and continue.
+      // Any missing Snap accounts will be added later with alignment.
       continue;
     }
   }
