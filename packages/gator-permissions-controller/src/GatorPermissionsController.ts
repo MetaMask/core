@@ -1,10 +1,10 @@
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -189,12 +189,10 @@ type AllowedEvents = GatorPermissionsControllerStateChangeEvent;
 /**
  * Messenger type for the GatorPermissionsController.
  */
-export type GatorPermissionsControllerMessenger = RestrictedMessenger<
+export type GatorPermissionsControllerMessenger = Messenger<
   typeof controllerName,
   GatorPermissionsControllerActions | AllowedActions,
-  GatorPermissionsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  GatorPermissionsControllerEvents | AllowedEvents
 >;
 
 /**
@@ -246,17 +244,17 @@ export default class GatorPermissionsController extends BaseController<
   }
 
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:fetchAndUpdateGatorPermissions`,
       this.fetchAndUpdateGatorPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:enableGatorPermissions`,
       this.enableGatorPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:disableGatorPermissions`,
       this.disableGatorPermissions.bind(this),
     );
@@ -286,7 +284,7 @@ export default class GatorPermissionsController extends BaseController<
     snapId: SnapId;
   }): Promise<StoredGatorPermission<SignerParam, PermissionTypes>[] | null> {
     try {
-      const response = (await this.messagingSystem.call(
+      const response = (await this.messenger.call(
         'SnapController:handleRequest',
         {
           snapId,
