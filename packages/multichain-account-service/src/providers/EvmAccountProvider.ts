@@ -15,6 +15,8 @@ import {
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 
+const ETH_MAINNET_CHAIN_ID = '0x1';
+
 /**
  * Asserts an internal account exists.
  *
@@ -49,7 +51,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   getEvmProvider(): Provider {
     const networkClientId = this.messenger.call(
       'NetworkController:findNetworkClientIdByChainId',
-      '0x1',
+      ETH_MAINNET_CHAIN_ID,
     );
     const { provider } = this.messenger.call(
       'NetworkController:getNetworkClientById',
