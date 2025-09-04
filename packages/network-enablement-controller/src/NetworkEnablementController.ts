@@ -120,6 +120,8 @@ const getDefaultNetworkEnablementControllerState =
       },
       [KnownCaipNamespace.Bip122]: {
         [BtcScope.Mainnet]: true,
+        [BtcScope.Testnet]: false,
+        [BtcScope.Signet]: false,
       },
     },
   });

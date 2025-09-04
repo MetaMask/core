@@ -13,4 +13,5 @@ export enum SolScope {
 export enum BtcScope {
   Mainnet = 'bip122:000000000019d6689c085ae165831e93',
   Testnet = 'bip122:000000000933ea01ad0ee984209779ba',
+  Signet = 'bip122:00000008819873e925422c1ff0f99f7c',
 }
