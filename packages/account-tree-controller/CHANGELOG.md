@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLog` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
+
 ### Changed
 
 - Account group name uniqueness validation now scoped to wallet level instead of global ([#6550](https://github.com/MetaMask/core/pull/6550))
