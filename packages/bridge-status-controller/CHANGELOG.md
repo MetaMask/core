@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.0.0]
+
 ### Added
 
 - Add `getBridgeHistoryItemByTxMetaId` method available via messaging system for external access to bridge history items ([#6363](https://github.com/MetaMask/core/pull/6363))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency from `^41.0.0` to `^42.0.0` ([#6476](https://github.com/MetaMask/core/pull/6476))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 - Pass the `isGasFeeIncluded` parameter through transaction utilities ([#6363](https://github.com/MetaMask/core/pull/6363))
 
@@ -530,7 +533,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@41.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@41.0.0...@metamask/bridge-status-controller@42.0.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.2.0...@metamask/bridge-status-controller@41.0.0
 [40.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...@metamask/bridge-status-controller@40.2.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.0.0...@metamask/bridge-status-controller@40.1.0
