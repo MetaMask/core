@@ -260,15 +260,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
-
-    // setup subscriptions to the keyring lock event
-    // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.setLocked();
-    });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.#setUnlocked();
-    });
   }
 
   async fetchMetadataAccessCreds(): Promise<{
@@ -697,17 +688,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
    *
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
+   *
+   * @returns A promise that resolves to the success of the operation.
    */
-  setLocked() {
-    this.update((state) => {
-      delete state.vaultEncryptionKey;
-      delete state.vaultEncryptionSalt;
-      delete state.revokeToken;
-      delete state.accessToken;
-    });
+  async setLocked() {
+    return await this.#withControllerLock(async () => {
+      this.update((state) => {
+        delete state.vaultEncryptionKey;
+        delete state.vaultEncryptionSalt;
+        delete state.revokeToken;
+        delete state.accessToken;
+      });
 
-    this.#cachedDecryptedVaultData = undefined;
-    this.#isUnlocked = false;
+      this.#cachedDecryptedVaultData = undefined;
+      this.#isUnlocked = false;
+    });
   }
 
   /**
@@ -1693,17 +1688,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     authPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
   }> {
+    this.#assertIsAuthenticatedUser(this.state);
     const {
       nodeAuthTokens,
       authConnectionId,
       groupedAuthConnectionId,
       userId,
     } = this.state;
-    if (!nodeAuthTokens || !authConnectionId || !userId) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
 
     const { authPubKey, keyIndex: latestKeyIndex } = await this.toprfClient
       .fetchAuthPubKey({
