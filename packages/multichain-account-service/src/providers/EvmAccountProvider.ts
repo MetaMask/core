@@ -1,5 +1,5 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId } from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
@@ -97,7 +97,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
+  }): Promise<Bip44Account<KeyringAccount>[]> {
     const [address] = await this.#createAccount({
       entropySource,
       groupIndex,
@@ -129,7 +129,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   async discoverAndCreateAccounts(opts: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
+  }): Promise<Bip44Account<KeyringAccount>[]> {
     const provider = this.getEvmProvider();
     const { entropySource, groupIndex } = opts;
 
