@@ -38,8 +38,6 @@ const websocketService = new WebSocketService({
   messenger: restrictedMessenger, // RestrictedMessenger instance
   url: 'wss://your-internal-backend.com/ws',
   timeout: 15000,
-  timeout: 15000,
-  maxReconnectAttempts: 5,
   policyOptions: {
     maxRetries: 3,
     maxConsecutiveFailures: 5,
@@ -294,7 +292,6 @@ const websocketService = new WebSocketService({
   messenger: websocketMessenger,
   url: 'wss://api.metamask.io/ws',
   timeout: 10000,
-  maxReconnectAttempts: 5,
 });
 
 const accountActivityService = new AccountActivityService({
@@ -357,7 +354,6 @@ const websocketService = new WebSocketService({
   messenger: websocketMessenger,
   url: 'wss://api.metamask.io/ws',
   timeout: 10000,
-  maxReconnectAttempts: 5,
 });
 
 const accountActivityService = new AccountActivityService({

@@ -35,9 +35,6 @@ export type WebSocketServiceOptions = {
   /** Connection timeout in milliseconds (default: 10000) */
   timeout?: number;
 
-  /** Maximum number of reconnection attempts (default: Infinity for unlimited retries) */
-  maxReconnectAttempts?: number;
-
   /** Initial reconnection delay in milliseconds (default: 500) */
   reconnectDelay?: number;
 
@@ -274,7 +271,6 @@ export class WebSocketService {
     this.#options = {
       url: options.url,
       timeout: options.timeout ?? 10000,
-      maxReconnectAttempts: options.maxReconnectAttempts ?? Infinity,
       reconnectDelay: options.reconnectDelay ?? 500,
       maxReconnectDelay: options.maxReconnectDelay ?? 5000,
 
@@ -693,21 +689,13 @@ export class WebSocketService {
       // Build WebSocket URL with query parameters
       const url = new URL(this.#options.url);
 
-      // Ensure the path includes /v1 and add sessionId for reconnection if we have one
+      // Add sessionId for reconnection if we have one
       if (this.#sessionId) {
-        // Ensure path ends with /v1 for API versioning
-        if (!url.pathname.endsWith('/v1')) {
-          url.pathname = `${url.pathname.replace(/\/$/, '')}/v1`;
-        }
         url.searchParams.set('sessionId', this.#sessionId);
         console.log(
           `🔄 Reconnecting with existing session: ${this.#sessionId}`,
         );
       } else {
-        // For initial connection, also ensure /v1 path
-        if (!url.pathname.endsWith('/v1')) {
-          url.pathname = `${url.pathname.replace(/\/$/, '')}/v1`;
-        }
         console.log(`🆕 Creating new connection`);
       }
 
@@ -1091,7 +1079,7 @@ export class WebSocketService {
           error,
         );
 
-        // Always schedule another reconnection attempt (unlimited retries)
+        // Always schedule another reconnection attempt
         console.log(
           `Scheduling next reconnection attempt (attempt #${this.#reconnectAttempts})`,
         );
