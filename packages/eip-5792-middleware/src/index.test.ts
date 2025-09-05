@@ -7,7 +7,7 @@ describe('@metamask/eip-5792-middleware', () => {
         "processSendCalls",
         "getCallsStatus",
         "getCapabilities",
-        "getCallsStatus",
+        "walletSendCalls",
         "walletGetCallsStatus",
         "walletGetCapabilities",
       ]
