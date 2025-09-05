@@ -8,6 +8,7 @@ import type {
   AccountProvider,
 } from '@metamask/account-api';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
+import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   KeyringTypes,
@@ -321,6 +322,8 @@ export class MultichainAccountService {
       'KeyringController:getKeyringsByType',
       KeyringTypes.hd,
     ) as HdKeyring[];
+
+    const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
 
     const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
       if (!keyring.mnemonic) {

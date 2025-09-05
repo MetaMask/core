@@ -49,6 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.3.0",
     "@metamask/eth-snap-keyring": "^16.1.0",
+    "@metamask/key-tree": "^10.1.1",
     "@metamask/keyring-api": "^20.1.0",
     "@metamask/keyring-internal-api": "^8.1.0",
     "@metamask/keyring-snap-client": "^7.0.0",
