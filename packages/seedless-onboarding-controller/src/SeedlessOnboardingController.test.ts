@@ -4396,12 +4396,7 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
             }),
           },
-          async ({
-            controller,
-            toprfClient,
-            encryptor,
-            tokenApi,
-          }) => {
+          async ({ controller, toprfClient, encryptor, tokenApi }) => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
