@@ -60,11 +60,36 @@ import {
 const controllerName = 'SignatureController';
 
 const stateMetadata = {
-  signatureRequests: { persist: false, anonymous: false },
-  unapprovedPersonalMsgs: { persist: false, anonymous: false },
-  unapprovedTypedMessages: { persist: false, anonymous: false },
-  unapprovedPersonalMsgCount: { persist: false, anonymous: false },
-  unapprovedTypedMessagesCount: { persist: false, anonymous: false },
+  signatureRequests: {
+    includeInStateLogs: true,
+    persist: false,
+    anonymous: false,
+    usedInUi: true,
+  },
+  unapprovedPersonalMsgs: {
+    includeInStateLogs: true,
+    persist: false,
+    anonymous: false,
+    usedInUi: true,
+  },
+  unapprovedTypedMessages: {
+    includeInStateLogs: true,
+    persist: false,
+    anonymous: false,
+    usedInUi: true,
+  },
+  unapprovedPersonalMsgCount: {
+    includeInStateLogs: true,
+    persist: false,
+    anonymous: false,
+    usedInUi: true,
+  },
+  unapprovedTypedMessagesCount: {
+    includeInStateLogs: true,
+    persist: false,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({

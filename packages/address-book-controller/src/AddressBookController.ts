@@ -147,7 +147,12 @@ export type AddressBookControllerEvents =
   | AddressBookControllerContactDeletedEvent;
 
 const addressBookControllerMetadata = {
-  addressBook: { persist: true, anonymous: false },
+  addressBook: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 /**

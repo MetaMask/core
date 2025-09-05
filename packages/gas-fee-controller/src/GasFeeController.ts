@@ -162,13 +162,35 @@ type FallbackGasFeeEstimates = {
 
 const metadata = {
   gasFeeEstimatesByChainId: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
-  gasFeeEstimates: { persist: true, anonymous: false },
-  estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
-  gasEstimateType: { persist: true, anonymous: false },
-  nonRPCGasFeeApisDisabled: { persist: true, anonymous: false },
+  gasFeeEstimates: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  estimatedGasFeeTimeBounds: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  gasEstimateType: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  nonRPCGasFeeApisDisabled: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
 };
 
 export type GasFeeStateEthGasPrice = {

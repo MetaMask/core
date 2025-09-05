@@ -57,7 +57,12 @@ import {
 const controllerName = 'UserOperationController';
 
 const stateMetadata = {
-  userOperations: { persist: true, anonymous: false },
+  userOperations: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({
