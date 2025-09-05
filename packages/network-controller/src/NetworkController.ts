@@ -1558,8 +1558,8 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Uses a request for the latest block to gather and record the following
-   * information on the given network:
+   * Uses a request for the latest block to gather the following information on
+   * the given network:
    *
    * - The connectivity status: whether it is available, geo-blocked (Infura
    * only), unavailable, or unknown
@@ -1568,9 +1568,10 @@ export class NetworkController extends BaseController<
    *
    * @param networkClientId - The ID of the network client to inspect.
    * If no ID is provided, uses the currently selected network.
-   * @returns The resulting metadata for the network.
+   * @returns The resulting metadata for the network, or null if the network is
+   * switched while the latest block is being fetched.
    */
-  async #captureNetworkMetadata(networkClientId: NetworkClientId) {
+  async #determineNetworkMetadata(networkClientId: NetworkClientId) {
     // Force TypeScript to use one of the two overloads explicitly
     const networkClient = isInfuraNetworkType(networkClientId)
       ? this.getNetworkClientById(networkClientId)
@@ -1631,22 +1632,6 @@ export class NetworkController extends BaseController<
       }
     }
 
-    this.update((state) => {
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
-      }
-      const meta = state.networksMetadata[networkClientId];
-      meta.status = networkStatus;
-      if (isEIP1559Compatible === undefined) {
-        delete meta.EIPS[1559];
-      } else {
-        meta.EIPS[1559] = isEIP1559Compatible;
-      }
-    });
-
     return { isInfura, networkStatus, isEIP1559Compatible };
   }
 
@@ -1702,7 +1687,13 @@ export class NetworkController extends BaseController<
    * @param networkClientId - The ID of the network client to inspect.
    */
   async #lookupGivenNetwork(networkClientId: NetworkClientId) {
-    await this.#captureNetworkMetadata(networkClientId);
+    const { networkStatus, isEIP1559Compatible } =
+      await this.#determineNetworkMetadata(networkClientId);
+    this.#updateNetworkMetadata(
+      networkClientId,
+      networkStatus,
+      isEIP1559Compatible,
+    );
   }
 
   /**
@@ -1727,23 +1718,71 @@ export class NetworkController extends BaseController<
     // network request
     const { selectedNetworkClientId } = this.state;
 
-    const { isInfura, networkStatus } = await this.#captureNetworkMetadata(
-      this.state.selectedNetworkClientId,
-    );
+    const { isInfura, networkStatus, isEIP1559Compatible } =
+      await this.#determineNetworkMetadata(selectedNetworkClientId);
 
     if (selectedNetworkClientId === this.state.selectedNetworkClientId) {
-      if (isInfura) {
-        if (networkStatus === NetworkStatus.Available) {
-          this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
-        } else if (networkStatus === NetworkStatus.Blocked) {
-          this.messagingSystem.publish('NetworkController:infuraIsBlocked');
-        }
-      } else {
-        // Always publish infuraIsUnblocked regardless of network status to
-        // prevent consumers from being stuck in a blocked state if they were
-        // previously connected to an Infura network that was blocked
-        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      this.#updateNetworkMetadata(
+        selectedNetworkClientId,
+        networkStatus,
+        isEIP1559Compatible,
+      );
+      this.#publishInfuraBlockedStatusEvents(isInfura, networkStatus);
+    }
+  }
+
+  /**
+   * Updates the metadata for the given network in state.
+   *
+   * @param networkClientId - The associated network client ID.
+   * @param networkStatus - The network status to store in state.
+   * @param isEIP1559Compatible - The EIP-1559 compatibility status to
+   * store in state.
+   */
+  #updateNetworkMetadata(
+    networkClientId: NetworkClientId,
+    networkStatus: NetworkStatus,
+    isEIP1559Compatible: boolean | undefined,
+  ) {
+    this.update((state) => {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
       }
+      const meta = state.networksMetadata[networkClientId];
+      meta.status = networkStatus;
+      if (isEIP1559Compatible === undefined) {
+        delete meta.EIPS[1559];
+      } else {
+        meta.EIPS[1559] = isEIP1559Compatible;
+      }
+    });
+  }
+
+  /**
+   * Publishes events that advise users about whether the recently updated
+   * network is geo-blocked by Infura.
+   *
+   * @param isInfura - Whether the network points to an Infura URL.
+   * @param networkStatus - The status of the network.
+   */
+  #publishInfuraBlockedStatusEvents(
+    isInfura: boolean,
+    networkStatus: NetworkStatus,
+  ) {
+    if (isInfura) {
+      if (networkStatus === NetworkStatus.Available) {
+        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      } else if (networkStatus === NetworkStatus.Blocked) {
+        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+      }
+    } else {
+      // Always publish infuraIsUnblocked regardless of network status to
+      // prevent consumers from being stuck in a blocked state if they were
+      // previously connected to an Infura network that was blocked
+      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
     }
   }
 
