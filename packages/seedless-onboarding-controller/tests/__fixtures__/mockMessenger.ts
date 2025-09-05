@@ -19,7 +19,7 @@ export function createCustomSeedlessOnboardingMessenger() {
   const messenger = baseMessenger.getRestricted({
     name: 'SeedlessOnboardingController',
     allowedActions: [],
-    allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
+    allowedEvents: [],
   });
 
   return {
