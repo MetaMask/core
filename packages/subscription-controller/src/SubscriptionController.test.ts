@@ -773,41 +773,39 @@ describe('SubscriptionController', () => {
     });
 
     it('throws when conversion rate not found', async () => {
-      await withController(
-        async ({ controller, mockService, baseMessenger }) => {
-          // Valid product and chain/token, but token lacks conversion rate for currency
-          mockService.getPricing.mockResolvedValue({
-            ...MOCK_PRICE_INFO_RESPONSE,
-            paymentMethods: [
-              {
-                type: PaymentType.byCrypto,
-                chains: [
-                  {
-                    chainId: '0x1',
-                    paymentAddress: '0xspender',
-                    tokens: [
-                      {
-                        address: '0xtoken',
-                        decimals: 18,
-                        conversionRate: {},
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          });
+      await withController(async ({ controller, mockService }) => {
+        // Valid product and chain/token, but token lacks conversion rate for currency
+        mockService.getPricing.mockResolvedValue({
+          ...MOCK_PRICE_INFO_RESPONSE,
+          paymentMethods: [
+            {
+              type: PaymentType.byCrypto,
+              chains: [
+                {
+                  chainId: '0x1',
+                  paymentAddress: '0xspender',
+                  tokens: [
+                    {
+                      address: '0xtoken',
+                      decimals: 18,
+                      conversionRate: {},
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
 
-          await expect(
-            controller.getCryptoApproveTransactionParams({
-              chainId: '0x1',
-              paymentTokenAddress: '0xtoken',
-              productType: ProductType.SHIELD,
-              interval: RecurringInterval.month,
-            }),
-          ).rejects.toThrow('Conversion rate not found');
-        },
-      );
+        await expect(
+          controller.getCryptoApproveTransactionParams({
+            chainId: '0x1',
+            paymentTokenAddress: '0xtoken',
+            productType: ProductType.SHIELD,
+            interval: RecurringInterval.month,
+          }),
+        ).rejects.toThrow('Conversion rate not found');
+      });
     });
   });
 });
