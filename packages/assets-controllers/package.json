@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "74.3.2",
+  "version": "74.3.3",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",

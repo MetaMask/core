@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.3.3]
+
 ### Changed
 
+- Enhance `TokenBalancesController` with internal dynamic polling per chain support, enabling configurable polling intervals for different networks with automatic interval grouping for improved performance (transparent to existing API) ([#6357](https://github.com/MetaMask/core/pull/6357))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [74.3.2]
@@ -1958,7 +1961,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.3...HEAD
+[74.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.2...@metamask/assets-controllers@74.3.3
 [74.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.1...@metamask/assets-controllers@74.3.2
 [74.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.0...@metamask/assets-controllers@74.3.1
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.2.0...@metamask/assets-controllers@74.3.0
