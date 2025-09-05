@@ -11,13 +11,33 @@ import type {
   MultichainAccountWallet as MultichainAccountWalletDefinition,
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import {
   type EntropySourceId,
   type KeyringAccount,
 } from '@metamask/keyring-api';
+import { createProjectLogger } from '@metamask/utils';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
+import type { NamedAccountProvider } from './providers';
+
+/**
+ * The context for a provider discovery.
+ */
+type AccountProviderDiscoveryContext = {
+  provider: NamedAccountProvider;
+  stopped: boolean;
+  groupIndex: number;
+  count: number;
+};
+
+/**
+ * The metrics resulting from account discovery.
+ */
+export type AccountDiscoveryMetrics = {
+  [providerName: string]: number;
+};
+
+const log = createProjectLogger('multichain-account-service');
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -29,7 +49,7 @@ export class MultichainAccountWallet<
 {
   readonly #id: MultichainAccountWalletId;
 
-  readonly #providers: AccountProvider<Account>[];
+  readonly #providers: NamedAccountProvider<Account>[];
 
   readonly #entropySource: EntropySourceId;
 
@@ -41,7 +61,7 @@ export class MultichainAccountWallet<
     providers,
     entropySource,
   }: {
-    providers: AccountProvider<Account>[];
+    providers: NamedAccountProvider<Account>[];
     entropySource: EntropySourceId;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
@@ -354,5 +374,88 @@ export class MultichainAccountWallet<
     } finally {
       this.#isAlignmentInProgress = false;
     }
+  }
+
+  /**
+   * Discover and create accounts for all providers.
+   *
+   * @returns The discovered accounts for each provider.
+   */
+  async discoverAndCreateAccounts(): Promise<AccountDiscoveryMetrics> {
+    // Start with the next available group index (so we can resume the discovery
+    // from there).
+    let maxGroupIndex = this.getNextGroupIndex();
+
+    // One serialized loop per provider; all run concurrently
+    const runProviderDiscovery = async (
+      context: AccountProviderDiscoveryContext,
+    ) => {
+      const message = (stepName: string, groupIndex: number) =>
+        `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${groupIndex})`;
+
+      while (!context.stopped) {
+        // Fast‑forward to current high‑water mark
+        const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
+
+        log(message('STARTED', targetGroupIndex));
+
+        let accounts: Bip44Account<KeyringAccount>[] = [];
+        try {
+          accounts = await context.provider.discoverAndCreateAccounts({
+            entropySource: this.#entropySource,
+            groupIndex: targetGroupIndex,
+          });
+        } catch (error) {
+          context.stopped = true;
+          console.error(error);
+          log(message('FAILED', targetGroupIndex), error);
+          break;
+        }
+
+        if (!accounts.length) {
+          log(message('STOPPED', targetGroupIndex));
+          context.stopped = true;
+          break;
+        }
+
+        log(message('SUCCEEDED', targetGroupIndex));
+
+        context.count += accounts.length;
+
+        const nextGroupIndex = targetGroupIndex + 1;
+        context.groupIndex = nextGroupIndex;
+
+        if (nextGroupIndex > maxGroupIndex) {
+          maxGroupIndex = nextGroupIndex;
+        }
+      }
+    };
+
+    const providerContexts: AccountProviderDiscoveryContext[] =
+      this.#providers.map((provider) => ({
+        provider,
+        stopped: false,
+        groupIndex: maxGroupIndex,
+        count: 0,
+      }));
+
+    // Start discovery for each providers.
+    await Promise.all(providerContexts.map(runProviderDiscovery));
+
+    // Sync the wallet after discovery to ensure that the newly added accounts are added into their groups.
+    // We can potentially remove this if we know that this race condition is not an issue in practice.
+    this.sync();
+
+    // Align missing accounts from group. This is required to create missing account from non-discovered
+    // indexes for some providers.
+    await this.alignGroups();
+
+    const discoveredAccounts: Record<string, number> = {};
+    for (const context of providerContexts) {
+      const providerName = context.provider.getName();
+      discoveredAccounts[providerName] = context.count;
+    }
+
+    return discoveredAccounts;
   }
 }
