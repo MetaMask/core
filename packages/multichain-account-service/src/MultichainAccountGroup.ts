@@ -52,7 +52,7 @@ export class MultichainAccountGroup<
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
-    this.sync({ emitEvents: false });
+    this.#sync(false);
   }
 
   /**
@@ -60,11 +60,22 @@ export class MultichainAccountGroup<
    *
    * This can be used if account providers got new accounts that the multichain
    * account doesn't know about.
-   *
-   * @param options - Sync options.
-   * @param options.emitEvents - Whether to emit update events. Defaults to true.
    */
-  sync({ emitEvents = true }: { emitEvents?: boolean } = {}): void {
+  sync(): void {
+    this.#sync();
+  }
+
+  /**
+   * Only for use by MultichainAccountWallet.
+   *
+   * @internal
+   * @param emitEvents - Whether to emit update events.
+   */
+  _syncWithEvents(emitEvents: boolean): void {
+    this.#sync(emitEvents);
+  }
+
+  #sync(emitEvents = true): void {
     // Clear reverse mapping and re-construct it entirely based on the refreshed
     // list of accounts from each providers.
     this.#accountToProvider.clear();

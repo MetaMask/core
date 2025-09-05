@@ -56,7 +56,7 @@ export class MultichainAccountWallet<
     this.#accountGroups = new Map();
 
     // Initial synchronization (don't emit events during initialization).
-    this.sync({ emitEvents: false });
+    this.#sync(false);
   }
 
   /**
@@ -64,11 +64,12 @@ export class MultichainAccountWallet<
    *
    * This can be used if account providers got new accounts that the wallet
    * doesn't know about.
-   *
-   * @param options - Sync options.
-   * @param options.emitEvents - Whether to emit update events. Defaults to true.
    */
-  sync({ emitEvents = true }: { emitEvents?: boolean } = {}): void {
+  sync(): void {
+    this.#sync();
+  }
+
+  #sync(emitEvents = true): void {
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
@@ -108,7 +109,7 @@ export class MultichainAccountWallet<
       groupIndex,
       multichainAccount,
     ] of this.#accountGroups.entries()) {
-      multichainAccount.sync({ emitEvents });
+      multichainAccount._syncWithEvents(emitEvents);
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
@@ -218,11 +219,16 @@ export class MultichainAccountWallet<
    * Creates a multichain account group for a given group index.
    *
    * @param groupIndex - The group index to use.
-   * @param emitEvents - Whether to emit creation event (defaults to true).
    * @throws If any of the account providers fails to create their accounts.
    * @returns The multichain account group for this group index.
    */
   async createMultichainAccountGroup(
+    groupIndex: number,
+  ): Promise<MultichainAccountGroup<Account>> {
+    return this.#createMultichainAccountGroup(groupIndex);
+  }
+
+  async #createMultichainAccountGroup(
     groupIndex: number,
     emitEvents = true,
   ): Promise<MultichainAccountGroup<Account>> {
@@ -237,7 +243,7 @@ export class MultichainAccountWallet<
     if (group) {
       // If the group already exists, we just `sync` it and returns the same
       // reference.
-      group.sync({ emitEvents });
+      group._syncWithEvents(emitEvents);
 
       return group;
     }
@@ -320,17 +326,13 @@ export class MultichainAccountWallet<
   /**
    * Creates the next multichain account group.
    *
-   * @param emitEvents - Whether to emit creation event (defaults to true).
    * @throws If any of the account providers fails to create their accounts.
    * @returns The multichain account group for the next group index available.
    */
-  async createNextMultichainAccountGroup(
-    emitEvents = true,
-  ): Promise<MultichainAccountGroup<Account>> {
-    return this.createMultichainAccountGroup(
-      this.getNextGroupIndex(),
-      emitEvents,
-    );
+  async createNextMultichainAccountGroup(): Promise<
+    MultichainAccountGroup<Account>
+  > {
+    return this.#createMultichainAccountGroup(this.getNextGroupIndex());
   }
 
   /**
