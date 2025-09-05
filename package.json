@@ -50,6 +50,7 @@
     "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
+    "@actions/core": "^1.11.1",
     "@babel/core": "^7.23.5",
     "@babel/plugin-transform-modules-commonjs": "^7.23.3",
     "@babel/preset-typescript": "^7.23.3",
