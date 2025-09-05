@@ -7,6 +7,8 @@ import type {
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type {
+  KeyringControllerAddNewKeyringAction,
+  KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
@@ -68,6 +70,11 @@ export type MultichainAccountServiceGetIsAlignmentInProgressAction = {
   handler: MultichainAccountService['getIsAlignmentInProgress'];
 };
 
+export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
+  type: `${typeof serviceName}:createMultichainAccountWallet`;
+  handler: MultichainAccountService['createMultichainAccountWallet'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -82,7 +89,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
   | MultichainAccountServiceAlignWalletsAction
-  | MultichainAccountServiceGetIsAlignmentInProgressAction;
+  | MultichainAccountServiceGetIsAlignmentInProgressAction
+  | MultichainAccountServiceCreateMultichainAccountWalletAction;
 
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
@@ -100,7 +108,9 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerAddNewKeyringAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
