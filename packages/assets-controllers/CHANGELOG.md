@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.3.3]
 
-### Uncategorized
-
-- Release/529.0.0 ([#6440](https://github.com/MetaMask/core/pull/6440))
-- Release/528.0.0 ([#6437](https://github.com/MetaMask/core/pull/6437))
-
 ### Changed
 
 - Enhance `TokenBalancesController` with internal dynamic polling per chain support, enabling configurable polling intervals for different networks with automatic interval grouping for improved performance (transparent to existing API) ([#6357](https://github.com/MetaMask/core/pull/6357))
