@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import {
@@ -34,7 +35,6 @@ import {
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
 } from './utils/validation';
-import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/gas');
