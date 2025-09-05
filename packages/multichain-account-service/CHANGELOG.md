@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `discoverAndCreateAccounts` methods for EVM and Solana providers ([#6397](https://github.com/MetaMask/core/pull/6397))
+- Add `discoverAndCreateAccounts` method to `MultichainAccountWallet` to orchestrate provider discovery ([#6397](https://github.com/MetaMask/core/pull/6397))
+- **BREAKING** Add additional allowed actions to the `MultichainAccountService` messenger
+  - `NetworkController:getNetworkClientById` and `NetworkController:findNetworkClientIdByChainId` were added.
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
