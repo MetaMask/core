@@ -1568,8 +1568,7 @@ export class NetworkController extends BaseController<
    *
    * @param networkClientId - The ID of the network client to inspect.
    * If no ID is provided, uses the currently selected network.
-   * @returns The resulting metadata for the network, or null if the network is
-   * switched while the latest block is being fetched.
+   * @returns The resulting metadata for the network.
    */
   async #determineNetworkMetadata(networkClientId: NetworkClientId) {
     // Force TypeScript to use one of the two overloads explicitly
