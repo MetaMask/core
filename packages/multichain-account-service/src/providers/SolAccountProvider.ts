@@ -56,19 +56,20 @@ export class SolAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async createAccounts({
+  override async createAccounts({
     entropySource,
     groupIndex,
+    derivationPath = `m/44'/501'/${groupIndex}'/0'`,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
+    derivationPath?: string;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     const createAccount = await this.getRestrictedSnapAccountCreator();
 
     // Create account without any confirmation nor selecting it.
     // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
     // type once ready.
-    const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
     const account = await createAccount({
       entropySource,
       derivationPath,
@@ -103,11 +104,20 @@ export class SolAccountProvider extends SnapAccountProvider {
       groupIndex,
     );
 
-    // Solana Snap always returns one discovered account.
-    if (discoveredAccounts.length === 1) {
-      return this.createAccounts({ entropySource, groupIndex });
+    if (!discoveredAccounts.length) {
+      return [];
     }
 
-    return Promise.resolve([]);
+    const createdAccounts = await Promise.all(
+      discoveredAccounts.map((d) =>
+        this.createAccounts({
+          entropySource,
+          groupIndex,
+          derivationPath: d.derivationPath,
+        }),
+      ),
+    );
+
+    return createdAccounts.flat();
   }
 }
