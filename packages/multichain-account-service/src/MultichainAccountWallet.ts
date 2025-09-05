@@ -38,6 +38,9 @@ export class MultichainAccountWallet<
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
+  // eslint-disable-next-line @typescript-eslint/prefer-readonly
+  #initialized = false;
+
   #isAlignmentInProgress: boolean = false;
 
   constructor({
@@ -56,7 +59,8 @@ export class MultichainAccountWallet<
     this.#accountGroups = new Map();
 
     // Initial synchronization (don't emit events during initialization).
-    this.#sync(false);
+    this.#sync();
+    this.#initialized = true;
   }
 
   /**
@@ -69,7 +73,7 @@ export class MultichainAccountWallet<
     this.#sync();
   }
 
-  #sync(emitEvents = true): void {
+  #sync(): void {
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
@@ -109,7 +113,7 @@ export class MultichainAccountWallet<
       groupIndex,
       multichainAccount,
     ] of this.#accountGroups.entries()) {
-      multichainAccount._syncWithEvents(emitEvents);
+      multichainAccount.sync();
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
@@ -230,7 +234,6 @@ export class MultichainAccountWallet<
 
   async #createMultichainAccountGroup(
     groupIndex: number,
-    emitEvents = true,
   ): Promise<MultichainAccountGroup<Account>> {
     const nextGroupIndex = this.getNextGroupIndex();
     if (groupIndex > nextGroupIndex) {
@@ -243,7 +246,7 @@ export class MultichainAccountWallet<
     if (group) {
       // If the group already exists, we just `sync` it and returns the same
       // reference.
-      group._syncWithEvents(emitEvents);
+      group.sync();
 
       return group;
     }
@@ -313,7 +316,7 @@ export class MultichainAccountWallet<
     // Register the account to our internal map.
     this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
 
-    if (emitEvents) {
+    if (this.#initialized) {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupCreated',
         group,

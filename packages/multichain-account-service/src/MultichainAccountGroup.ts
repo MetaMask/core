@@ -33,6 +33,9 @@ export class MultichainAccountGroup<
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
+  // eslint-disable-next-line @typescript-eslint/prefer-readonly
+  #initialized = false;
+
   constructor({
     groupIndex,
     wallet,
@@ -52,7 +55,8 @@ export class MultichainAccountGroup<
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
-    this.#sync(false);
+    this.#sync();
+    this.#initialized = true;
   }
 
   /**
@@ -65,17 +69,7 @@ export class MultichainAccountGroup<
     this.#sync();
   }
 
-  /**
-   * Only for use by MultichainAccountWallet.
-   *
-   * @internal
-   * @param emitEvents - Whether to emit update events.
-   */
-  _syncWithEvents(emitEvents: boolean): void {
-    this.#sync(emitEvents);
-  }
-
-  #sync(emitEvents = true): void {
+  #sync(): void {
     // Clear reverse mapping and re-construct it entirely based on the refreshed
     // list of accounts from each providers.
     this.#accountToProvider.clear();
@@ -100,8 +94,8 @@ export class MultichainAccountGroup<
       }
     }
 
-    // Emit update event when group is synced (if requested)
-    if (emitEvents) {
+    // Emit update event when group is synced (only if initialized)
+    if (this.#initialized) {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
         this,
