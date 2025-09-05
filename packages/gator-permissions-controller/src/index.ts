@@ -17,16 +17,8 @@ export type {
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
-  MetaMaskBasePermissionData,
-  NativeTokenStreamPermission,
-  NativeTokenPeriodicPermission,
-  Erc20TokenStreamPermission,
-  Erc20TokenPeriodicPermission,
   CustomPermission,
-  PermissionTypes,
-  AccountSigner,
-  WalletSigner,
-  SignerParam,
+  PermissionTypesWithCustom,
   PermissionRequest,
   PermissionResponse,
   PermissionResponseSanitized,
@@ -37,3 +29,14 @@ export type {
   GatorPermissionsMapByPermissionType,
   GatorPermissionsListByPermissionTypeAndChainId,
 } from './types';
+
+export type {
+  NativeTokenStreamPermission,
+  NativeTokenPeriodicPermission,
+  Erc20TokenStreamPermission,
+  Erc20TokenPeriodicPermission,
+  AccountSigner,
+  WalletSigner,
+  Signer,
+  MetaMaskBasePermissionData,
+} from '@metamask/7715-permission-types';

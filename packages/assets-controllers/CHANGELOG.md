@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
+## [74.3.2]
+
+### Changed
+
 - Refactor `AccountTrackerController` to eliminate duplicate code by replacing custom `AccountTrackerRpcBalanceFetcher` with existing `RpcBalanceFetcher` ([#6425](https://github.com/MetaMask/core/pull/6425))
 
 ## [74.3.1]
@@ -1952,7 +1958,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.2...HEAD
+[74.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.1...@metamask/assets-controllers@74.3.2
 [74.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.0...@metamask/assets-controllers@74.3.1
 [74.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.2.0...@metamask/assets-controllers@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.1.1...@metamask/assets-controllers@74.2.0

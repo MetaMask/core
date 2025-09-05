@@ -146,6 +146,15 @@ export type SeedlessOnboardingControllerState =
       revokeToken?: string;
 
       /**
+       * The refresh token and revoke token to be revoked.
+       * This is persisted in state to revoke old refresh token when possible.
+       */
+      pendingToBeRevokedTokens?: {
+        refreshToken: string;
+        revokeToken: string;
+      }[];
+
+      /**
        * The encrypted seedless encryption key used to encrypt the seedless vault.
        */
       encryptedSeedlessEncryptionKey?: string;
@@ -244,7 +253,15 @@ export type RefreshJWTToken = (params: {
 export type RevokeRefreshToken = (params: {
   connection: AuthConnection;
   revokeToken: string;
-}) => Promise<{ newRevokeToken: string; newRefreshToken: string }>;
+}) => Promise<void>;
+
+export type RenewRefreshToken = (params: {
+  connection: AuthConnection;
+  revokeToken: string;
+}) => Promise<{
+  newRevokeToken: string;
+  newRefreshToken: string;
+}>;
 
 /**
  * Seedless Onboarding Controller Options.
@@ -275,9 +292,13 @@ export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
 
   /**
    * A function to revoke the refresh token.
-   * And get new refresh token and revoke token.
    */
   revokeRefreshToken: RevokeRefreshToken;
+
+  /**
+   * A function to renew the refresh token and get new revoke token.
+   */
+  renewRefreshToken: RenewRefreshToken;
 
   /**
    * Optional key derivation interface for the TOPRF client.
