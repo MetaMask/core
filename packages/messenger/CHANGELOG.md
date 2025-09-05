@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+
+- Allow disabling namespace checks in unit tests using the new `MOCK_ANY_NAMESPACE` constant and `MockAnyNamespace` type ([#6420](https://github.com/MetaMask/core/pull/6420))
+  - To disable namespace checks, use `MockAnyNamespace` as the `Namespace` type parameter, and use `MOCK_ANY_NAMESPACE` as the `namespace` constructor parameter.
+
+### Changed
+
+- Keep delegated handlers when unregistering actions ([#6395](https://github.com/MetaMask/core/pull/6395))
+
 ## [0.1.0]
 
 ### Added
@@ -34,5 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...@metamask/messenger@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/messenger@0.1.0

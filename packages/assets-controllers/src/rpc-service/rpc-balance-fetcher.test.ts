@@ -125,6 +125,7 @@ const MOCK_STAKED_BALANCES = {
 // Mock the imports
 jest.mock('@metamask/controller-utils', () => ({
   toChecksumHexAddress: jest.fn(),
+  safelyExecuteWithTimeout: jest.fn(),
 }));
 
 jest.mock('../multicall', () => ({
@@ -134,6 +135,9 @@ jest.mock('../multicall', () => ({
 const mockToChecksumHexAddress = jest.requireMock(
   '@metamask/controller-utils',
 ).toChecksumHexAddress;
+const mockSafelyExecuteWithTimeout = jest.requireMock(
+  '@metamask/controller-utils',
+).safelyExecuteWithTimeout;
 const mockGetTokenBalancesForMultipleAddresses =
   jest.requireMock('../multicall').getTokenBalancesForMultipleAddresses;
 
@@ -147,6 +151,7 @@ describe('RpcBalanceFetcher', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetAllMocks();
 
     // Setup mock provider
     mockProvider = {
@@ -179,6 +184,17 @@ describe('RpcBalanceFetcher', () => {
       );
       return toChecksumHexAddress(address);
     });
+
+    // Mock safelyExecuteWithTimeout to just execute the function
+    mockSafelyExecuteWithTimeout.mockImplementation(
+      async (operation: () => Promise<unknown>) => {
+        try {
+          return await operation();
+        } catch {
+          return undefined;
+        }
+      },
+    );
 
     mockGetTokenBalancesForMultipleAddresses.mockResolvedValue({
       tokenBalances: MOCK_TOKEN_BALANCES,
@@ -382,14 +398,16 @@ describe('RpcBalanceFetcher', () => {
         mockNetworkClient.blockTracker.checkForLatestBlock as jest.Mock
       ).mockRejectedValue(new Error('BlockTracker error'));
 
-      await expect(
-        rpcBalanceFetcher.fetch({
-          chainIds: [MOCK_CHAIN_ID],
-          queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
-          allAccounts: MOCK_INTERNAL_ACCOUNTS,
-        }),
-      ).rejects.toThrow('BlockTracker error');
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      // With parallel processing and safelyExecuteWithTimeout, errors are caught gracefully
+      // and an empty array is returned for failed chains
+      expect(result).toStrictEqual([]);
     });
 
     it('should handle multicall errors gracefully', async () => {
@@ -397,14 +415,53 @@ describe('RpcBalanceFetcher', () => {
         new Error('Multicall error'),
       );
 
-      await expect(
-        rpcBalanceFetcher.fetch({
-          chainIds: [MOCK_CHAIN_ID],
-          queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
-          allAccounts: MOCK_INTERNAL_ACCOUNTS,
-        }),
-      ).rejects.toThrow('Multicall error');
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      // With parallel processing and safelyExecuteWithTimeout, errors are caught gracefully
+      // and an empty array is returned for failed chains
+      expect(result).toStrictEqual([]);
+    });
+
+    it('should handle timeout gracefully when safelyExecuteWithTimeout returns undefined', async () => {
+      // Mock safelyExecuteWithTimeout to return undefined (simulating timeout)
+      mockSafelyExecuteWithTimeout.mockResolvedValueOnce(undefined);
+
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      // Should return empty array when timeout occurs
+      expect(result).toStrictEqual([]);
+      expect(mockSafelyExecuteWithTimeout).toHaveBeenCalled();
+    });
+
+    it('should handle partial success with multiple chains (some timeout, some succeed)', async () => {
+      // First chain times out, second chain succeeds
+      mockSafelyExecuteWithTimeout
+        .mockResolvedValueOnce(undefined) // First chain times out
+        .mockImplementationOnce(async (operation: () => Promise<unknown>) => {
+          // Second chain succeeds
+          return await operation();
+        });
+
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID, MOCK_CHAIN_ID_2],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      // Should return results only from the successful chain
+      expect(result.length).toBeGreaterThan(0);
+      expect(result.every((r) => r.chainId === MOCK_CHAIN_ID_2)).toBe(true);
     });
   });
 

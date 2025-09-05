@@ -176,6 +176,7 @@ Array [
       "custom_slippage": true,
       "destination_transaction": "FAILED",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -346,6 +347,7 @@ Array [
       "custom_slippage": true,
       "destination_transaction": "COMPLETE",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -532,6 +534,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -762,6 +765,7 @@ Array [
       "chain_id_source": "eip155:59144",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -1000,6 +1004,7 @@ Array [
     Object {
       "disable7702": true,
       "from": "0xaccount1",
+      "isGasFeeIncluded": false,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1043,6 +1048,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -1234,6 +1240,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -1464,6 +1471,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -1809,6 +1817,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2078,6 +2087,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2328,6 +2338,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2400,6 +2411,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2469,6 +2481,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2677,6 +2690,7 @@ Array [
     Object {
       "disable7702": true,
       "from": "0xaccount1",
+      "isGasFeeIncluded": false,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2732,6 +2746,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2941,6 +2956,7 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -2988,6 +3004,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
@@ -3031,6 +3048,7 @@ Array [
       "custom_slippage": false,
       "error_message": "Snap error",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
@@ -3064,6 +3082,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
@@ -3110,7 +3129,7 @@ Object {
   "destinationTokenDecimals": 18,
   "destinationTokenSymbol": "ETH",
   "hash": "signature",
-  "id": "test-uuid-1234",
+  "id": "signature",
   "isBridgeTx": true,
   "isSolana": true,
   "networkClientId": "test-snap",
@@ -3132,7 +3151,7 @@ Object {
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 3`] = `
 Object {
-  "bridgeTxMetaId": "test-uuid-1234",
+  "bridgeTxMetaId": "signature",
 }
 `;
 
@@ -3233,7 +3252,7 @@ Object {
     "status": "PENDING",
   },
   "targetContractAddress": undefined,
-  "txMetaId": "test-uuid-1234",
+  "txMetaId": "signature",
 }
 `;
 
@@ -3254,6 +3273,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
@@ -3277,6 +3297,7 @@ Array [
       "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
@@ -3310,6 +3331,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
@@ -3353,6 +3375,7 @@ Array [
       "custom_slippage": false,
       "error_message": "Snap error",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
@@ -3386,6 +3409,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": true,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
@@ -3439,7 +3463,7 @@ Object {
   "destinationTokenDecimals": 18,
   "destinationTokenSymbol": "USDC",
   "hash": "signature",
-  "id": "test-uuid-1234",
+  "id": "signature",
   "isBridgeTx": false,
   "isSolana": true,
   "networkClientId": "test-snap",
@@ -3554,7 +3578,7 @@ Object {
     "status": "PENDING",
   },
   "targetContractAddress": undefined,
-  "txMetaId": "test-uuid-1234",
+  "txMetaId": "signature",
 }
 `;
 
@@ -3586,6 +3610,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
@@ -3609,6 +3634,7 @@ Array [
       "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "test-bridge_undefined",
@@ -3628,6 +3654,37 @@ Array [
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `Array []`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `Array []`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 1`] = `
+Array [
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Status Failed Validation",
+  Object {
+    "action_type": "swapbridge-v1",
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "failures": Array [
+      "across|status",
+    ],
+    "refresh_count": 0,
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+  },
+]
+`;
+
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 2`] = `
+Array [
+  Array [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status, across|srcChain],
+  ],
+  Array [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status],
+  ],
+]
+`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
 Array [
@@ -3650,8 +3707,8 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "PENDING",
-      "error_message": undefined,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -3696,8 +3753,9 @@ Array [
     "chain_id_source": "eip155:42161",
     "custom_slippage": true,
     "destination_transaction": "FAILED",
-    "error_message": undefined,
+    "error_message": "",
     "gas_included": false,
+    "gas_included_7702": false,
     "is_hardware_wallet": false,
     "price_impact": 0,
     "provider": "lifi_across",
@@ -3732,8 +3790,9 @@ Array [
     "chain_id_destination": "eip155:42161",
     "chain_id_source": "eip155:42161",
     "custom_slippage": false,
-    "error_message": undefined,
+    "error_message": "",
     "gas_included": false,
+    "gas_included_7702": false,
     "is_hardware_wallet": false,
     "price_impact": 0,
     "provider": "",
@@ -3768,8 +3827,9 @@ Array [
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
-      "error_message": undefined,
+      "error_message": "",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "",
@@ -3815,8 +3875,9 @@ Array [
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "FAILED",
-      "error_message": undefined,
+      "error_message": "",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "lifi_across",
@@ -3852,8 +3913,9 @@ Array [
     "chain_id_destination": "eip155:42161",
     "chain_id_source": "eip155:42161",
     "custom_slippage": false,
-    "error_message": undefined,
+    "error_message": "",
     "gas_included": false,
+    "gas_included_7702": false,
     "is_hardware_wallet": false,
     "price_impact": 0,
     "provider": "",

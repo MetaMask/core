@@ -36,6 +36,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
+- [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
@@ -70,6 +71,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
@@ -98,6 +100,7 @@ linkStyle default opacity:0.5
   controller_utils(["@metamask/controller-utils"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
+  eip-5792-middleware(["@metamask/eip-5792-middleware"])
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
@@ -132,6 +135,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  subscription_controller(["@metamask/subscription-controller"]);
   token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
@@ -139,6 +143,7 @@ linkStyle default opacity:0.5
   account_tree_controller --> accounts_controller;
   account_tree_controller --> keyring_controller;
   accounts_controller --> base_controller;
+  accounts_controller --> controller_utils;
   accounts_controller --> keyring_controller;
   accounts_controller --> network_controller;
   address_book_controller --> base_controller;

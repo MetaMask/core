@@ -9,7 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
+## [7.0.0]
+
+### Added
+
+- Added `@metamask/keyring-api` as a dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
+- Added `@metamask/account-tree-controller` as a dev and peer dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
+
+### Changed
+
+- **BREAKING:** `EarnController` messenger must now allow `AccountTreeController:selectedAccountGroupChange` and `AccountTreeController:getAccountsFromSelectedAccountGroup` for BIP-44 compatibility and must not allow `AccountsController:selectedAccountChange` and `AccountsController:getSelectedAccount` ([#6402](https://github.com/MetaMask/core/pull/6402))
+- `executeLendingDeposit`, `executeLendingWithdraw` and `executeLendingTokenApprove` now throw errors if no selected address is found ([#6402](https://github.com/MetaMask/core/pull/6402))
+- `getLendingTokenAllowance`, `getLendingTokenMaxWithdraw` and `getLendingTokenMaxDeposit` now return `undefined` is no selected address is found ([#6402](https://github.com/MetaMask/core/pull/6402))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+
+### Removed
+
+- Removed `@metamask/accounts-controller` as a dev and peer dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
 
 ## [6.0.0]
 
@@ -259,7 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...@metamask/earn-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@5.0.0...@metamask/earn-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@4.0.0...@metamask/earn-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@3.0.0...@metamask/earn-controller@4.0.0

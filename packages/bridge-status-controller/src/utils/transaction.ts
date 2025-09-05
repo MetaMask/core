@@ -148,7 +148,7 @@ export const handleSolanaTxResponse = (
   return {
     ...getTxMetaFields(quoteResponse),
     time: Date.now(),
-    id: uuid(),
+    id: hash ?? uuid(),
     chainId: hexChainId,
     networkClientId: snapId ?? hexChainId,
     txParams: { from: selectedAccountAddress, data: quoteResponse.trade },
@@ -255,7 +255,7 @@ export const getAddTransactionBatchParams = async ({
     quote: {
       feeData: { txFee },
       gasIncluded,
-      gasless7702,
+      gasIncluded7702,
     },
     sentAmount,
     toTokenAmount,
@@ -272,7 +272,7 @@ export const getAddTransactionBatchParams = async ({
   resetApproval?: TxData;
   requireApproval?: boolean;
 }) => {
-  const isGasless = gasIncluded || gasless7702;
+  const isGasless = gasIncluded || gasIncluded7702;
   const selectedAccount = messagingSystem.call(
     'AccountsController:getAccountByAddress',
     trade.from,
@@ -288,9 +288,9 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // When an active quote has gasless7702 set to true,
+  // When an active quote has gasIncluded7702 set to true,
   // enable 7702 gasless txs for smart accounts
-  const disable7702 = gasless7702 !== true;
+  const disable7702 = gasIncluded7702 !== true;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
@@ -347,6 +347,7 @@ export const getAddTransactionBatchParams = async ({
     TransactionController['addTransactionBatch']
   >[0] = {
     disable7702,
+    isGasFeeIncluded: Boolean(gasIncluded7702),
     networkClientId,
     requireApproval,
     origin: 'metamask',

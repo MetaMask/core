@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
+## [60.2.0]
+
 ### Added
 
+- Add `isGasFeeIncluded` to `TransactionMeta`, `TransactionBatchRequest` and `addTransaction` options so the client can signal that MetaMask is compensated for the gas fee by the transaction ([#6428](https://github.com/MetaMask/core/pull/6428))
+- Add optional `gasUsed` property to `TransactionMeta`, returned by the transaction simulation result ([#6410](https://github.com/MetaMask/core/pull/6410))
+
+## [60.1.0]
+
+### Added
+
+- Add optional `batchTransactionsOptions` to `TransactionMeta` ([#6368](https://github.com/MetaMask/core/pull/6368))
+  - Add optional `isAfter` property to `batchTransactions` entries in `TransactionMeta`.
+  - Add `BatchTransaction` type.
 - Add optional `metamaskPay` and `requiredTransactionIds` properties to `TransactionMeta` ([#6361](https://github.com/MetaMask/core/pull/6361))
   - Add `updateRequiredTransactionIds` method.
 - Add `getSimulationConfig` constructor property ([#6281](https://github.com/MetaMask/core/pull/6281))
@@ -1777,7 +1793,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.2.0...HEAD
+[60.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.1.0...@metamask/transaction-controller@60.2.0
+[60.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.0.0...@metamask/transaction-controller@60.1.0
 [60.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.2.0...@metamask/transaction-controller@60.0.0
 [59.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.1.0...@metamask/transaction-controller@59.2.0
 [59.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@59.0.0...@metamask/transaction-controller@59.1.0
