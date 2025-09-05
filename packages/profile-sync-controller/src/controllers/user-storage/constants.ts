@@ -13,8 +13,4 @@ export const TraceName = {
   ContactSyncSaveBatch: 'Contact Sync Save Batch',
   ContactSyncUpdateRemote: 'Contact Sync Update Remote',
   ContactSyncDeleteRemote: 'Contact Sync Delete Remote',
-
-  // Account syncing traces
-  AccountSyncFull: 'Account Sync Full',
-  AccountSyncSaveIndividual: 'Account Sync Save Individual',
 } as const;

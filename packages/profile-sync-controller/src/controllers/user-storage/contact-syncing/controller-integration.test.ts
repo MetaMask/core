@@ -57,7 +57,6 @@ const baseState = {
   isBackupAndSyncUpdateLoading: false,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
-  isAccountSyncingInProgress: false,
   isContactSyncingInProgress: false,
 };
 

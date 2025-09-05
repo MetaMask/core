@@ -6,8 +6,8 @@
   "references": [
     { "path": "../base-controller" },
     { "path": "../keyring-controller" },
-    { "path": "../accounts-controller" },
-    { "path": "../address-book-controller" }
+    { "path": "../address-book-controller" },
+    { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src"]
 }
