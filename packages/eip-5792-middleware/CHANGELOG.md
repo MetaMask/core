@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add EIP-5792 RPC method handler middlewares ([#6477](https://github.com/MetaMask/core/pull/6477))
+
 ## [1.0.0]
 
 ### Added
