@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix account group naming inconsistency across app restarts where non-EVM account names would inappropriately show up as group names ([#XXXX](https://github.com/MetaMask/core/pull/6479))
+- Fix account group naming inconsistency across app restarts where non-EVM account names would inappropriately show up as group names ([#6479](https://github.com/MetaMask/core/pull/6479))
 
 ## [0.12.1]
 
