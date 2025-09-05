@@ -2,7 +2,7 @@ import { hexlify } from '@ethersproject/bytes';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
   query,
@@ -178,14 +178,13 @@ type AllowedEvents = NetworkControllerStateChangeEvent;
 /**
  * The messenger of the {@link SmartTransactionsController}.
  */
-export type SmartTransactionsControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    SmartTransactionsControllerActions | AllowedActions,
-    SmartTransactionsControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type SmartTransactionsControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  SmartTransactionsControllerActions | AllowedActions,
+  SmartTransactionsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 type SmartTransactionsControllerOptions = {
   interval?: number;

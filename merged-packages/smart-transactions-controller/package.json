@@ -45,11 +45,11 @@
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/keccak256": "^5.8.0",
     "@ethersproject/transactions": "^5.7.0",
-    "@metamask/base-controller": "^7.0.1",
+    "@metamask/base-controller": "^8.3.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/polling-controller": "^12.0.0",
+    "@metamask/polling-controller": "^14.0.0",
     "bignumber.js": "^9.0.1",
     "fast-json-patch": "^3.1.0",
     "lodash": "^4.17.21"

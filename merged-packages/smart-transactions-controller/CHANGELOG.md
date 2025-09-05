@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Disallow subpath exports ([#469](https://github.com/MetaMask/smart-transactions-controller/pull/469))
+- Update `@metamask/base-controller` from `^7.0.1` to `^8.3.0` ([#529](https://github.com/MetaMask/smart-transactions-controller/pull/529))
+- Update `@metamask/polling-controller` from `^12.0.0` to `^14.0.0` ([#529](https://github.com/MetaMask/smart-transactions-controller/pull/529))
 
 ## [18.1.0]
 

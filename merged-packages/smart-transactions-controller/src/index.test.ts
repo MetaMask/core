@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   type NetworkControllerGetNetworkClientByIdAction,
   type NetworkControllerGetStateAction,
@@ -15,7 +15,7 @@ import { ClientId } from './types';
 describe('default export', () => {
   it('exports SmartTransactionsController', () => {
     jest.useFakeTimers();
-    const controllerMessenger = new ControllerMessenger<
+    const controllerMessenger = new Messenger<
       | SmartTransactionsControllerActions
       | NetworkControllerGetNetworkClientByIdAction
       | NetworkControllerGetStateAction,

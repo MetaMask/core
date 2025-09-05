@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   NetworkType,
   convertHexToDecimal,
@@ -2565,7 +2565,7 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { options } = rest;
-  const controllerMessenger = new ControllerMessenger<
+  const controllerMessenger = new Messenger<
     | SmartTransactionsControllerActions
     | NetworkControllerGetNetworkClientByIdAction
     | NetworkControllerGetStateAction,
