@@ -27,6 +27,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
+- [`@metamask/backend-platform`](packages/backend-platform)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
@@ -91,6 +92,7 @@ linkStyle default opacity:0.5
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
+  backend_platform(["@metamask/backend-platform"]);
   base_controller(["@metamask/base-controller"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
@@ -100,7 +102,7 @@ linkStyle default opacity:0.5
   controller_utils(["@metamask/controller-utils"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
-  eip-5792-middleware(["@metamask/eip-5792-middleware"])
+  eip_5792_middleware(["@metamask/eip-5792-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);
@@ -154,14 +156,17 @@ linkStyle default opacity:0.5
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
   assets_controllers --> polling_controller;
+  assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> keyring_controller;
+  assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> transaction_controller;
+  base_controller --> messenger;
   base_controller --> json_rpc_engine;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
@@ -192,9 +197,11 @@ linkStyle default opacity:0.5
   delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
   earn_controller --> controller_utils;
-  earn_controller --> accounts_controller;
+  earn_controller --> account_tree_controller;
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
+  eip_5792_middleware --> transaction_controller;
+  eip_5792_middleware --> keyring_controller;
   eip1193_permission_middleware --> chain_agnostic_permission;
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
@@ -244,6 +251,7 @@ linkStyle default opacity:0.5
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
+  network_enablement_controller --> transaction_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -277,6 +285,8 @@ linkStyle default opacity:0.5
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
+  shield_controller --> base_controller;
+  shield_controller --> transaction_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
@@ -284,6 +294,8 @@ linkStyle default opacity:0.5
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
+  subscription_controller --> base_controller;
+  subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;

@@ -2696,6 +2696,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/backend-platform@workspace:packages/backend-platform":
+  version: 0.0.0-use.local
+  resolution: "@metamask/backend-platform@workspace:packages/backend-platform"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/base-controller@npm:^7.1.1":
   version: 7.1.1
   resolution: "@metamask/base-controller@npm:7.1.1"
