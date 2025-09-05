@@ -387,14 +387,14 @@ export class MultichainAccountWallet<
     const runProviderDiscovery = async (
       context: AccountProviderDiscoveryContext,
     ) => {
-      const message = (stepName: string) =>
-        `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${context.groupIndex})`;
+      const message = (stepName: string, groupIndex: number) =>
+        `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${groupIndex})`;
 
       while (!context.stopped) {
         // Fast‑forward to current high‑water mark
         const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
 
-        log(message('STARTED'));
+        log(message('STARTED', targetGroupIndex));
 
         let accounts: Bip44Account<KeyringAccount>[] = [];
         try {
@@ -405,17 +405,17 @@ export class MultichainAccountWallet<
         } catch (error) {
           context.stopped = true;
           console.error(error);
-          log(message('FAILED'), error);
+          log(message('FAILED', targetGroupIndex), error);
           break;
         }
 
         if (!accounts.length) {
-          log(message('STOPPED'));
+          log(message('STOPPED', targetGroupIndex));
           context.stopped = true;
           break;
         }
 
-        log(message('SUCCEEDED'));
+        log(message('SUCCEEDED', targetGroupIndex));
 
         context.count += accounts.length;
 
