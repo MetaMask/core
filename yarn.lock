@@ -4655,7 +4655,6 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^24.0.0"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
-    bignumber.js: "npm:^9.1.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     nock: "npm:^13.3.1"

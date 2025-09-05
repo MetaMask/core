@@ -345,14 +345,19 @@ export class SubscriptionController extends BaseController<
       throw new Error('Conversion rate not found');
     }
     // conversion rate is a float string e.g: "1.0"
-    // ether.js bignumber does not support float string, only handle integer string
-    // we need to convert it to integer string or use bignumber.js
-    const conversionRateBigInt = BigInt(Number(conversionRate));
+    // We need to handle float conversion rates with integer math for BigInt.
+    // We'll scale the conversion rate to an integer by multiplying by 10^18 (or another large factor).
+    // This allows us to avoid floating point math and keep precision.
+    const CONVERSION_RATE_SCALE = 10n ** 18n;
+    const conversionRateScaled = BigInt(
+      Math.round(Number(conversionRate) * Number(CONVERSION_RATE_SCALE)),
+    );
 
     const amount =
       (this.#getSubscriptionPriceAmount(price) *
-        BigInt(10) ** BigInt(tokenPaymentInfo.decimals)) /
-      conversionRateBigInt;
+        BigInt(10) ** BigInt(tokenPaymentInfo.decimals) *
+        CONVERSION_RATE_SCALE) /
+      conversionRateScaled;
     return amount;
   }
 
