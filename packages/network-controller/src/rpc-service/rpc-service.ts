@@ -3,6 +3,7 @@ import type {
   ServicePolicy,
 } from '@metamask/controller-utils';
 import {
+  BrokenCircuitError,
   CircuitState,
   HttpError,
   createServicePolicy,
@@ -11,6 +12,7 @@ import {
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 import {
+  Duration,
   getErrorMessage,
   hasProperty,
   type Json,
@@ -18,6 +20,7 @@ import {
   type JsonRpcResponse,
 } from '@metamask/utils';
 import deepmerge from 'deepmerge';
+import type { Logger } from 'loglevel';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
 import type { AddToCockatielEventData, FetchOptions } from './shared';
@@ -51,6 +54,10 @@ export type RpcServiceOptions = {
    * overridden on the request level (e.g. to add headers).
    */
   fetchOptions?: FetchOptions;
+  /**
+   * A `loglevel` logger.
+   */
+  logger?: Pick<Logger, 'warn'>;
   /**
    * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
    * not accepted, as it is overwritten. See {@link createServicePolicy}.
@@ -252,6 +259,11 @@ export class RpcService implements AbstractRpcService {
   readonly #failoverService: RpcServiceOptions['failoverService'];
 
   /**
+   * A `loglevel` logger.
+   */
+  readonly #logger: RpcServiceOptions['logger'];
+
+  /**
    * The policy that wraps the request.
    */
   readonly #policy: ServicePolicy;
@@ -267,6 +279,7 @@ export class RpcService implements AbstractRpcService {
       endpointUrl,
       failoverService,
       fetch: givenFetch,
+      logger,
       fetchOptions = {},
       policyOptions = {},
     } = options;
@@ -280,6 +293,7 @@ export class RpcService implements AbstractRpcService {
     );
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#failoverService = failoverService;
+    this.#logger = logger;
 
     const policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
@@ -565,6 +579,20 @@ export class RpcService implements AbstractRpcService {
       } else if (isJsonParseError(error)) {
         throw rpcErrors.parse({
           message: 'RPC endpoint did not return JSON.',
+        });
+      } else if (error instanceof BrokenCircuitError) {
+        this.#logger?.warn(error);
+        const remainingCircuitOpenDuration =
+          this.#policy.getRemainingCircuitOpenDuration();
+        const formattedRemainingCircuitOpenDuration = Intl.NumberFormat(
+          undefined,
+          { maximumFractionDigits: 2 },
+        ).format(
+          (remainingCircuitOpenDuration ?? this.#policy.circuitBreakDuration) /
+            Duration.Minute,
+        );
+        throw rpcErrors.resourceUnavailable({
+          message: `RPC endpoint returned too many errors, retrying in ${formattedRemainingCircuitOpenDuration} minutes. Consider using a different RPC endpoint.`,
         });
       }
       throw error;

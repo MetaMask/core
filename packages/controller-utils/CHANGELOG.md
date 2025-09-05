@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `circuitBreakDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This is the amount of time that the underlying circuit breaker policy will pause execution of the input function while the circuit is broken.
+- Add `getRemainingCircuitOpenDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This returns the amount of time after which the underlying circuit breaker policy will resume execution of the input function after the circuit reopens.
+
 ## [11.12.0]
 
 ### Added

@@ -2800,6 +2800,7 @@ export class NetworkController extends BaseController<
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          logger: this.#log,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2816,6 +2817,7 @@ export class NetworkController extends BaseController<
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messagingSystem,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          logger: this.#log,
         });
       }
     }
@@ -2978,6 +2980,7 @@ export class NetworkController extends BaseController<
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messagingSystem,
               isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+              logger: this.#log,
             }),
           ] as const;
         }
@@ -2995,6 +2998,7 @@ export class NetworkController extends BaseController<
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messagingSystem,
             isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+            logger: this.#log,
           }),
         ] as const;
       });

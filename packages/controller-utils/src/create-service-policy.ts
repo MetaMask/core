@@ -81,6 +81,17 @@ export type ServicePolicy = IPolicy & {
    */
   circuitBreakerPolicy: CircuitBreakerPolicy;
   /**
+   * The amount of time to pause requests to the service if the number of
+   * maximum consecutive failures is reached.
+   */
+  circuitBreakDuration: number;
+  /**
+   * If the circuit is open and ongoing requests are paused, returns the number
+   * of milliseconds before the requests will be attempted again. If the circuit
+   * is not open, returns null.
+   */
+  getRemainingCircuitOpenDuration: () => number | null;
+  /**
    * The Cockatiel retry policy that the service policy uses internally.
    */
   retryPolicy: RetryPolicy;
@@ -104,6 +115,17 @@ export type ServicePolicy = IPolicy & {
    */
   onRetry: RetryPolicy['onRetry'];
 };
+
+/**
+ * Parts of the circuit breaker's internal and external state as necessary in
+ * order to compute the time remaining before the circuit will reopen.
+ */
+type InternalCircuitState =
+  | {
+      state: CircuitState.Open;
+      openedAt: number;
+    }
+  | { state: Exclude<CircuitState, CircuitState.Open> };
 
 /**
  * The maximum number of times that a failing service should be re-run before
@@ -145,6 +167,25 @@ const isServiceFailure = (error: unknown) => {
   // consider it a service failure (e.g., network errors, timeouts, etc.)
   return true;
 };
+
+/**
+ * The circuit breaker policy inside of the Cockatiel library exposes some of
+ * its state, but not all of it. Notably, the time that the circuit opened is
+ * not publicly accessible. So we have to record this ourselves.
+ *
+ * This function therefore allows us to obtain the circuit breaker state that we
+ * wish we could access.
+ *
+ * @param state - The public state of a circuit breaker policy.
+ * @returns if the circuit is open, the state of the circuit breaker policy plus
+ * the time that it opened, otherwise just the circuit state.
+ */
+function getInternalCircuitState(state: CircuitState): InternalCircuitState {
+  if (state === CircuitState.Open) {
+    return { state, openedAt: Date.now() };
+  }
+  return { state };
+}
 
 /**
  * Constructs an object exposing an `execute` method which, given a function —
@@ -228,6 +269,13 @@ export function createServicePolicy(
     halfOpenAfter: circuitBreakDuration,
     breaker: new ConsecutiveBreaker(maxConsecutiveFailures),
   });
+
+  let internalCircuitState: InternalCircuitState = getInternalCircuitState(
+    circuitBreakerPolicy.state,
+  );
+  circuitBreakerPolicy.onStateChange((state) => {
+    internalCircuitState = getInternalCircuitState(state);
+  });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
   const onDegradedEventEmitter =
@@ -251,9 +299,18 @@ export function createServicePolicy(
   // breaker policy, which executes the service.
   const policy = wrap(retryPolicy, circuitBreakerPolicy);
 
+  const getRemainingCircuitOpenDuration = () => {
+    if (internalCircuitState.state === CircuitState.Open) {
+      return internalCircuitState.openedAt + circuitBreakDuration - Date.now();
+    }
+    return null;
+  };
+
   return {
     ...policy,
     circuitBreakerPolicy,
+    circuitBreakDuration,
+    getRemainingCircuitOpenDuration,
     retryPolicy,
     onBreak,
     onDegraded,
