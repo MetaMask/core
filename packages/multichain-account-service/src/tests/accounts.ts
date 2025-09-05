@@ -50,6 +50,9 @@ export const MOCK_SNAP_2 = {
 export const MOCK_ENTROPY_SOURCE_1 = 'mock-keyring-id-1';
 export const MOCK_ENTROPY_SOURCE_2 = 'mock-keyring-id-2';
 
+export const MOCK_MNEMONIC =
+  'abandon ability able about above absent absorb abstract absurd abuse access accident';
+
 export const MOCK_HD_KEYRING_1 = {
   type: KeyringTypes.hd,
   metadata: { id: MOCK_ENTROPY_SOURCE_1, name: 'HD Keyring 1' },
