@@ -1,7 +1,3 @@
-import type {
-  SendCalls,
-  SendCallsResult,
-} from '@metamask/eth-json-rpc-middleware';
 import type { KeyringTypes } from '@metamask/keyring-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type {
@@ -22,6 +18,7 @@ import {
   MessageType,
   VERSION,
 } from '../constants';
+import type { SendCalls, SendCallsResult } from '../methods/wallet-send-calls';
 import type { EIP5792Messenger } from '../types';
 import { getAccountKeyringType } from '../utils';
 

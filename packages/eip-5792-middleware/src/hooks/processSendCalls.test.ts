@@ -4,10 +4,6 @@ import type {
   AccountsControllerState,
 } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/base-controller';
-import type {
-  SendCalls,
-  SendCallsParams,
-} from '@metamask/eth-json-rpc-middleware';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -19,6 +15,7 @@ import type { TransactionController } from '@metamask/transaction-controller';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { processSendCalls } from './processSendCalls';
+import type { SendCalls, SendCallsParams } from '../methods/wallet-send-calls';
 import type { EIP5792Messenger } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';

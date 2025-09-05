@@ -1,5 +1,3 @@
-import type { GetCallsStatusResult } from '@metamask/eth-json-rpc-middleware';
-import { GetCallsStatusCode } from '@metamask/eth-json-rpc-middleware';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type {
   Log,
@@ -10,6 +8,8 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { EIP5792ErrorCode, VERSION } from '../constants';
+import { GetCallsStatusCode } from '../methods/wallet-get-calls-status';
+import type { GetCallsStatusResult } from '../methods/wallet-get-calls-status';
 import type { EIP5792Messenger } from '../types';
 
 /**

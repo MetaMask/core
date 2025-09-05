@@ -1,10 +1,10 @@
 import { Messenger } from '@metamask/base-controller';
-import { GetCallsStatusCode } from '@metamask/eth-json-rpc-middleware';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetStateAction,
   TransactionControllerState,
 } from '@metamask/transaction-controller';
+import { GetCallsStatusCode } from 'src/methods/wallet-get-calls-status';
 
 import { getCallsStatus } from './getCallsStatus';
 import type { EIP5792Messenger } from '../types';
