@@ -6,8 +6,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { KEYRING_TYPES_SUPPORTING_7702 } from '../constants';
-import type { GetCapabilitiesResult } from '../methods/wallet-get-capabilities';
-import type { EIP5792Messenger } from '../types';
+import type { EIP5792Messenger, GetCapabilitiesResult } from '../types';
 import { getAccountKeyringType } from '../utils';
 
 /**

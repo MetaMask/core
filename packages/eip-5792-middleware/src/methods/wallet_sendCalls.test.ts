@@ -1,12 +1,12 @@
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
 
+import { walletSendCalls } from './wallet_sendCalls';
 import type {
   ProcessSendCallsHook,
-  SendCalls,
+  SendCallsPayload,
   SendCallsParams,
-} from './wallet-send-calls';
-import { walletSendCalls } from './wallet-send-calls';
+} from '../types';
 
 type GetAccounts = (req: JsonRpcRequest) => Promise<string[]>;
 
@@ -80,7 +80,7 @@ describe('wallet_sendCalls', () => {
   it('supports top-level capabilities', async () => {
     params[0].capabilities = {
       'test-capability': { test: 'value', optional: true },
-    } as SendCalls['capabilities'];
+    } as SendCallsPayload['capabilities'];
 
     await callMethod();
 
@@ -90,7 +90,7 @@ describe('wallet_sendCalls', () => {
   it('supports call capabilities', async () => {
     params[0].calls[0].capabilities = {
       'test-capability': { test: 'value', optional: false },
-    } as SendCalls['capabilities'];
+    } as SendCallsPayload['capabilities'];
 
     await callMethod();
 

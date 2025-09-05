@@ -6,7 +6,7 @@ import type {
 } from '@metamask/transaction-controller';
 
 import { getCallsStatus } from './getCallsStatus';
-import { GetCallsStatusCode } from '../methods/wallet-get-calls-status';
+import { GetCallsStatusCode } from '../constants';
 import type { EIP5792Messenger } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';

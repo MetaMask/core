@@ -15,8 +15,11 @@ import type { TransactionController } from '@metamask/transaction-controller';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { processSendCalls } from './processSendCalls';
-import type { SendCalls, SendCallsParams } from '../methods/wallet-send-calls';
-import type { EIP5792Messenger } from '../types';
+import type {
+  SendCallsPayload,
+  SendCallsParams,
+  EIP5792Messenger,
+} from '../types';
 
 const CHAIN_ID_MOCK = '0x123';
 const CHAIN_ID_2_MOCK = '0xabc';
@@ -28,7 +31,7 @@ const FROM_MOCK_SIMPLE = '0x789abc';
 const ORIGIN_MOCK = 'test.com';
 const DELEGATION_ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
 
-const SEND_CALLS_MOCK: SendCalls = {
+const SEND_CALLS_MOCK: SendCallsPayload = {
   version: '2.0.0',
   calls: [{ to: '0x123' }, { to: '0x456' }],
   chainId: CHAIN_ID_MOCK,

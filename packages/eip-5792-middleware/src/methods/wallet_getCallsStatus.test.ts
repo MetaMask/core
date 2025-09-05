@@ -5,12 +5,12 @@ import type {
 } from '@metamask/utils';
 import { klona } from 'klona';
 
+import { walletGetCallsStatus } from './wallet_getCallsStatus';
 import type {
   GetCallsStatusHook,
   GetCallsStatusParams,
   GetCallsStatusResult,
-} from './wallet-get-calls-status';
-import { walletGetCallsStatus } from './wallet-get-calls-status';
+} from '../types';
 
 const ID_MOCK = '0x12345678';
 
