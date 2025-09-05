@@ -1,13 +1,4 @@
-import { BigNumber } from '@ethersproject/bignumber';
-import { Contract } from '@ethersproject/contracts';
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/base-controller';
-import type { GetGasFeeState } from '@metamask/gas-fee-controller';
-import type {
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-} from '@metamask/network-controller';
 
 import {
   controllerName,
@@ -37,8 +28,6 @@ import {
   RecurringInterval,
   SubscriptionStatus,
 } from './types';
-
-jest.mock('@ethersproject/contracts');
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -115,14 +104,7 @@ function createCustomSubscriptionMessenger(props?: {
     AllowedEvents['type']
   >({
     name: controllerName,
-    allowedActions: [
-      'AuthenticationController:getBearerToken',
-      'NetworkController:getState',
-      'NetworkController:getNetworkClientById',
-      'NetworkController:findNetworkClientIdByChainId',
-      'AccountsController:getSelectedMultichainAccount',
-      'GasFeeController:getState',
-    ],
+    allowedActions: ['AuthenticationController:getBearerToken'],
     allowedEvents: props?.overrideEvents ?? [
       'AuthenticationController:stateChange',
     ],
@@ -206,8 +188,6 @@ type WithControllerCallback<ReturnValue> = (params: {
   messenger: SubscriptionControllerMessenger;
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
-  mockAddTransactionFn: jest.Mock;
-  mockEstimateGasFeeFn: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -228,14 +208,10 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { messenger, baseMessenger } = createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
-  const mockAddTransactionFn = jest.fn();
-  const mockEstimateGasFeeFn = jest.fn();
 
   const controller = new SubscriptionController({
     messenger,
     subscriptionService: mockService,
-    addTransactionFn: mockAddTransactionFn,
-    estimateGasFeeFn: mockEstimateGasFeeFn,
     ...rest,
   });
 
@@ -245,17 +221,10 @@ async function withController<ReturnValue>(
     messenger,
     baseMessenger,
     mockService,
-    mockAddTransactionFn,
-    mockEstimateGasFeeFn,
   });
 }
 
 describe('SubscriptionController', () => {
-  beforeEach(() => {
-    // Clear all instances and calls to constructor and all methods:
-    (Contract as unknown as jest.Mock).mockClear();
-  });
-
   describe('constructor', () => {
     it('should be able to instantiate with default options', async () => {
       await withController(async ({ controller }) => {
@@ -271,15 +240,11 @@ describe('SubscriptionController', () => {
       const initialState: Partial<SubscriptionControllerState> = {
         subscriptions: [MOCK_SUBSCRIPTION],
       };
-      const mockAddTransactionFn = jest.fn();
-      const mockEstimateGasFeeFn = jest.fn();
 
       const controller = new SubscriptionController({
         messenger,
         state: initialState,
         subscriptionService: mockService,
-        addTransactionFn: mockAddTransactionFn,
-        estimateGasFeeFn: mockEstimateGasFeeFn,
       });
 
       expect(controller).toBeDefined();
@@ -289,14 +254,10 @@ describe('SubscriptionController', () => {
     it('should be able to instantiate with custom subscription service', () => {
       const { messenger } = createMockSubscriptionMessenger();
       const { mockService } = createMockSubscriptionService();
-      const mockAddTransactionFn = jest.fn();
-      const mockEstimateGasFeeFn = jest.fn();
 
       const controller = new SubscriptionController({
         messenger,
         subscriptionService: mockService,
-        addTransactionFn: mockAddTransactionFn,
-        estimateGasFeeFn: mockEstimateGasFeeFn,
       });
 
       expect(controller).toBeDefined();
@@ -673,180 +634,26 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('createCryptoApproveTransaction', () => {
-    const ContractCtor = Contract as unknown as jest.Mock;
-    beforeEach(() => {
-      // ethers.js Contract method is added at runtime depend on abi so we need to mock it dynamically here
-      const instance = {
-        allowance: jest
-          .fn()
-          .mockResolvedValue(BigNumber.from('1000000000000000000000')),
-      } as unknown as Contract;
-      ContractCtor.mockImplementation(() => instance);
-    });
+  describe('getCryptoApproveTransactionParams', () => {
+    it('returns transaction params for crypto approve transaction', async () => {
+      await withController(async ({ controller, mockService }) => {
+        // Provide product pricing and crypto payment info with unitDecimals small to avoid integer div to 0
+        mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
 
-    it('returns undefined when allowance is sufficient', async () => {
-      await withController(
-        async ({
-          controller,
-          mockService,
-          mockAddTransactionFn,
-          mockEstimateGasFeeFn,
-          baseMessenger,
-        }) => {
-          // Register mocks for required cross-controller actions on the provided base messenger
-          baseMessenger.registerActionHandler(
-            'NetworkController:getState',
-            (..._args) =>
-              ({
-                selectedNetworkClientId: 'test-client-id',
-              }) as ReturnType<NetworkControllerGetStateAction['handler']>,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:getNetworkClientById',
-            (..._args) =>
-              ({
-                provider: { request: jest.fn() },
-              }) as unknown as ReturnType<
-                NetworkControllerGetNetworkClientByIdAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'AccountsController:getSelectedMultichainAccount',
-            (..._args) =>
-              ({
-                address: '0xabc',
-              }) as ReturnType<
-                AccountsControllerGetSelectedMultichainAccountAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:findNetworkClientIdByChainId',
-            (..._args) =>
-              'test-client-id' as ReturnType<
-                NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-              >,
-          );
+        const result = await controller.getCryptoApproveTransactionParams({
+          chainId: '0x1',
+          paymentTokenAddress: '0xtoken',
+          productType: ProductType.SHIELD,
+          interval: RecurringInterval.month,
+        });
 
-          // Provide product pricing and crypto payment info
-          mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
-
-          const result = await controller.createCryptoApproveTransaction({
-            chainId: '0x1',
-            tokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
-          });
-
-          expect(result).toStrictEqual({ transactionResult: undefined });
-          expect(mockAddTransactionFn).not.toHaveBeenCalled();
-          expect(mockEstimateGasFeeFn).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('returns transactionResult when allowance is insufficient and adds approve tx', async () => {
-      // Override Contract mock to simulate low allowance and encode approve data
-      const encodeFunctionDataMock = jest.fn().mockReturnValue('0xabcdef');
-      const instance = {
-        allowance: jest.fn().mockResolvedValue(BigNumber.from('0')),
-        interface: {
-          encodeFunctionData: encodeFunctionDataMock,
-        },
-      } as unknown as Contract;
-      ContractCtor.mockImplementation(() => instance);
-
-      await withController(
-        async ({
-          controller,
-          mockService,
-          mockAddTransactionFn,
-          mockEstimateGasFeeFn,
-          baseMessenger,
-        }) => {
-          // Register required cross-controller handlers
-          baseMessenger.registerActionHandler(
-            'NetworkController:getState',
-            (..._args) =>
-              ({
-                selectedNetworkClientId: 'test-client-id',
-              }) as ReturnType<NetworkControllerGetStateAction['handler']>,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:getNetworkClientById',
-            (..._args) =>
-              ({
-                provider: { request: jest.fn() },
-              }) as unknown as ReturnType<
-                NetworkControllerGetNetworkClientByIdAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'AccountsController:getSelectedMultichainAccount',
-            (..._args) =>
-              ({
-                address: '0xabc',
-              }) as ReturnType<
-                AccountsControllerGetSelectedMultichainAccountAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:findNetworkClientIdByChainId',
-            (..._args) =>
-              'test-client-id' as ReturnType<
-                NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'GasFeeController:getState',
-            (..._args) =>
-              ({
-                gasFeeEstimates: { estimatedBaseFee: '1' },
-              }) as ReturnType<GetGasFeeState['handler']>,
-          );
-
-          // Gas estimates returned by TransactionController.estimateGasFee
-          mockEstimateGasFeeFn.mockResolvedValue({
-            estimates: {
-              high: {
-                maxFeePerGas: '0x1',
-                maxPriorityFeePerGas: '0x2',
-              },
-            },
-          });
-
-          // Mock transaction addition result
-          const mockTxResult = { transactionMeta: { id: 'tx-123' } };
-          mockAddTransactionFn.mockResolvedValue(mockTxResult);
-
-          // Provide product pricing and crypto payment info with unitDecimals small to avoid integer div to 0
-          mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
-
-          const result = await controller.createCryptoApproveTransaction({
-            chainId: '0x1',
-            tokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
-          });
-
-          expect(result).toStrictEqual({ transactionResult: mockTxResult });
-          expect(mockAddTransactionFn).toHaveBeenCalledTimes(1);
-          expect(mockEstimateGasFeeFn).toHaveBeenCalledTimes(1);
-          // Ensure approve calldata was built
-          expect(encodeFunctionDataMock).toHaveBeenCalledWith('approve', [
-            '0xspender',
-            expect.anything(),
-          ]);
-          // Ensure the encoded data is used in the transaction params
-          const [txParamsArg] = mockAddTransactionFn.mock.calls[0];
-          expect(txParamsArg).toMatchObject({
-            to: '0xtoken',
-            from: '0xabc',
-            value: '0',
-            data: '0xabcdef',
-          });
-        },
-      );
+        expect(result).toStrictEqual({
+          approveAmount: '9000000000000000000',
+          spenderAddress: '0xspender',
+          paymentTokenAddress: '0xtoken',
+          chainId: '0x1',
+        });
+      });
     });
 
     it('throws when product price not found', async () => {
@@ -857,9 +664,9 @@ describe('SubscriptionController', () => {
         });
 
         await expect(
-          controller.createCryptoApproveTransaction({
+          controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
-            tokenAddress: '0xtoken',
+            paymentTokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
             interval: RecurringInterval.month,
           }),
@@ -889,9 +696,9 @@ describe('SubscriptionController', () => {
         });
 
         await expect(
-          controller.createCryptoApproveTransaction({
+          controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
-            tokenAddress: '0xtoken',
+            paymentTokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
             interval: RecurringInterval.month,
           }),
@@ -911,9 +718,9 @@ describe('SubscriptionController', () => {
         });
 
         await expect(
-          controller.createCryptoApproveTransaction({
+          controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
-            tokenAddress: '0xtoken',
+            paymentTokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
             interval: RecurringInterval.month,
           }),
@@ -940,9 +747,9 @@ describe('SubscriptionController', () => {
         });
 
         await expect(
-          controller.createCryptoApproveTransaction({
+          controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
-            tokenAddress: '0xtoken',
+            paymentTokenAddress: '0xtoken',
             productType: ProductType.SHIELD,
             interval: RecurringInterval.month,
           }),
@@ -955,55 +762,14 @@ describe('SubscriptionController', () => {
         mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
 
         await expect(
-          controller.createCryptoApproveTransaction({
+          controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
-            tokenAddress: '0xtoken-invalid',
+            paymentTokenAddress: '0xtoken-invalid',
             productType: ProductType.SHIELD,
             interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Invalid token address');
       });
-    });
-
-    it('throws when no provider found', async () => {
-      await withController(
-        async ({ controller, mockService, baseMessenger }) => {
-          // Provide full, valid pricing so it reaches provider retrieval
-          mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
-
-          // Selected network client id exists, but provider missing
-          baseMessenger.registerActionHandler(
-            'NetworkController:getState',
-            (..._args) =>
-              ({
-                selectedNetworkClientId: 'test-client-id',
-              }) as ReturnType<NetworkControllerGetStateAction['handler']>,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:getNetworkClientById',
-            (..._args) =>
-              ({}) as unknown as ReturnType<
-                NetworkControllerGetNetworkClientByIdAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:findNetworkClientIdByChainId',
-            (..._args) =>
-              'test-client-id' as ReturnType<
-                NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-              >,
-          );
-
-          await expect(
-            controller.createCryptoApproveTransaction({
-              chainId: '0x1',
-              tokenAddress: '0xtoken',
-              productType: ProductType.SHIELD,
-              interval: RecurringInterval.month,
-            }),
-          ).rejects.toThrow('No provider found');
-        },
-      );
     });
 
     it('throws when conversion rate not found', async () => {
@@ -1032,103 +798,14 @@ describe('SubscriptionController', () => {
             ],
           });
 
-          // Set up required cross-controller handlers so we reach conversion rate check
-          baseMessenger.registerActionHandler(
-            'NetworkController:getState',
-            (..._args) =>
-              ({
-                selectedNetworkClientId: 'test-client-id',
-              }) as ReturnType<NetworkControllerGetStateAction['handler']>,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:getNetworkClientById',
-            (..._args) =>
-              ({
-                provider: { request: jest.fn() },
-              }) as unknown as ReturnType<
-                NetworkControllerGetNetworkClientByIdAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'AccountsController:getSelectedMultichainAccount',
-            (..._args) =>
-              ({
-                address: '0xabc',
-              }) as ReturnType<
-                AccountsControllerGetSelectedMultichainAccountAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:findNetworkClientIdByChainId',
-            (..._args) =>
-              'test-client-id' as ReturnType<
-                NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-              >,
-          );
-
           await expect(
-            controller.createCryptoApproveTransaction({
+            controller.getCryptoApproveTransactionParams({
               chainId: '0x1',
-              tokenAddress: '0xtoken',
+              paymentTokenAddress: '0xtoken',
               productType: ProductType.SHIELD,
               interval: RecurringInterval.month,
             }),
           ).rejects.toThrow('Conversion rate not found');
-        },
-      );
-    });
-
-    it('throws when no wallet address found', async () => {
-      const ContractCtorLocal = Contract as unknown as jest.Mock;
-      const instance = {
-        allowance: jest.fn().mockResolvedValue(BigNumber.from('0')),
-        interface: { encodeFunctionData: jest.fn() },
-      } as unknown as Contract;
-      ContractCtorLocal.mockImplementation(() => instance);
-
-      await withController(
-        async ({ controller, mockService, baseMessenger }) => {
-          baseMessenger.registerActionHandler(
-            'NetworkController:getState',
-            (..._args) =>
-              ({
-                selectedNetworkClientId: 'test-client-id',
-              }) as ReturnType<NetworkControllerGetStateAction['handler']>,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:getNetworkClientById',
-            (..._args) =>
-              ({
-                provider: { request: jest.fn() },
-              }) as unknown as ReturnType<
-                NetworkControllerGetNetworkClientByIdAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'AccountsController:getSelectedMultichainAccount',
-            (..._args) =>
-              undefined as ReturnType<
-                AccountsControllerGetSelectedMultichainAccountAction['handler']
-              >,
-          );
-          baseMessenger.registerActionHandler(
-            'NetworkController:findNetworkClientIdByChainId',
-            (..._args) =>
-              'test-client-id' as ReturnType<
-                NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-              >,
-          );
-
-          mockService.getPricing.mockResolvedValue(MOCK_PRICE_INFO_RESPONSE);
-
-          await expect(
-            controller.createCryptoApproveTransaction({
-              chainId: '0x1',
-              tokenAddress: '0xtoken',
-              productType: ProductType.SHIELD,
-              interval: RecurringInterval.month,
-            }),
-          ).rejects.toThrow('No wallet address found');
         },
       );
     });

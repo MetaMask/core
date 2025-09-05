@@ -1,8 +1,3 @@
-import { BigNumber as EthersBigNumber } from '@ethersproject/bignumber';
-import { BigNumber } from '@ethersproject/bignumber';
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import {
   BaseController,
   type StateMetadata,
@@ -10,32 +5,15 @@ import {
   type ControllerGetStateAction,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
-import type { GetGasFeeState } from '@metamask/gas-fee-controller';
-import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type {
-  AutoManagedNetworkClient,
-  CustomNetworkClientConfiguration,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-} from '@metamask/network-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import {
-  TransactionType,
-  type TransactionController,
-  type TransactionParams,
-} from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 
 import {
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
-  ChainPaymentInfo,
-  CreateCryptoApproveTransactionRequest,
-  CreateCryptoApproveTransactionResponse,
+  GetCryptoApproveTransactionRequest,
+  GetCryptoApproveTransactionResponse,
   ProductPrice,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
@@ -49,7 +27,6 @@ import {
   type StartSubscriptionRequest,
   type Subscription,
 } from './types';
-import { generateActionId, getTxGasEstimates } from './utils';
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
@@ -72,9 +49,9 @@ export type SubscriptionControllerGetPricingAction = {
   type: `${typeof controllerName}:getPricing`;
   handler: SubscriptionController['getPricing'];
 };
-export type SubscriptionControllerCreateCryptoApproveTransactionAction = {
-  type: `${typeof controllerName}:createCryptoApproveTransaction`;
-  handler: SubscriptionController['createCryptoApproveTransaction'];
+export type SubscriptionControllerGetCryptoApproveTransactionParamsAction = {
+  type: `${typeof controllerName}:getCryptoApproveTransactionParams`;
+  handler: SubscriptionController['getCryptoApproveTransactionParams'];
 };
 export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
   type: `${typeof controllerName}:startSubscriptionWithCrypto`;
@@ -91,16 +68,11 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerStartShieldSubscriptionWithCardAction
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
-  | SubscriptionControllerCreateCryptoApproveTransactionAction
+  | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction;
 
 export type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedMultichainAccountAction
-  | GetGasFeeState;
+  AuthenticationController.AuthenticationControllerGetBearerToken;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -137,10 +109,6 @@ export type SubscriptionControllerOptions = {
    * Subscription service to use for the subscription controller.
    */
   subscriptionService: ISubscriptionService;
-
-  addTransactionFn: typeof TransactionController.prototype.addTransaction;
-
-  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 };
 
 /**
@@ -176,10 +144,6 @@ export class SubscriptionController extends BaseController<
 > {
   readonly #subscriptionService: ISubscriptionService;
 
-  readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
-
-  readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
-
   /**
    * Creates a new SubscriptionController instance.
    *
@@ -187,15 +151,11 @@ export class SubscriptionController extends BaseController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.subscriptionService - The subscription service for communicating with subscription server.
-   * @param options.addTransactionFn - The function to add a transaction.
-   * @param options.estimateGasFeeFn - The function to estimate gas fee.
    */
   constructor({
     messenger,
     state,
     subscriptionService,
-    addTransactionFn,
-    estimateGasFeeFn,
   }: SubscriptionControllerOptions) {
     super({
       name: controllerName,
@@ -208,8 +168,6 @@ export class SubscriptionController extends BaseController<
     });
 
     this.#subscriptionService = subscriptionService;
-    this.#addTransactionFn = addTransactionFn;
-    this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#registerMessageHandlers();
   }
 
@@ -239,8 +197,8 @@ export class SubscriptionController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'SubscriptionController:createCryptoApproveTransaction',
-      this.createCryptoApproveTransaction.bind(this),
+      'SubscriptionController:getCryptoApproveTransactionParams',
+      this.getCryptoApproveTransactionParams.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -297,20 +255,19 @@ export class SubscriptionController extends BaseController<
   }
 
   /**
-   * Create a crypto approve transaction for subscription payment
-   * Return undefined if allowance amount is already allowed.
+   * Get transaction params to create crypto approve transaction for subscription payment
    *
    * @param request - The request object
    * @param request.chainId - The chain ID
    * @param request.tokenAddress - The address of the token
    * @param request.productType - The product type
    * @param request.interval - The interval
-   * @returns The transaction raw or already allowed flag
+   * @returns The crypto approve transaction params
    */
-  async createCryptoApproveTransaction(
-    request: CreateCryptoApproveTransactionRequest,
-  ): Promise<CreateCryptoApproveTransactionResponse> {
-    const pricing = await this.#subscriptionService.getPricing();
+  async getCryptoApproveTransactionParams(
+    request: GetCryptoApproveTransactionRequest,
+  ): Promise<GetCryptoApproveTransactionResponse> {
+    const pricing = await this.getPricing();
     const product = pricing.products.find(
       (p) => p.name === request.productType,
     );
@@ -336,152 +293,23 @@ export class SubscriptionController extends BaseController<
       throw new Error('Invalid chain id');
     }
     const tokenPaymentInfo = chainPaymentInfo.tokens.find(
-      (t) => t.address === request.tokenAddress,
+      (t) => t.address === request.paymentTokenAddress,
     );
     if (!tokenPaymentInfo) {
       throw new Error('Invalid token address');
-    }
-
-    const networkClientId = this.messagingSystem.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      request.chainId as Hex,
-    );
-
-    const provider = this.#getSelectedNetworkClient()?.provider;
-    if (!provider) {
-      throw new Error('No provider found');
     }
 
     const tokenApproveAmount = this.#getTokenApproveAmount(
       price,
       tokenPaymentInfo,
     );
-    // no need to create transaction if already allowed enough amount
-    const allowance = await this.#getCryptoAllowance({
-      tokenAddress: request.tokenAddress,
-      chainPaymentInfo,
+
+    return {
+      approveAmount: tokenApproveAmount.toString(),
+      spenderAddress: chainPaymentInfo.paymentAddress,
+      paymentTokenAddress: request.paymentTokenAddress,
       chainId: request.chainId,
-      provider,
-    });
-    if (allowance.gte(tokenApproveAmount)) {
-      return {
-        transactionResult: undefined,
-      };
-    }
-
-    const spender = chainPaymentInfo.paymentAddress;
-
-    const ethersProvider = new Web3Provider(provider);
-    const { address: walletAddress } =
-      this.#getMultichainSelectedAccount() ?? {};
-    if (!walletAddress) {
-      throw new Error('No wallet address found');
-    }
-
-    const token = new Contract(request.tokenAddress, abiERC20, ethersProvider);
-    // Build call data only
-    const txData = token.interface.encodeFunctionData('approve', [
-      spender,
-      tokenApproveAmount,
-    ]);
-    const transactionParams = {
-      to: request.tokenAddress,
-      data: txData,
-      from: walletAddress,
-      value: '0',
     };
-
-    const actionId = generateActionId().toString();
-    const requestOptions = {
-      actionId,
-      networkClientId,
-      requireApproval: true,
-      type: TransactionType.tokenMethodApprove,
-      origin: 'metamask',
-    };
-
-    const transactionParamsWithMaxGas: TransactionParams = {
-      ...transactionParams,
-      ...(await this.#calculateGasFees(
-        transactionParams,
-        networkClientId,
-        request.chainId as Hex,
-      )),
-    };
-
-    const result = await this.#addTransactionFn(
-      transactionParamsWithMaxGas,
-      requestOptions,
-    );
-
-    return {
-      transactionResult: result,
-    };
-  }
-
-  readonly #calculateGasFees = async (
-    transactionParams: TransactionParams,
-    networkClientId: string,
-    chainId: Hex,
-  ) => {
-    const { gasFeeEstimates } = this.messagingSystem.call(
-      'GasFeeController:getState',
-    );
-    const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
-      transactionParams,
-      chainId,
-      networkClientId,
-    });
-    const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
-      networkGasFeeEstimates: gasFeeEstimates,
-      txGasFeeEstimates,
-    });
-    const maxGasLimit = toHex(transactionParams.gas ?? 0);
-
-    return {
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      gas: maxGasLimit,
-    };
-  };
-
-  /**
-   * Get the allowance of the crypto token for payment address
-   *
-   * @param request - The request object
-   * @param request.tokenAddress - The address of the token
-   * @param request.chainPaymentInfo - The chain payment info
-   * @param request.chainId - The chain ID
-   * @param request.provider - The network client provider
-   * @returns The allowance of the crypto token
-   */
-  async #getCryptoAllowance(request: {
-    tokenAddress: string;
-    chainPaymentInfo: ChainPaymentInfo;
-    chainId: string;
-    provider: AutoManagedNetworkClient<CustomNetworkClientConfiguration>['provider'];
-  }) {
-    const { provider } = request;
-
-    const ethersProvider = new Web3Provider(provider);
-    const { address: walletAddress } =
-      this.#getMultichainSelectedAccount() ?? {};
-    const contract = new Contract(
-      request.tokenAddress,
-      abiERC20,
-      ethersProvider,
-    );
-    const allowance: BigNumber = await contract.allowance(
-      walletAddress,
-      request.chainPaymentInfo.paymentAddress,
-    );
-    return allowance;
-  }
-
-  #getMultichainSelectedAccount() {
-    return this.messagingSystem.call(
-      'AccountsController:getSelectedMultichainAccount',
-    );
   }
 
   /**
@@ -492,9 +320,9 @@ export class SubscriptionController extends BaseController<
    * @returns The price amount
    */
   #getSubscriptionPriceAmount(price: ProductPrice) {
-    const amount = EthersBigNumber.from(price.unitAmount)
-      .div(EthersBigNumber.from(10).pow(price.unitDecimals))
-      .mul(price.minBillingCycles);
+    const amount =
+      (BigInt(price.unitAmount) / BigInt(10) ** BigInt(price.unitDecimals)) *
+      BigInt(price.minBillingCycles);
     return amount;
   }
 
@@ -519,28 +347,13 @@ export class SubscriptionController extends BaseController<
     // conversion rate is a float string e.g: "1.0"
     // ether.js bignumber does not support float string, only handle integer string
     // we need to convert it to integer string or use bignumber.js
-    const conversionRateBigNumber = BigNumber.from(Number(conversionRate));
+    const conversionRateBigInt = BigInt(Number(conversionRate));
 
-    const amount = this.#getSubscriptionPriceAmount(price)
-      .mul(EthersBigNumber.from(10).pow(tokenPaymentInfo.decimals))
-      .div(conversionRateBigNumber);
+    const amount =
+      (this.#getSubscriptionPriceAmount(price) *
+        BigInt(10) ** BigInt(tokenPaymentInfo.decimals)) /
+      conversionRateBigInt;
     return amount;
-  }
-
-  #getSelectedNetworkClientId() {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    return selectedNetworkClientId;
-  }
-
-  #getSelectedNetworkClient() {
-    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    return networkClient;
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {

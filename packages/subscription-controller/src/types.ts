@@ -1,4 +1,3 @@
-import type { Result } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export enum ProductType {
@@ -152,7 +151,7 @@ export type PricingResponse = {
   paymentMethods: PricingPaymentMethod[];
 };
 
-export type CreateCryptoApproveTransactionRequest = {
+export type GetCryptoApproveTransactionRequest = {
   /**
    * payment chain ID
    */
@@ -160,17 +159,20 @@ export type CreateCryptoApproveTransactionRequest = {
   /**
    * Payment token address
    */
-  tokenAddress: string;
+  paymentTokenAddress: string;
   productType: ProductType;
   interval: RecurringInterval;
 };
 
-export type CreateCryptoApproveTransactionResponse = {
+export type GetCryptoApproveTransactionResponse = {
   /**
-   * Transaction result.
-   * Return undefined if allowance is already allowed.
+   * The amount to approve
+   * e.g: "100000000"
    */
-  transactionResult?: Result;
+  approveAmount: string;
+  spenderAddress: string;
+  paymentTokenAddress: string;
+  chainId: string;
 };
 
 export type ISubscriptionService = {
