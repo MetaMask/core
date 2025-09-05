@@ -1,5 +1,4 @@
 import { Messenger } from '@metamask/base-controller';
-import { GetCallsStatusCode } from '@metamask/eth-json-rpc-middleware';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetStateAction,
@@ -7,6 +6,7 @@ import type {
 } from '@metamask/transaction-controller';
 
 import { getCallsStatus } from './getCallsStatus';
+import { GetCallsStatusCode } from '../constants';
 import type { EIP5792Messenger } from '../types';
 
 const CHAIN_ID_MOCK = '0x123';

@@ -1,5 +1,3 @@
-import type { GetCallsStatusResult } from '@metamask/eth-json-rpc-middleware';
-import { GetCallsStatusCode } from '@metamask/eth-json-rpc-middleware';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type {
   Log,
@@ -9,8 +7,8 @@ import type {
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { EIP5792ErrorCode, VERSION } from '../constants';
-import type { EIP5792Messenger } from '../types';
+import { EIP5792ErrorCode, GetCallsStatusCode, VERSION } from '../constants';
+import type { EIP5792Messenger, GetCallsStatusResult } from '../types';
 
 /**
  * Retrieves the status of a transaction batch by its ID.
