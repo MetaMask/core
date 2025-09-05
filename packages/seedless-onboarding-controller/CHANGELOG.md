@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `renewRefreshToken` options in SeedlessOnboardingController constructor - A function to renew the refresh token and get new revoke token. ([#6275](https://github.com/MetaMask/core/pull/6275))
 - Added `renewRefreshToken` method to renew refresh token from client ([#6275](https://github.com/MetaMask/core/pull/6275))
 - Added `revokePendingRefreshTokens` method to revoke all pending old refresh tokens instead from client ([#6275](https://github.com/MetaMask/core/pull/6275))
+- Added `tokenApi` options in SeedlessOnboardingController constructor - to group all token api handling in a util ([#6466](https://github.com/MetaMask/core/pull/6466))
 
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Moved `renewRefreshToken`, `revokePendingRefreshToken`, `refreshJWTToken` into `tokenApi` util ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 ### Removed
 
