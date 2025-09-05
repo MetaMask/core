@@ -38,7 +38,7 @@ describe('Quote Utils', () => {
       srcTokenAmount: '1000',
       slippage: 0.5,
       gasIncluded: false,
-      gasless7702: false,
+      gasIncluded7702: false,
     };
 
     it('should return true for valid request with all required fields', () => {
