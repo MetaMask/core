@@ -44,19 +44,19 @@ main().catch((error) => {
 export async function main(): Promise<void> {
   const {
     githubEventName,
-    baseCommitId,
-    headCommitId,
+    baseRef,
+    headRef,
     possibleReleaseTitle,
     validReleaseTitlePatterns,
-  } = await parseCommandLineArguments();
+  } = parseCommandLineArguments();
 
-  console.log('\nRunning validations');
+  console.log('Running validations');
   console.log('-------------------\n');
 
   console.log('- Checking whether root version has been bumped...');
   const rootVersionBumpedResult = await validateRootVersionBumped(
-    baseCommitId,
-    headCommitId,
+    baseRef,
+    headRef,
   );
   console.log(`  - ${rootVersionBumpedResult.message}`);
 
@@ -73,7 +73,7 @@ export async function main(): Promise<void> {
 
   console.log('- Checking whether any workspace packages have been bumped...');
   const anyWorkspacePackageVersionBumpedResult =
-    await validateAnyPublicWorkspacePackageBumped(baseCommitId, headCommitId);
+    await validateAnyPublicWorkspacePackageBumped(baseRef, headRef);
   console.log(`  - ${anyWorkspacePackageVersionBumpedResult.message}`);
 
   const releaseValidationResult = getReleaseValidationResult(
@@ -204,7 +204,7 @@ function failWithInvalidUsage(message: string) {
  *
  * @returns The previous commit ID and release title prefix.
  */
-async function parseCommandLineArguments() {
+function parseCommandLineArguments() {
   const args = process.argv.slice(2);
 
   if (args.length < 4) {
@@ -234,16 +234,10 @@ async function parseCommandLineArguments() {
     );
   }
 
-  const { stdout: baseCommitId } = await execa('git', ['rev-parse', baseRef]);
-  const { stdout: headCommitId } = await execa('git', ['rev-parse', headRef]);
-
-  console.log(`Base commit: ${baseRef} -> ${baseCommitId}`);
-  console.log(`Head commit: ${headRef} -> ${headCommitId}`);
-
   return {
     githubEventName: githubEventName as GitHubEventName,
-    baseCommitId,
-    headCommitId,
+    baseRef,
+    headRef,
     possibleReleaseTitle,
     validReleaseTitlePatterns,
   };
@@ -271,24 +265,24 @@ async function getPublicWorkspaces(): Promise<WorkspaceInfo[]> {
  * Fetches the `package.json` in the directory from the base and head commits
  * and returns their version fields.
  *
- * @param baseCommitId - The ID of the first commit to fetch.
- * @param headCommitId - The ID of the second commit to fetch.
+ * @param baseRef - The ref of the first commit to fetch.
+ * @param headRef - The ref of the second commit to fetch.
  * @param directory - The directory where `package.json` is located (must end
  * with `/`).
  * @returns The output.
  */
 async function getPreviousAndCurrentPackageVersions(
-  baseCommitId: string,
-  headCommitId: string,
+  baseRef: string,
+  headRef: string,
   directory: string,
 ): Promise<{ previousVersion: string; currentVersion: string }> {
   const { stdout: rawPreviousManifest } = await execa('git', [
     'show',
-    `${baseCommitId}:${directory}package.json`,
+    `${baseRef}:${directory}package.json`,
   ]);
   const { stdout: rawCurrentManifest } = await execa('git', [
     'show',
-    `${headCommitId}:${directory}package.json`,
+    `${headRef}:${directory}package.json`,
   ]);
 
   const previousManifest = JSON.parse(rawPreviousManifest) as {
@@ -342,6 +336,7 @@ function validateReleaseTitle({
     `^(?:${validReleaseTitleRegexpSource})$`,
     'u',
   );
+  console.log('validReleaseTitleRegexp', validReleaseTitleRegexp);
   const match = possibleReleaseTitle.match(validReleaseTitleRegexp);
   const source =
     githubEventName === 'push' ? 'commit message' : 'pull request title';
@@ -363,20 +358,16 @@ function validateReleaseTitle({
  * Checks if the version in the the root package's `package.json` has been
  * bumped.
  *
- * @param baseCommitId - The base commit ID.
- * @param headCommitId - The head commit ID.
+ * @param baseRef - The base commit ref.
+ * @param headRef - The head commit ref.
  * @returns The result of the validation.
  */
 async function validateRootVersionBumped(
-  baseCommitId: string,
-  headCommitId: string,
+  baseRef: string,
+  headRef: string,
 ): Promise<RootVersionBumpedValidationResult> {
   const { previousVersion, currentVersion } =
-    await getPreviousAndCurrentPackageVersions(
-      baseCommitId,
-      headCommitId,
-      './',
-    );
+    await getPreviousAndCurrentPackageVersions(baseRef, headRef, './');
 
   if (currentVersion !== previousVersion) {
     return {
@@ -397,13 +388,13 @@ async function validateRootVersionBumped(
 /**
  * Checks if any of the versions among workspace package have been bumped.
  *
- * @param baseCommitId - The base commit ID.
- * @param headCommitId - The head commit ID.
+ * @param baseRef - The base commit ref.
+ * @param headRef - The head commit ref.
  * @returns The result of the validation.
  */
 async function validateAnyPublicWorkspacePackageBumped(
-  baseCommitId: string,
-  headCommitId: string,
+  baseRef: string,
+  headRef: string,
 ): Promise<AnyWorkspacePackageVersionBumpedValidationResult> {
   const publicWorkspaces = await getPublicWorkspaces();
 
@@ -411,8 +402,8 @@ async function validateAnyPublicWorkspacePackageBumped(
     publicWorkspaces.map(async (publicWorkspace) => {
       const { previousVersion, currentVersion } =
         await getPreviousAndCurrentPackageVersions(
-          baseCommitId,
-          headCommitId,
+          baseRef,
+          headRef,
           `${publicWorkspace.location}/`,
         );
 
