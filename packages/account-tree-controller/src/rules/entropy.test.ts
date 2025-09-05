@@ -10,6 +10,7 @@ import {
   EthMethod,
   EthScope,
   KeyringAccountEntropyTypeOption,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -275,7 +276,7 @@ describe('EntropyRule', () => {
       const mockSolanaAccount: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'solana-account-id',
-        type: 'solana:data-account' as any, // Non-EVM account type
+        type: SolAccountType.DataAccount,
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
           name: 'Solana Account 2', // This should NOT bubble up as group name
@@ -285,10 +286,10 @@ describe('EntropyRule', () => {
       rootMessenger.registerActionHandler(
         'AccountsController:getAccount',
         (accountId: string) => {
-          if (accountId === 'solana-account-id') {
-            return mockSolanaAccount;
-          }
-          return undefined;
+          const accounts: Record<string, InternalAccount> = {
+            'solana-account-id': mockSolanaAccount,
+          };
+          return accounts[accountId];
         },
       );
 
@@ -321,7 +322,7 @@ describe('EntropyRule', () => {
       const mockSolanaAccount: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'solana-account-id',
-        type: 'solana:data-account' as any,
+        type: SolAccountType.DataAccount,
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
           name: 'Solana Account 2',
@@ -341,13 +342,11 @@ describe('EntropyRule', () => {
       rootMessenger.registerActionHandler(
         'AccountsController:getAccount',
         (accountId: string) => {
-          if (accountId === 'solana-account-id') {
-            return mockSolanaAccount;
-          }
-          if (accountId === 'evm-account-id') {
-            return mockEvmAccount;
-          }
-          return undefined;
+          const accounts: Record<string, InternalAccount> = {
+            'solana-account-id': mockSolanaAccount,
+            'evm-account-id': mockEvmAccount,
+          };
+          return accounts[accountId];
         },
       );
 

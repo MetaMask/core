@@ -2178,7 +2178,7 @@ describe('AccountTreeController', () => {
       const mockSolanaAccount: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'solana-account-id',
-        type: 'solana:data-account' as any, // Non-EVM account type
+        type: SolAccountType.DataAccount,
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
           name: 'Solana Account 2', // This should NOT become the group name
