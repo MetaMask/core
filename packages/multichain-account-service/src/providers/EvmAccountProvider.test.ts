@@ -318,12 +318,12 @@ describe('EvmAccountProvider', () => {
       throw new Error('RPC request failed');
     });
 
-    expect(
-      await provider.discoverAndCreateAccounts({
+    await expect(
+      provider.discoverAndCreateAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
-    ).toStrictEqual([]);
+    ).rejects.toThrow('RPC request failed');
 
     expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
