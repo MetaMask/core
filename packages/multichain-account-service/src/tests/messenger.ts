@@ -45,8 +45,6 @@ export function getMultichainAccountServiceMessenger(
       'KeyringController:getState',
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
-      'KeyringController:getKeyringsByType',
-      'KeyringController:addNewKeyring',
     ],
   });
 }
