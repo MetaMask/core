@@ -149,8 +149,10 @@ export type AllowedEvents =
  */
 const multichainTransactionsControllerMetadata = {
   nonEvmTransactions: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 

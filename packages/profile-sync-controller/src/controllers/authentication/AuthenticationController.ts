@@ -43,12 +43,16 @@ export const defaultState: AuthenticationControllerState = {
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   srpSessionData: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
