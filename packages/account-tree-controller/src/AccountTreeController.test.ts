@@ -462,7 +462,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_1.id],
                   metadata: {
-                    name: 'Account 2', // Non-EVM account names no longer bubble up, fallback to default
+                    name: 'Account 2',
                     entropy: {
                       groupIndex:
                         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
@@ -1965,7 +1965,7 @@ describe('AccountTreeController', () => {
         },
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
-          importTime: Date.now() + 1000, // Import time no longer affects naming
+          importTime: Date.now() + 1000,
         },
       };
 
@@ -1981,7 +1981,7 @@ describe('AccountTreeController', () => {
         },
         metadata: {
           ...MOCK_HD_ACCOUNT_2.metadata,
-          importTime: Date.now() - 1000, // Import time no longer affects naming
+          importTime: Date.now() - 1000,
         },
       };
 
@@ -2108,7 +2108,7 @@ describe('AccountTreeController', () => {
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
           name: '', // Empty name to trigger naming logic
-          importTime: Date.now() + 1000, // Import time no longer affects naming
+          importTime: Date.now() + 1000,
         },
       };
 
