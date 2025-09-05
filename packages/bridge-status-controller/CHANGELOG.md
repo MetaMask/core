@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/529.0.0 ([#6440](https://github.com/MetaMask/core/pull/6440))
+
 ### Added
 
 - Add `getBridgeHistoryItemByTxMetaId` method available via messaging system for external access to bridge history items ([#6363](https://github.com/MetaMask/core/pull/6363))
