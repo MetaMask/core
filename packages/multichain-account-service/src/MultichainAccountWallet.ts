@@ -23,13 +23,16 @@ import type { NamedAccountProvider } from './providers';
 /**
  * The context for a provider discovery.
  */
-export type AccountProviderDiscoveryContext = {
+type AccountProviderDiscoveryContext = {
   provider: NamedAccountProvider;
   stopped: boolean;
   groupIndex: number;
   count: number;
 };
 
+/**
+ * The metrics resulting from account discovery.
+ */
 export type AccountDiscoveryMetrics = {
   [providerName: string]: number;
 };

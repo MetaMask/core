@@ -77,9 +77,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           return [existing[groupIndex], false];
         }
 
-        // For now, we don't allow for gap, so if we need to create a new
-        // account, this has to be the next one.
-        if (groupIndex !== existing.length && throwOnGap) {
+        // If the throwOnGap flag is set, we throw an error to prevent index gaps.
+        if (throwOnGap && groupIndex !== existing.length) {
           throw new Error('Trying to create too many accounts');
         }
 
@@ -156,7 +155,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         );
         return [];
       }
-    } catch {
+    } catch (error) {
       // If the RPC request fails and we just created this account for discovery,
       // remove it to avoid leaving a dangling account.
       if (shouldCleanup) {
@@ -167,7 +166,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           },
         );
       }
-      return [];
+      throw error;
     }
 
     const account = this.messenger.call(
