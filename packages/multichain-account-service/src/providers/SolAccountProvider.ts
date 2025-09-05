@@ -1,4 +1,4 @@
-import { type Bip44Account } from '@metamask/account-api';
+import { assertIsBip44Account, type Bip44Account } from '@metamask/account-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import {
@@ -13,7 +13,6 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { assertAreBip44Accounts } from './BaseBip44AccountProvider';
 import { SnapAccountProvider } from './SnapAccountProvider';
 
 export class SolAccountProvider extends SnapAccountProvider {
@@ -56,28 +55,19 @@ export class SolAccountProvider extends SnapAccountProvider {
     );
   }
 
-  override async createAccounts({
+  async #createAccount({
     entropySource,
     groupIndex,
-    derivationPath = `m/44'/501'/${groupIndex}'/0'`,
+    derivationPath,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-    derivationPath?: string;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+    derivationPath: string;
+  }): Promise<Bip44Account<KeyringAccount>> {
     const createAccount = await this.getRestrictedSnapAccountCreator();
+    const account = await createAccount({ entropySource, derivationPath });
 
-    // Create account without any confirmation nor selecting it.
-    // TODO: Use the new keyring API `createAccounts` method with the "bip-44:derive-index"
-    // type once ready.
-    const account = await createAccount({
-      entropySource,
-      derivationPath,
-    });
-
-    // Solana Snap does not use BIP-44 typed options for the moment
-    // so we "inject" them (the `AccountsController` does a similar thing
-    // for the moment).
+    // Ensure entropy is present before type assertion validation
     account.options.entropy = {
       type: KeyringAccountEntropyTypeOption.Mnemonic,
       id: entropySource,
@@ -85,10 +75,24 @@ export class SolAccountProvider extends SnapAccountProvider {
       derivationPath,
     };
 
-    const accounts = [account];
-    assertAreBip44Accounts(accounts);
+    assertIsBip44Account(account);
+    return account;
+  }
 
-    return accounts;
+  async createAccounts({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+    const account = await this.#createAccount({
+      entropySource,
+      groupIndex,
+      derivationPath,
+    });
+    return [account];
   }
 
   async discoverAndCreateAccounts({
@@ -110,7 +114,7 @@ export class SolAccountProvider extends SnapAccountProvider {
 
     const createdAccounts = await Promise.all(
       discoveredAccounts.map((d) =>
-        this.createAccounts({
+        this.#createAccount({
           entropySource,
           groupIndex,
           derivationPath: d.derivationPath,
@@ -118,6 +122,6 @@ export class SolAccountProvider extends SnapAccountProvider {
       ),
     );
 
-    return createdAccounts.flat();
+    return createdAccounts;
   }
 }
