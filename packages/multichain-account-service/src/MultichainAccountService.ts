@@ -5,7 +5,6 @@ import {
 import type {
   MultichainAccountWalletId,
   Bip44Account,
-  AccountProvider,
 } from '@metamask/account-api';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
@@ -17,6 +16,7 @@ import {
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { NamedAccountProvider } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
@@ -32,7 +32,7 @@ export const serviceName = 'MultichainAccountService';
  */
 type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: AccountProvider<Bip44Account<KeyringAccount>>[];
+  providers?: NamedAccountProvider[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -47,7 +47,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
+  readonly #providers: NamedAccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,

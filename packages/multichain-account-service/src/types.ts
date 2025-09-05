@@ -13,6 +13,10 @@ import type {
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
+} from '@metamask/network-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
 import type {
@@ -110,7 +114,9 @@ export type AllowedActions =
   | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerAddNewKeyringAction;
+  | KeyringControllerAddNewKeyringAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
