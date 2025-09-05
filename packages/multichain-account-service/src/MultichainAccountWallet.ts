@@ -18,6 +18,7 @@ import {
 } from '@metamask/keyring-api';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -35,22 +36,31 @@ export class MultichainAccountWallet<
 
   readonly #accountGroups: Map<number, MultichainAccountGroup<Account>>;
 
+  readonly #messenger: MultichainAccountServiceMessenger;
+
+  // eslint-disable-next-line @typescript-eslint/prefer-readonly
+  #initialized = false;
+
   #isAlignmentInProgress: boolean = false;
 
   constructor({
     providers,
     entropySource,
+    messenger,
   }: {
     providers: AccountProvider<Account>[];
     entropySource: EntropySourceId;
+    messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
     this.#providers = providers;
     this.#entropySource = entropySource;
+    this.#messenger = messenger;
     this.#accountGroups = new Map();
 
-    // Initial synchronization.
-    this.sync();
+    // Initial synchronization (don't emit events during initialization).
+    this.#sync();
+    this.#initialized = true;
   }
 
   /**
@@ -60,6 +70,10 @@ export class MultichainAccountWallet<
    * doesn't know about.
    */
   sync(): void {
+    this.#sync();
+  }
+
+  #sync(): void {
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
@@ -76,6 +90,7 @@ export class MultichainAccountWallet<
             groupIndex: entropy.groupIndex,
             wallet: this,
             providers: this.#providers,
+            messenger: this.#messenger,
           });
 
           // This existing multichain account group might differ from the
@@ -214,6 +229,12 @@ export class MultichainAccountWallet<
   async createMultichainAccountGroup(
     groupIndex: number,
   ): Promise<MultichainAccountGroup<Account>> {
+    return this.#createMultichainAccountGroup(groupIndex);
+  }
+
+  async #createMultichainAccountGroup(
+    groupIndex: number,
+  ): Promise<MultichainAccountGroup<Account>> {
     const nextGroupIndex = this.getNextGroupIndex();
     if (groupIndex > nextGroupIndex) {
       throw new Error(
@@ -288,11 +309,19 @@ export class MultichainAccountWallet<
         wallet: this,
         providers: this.#providers,
         groupIndex,
+        messenger: this.#messenger,
       });
     }
 
     // Register the account to our internal map.
     this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
+
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
+    }
 
     return group;
   }
@@ -306,7 +335,7 @@ export class MultichainAccountWallet<
   async createNextMultichainAccountGroup(): Promise<
     MultichainAccountGroup<Account>
   > {
-    return this.createMultichainAccountGroup(this.getNextGroupIndex());
+    return this.#createMultichainAccountGroup(this.getNextGroupIndex());
   }
 
   /**
