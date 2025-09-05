@@ -1,0 +1,48 @@
+name: Validate Release
+
+on:
+  workflow_call:
+    inputs:
+      valid-release-title-patterns:
+        type: string
+        description: "Validate that the name of the release commit or PR starts with a string in this comma-separated list. Use '[version]' to refer to the current release version."
+        required: false
+    outputs:
+      RELEASE_VALIDATION_RESULT:
+        description: The release validation result
+        value: ${{ jobs.validate-release.outputs.RELEASE_VALIDATION_RESULT }}
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      RELEASE_VALIDATION_RESULT: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_RESULT }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
+        with:
+          is-high-risk-environment: false
+          # Fetch everything because if this is a pull request we need to
+          # compare with the base branch
+          fetch-depth: 0
+      - name: Validate release
+        id: validate-release
+        run: |
+          case "$GITHUB_EVENT_NAME" in
+            push)
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE" "$VALID_RELEASE_TITLE_PATTERNS"
+              ;;
+            pull_request)
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "origin/$GITHUB_BASE_REF" "$GITHUB_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$VALID_RELEASE_TITLE_PATTERNS"
+              ;;
+            *)
+              echo "Unknown GitHub event name: $GITHUB_EVENT_NAME"
+              exit 1
+              ;;
+          esac
+        shell: bash
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GITHUB_EVENT_PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+          VALID_RELEASE_TITLE_PATTERNS: ${{ inputs.valid-release-title-patterns }}

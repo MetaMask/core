@@ -40,37 +40,11 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
-  is-release:
-    name: Determine whether this is a release merge commit
-    needs: lint-build-test
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    outputs:
-      IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
-    steps:
-      - id: is-release
-        uses: MetaMask/action-is-release@dc4672b05e3b1d464cdaf783579b04a4e43f8b02
-        with:
-          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
-
-  publish-release:
-    name: Publish release
-    needs: is-release
-    if: needs.is-release.outputs.IS_RELEASE == 'true'
-    permissions:
-      contents: write
-    uses: ./.github/workflows/publish-release.yml
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-  create-update-issues:
-    name: Create update issues
-    needs: [is-release, publish-release]
-    if: needs.is-release.outputs.IS_RELEASE == 'true'
-    uses: ./.github/workflows/create-update-issues.yaml
-    secrets:
-      CORE_CREATE_UPDATE_ISSUES_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
+  validate-release:
+    name: Identify and validate release
+    uses: ./.github/workflows/validate-release.yml
+    with:
+      valid-release-title-patterns: 'Release [version],Release v[version],Release/[version],Release/v[version],Release \`[version]\`'
 
   all-jobs-complete:
     name: All jobs complete
@@ -78,6 +52,7 @@ jobs:
     needs:
       - analyse-code
       - lint-build-test
+      - validate-release
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
     steps:
@@ -97,3 +72,23 @@ jobs:
           if [[ $passed != "true" ]]; then
             exit 1
           fi
+
+  publish-release:
+    name: Publish release
+    needs:
+      - validate-release
+      - all-jobs-complete
+    if: "github.event_name == 'push' && needs.validate-release.outputs.RELEASE_VALIDATION_RESULT == 'valid-release'"
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-release.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  create-update-issues:
+    name: Create update issues
+    needs: publish-release
+    uses: ./.github/workflows/create-update-issues.yaml
+    secrets:
+      CORE_CREATE_UPDATE_ISSUES_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
