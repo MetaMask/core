@@ -93,21 +93,17 @@ export class EntropyRule
   getComputedAccountGroupName(
     group: AccountGroupObjectOf<AccountGroupType.MultichainAccount>,
   ): string {
-    let candidate = '';
+    // Only use EVM account names for multichain groups to avoid chain-specific names becoming group names.
+    // Non-EVM account names should not be used as group names since groups represent multichain collections.
     for (const id of group.accounts) {
       const account = this.messenger.call('AccountsController:getAccount', id);
 
-      if (account) {
-        candidate = account.metadata.name;
-
-        // EVM account name has a highest priority.
-        if (isEvmAccountType(account.type)) {
-          return account.metadata.name;
-        }
+      if (account && isEvmAccountType(account.type)) {
+        return account.metadata.name;
       }
     }
 
-    return candidate;
+    return '';
   }
 
   getDefaultAccountGroupName(index: number): string {

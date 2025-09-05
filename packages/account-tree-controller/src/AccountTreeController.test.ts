@@ -462,7 +462,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_1.id],
                   metadata: {
-                    name: MOCK_SNAP_ACCOUNT_1.metadata.name,
+                    name: 'Account 2', // Non-EVM account names no longer bubble up, fallback to default
                     entropy: {
                       groupIndex:
                         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
@@ -1952,7 +1952,7 @@ describe('AccountTreeController', () => {
   });
 
   describe('Fallback Naming', () => {
-    it('detects new groups based on account import time', () => {
+    it('uses consistent default naming regardless of account import time', () => {
       const serviceStartTime = Date.now();
       const mockAccountWithNewImportTime: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
@@ -2011,7 +2011,8 @@ describe('AccountTreeController', () => {
       const group1 = wallet?.groups[expectedGroupId1];
       const group2 = wallet?.groups[expectedGroupId2];
 
-      // Groups should be named by index within the wallet
+      // Groups should use consistent default naming regardless of import time
+      // This verifies the fix for the serviceStartTime inconsistency bug
       expect(group1?.metadata.name).toBe('Account 1');
       expect(group2?.metadata.name).toBe('Account 2');
     });
@@ -2172,6 +2173,40 @@ describe('AccountTreeController', () => {
       // Should use computed name first since it's not a new group, then fallback to default
       // Since the account has empty name, computed name will be empty, so it falls back to default
       expect(group?.metadata.name).toBe('Account 1');
+    });
+
+    it('prevents chain-specific names like "Solana Account 2" from becoming group names', () => {
+      // Create a mock Solana account that would have caused the naming bug
+      const mockSolanaAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'solana-account-id',
+        type: 'solana:data-account' as any, // Non-EVM account type
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'Solana Account 2', // This should NOT become the group name
+          importTime: Date.now() - 1000, // Old account
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockSolanaAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group = wallet?.groups[expectedGroupId];
+
+      // The group should use default naming "Account 1", not "Solana Account 2"
+      // This verifies the fix for Daniel's reported bug
+      expect(group?.metadata.name).toBe('Account 1');
+      expect(group?.metadata.name).not.toBe('Solana Account 2');
     });
   });
 
