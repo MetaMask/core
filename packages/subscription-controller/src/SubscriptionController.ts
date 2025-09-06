@@ -346,9 +346,11 @@ export class SubscriptionController extends BaseController<
     }
     // conversion rate is a float string e.g: "1.0"
     // We need to handle float conversion rates with integer math for BigInt.
-    // We'll scale the conversion rate to an integer by multiplying by 10^18 (or another large factor).
+    // We'll scale the conversion rate to an integer by multiplying by 10^4.
+    // conversionRate is in usd decimal. In most currencies, we only care about 2 decimals (cents)
+    // So, scale must be max of 10 ** 4 (most exchanges trade with max 4 decimals of usd)
     // This allows us to avoid floating point math and keep precision.
-    const CONVERSION_RATE_SCALE = 10n ** 18n;
+    const CONVERSION_RATE_SCALE = 10n ** 4n;
     const conversionRateScaled = BigInt(
       Math.round(Number(conversionRate) * Number(CONVERSION_RATE_SCALE)),
     );
