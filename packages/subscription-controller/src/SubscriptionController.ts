@@ -320,9 +320,9 @@ export class SubscriptionController extends BaseController<
    * @returns The price amount
    */
   #getSubscriptionPriceAmount(price: ProductPrice) {
+    // no need to use BigInt since max unitDecimals are always 2 for price
     const amount =
-      (BigInt(price.unitAmount) / BigInt(10) ** BigInt(price.unitDecimals)) *
-      BigInt(price.minBillingCycles);
+      (price.unitAmount / 10 ** price.unitDecimals) * price.minBillingCycles;
     return amount;
   }
 
@@ -352,11 +352,15 @@ export class SubscriptionController extends BaseController<
     // This allows us to avoid floating point math and keep precision.
     const CONVERSION_RATE_SCALE = 10n ** 4n;
     const conversionRateScaled = BigInt(
-      Math.round(Number(conversionRate) * Number(CONVERSION_RATE_SCALE)),
+      Number(conversionRate) * Number(CONVERSION_RATE_SCALE),
+    );
+    const priceAmount = this.#getSubscriptionPriceAmount(price);
+    const priceAmountScaled = BigInt(
+      priceAmount * Number(CONVERSION_RATE_SCALE),
     );
 
     const amount =
-      (this.#getSubscriptionPriceAmount(price) *
+      ((priceAmountScaled / CONVERSION_RATE_SCALE) *
         BigInt(10) ** BigInt(tokenPaymentInfo.decimals) *
         CONVERSION_RATE_SCALE) /
       conversionRateScaled;
