@@ -6,9 +6,12 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  FetchFunction,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
+  StartCryptoSubscriptionRequest,
+  StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
 } from './types';
@@ -16,21 +19,16 @@ import type {
 export type SubscriptionServiceConfig = {
   env: Env;
   auth: AuthUtils;
-  fetchFn: typeof globalThis.fetch;
-};
-
-type ErrorMessage = {
-  message: string;
-  error: string;
+  fetchFn: FetchFunction;
 };
 
 export const SUBSCRIPTION_URL = (env: Env, path: string) =>
-  `${getEnvUrls(env).subscriptionApiUrl}/api/v1/${path}`;
+  `${getEnvUrls(env).subscriptionApiUrl}/v1/${path}`;
 
 export class SubscriptionService implements ISubscriptionService {
   readonly #env: Env;
 
-  readonly #fetch: typeof globalThis.fetch;
+  readonly #fetch: FetchFunction;
 
   public authUtils: AuthUtils;
 
@@ -63,6 +61,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'POST', request);
   }
 
+  async startSubscriptionWithCrypto(
+    request: StartCryptoSubscriptionRequest,
+  ): Promise<StartCryptoSubscriptionResponse> {
+    const path = 'subscriptions/crypto';
+    return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async getPricing(): Promise<PricingResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest<PricingResponse>(path);
+  }
+
   async #makeRequest<Result>(
     path: string,
     method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
@@ -81,13 +91,7 @@ export class SubscriptionService implements ISubscriptionService {
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      const responseBody = await response.json();
-      if (!response.ok) {
-        const { message, error } = responseBody as ErrorMessage;
-        throw new Error(`HTTP error message: ${message}, error: ${error}`);
-      }
-
-      return responseBody as Result;
+      return response;
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? 'unknown error');
@@ -101,10 +105,5 @@ export class SubscriptionService implements ISubscriptionService {
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.authUtils.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
-  }
-
-  async getPricing(): Promise<PricingResponse> {
-    const path = 'pricing';
-    return await this.#makeRequest<PricingResponse>(path);
   }
 }

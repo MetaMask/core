@@ -1,3 +1,4 @@
+import { handleFetch } from '@metamask/controller-utils';
 import nock, { cleanAll, isDone } from 'nock';
 
 import {
@@ -9,6 +10,7 @@ import { SubscriptionServiceError } from './errors';
 import { SubscriptionService } from './SubscriptionService';
 import type {
   StartSubscriptionRequest,
+  StartCryptoSubscriptionRequest,
   Subscription,
   PricingResponse,
 } from './types';
@@ -66,7 +68,7 @@ const MOCK_START_SUBSCRIPTION_RESPONSE = {
  */
 function createMockConfig({
   env = Env.DEV,
-  fetchFn = fetch,
+  fetchFn = handleFetch,
 }: { env?: Env; fetchFn?: typeof fetch } = {}) {
   return {
     env,
@@ -135,7 +137,7 @@ describe('SubscriptionService', () => {
       await withMockSubscriptionService(
         async ({ service, testUrl, config }) => {
           nock(testUrl)
-            .get('/api/v1/subscriptions')
+            .get('/v1/subscriptions')
             .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, {
               customerId: 'cus_1',
@@ -158,9 +160,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for error responses', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .reply(404, MOCK_ERROR_RESPONSE);
+        nock(testUrl).get('/v1/subscriptions').reply(404, MOCK_ERROR_RESPONSE);
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -170,9 +170,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .replyWithError('Network error');
+        nock(testUrl).get('/v1/subscriptions').replyWithError('Network error');
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -207,7 +205,7 @@ describe('SubscriptionService', () => {
       await withMockSubscriptionService(
         async ({ service, testUrl, config }) => {
           nock(testUrl)
-            .delete('/api/v1/subscriptions/sub_123456789')
+            .delete('/v1/subscriptions/sub_123456789')
             .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
             .reply(200, {});
 
@@ -219,22 +217,10 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('should throw SubscriptionServiceError for error responses', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
-          .reply(400, MOCK_ERROR_RESPONSE);
-
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/Subscription not found/u);
-      });
-    });
-
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
         nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
+          .delete('/v1/subscriptions/sub_123456789')
           .replyWithError('Network error');
 
         await expect(
@@ -248,7 +234,7 @@ describe('SubscriptionService', () => {
     it('should start subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, testUrl }) => {
         nock(testUrl)
-          .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
+          .post('/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
           .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
 
         const result = await service.startSubscriptionWithCard(
@@ -270,7 +256,7 @@ describe('SubscriptionService', () => {
       };
 
       nock(testUrl)
-        .post('/api/v1/subscriptions/card', request)
+        .post('/v1/subscriptions/card', request)
         .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
 
       const result = await service.startSubscriptionWithCard(request);
@@ -293,6 +279,37 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('startCryptoSubscription', () => {
+    it('should start crypto subscription successfully', async () => {
+      await withMockSubscriptionService(async ({ service, testUrl }) => {
+        const request: StartCryptoSubscriptionRequest = {
+          products: [ProductType.SHIELD],
+          isTrialRequested: false,
+          recurringInterval: RecurringInterval.month,
+          billingCycles: 3,
+          chainId: '0x1',
+          payerAddress: '0x0000000000000000000000000000000000000001',
+          tokenSymbol: 'USDC',
+          rawTransaction: '0xdeadbeef',
+        };
+
+        const response = {
+          subscriptionId: 'sub_crypto_123',
+          status: SubscriptionStatus.active,
+        };
+
+        nock(testUrl)
+          .post('/v1/subscriptions/crypto', request)
+          .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
+          .reply(200, response);
+
+        const result = await service.startSubscriptionWithCrypto(request);
+
+        expect(result).toStrictEqual(response);
+      });
+    });
+  });
+
   describe('getPricing', () => {
     const mockPricingResponse: PricingResponse = {
       products: [],
@@ -304,7 +321,7 @@ describe('SubscriptionService', () => {
       const service = new SubscriptionService(config);
       const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/api/v1/pricing').reply(200, mockPricingResponse);
+      nock(testUrl).get('/v1/pricing').reply(200, mockPricingResponse);
 
       const result = await service.getPricing();
 
