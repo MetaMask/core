@@ -1209,31 +1209,6 @@ export class PhishingController extends BaseController<
   };
 
   /**
-   * Clear the token scan cache.
-   */
-  clearTokenScanCache(): void {
-    this.#tokenScanCache.clear();
-  }
-
-  /**
-   * Set the time-to-live for token scan cache entries.
-   *
-   * @param ttl - The TTL in seconds.
-   */
-  setTokenScanCacheTTL(ttl: number): void {
-    this.#tokenScanCache.setTTL(ttl);
-  }
-
-  /**
-   * Set the maximum size of the token scan cache.
-   *
-   * @param maxSize - The maximum cache size.
-   */
-  setTokenScanCacheMaxSize(maxSize: number): void {
-    this.#tokenScanCache.setMaxSize(maxSize);
-  }
-
-  /**
    * Process a batch of URLs (up to 50) for phishing detection.
    *
    * @param urls - A batch of URLs to scan.

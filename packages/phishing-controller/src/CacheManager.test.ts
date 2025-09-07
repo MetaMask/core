@@ -208,7 +208,6 @@ describe('CacheManager', () => {
       const now = Math.floor(Date.now() / 1000);
       cache.set('key1', { value: 'value1' });
       cache.set('key2', { value: 'value2' });
-      
       const entries = cache.getAllEntries();
       expect(Object.keys(entries)).toStrictEqual(['key1', 'key2']);
       expect(entries.key1.data).toStrictEqual({ value: 'value1' });
