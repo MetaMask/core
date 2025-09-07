@@ -273,7 +273,6 @@ const getDefaultState = (): PhishingControllerState => {
  * Phishing controller state
  * @property phishing - eth-phishing-detect configuration
  * @property whitelist - array of temporarily-approved origins
- * @property tokenScanCache - cache of token scan results
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
