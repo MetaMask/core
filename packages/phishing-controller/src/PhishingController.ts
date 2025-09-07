@@ -32,16 +32,7 @@ import {
 export type TokenScanResult = {
   chainId: string;
   tokenAddress: string;
-  isMalicious: boolean;
-  metadata?: {
-    maliciousScore?: string;
-    attackTypes?: Record<string, string | number | boolean>;
-    features?: {
-      feature_id: string;
-      type: string;
-      description: string;
-    }[];
-  };
+  resultType: 'Benign' | 'Warning' | 'Malicious' | 'Spam';
 };
 
 /**
@@ -339,6 +330,7 @@ export type PhishingControllerActions =
   | TestOrigin
   | PhishingControllerBulkScanUrlsAction
   | PhishingControllerBulkScanTokensAction;
+
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   PhishingControllerState
@@ -1009,8 +1001,7 @@ export class PhishingController extends BaseController<
         combinedResponse.results[cacheKey] = {
           chainId: token.chainId,
           tokenAddress: token.tokenAddress,
-          isMalicious: cachedResult.isMalicious,
-          metadata: cachedResult.metadata,
+          resultType: cachedResult.resultType,
         };
       } else {
         tokensToFetch.push({ ...token, key: cacheKey });
@@ -1058,26 +1049,15 @@ export class PhishingController extends BaseController<
             combinedResponse.errors[token.key] = [apiResponse.error];
           } else {
             // Map the API response to our format
-            const isMalicious =
-              apiResponse.result_type === 'Malicious' ||
-              (apiResponse.malicious_score &&
-                parseFloat(apiResponse.malicious_score) > 0.8);
-
             const result: TokenScanResult = {
               chainId: token.chainId,
               tokenAddress: token.tokenAddress,
-              isMalicious,
-              metadata: {
-                maliciousScore: apiResponse.malicious_score,
-                attackTypes: apiResponse.attack_types,
-                features: apiResponse.features,
-              },
+              resultType: apiResponse.result_type,
             };
 
             // Add to cache
             this.#tokenScanCache.set(token.key, {
-              isMalicious,
-              metadata: result.metadata,
+              resultType: apiResponse.result_type,
             });
 
             combinedResponse.results[token.key] = result;
