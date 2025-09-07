@@ -30,6 +30,7 @@ import {
  * TokenScanResult
  *
  * Result of a token screening scan
+ *
  * @property chainId - The chain ID where the token exists
  * @property tokenAddress - The token contract address
  * @property isMalicious - Whether the token is identified as malicious
@@ -54,6 +55,7 @@ export type TokenScanResult = {
  * BulkTokenScanResponse
  *
  * Response for bulk token screening requests
+ *
  * @property results - Record of token identifiers and their scan results
  * @property errors - Record of token identifiers and their corresponding errors
  */
