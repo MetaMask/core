@@ -328,11 +328,6 @@ export type PhishingControllerBulkScanTokensAction = {
   handler: PhishingController['bulkScanTokens'];
 };
 
-export type PhishingControllerScanTokenAction = {
-  type: `${typeof controllerName}:scanToken`;
-  handler: PhishingController['scanToken'];
-};
-
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PhishingControllerState
@@ -343,9 +338,7 @@ export type PhishingControllerActions =
   | MaybeUpdateState
   | TestOrigin
   | PhishingControllerBulkScanUrlsAction
-  | PhishingControllerBulkScanTokensAction
-  | PhishingControllerScanTokenAction;
-
+  | PhishingControllerBulkScanTokensAction;
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   PhishingControllerState
@@ -492,11 +485,6 @@ export class PhishingController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:scanToken` as const,
-      this.scanToken.bind(this),
     );
   }
 
@@ -1106,95 +1094,6 @@ export class PhishingController extends BaseController<
     }
 
     return combinedResponse;
-  };
-
-  /**
-   * Scan a single token for malicious activity.
-   *
-   * @param chainId - The chain ID where the token exists.
-   * @param tokenAddress - The token contract address.
-   * @returns The token scan result.
-   */
-  scanToken = async (
-    chainId: string,
-    tokenAddress: string,
-  ): Promise<TokenScanResult> => {
-    const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
-
-    // Check cache first
-    const cachedResult = this.#tokenScanCache.get(cacheKey);
-    if (cachedResult) {
-      return {
-        chainId,
-        tokenAddress,
-        isMalicious: cachedResult.isMalicious,
-        metadata: cachedResult.metadata,
-      };
-    }
-
-    // Call the API
-    const apiResponse = await safelyExecuteWithTimeout(
-      async () => {
-        const res = await fetch(
-          `${SECURITY_ALERTS_BASE_URL}${TOKEN_SCREENING_ENDPOINT}`,
-          {
-            method: 'POST',
-            headers: {
-              Accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chain: this.#getChainNameFromId(chainId),
-              address: tokenAddress,
-            }),
-          },
-        );
-
-        if (!res.ok) {
-          return {
-            error: `${res.status} ${res.statusText}`,
-          };
-        }
-
-        const data = await res.json();
-        return data;
-      },
-      true,
-      5000, // 5 second timeout
-    );
-
-    if (!apiResponse) {
-      throw new Error('Token scan timeout: request exceeded 5000ms');
-    }
-
-    if ('error' in apiResponse) {
-      throw new Error(`Token scan failed: ${apiResponse.error}`);
-    }
-
-    // Map the API response to our format
-    const isMalicious =
-      apiResponse.result_type === 'Malicious' ||
-      (apiResponse.malicious_score &&
-        parseFloat(apiResponse.malicious_score) > 0.8);
-
-    const result: TokenScanResult = {
-      chainId,
-      tokenAddress,
-      isMalicious,
-      metadata: {
-        maliciousScore: apiResponse.malicious_score,
-        attackTypes: apiResponse.attack_types,
-        features: apiResponse.features,
-      },
-    };
-
-    // Add to cache
-    this.#tokenScanCache.set(cacheKey, {
-      isMalicious,
-      metadata: result.metadata,
-    });
-
-    return result;
   };
 
   /**
