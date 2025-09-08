@@ -61,7 +61,7 @@ export class MultichainAccountGroup<
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
-    this.#sync();
+    this.sync();
     this.#initialized = true;
   }
 
@@ -72,10 +72,6 @@ export class MultichainAccountGroup<
    * account doesn't know about.
    */
   sync(): void {
-    this.#sync();
-  }
-
-  #sync(): void {
     // Clear reverse mapping and re-construct it entirely based on the refreshed
     // list of accounts from each providers.
     this.#accountToProvider.clear();

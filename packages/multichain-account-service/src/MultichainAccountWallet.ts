@@ -18,8 +18,8 @@ import {
 import { createProjectLogger } from '@metamask/utils';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
-import type { MultichainAccountServiceMessenger } from './types';
 import type { NamedAccountProvider } from './providers';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * The context for a provider discovery.
@@ -79,7 +79,7 @@ export class MultichainAccountWallet<
     this.#accountGroups = new Map();
 
     // Initial synchronization (don't emit events during initialization).
-    this.#sync();
+    this.sync();
     this.#initialized = true;
   }
 
@@ -90,10 +90,6 @@ export class MultichainAccountWallet<
    * doesn't know about.
    */
   sync(): void {
-    this.#sync();
-  }
-
-  #sync(): void {
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
