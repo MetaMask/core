@@ -1,4 +1,5 @@
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+
 import { getRewardsFeatureFlag } from './feature-flags';
 
 type MockMessenger = {

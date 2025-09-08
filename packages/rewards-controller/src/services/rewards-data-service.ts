@@ -1,4 +1,8 @@
+/* eslint-disable jsdoc/tag-lines */
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import { successfulFetch } from '@metamask/controller-utils';
+
+import { createModuleLogger, projectLogger } from '../logger';
 import type {
   LoginResponseDto,
   EstimatePointsDto,
@@ -13,8 +17,6 @@ import type {
   LoginDto,
   EnvironmentType,
 } from '../types';
-import { successfulFetch } from '@metamask/controller-utils';
-import { createModuleLogger, projectLogger } from '../logger';
 
 const SERVICE_NAME = 'RewardsDataService';
 
@@ -126,7 +128,7 @@ export class RewardsDataService {
 
   readonly #rewardsApiUrl: string;
 
-  #environment: EnvironmentType;
+  readonly #environment: EnvironmentType;
 
   readonly #getSubscriptionToken: GetSubscriptionToken;
 

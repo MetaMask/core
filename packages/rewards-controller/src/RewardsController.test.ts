@@ -1,23 +1,25 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { isHardwareWallet } from '@metamask/bridge-controller';
+import { toHex } from '@metamask/controller-utils';
+import { InternalAccount } from '@metamask/keyring-internal-api';
+import type { CaipAccountId } from '@metamask/utils';
+import { isAddress as isSolanaAddress } from '@solana/addresses';
+
+import { getRewardsFeatureFlag } from './feature-flags';
 import {
+  getRewardsControllerDefaultState,
+  type RemoveSubscriptionToken,
   RewardsController,
   RewardsControllerMessenger,
-  getRewardsControllerDefaultState,
+  type StoreSubscriptionToken,
 } from './RewardsController';
-import type {
-  StoreSubscriptionToken,
-  RemoveSubscriptionToken,
-} from './RewardsController';
-
 import type {
   RewardsAccountState,
   RewardsControllerState,
+  SeasonDtoState,
   SeasonStatusState,
   SeasonTierDto,
-  SeasonDtoState,
   SubscriptionReferralDetailsState,
 } from './types';
-import type { CaipAccountId } from '@metamask/utils';
 
 jest.mock('./logger', () => {
   const actual = jest.requireActual('./logger');
@@ -44,13 +46,6 @@ jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   toHex: jest.fn(),
 }));
-
-// Import mocked modules
-import { getRewardsFeatureFlag } from './feature-flags';
-import { InternalAccount } from '@metamask/keyring-internal-api';
-import { isHardwareWallet } from '@metamask/bridge-controller';
-import { isAddress as isSolanaAddress } from '@solana/addresses';
-import { toHex } from '@metamask/controller-utils';
 
 // Type the mocked modules
 const mockGetRewardsFeatureFlag = getRewardsFeatureFlag as jest.MockedFunction<
@@ -159,7 +154,9 @@ describe('RewardsController', () => {
 
   describe('initialization', () => {
     it('should initialize with default state', () => {
-      expect(controller.state).toEqual(getRewardsControllerDefaultState());
+      expect(controller.state).toStrictEqual(
+        getRewardsControllerDefaultState(),
+      );
     });
 
     it('should register action handlers', () => {
@@ -225,7 +222,9 @@ describe('RewardsController', () => {
 
       controller.resetState();
 
-      expect(controller.state).toEqual(getRewardsControllerDefaultState());
+      expect(controller.state).toStrictEqual(
+        getRewardsControllerDefaultState(),
+      );
     });
 
     it('should manage account state correctly', () => {
@@ -248,7 +247,9 @@ describe('RewardsController', () => {
       });
 
       // Verify state was set correctly
-      expect(controller.state.accounts[CAIP_ACCOUNT_1]).toEqual(accountState);
+      expect(controller.state.accounts[CAIP_ACCOUNT_1]).toStrictEqual(
+        accountState,
+      );
       expect(controller.state.accounts[CAIP_ACCOUNT_2]).toBeUndefined();
     });
   });
@@ -511,7 +512,7 @@ describe('RewardsController', () => {
 
       const result = await controller.estimatePoints(mockRequest);
 
-      expect(result).toEqual({ pointsEstimate: 0, bonusBips: 0 });
+      expect(result).toStrictEqual({ pointsEstimate: 0, bonusBips: 0 });
       expect(mockMessenger.call).not.toHaveBeenCalledWith(
         'RewardsDataService:estimatePoints',
         expect.anything(),
@@ -538,7 +539,7 @@ describe('RewardsController', () => {
         'RewardsDataService:estimatePoints',
         mockRequest,
       );
-      expect(result).toEqual(mockResponse);
+      expect(result).toStrictEqual(mockResponse);
     });
 
     it('should handle estimate points errors', async () => {
@@ -765,7 +766,7 @@ describe('RewardsController', () => {
     it('should return correct default state', () => {
       const defaultState = getRewardsControllerDefaultState();
 
-      expect(defaultState).toEqual({
+      expect(defaultState).toStrictEqual({
         lastAuthenticatedAccount: null,
         accounts: {},
         subscriptions: {},
@@ -818,6 +819,7 @@ describe('RewardsController', () => {
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockInternalAccount, mockInternalAccount);
       }
@@ -872,6 +874,7 @@ describe('RewardsController', () => {
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockInternalAccount, mockInternalAccount);
       }
@@ -918,6 +921,7 @@ describe('RewardsController', () => {
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockInternalAccount, mockInternalAccount);
       }
@@ -953,6 +957,7 @@ describe('RewardsController', () => {
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockInternalAccount, mockInternalAccount);
       }
@@ -995,6 +1000,7 @@ describe('RewardsController', () => {
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(invalidInternalAccount, invalidInternalAccount);
       }
@@ -1036,6 +1042,7 @@ describe('RewardsController', () => {
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockInternalAccount, mockInternalAccount);
       }
@@ -1119,7 +1126,7 @@ describe('RewardsController', () => {
         mockSeasonId,
       );
 
-      expect(result).toEqual(mockSeasonStatus);
+      expect(result).toStrictEqual(mockSeasonStatus);
       expect(result?.season.id).toBe(mockSeasonId);
       expect(result?.balance.total).toBe(1500);
       expect(result?.tier.currentTier.id).toBe('silver');
@@ -1223,7 +1230,7 @@ describe('RewardsController', () => {
       const compositeKey = `${mockSeasonId}:${mockSubscriptionId}`;
       const seasonStatus = controller.state.seasonStatuses[compositeKey];
       expect(seasonStatus).toBeDefined();
-      expect(seasonStatus).toEqual(result); // Should be the same object
+      expect(seasonStatus).toStrictEqual(result); // Should be the same object
 
       // Check seasons map
       const storedSeason = controller.state.seasons[mockSeasonId];
@@ -1306,7 +1313,7 @@ describe('RewardsController', () => {
 
       const result = await controller.getReferralDetails(mockSubscriptionId);
 
-      expect(result).toEqual(mockReferralDetailsState);
+      expect(result).toStrictEqual(mockReferralDetailsState);
       expect(result?.referralCode).toBe('REF456');
       expect(result?.totalReferees).toBe(10);
       expect(result?.lastFetched).toBe(recentTime);
@@ -1393,7 +1400,7 @@ describe('RewardsController', () => {
       const updatedReferralDetails =
         controller.state.subscriptionReferralDetails[mockSubscriptionId];
       expect(updatedReferralDetails).toBeDefined();
-      expect(updatedReferralDetails).toEqual(result); // Should be the same object
+      expect(updatedReferralDetails).toStrictEqual(result); // Should be the same object
       expect(updatedReferralDetails.referralCode).toBe(
         mockApiResponse.referralCode,
       );
@@ -1600,7 +1607,7 @@ describe('RewardsController', () => {
       );
 
       // Verify state was still updated correctly despite storage failure
-      expect(controller.state.lastAuthenticatedAccount).toEqual({
+      expect(controller.state.lastAuthenticatedAccount).toStrictEqual({
         account: 'eip155:1:0x123456789',
         hasOptedIn: true,
         subscriptionId: 'sub-789',
@@ -1669,7 +1676,7 @@ describe('RewardsController', () => {
       );
 
       // Verify state is not set since account format is unsupported
-      expect(controller.state.lastAuthenticatedAccount).toEqual(null);
+      expect(controller.state.lastAuthenticatedAccount).toStrictEqual(null);
     });
   });
 
@@ -2004,6 +2011,7 @@ describe('RewardsController', () => {
       jest.clearAllMocks();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockMessenger.call.mockImplementation((action, ..._args): any => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (action === 'RewardsDataService:validateReferralCode') {
           return Promise.resolve({ valid: true });
         }
@@ -2026,6 +2034,7 @@ describe('RewardsController', () => {
       jest.clearAllMocks();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockMessenger.call.mockImplementation((action, ..._args): any => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (action === 'RewardsDataService:validateReferralCode') {
           return Promise.resolve({ valid: false });
         }
@@ -2051,6 +2060,7 @@ describe('RewardsController', () => {
         jest.clearAllMocks();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mockMessenger.call.mockImplementation((action, ..._args): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (action === 'RewardsDataService:validateReferralCode') {
             return Promise.resolve({ valid: true });
           }
@@ -2326,6 +2336,7 @@ describe('RewardsController', () => {
       mockMessenger.call.mockReturnValue(mockAccount);
 
       // Act - trigger account change
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockAccount, mockAccount);
       }
@@ -2358,6 +2369,7 @@ describe('RewardsController', () => {
       mockMessenger.call.mockReturnValue(mockAccount);
 
       // Act - trigger account change
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockAccount, mockAccount);
       }
@@ -2417,6 +2429,7 @@ describe('RewardsController', () => {
         .pop()?.[1];
 
       // Act - trigger account change
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (newSubscribeCallback) {
         await newSubscribeCallback(mockAccount, mockAccount);
       }
@@ -2499,6 +2512,7 @@ describe('RewardsController', () => {
         .pop()?.[1];
 
       // Act - trigger account change
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (newSubscribeCallback) {
         await newSubscribeCallback(mockAccount, newAccount);
       }
@@ -2567,6 +2581,7 @@ describe('RewardsController', () => {
         .pop()?.[1];
 
       // Act - trigger account change
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (newSubscribeCallback) {
         await newSubscribeCallback(mockAccount, mockAccount);
       }
@@ -2587,6 +2602,7 @@ describe('RewardsController', () => {
         .pop()?.[1];
 
       // Act - trigger unlock event
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (keyringControllerUnlock) {
         await keyringControllerUnlock('newValue', 'oldValue');
       }
@@ -2634,6 +2650,7 @@ describe('RewardsController', () => {
       };
 
       // Act - trigger account change when feature flag is disabled
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (subscribeCallback) {
         await subscribeCallback(mockAccount, null);
       }
@@ -2704,6 +2721,7 @@ describe('RewardsController', () => {
         .pop()?.[1];
 
       // Act - trigger account change
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (newSubscribeCallback) {
         await newSubscribeCallback(mockAccount, mockAccount);
       }
@@ -2729,7 +2747,7 @@ describe('RewardsController', () => {
       const result = await controller.getGeoRewardsMetadata();
 
       // Assert
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         geoLocation: 'UNKNOWN',
         optinAllowedForGeo: false,
       });
@@ -2766,7 +2784,7 @@ describe('RewardsController', () => {
           optinAllowedForGeo: true,
         },
       );
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         geoLocation: mockGeoLocation,
         optinAllowedForGeo: true,
       });
@@ -2784,7 +2802,7 @@ describe('RewardsController', () => {
       expect(mockMessenger.call).toHaveBeenCalledWith(
         'RewardsDataService:fetchGeoLocation',
       );
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         geoLocation: mockGeoLocation,
         optinAllowedForGeo: false,
       });
@@ -2809,7 +2827,7 @@ describe('RewardsController', () => {
         'RewardsController: Failed to get geo rewards metadata:',
         geoServiceError.message,
       );
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         geoLocation: 'UNKNOWN',
         optinAllowedForGeo: true,
       });
@@ -2831,7 +2849,7 @@ describe('RewardsController', () => {
         'RewardsController: Failed to get geo rewards metadata:',
         String(nonErrorObject),
       );
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         geoLocation: 'UNKNOWN',
         optinAllowedForGeo: true,
       });

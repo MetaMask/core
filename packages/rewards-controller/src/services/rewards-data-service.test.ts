@@ -1,3 +1,6 @@
+import { successfulFetch } from '@metamask/controller-utils';
+import type { CaipAccountId } from '@metamask/utils';
+
 import {
   RewardsDataService,
   type RewardsDataServiceMessenger,
@@ -10,10 +13,8 @@ import {
   type SubscriptionReferralDetailsDto,
   EnvironmentType,
 } from '../types';
-import type { CaipAccountId } from '@metamask/utils';
-import { successfulFetch } from '@metamask/controller-utils';
 
-const rewardsApiUrl = 'https://api.rewards.test';
+const RewardsApiUrl = 'https://api.rewards.test';
 // Mock dependencies
 jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
@@ -139,7 +140,7 @@ describe('RewardsDataService', () => {
 
       const result = await service.login(mockLoginRequest);
 
-      expect(result).toEqual(mockLoginResponse);
+      expect(result).toStrictEqual(mockLoginResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/auth/mobile-login',
         expect.objectContaining({
@@ -203,7 +204,7 @@ describe('RewardsDataService', () => {
 
       const result = await service.estimatePoints(mockEstimateRequest);
 
-      expect(result).toEqual(mockEstimateResponse);
+      expect(result).toStrictEqual(mockEstimateResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/points-estimation',
         expect.objectContaining({
@@ -240,7 +241,7 @@ describe('RewardsDataService', () => {
         account: testAddress as CaipAccountId,
       });
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         hasOptedIn: true,
         discount: 5.5,
       });
@@ -263,7 +264,7 @@ describe('RewardsDataService', () => {
         account: testAddress as CaipAccountId,
       });
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         hasOptedIn: false,
         discount: 10.0,
       });
@@ -443,9 +444,9 @@ describe('RewardsDataService', () => {
         mockSubscriptionId,
       );
 
-      expect(result).toEqual(mockSeasonStatusResponse);
+      expect(result).toStrictEqual(mockSeasonStatusResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${rewardsApiUrl}/seasons/${mockSeasonId}/status`,
+        `${RewardsApiUrl}/seasons/${mockSeasonId}/status`,
         {
           credentials: 'omit',
           method: 'GET',
@@ -531,7 +532,7 @@ describe('RewardsDataService', () => {
         mockSubscriptionId,
       );
 
-      expect(result).toEqual(mockSeasonStatusResponse);
+      expect(result).toStrictEqual(mockSeasonStatusResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -551,7 +552,7 @@ describe('RewardsDataService', () => {
       const { svc } = buildService({ fetchImpl });
 
       const res = await svc.generateChallenge({ address: '0xabc' } as any);
-      expect(res).toEqual({ challengeId: 'c1', message: 'm' });
+      expect(res).toStrictEqual({ challengeId: 'c1', message: 'm' });
     });
     it('generateChallenge() throws on non-ok response', async () => {
       const fetchImpl = jest
@@ -590,7 +591,7 @@ describe('RewardsDataService', () => {
     it('should successfully get referral details', async () => {
       const result = await service.getReferralDetails(mockSubscriptionId);
 
-      expect(result).toEqual(mockReferralDetailsResponse);
+      expect(result).toStrictEqual(mockReferralDetailsResponse);
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/subscriptions/referral-details',
@@ -652,7 +653,7 @@ describe('RewardsDataService', () => {
 
       const result = await service.getReferralDetails(mockSubscriptionId);
 
-      expect(result).toEqual(mockReferralDetailsResponse);
+      expect(result).toStrictEqual(mockReferralDetailsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -669,7 +670,7 @@ describe('RewardsDataService', () => {
 
       const result = await service.getReferralDetails(mockSubscriptionId);
 
-      expect(result).toEqual(mockReferralDetailsResponse);
+      expect(result).toStrictEqual(mockReferralDetailsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -853,7 +854,7 @@ describe('RewardsDataService', () => {
       const result = await service.optin(mockOptinRequest);
 
       // Assert
-      expect(result).toEqual(mockOptinResponse);
+      expect(result).toStrictEqual(mockOptinResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/auth/login',
         expect.objectContaining({
@@ -893,7 +894,7 @@ describe('RewardsDataService', () => {
       const result = await service.optin(requestWithoutReferral);
 
       // Assert
-      expect(result).toEqual(mockOptinResponse);
+      expect(result).toStrictEqual(mockOptinResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/auth/login',
         expect.objectContaining({
@@ -1163,7 +1164,7 @@ describe('RewardsDataService', () => {
       const result = await service.validateReferralCode(referralCode);
 
       // Assert
-      expect(result).toEqual(mockValidationResponse);
+      expect(result).toStrictEqual(mockValidationResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/referral/validate?code=ABC123',
         expect.objectContaining({
@@ -1192,7 +1193,7 @@ describe('RewardsDataService', () => {
       const result = await service.validateReferralCode(referralCode);
 
       // Assert
-      expect(result).toEqual(mockValidationResponse);
+      expect(result).toStrictEqual(mockValidationResponse);
       expect(result.valid).toBe(false);
     });
 
@@ -1211,7 +1212,7 @@ describe('RewardsDataService', () => {
       const result = await service.validateReferralCode(referralCode);
 
       // Assert
-      expect(result).toEqual(mockValidationResponse);
+      expect(result).toStrictEqual(mockValidationResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.rewards.test/referral/validate?code=A%2BB%2FC%3D',
         expect.any(Object),

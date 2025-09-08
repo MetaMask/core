@@ -1,6 +1,7 @@
+/* eslint-disable jsdoc/tag-lines */
 import { ControllerGetStateAction } from '@metamask/base-controller';
-import { CaipAccountId, CaipAssetType } from '@metamask/utils';
 import { InternalAccount } from '@metamask/keyring-internal-api';
+import { CaipAccountId, CaipAssetType } from '@metamask/utils';
 
 export interface LoginResponseDto {
   sessionId: string;

@@ -26,7 +26,7 @@ describe('getRewardsControllerMessenger', () => {
     const result = getRewardsControllerMessenger(messenger as any);
 
     // 1) Returned value is exactly what getRestricted returned
-    expect(result).toEqual({ mockedRestricted: true });
+    expect(result).toStrictEqual({ mockedRestricted: true });
 
     // 2) Check getRestricted was called once with the correct structure
     expect(messenger.getRestricted).toHaveBeenCalledTimes(1);
@@ -47,7 +47,7 @@ describe('getRewardsControllerMessenger', () => {
     ].sort();
 
     const actualActions = [...params.allowedActions].sort();
-    expect(actualActions).toEqual(expectedActions);
+    expect(actualActions).toStrictEqual(expectedActions);
 
     // Events — exact list, order-insensitive
     const expectedEvents = [
@@ -56,7 +56,7 @@ describe('getRewardsControllerMessenger', () => {
     ].sort();
 
     const actualEvents = [...params.allowedEvents].sort();
-    expect(actualEvents).toEqual(expectedEvents);
+    expect(actualEvents).toStrictEqual(expectedEvents);
   });
 
   it('does not include unintended actions', () => {

@@ -46,6 +46,12 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "dependencies": {
+    "@metamask/base-controller": "^8.2.0",
+    "@metamask/keyring-internal-api": "^9.0.0",
+    "@metamask/utils": "^11.4.2",
+    "@solana/addresses": "^2.0.0"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",

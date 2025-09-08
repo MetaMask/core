@@ -1,12 +1,14 @@
+import {
+  type AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import { Messenger, RestrictedMessenger } from '@metamask/base-controller';
 import {
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import {
-  type AccountsControllerGetSelectedMultichainAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
+import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+
 import {
   RewardsDataServiceLoginAction,
   RewardsDataServiceEstimatePointsAction,
@@ -19,8 +21,7 @@ import {
   RewardsDataServiceFetchGeoLocationAction,
   RewardsDataServiceValidateReferralCodeAction,
 } from '../services';
-import { RewardsControllerActions, RewardsControllerEvents } from 'src/types';
-import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import { RewardsControllerActions, RewardsControllerEvents } from '../types';
 
 const name = 'RewardsController';
 

@@ -3659,6 +3659,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^21.0.0":
+  version: 21.0.0
+  resolution: "@metamask/keyring-api@npm:21.0.0"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/896f3f54080f0a450d47df63bfae93d2dd4e7e1bb8aa35c365e46ea6fd32c3fa27753611de095e9f6feae5d526e911e665628c8b304cb2120cb870f2e82ab095
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@npm:^23.0.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -3705,6 +3717,17 @@ __metadata:
     "@metamask/keyring-utils": "npm:^3.1.0"
     "@metamask/superstruct": "npm:^3.1.0"
   checksum: 10/0fb615821a822de914b95a6b9678a1fc72f7f22b4ec694382977b0212e27ee5199887bd5112ea964e9bdd1aab1ba1a9e1ce3d9fd36957dc8ff8cf7c2f7003865
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-internal-api@npm:^9.0.0":
+  version: 9.0.0
+  resolution: "@metamask/keyring-internal-api@npm:9.0.0"
+  dependencies:
+    "@metamask/keyring-api": "npm:^21.0.0"
+    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+  checksum: 10/2603a3ffa42d53d2c621846288e759e9df2062fb6d46444466062915dbeda5fb3ec5344a48c1d282d37c6a689d7332e953c955be93f10e4bd56879c29ca2bf26
   languageName: node
   linkType: hard
 
@@ -4354,6 +4377,10 @@ __metadata:
   resolution: "@metamask/rewards-controller@workspace:packages/rewards-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.2.0"
+    "@metamask/keyring-internal-api": "npm:^9.0.0"
+    "@metamask/utils": "npm:^11.4.2"
+    "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"

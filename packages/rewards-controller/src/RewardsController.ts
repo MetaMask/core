@@ -1,3 +1,21 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/tag-lines */
+import { BaseController } from '@metamask/base-controller';
+import { isHardwareWallet } from '@metamask/bridge-controller';
+import { toHex } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  CaipAccountId,
+  parseCaipChainId,
+  toCaipAccountId,
+} from '@metamask/utils';
+import { isAddress as isSolanaAddress } from '@solana/addresses';
+
+import { controllerName } from './constants';
+import { getRewardsFeatureFlag } from './feature-flags';
+import { projectLogger, createModuleLogger } from './logger';
+import type { RewardsControllerMessenger } from './messenger/RewardsControllerMessenger';
 import type {
   RewardsControllerState,
   RewardsAccountState,
@@ -15,21 +33,6 @@ import type {
   GeoRewardsMetadata,
   TokenResponse,
 } from './types';
-import { BaseController } from '@metamask/base-controller';
-import type { RewardsControllerMessenger } from './messenger/RewardsControllerMessenger';
-
-import { projectLogger, createModuleLogger } from './logger';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { isAddress as isSolanaAddress } from '@solana/addresses';
-import {
-  CaipAccountId,
-  parseCaipChainId,
-  toCaipAccountId,
-} from '@metamask/utils';
-import { controllerName } from './constants';
-import { isHardwareWallet } from '@metamask/bridge-controller';
-import { getRewardsFeatureFlag } from './feature-flags';
-import { toHex } from '@metamask/controller-utils';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -565,6 +568,7 @@ export class RewardsController extends BaseController<
   /**
    * Update perps fee discount for a given address
    * @param address - The account address in CAIP-10 format
+   * @returns Promise<PerpsDiscountData | null> - The perps discount data or null on failure
    */
   async #getPerpsFeeDiscountData(
     account: CaipAccountId,
