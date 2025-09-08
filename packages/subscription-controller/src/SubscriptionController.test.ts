@@ -649,7 +649,7 @@ describe('SubscriptionController', () => {
 
         expect(result).toStrictEqual({
           approveAmount: '9000000000000000000',
-          spenderAddress: '0xspender',
+          paymentAddress: '0xspender',
           paymentTokenAddress: '0xtoken',
           chainId: '0x1',
         });

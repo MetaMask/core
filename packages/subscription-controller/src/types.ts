@@ -174,7 +174,13 @@ export type GetCryptoApproveTransactionResponse = {
    * e.g: "100000000"
    */
   approveAmount: string;
-  spenderAddress: Hex;
+  /**
+   * The contract address (spender)
+   */
+  paymentAddress: Hex;
+  /**
+   * The payment token address
+   */
   paymentTokenAddress: Hex;
   chainId: Hex;
 };

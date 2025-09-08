@@ -306,7 +306,7 @@ export class SubscriptionController extends BaseController<
 
     return {
       approveAmount: tokenApproveAmount.toString(),
-      spenderAddress: chainPaymentInfo.paymentAddress,
+      paymentAddress: chainPaymentInfo.paymentAddress,
       paymentTokenAddress: request.paymentTokenAddress,
       chainId: request.chainId,
     };
