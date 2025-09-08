@@ -48,8 +48,6 @@ jobs:
   validate-release:
     name: Identify and validate release
     uses: ./.github/workflows/validate-release.yml
-    with:
-      valid-release-title-patterns: 'Release [version],Release v[version],Release/[version],Release/v[version],Release \`[version]\`'
 
   all-jobs-complete:
     name: All jobs complete
