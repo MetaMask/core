@@ -1,4 +1,8 @@
+import type { UserProfile } from '@metamask/profile-sync-controller/sdk';
+
 import type { BackupAndSyncContext } from '../types';
+
+export type ProfileId = UserProfile['profileId'] | undefined;
 
 /**
  * Retrieves the profile ID from AuthenticationController.
@@ -10,10 +14,15 @@ import type { BackupAndSyncContext } from '../types';
 export const getProfileId = async (
   context: BackupAndSyncContext,
   entropySourceId?: string,
-) => {
-  const sessionProfile = await context.messenger.call(
-    'AuthenticationController:getSessionProfile',
-    entropySourceId,
-  );
-  return sessionProfile?.profileId;
+): Promise<ProfileId> => {
+  try {
+    const sessionProfile = await context.messenger.call(
+      'AuthenticationController:getSessionProfile',
+      entropySourceId,
+    );
+    return sessionProfile.profileId;
+  } catch (error) {
+    context.contextualLogger.warn(`Failed to retrieve profile ID:`, error);
+    return undefined;
+  }
 };

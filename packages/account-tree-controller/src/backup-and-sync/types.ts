@@ -17,6 +17,7 @@ import {
 } from '@metamask/superstruct';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics';
+import type { ContextualLogger } from './utils';
 import type { AccountTreeController } from '../AccountTreeController';
 import type {
   AccountGroupMultichainAccountObject,
@@ -85,8 +86,7 @@ export type BackupAndSyncContext = {
   traceFn: TraceCallback;
   groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
   emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
-  enableDebugLogging: boolean;
-  disableMultichainAccountSyncing: boolean;
+  contextualLogger: ContextualLogger;
 };
 
 export type LegacyAccountSyncingContext = {

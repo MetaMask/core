@@ -1,12 +1,18 @@
 import { getProfileId } from './utils';
 import type { AccountTreeController } from '../../AccountTreeController';
 import type { BackupAndSyncContext } from '../types';
+import { createMockContextualLogger } from '../utils/test-utils';
 
 describe('BackupAndSyncAuthentication - Utils', () => {
   describe('getProfileId', () => {
     const mockMessenger = {
       call: jest.fn(),
     };
+
+    const mockContextualLogger = createMockContextualLogger({
+      isEnabled: true,
+    });
+
     const mockContext: BackupAndSyncContext = {
       messenger: mockMessenger as unknown as BackupAndSyncContext['messenger'],
       controller: {} as AccountTreeController,
@@ -14,8 +20,7 @@ describe('BackupAndSyncAuthentication - Utils', () => {
       traceFn: jest.fn(),
       groupIdToWalletId: new Map(),
       emitAnalyticsEventFn: jest.fn(),
-      enableDebugLogging: false,
-      disableMultichainAccountSyncing: false,
+      contextualLogger: mockContextualLogger,
     };
 
     const mockEntropySourceId = 'entropy-123';
@@ -44,6 +49,14 @@ describe('BackupAndSyncAuthentication - Utils', () => {
 
       expect(result1).toBe(mockSessionProfile.profileId);
       expect(result2).toBe(mockSessionProfile.profileId);
+    });
+
+    it('returns undefined if AuthenticationController:getSessionProfile throws', async () => {
+      mockMessenger.call.mockRejectedValue(new Error('Test error'));
+
+      const result = await getProfileId(mockContext);
+
+      expect(result).toBeUndefined();
     });
   });
 });

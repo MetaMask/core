@@ -19,6 +19,7 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
+import { ContextualLogger } from './backup-and-sync/utils';
 import type { AccountGroupObject } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
@@ -26,6 +27,7 @@ import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
   AccountTreeControllerConfig,
+  AccountTreeControllerInternalBackupAndSyncConfig,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
@@ -112,16 +114,7 @@ export class AccountTreeController extends BaseController<
 
   readonly #trace: TraceCallback;
 
-  readonly #backupAndSyncConfig: {
-    emitBackupAndSyncEvent: (
-      event: BackupAndSyncEmitAnalyticsEventParams,
-    ) => void;
-    enableDebugLogging: boolean;
-  };
-
-  // Temporary: ensures we can release updates to AccountTreeController without
-  // breaking changes while we transition to the new multichain syncing approach.
-  readonly #disableMultichainAccountSyncing: boolean = false;
+  readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
   /**
    * Constructor for AccountTreeController.
@@ -162,13 +155,13 @@ export class AccountTreeController extends BaseController<
 
     // Initialize backup and sync config before syncing service
     this.#backupAndSyncConfig = {
-      emitBackupAndSyncEvent: (
-        event: BackupAndSyncEmitAnalyticsEventParams,
-      ) => {
+      emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => {
         const formattedEvent = formatAnalyticsEvent(event);
         return config?.backupAndSync?.onBackupAndSyncEvent?.(formattedEvent);
       },
-      enableDebugLogging: config?.backupAndSync?.enableDebugLogging ?? false,
+      contextualLogger: new ContextualLogger({
+        isEnabled: config?.backupAndSync?.enableDebugLogging ?? false,
+      }),
     };
 
     // Initialize the syncing service
@@ -1077,8 +1070,8 @@ export class AccountTreeController extends BaseController<
    * Clears all persisted metadata and syncing state.
    *
    * This will reset the account groups and wallets metadata, as well as
-   * the syncing state. This should be used when we want to
-   * completely reset the controller's state.
+   * the syncing state. It also calls `init()` to reinitialize the controller.
+   * This should be used when we want to completely reset the controller's state.
    */
   clearPersistedMetadataAndSyncingState(): void {
     this.update((state) => {
@@ -1086,6 +1079,7 @@ export class AccountTreeController extends BaseController<
       state.accountWalletsMetadata = {};
       state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
     });
+    this.init();
   }
 
   /**
@@ -1148,14 +1142,11 @@ export class AccountTreeController extends BaseController<
    */
   #createBackupAndSyncContext(): BackupAndSyncContext {
     return {
+      ...this.#backupAndSyncConfig,
       controller: this,
       messenger: this.messagingSystem,
       controllerStateUpdateFn: this.update.bind(this),
       traceFn: this.#trace.bind(this),
-      emitAnalyticsEventFn:
-        this.#backupAndSyncConfig.emitBackupAndSyncEvent.bind(this),
-      enableDebugLogging: this.#backupAndSyncConfig.enableDebugLogging,
-      disableMultichainAccountSyncing: this.#disableMultichainAccountSyncing,
       groupIdToWalletId: this.#groupIdToWalletId,
     };
   }

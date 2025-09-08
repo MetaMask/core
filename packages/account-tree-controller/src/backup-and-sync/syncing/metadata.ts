@@ -1,4 +1,5 @@
 import type { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
 
 /**
@@ -34,7 +35,7 @@ export async function compareAndSyncMetadata<T>({
   validateUserStorageValue: (value: T | undefined) => boolean;
   analytics?: {
     event: BackupAndSyncAnalyticsEvent;
-    profileId: string;
+    profileId: ProfileId;
   };
 }): Promise<boolean> {
   const localValue = localMetadata?.value;

@@ -1,5 +1,4 @@
 import type { AtomicSyncEvent, BackupAndSyncContext } from '../types';
-import { contextualLogger } from '../utils';
 
 /**
  * Manages atomic sync operations in a queue to prevent concurrent execution
@@ -17,28 +16,24 @@ export class AtomicSyncQueue {
   #isProcessingInProgress = false;
 
   /**
-   * Debug logging configuration function.
+   * Backup and sync context.
    */
-  readonly #getEnableDebugLogging: () => boolean;
+  readonly #context: BackupAndSyncContext;
 
-  constructor(getEnableDebugLogging?: () => boolean) {
-    this.#getEnableDebugLogging = getEnableDebugLogging ?? (() => false);
+  constructor(context: BackupAndSyncContext) {
+    this.#context = context;
   }
 
   /**
    * Enqueues an atomic sync function for processing.
    *
-   * @param context - The backup and sync context.
    * @param syncFunction - The sync function to enqueue.
    */
-  enqueue(
-    context: BackupAndSyncContext,
-    syncFunction: () => Promise<void>,
-  ): void {
+  enqueue(syncFunction: () => Promise<void>): void {
     // Block enqueueing if big sync is running or if no initial sync has occurred
     if (
-      context.controller.state.isAccountTreeSyncingInProgress ||
-      !context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
+      this.#context.controller.state.isAccountTreeSyncingInProgress ||
+      !this.#context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
     ) {
       return;
     }
@@ -53,9 +48,10 @@ export class AtomicSyncQueue {
     // Process queue asynchronously without blocking
     setTimeout(() => {
       this.process().catch((error) => {
-        if (this.#getEnableDebugLogging()) {
-          contextualLogger.error('Error processing atomic sync queue:', error);
-        }
+        this.#context.contextualLogger.error(
+          'Error processing atomic sync queue:',
+          error,
+        );
       });
     }, 0);
   }
@@ -85,12 +81,10 @@ export class AtomicSyncQueue {
         try {
           await event.execute();
         } catch (error) {
-          if (this.#getEnableDebugLogging()) {
-            contextualLogger.error(
-              `Failed to process atomic sync event ${event.id}`,
-              error,
-            );
-          }
+          this.#context.contextualLogger.error(
+            `Failed to process atomic sync event ${event.id}`,
+            error,
+          );
         }
       }
     } finally {

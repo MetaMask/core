@@ -26,7 +26,11 @@ import type {
   AccountTreeController,
   controllerName,
 } from './AccountTreeController';
-import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
+import type {
+  BackupAndSyncAnalyticsEventPayload,
+  BackupAndSyncEmitAnalyticsEventParams,
+} from './backup-and-sync/analytics';
+import type { ContextualLogger } from './backup-and-sync/utils';
 import type {
   AccountGroupObject,
   AccountTreeGroupPersistedMetadata,
@@ -180,4 +184,9 @@ export type AccountTreeControllerConfig = {
     onBackupAndSyncEvent?: (event: BackupAndSyncAnalyticsEventPayload) => void;
     enableDebugLogging?: boolean;
   };
+};
+
+export type AccountTreeControllerInternalBackupAndSyncConfig = {
+  emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
+  contextualLogger: ContextualLogger;
 };

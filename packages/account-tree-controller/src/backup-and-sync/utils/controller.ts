@@ -1,7 +1,6 @@
 import { AccountWalletType } from '@metamask/account-api';
 import type { AccountWalletId } from '@metamask/account-api';
 
-import { contextualLogger } from './contextual-logger';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
@@ -34,11 +33,9 @@ export function getLocalGroupsForEntropyWallet(
 ): AccountGroupMultichainAccountObject[] {
   const wallet = context.controller.state.accountTree.wallets[walletId];
   if (!wallet || wallet.type !== AccountWalletType.Entropy) {
-    if (context.enableDebugLogging) {
-      contextualLogger.warn(
-        `Wallet ${walletId} not found or is not an entropy wallet`,
-      );
-    }
+    context.contextualLogger.warn(
+      `Wallet ${walletId} not found or is not an entropy wallet`,
+    );
     return [];
   }
 

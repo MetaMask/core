@@ -30,6 +30,7 @@ import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
 } from '../utils';
+import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('./atomic-sync-queue');
 jest.mock('../authentication');
@@ -40,11 +41,6 @@ jest.mock('../utils', () => ({
   restoreStateFromSnapshot: jest.fn(),
   getLocalEntropyWallets: jest.fn(),
   getLocalGroupsForEntropyWallet: jest.fn(),
-  contextualLogger: {
-    warn: jest.fn(),
-    log: jest.fn(),
-    error: jest.fn(),
-  },
 }));
 
 const mockAtomicSyncQueue = AtomicSyncQueue as jest.MockedClass<
@@ -134,8 +130,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       },
       traceFn: jest.fn().mockImplementation((_config, fn) => fn()),
       groupIdToWalletId: new Map(),
-      enableDebugLogging: false,
-      disableMultichainAccountSyncing: false,
+      contextualLogger: createMockContextualLogger({
+        isEnabled: true,
+      }),
     } as unknown as BackupAndSyncContext;
 
     backupAndSyncService = new BackupAndSyncService(mockContext);
@@ -147,7 +144,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
   describe('constructor', () => {
     it('should initialize with atomic sync queue', () => {
-      expect(mockAtomicSyncQueue).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockAtomicSyncQueue).toHaveBeenCalledWith(mockContext);
     });
   });
 
@@ -168,15 +165,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).toHaveBeenCalledWith(
-        {
-          ...mockContext,
-          controller: {
-            state: {
-              ...mockContext.controller.state,
-              hasAccountTreeSyncingSyncedAtLeastOnce: true,
-            },
-          },
-        } as unknown as BackupAndSyncContext,
         expect.any(Function),
       );
     });
@@ -199,15 +187,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       expect(mockAtomicSyncQueueInstance.enqueue).toHaveBeenCalledWith(
-        {
-          ...mockContext,
-          controller: {
-            state: {
-              ...mockContext.controller.state,
-              hasAccountTreeSyncingSyncedAtLeastOnce: true,
-            },
-          },
-        } as unknown as BackupAndSyncContext,
         expect.any(Function),
       );
     });
@@ -239,15 +218,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
         .mockReturnValue('');
-    });
-
-    it('should skip when multichain syncing is disabled', async () => {
-      mockContext.disableMultichainAccountSyncing = true;
-      mockContext.enableDebugLogging = true;
-
-      await backupAndSyncService.performFullSync();
-
-      expect(mockContext.controllerStateUpdateFn).not.toHaveBeenCalled();
     });
 
     it('should skip when sync is already in progress', async () => {
@@ -341,7 +311,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       });
       mockCreateStateSnapshot.mockReturnValue(mockSnapshot);
       mockSyncWalletMetadata.mockRejectedValue(new Error('Sync failed'));
-      mockContext.enableDebugLogging = true;
 
       await backupAndSyncService.performFullSync();
 
@@ -365,7 +334,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockRestoreStateFromSnapshot.mockImplementation(() => {
         throw new Error('Rollback failed');
       });
-      mockContext.enableDebugLogging = true;
 
       await backupAndSyncService.performFullSync();
 
@@ -442,7 +410,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
       // Get the enqueued function and execute it
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
       await enqueuedFunction();
 
       expect(mockSyncWalletMetadata).toHaveBeenCalledWith(
@@ -466,7 +434,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleWalletSync('keyring:wallet-1');
 
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
       await enqueuedFunction();
 
       expect(mockSyncWalletMetadata).not.toHaveBeenCalled();
@@ -507,7 +475,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
       await enqueuedFunction();
 
       expect(mockSyncSingleGroupMetadata).toHaveBeenCalledWith(
@@ -526,7 +494,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/group-1');
 
       const enqueuedFunction =
-        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][1];
+        mockAtomicSyncQueueInstance.enqueue.mock.calls[0][0];
       await enqueuedFunction();
 
       expect(mockSyncSingleGroupMetadata).not.toHaveBeenCalled();

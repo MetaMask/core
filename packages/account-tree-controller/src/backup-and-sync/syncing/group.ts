@@ -3,6 +3,7 @@ import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncAnalyticsEvent } from '../analytics';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import type { ProfileId } from '../authentication';
 import {
   UserStorageSyncedWalletGroupSchema,
   type BackupAndSyncContext,
@@ -12,7 +13,7 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
-import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
+import { getLocalGroupsForEntropyWallet } from '../utils';
 
 /**
  * Creates a multichain account group.
@@ -27,7 +28,7 @@ export const createMultichainAccountGroup = async (
   context: BackupAndSyncContext,
   entropySourceId: string,
   groupIndex: number,
-  profileId: string,
+  profileId: ProfileId,
   analyticsAction: BackupAndSyncAnalyticsEvent,
 ) => {
   try {
@@ -45,12 +46,10 @@ export const createMultichainAccountGroup = async (
       profileId,
     });
   } catch (error) {
-    if (context.enableDebugLogging) {
-      contextualLogger.error(
-        `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+    context.contextualLogger.error(
+      `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
+      error instanceof Error ? error.message : String(error),
+    );
     throw error;
   }
 };
@@ -67,7 +66,7 @@ export async function createLocalGroupsFromUserStorage(
   context: BackupAndSyncContext,
   groupsFromUserStorage: UserStorageSyncedWalletGroup[],
   entropySourceId: string,
-  profileId: string,
+  profileId: ProfileId,
 ): Promise<void> {
   // Sort groups from user storage by groupIndex in ascending order
   groupsFromUserStorage.sort((a, b) => a.groupIndex - b.groupIndex);
@@ -77,11 +76,9 @@ export async function createLocalGroupsFromUserStorage(
     const { groupIndex } = groupFromUserStorage;
 
     if (typeof groupIndex !== 'number' || groupIndex < 0) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Invalid group index ${groupIndex} found in user storage, skipping`,
-        );
-      }
+      context.contextualLogger.warn(
+        `Invalid group index ${groupIndex} found in user storage, skipping`,
+      );
       continue;
     }
 
@@ -90,11 +87,9 @@ export async function createLocalGroupsFromUserStorage(
     previousGroupIndex = groupIndex;
 
     if (isGroupIndexOutOfSequence) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
-        );
-      }
+      context.contextualLogger.warn(
+        `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
+      );
     }
 
     const didGroupAlreadyExist = Object.values(
@@ -103,11 +98,9 @@ export async function createLocalGroupsFromUserStorage(
     ).some((group) => group.metadata.entropy.groupIndex === groupIndex);
 
     if (didGroupAlreadyExist) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Group with index ${groupIndex} (wallet entropy ${entropySourceId}) already exists, skipping creation`,
-        );
-      }
+      context.contextualLogger.warn(
+        `Group with index ${groupIndex} (wallet entropy ${entropySourceId}) already exists, skipping creation`,
+      );
       continue; // Skip creating group if it already exists
     }
 
@@ -145,17 +138,15 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
   context: BackupAndSyncContext,
   localGroup: AccountGroupMultichainAccountObject,
   groupFromUserStorage: UserStorageSyncedWalletGroup | null | undefined,
-  profileId: string,
+  profileId: ProfileId,
 ): Promise<boolean> {
   const groupPersistedMetadata =
     context.controller.state.accountGroupsMetadata[localGroup.id];
 
   if (!groupFromUserStorage) {
-    if (context.enableDebugLogging) {
-      contextualLogger.warn(
-        `Group ${localGroup.id} did not exist in user storage, pushing to user storage...`,
-      );
-    }
+    context.contextualLogger.warn(
+      `Group ${localGroup.id} did not exist in user storage, pushing to user storage...`,
+    );
 
     return true;
   }
@@ -234,7 +225,7 @@ export async function syncSingleGroupMetadata(
   localGroup: AccountGroupMultichainAccountObject,
   groupFromUserStorage: UserStorageSyncedWalletGroup | null,
   entropySourceId: string,
-  profileId: string,
+  profileId: ProfileId,
 ): Promise<void> {
   const shouldPushGroup = await syncGroupMetadataAndCheckIfPushNeeded(
     context,
@@ -262,7 +253,7 @@ export async function syncGroupsMetadata(
   wallet: AccountWalletEntropyObject,
   groupsFromUserStorage: UserStorageSyncedWalletGroup[],
   entropySourceId: string,
-  profileId: string,
+  profileId: ProfileId,
 ): Promise<void> {
   const localSyncableGroupsToBePushedToUserStorage: AccountGroupMultichainAccountObject[] =
     [];

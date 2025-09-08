@@ -2,9 +2,10 @@ import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller
 
 import { createMultichainAccountGroup } from './group';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
-import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
+import { getLocalGroupsForEntropyWallet } from '../utils';
 
 /**
  * Performs a stripped down version of legacy account syncing, replacing the current
@@ -20,7 +21,7 @@ import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
 export const performLegacyAccountSyncing = async (
   context: BackupAndSyncContext,
   entropySourceId: string,
-  profileId: string,
+  profileId: ProfileId,
 ) => {
   // 1. Get legacy account syncing data
   const legacyAccountsFromUserStorage = await getAllLegacyUserStorageAccounts(
@@ -28,11 +29,9 @@ export const performLegacyAccountSyncing = async (
     entropySourceId,
   );
   if (legacyAccountsFromUserStorage.length === 0) {
-    if (context.enableDebugLogging) {
-      contextualLogger.info(
-        'No legacy accounts, skipping legacy account syncing',
-      );
-    }
+    context.contextualLogger.info(
+      'No legacy accounts, skipping legacy account syncing',
+    );
 
     context.emitAnalyticsEventFn({
       action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
@@ -45,17 +44,15 @@ export const performLegacyAccountSyncing = async (
   // 2. Create account groups accordingly
   const numberOfAccountGroupsToCreate = legacyAccountsFromUserStorage.length;
 
-  if (context.enableDebugLogging) {
-    contextualLogger.info(
-      `Creating ${numberOfAccountGroupsToCreate} account groups for legacy accounts`,
-    );
-  }
+  context.contextualLogger.info(
+    `Creating ${numberOfAccountGroupsToCreate} account groups for legacy accounts`,
+  );
 
   if (numberOfAccountGroupsToCreate > 0) {
     for (let i = 0; i < numberOfAccountGroupsToCreate; i++) {
-      if (context.enableDebugLogging) {
-        contextualLogger.info(`Creating account group ${i} for legacy account`);
-      }
+      context.contextualLogger.info(
+        `Creating account group ${i} for legacy account`,
+      );
       await createMultichainAccountGroup(
         context,
         entropySourceId,
@@ -76,13 +73,11 @@ export const performLegacyAccountSyncing = async (
     // a: EVM address
     const { n, a } = legacyAccount;
     if (!a || !n) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Legacy account data is missing name or address, skipping account: ${JSON.stringify(
-            legacyAccount,
-          )}`,
-        );
-      }
+      context.contextualLogger.warn(
+        `Legacy account data is missing name or address, skipping account: ${JSON.stringify(
+          legacyAccount,
+        )}`,
+      );
       continue;
     }
     const localGroupId = getUUIDFromAddressOfNormalAccount(a);

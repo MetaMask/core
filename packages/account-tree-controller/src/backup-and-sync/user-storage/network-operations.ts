@@ -21,7 +21,6 @@ import type {
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
-import { contextualLogger } from '../utils';
 
 /**
  * Retrieves the wallet from user storage.
@@ -45,18 +44,14 @@ export const getWalletFromUserStorage = async (
     }
 
     try {
-      if (context.enableDebugLogging) {
-        contextualLogger.info(
-          `Retrieved wallet data from user storage: ${JSON.stringify(walletData)}`,
-        );
-      }
+      context.contextualLogger.info(
+        `Retrieved wallet data from user storage: ${JSON.stringify(walletData)}`,
+      );
       return parseWalletFromUserStorageResponse(walletData);
     } catch (error) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      context.contextualLogger.warn(
+        `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
   });
@@ -77,11 +72,9 @@ export const pushWalletToUserStorage = async (
     const formattedWallet = formatWalletForUserStorageUsage(context, wallet);
     const entropySourceId = wallet.metadata.entropy.id;
 
-    if (context.enableDebugLogging) {
-      contextualLogger.info(
-        `Pushing wallet to user storage: ${JSON.stringify(formattedWallet)}`,
-      );
-    }
+    context.contextualLogger.info(
+      `Pushing wallet to user storage: ${JSON.stringify(formattedWallet)}`,
+    );
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
@@ -118,21 +111,17 @@ export const getAllGroupsFromUserStorage = async (
         try {
           return parseGroupFromUserStorageResponse(groupStringifiedJSON);
         } catch (error) {
-          if (context.enableDebugLogging) {
-            contextualLogger.warn(
-              `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
+          context.contextualLogger.warn(
+            `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+          );
           return null;
         }
       })
       .filter((group): group is UserStorageSyncedWalletGroup => group !== null);
 
-    if (context.enableDebugLogging) {
-      contextualLogger.info(
-        `Retrieved groups from user storage: ${JSON.stringify(allGroups)}`,
-      );
-    }
+    context.contextualLogger.info(
+      `Retrieved groups from user storage: ${JSON.stringify(allGroups)}`,
+    );
 
     return allGroups;
   });
@@ -164,11 +153,9 @@ export const getGroupFromUserStorage = async (
     try {
       return parseGroupFromUserStorageResponse(groupData);
     } catch (error) {
-      if (context.enableDebugLogging) {
-        contextualLogger.warn(
-          `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      context.contextualLogger.warn(
+        `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
   });
@@ -190,11 +177,9 @@ export const pushGroupToUserStorage = async (
   return executeWithRetry(async () => {
     const formattedGroup = formatGroupForUserStorageUsage(context, group);
 
-    if (context.enableDebugLogging) {
-      contextualLogger.info(
-        `Pushing group to user storage: ${JSON.stringify(formattedGroup)}`,
-      );
-    }
+    context.contextualLogger.info(
+      `Pushing group to user storage: ${JSON.stringify(formattedGroup)}`,
+    );
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
@@ -227,11 +212,9 @@ export const pushGroupToUserStorageBatch = async (
       JSON.stringify(group),
     ]);
 
-    if (context.enableDebugLogging) {
-      contextualLogger.info(
-        `Pushing groups to user storage: ${JSON.stringify(formattedGroups)}`,
-      );
-    }
+    context.contextualLogger.info(
+      `Pushing groups to user storage: ${JSON.stringify(formattedGroups)}`,
+    );
 
     return await context.messenger.call(
       'UserStorageController:performBatchSetStorage',
@@ -271,11 +254,9 @@ export const getAllLegacyUserStorageAccounts = async (
             accountStringifiedJSON,
           );
         } catch (error) {
-          if (context.enableDebugLogging) {
-            contextualLogger.warn(
-              `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
+          context.contextualLogger.warn(
+            `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+          );
           return null;
         }
       })
@@ -284,11 +265,9 @@ export const getAllLegacyUserStorageAccounts = async (
           account !== null,
       );
 
-    if (context.enableDebugLogging) {
-      contextualLogger.info(
-        `Retrieved legacy accounts from user storage: ${JSON.stringify(allAccounts)}`,
-      );
-    }
+    context.contextualLogger.info(
+      `Retrieved legacy accounts from user storage: ${JSON.stringify(allAccounts)}`,
+    );
 
     return allAccounts;
   });

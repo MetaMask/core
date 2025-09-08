@@ -25,7 +25,6 @@ import {
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
-  contextualLogger,
 } from '../utils';
 import type { StateSnapshot } from '../utils';
 
@@ -50,9 +49,7 @@ export class BackupAndSyncService {
     this.#context = context;
 
     // Initialize with debug logging from context
-    this.#atomicSyncQueue = new AtomicSyncQueue(
-      () => context.enableDebugLogging,
-    );
+    this.#atomicSyncQueue = new AtomicSyncQueue(context);
   }
 
   /**
@@ -76,7 +73,7 @@ export class BackupAndSyncService {
       return;
     }
 
-    this.#atomicSyncQueue.enqueue(this.#context, () =>
+    this.#atomicSyncQueue.enqueue(() =>
       this.#performSingleWalletSync(walletId),
     );
   }
@@ -93,9 +90,7 @@ export class BackupAndSyncService {
       return;
     }
 
-    this.#atomicSyncQueue.enqueue(this.#context, () =>
-      this.#performSingleGroupSync(groupId),
-    );
+    this.#atomicSyncQueue.enqueue(() => this.#performSingleGroupSync(groupId));
   }
 
   /**
@@ -121,15 +116,6 @@ export class BackupAndSyncService {
    * @throws Will throw if the sync operation encounters unrecoverable errors
    */
   async performFullSync(): Promise<void> {
-    if (this.#context.disableMultichainAccountSyncing) {
-      if (this.#context.enableDebugLogging) {
-        contextualLogger.warn(
-          'Multichain account syncing is disabled. Skipping full sync operation.',
-        );
-      }
-      return;
-    }
-
     // Prevent multiple syncs from running at the same time.
     // Also prevents atomic updates from being applied while syncing is in progress.
     if (this.isInProgress) {
@@ -232,12 +218,10 @@ export class BackupAndSyncService {
               walletProfileId,
             );
           } catch (error) {
-            if (this.#context.enableDebugLogging) {
-              contextualLogger.error(
-                `Error syncing wallet ${wallet.id}:`,
-                error instanceof Error ? error.message : String(error),
-              );
-            }
+            this.#context.contextualLogger.error(
+              `Error syncing wallet ${wallet.id}:`,
+              error instanceof Error ? error.message : String(error),
+            );
 
             // Attempt to rollback state changes for this wallet
             try {
@@ -247,20 +231,16 @@ export class BackupAndSyncService {
                 );
               }
               restoreStateFromSnapshot(this.#context, stateSnapshot);
-              if (this.#context.enableDebugLogging) {
-                contextualLogger.log(
-                  `Rolled back state changes for wallet ${wallet.id}`,
-                );
-              }
+              this.#context.contextualLogger.log(
+                `Rolled back state changes for wallet ${wallet.id}`,
+              );
             } catch (rollbackError) {
-              if (this.#context.enableDebugLogging) {
-                contextualLogger.error(
-                  `Failed to rollback state for wallet ${wallet.id}:`,
-                  rollbackError instanceof Error
-                    ? rollbackError.message
-                    : String(rollbackError),
-                );
-              }
+              this.#context.contextualLogger.error(
+                `Failed to rollback state for wallet ${wallet.id}:`,
+                rollbackError instanceof Error
+                  ? rollbackError.message
+                  : String(rollbackError),
+              );
             }
 
             // Continue with next wallet instead of failing the entire sync
@@ -268,12 +248,10 @@ export class BackupAndSyncService {
           }
         }
       } catch (error) {
-        if (this.#context.enableDebugLogging) {
-          contextualLogger.error(
-            'Error during multichain account syncing:',
-            error,
-          );
-        }
+        this.#context.contextualLogger.error(
+          'Error during multichain account syncing:',
+          error,
+        );
         throw error;
       } finally {
         this.#context.controllerStateUpdateFn(
@@ -300,15 +278,6 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   async #performSingleWalletSync(walletId: AccountWalletId): Promise<void> {
-    if (this.#context.disableMultichainAccountSyncing) {
-      if (this.#context.enableDebugLogging) {
-        contextualLogger.warn(
-          'Multichain account syncing is disabled. Skipping single wallet sync operation.',
-        );
-      }
-      return;
-    }
-
     try {
       const wallet =
         this.#context.controller.state.accountTree.wallets[walletId];
@@ -333,12 +302,10 @@ export class BackupAndSyncService {
         walletProfileId,
       );
     } catch (error) {
-      if (this.#context.enableDebugLogging) {
-        contextualLogger.error(
-          `Error in single wallet sync for ${walletId}:`,
-          error,
-        );
-      }
+      this.#context.contextualLogger.error(
+        `Error in single wallet sync for ${walletId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -349,15 +316,6 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   async #performSingleGroupSync(groupId: AccountGroupId): Promise<void> {
-    if (this.#context.disableMultichainAccountSyncing) {
-      if (this.#context.enableDebugLogging) {
-        contextualLogger.warn(
-          'Multichain account syncing is disabled. Skipping single group sync operation.',
-        );
-      }
-      return;
-    }
-
     try {
       const walletId = this.#context.groupIdToWalletId.get(groupId);
       if (!walletId) {
@@ -396,12 +354,10 @@ export class BackupAndSyncService {
         walletProfileId,
       );
     } catch (error) {
-      if (this.#context.enableDebugLogging) {
-        contextualLogger.error(
-          `Error in single group sync for ${groupId}:`,
-          error,
-        );
-      }
+      this.#context.contextualLogger.error(
+        `Error in single group sync for ${groupId}:`,
+        error,
+      );
       throw error;
     }
   }

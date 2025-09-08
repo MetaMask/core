@@ -1,7 +1,10 @@
-import { contextualLogger } from './contextual-logger';
+import { ContextualLogger } from './contextual-logger';
 
 describe('BackupAndSyncUtils - ContextualLogger', () => {
   const LOG_PREFIX = '[AccountTreeController - Backup and sync] ';
+  const contextualLogger = new ContextualLogger({
+    isEnabled: true,
+  });
 
   // Mock console methods before each test
   let consoleSpy: {
@@ -27,6 +30,13 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('log', () => {
+    it('should not log when logging is disabled', () => {
+      const disabledLogger = new ContextualLogger();
+      disabledLogger.log('Test message');
+
+      expect(consoleSpy.log).not.toHaveBeenCalled();
+    });
+
     it('should call console.log with LOG_PREFIX and arguments', () => {
       const message = 'Test log message';
       const additionalArg = { key: 'value' };

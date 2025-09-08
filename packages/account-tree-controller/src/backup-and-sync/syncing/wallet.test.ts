@@ -7,6 +7,7 @@ import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
+import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');
@@ -36,7 +37,9 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         },
         setAccountWalletName: jest.fn(),
       },
-      enableDebugLogging: false,
+      contextualLogger: createMockContextualLogger({
+        isEnabled: true,
+      }),
     } as unknown as BackupAndSyncContext;
 
     mockLocalWallet = {
@@ -59,7 +62,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
         };
-      mockContext.enableDebugLogging = true;
 
       const result = await syncWalletMetadataAndCheckIfPushNeeded(
         mockContext,
@@ -72,8 +74,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
     });
 
     it('should return true when wallet does not exist in user storage and has no local metadata', async () => {
-      mockContext.enableDebugLogging = true;
-
       const result = await syncWalletMetadataAndCheckIfPushNeeded(
         mockContext,
         mockLocalWallet,

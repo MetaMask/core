@@ -7,15 +7,12 @@ import type { AccountGroupMultichainAccountObject } from '../../group';
 import { BackupAndSyncAnalyticsEvents } from '../analytics';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
-import { contextualLogger, getLocalGroupsForEntropyWallet } from '../utils';
+import { getLocalGroupsForEntropyWallet } from '../utils';
+import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('@metamask/accounts-controller');
 jest.mock('../user-storage');
 jest.mock('../utils', () => ({
-  contextualLogger: {
-    warn: jest.fn(),
-    info: jest.fn(),
-  },
   getLocalGroupsForEntropyWallet: jest.fn(),
 }));
 jest.mock('./group');
@@ -46,7 +43,9 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         setAccountGroupName: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
-      enableDebugLogging: false,
+      contextualLogger: createMockContextualLogger({
+        isEnabled: true,
+      }),
     } as unknown as BackupAndSyncContext;
   });
 
@@ -60,7 +59,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
 
     it('should emit analytics and return early when no legacy accounts exist', async () => {
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue([]);
-      mockContext.enableDebugLogging = true;
 
       await performLegacyAccountSyncing(
         mockContext,
@@ -72,7 +70,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         mockContext,
         testEntropySourceId,
       );
-      expect(contextualLogger.info).toHaveBeenCalledWith(
+      expect(mockContext.contextualLogger.info).toHaveBeenCalledWith(
         'No legacy accounts, skipping legacy account syncing',
       );
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
@@ -80,19 +78,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         profileId: testProfileId,
       });
       expect(mockGetLocalGroupsForEntropyWallet).not.toHaveBeenCalled();
-    });
-
-    it('should not log debug info when debug logging is disabled', async () => {
-      mockGetAllLegacyUserStorageAccounts.mockResolvedValue([]);
-      mockContext.enableDebugLogging = false;
-
-      await performLegacyAccountSyncing(
-        mockContext,
-        testEntropySourceId,
-        testProfileId,
-      );
-
-      expect(contextualLogger.info).not.toHaveBeenCalled();
     });
 
     it('should create groups', async () => {
@@ -214,7 +199,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
 
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
       mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
-      mockContext.enableDebugLogging = true;
 
       await performLegacyAccountSyncing(
         mockContext,
@@ -222,31 +206,13 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
       );
 
-      expect(contextualLogger.warn).toHaveBeenCalledTimes(4); // 4 invalid accounts
-      expect(contextualLogger.warn).toHaveBeenCalledWith(
+      expect(mockContext.contextualLogger.warn).toHaveBeenCalledTimes(4); // 4 invalid accounts
+      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining(
           'Legacy account data is missing name or address',
         ),
       );
       expect(mockGetUUIDFromAddressOfNormalAccount).toHaveBeenCalledTimes(1); // Only valid account
-    });
-
-    it('should not log warnings when debug logging is disabled', async () => {
-      const mockLegacyAccounts = [
-        { n: '', a: '0x456' }, // Invalid account
-      ];
-
-      mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
-      mockContext.enableDebugLogging = false;
-
-      await performLegacyAccountSyncing(
-        mockContext,
-        testEntropySourceId,
-        testProfileId,
-      );
-
-      expect(contextualLogger.warn).not.toHaveBeenCalled();
     });
 
     it('should not rename group when no matching local group is found', async () => {

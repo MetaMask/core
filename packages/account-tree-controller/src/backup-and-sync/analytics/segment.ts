@@ -1,3 +1,5 @@
+import type { ProfileId } from '../authentication';
+
 export const BackupAndSyncAnalyticsEvents = {
   WALLET_RENAMED: 'wallet_renamed',
   GROUP_ADDED: 'group_added',
@@ -16,14 +18,14 @@ export type BackupAndSyncAnalyticsEvent =
 
 export type BackupAndSyncEmitAnalyticsEventParams = {
   action: BackupAndSyncAnalyticsEvent;
-  profileId: string;
+  profileId: ProfileId;
   additionalDescription?: string;
 };
 
 export type BackupAndSyncAnalyticsEventPayload = {
   feature_name: typeof BACKUP_AND_SYNC_EVENT_FEATURE_NAME;
   action: BackupAndSyncAnalyticsEvent;
-  profile_id: string;
+  profile_id: ProfileId;
   additional_description?: string;
 };
 

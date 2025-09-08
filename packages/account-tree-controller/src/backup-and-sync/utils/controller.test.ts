@@ -1,6 +1,5 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
-import { contextualLogger } from './contextual-logger';
 import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
@@ -8,23 +7,13 @@ import {
   restoreStateFromSnapshot,
   type StateSnapshot,
 } from './controller';
+import { createMockContextualLogger } from './test-utils';
 import type { AccountTreeController } from '../../AccountTreeController';
 import type {
   AccountWalletEntropyObject,
   AccountWalletKeyringObject,
 } from '../../wallet';
 import type { BackupAndSyncContext } from '../types';
-
-// Mock the contextual logger
-jest.mock('./contextual-logger', () => ({
-  contextualLogger: {
-    warn: jest.fn(),
-    log: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
 
 describe('BackupAndSyncUtils - Controller', () => {
   let mockContext: BackupAndSyncContext;
@@ -53,8 +42,9 @@ describe('BackupAndSyncUtils - Controller', () => {
       traceFn: jest.fn(),
       groupIdToWalletId: new Map(),
       emitAnalyticsEventFn: jest.fn(),
-      enableDebugLogging: false,
-      disableMultichainAccountSyncing: false,
+      contextualLogger: createMockContextualLogger({
+        isEnabled: true,
+      }),
     };
 
     // Set up the mock implementation for controllerStateUpdateFn
@@ -122,15 +112,13 @@ describe('BackupAndSyncUtils - Controller', () => {
 
   describe('getLocalGroupsForEntropyWallet', () => {
     it('should return empty array when wallet does not exist', () => {
-      mockContext.enableDebugLogging = true;
-
       const result = getLocalGroupsForEntropyWallet(
         mockContext,
         'entropy:non-existent',
       );
 
       expect(result).toStrictEqual([]);
-      expect(contextualLogger.warn).toHaveBeenCalled();
+      expect(mockContext.contextualLogger.warn).toHaveBeenCalled();
     });
 
     it('should return groups for entropy wallet', () => {
