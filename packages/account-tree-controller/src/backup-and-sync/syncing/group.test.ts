@@ -87,7 +87,7 @@ describe('BackupAndSync - Syncing - Group', () => {
   });
 
   describe('createLocalGroupsFromUserStorage', () => {
-    it('should sort groups by groupIndex and create them', async () => {
+    it('sorts groups by groupIndex and create them', async () => {
       const unsortedGroups: UserStorageSyncedWalletGroup[] = [
         { groupIndex: 2 },
         { groupIndex: 0 },
@@ -124,7 +124,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
     });
 
-    it('should skip groups with invalid groupIndex', async () => {
+    it('skips groups with invalid groupIndex', async () => {
       const groupsWithInvalid: UserStorageSyncedWalletGroup[] = [
         { groupIndex: -1 },
         { groupIndex: 0 },
@@ -146,7 +146,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
     });
 
-    it('should skip existing groups', async () => {
+    it('skips existing groups', async () => {
       mockContext.controller.state.accountTree.wallets[
         'entropy:test-entropy'
       ].groups = {
@@ -167,7 +167,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockContext.messenger.call).not.toHaveBeenCalled();
     });
 
-    it('should continue on creation errors', async () => {
+    it('continues on creation errors', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [
         { groupIndex: 0 },
         { groupIndex: 1 },
@@ -190,7 +190,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle non-Error exceptions in debug logging', async () => {
+    it('handles non-Error exceptions in debug logging', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
       // Reject with a non-Error object to test the String(error) branch
@@ -212,7 +212,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
     });
 
-    it('should emit analytics events for successful creations', async () => {
+    it('emits analytics events for successful creations', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
       await createLocalGroupsFromUserStorage(
@@ -228,7 +228,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       });
     });
 
-    it('should log when group is out of sequence', async () => {
+    it('logs when group is out of sequence', async () => {
       const unsortedGroups: UserStorageSyncedWalletGroup[] = [
         { groupIndex: 0 },
         { groupIndex: 2 },
@@ -255,7 +255,7 @@ describe('BackupAndSync - Syncing - Group', () => {
   });
 
   describe('syncSingleGroupMetadata', () => {
-    it('should push group when sync check returns true', async () => {
+    it('pushes group when sync check returns true', async () => {
       mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         name: { value: 'Local Name', lastUpdatedAt: 1000 },
       };
@@ -278,7 +278,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
     });
 
-    it('should not push group when sync check returns false', async () => {
+    it('does not push group when sync check returns false', async () => {
       mockCompareAndSyncMetadata.mockResolvedValue(false);
 
       await syncSingleGroupMetadata(
@@ -294,7 +294,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockPushGroupToUserStorage).not.toHaveBeenCalled();
     });
 
-    it('should handle name metadata validation and apply local update', async () => {
+    it('handles name metadata validation and apply local update', async () => {
       mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         name: { value: 'Local Name', lastUpdatedAt: 1000 },
       };
@@ -359,7 +359,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       /* eslint-enable jest/no-conditional-expect */
     });
 
-    it('should handle pinned metadata validation and apply local update', async () => {
+    it('handles pinned metadata validation and apply local update', async () => {
       mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         pinned: { value: false, lastUpdatedAt: 1000 },
       };
@@ -424,7 +424,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       /* eslint-enable jest/no-conditional-expect */
     });
 
-    it('should handle hidden metadata validation and apply local update', async () => {
+    it('handles hidden metadata validation and apply local update', async () => {
       mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         hidden: { value: false, lastUpdatedAt: 1000 },
       };
@@ -491,7 +491,7 @@ describe('BackupAndSync - Syncing - Group', () => {
   });
 
   describe('syncGroupsMetadata', () => {
-    it('should sync all local groups and batch push when needed', async () => {
+    it('syncs all local groups and batch push when needed', async () => {
       const localGroups = [
         {
           id: 'entropy:test-entropy/group-1',
@@ -529,7 +529,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
     });
 
-    it('should push group if it is not present in user storage', async () => {
+    it('pushes group if it is not present in user storage', async () => {
       const localGroups = [
         {
           id: 'entropy:test-entropy/group-1',
@@ -550,7 +550,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockPushGroupToUserStorageBatch).toHaveBeenCalled();
     });
 
-    it('should handle metadata sync for name, pinned, and hidden fields', async () => {
+    it('handles metadata sync for name, pinned, and hidden fields', async () => {
       const localGroup = {
         id: 'entropy:test-entropy/group-1',
         metadata: { entropy: { groupIndex: 0 } },

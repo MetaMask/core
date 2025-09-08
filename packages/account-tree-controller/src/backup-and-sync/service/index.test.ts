@@ -143,13 +143,13 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
   });
 
   describe('constructor', () => {
-    it('should initialize with atomic sync queue', () => {
+    it('initializes with atomic sync queue', () => {
       expect(mockAtomicSyncQueue).toHaveBeenCalledWith(mockContext);
     });
   });
 
   describe('isInProgress getter', () => {
-    it('should return sync progress status', () => {
+    it('returns sync progress status', () => {
       expect(backupAndSyncService.isInProgress).toBe(false);
 
       mockContext.controller.state.isAccountTreeSyncingInProgress = true;
@@ -158,7 +158,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
   });
 
   describe('enqueueSingleWalletSync', () => {
-    it('should enqueue wallet sync when synced at least once', () => {
+    it('enqueues wallet sync when synced at least once', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
 
@@ -169,7 +169,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should not enqueue when never synced before', () => {
+    it('does not enqueue when never synced before', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         false;
 
@@ -180,7 +180,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
   });
 
   describe('enqueueSingleGroupSync', () => {
-    it('should enqueue group sync when synced at least once', () => {
+    it('enqueues group sync when synced at least once', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
 
@@ -191,7 +191,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should not enqueue when never synced before', () => {
+    it('does not enqueue when never synced before', () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         false;
 
@@ -220,7 +220,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         .mockReturnValue('');
     });
 
-    it('should skip when sync is already in progress', async () => {
+    it('skips when sync is already in progress', async () => {
       mockContext.controller.state.isAccountTreeSyncingInProgress = true;
 
       await backupAndSyncService.performFullSync();
@@ -228,7 +228,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockGetLocalEntropyWallets).not.toHaveBeenCalled();
     });
 
-    it('should return early when no local wallets exist', async () => {
+    it('returns early when no local wallets exist', async () => {
       mockGetLocalEntropyWallets.mockReturnValue([]);
 
       await backupAndSyncService.performFullSync();
@@ -242,7 +242,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should perform legacy syncing when wallet does not exist in user storage', async () => {
+    it('performs legacy syncing when wallet does not exist in user storage', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue(null);
 
       await backupAndSyncService.performFullSync();
@@ -254,19 +254,31 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    // TODO: Re-enable this test after the testing period
-    it('should perform legacy syncing when isLegacyAccountSyncingDisabled is false', async () => {
-      expect(true).toBe(true);
-      // mockGetWalletFromUserStorage.mockResolvedValue({
-      //   isLegacyAccountSyncingDisabled: false,
-      // });
+    it('performs legacy syncing when isLegacyAccountSyncingDisabled is false', async () => {
+      mockGetWalletFromUserStorage.mockResolvedValue({
+        isLegacyAccountSyncingDisabled: false,
+      });
 
-      // await backupAndSyncService.performFullSync();
+      await backupAndSyncService.performFullSync();
 
-      // expect(mockPerformLegacyAccountSyncing).toHaveBeenCalledWith(mockContext);
+      expect(mockPerformLegacyAccountSyncing).toHaveBeenCalledWith(
+        mockContext,
+        'test-entropy-id',
+        'test-profile-id',
+      );
     });
 
-    it('should push groups to user storage when no remote groups exist', async () => {
+    it('does not perform legacy syncing when isLegacyAccountSyncingDisabled is true', async () => {
+      mockGetWalletFromUserStorage.mockResolvedValue({
+        isLegacyAccountSyncingDisabled: true,
+      });
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockPerformLegacyAccountSyncing).not.toHaveBeenCalled();
+    });
+
+    it('pushes groups to user storage when no remote groups exist', async () => {
       const mockLocalGroups = [
         { id: 'group-1' },
       ] as unknown as AccountGroupMultichainAccountObject[];
@@ -285,7 +297,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should create local groups and sync metadata when remote groups exist', async () => {
+    it('creates local groups and sync metadata when remote groups exist', async () => {
       const mockRemoteGroups = [{ groupIndex: 0 }];
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
@@ -304,7 +316,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockSyncGroupsMetadata).toHaveBeenCalled();
     });
 
-    it('should handle wallet sync errors with rollback', async () => {
+    it('handles wallet sync errors with rollback', async () => {
       const mockSnapshot = { test: 'snapshot' } as unknown as StateSnapshot;
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
@@ -320,7 +332,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should continue with next wallet when rollback fails', async () => {
+    it('continues with next wallet when rollback fails', async () => {
       mockGetLocalEntropyWallets.mockReturnValue([
         { id: 'entropy:wallet-1', metadata: { entropy: { id: 'test-1' } } },
         { id: 'entropy:wallet-2', metadata: { entropy: { id: 'test-2' } } },
@@ -340,7 +352,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockGetProfileId).toHaveBeenCalledTimes(2); // Called for both wallets
     });
 
-    it('should set sync state flags correctly', async () => {
+    it('sets sync state flags correctly', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
       });
@@ -374,7 +386,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockState2.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(true);
     });
 
-    it('should clear atomic sync queue when starting', async () => {
+    it('clears atomic sync queue when starting', async () => {
       mockGetWalletFromUserStorage.mockResolvedValue({
         isLegacyAccountSyncingDisabled: true,
       });
@@ -386,7 +398,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
   });
 
   describe('single wallet sync (private method)', () => {
-    it('should sync single entropy wallet', async () => {
+    it('syncs single entropy wallet', async () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
       mockContext.controller.state.accountTree.wallets = {
@@ -421,7 +433,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should skip non-entropy wallets in single wallet sync', async () => {
+    it('skips non-entropy wallets in single wallet sync', async () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
       mockContext.controller.state.accountTree.wallets = {
@@ -442,7 +454,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
   });
 
   describe('single group sync (private method)', () => {
-    it('should sync single group', async () => {
+    it('syncs single group', async () => {
       const mockGroup = {
         id: 'entropy:wallet-1/group-1',
         metadata: { entropy: { groupIndex: 0 } },
@@ -487,7 +499,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
-    it('should skip when wallet ID not found', async () => {
+    it('skips when wallet ID not found', async () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
 

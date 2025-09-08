@@ -57,7 +57,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
     const testEntropySourceId = 'test-entropy-id';
     const testProfileId = 'test-profile-id';
 
-    it('should emit analytics and return early when no legacy accounts exist', async () => {
+    it('emits analytics and return early when no legacy accounts exist', async () => {
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue([]);
 
       await performLegacyAccountSyncing(
@@ -80,7 +80,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockGetLocalGroupsForEntropyWallet).not.toHaveBeenCalled();
     });
 
-    it('should create groups', async () => {
+    it('creates groups', async () => {
       const mockLegacyAccounts = [
         { n: 'Account 1', a: '0x123' },
         { n: 'Account 2', a: '0x456' },
@@ -138,7 +138,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
     });
 
-    it('should rename account groups based on legacy account data', async () => {
+    it('renames account groups based on legacy account data', async () => {
       const mockAccountId1 = 'uuid-for-0x123';
       const mockAccountId2 = 'uuid-for-0x456';
       const mockLegacyAccounts = [
@@ -188,7 +188,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
     });
 
-    it('should skip legacy accounts with missing name or address', async () => {
+    it('skips legacy accounts with missing name or address', async () => {
       const mockLegacyAccounts = [
         { n: 'Valid Account', a: '0x123' },
         { n: '', a: '0x456' }, // Missing name
@@ -215,7 +215,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockGetUUIDFromAddressOfNormalAccount).toHaveBeenCalledTimes(1); // Only valid account
     });
 
-    it('should not rename group when no matching local group is found', async () => {
+    it('does not rename group when no matching local group is found', async () => {
       const mockAccountId = 'uuid-for-0x123';
       const mockLegacyAccounts = [{ n: 'Orphan Account', a: '0x123' }];
       const mockLocalGroups = [
@@ -241,7 +241,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockContext.controller.setAccountGroupName).not.toHaveBeenCalled();
     });
 
-    it('should emit analytics event on completion', async () => {
+    it('emits analytics event on completion', async () => {
       const mockLegacyAccounts = [{ n: 'Test Account', a: '0x123' }];
 
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
@@ -259,7 +259,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       });
     });
 
-    it('should handle complex scenario with group creation and renaming', async () => {
+    it('handles complex scenario with group creation and renaming', async () => {
       const mockAccountId1 = 'uuid-for-0x111';
       const mockAccountId2 = 'uuid-for-0x222';
       const mockAccountId3 = 'uuid-for-0x333';
@@ -331,7 +331,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       });
     });
 
-    it('should handle edge case where refreshed local groups return different data', async () => {
+    it('handle edge case where refreshed local groups return different data', async () => {
       const mockAccountId = 'uuid-for-0x123';
       const mockLegacyAccounts = [{ n: 'Test Account', a: '0x123' }];
 

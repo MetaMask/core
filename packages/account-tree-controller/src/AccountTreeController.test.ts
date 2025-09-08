@@ -2724,7 +2724,7 @@ describe('AccountTreeController', () => {
       jest.clearAllMocks();
     });
 
-    it('should call performFullSync on the syncing service', async () => {
+    it('calls performFullSync on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
       const performFullSyncSpy = jest
         .spyOn(BackupAndSyncService.prototype, 'performFullSync')
@@ -2744,7 +2744,7 @@ describe('AccountTreeController', () => {
       performFullSyncSpy.mockRestore();
     });
 
-    it('should handle sync errors gracefully', async () => {
+    it('handles sync errors gracefully', async () => {
       const syncError = new Error('Sync failed');
       const performFullSyncSpy = jest
         .spyOn(BackupAndSyncService.prototype, 'performFullSync')
@@ -2767,7 +2767,7 @@ describe('AccountTreeController', () => {
   });
 
   describe('clearPersistedMetadataAndSyncingState', () => {
-    it('should clear all persisted metadata and syncing state', () => {
+    it('clears all persisted metadata and syncing state', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
@@ -2802,7 +2802,7 @@ describe('AccountTreeController', () => {
   });
 
   describe('backup and sync config initialization', () => {
-    it('should initialize backup and sync config with provided analytics callback and debug logging', async () => {
+    it('initializes backup and sync config with provided analytics callback and debug logging', async () => {
       const mockAnalyticsCallback = jest.fn();
 
       const { controller } = setup({
@@ -2828,7 +2828,7 @@ describe('AccountTreeController', () => {
       expect(mockAnalyticsCallback).toHaveBeenCalled();
     });
 
-    it('should initialize backup and sync config with default values when no config provided', () => {
+    it('initializes backup and sync config with default values when no config provided', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],

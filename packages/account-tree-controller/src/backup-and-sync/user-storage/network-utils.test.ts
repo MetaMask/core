@@ -6,7 +6,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
   });
 
   describe('executeWithRetry', () => {
-    it('should return result on successful operation', async () => {
+    it('returns result on successful operation', async () => {
       const mockOperation = jest.fn().mockResolvedValue('success');
 
       const result = await executeWithRetry(mockOperation);
@@ -15,7 +15,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(1);
     });
 
-    it('should retry on failure and eventually succeed', async () => {
+    it('retries on failure and eventually succeed', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValueOnce(new Error('First attempt failed'))
@@ -28,7 +28,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(3);
     });
 
-    it('should throw last error after max retries exceeded', async () => {
+    it('throws last error after max retries exceeded', async () => {
       const lastError = new Error('Final failure');
       const mockOperation = jest
         .fn()
@@ -42,7 +42,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(3);
     });
 
-    it('should use default parameters', async () => {
+    it('uses default parameters', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValueOnce(new Error('First failure'))
@@ -69,7 +69,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       }
     });
 
-    it('should work with custom parameters', async () => {
+    it('works with custom parameters', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValue(new Error('Always fails'));
@@ -80,7 +80,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(4); // 1 + 3 retries
     });
 
-    it('should handle non-Error thrown objects', async () => {
+    it('handles non-Error thrown objects', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValueOnce('string error')
@@ -93,7 +93,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(3);
     });
 
-    it('should apply exponential backoff delay', async () => {
+    it('applies exponential backoff delay', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValueOnce(new Error('First failure'))
@@ -109,7 +109,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(3);
     });
 
-    it('should handle edge case where operation never succeeds with zero retries', async () => {
+    it('handles edge case where operation never succeeds with zero retries', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValue(new Error('Never succeeds'));
@@ -120,7 +120,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
       expect(mockOperation).toHaveBeenCalledTimes(1); // Only the initial attempt
     });
 
-    it('should handle immediate failure on first attempt with minimal retries', async () => {
+    it('handles immediate failure on first attempt with minimal retries', async () => {
       const mockOperation = jest
         .fn()
         .mockRejectedValue(new Error('Immediate failure'));

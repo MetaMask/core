@@ -21,7 +21,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
   });
 
   describe('compareAndSyncMetadata', () => {
-    it('should return false when values are identical', async () => {
+    it('returns false when values are identical', async () => {
       const result = await compareAndSyncMetadata({
         context: mockContext,
         localMetadata: { value: 'test', lastUpdatedAt: 1000 },
@@ -35,7 +35,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
     });
 
-    it('should apply user storage value when it is more recent and valid', async () => {
+    it('applies user storage value when it is more recent and valid', async () => {
       const result = await compareAndSyncMetadata({
         context: mockContext,
         localMetadata: { value: 'old', lastUpdatedAt: 1000 },
@@ -56,7 +56,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       });
     });
 
-    it('should return true when local value is more recent', async () => {
+    it('returns true when local value is more recent', async () => {
       const result = await compareAndSyncMetadata({
         context: mockContext,
         localMetadata: { value: 'new', lastUpdatedAt: 2000 },
@@ -70,7 +70,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
     });
 
-    it('should return true when user storage value is invalid', async () => {
+    it('returns true when user storage value is invalid', async () => {
       mockValidateUserStorageValue.mockReturnValue(false);
 
       const result = await compareAndSyncMetadata({
@@ -86,7 +86,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
     });
 
-    it('should apply user storage value when no local metadata exists', async () => {
+    it('applies user storage value when no local metadata exists', async () => {
       const result = await compareAndSyncMetadata({
         context: mockContext,
         localMetadata: undefined,
@@ -99,7 +99,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(mockApplyLocalUpdate).toHaveBeenCalledWith('remote');
     });
 
-    it('should not emit analytics when no analytics config provided', async () => {
+    it('does not emit analytics when no analytics config provided', async () => {
       await compareAndSyncMetadata({
         context: mockContext,
         localMetadata: { value: 'old', lastUpdatedAt: 1000 },
@@ -111,7 +111,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
     });
 
-    it('should handle async applyLocalUpdate function', async () => {
+    it('handles async applyLocalUpdate function', async () => {
       const asyncUpdate = jest.fn().mockResolvedValue(undefined);
 
       await compareAndSyncMetadata({

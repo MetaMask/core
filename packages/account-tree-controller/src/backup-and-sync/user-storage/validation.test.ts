@@ -6,7 +6,7 @@ import {
 
 describe('BackupAndSync - UserStorage - Validation', () => {
   describe('assertValidUserStorageWallet', () => {
-    it('should pass for valid wallet data', () => {
+    it('passes for valid wallet data', () => {
       const validWalletData = {
         name: { value: 'Test Wallet', lastUpdatedAt: 1234567890 },
       };
@@ -14,7 +14,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       expect(() => assertValidUserStorageWallet(validWalletData)).not.toThrow();
     });
 
-    it('should throw error for invalid wallet data with detailed message', () => {
+    it('throws error for invalid wallet data with detailed message', () => {
       const invalidWalletData = {
         name: { value: 123, lastUpdatedAt: 'invalid' }, // value should be string, lastUpdatedAt should be number
       };
@@ -24,7 +24,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       );
     });
 
-    it('should throw error for completely invalid data structure', () => {
+    it('throws error for completely invalid data structure', () => {
       const invalidData = 'not an object';
 
       expect(() => assertValidUserStorageWallet(invalidData)).toThrow(
@@ -32,19 +32,19 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       );
     });
 
-    it('should handle missing required fields', () => {
+    it('handles missing required fields', () => {
       const incompleteData = {};
 
       expect(() => assertValidUserStorageWallet(incompleteData)).not.toThrow();
     });
 
-    it('should handle null data', () => {
+    it('handles null data', () => {
       expect(() => assertValidUserStorageWallet(null)).toThrow(
         /Invalid user storage wallet data:/u,
       );
     });
 
-    it('should handle undefined data', () => {
+    it('handles undefined data', () => {
       expect(() => assertValidUserStorageWallet(undefined)).toThrow(
         /Invalid user storage wallet data:/u,
       );
@@ -52,7 +52,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
   });
 
   describe('assertValidUserStorageGroup', () => {
-    it('should pass for valid group data', () => {
+    it('passes for valid group data', () => {
       const validGroupData = {
         name: { value: 'Test Group', lastUpdatedAt: 1234567890 },
         pinned: { value: true, lastUpdatedAt: 1234567890 },
@@ -63,7 +63,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       expect(() => assertValidUserStorageGroup(validGroupData)).not.toThrow();
     });
 
-    it('should throw error for invalid group data with detailed message', () => {
+    it('throws error for invalid group data with detailed message', () => {
       const invalidGroupData = {
         name: { value: 123, lastUpdatedAt: 'invalid' }, // value should be string, lastUpdatedAt should be number
         groupIndex: 'not a number', // should be number
@@ -74,7 +74,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       );
     });
 
-    it('should throw error for completely invalid data structure', () => {
+    it('throws error for completely invalid data structure', () => {
       const invalidData = null;
 
       expect(() => assertValidUserStorageGroup(invalidData)).toThrow(
@@ -82,7 +82,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       );
     });
 
-    it('should handle edge cases in validation failures', () => {
+    it('handles edge cases in validation failures', () => {
       // Test with nested path failures
       const dataWithNestedIssues = {
         name: {
@@ -100,25 +100,25 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       );
     });
 
-    it('should handle array input', () => {
+    it('handles array input', () => {
       expect(() => assertValidUserStorageGroup([])).toThrow(
         /Invalid user storage group data:/u,
       );
     });
 
-    it('should handle string input', () => {
+    it('handles string input', () => {
       expect(() => assertValidUserStorageGroup('invalid')).toThrow(
         /Invalid user storage group data:/u,
       );
     });
 
-    it('should handle number input', () => {
+    it('handles number input', () => {
       expect(() => assertValidUserStorageGroup(123)).toThrow(
         /Invalid user storage group data:/u,
       );
     });
 
-    it('should handle boolean input', () => {
+    it('handles boolean input', () => {
       expect(() => assertValidUserStorageGroup(true)).toThrow(
         /Invalid user storage group data:/u,
       );
@@ -126,7 +126,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
   });
 
   describe('assertValidLegacyUserStorageAccount', () => {
-    it('should pass for valid legacy account data', () => {
+    it('passes for valid legacy account data', () => {
       const validAccountData = {
         v: '1.0',
         i: 'identifier123',
@@ -140,7 +140,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       ).not.toThrow();
     });
 
-    it('should pass for minimal legacy account data', () => {
+    it('passes for minimal legacy account data', () => {
       const minimalAccountData = {}; // All fields are optional
 
       expect(() =>
@@ -148,7 +148,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       ).not.toThrow();
     });
 
-    it('should pass for partial legacy account data', () => {
+    it('passes for partial legacy account data', () => {
       const partialAccountData = {
         a: '0x1234567890abcdef',
         n: 'My Account',
@@ -159,7 +159,7 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       ).not.toThrow();
     });
 
-    it('should throw error for invalid legacy account data with detailed message', () => {
+    it('throws error for invalid legacy account data with detailed message', () => {
       const invalidAccountData = {
         v: 123, // should be string
         i: true, // should be string
@@ -173,25 +173,25 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       ).toThrow(/Invalid legacy user storage account data:/u);
     });
 
-    it('should throw error for null input', () => {
+    it('throws error for null input', () => {
       expect(() => assertValidLegacyUserStorageAccount(null)).toThrow(
         /Invalid legacy user storage account data:/u,
       );
     });
 
-    it('should throw error for undefined input', () => {
+    it('throws error for undefined input', () => {
       expect(() => assertValidLegacyUserStorageAccount(undefined)).toThrow(
         /Invalid legacy user storage account data:/u,
       );
     });
 
-    it('should throw error for string input', () => {
+    it('throws error for string input', () => {
       expect(() => assertValidLegacyUserStorageAccount('invalid')).toThrow(
         /Invalid legacy user storage account data:/u,
       );
     });
 
-    it('should handle multiple validation failures', () => {
+    it('handles multiple validation failures', () => {
       const multipleFailuresData = {
         v: 123, // wrong type
         a: true, // wrong type

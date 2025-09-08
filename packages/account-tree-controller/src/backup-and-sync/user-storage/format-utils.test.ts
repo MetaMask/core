@@ -61,7 +61,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   describe('formatWalletForUserStorageUsage', () => {
-    it('should return wallet metadata when it exists', () => {
+    it('returns wallet metadata when it exists', () => {
       const walletMetadata: UserStorageSyncedWallet = {
         name: { value: 'Wallet Name', lastUpdatedAt: 123456 },
       };
@@ -76,7 +76,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       });
     });
 
-    it('should return default object when no wallet metadata exists', () => {
+    it('returns default object when no wallet metadata exists', () => {
       const result = formatWalletForUserStorageUsage(mockContext, mockWallet);
 
       expect(result).toStrictEqual({
@@ -86,7 +86,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   describe('formatGroupForUserStorageUsage', () => {
-    it('should return group metadata with groupIndex', () => {
+    it('returns group metadata with groupIndex', () => {
       const groupMetadata = {
         name: { value: 'Group Name', lastUpdatedAt: 123456 },
         pinned: { value: true, lastUpdatedAt: 123456 },
@@ -102,7 +102,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       });
     });
 
-    it('should return only groupIndex when no group metadata exists', () => {
+    it('returns only groupIndex when no group metadata exists', () => {
       const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
 
       expect(result).toStrictEqual({
@@ -112,7 +112,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   describe('parseWalletFromUserStorageResponse', () => {
-    it('should parse valid wallet JSON', () => {
+    it('parses valid wallet JSON', () => {
       const walletData = {
         name: { value: 'Test Wallet', lastUpdatedAt: 123456 },
       };
@@ -126,7 +126,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       expect(mockAssertValidUserStorageWallet).toHaveBeenCalledWith(walletData);
     });
 
-    it('should throw error for invalid JSON', () => {
+    it('throws error for invalid JSON', () => {
       const invalidJson = 'invalid json string';
 
       expect(() => parseWalletFromUserStorageResponse(invalidJson)).toThrow(
@@ -134,7 +134,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should throw error when validation fails', () => {
+    it('throws error when validation fails', () => {
       const walletData = { invalid: 'data' };
       const walletString = JSON.stringify(walletData);
 
@@ -149,7 +149,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   describe('parseGroupFromUserStorageResponse', () => {
-    it('should parse valid group JSON', () => {
+    it('parses valid group JSON', () => {
       const groupData = {
         groupIndex: 0,
         name: { value: 'Test Group', lastUpdatedAt: 123456 },
@@ -164,7 +164,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       expect(mockAssertValidUserStorageGroup).toHaveBeenCalledWith(groupData);
     });
 
-    it('should throw error for invalid JSON', () => {
+    it('throws error for invalid JSON', () => {
       const invalidJson = 'invalid json string';
 
       expect(() => parseGroupFromUserStorageResponse(invalidJson)).toThrow(
@@ -172,7 +172,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should throw error when validation fails', () => {
+    it('throws error when validation fails', () => {
       const groupData = { invalid: 'data' };
       const groupString = JSON.stringify(groupData);
 
@@ -185,7 +185,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should handle non-Error thrown objects in wallet parsing', () => {
+    it('handles non-Error thrown objects in wallet parsing', () => {
       const walletData = { valid: 'data' };
       const walletString = JSON.stringify(walletData);
 
@@ -200,7 +200,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should handle non-Error thrown objects in group parsing', () => {
+    it('handles non-Error thrown objects in group parsing', () => {
       const groupData = { valid: 'data' };
       const groupString = JSON.stringify(groupData);
 
@@ -217,7 +217,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   describe('parseLegacyAccountFromUserStorageResponse', () => {
-    it('should parse valid legacy account JSON', () => {
+    it('parses valid legacy account JSON', () => {
       const accountData = {
         n: 'Test Account',
         a: '0x123456789abcdef',
@@ -237,7 +237,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should throw error for invalid JSON', () => {
+    it('throws error for invalid JSON', () => {
       const invalidJson = 'invalid json string';
 
       expect(() =>
@@ -247,7 +247,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should throw error when validation fails', () => {
+    it('throws error when validation fails', () => {
       const accountData = { invalid: 'data' };
       const accountString = JSON.stringify(accountData);
 
@@ -262,7 +262,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('should handle non-Error thrown objects in legacy account parsing', () => {
+    it('handles non-Error thrown objects in legacy account parsing', () => {
       const accountData = { valid: 'data' };
       const accountString = JSON.stringify(accountData);
 

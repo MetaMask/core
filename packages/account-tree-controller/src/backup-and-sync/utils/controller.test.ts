@@ -58,12 +58,12 @@ describe('BackupAndSyncUtils - Controller', () => {
   });
 
   describe('getLocalEntropyWallets', () => {
-    it('should return empty array when no wallets exist', () => {
+    it('returns empty array when no wallets exist', () => {
       const result = getLocalEntropyWallets(mockContext);
       expect(result).toStrictEqual([]);
     });
 
-    it('should return only entropy wallets', () => {
+    it('returns only entropy wallets', () => {
       const entropyWallet = {
         id: 'entropy:wallet-1',
         type: AccountWalletType.Entropy,
@@ -89,7 +89,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       expect(result[0]).toBe(entropyWallet);
     });
 
-    it('should filter out non-entropy wallets correctly', () => {
+    it('filters out non-entropy wallets correctly', () => {
       mockController.state.accountTree.wallets = {
         'entropy:wallet-1': {
           type: AccountWalletType.Entropy,
@@ -111,7 +111,7 @@ describe('BackupAndSyncUtils - Controller', () => {
   });
 
   describe('getLocalGroupsForEntropyWallet', () => {
-    it('should return empty array when wallet does not exist', () => {
+    it('returns empty array when wallet does not exist', () => {
       const result = getLocalGroupsForEntropyWallet(
         mockContext,
         'entropy:non-existent',
@@ -121,7 +121,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       expect(mockContext.contextualLogger.warn).toHaveBeenCalled();
     });
 
-    it('should return groups for entropy wallet', () => {
+    it('returns groups for entropy wallet', () => {
       const group = {
         id: 'entropy:wallet-1/group-1',
         type: AccountGroupType.MultichainAccount,
@@ -151,7 +151,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       expect(result[0]).toBe(group);
     });
 
-    it('should return empty array for wallet without groups', () => {
+    it('returns empty array for wallet without groups', () => {
       const entropyWallet = {
         id: 'entropy:wallet-1',
         type: AccountWalletType.Entropy,
@@ -173,7 +173,7 @@ describe('BackupAndSyncUtils - Controller', () => {
   });
 
   describe('createStateSnapshot', () => {
-    it('should create a deep copy of state properties', () => {
+    it('creates a deep copy of state properties', () => {
       const originalState = {
         accountGroupsMetadata: { test: { name: 'Test' } },
         accountWalletsMetadata: { test: { name: 'Test' } },
@@ -205,7 +205,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       expect(snapshot.accountTreeWallets).toStrictEqual(originalState.wallets);
     });
 
-    it('should create independent copies (deep clone)', () => {
+    it('creates independent copies (deep clone)', () => {
       const originalGroupsMetadata = {
         'entropy:test-group/test': {
           name: {
@@ -251,7 +251,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       } as unknown as StateSnapshot;
     });
 
-    it('should restore all snapshot properties to state', () => {
+    it('restores all snapshot properties to state', () => {
       restoreStateFromSnapshot(mockContext, mockSnapshot);
 
       expect(mockController.state.accountGroupsMetadata).toStrictEqual(
@@ -268,7 +268,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       );
     });
 
-    it('should call controllerStateUpdateFn with update function', () => {
+    it('calls controllerStateUpdateFn with update function', () => {
       restoreStateFromSnapshot(mockContext, mockSnapshot);
 
       expect(mockControllerStateUpdateFn).toHaveBeenCalledTimes(1);
@@ -277,13 +277,13 @@ describe('BackupAndSyncUtils - Controller', () => {
       );
     });
 
-    it('should call controller.init() after state restoration', () => {
+    it('calls controller.init() after state restoration', () => {
       restoreStateFromSnapshot(mockContext, mockSnapshot);
 
       expect(mockController.init).toHaveBeenCalledTimes(1);
     });
 
-    it('should call init after state update', () => {
+    it('calls init after state update', () => {
       const callOrder: string[] = [];
 
       mockControllerStateUpdateFn.mockImplementation((updateFn) => {

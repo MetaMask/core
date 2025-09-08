@@ -57,7 +57,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
   });
 
   describe('syncWalletMetadataAndCheckIfPushNeeded', () => {
-    it('should return true when wallet does not exist in user storage but has local metadata', async () => {
+    it('returns true when wallet does not exist in user storage but has local metadata', async () => {
       mockContext.controller.state.accountWalletsMetadata[mockLocalWallet.id] =
         {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
@@ -73,7 +73,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       expect(result).toBe(true);
     });
 
-    it('should return true when wallet does not exist in user storage and has no local metadata', async () => {
+    it('returns true when wallet does not exist in user storage and has no local metadata', async () => {
       const result = await syncWalletMetadataAndCheckIfPushNeeded(
         mockContext,
         mockLocalWallet,
@@ -84,7 +84,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       expect(result).toBe(true);
     });
 
-    it('should sync name metadata and return push decision', async () => {
+    it('syncs name metadata and return push decision', async () => {
       mockContext.controller.state.accountWalletsMetadata[mockLocalWallet.id] =
         {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
@@ -112,7 +112,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       expect(result).toBe(true);
     });
 
-    it('should call setAccountWalletName when applying local update', async () => {
+    it('calls setAccountWalletName when applying local update', async () => {
       mockContext.controller.state.accountWalletsMetadata[mockLocalWallet.id] =
         {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
@@ -148,7 +148,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       /* eslint-enable jest/no-conditional-expect */
     });
 
-    it('should validate user storage values using the schema validator', async () => {
+    it('validates user storage values using the schema validator', async () => {
       mockContext.controller.state.accountWalletsMetadata[mockLocalWallet.id] =
         {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
@@ -188,7 +188,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
   });
 
   describe('syncWalletMetadata', () => {
-    it('should push to user storage when sync check returns true', async () => {
+    it('pushes to user storage when sync check returns true', async () => {
       mockContext.controller.state.accountWalletsMetadata[mockLocalWallet.id] =
         {
           name: { value: 'Local Name', lastUpdatedAt: 1000 },
@@ -208,7 +208,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
     });
 
-    it('should not push to user storage when sync check returns false', async () => {
+    it('does not push to user storage when sync check returns false', async () => {
       mockCompareAndSyncMetadata.mockResolvedValue(false);
 
       await syncWalletMetadata(

@@ -30,14 +30,14 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('log', () => {
-    it('should not log when logging is disabled', () => {
+    it('does not log when logging is disabled', () => {
       const disabledLogger = new ContextualLogger();
       disabledLogger.log('Test message');
 
       expect(consoleSpy.log).not.toHaveBeenCalled();
     });
 
-    it('should call console.log with LOG_PREFIX and arguments', () => {
+    it('calls console.log with LOG_PREFIX and arguments', () => {
       const message = 'Test log message';
       const additionalArg = { key: 'value' };
 
@@ -51,7 +51,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
       expect(consoleSpy.log).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle multiple arguments', () => {
+    it('handles multiple arguments', () => {
       const args = ['arg1', 42, { test: true }, null, undefined];
 
       contextualLogger.log(...args);
@@ -59,13 +59,13 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
       expect(consoleSpy.log).toHaveBeenCalledWith(LOG_PREFIX, ...args);
     });
 
-    it('should handle no arguments', () => {
+    it('handles no arguments', () => {
       contextualLogger.log();
 
       expect(consoleSpy.log).toHaveBeenCalledWith(LOG_PREFIX);
     });
 
-    it('should handle complex objects', () => {
+    it('handles complex objects', () => {
       const complexObject = {
         nested: { deep: { value: 'test' } },
         array: [1, 2, 3],
@@ -84,7 +84,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('warn', () => {
-    it('should call console.warn with LOG_PREFIX and arguments', () => {
+    it('calls console.warn with LOG_PREFIX and arguments', () => {
       const warning = 'Test warning message';
 
       contextualLogger.warn(warning);
@@ -93,7 +93,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
       expect(consoleSpy.warn).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle multiple arguments', () => {
+    it('handles multiple arguments', () => {
       const args = ['Warning:', 'Something went wrong', { error: true }];
 
       contextualLogger.warn(...args);
@@ -103,7 +103,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('info', () => {
-    it('should call console.info with LOG_PREFIX and arguments', () => {
+    it('calls console.info with LOG_PREFIX and arguments', () => {
       const info = 'Test info message';
       const details = { status: 'success' };
 
@@ -113,7 +113,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
       expect(consoleSpy.info).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle array arguments', () => {
+    it('handles array arguments', () => {
       const infoArray = ['info1', 'info2', 'info3'];
 
       contextualLogger.info('Info array:', ...infoArray);
@@ -127,7 +127,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('error', () => {
-    it('should call console.error with LOG_PREFIX and arguments', () => {
+    it('calls console.error with LOG_PREFIX and arguments', () => {
       const error = new Error('Test error');
       const context = 'during sync operation';
 
@@ -142,7 +142,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
       expect(consoleSpy.error).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle error objects', () => {
+    it('handles error objects', () => {
       const error = new Error('Something went wrong');
       error.stack = 'Error stack trace';
 
@@ -153,7 +153,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('debug', () => {
-    it('should call console.debug with LOG_PREFIX and arguments', () => {
+    it('calls console.debug with LOG_PREFIX and arguments', () => {
       const debugInfo = 'Debug information';
       const metadata = { timestamp: Date.now() };
 
@@ -167,7 +167,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
       expect(consoleSpy.debug).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle performance-related debug info', () => {
+    it('handles performance-related debug info', () => {
       const operation = 'sync';
       const startTime = performance.now();
       const endTime = performance.now();
@@ -184,7 +184,7 @@ describe('BackupAndSyncUtils - ContextualLogger', () => {
   });
 
   describe('all methods consistency', () => {
-    it('should use the same LOG_PREFIX for all methods', () => {
+    it('uses the same LOG_PREFIX for all methods', () => {
       const message = 'Test message';
 
       contextualLogger.log(message);

@@ -30,7 +30,7 @@ describe('BackupAndSyncAuthentication - Utils', () => {
       metaMetricsId: 'test-metametrics-id',
     };
 
-    it('should call AuthenticationController:getSessionProfile', async () => {
+    it('calls AuthenticationController:getSessionProfile', async () => {
       mockMessenger.call.mockResolvedValue(mockSessionProfile);
 
       const result1 = await getProfileId(mockContext);

@@ -92,7 +92,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('getWalletFromUserStorage', () => {
-    it('should return parsed wallet data when found', async () => {
+    it('returns parsed wallet data when found', async () => {
       const walletData = '{"name":{"value":"Test Wallet"}}';
       const parsedWallet = {
         name: { value: 'Test Wallet' },
@@ -120,7 +120,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toBe(parsedWallet);
     });
 
-    it('should return null when no wallet data found', async () => {
+    it('returns null when no wallet data found', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -135,7 +135,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(mockParseWalletFromUserStorageResponse).not.toHaveBeenCalled();
     });
 
-    it('should return null when parsing fails', async () => {
+    it('returns null when parsing fails', async () => {
       const walletData = 'invalid json';
       jest
         .spyOn(mockContext.messenger, 'call')
@@ -188,7 +188,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('pushWalletToUserStorage', () => {
-    it('should format and push wallet to user storage', async () => {
+    it('formats and push wallet to user storage', async () => {
       const formattedWallet = {
         name: { value: 'Formatted Wallet' },
       } as unknown as UserStorageSyncedWallet;
@@ -215,7 +215,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('getAllGroupsFromUserStorage', () => {
-    it('should return parsed groups array when found', async () => {
+    it('returns parsed groups array when found', async () => {
       const groupsData = ['{"groupIndex":0}', '{"groupIndex":1}'];
       const parsedGroups = [
         { groupIndex: 0 },
@@ -243,7 +243,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toStrictEqual(parsedGroups);
     });
 
-    it('should return empty array when no group data found', async () => {
+    it('returns empty array when no group data found', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -257,7 +257,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toStrictEqual([]);
     });
 
-    it('should filter out invalid groups when parsing fails', async () => {
+    it('filters out invalid groups when parsing fails', async () => {
       const groupsData = [
         '{"groupIndex":0}',
         'invalid json',
@@ -324,7 +324,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('getGroupFromUserStorage', () => {
-    it('should return parsed group when found', async () => {
+    it('returns parsed group when found', async () => {
       const groupData = '{"groupIndex":0}';
       const parsedGroup = { groupIndex: 0 };
 
@@ -348,7 +348,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toBe(parsedGroup);
     });
 
-    it('should return null when parsing fails', async () => {
+    it('returns null when parsing fails', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -366,7 +366,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null when there is no group data', async () => {
+    it('returns null when there is no group data', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -381,7 +381,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toBeNull();
     });
 
-    it('should log debug warning when parsing fails and debug logging is enabled', async () => {
+    it('logs debug warning when parsing fails and debug logging is enabled', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -402,7 +402,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
     });
 
-    it('should handle non-Error objects in debug logging', async () => {
+    it('handles non-Error objects in debug logging', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -427,7 +427,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('pushGroupToUserStorage', () => {
-    it('should format and push group to user storage', async () => {
+    it('formats and push group to user storage', async () => {
       // Set up context with debug logging enabled
       const debugContext = {
         ...mockContext,
@@ -456,7 +456,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('pushGroupToUserStorageBatch', () => {
-    it('should format and batch push groups to user storage', async () => {
+    it('formats and batch push groups to user storage', async () => {
       const groups = [
         mockGroup,
         { ...mockGroup, metadata: { entropy: { groupIndex: 1 } } },
@@ -486,7 +486,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   describe('getAllLegacyUserStorageAccounts', () => {
-    it('should return parsed legacy account data', async () => {
+    it('returns parsed legacy account data', async () => {
       const rawAccountsData = [
         '{"a":"address1","n":"name1","nlu":123}',
         '{"a":"address2","n":"name2","nlu":456}',
@@ -517,7 +517,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toStrictEqual(expectedData);
     });
 
-    it('should return empty array when no legacy data found', async () => {
+    it('returns empty array when no legacy data found', async () => {
       jest
         .spyOn(mockContext.messenger, 'call')
         .mockImplementation()
@@ -531,7 +531,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       expect(result).toStrictEqual([]);
     });
 
-    it('should filter out invalid legacy accounts and log warnings when debug enabled', async () => {
+    it('filters out invalid legacy accounts and log warnings when debug enabled', async () => {
       const rawAccountsData = [
         '{"a":"address1","n":"name1","nlu":123}', // Valid
         '{"invalid":"data"}', // Invalid - will throw error
@@ -569,7 +569,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
     });
 
-    it('should handle non-Error objects thrown during parsing', async () => {
+    it('handles non-Error objects thrown during parsing', async () => {
       const rawAccountsData = ['{"invalid":"data"}'];
 
       jest

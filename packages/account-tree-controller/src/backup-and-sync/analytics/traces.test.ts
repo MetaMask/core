@@ -4,7 +4,7 @@ import { TraceName, traceFallback } from './traces';
 
 describe('BackupAndSyncAnalytics - Traces', () => {
   describe('TraceName', () => {
-    it('should contain expected trace names', () => {
+    it('contains expected trace names', () => {
       expect(TraceName).toStrictEqual({
         AccountSyncFull: 'Multichain Account Syncing - Full',
       });
@@ -22,13 +22,13 @@ describe('BackupAndSyncAnalytics - Traces', () => {
       };
     });
 
-    it('should return undefined when no function is provided', async () => {
+    it('returns undefined when no function is provided', async () => {
       const result = await traceFallback(mockTraceRequest);
 
       expect(result).toBeUndefined();
     });
 
-    it('should execute the provided function and return its result', async () => {
+    it('executes the provided function and return its result', async () => {
       const mockResult = 'test-result';
       const mockFn = jest.fn().mockReturnValue(mockResult);
 
@@ -39,7 +39,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
       expect(result).toBe(mockResult);
     });
 
-    it('should execute async function and return its result', async () => {
+    it('executes async function and return its result', async () => {
       const mockResult = { data: 'async-result' };
       const mockAsyncFn = jest.fn().mockResolvedValue(mockResult);
 
@@ -49,7 +49,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
       expect(result).toBe(mockResult);
     });
 
-    it('should handle function that throws an error', async () => {
+    it('handles function that throws an error', async () => {
       const mockError = new Error('Test error');
       const mockFn = jest.fn().mockImplementation(() => {
         throw mockError;
@@ -61,7 +61,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
       expect(mockFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle function that returns a rejected promise', async () => {
+    it('handles function that returns a rejected promise', async () => {
       const mockError = new Error('Async error');
       const mockFn = jest.fn().mockRejectedValue(mockError);
 

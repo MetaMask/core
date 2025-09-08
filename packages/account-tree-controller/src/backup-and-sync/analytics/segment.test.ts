@@ -8,7 +8,7 @@ import {
 
 describe('BackupAndSyncAnalytics - Segment', () => {
   describe('BackupAndSyncAnalyticsEvents', () => {
-    it('should contain all expected event names', () => {
+    it('contains all expected event names', () => {
       expect(BackupAndSyncAnalyticsEvents).toStrictEqual({
         WALLET_RENAMED: 'wallet_renamed',
         GROUP_ADDED: 'group_added',
@@ -25,7 +25,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
   describe('formatAnalyticsEvent', () => {
     const mockProfileId = 'test-profile-id-123';
 
-    it('should format analytics event with required parameters', () => {
+    it('formats analytics event with required parameters', () => {
       const params: BackupAndSyncEmitAnalyticsEventParams = {
         action: BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
         profileId: mockProfileId,
@@ -43,7 +43,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
       expect(result).toStrictEqual(expected);
     });
 
-    it('should format analytics event with additional description', () => {
+    it('formats analytics event with additional description', () => {
       const additionalDescription = 'Wallet renamed from old to new';
       const params: BackupAndSyncEmitAnalyticsEventParams = {
         action: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
@@ -61,7 +61,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
       });
     });
 
-    it('should handle all event types correctly', () => {
+    it('handles all event types correctly', () => {
       const eventTypes: BackupAndSyncAnalyticsEvent[] = [
         BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
         BackupAndSyncAnalyticsEvents.GROUP_ADDED,
@@ -88,7 +88,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
       });
     });
 
-    it('should handle empty additional description parameter', () => {
+    it('handles empty additional description parameter', () => {
       const params: BackupAndSyncEmitAnalyticsEventParams = {
         action: BackupAndSyncAnalyticsEvents.GROUP_ADDED,
         profileId: mockProfileId,
@@ -100,7 +100,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
       expect(result.additional_description).toBe('');
     });
 
-    it('should always include the same feature name', () => {
+    it('always includes the same feature name', () => {
       const params: BackupAndSyncEmitAnalyticsEventParams = {
         action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
         profileId: mockProfileId,
