@@ -107,7 +107,7 @@ export class AccountTreeController extends BaseController<
   /**
    * Service responsible for all backup and sync operations.
    */
-  readonly #syncingService: BackupAndSyncService;
+  readonly #backupAndSyncService: BackupAndSyncService;
 
   readonly #newGroupsMap: WeakMap<AccountGroupObject, boolean>;
 
@@ -170,16 +170,18 @@ export class AccountTreeController extends BaseController<
     // Initialize backup and sync config
     this.#backupAndSyncConfig = {
       emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => {
-        const formattedEvent = formatAnalyticsEvent(event);
-        return config?.backupAndSync?.onBackupAndSyncEvent?.(formattedEvent);
+        return (
+          config?.backupAndSync?.onBackupAndSyncEvent &&
+          config.backupAndSync.onBackupAndSyncEvent(formatAnalyticsEvent(event))
+        );
       },
       contextualLogger: new ContextualLogger({
         isEnabled: config?.backupAndSync?.enableDebugLogging ?? false,
       }),
     };
 
-    // Initialize the syncing service
-    this.#syncingService = new BackupAndSyncService(
+    // Initialize the backup and sync service
+    this.#backupAndSyncService = new BackupAndSyncService(
       this.#createBackupAndSyncContext(),
     );
 
@@ -672,7 +674,7 @@ export class AccountTreeController extends BaseController<
 
       // Trigger atomic sync for new wallet (only for entropy wallets)
       if (wallet.type === AccountWalletType.Entropy) {
-        this.#syncingService.enqueueSingleWalletSync(walletId);
+        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
       }
     }
 
@@ -702,7 +704,7 @@ export class AccountTreeController extends BaseController<
 
       // Trigger atomic sync for new group (only for entropy wallets)
       if (wallet.type === AccountWalletType.Entropy) {
-        this.#syncingService.enqueueSingleGroupSync(groupId);
+        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
       // If adding to existing group, update the "new" status if this account is new
@@ -999,7 +1001,7 @@ export class AccountTreeController extends BaseController<
       this.state.accountTree.wallets[walletId].type ===
         AccountWalletType.Entropy
     ) {
-      this.#syncingService.enqueueSingleGroupSync(groupId);
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
     }
   }
 
@@ -1031,7 +1033,7 @@ export class AccountTreeController extends BaseController<
       this.state.accountTree.wallets[walletId].type ===
       AccountWalletType.Entropy
     ) {
-      this.#syncingService.enqueueSingleWalletSync(walletId);
+      this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
     }
   }
 
@@ -1069,7 +1071,7 @@ export class AccountTreeController extends BaseController<
       this.state.accountTree.wallets[walletId].type ===
         AccountWalletType.Entropy
     ) {
-      this.#syncingService.enqueueSingleGroupSync(groupId);
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
     }
   }
 
@@ -1107,7 +1109,7 @@ export class AccountTreeController extends BaseController<
       this.state.accountTree.wallets[walletId].type ===
         AccountWalletType.Entropy
     ) {
-      this.#syncingService.enqueueSingleGroupSync(groupId);
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
     }
   }
 
@@ -1176,12 +1178,12 @@ export class AccountTreeController extends BaseController<
    * @returns A promise that resolves when the sync is complete.
    */
   async syncWithUserStorage(): Promise<void> {
-    return this.#syncingService.performFullSync();
+    return this.#backupAndSyncService.performFullSync();
   }
 
   /**
    * Creates an backup and sync context for sync operations.
-   * Used by the syncing service.
+   * Used by the backup and sync service.
    *
    * @returns The backup and sync context.
    */

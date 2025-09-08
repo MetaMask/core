@@ -24,7 +24,6 @@ import {
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { BACKUPANDSYNC_FEATURES } from './constants';
@@ -181,9 +180,7 @@ export type AllowedActions =
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
   | AddressBookControllerDeleteAction
-  | AddressBookControllerActions
-  // Remote Feature Flag
-  | RemoteFeatureFlagControllerGetStateAction;
+  | AddressBookControllerActions;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
