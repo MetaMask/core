@@ -65,6 +65,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
+- [`@metamask/rewards-controller`](packages/rewards-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
@@ -128,6 +129,7 @@ linkStyle default opacity:0.5
   profile_sync_controller(["@metamask/profile-sync-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
+  rewards_controller(["@metamask/rewards-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
@@ -152,14 +154,17 @@ linkStyle default opacity:0.5
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
   assets_controllers --> polling_controller;
+  assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> keyring_controller;
+  assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> transaction_controller;
+  base_controller --> messenger;
   base_controller --> json_rpc_engine;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
@@ -242,6 +247,7 @@ linkStyle default opacity:0.5
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
+  network_enablement_controller --> transaction_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -275,6 +281,8 @@ linkStyle default opacity:0.5
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
+  shield_controller --> base_controller;
+  shield_controller --> transaction_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
@@ -282,6 +290,8 @@ linkStyle default opacity:0.5
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
+  subscription_controller --> base_controller;
+  subscription_controller --> profile_sync_controller;
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
