@@ -16,6 +16,7 @@ import {
   mockGetOnChainNotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
+  mockCreatePerpNotification,
 } from './__fixtures__/mockServices';
 import { waitFor } from './__fixtures__/test-utils';
 import { TRIGGER_TYPES } from './constants';
@@ -38,7 +39,7 @@ import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
 import { processSnapNotification } from './processors/process-snap-notifications';
 import { notificationsConfigCache } from './services/notification-config-cache';
-import type { INotification } from './types';
+import type { INotification, OrderInput } from './types';
 import type {
   NotificationServicesPushControllerDisablePushNotificationsAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
@@ -1156,6 +1157,82 @@ describe('metamask-notifications - disablePushNotifications', () => {
 
     // Assert
     expect(mockDisablePushNotifications).toHaveBeenCalled();
+  });
+});
+
+describe('metamask-notifications - sendPerpPlaceOrderNotification()', () => {
+  const arrangeMocks = () => {
+    const messengerMocks = mockNotificationMessenger();
+    const mockCreatePerpAPI = mockCreatePerpNotification({
+      status: 200,
+      body: { success: true },
+    });
+    return { ...messengerMocks, mockCreatePerpAPI };
+  };
+
+  const mockOrderInput: OrderInput = {
+    user_id: '0x111', // User Address
+    coin: '0x222', // Asset address
+  };
+
+  it('should successfully send perp order notification when authenticated', async () => {
+    const { messenger, mockCreatePerpAPI } = arrangeMocks();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    await controller.sendPerpPlaceOrderNotification(mockOrderInput);
+
+    expect(mockCreatePerpAPI.isDone()).toBe(true);
+  });
+
+  it('should handle authentication errors gracefully', async () => {
+    const mocks = arrangeMocks();
+    mocks.mockIsSignedIn.mockReturnValue(false);
+
+    const controller = new NotificationServicesController({
+      messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    await controller.sendPerpPlaceOrderNotification(mockOrderInput);
+
+    expect(mocks.mockCreatePerpAPI.isDone()).toBe(false);
+  });
+
+  it('should handle bearer token retrieval errors gracefully', async () => {
+    const mocks = arrangeMocks();
+    mocks.mockGetBearerToken.mockRejectedValueOnce(
+      new Error('Failed to get bearer token'),
+    );
+
+    const controller = new NotificationServicesController({
+      messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    await controller.sendPerpPlaceOrderNotification(mockOrderInput);
+
+    expect(mocks.mockCreatePerpAPI.isDone()).toBe(false);
+  });
+
+  it('should handle API call failures gracefully', async () => {
+    const { messenger } = mockNotificationMessenger();
+    // Mock API to fail
+    const mockCreatePerpAPI = mockCreatePerpNotification({ status: 500 });
+    const mockConsoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
+
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    await controller.sendPerpPlaceOrderNotification(mockOrderInput);
+    expect(mockCreatePerpAPI.isDone()).toBe(true);
+    expect(mockConsoleError).toHaveBeenCalled();
   });
 });
 

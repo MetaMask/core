@@ -128,8 +128,8 @@ type BridgePollingInput = {
   updatedQuoteRequest: GenericQuoteRequest;
   context: Pick<
     RequiredEventContextFromClient,
-    UnifiedSwapBridgeEventName.QuoteError
-  >[UnifiedSwapBridgeEventName.QuoteError] &
+    UnifiedSwapBridgeEventName.QuotesError
+  >[UnifiedSwapBridgeEventName.QuotesError] &
     Pick<
       RequiredEventContextFromClient,
       UnifiedSwapBridgeEventName.QuotesRequested
@@ -603,7 +603,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuoteError,
+        UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
@@ -874,7 +874,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.QuoteError:
+      case UnifiedSwapBridgeEventName.QuotesError:
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
