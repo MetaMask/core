@@ -1950,7 +1950,7 @@ describe('AccountTreeController', () => {
       ).toBeUndefined();
     });
 
-    it('should allow setting the same name for the same group', () => {
+    it('allows setting the same name for the same group', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
@@ -1973,7 +1973,7 @@ describe('AccountTreeController', () => {
       }).not.toThrow();
     });
 
-    it('should prevent setting duplicate names across different groups', () => {
+    it('prevents setting duplicate names across different groups', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -2007,7 +2007,7 @@ describe('AccountTreeController', () => {
       }).toThrow('Account group name already exists');
     });
 
-    it('should ensure unique names when generating default names', () => {
+    it('ensures unique names when generating default names', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1],
@@ -2026,7 +2026,7 @@ describe('AccountTreeController', () => {
       expect(names.every((name) => name.length > 0)).toBe(true);
     });
 
-    it('should prevent duplicate names when comparing trimmed names', () => {
+    it('prevents duplicate names when comparing trimmed names', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
