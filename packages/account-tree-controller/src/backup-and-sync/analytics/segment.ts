@@ -1,30 +1,30 @@
 import type { ProfileId } from '../authentication';
 
-export const BackupAndSyncAnalyticsEvents = {
-  WALLET_RENAMED: 'wallet_renamed',
-  GROUP_ADDED: 'group_added',
-  GROUP_RENAMED: 'group_renamed',
-  GROUP_HIDDEN_STATUS_CHANGED: 'group_hidden_status_changed',
-  GROUP_PINNED_STATUS_CHANGED: 'group_pinned_status_changed',
-  LEGACY_SYNCING_DONE: 'legacy_syncing_done',
-  LEGACY_GROUP_ADDED_FROM_ACCOUNT: 'legacy_group_added_from_account',
-  LEGACY_GROUP_RENAMED: 'legacy_group_renamed',
+export const BackupAndSyncAnalyticsEvent = {
+  WalletRenamed: 'wallet_renamed',
+  GroupAdded: 'group_added',
+  GroupRenamed: 'group_renamed',
+  GroupHiddenStatusChanged: 'group_hidden_status_changed',
+  GroupPinnedStatusChanged: 'group_pinned_status_changed',
+  LegacySyncingDone: 'legacy_syncing_done',
+  LegacyGroupAddedFromAccount: 'legacy_group_added_from_account',
+  LegacyGroupRenamed: 'legacy_group_renamed',
 } as const;
 
 const BACKUP_AND_SYNC_EVENT_FEATURE_NAME = 'Multichain Account Syncing';
 
-export type BackupAndSyncAnalyticsEvent =
-  (typeof BackupAndSyncAnalyticsEvents)[keyof typeof BackupAndSyncAnalyticsEvents];
+export type BackupAndSyncAnalyticsAction =
+  (typeof BackupAndSyncAnalyticsEvent)[keyof typeof BackupAndSyncAnalyticsEvent];
 
 export type BackupAndSyncEmitAnalyticsEventParams = {
-  action: BackupAndSyncAnalyticsEvent;
+  action: BackupAndSyncAnalyticsAction;
   profileId: ProfileId;
   additionalDescription?: string;
 };
 
 export type BackupAndSyncAnalyticsEventPayload = {
   feature_name: typeof BACKUP_AND_SYNC_EVENT_FEATURE_NAME;
-  action: BackupAndSyncAnalyticsEvent;
+  action: BackupAndSyncAnalyticsAction;
   profile_id: ProfileId;
   additional_description?: string;
 };

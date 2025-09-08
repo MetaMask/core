@@ -1,6 +1,6 @@
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
 import {
   UserStorageSyncedWalletSchema,
@@ -47,7 +47,7 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
       context.controller.setAccountWalletName(localWallet.id, name);
     },
     analytics: {
-      event: BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
+      action: BackupAndSyncAnalyticsEvent.WalletRenamed,
       profileId,
     },
   });

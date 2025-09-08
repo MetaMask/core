@@ -1,8 +1,8 @@
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncAnalyticsEvent } from '../analytics';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import type { BackupAndSyncAnalyticsAction } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
 import {
   UserStorageSyncedWalletGroupSchema,
@@ -29,7 +29,7 @@ export const createMultichainAccountGroup = async (
   entropySourceId: string,
   groupIndex: number,
   profileId: ProfileId,
-  analyticsAction: BackupAndSyncAnalyticsEvent,
+  analyticsAction: BackupAndSyncAnalyticsAction,
 ) => {
   try {
     // This will be idempotent so we can create the group even if it already exists
@@ -110,7 +110,7 @@ export async function createLocalGroupsFromUserStorage(
         entropySourceId,
         groupIndex,
         profileId,
-        BackupAndSyncAnalyticsEvents.GROUP_ADDED,
+        BackupAndSyncAnalyticsEvent.GroupAdded,
       );
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
@@ -165,7 +165,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
       context.controller.setAccountGroupName(localGroup.id, name);
     },
     analytics: {
-      event: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
+      action: BackupAndSyncAnalyticsEvent.GroupRenamed,
       profileId,
     },
   });
@@ -183,7 +183,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
       context.controller.setAccountGroupPinned(localGroup.id, pinned);
     },
     analytics: {
-      event: BackupAndSyncAnalyticsEvents.GROUP_PINNED_STATUS_CHANGED,
+      action: BackupAndSyncAnalyticsEvent.GroupPinnedStatusChanged,
       profileId,
     },
   });
@@ -201,7 +201,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
       context.controller.setAccountGroupHidden(localGroup.id, hidden);
     },
     analytics: {
-      event: BackupAndSyncAnalyticsEvents.GROUP_HIDDEN_STATUS_CHANGED,
+      action: BackupAndSyncAnalyticsEvent.GroupHiddenStatusChanged,
       profileId,
     },
   });

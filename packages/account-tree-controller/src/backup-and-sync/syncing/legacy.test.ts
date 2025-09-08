@@ -4,7 +4,7 @@ import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller
 import { createMultichainAccountGroup } from './group';
 import { performLegacyAccountSyncing } from './legacy';
 import type { AccountGroupMultichainAccountObject } from '../../group';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
 import { getLocalGroupsForEntropyWallet } from '../utils';
@@ -74,7 +74,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         'No legacy accounts, skipping legacy account syncing',
       );
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
-        action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+        action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
         profileId: testProfileId,
       });
       expect(mockGetLocalGroupsForEntropyWallet).not.toHaveBeenCalled();
@@ -127,14 +127,14 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testEntropySourceId,
         0,
         testProfileId,
-        BackupAndSyncAnalyticsEvents.LEGACY_GROUP_ADDED_FROM_ACCOUNT,
+        BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
       );
       expect(mockCreateMultichainAccountGroup).toHaveBeenCalledWith(
         mockContext,
         testEntropySourceId,
         1,
         testProfileId,
-        BackupAndSyncAnalyticsEvents.LEGACY_GROUP_ADDED_FROM_ACCOUNT,
+        BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
       );
     });
 
@@ -254,7 +254,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
 
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
-        action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+        action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
         profileId: testProfileId,
       });
     });
@@ -326,7 +326,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
 
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
-        action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+        action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
         profileId: testProfileId,
       });
     });

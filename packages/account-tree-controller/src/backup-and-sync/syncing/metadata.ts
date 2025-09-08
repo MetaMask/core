@@ -1,4 +1,7 @@
-import type { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type {
+  BackupAndSyncAnalyticsAction,
+  BackupAndSyncAnalyticsEvent,
+} from '../analytics';
 import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
 
@@ -34,7 +37,7 @@ export async function compareAndSyncMetadata<T>({
   applyLocalUpdate: (value: T) => Promise<void> | void;
   validateUserStorageValue: (value: T | undefined) => boolean;
   analytics?: {
-    event: BackupAndSyncAnalyticsEvent;
+    action: BackupAndSyncAnalyticsAction;
     profileId: ProfileId;
   };
 }): Promise<boolean> {
@@ -64,7 +67,7 @@ export async function compareAndSyncMetadata<T>({
     // Emit analytics event if provided
     if (analytics) {
       context.emitAnalyticsEventFn({
-        action: analytics.event,
+        action: analytics.action,
         profileId: analytics.profileId,
       });
     }

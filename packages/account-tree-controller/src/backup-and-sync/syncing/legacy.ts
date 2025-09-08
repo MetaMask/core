@@ -1,7 +1,7 @@
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
 import { createMultichainAccountGroup } from './group';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
@@ -34,7 +34,7 @@ export const performLegacyAccountSyncing = async (
     );
 
     context.emitAnalyticsEventFn({
-      action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+      action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
       profileId,
     });
 
@@ -58,7 +58,7 @@ export const performLegacyAccountSyncing = async (
         entropySourceId,
         i,
         profileId,
-        BackupAndSyncAnalyticsEvents.LEGACY_GROUP_ADDED_FROM_ACCOUNT,
+        BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
       );
     }
   }
@@ -91,7 +91,7 @@ export const performLegacyAccountSyncing = async (
         context.controller.setAccountGroupName(localGroup.id, n);
 
         context.emitAnalyticsEventFn({
-          action: BackupAndSyncAnalyticsEvents.LEGACY_GROUP_RENAMED,
+          action: BackupAndSyncAnalyticsEvent.LegacyGroupRenamed,
           profileId,
           additionalDescription: `Renamed legacy group ${localGroup.id} to ${n}`,
         });
@@ -100,7 +100,7 @@ export const performLegacyAccountSyncing = async (
   }
 
   context.emitAnalyticsEventFn({
-    action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+    action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
     profileId,
   });
 };

@@ -1,5 +1,5 @@
 import { compareAndSyncMetadata } from './metadata';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext } from '../types';
 
 describe('BackupAndSync - Syncing - Metadata', () => {
@@ -43,7 +43,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
         applyLocalUpdate: mockApplyLocalUpdate,
         validateUserStorageValue: mockValidateUserStorageValue,
         analytics: {
-          event: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
+          action: BackupAndSyncAnalyticsEvent.GroupRenamed,
           profileId: 'test-profile',
         },
       });
@@ -51,7 +51,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
       expect(result).toBe(false);
       expect(mockApplyLocalUpdate).toHaveBeenCalledWith('new');
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
-        action: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
+        action: BackupAndSyncAnalyticsEvent.GroupRenamed,
         profileId: 'test-profile',
       });
     });

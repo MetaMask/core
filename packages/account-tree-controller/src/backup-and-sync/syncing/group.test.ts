@@ -6,7 +6,7 @@ import {
 import * as metadataExports from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
@@ -223,7 +223,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       );
 
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
-        action: BackupAndSyncAnalyticsEvents.GROUP_ADDED,
+        action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
       });
     });
@@ -584,7 +584,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
         expect.objectContaining({
           analytics: {
-            event: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
+            action: BackupAndSyncAnalyticsEvent.GroupRenamed,
             profileId: 'test-profile',
           },
         }),
@@ -592,7 +592,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
         expect.objectContaining({
           analytics: {
-            event: BackupAndSyncAnalyticsEvents.GROUP_PINNED_STATUS_CHANGED,
+            action: BackupAndSyncAnalyticsEvent.GroupPinnedStatusChanged,
             profileId: 'test-profile',
           },
         }),
@@ -600,7 +600,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
         expect.objectContaining({
           analytics: {
-            event: BackupAndSyncAnalyticsEvents.GROUP_HIDDEN_STATUS_CHANGED,
+            action: BackupAndSyncAnalyticsEvent.GroupHiddenStatusChanged,
             profileId: 'test-profile',
           },
         }),

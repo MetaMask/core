@@ -1,7 +1,7 @@
 import {
-  BackupAndSyncAnalyticsEvents,
+  BackupAndSyncAnalyticsEvent,
   formatAnalyticsEvent,
-  type BackupAndSyncAnalyticsEvent,
+  type BackupAndSyncAnalyticsAction,
   type BackupAndSyncEmitAnalyticsEventParams,
   type BackupAndSyncAnalyticsEventPayload,
 } from './segment';
@@ -9,15 +9,15 @@ import {
 describe('BackupAndSyncAnalytics - Segment', () => {
   describe('BackupAndSyncAnalyticsEvents', () => {
     it('contains all expected event names', () => {
-      expect(BackupAndSyncAnalyticsEvents).toStrictEqual({
-        WALLET_RENAMED: 'wallet_renamed',
-        GROUP_ADDED: 'group_added',
-        GROUP_RENAMED: 'group_renamed',
-        GROUP_HIDDEN_STATUS_CHANGED: 'group_hidden_status_changed',
-        GROUP_PINNED_STATUS_CHANGED: 'group_pinned_status_changed',
-        LEGACY_SYNCING_DONE: 'legacy_syncing_done',
-        LEGACY_GROUP_ADDED_FROM_ACCOUNT: 'legacy_group_added_from_account',
-        LEGACY_GROUP_RENAMED: 'legacy_group_renamed',
+      expect(BackupAndSyncAnalyticsEvent).toStrictEqual({
+        WalletRenamed: 'wallet_renamed',
+        GroupAdded: 'group_added',
+        GroupRenamed: 'group_renamed',
+        GroupHiddenStatusChanged: 'group_hidden_status_changed',
+        GroupPinnedStatusChanged: 'group_pinned_status_changed',
+        LegacySyncingDone: 'legacy_syncing_done',
+        LegacyGroupAddedFromAccount: 'legacy_group_added_from_account',
+        LegacyGroupRenamed: 'legacy_group_renamed',
       });
     });
   });
@@ -27,7 +27,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
 
     it('formats analytics event with required parameters', () => {
       const params: BackupAndSyncEmitAnalyticsEventParams = {
-        action: BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
+        action: BackupAndSyncAnalyticsEvent.WalletRenamed,
         profileId: mockProfileId,
       };
 
@@ -46,7 +46,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
     it('formats analytics event with additional description', () => {
       const additionalDescription = 'Wallet renamed from old to new';
       const params: BackupAndSyncEmitAnalyticsEventParams = {
-        action: BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
+        action: BackupAndSyncAnalyticsEvent.GroupRenamed,
         profileId: mockProfileId,
         additionalDescription,
       };
@@ -62,13 +62,13 @@ describe('BackupAndSyncAnalytics - Segment', () => {
     });
 
     it('handles all event types correctly', () => {
-      const eventTypes: BackupAndSyncAnalyticsEvent[] = [
-        BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
-        BackupAndSyncAnalyticsEvents.GROUP_ADDED,
-        BackupAndSyncAnalyticsEvents.GROUP_RENAMED,
-        BackupAndSyncAnalyticsEvents.GROUP_HIDDEN_STATUS_CHANGED,
-        BackupAndSyncAnalyticsEvents.GROUP_PINNED_STATUS_CHANGED,
-        BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+      const eventTypes: BackupAndSyncAnalyticsAction[] = [
+        BackupAndSyncAnalyticsEvent.WalletRenamed,
+        BackupAndSyncAnalyticsEvent.GroupAdded,
+        BackupAndSyncAnalyticsEvent.GroupRenamed,
+        BackupAndSyncAnalyticsEvent.GroupHiddenStatusChanged,
+        BackupAndSyncAnalyticsEvent.GroupPinnedStatusChanged,
+        BackupAndSyncAnalyticsEvent.LegacySyncingDone,
       ];
 
       eventTypes.forEach((action) => {
@@ -90,7 +90,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
 
     it('handles empty additional description parameter', () => {
       const params: BackupAndSyncEmitAnalyticsEventParams = {
-        action: BackupAndSyncAnalyticsEvents.GROUP_ADDED,
+        action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: mockProfileId,
         additionalDescription: '',
       };
@@ -102,7 +102,7 @@ describe('BackupAndSyncAnalytics - Segment', () => {
 
     it('always includes the same feature name', () => {
       const params: BackupAndSyncEmitAnalyticsEventParams = {
-        action: BackupAndSyncAnalyticsEvents.LEGACY_SYNCING_DONE,
+        action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
         profileId: mockProfileId,
       };
 

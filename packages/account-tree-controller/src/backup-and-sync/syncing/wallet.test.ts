@@ -4,7 +4,7 @@ import {
   syncWalletMetadata,
 } from './wallet';
 import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvents } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
 import { createMockContextualLogger } from '../utils/test-utils';
@@ -105,7 +105,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         validateUserStorageValue: expect.any(Function),
         applyLocalUpdate: expect.any(Function),
         analytics: {
-          event: BackupAndSyncAnalyticsEvents.WALLET_RENAMED,
+          action: BackupAndSyncAnalyticsEvent.WalletRenamed,
           profileId: 'test-profile',
         },
       });
