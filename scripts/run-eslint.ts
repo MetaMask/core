@@ -160,7 +160,7 @@ async function main() {
  * @returns The parsed arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { cache, fix, quiet, ...rest } = yargs(process.argv.slice(2))
+  const argv = await yargs(process.argv.slice(2))
     .option('cache', {
       type: 'boolean',
       description: 'Cache results to speed up future runs',
@@ -178,12 +178,17 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       default: false,
     })
     .help()
-    .string('_').argv;
+    .string('_')
+    .parseAsync();
 
-  // Type assertion: The types for `yargs`'s `string` method are wrong.
-  const files = rest._ as string[];
+  const files = argv._ as string[];
 
-  return { cache, fix, quiet, files };
+  return {
+    cache: argv.cache,
+    fix: argv.fix,
+    quiet: argv.quiet,
+    files,
+  };
 }
 
 /**

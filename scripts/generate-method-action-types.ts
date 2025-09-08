@@ -39,7 +39,7 @@ type CommandLineArguments = {
  * @returns The command line arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { check, fix } = yargs(process.argv.slice(2))
+  const argv = await yargs(process.argv.slice(2))
     .option('check', {
       type: 'boolean',
       description: 'Check if generated action type files are up to date',
@@ -51,14 +51,15 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       default: false,
     })
     .help()
-    .check((argv) => {
-      if (!argv.check && !argv.fix) {
+    .check((args) => {
+      if (!args.check && !args.fix) {
         throw new Error('Either --check or --fix must be provided.\n');
       }
       return true;
-    }).argv;
+    })
+    .parseAsync();
 
-  return { check, fix };
+  return { check: argv.check, fix: argv.fix };
 }
 
 /**
