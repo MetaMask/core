@@ -5,7 +5,8 @@ import {
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 
-import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
+import type { UpdatableField, ExtractFieldValues } from './type-utils';
+import type { AccountTreeControllerState } from './types';
 
 /**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
@@ -84,3 +85,29 @@ export type AccountGroupObjectOf<GroupType extends AccountGroupType> = Extract<
     },
   { type: GroupType }
 >['object'];
+
+/**
+ * Checks if an account group name is unique across all groups.
+ *
+ * @param state - The account tree controller state.
+ * @param groupId - The account group ID to exclude from the check.
+ * @param name - The name to validate for uniqueness.
+ * @returns True if the name is unique, false otherwise.
+ */
+export function isAccountGroupNameUnique(
+  state: AccountTreeControllerState,
+  groupId: AccountGroupId,
+  name: string,
+): boolean {
+  const trimmedName = name.trim();
+
+  for (const wallet of Object.values(state.accountTree.wallets)) {
+    for (const group of Object.values(wallet.groups)) {
+      if (group.id !== groupId && group.metadata.name.trim() === trimmedName) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
