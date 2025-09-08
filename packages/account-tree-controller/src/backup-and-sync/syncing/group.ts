@@ -77,7 +77,7 @@ export async function createLocalGroupsFromUserStorage(
   for (const groupFromUserStorage of groupsFromUserStorage) {
     const { groupIndex } = groupFromUserStorage;
 
-    if (typeof groupIndex !== 'number' || groupIndex < 0) {
+    if (groupIndex < 0) {
       context.contextualLogger.warn(
         `Invalid group index ${groupIndex} found in user storage, skipping`,
       );
