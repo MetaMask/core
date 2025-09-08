@@ -694,6 +694,23 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Asserts that an account group name is unique across all groups.
+   *
+   * @param groupId - The account group ID to exclude from the check.
+   * @param name - The name to validate for uniqueness.
+   * @throws Error if the name already exists in another group.
+   */
+  #assertAccountGroupNameIsUnique(groupId: AccountGroupId, name: string): void {
+    for (const wallet of Object.values(this.state.accountTree.wallets)) {
+      for (const [currentGroupId, group] of Object.entries(wallet.groups)) {
+        if (currentGroupId !== groupId && group.metadata.name === name) {
+          throw new Error('Account group name already exists');
+        }
+      }
+    }
+  }
+
+  /**
    * Gets the currently selected account group ID.
    *
    * @returns The selected account group ID or empty string if none selected.
@@ -891,10 +908,14 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID.
    * @param name - The custom name to set.
    * @throws If the account group ID is not found in the current tree.
+   * @throws If the account group name already exists.
    */
   setAccountGroupName(groupId: AccountGroupId, name: string): void {
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
+
+    // Validate that the name is unique
+    this.#assertAccountGroupNameIsUnique(groupId, name);
 
     this.update((state) => {
       // Update persistent metadata

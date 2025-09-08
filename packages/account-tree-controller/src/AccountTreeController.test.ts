@@ -1949,6 +1949,82 @@ describe('AccountTreeController', () => {
         controller.state.accountWalletsMetadata[nonExistentWalletId],
       ).toBeUndefined();
     });
+
+    it('should allow setting the same name for the same group', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallets = controller.getAccountWalletObjects();
+      const groups = Object.values(wallets[0].groups);
+      const groupId = groups[0].id;
+
+      const customName = 'My Custom Group';
+
+      // Set the name first time - should succeed
+      controller.setAccountGroupName(groupId, customName);
+
+      // Set the same name again for the same group - should succeed
+      expect(() => {
+        controller.setAccountGroupName(groupId, customName);
+      }).not.toThrow();
+    });
+
+    it('should prevent setting duplicate names across different groups', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const wallets = controller.getAccountWalletObjects();
+
+      // We should have 2 wallets (one for each keyring)
+      expect(wallets).toHaveLength(2);
+
+      const wallet1 = wallets[0];
+      const wallet2 = wallets[1];
+      const groups1 = Object.values(wallet1.groups);
+      const groups2 = Object.values(wallet2.groups);
+
+      expect(groups1.length).toBeGreaterThanOrEqual(1);
+      expect(groups2.length).toBeGreaterThanOrEqual(1);
+
+      const groupId1 = groups1[0].id;
+      const groupId2 = groups2[0].id;
+      const duplicateName = 'Duplicate Group Name';
+
+      // Set name for first group - should succeed
+      controller.setAccountGroupName(groupId1, duplicateName);
+
+      // Try to set the same name for second group - should throw
+      expect(() => {
+        controller.setAccountGroupName(groupId2, duplicateName);
+      }).toThrow('Account group name already exists');
+    });
+
+    it('should ensure unique names when generating default names', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallets = controller.getAccountWalletObjects();
+      const groups = Object.values(wallets[0].groups);
+
+      // All groups should have unique names by default
+      const names = groups.map((group) => group.metadata.name);
+      const uniqueNames = new Set(names);
+
+      expect(uniqueNames.size).toBe(names.length);
+      expect(names.every((name) => name.length > 0)).toBe(true);
+    });
   });
 
   describe('Fallback Naming', () => {
