@@ -1,8 +1,9 @@
-import { BaseController } from '@metamask/base-controller';
-import type {
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
@@ -47,6 +48,11 @@ export function getDefaultShieldControllerState(): ShieldControllerState {
   };
 }
 
+export type ShieldControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  ShieldControllerState
+>;
+
 export type ShieldControllerCheckCoverageAction = {
   type: `${typeof controllerName}:checkCoverage`;
   handler: ShieldController['checkCoverage'];
@@ -55,7 +61,9 @@ export type ShieldControllerCheckCoverageAction = {
 /**
  * The internal actions available to the ShieldController.
  */
-export type ShieldControllerActions = ShieldControllerCheckCoverageAction;
+export type ShieldControllerActions =
+  | ShieldControllerGetStateAction
+  | ShieldControllerCheckCoverageAction;
 
 export type ShieldControllerCoverageResultReceivedEvent = {
   type: `${typeof controllerName}:coverageResultReceived`;
@@ -75,11 +83,6 @@ export type ShieldControllerEvents =
   | ShieldControllerStateChangeEvent;
 
 /**
- * The external actions available to the ShieldController.
- */
-type AllowedActions = never;
-
-/**
  * The external events available to the ShieldController.
  */
 type AllowedEvents = TransactionControllerStateChangeEvent;
@@ -87,12 +90,10 @@ type AllowedEvents = TransactionControllerStateChangeEvent;
 /**
  * The messenger of the {@link ShieldController}.
  */
-export type ShieldControllerMessenger = RestrictedMessenger<
+export type ShieldControllerMessenger = Messenger<
   typeof controllerName,
-  ShieldControllerActions | AllowedActions,
-  ShieldControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  ShieldControllerActions,
+  ShieldControllerEvents | AllowedEvents
 >;
 
 /**
@@ -160,7 +161,7 @@ export class ShieldController extends BaseController<
   }
 
   start() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
       (state) => state.transactions,
@@ -168,7 +169,7 @@ export class ShieldController extends BaseController<
   }
 
   stop() {
-    this.messagingSystem.unsubscribe(
+    this.messenger.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -211,7 +212,7 @@ export class ShieldController extends BaseController<
     const coverageResult = await this.#fetchCoverageResult(txMeta);
 
     // Publish coverage result
-    this.messagingSystem.publish(
+    this.messenger.publish(
       `${controllerName}:coverageResultReceived`,
       coverageResult,
     );

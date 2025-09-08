@@ -21,7 +21,7 @@ function setup({
   transactionHistoryLimit?: number;
 } = {}) {
   const backend = createMockBackend();
-  const { messenger, baseMessenger } = createMockMessenger();
+  const { messenger, rootMessenger } = createMockMessenger();
 
   const controller = new ShieldController({
     backend,
@@ -33,7 +33,7 @@ function setup({
   return {
     controller,
     messenger,
-    baseMessenger,
+    rootMessenger,
     backend,
   };
 }
@@ -41,15 +41,15 @@ function setup({
 describe('ShieldController', () => {
   describe('checkCoverage', () => {
     it('should trigger checkCoverage when a new transaction is added', async () => {
-      const { baseMessenger, backend } = setup();
+      const { rootMessenger, backend } = setup();
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = new Promise<void>((resolve) => {
-        baseMessenger.subscribe(
+        rootMessenger.subscribe(
           'ShieldController:coverageResultReceived',
           (_coverageResult) => resolve(),
         );
       });
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -59,11 +59,11 @@ describe('ShieldController', () => {
     });
 
     it('should no longer trigger checkCoverage when controller is stopped', async () => {
-      const { controller, baseMessenger, backend } = setup();
+      const { controller, rootMessenger, backend } = setup();
       controller.stop();
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = new Promise<void>((resolve, reject) => {
-        baseMessenger.subscribe(
+        rootMessenger.subscribe(
           'ShieldController:coverageResultReceived',
           (_coverageResult) => resolve(),
         );
@@ -72,7 +72,7 @@ describe('ShieldController', () => {
           100,
         );
       });
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -111,17 +111,17 @@ describe('ShieldController', () => {
     });
 
     it('should check coverage when a transaction is simulated', async () => {
-      const { baseMessenger, backend } = setup();
+      const { rootMessenger, backend } = setup();
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = new Promise<void>((resolve) => {
-        baseMessenger.subscribe(
+        rootMessenger.subscribe(
           'ShieldController:coverageResultReceived',
           (_coverageResult) => resolve(),
         );
       });
 
       // Add transaction.
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
@@ -133,7 +133,7 @@ describe('ShieldController', () => {
       txMeta.simulationData = {
         tokenBalanceChanges: [],
       };
-      baseMessenger.publish(
+      rootMessenger.publish(
         'TransactionController:stateChange',
         { transactions: [txMeta] } as TransactionControllerState,
         undefined as never,
