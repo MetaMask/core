@@ -32,7 +32,7 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
-import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+import { type AccountWalletObject, type AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -976,6 +976,8 @@ export class AccountTreeController extends BaseController<
     // Validate that the name is unique
     this.#assertAccountGroupNameIsUnique(groupId, name);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+
     this.update((state) => {
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
@@ -985,15 +987,20 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.name =
           name;
       }
     });
 
-    // Trigger atomic sync for group rename
-    this.#syncingService.enqueueSingleGroupSync(groupId);
+    // Trigger atomic sync for group rename (only for groups from entropy wallets)
+    if (
+      walletId &&
+      this.state.accountTree.wallets[walletId].type ===
+        AccountWalletType.Entropy
+    ) {
+      this.#syncingService.enqueueSingleGroupSync(groupId);
+    }
   }
 
   /**
@@ -1019,8 +1026,13 @@ export class AccountTreeController extends BaseController<
       state.accountTree.wallets[walletId].metadata.name = name;
     });
 
-    // Trigger atomic sync for wallet rename
-    this.#syncingService.enqueueSingleWalletSync(walletId);
+    // Trigger atomic sync for wallet rename (only for groups from entropy wallets)
+    if (
+      this.state.accountTree.wallets[walletId].type ===
+      AccountWalletType.Entropy
+    ) {
+      this.#syncingService.enqueueSingleWalletSync(walletId);
+    }
   }
 
   /**
@@ -1034,6 +1046,8 @@ export class AccountTreeController extends BaseController<
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+
     this.update((state) => {
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
@@ -1043,15 +1057,20 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.pinned =
           pinned;
       }
     });
 
-    // Trigger atomic sync for group pinning
-    this.#syncingService.enqueueSingleGroupSync(groupId);
+    // Trigger atomic sync for group pinning (only for groups from entropy wallets)
+    if (
+      walletId &&
+      this.state.accountTree.wallets[walletId].type ===
+        AccountWalletType.Entropy
+    ) {
+      this.#syncingService.enqueueSingleGroupSync(groupId);
+    }
   }
 
   /**
@@ -1065,6 +1084,8 @@ export class AccountTreeController extends BaseController<
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+
     this.update((state) => {
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
@@ -1074,15 +1095,20 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.hidden =
           hidden;
       }
     });
 
-    // Trigger atomic sync for group hiding
-    this.#syncingService.enqueueSingleGroupSync(groupId);
+    // Trigger atomic sync for group hiding (only for groups from entropy wallets)
+    if (
+      walletId &&
+      this.state.accountTree.wallets[walletId].type ===
+        AccountWalletType.Entropy
+    ) {
+      this.#syncingService.enqueueSingleGroupSync(groupId);
+    }
   }
 
   /**

@@ -1,3 +1,5 @@
+import deepEqual from 'fast-deep-equal';
+
 import type { BackupAndSyncAnalyticsAction } from '../analytics';
 import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
@@ -43,9 +45,9 @@ export async function compareAndSyncMetadata<T>({
   const userStorageValue = userStorageMetadata?.value;
   const userStorageTimestamp = userStorageMetadata?.lastUpdatedAt;
 
-  const isValueDifferent = localValue !== userStorageValue;
+  const isSameValue = deepEqual(localValue, userStorageValue);
 
-  if (!isValueDifferent) {
+  if (isSameValue) {
     return false; // No sync needed, values are the same
   }
 

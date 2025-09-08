@@ -1,3 +1,5 @@
+import { toMultichainAccountWalletId } from '@metamask/account-api';
+
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
@@ -94,7 +96,7 @@ export async function createLocalGroupsFromUserStorage(
 
     const wallet =
       context.controller.state.accountTree.wallets[
-        `entropy:${entropySourceId}`
+        toMultichainAccountWalletId(entropySourceId)
       ];
 
     if (!wallet) {
@@ -105,8 +107,9 @@ export async function createLocalGroupsFromUserStorage(
     }
 
     const didGroupAlreadyExist = Object.values(
-      context.controller.state.accountTree.wallets[`entropy:${entropySourceId}`]
-        .groups,
+      context.controller.state.accountTree.wallets[
+        toMultichainAccountWalletId(entropySourceId)
+      ].groups,
     ).some((group) => group.metadata.entropy.groupIndex === groupIndex);
 
     if (didGroupAlreadyExist) {

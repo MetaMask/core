@@ -2423,6 +2423,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
+    fast-deep-equal: "npm:^3.1.3"
     jest: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
@@ -2495,7 +2496,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/address-book-controller@workspace:packages/address-book-controller":
+"@metamask/address-book-controller@npm:^6.1.1, @metamask/address-book-controller@workspace:packages/address-book-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/address-book-controller@workspace:packages/address-book-controller"
   dependencies:
@@ -4259,6 +4260,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@metamask/address-book-controller": "npm:^6.1.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/keyring-api": "npm:^20.1.0"
@@ -4285,6 +4287,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
+    "@metamask/address-book-controller": ^6.1.1
     "@metamask/keyring-controller": ^23.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0

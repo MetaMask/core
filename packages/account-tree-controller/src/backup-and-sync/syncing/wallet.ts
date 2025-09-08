@@ -28,7 +28,7 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
     context.controller.state.accountWalletsMetadata[localWallet.id];
 
   if (!walletFromUserStorage) {
-    context.contextualLogger.warn(
+    context.contextualLogger.info(
       `Wallet ${localWallet.id} did not exist in user storage, pushing to user storage...`,
     );
     return true;

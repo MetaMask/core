@@ -1,3 +1,4 @@
+import { toMultichainAccountWalletId } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
 import { createMultichainAccountGroup } from './group';
@@ -66,7 +67,7 @@ export const performLegacyAccountSyncing = async (
   // 3. Rename account groups if needed
   const localAccountGroups = getLocalGroupsForEntropyWallet(
     context,
-    `entropy:${entropySourceId}`,
+    toMultichainAccountWalletId(entropySourceId),
   );
   for (const legacyAccount of legacyAccountsFromUserStorage) {
     // n: name
@@ -80,12 +81,12 @@ export const performLegacyAccountSyncing = async (
       );
       continue;
     }
-    const localGroupId = getUUIDFromAddressOfNormalAccount(a);
 
     if (n) {
       // Find the local group that corresponds to this EVM address
+      const localAccountId = getUUIDFromAddressOfNormalAccount(a);
       const localGroup = localAccountGroups.find((group) =>
-        group.accounts.some((accountId) => accountId === localGroupId),
+        group.accounts.some((accountId) => accountId === localAccountId),
       );
       if (localGroup) {
         context.controller.setAccountGroupName(localGroup.id, n);

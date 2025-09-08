@@ -2849,8 +2849,6 @@ describe('AccountTreeController', () => {
       await controller.syncWithUserStorage();
 
       expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
-
-      performFullSyncSpy.mockRestore();
     });
 
     it('handles sync errors gracefully', async () => {
@@ -2870,8 +2868,6 @@ describe('AccountTreeController', () => {
         'Sync failed',
       );
       expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
-
-      performFullSyncSpy.mockRestore();
     });
   });
 
