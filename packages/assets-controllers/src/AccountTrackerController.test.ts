@@ -16,6 +16,7 @@ import type {
   AllowedEvents,
 } from './AccountTrackerController';
 import { AccountTrackerController } from './AccountTrackerController';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
@@ -1001,6 +1002,79 @@ describe('AccountTrackerController', () => {
         );
       });
     });
+
+    it('should continue to next fetcher when current fetcher supports no chains', async () => {
+      // Spy on the AccountsApiBalanceFetcher's supports method to return false
+      const supportsSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'supports')
+        .mockReturnValue(false);
+
+      await withController(
+        {
+          options: {
+            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            allowExternalServices: () => true,
+          },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          // Mock RPC query to return balance (this should be used since AccountsAPI supports nothing)
+          mockedQuery.mockResolvedValue('0x123456');
+
+          // Refresh balances for mainnet
+          await refresh(clock, ['mainnet']);
+
+          // Verify that the supports method was called (meaning we reached the continue logic)
+          expect(supportsSpy).toHaveBeenCalledWith('0x1');
+
+          // Verify that state was still updated via RPC fetcher fallback
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1]
+              .balance,
+          ).toBeDefined();
+
+          supportsSpy.mockRestore();
+        },
+      );
+    });
+
+    it('should log warning when balance fetcher throws an error', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Mock AccountsApiBalanceFetcher to throw an error
+      const fetchSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockRejectedValue(new Error('API request failed'));
+
+      await withController(
+        {
+          options: {
+            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            allowExternalServices: () => true,
+          },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ refresh }) => {
+          // Mock RPC query to return balance (fallback after API fails)
+          mockedQuery.mockResolvedValue('0x123456');
+
+          // Refresh balances for mainnet
+          await refresh(clock, ['mainnet']);
+
+          // Verify that console.warn was called with the error message
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Balance fetcher failed for chains 0x1:'),
+          );
+
+          fetchSpy.mockRestore();
+          consoleWarnSpy.mockRestore();
+        },
+      );
+    });
   });
 
   describe('syncBalanceWithAddresses', () => {
@@ -1048,6 +1122,41 @@ describe('AccountTrackerController', () => {
           expect(result[ADDRESS_2].balance).toBe('0x20');
           expect(result[ADDRESS_1].stakedBalance).toBe('0x1');
           expect(result[ADDRESS_2].stakedBalance).toBe('0x1');
+        },
+      );
+    });
+
+    it('should handle timeout in syncBalanceWithAddresses gracefully', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          // Mock safelyExecuteWithTimeout to return undefined (timeout case)
+          mockedSafelyExecuteWithTimeout.mockImplementation(
+            async () => undefined, // Simulates timeout behavior
+          );
+
+          const result = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+            ADDRESS_2,
+          ]);
+
+          // Verify that the result is an empty object when all operations timeout
+          expect(result).toStrictEqual({});
+
+          // Restore the mock
+          mockedSafelyExecuteWithTimeout.mockImplementation(
+            async (operation: () => Promise<unknown>) => {
+              try {
+                return await operation();
+              } catch {
+                return undefined;
+              }
+            },
+          );
         },
       );
     });
