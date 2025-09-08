@@ -151,7 +151,7 @@ export async function main(): Promise<void> {
       break;
   }
 
-  core.setOutput('RELEASE_VALIDATION_STATUS', releaseValidationResult.status);
+  core.setOutput('RELEASE_VALIDATION_RELEASE', releaseValidationResult.status);
 }
 
 /**
