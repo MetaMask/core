@@ -106,11 +106,9 @@ export async function createLocalGroupsFromUserStorage(
       continue;
     }
 
-    const didGroupAlreadyExist = Object.values(
-      context.controller.state.accountTree.wallets[
-        toMultichainAccountWalletId(entropySourceId)
-      ].groups,
-    ).some((group) => group.metadata.entropy.groupIndex === groupIndex);
+    const didGroupAlreadyExist = Object.values(wallet.groups).some(
+      (group) => group.metadata.entropy.groupIndex === groupIndex,
+    );
 
     if (didGroupAlreadyExist) {
       context.contextualLogger.warn(
@@ -185,7 +183,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     },
   });
 
-  shouldPushGroup = shouldPushGroup || shouldPushForName;
+  shouldPushGroup ||= shouldPushForName;
 
   // Compare and sync pinned metadata
   const shouldPushForPinned = await compareAndSyncMetadata({
@@ -203,7 +201,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     },
   });
 
-  shouldPushGroup = shouldPushGroup || shouldPushForPinned;
+  shouldPushGroup ||= shouldPushForPinned;
 
   // Compare and sync hidden metadata
   const shouldPushForHidden = await compareAndSyncMetadata({
@@ -221,7 +219,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     },
   });
 
-  shouldPushGroup = shouldPushGroup || shouldPushForHidden;
+  shouldPushGroup ||= shouldPushForHidden;
 
   return shouldPushGroup;
 }

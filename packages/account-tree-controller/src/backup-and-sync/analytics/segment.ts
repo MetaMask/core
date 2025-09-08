@@ -42,12 +42,16 @@ export type BackupAndSyncAnalyticsEventPayload = {
 export const formatAnalyticsEvent = ({
   action,
   profileId,
-  additionalDescription = '',
+  additionalDescription,
 }: BackupAndSyncEmitAnalyticsEventParams): BackupAndSyncAnalyticsEventPayload => {
   return {
     feature_name: BACKUP_AND_SYNC_EVENT_FEATURE_NAME,
     action,
     profile_id: profileId,
-    additional_description: additionalDescription,
+    ...(additionalDescription !== undefined
+      ? {
+          additional_description: additionalDescription,
+        }
+      : {}),
   };
 };

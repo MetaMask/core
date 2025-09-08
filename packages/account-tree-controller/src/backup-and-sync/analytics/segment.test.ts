@@ -37,7 +37,6 @@ describe('BackupAndSyncAnalytics - Segment', () => {
         feature_name: 'Multichain Account Syncing',
         action: 'wallet_renamed',
         profile_id: mockProfileId,
-        additional_description: '',
       };
 
       expect(result).toStrictEqual(expected);
@@ -83,7 +82,6 @@ describe('BackupAndSyncAnalytics - Segment', () => {
           feature_name: 'Multichain Account Syncing',
           action,
           profile_id: mockProfileId,
-          additional_description: '',
         });
       });
     });
