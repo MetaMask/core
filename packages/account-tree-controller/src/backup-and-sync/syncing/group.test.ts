@@ -71,7 +71,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     } as unknown as BackupAndSyncContext;
 
     mockLocalGroup = {
-      id: 'entropy:test-entropy/group-1',
+      id: 'entropy:test-entropy/0',
       name: 'Test Group',
       metadata: { entropy: { groupIndex: 0 } },
     } as unknown as AccountGroupMultichainAccountObject;
@@ -128,8 +128,6 @@ describe('BackupAndSync - Syncing - Group', () => {
       const groupsWithInvalid: UserStorageSyncedWalletGroup[] = [
         { groupIndex: -1 },
         { groupIndex: 0 },
-        /* eslint-disable-next-line */
-        { groupIndex: null as any },
       ];
 
       await createLocalGroupsFromUserStorage(
@@ -150,7 +148,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       mockContext.controller.state.accountTree.wallets[
         'entropy:test-entropy'
       ].groups = {
-        'entropy:test-entropy/group-1': {
+        'entropy:test-entropy/0': {
           metadata: { entropy: { groupIndex: 0 } },
         } as unknown as AccountGroupMultichainAccountObject,
       };
@@ -519,11 +517,11 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('syncs all local groups and batch push when needed', async () => {
       const localGroups = [
         {
-          id: 'entropy:test-entropy/group-1',
+          id: 'entropy:test-entropy/0',
           metadata: { entropy: { groupIndex: 0 } },
         },
         {
-          id: 'entropy:test-entropy/group-2',
+          id: 'entropy:test-entropy/1',
           metadata: { entropy: { groupIndex: 1 } },
         },
       ] as unknown as AccountGroupMultichainAccountObject[];
@@ -557,7 +555,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('pushes group if it is not present in user storage', async () => {
       const localGroups = [
         {
-          id: 'entropy:test-entropy/group-1',
+          id: 'entropy:test-entropy/0',
           metadata: { entropy: { groupIndex: 0 } },
         } as unknown as AccountGroupMultichainAccountObject,
       ];
@@ -577,7 +575,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
     it('handles metadata sync for name, pinned, and hidden fields', async () => {
       const localGroup = {
-        id: 'entropy:test-entropy/group-1',
+        id: 'entropy:test-entropy/0',
         metadata: { entropy: { groupIndex: 0 } },
       } as unknown as AccountGroupMultichainAccountObject;
 

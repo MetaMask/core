@@ -12,6 +12,20 @@ import {
 } from '../types';
 
 /**
+ * Formats validation error messages for user storage data.
+ *
+ * @param error - The StructError thrown during validation.
+ * @returns A formatted string of validation error messages.
+ */
+const formatValidationErrorMessages = (error: StructError) => {
+  const validationFailures = error
+    .failures()
+    .map(({ path, message }) => `[${path.join('.')}] ${message}`)
+    .join(', ');
+  return `Invalid user storage data: ${validationFailures}`;
+};
+
+/**
  * Validates and asserts user storage wallet data, throwing detailed errors if invalid.
  *
  * @param walletData - The wallet data from user storage to validate.
@@ -24,12 +38,8 @@ export function assertValidUserStorageWallet(
     assert(walletData, UserStorageSyncedWalletSchema);
   } catch (error) {
     if (error instanceof StructError) {
-      const validationFailures = error
-        .failures()
-        .map(({ path, message }) => `[${path.join('.')}] ${message}`)
-        .join(', ');
       throw new Error(
-        `Invalid user storage wallet data: ${validationFailures}`,
+        `Invalid user storage wallet data: ${formatValidationErrorMessages(error)}`,
       );
     }
     /* istanbul ignore next */
@@ -50,11 +60,9 @@ export function assertValidUserStorageGroup(
     assert(groupData, UserStorageSyncedWalletGroupSchema);
   } catch (error) {
     if (error instanceof StructError) {
-      const validationFailures = error
-        .failures()
-        .map(({ path, message }) => `[${path.join('.')}] ${message}`)
-        .join(', ');
-      throw new Error(`Invalid user storage group data: ${validationFailures}`);
+      throw new Error(
+        `Invalid user storage group data: ${formatValidationErrorMessages(error)}`,
+      );
     }
     /* istanbul ignore next */
     throw error;
@@ -74,12 +82,8 @@ export function assertValidLegacyUserStorageAccount(
     assert(accountData, LegacyUserStorageSyncedAccountSchema);
   } catch (error) {
     if (error instanceof StructError) {
-      const validationFailures = error
-        .failures()
-        .map(({ path, message }) => `[${path.join('.')}] ${message}`)
-        .join(', ');
       throw new Error(
-        `Invalid legacy user storage account data: ${validationFailures}`,
+        `Invalid legacy user storage account data: ${formatValidationErrorMessages(error)}`,
       );
     }
     /* istanbul ignore next */

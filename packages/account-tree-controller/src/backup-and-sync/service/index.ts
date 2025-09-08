@@ -2,7 +2,6 @@ import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 
 import { AtomicSyncQueue } from './atomic-sync-queue';
-import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountTreeControllerState } from '../../types';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
@@ -348,7 +347,7 @@ export class BackupAndSyncService {
 
       await syncSingleGroupMetadata(
         this.#context,
-        group as AccountGroupMultichainAccountObject,
+        group,
         groupFromUserStorage,
         entropySourceId,
         walletProfileId,

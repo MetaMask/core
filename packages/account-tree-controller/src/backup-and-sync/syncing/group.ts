@@ -1,4 +1,7 @@
-import { toMultichainAccountWalletId } from '@metamask/account-api';
+import {
+  toMultichainAccountGroupId,
+  toMultichainAccountWalletId,
+} from '@metamask/account-api';
 
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
@@ -78,7 +81,7 @@ export async function createLocalGroupsFromUserStorage(
     const { groupIndex } = groupFromUserStorage;
 
     if (groupIndex < 0) {
-      context.contextualLogger.warn(
+      console.log(
         `Invalid group index ${groupIndex} found in user storage, skipping`,
       );
       continue;
@@ -94,10 +97,8 @@ export async function createLocalGroupsFromUserStorage(
       );
     }
 
-    const wallet =
-      context.controller.state.accountTree.wallets[
-        toMultichainAccountWalletId(entropySourceId)
-      ];
+    const walletId = toMultichainAccountWalletId(entropySourceId);
+    const wallet = context.controller.state.accountTree.wallets[walletId];
 
     if (!wallet) {
       context.contextualLogger.warn(
@@ -106,9 +107,8 @@ export async function createLocalGroupsFromUserStorage(
       continue;
     }
 
-    const didGroupAlreadyExist = Object.values(wallet.groups).some(
-      (group) => group.metadata.entropy.groupIndex === groupIndex,
-    );
+    const groupId = toMultichainAccountGroupId(walletId, groupIndex);
+    const didGroupAlreadyExist = wallet.groups[groupId] !== undefined;
 
     if (didGroupAlreadyExist) {
       context.contextualLogger.warn(
@@ -125,8 +125,7 @@ export async function createLocalGroupsFromUserStorage(
         profileId,
         BackupAndSyncAnalyticsEvent.GroupAdded,
       );
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_) {
+    } catch {
       // This can happen if the Snap Keyring is not ready yet when invoking
       // `MultichainAccountService:createMultichainAccountGroup`.
       // Since `MultichainAccountService:createMultichainAccountGroup` will at

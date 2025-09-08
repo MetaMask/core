@@ -86,7 +86,7 @@ export const performLegacyAccountSyncing = async (
       // Find the local group that corresponds to this EVM address
       const localAccountId = getUUIDFromAddressOfNormalAccount(a);
       const localGroup = localAccountGroups.find((group) =>
-        group.accounts.some((accountId) => accountId === localAccountId),
+        group.accounts.includes(localAccountId),
       );
       if (localGroup) {
         context.controller.setAccountGroupName(localGroup.id, n);
