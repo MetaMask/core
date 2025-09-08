@@ -190,6 +190,31 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledTimes(1);
     });
 
+    it('skips group creation when wallet does not exist', async () => {
+      const groups: UserStorageSyncedWalletGroup[] = [
+        { groupIndex: 0 },
+        { groupIndex: 1 },
+      ];
+
+      // Remove the wallet from the state to simulate non-existence
+      delete mockContext.controller.state.accountTree.wallets[
+        'entropy:test-entropy'
+      ];
+
+      await createLocalGroupsFromUserStorage(
+        mockContext,
+        groups,
+        'test-entropy',
+        'test-profile',
+      );
+
+      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
+        'Wallet with entropy test-entropy does not exist, skipping group creation',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalled();
+      expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+    });
+
     it('handles non-Error exceptions in debug logging', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 

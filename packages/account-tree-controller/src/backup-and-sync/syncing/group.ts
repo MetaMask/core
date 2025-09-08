@@ -92,6 +92,18 @@ export async function createLocalGroupsFromUserStorage(
       );
     }
 
+    const wallet =
+      context.controller.state.accountTree.wallets[
+        `entropy:${entropySourceId}`
+      ];
+
+    if (!wallet) {
+      context.contextualLogger.warn(
+        `Wallet with entropy ${entropySourceId} does not exist, skipping group creation`,
+      );
+      continue;
+    }
+
     const didGroupAlreadyExist = Object.values(
       context.controller.state.accountTree.wallets[`entropy:${entropySourceId}`]
         .groups,
