@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6496](https://github.com/MetaMask/core/pull/6496))
+  - Previously, `SignatureController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
 ## [34.0.0]
