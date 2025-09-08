@@ -4497,6 +4497,7 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/keyring-controller": "npm:^23.0.0"
     "@metamask/logging-controller": "npm:^6.0.4"
+    "@metamask/messenger": "npm:^0.2.0"
     "@metamask/network-controller": "npm:^24.1.0"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
