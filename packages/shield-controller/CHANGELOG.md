@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add and Export new Controller Action `ShieldControllerGetStateAction` ([#6497](https://github.com/MetaMask/core/pull/6497))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6497](https://github.com/MetaMask/core/pull/6497))
+  - Previously, `ShieldController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [0.2.0]
 
 ### Added
