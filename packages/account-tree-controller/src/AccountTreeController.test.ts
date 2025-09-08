@@ -2011,7 +2011,6 @@ describe('AccountTreeController', () => {
       const group2 = wallet?.groups[expectedGroupId2];
 
       // Groups should use consistent default naming regardless of import time
-      // This verifies that the serviceStartTime inconsistency bug has been fixed
       expect(group1?.metadata.name).toBe('Account 1');
       expect(group2?.metadata.name).toBe('Account 2');
     });
@@ -2174,7 +2173,6 @@ describe('AccountTreeController', () => {
     });
 
     it('prevents chain-specific names like "Solana Account 2" from becoming group names', () => {
-      // Create a mock Solana account that would have caused the naming bug
       const mockSolanaAccount: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'solana-account-id',
@@ -2202,7 +2200,6 @@ describe('AccountTreeController', () => {
       const group = wallet?.groups[expectedGroupId];
 
       // The group should use default naming "Account 1", not "Solana Account 2"
-      // This verifies the fix for Daniel's reported bug
       expect(group?.metadata.name).toBe('Account 1');
       expect(group?.metadata.name).not.toBe('Solana Account 2');
     });

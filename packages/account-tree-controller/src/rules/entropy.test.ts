@@ -272,7 +272,6 @@ describe('EntropyRule', () => {
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
       const rule = new EntropyRule(messenger);
 
-      // Mock a non-EVM account (like Solana) that would have caused the bug
       const mockSolanaAccount: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'solana-account-id',
