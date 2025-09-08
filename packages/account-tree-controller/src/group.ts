@@ -87,25 +87,27 @@ export type AccountGroupObjectOf<GroupType extends AccountGroupType> = Extract<
 >['object'];
 
 /**
- * Asserts that an account group name is unique across all groups.
+ * Checks if an account group name is unique across all groups.
  *
  * @param state - The account tree controller state.
  * @param groupId - The account group ID to exclude from the check.
  * @param name - The name to validate for uniqueness.
- * @throws Error if the name already exists in another group.
+ * @returns True if the name is unique, false otherwise.
  */
-export function assertAccountGroupNameIsUnique(
+export function isAccountGroupNameUnique(
   state: AccountTreeControllerState,
   groupId: AccountGroupId,
   name: string,
-): void {
+): boolean {
   const trimmedName = name.trim();
 
   for (const wallet of Object.values(state.accountTree.wallets)) {
     for (const group of Object.values(wallet.groups)) {
       if (group.id !== groupId && group.metadata.name.trim() === trimmedName) {
-        throw new Error('Account group name already exists');
+        return false;
       }
     }
   }
+
+  return true;
 }

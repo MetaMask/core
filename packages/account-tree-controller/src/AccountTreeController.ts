@@ -12,7 +12,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
-import { assertAccountGroupNameIsUnique } from './group';
+import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -695,6 +695,19 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Asserts that an account group name is unique across all groups.
+   *
+   * @param groupId - The account group ID to exclude from the check.
+   * @param name - The name to validate for uniqueness.
+   * @throws Error if the name already exists in another group.
+   */
+  #assertAccountGroupNameIsUnique(groupId: AccountGroupId, name: string): void {
+    if (!isAccountGroupNameUnique(this.state, groupId, name)) {
+      throw new Error('Account group name already exists');
+    }
+  }
+
+  /**
    * Gets the currently selected account group ID.
    *
    * @returns The selected account group ID or empty string if none selected.
@@ -899,7 +912,7 @@ export class AccountTreeController extends BaseController<
     this.#assertAccountGroupExists(groupId);
 
     // Validate that the name is unique
-    assertAccountGroupNameIsUnique(this.state, groupId, name);
+    this.#assertAccountGroupNameIsUnique(groupId, name);
 
     this.update((state) => {
       // Update persistent metadata
