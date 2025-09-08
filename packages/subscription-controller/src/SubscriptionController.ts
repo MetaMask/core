@@ -14,6 +14,7 @@ import {
 import {
   SubscriptionStatus,
   type ISubscriptionService,
+  type PricingResponse,
   type ProductType,
   type StartSubscriptionRequest,
   type Subscription,
@@ -36,6 +37,10 @@ export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
   type: `${typeof controllerName}:startShieldSubscriptionWithCard`;
   handler: SubscriptionController['startShieldSubscriptionWithCard'];
 };
+export type SubscriptionControllerGetPricingAction = {
+  type: `${typeof controllerName}:getPricing`;
+  handler: SubscriptionController['getPricing'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -45,6 +50,7 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetSubscriptionsAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerStartShieldSubscriptionWithCardAction
+  | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction;
 
 export type AllowedActions =
@@ -167,6 +173,20 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:startShieldSubscriptionWithCard',
       this.startShieldSubscriptionWithCard.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:getPricing',
+      this.getPricing.bind(this),
+    );
+  }
+
+  /**
+   * Gets the pricing information from the subscription service.
+   *
+   * @returns The pricing information.
+   */
+  async getPricing(): Promise<PricingResponse> {
+    return await this.#subscriptionService.getPricing();
   }
 
   async getSubscriptions() {

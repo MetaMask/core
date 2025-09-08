@@ -1,4 +1,8 @@
 import type {
+  Bip44Account,
+  MultichainAccountGroup,
+} from '@metamask/account-api';
+import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
@@ -6,11 +10,16 @@ import type {
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
+} from '@metamask/network-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
 import type {
@@ -84,11 +93,23 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceGetIsAlignmentInProgressAction;
 
+export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
+  type: `${typeof serviceName}:multichainAccountGroupCreated`;
+  payload: [MultichainAccountGroup<Bip44Account<KeyringAccount>>];
+};
+
+export type MultichainAccountServiceMultichainAccountGroupUpdatedEvent = {
+  type: `${typeof serviceName}:multichainAccountGroupUpdated`;
+  payload: [MultichainAccountGroup<Bip44Account<KeyringAccount>>];
+};
+
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.
  */
-export type MultichainAccountServiceEvents = never;
+export type MultichainAccountServiceEvents =
+  | MultichainAccountServiceMultichainAccountGroupCreatedEvent
+  | MultichainAccountServiceMultichainAccountGroupUpdatedEvent;
 
 /**
  * All actions registered by other modules that {@link MultichainAccountService}
@@ -100,7 +121,9 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}

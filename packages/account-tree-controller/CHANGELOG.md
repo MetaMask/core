@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Remove support for `AccountsController:accountRenamed` event handling ([#6438](https://github.com/MetaMask/core/pull/6438))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [0.12.1]
 

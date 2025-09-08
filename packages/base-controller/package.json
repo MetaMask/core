@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "8.2.0",
+  "version": "8.3.0",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",
@@ -57,7 +57,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/messenger": "^0.1.0",
+    "@metamask/messenger": "^0.2.0",
     "@metamask/utils": "^11.4.2",
     "immer": "^9.0.6"
   },

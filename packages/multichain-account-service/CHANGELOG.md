@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add multichain account group lifecycle events ([#6441](https://github.com/MetaMask/core/pull/6441))
+  - Add `multichainAccountGroupCreated` event emitted from wallet level when new groups are created.
+  - Add `multichainAccountGroupUpdated` event emitted from wallet level when groups are synchronized.
+
+## [0.7.0]
+
+### Added
+
+- Add `discoverAndCreateAccounts` methods for EVM and Solana providers ([#6397](https://github.com/MetaMask/core/pull/6397))
+- Add `discoverAndCreateAccounts` method to `MultichainAccountWallet` to orchestrate provider discovery ([#6397](https://github.com/MetaMask/core/pull/6397))
+- **BREAKING** Add additional allowed actions to the `MultichainAccountService` messenger
+  - `NetworkController:getNetworkClientById` and `NetworkController:findNetworkClientIdByChainId` were added.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
 ## [0.6.0]
 
 ### Added
@@ -91,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.7.0...HEAD
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.6.0...@metamask/multichain-account-service@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.5.0...@metamask/multichain-account-service@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.4.0...@metamask/multichain-account-service@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.3.0...@metamask/multichain-account-service@0.4.0

@@ -6,10 +6,11 @@ import {
 } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { NamedAccountProvider } from './providers';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -24,29 +25,44 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: AccountProvider<Account>[];
+  readonly #providers: NamedAccountProvider<Account>[];
 
-  readonly #providerToAccounts: Map<AccountProvider<Account>, Account['id'][]>;
+  readonly #providerToAccounts: Map<
+    NamedAccountProvider<Account>,
+    Account['id'][]
+  >;
 
-  readonly #accountToProvider: Map<Account['id'], AccountProvider<Account>>;
+  readonly #accountToProvider: Map<
+    Account['id'],
+    NamedAccountProvider<Account>
+  >;
+
+  readonly #messenger: MultichainAccountServiceMessenger;
+
+  // eslint-disable-next-line @typescript-eslint/prefer-readonly
+  #initialized = false;
 
   constructor({
     groupIndex,
     wallet,
     providers,
+    messenger,
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: AccountProvider<Account>[];
+    providers: NamedAccountProvider<Account>[];
+    messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
     this.#groupIndex = groupIndex;
     this.#wallet = wallet;
     this.#providers = providers;
+    this.#messenger = messenger;
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
     this.sync();
+    this.#initialized = true;
   }
 
   /**
@@ -78,6 +94,14 @@ export class MultichainAccountGroup<
       for (const id of accounts) {
         this.#accountToProvider.set(id, provider);
       }
+    }
+
+    // Emit update event when group is synced (only if initialized)
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        this,
+      );
     }
   }
 
