@@ -2865,7 +2865,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       await expect(controller.syncWithUserStorage()).rejects.toThrow(
-        'Sync failed',
+        syncError.message,
       );
       expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
     });
