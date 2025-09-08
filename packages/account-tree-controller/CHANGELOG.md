@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0]
+
+### Added
+
+- Add unique name validation for account groups to prevent duplicate group names ([#6492](https://github.com/MetaMask/core/pull/6492))
+  - `setAccountGroupName` now validates that group names are unique across all groups.
+  - Added `isAccountGroupNameUnique` utility function to check name uniqueness.
+  - Names are trimmed of leading/trailing whitespace before comparison to prevent accidental duplicates.
+
 ### Changed
 
 - **BREAKING:** Remove support for `AccountsController:accountRenamed` event handling ([#6438](https://github.com/MetaMask/core/pull/6438))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [0.12.1]
 
@@ -164,7 +174,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.0...HEAD
+[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.1...@metamask/account-tree-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...@metamask/account-tree-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.11.0...@metamask/account-tree-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.10.0...@metamask/account-tree-controller@0.11.0

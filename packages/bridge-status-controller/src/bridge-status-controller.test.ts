@@ -3559,6 +3559,8 @@ describe('BridgeStatusController', () => {
       it('should start polling for bridge tx if status response is invalid', async () => {
         jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        mockFetchFn.mockClear();
         mockFetchFn.mockResolvedValueOnce({
           ...MockStatusResponse.getComplete(),
           status: 'INVALID',

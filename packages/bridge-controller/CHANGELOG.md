@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin, Tron) ([#6454](https://github.com/MetaMask/core/pull/6454))
+
 ### Changed
 
 - Update Snap methods to use new unified interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
@@ -16,9 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export `signAndSendTransactionRequest` utility function
   - Fix precision issues in Solana fee conversion using BigInt math
 
+## [42.0.0]
+
 ### Added
 
-- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin, Tron) ([#6454](https://github.com/MetaMask/core/pull/6454))
+- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+### Changed
+
+- **BREAKING** Rename QuotesError and InputSourceDestinationSwitched events to match segment schema ([#6447](https://github.com/MetaMask/core/pull/6447))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+- **BREAKING** Rename `gasless7702` to `gasIncluded7702` in QuoteRequest and Quote types
 
 ## [41.4.0]
 
@@ -557,7 +569,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...@metamask/bridge-controller@42.0.0
 [41.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.3.0...@metamask/bridge-controller@41.4.0
 [41.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...@metamask/bridge-controller@41.3.0
 [41.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.1.0...@metamask/bridge-controller@41.2.0

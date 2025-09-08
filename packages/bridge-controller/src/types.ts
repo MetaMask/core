@@ -222,7 +222,7 @@ export type QuoteRequest<
   /**
    * Whether to request quotes that use EIP-7702 delegated gasless execution
    */
-  gasless7702: boolean;
+  gasIncluded7702: boolean;
   noFee?: boolean;
 };
 

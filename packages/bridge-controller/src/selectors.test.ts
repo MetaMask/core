@@ -473,6 +473,7 @@ describe('Bridge Selectors', () => {
                   txFee,
                 },
                 gasIncluded: Boolean(txFee),
+                gasIncluded7702: false,
                 srcTokenAmount,
                 destTokenAmount: new BigNumber('9')
                   .dividedBy(marketData['0x38'][destAsset.address].price)

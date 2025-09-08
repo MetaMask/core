@@ -73,8 +73,20 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
   TokenBalancesControllerState
 >;
 
+export type TokenBalancesControllerUpdateChainPollingConfigsAction = {
+  type: `TokenBalancesController:updateChainPollingConfigs`;
+  handler: TokenBalancesController['updateChainPollingConfigs'];
+};
+
+export type TokenBalancesControllerGetChainPollingConfigAction = {
+  type: `TokenBalancesController:getChainPollingConfig`;
+  handler: TokenBalancesController['getChainPollingConfig'];
+};
+
 export type TokenBalancesControllerActions =
-  TokenBalancesControllerGetStateAction;
+  | TokenBalancesControllerGetStateAction
+  | TokenBalancesControllerUpdateChainPollingConfigsAction
+  | TokenBalancesControllerGetChainPollingConfigAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
@@ -112,9 +124,22 @@ export type TokenBalancesControllerMessenger = RestrictedMessenger<
   AllowedEvents['type']
 >;
 
+export type ChainPollingConfig = {
+  /** Polling interval in milliseconds for this chain */
+  interval: number;
+};
+
+export type UpdateChainPollingConfigsOptions = {
+  /** Whether to immediately fetch balances after updating configs (default: true) */
+  immediateUpdate?: boolean;
+};
+
 export type TokenBalancesControllerOptions = {
   messenger: TokenBalancesControllerMessenger;
+  /** Default interval for chains not specified in chainPollingIntervals */
   interval?: number;
+  /** Per-chain polling configuration */
+  chainPollingIntervals?: Record<ChainIdHex, ChainPollingConfig>;
   state?: Partial<TokenBalancesControllerState>;
   /** When `true`, balances for *all* known accounts are queried. */
   queryMultipleAccounts?: boolean;
@@ -155,9 +180,25 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   #detectedTokens: TokensControllerState['allDetectedTokens'] = {};
 
+  /** Default polling interval for chains without specific configuration */
+  readonly #defaultInterval: number;
+
+  /** Per-chain polling configuration */
+  readonly #chainPollingConfig: Record<ChainIdHex, ChainPollingConfig>;
+
+  /** Active polling timers grouped by interval */
+  readonly #intervalPollingTimers: Map<number, NodeJS.Timeout> = new Map();
+
+  /** Track if controller-level polling is active */
+  #isControllerPollingActive = false;
+
+  /** Store original chainIds from startPolling to preserve intent */
+  #requestedChainIds: ChainIdHex[] = [];
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
+    chainPollingIntervals = {},
     state = {},
     queryMultipleAccounts = true,
     useAccountsAPI = false,
@@ -171,6 +212,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     });
 
     this.#queryAllAccounts = queryMultipleAccounts;
+    this.#defaultInterval = interval;
+    this.#chainPollingConfig = { ...chainPollingIntervals };
 
     // Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
@@ -208,6 +251,17 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'KeyringController:accountRemoved',
       this.#onAccountRemoved,
     );
+
+    // Register action handlers for polling interval control
+    this.messagingSystem.registerActionHandler(
+      `TokenBalancesController:updateChainPollingConfigs`,
+      this.updateChainPollingConfigs.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `TokenBalancesController:getChainPollingConfig`,
+      this.getChainPollingConfig.bind(this),
+    );
   }
 
   #chainIdsWithTokens(): ChainIdHex[] {
@@ -244,8 +298,165 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   };
 
-  async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
+  /**
+   * Override to support per-chain polling intervals by grouping chains by interval
+   *
+   * @param options0 - The polling options
+   * @param options0.chainIds - Chain IDs to start polling for
+   */
+  override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }) {
+    // Store the original chainIds to preserve intent across config updates
+    this.#requestedChainIds = [...chainIds];
+    this.#isControllerPollingActive = true;
+    this.#startIntervalGroupPolling(chainIds, true);
+  }
+
+  /**
+   * Start or restart interval-based polling for multiple chains
+   *
+   * @param chainIds - Chain IDs to start polling for
+   * @param immediate - Whether to poll immediately before starting timers (default: true)
+   */
+  #startIntervalGroupPolling(chainIds: ChainIdHex[], immediate = true) {
+    // Stop any existing interval timers
+    this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+    this.#intervalPollingTimers.clear();
+
+    // Group chains by their polling intervals
+    const intervalGroups = new Map<number, ChainIdHex[]>();
+
+    for (const chainId of chainIds) {
+      const config = this.getChainPollingConfig(chainId);
+      const existing = intervalGroups.get(config.interval) || [];
+      existing.push(chainId);
+      intervalGroups.set(config.interval, existing);
+    }
+
+    // Start separate polling loop for each interval group
+    for (const [interval, chainIdsGroup] of intervalGroups) {
+      this.#startPollingForInterval(interval, chainIdsGroup, immediate);
+    }
+  }
+
+  /**
+   * Start polling loop for chains that share the same interval
+   *
+   * @param interval - The polling interval in milliseconds
+   * @param chainIds - Chain IDs that share this interval
+   * @param immediate - Whether to poll immediately before starting the timer (default: true)
+   */
+  #startPollingForInterval(
+    interval: number,
+    chainIds: ChainIdHex[],
+    immediate = true,
+  ) {
+    const pollFunction = async () => {
+      if (!this.#isControllerPollingActive) {
+        return;
+      }
+      try {
+        await this._executePoll({ chainIds });
+      } catch (error) {
+        console.warn(
+          `Polling failed for chains ${chainIds.join(', ')} with interval ${interval}:`,
+          error,
+        );
+      }
+    };
+
+    // Poll immediately first if requested
+    if (immediate) {
+      pollFunction().catch((error) => {
+        console.warn(
+          `Immediate polling failed for chains ${chainIds.join(', ')}:`,
+          error,
+        );
+      });
+    }
+
+    // Then start regular interval polling
+    this.#setPollingTimer(interval, chainIds, pollFunction);
+  }
+
+  /**
+   * Helper method to set up polling timer
+   *
+   * @param interval - The polling interval in milliseconds
+   * @param chainIds - Chain IDs for this interval
+   * @param pollFunction - The function to call on each poll
+   */
+  #setPollingTimer(
+    interval: number,
+    chainIds: ChainIdHex[],
+    pollFunction: () => Promise<void>,
+  ) {
+    // Clear any existing timer for this interval first
+    const existingTimer = this.#intervalPollingTimers.get(interval);
+    if (existingTimer) {
+      clearInterval(existingTimer);
+    }
+
+    const timer = setInterval(() => {
+      pollFunction().catch((error) => {
+        console.warn(
+          `Interval polling failed for chains ${chainIds.join(', ')}:`,
+          error,
+        );
+      });
+    }, interval);
+    this.#intervalPollingTimers.set(interval, timer);
+  }
+
+  /**
+   * Override to handle our custom polling approach
+   */
+  override _stopPollingByPollingTokenSetId() {
+    this.#isControllerPollingActive = false;
+    this.#requestedChainIds = []; // Clear original intent when stopping
+    this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+    this.#intervalPollingTimers.clear();
+  }
+
+  /**
+   * Get polling configuration for a chain (includes default fallback)
+   *
+   * @param chainId - The chain ID to get config for
+   * @returns The polling configuration for the chain
+   */
+  getChainPollingConfig(chainId: ChainIdHex): ChainPollingConfig {
+    return (
+      this.#chainPollingConfig[chainId] ?? {
+        interval: this.#defaultInterval,
+      }
+    );
+  }
+
+  override async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
+    // This won't be called with our custom implementation, but keep for compatibility
     await this.updateBalances({ chainIds });
+  }
+
+  /**
+   * Update multiple chain polling configurations at once
+   *
+   * @param configs - Object mapping chain IDs to polling configurations
+   * @param options - Optional configuration for the update behavior
+   * @param options.immediateUpdate - Whether to immediately fetch balances after updating configs (default: true)
+   */
+  updateChainPollingConfigs(
+    configs: Record<ChainIdHex, ChainPollingConfig>,
+    options: UpdateChainPollingConfigsOptions = { immediateUpdate: true },
+  ): void {
+    Object.assign(this.#chainPollingConfig, configs);
+
+    // If polling is currently active, restart with new interval groupings
+    if (this.#isControllerPollingActive) {
+      // Restart polling with immediate fetch by default, unless explicitly disabled
+      this.#startIntervalGroupPolling(
+        this.#requestedChainIds,
+        options.immediateUpdate,
+      );
+    }
   }
 
   async updateBalances({ chainIds }: { chainIds?: ChainIdHex[] } = {}) {
@@ -547,6 +758,25 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       delete s.tokenBalances[addr as ChecksumAddress];
     });
   };
+
+  /**
+   * Clean up all timers and resources when controller is destroyed
+   */
+  override destroy(): void {
+    this.#isControllerPollingActive = false;
+    this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+    this.#intervalPollingTimers.clear();
+
+    // Unregister action handlers
+    this.messagingSystem.unregisterActionHandler(
+      `TokenBalancesController:updateChainPollingConfigs`,
+    );
+    this.messagingSystem.unregisterActionHandler(
+      `TokenBalancesController:getChainPollingConfig`,
+    );
+
+    super.destroy();
+  }
 }
 
 export default TokenBalancesController;

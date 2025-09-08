@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+
+## [7.0.0]
+
 ### Added
 
 - Added `@metamask/keyring-api` as a dependency ([#6402](https://github.com/MetaMask/core/pull/6402))
@@ -271,7 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...@metamask/earn-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@5.0.0...@metamask/earn-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@4.0.0...@metamask/earn-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@3.0.0...@metamask/earn-controller@4.0.0
