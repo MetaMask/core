@@ -440,6 +440,29 @@ describe('MultichainAccountService', () => {
       expect(walletAndMultichainOtherAccount1?.group).toBe(multichainAccount1);
     });
 
+    it('emits multichainAccountGroupUpdated event when syncing existing group on account added', () => {
+      const otherAccount1 = MockAccountBuilder.from(account2)
+        .withGroupIndex(0)
+        .get();
+
+      const accounts = [account1]; // No `otherAccount1` for now.
+      const { messenger, mocks } = setup({ accounts, keyrings });
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Now we're adding `otherAccount1` to an existing group.
+      mocks.EvmAccountProvider.accounts = [account1, otherAccount1];
+      messenger.publish(
+        'AccountsController:accountAdded',
+        mockAsInternalAccount(otherAccount1),
+      );
+
+      // Should emit updated event for the existing group
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        expect.any(Object),
+      );
+    });
+
     it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', () => {
       const accounts = [account1, account2]; // No `account3` for now (associated with "Wallet 2").
       const { service, messenger, mocks } = setup({
@@ -542,6 +565,25 @@ describe('MultichainAccountService', () => {
       // NOTE: There won't be any account for this group, since we're not
       // mocking the providers.
     });
+
+    it('emits multichainAccountGroupCreated event when creating next group', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, messenger } = setup({ accounts: [mockEvmAccount] });
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      const nextGroup = await service.createNextMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      });
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        nextGroup,
+      );
+    });
   });
 
   describe('createMultichainAccountGroup', () => {
@@ -576,6 +618,26 @@ describe('MultichainAccountService', () => {
       expect(secondGroup.groupIndex).toBe(1);
       expect(secondGroup.getAccounts()).toHaveLength(1);
       expect(secondGroup.getAccounts()[0]).toStrictEqual(mockSolAccount);
+    });
+
+    it('emits multichainAccountGroupCreated event when creating specific group', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, messenger } = setup({ accounts: [mockEvmAccount] });
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      const group = await service.createMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      });
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
     });
   });
 

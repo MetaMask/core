@@ -152,6 +152,7 @@ export class MultichainAccountService {
         const wallet = new MultichainAccountWallet({
           entropySource,
           providers: this.#providers,
+          messenger: this.#messenger,
         });
         this.#wallets.set(wallet.id, wallet);
 
@@ -184,6 +185,7 @@ export class MultichainAccountService {
       wallet = new MultichainAccountWallet({
         entropySource: account.options.entropy.id,
         providers: this.#providers,
+        messenger: this.#messenger,
       });
       this.#wallets.set(wallet.id, wallet);
 
