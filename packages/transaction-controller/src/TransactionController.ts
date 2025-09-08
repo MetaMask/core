@@ -1311,25 +1311,28 @@ export class TransactionController extends BaseController<
             traceContext: context,
           }),
       );
-    } else {
-      // For intent transactions, ensure proper gas fee structure and envelope type
-      const isEIP1559Compatible =
-        await this.#getEIP1559Compatibility(addedTransactionMeta.networkClientId);
-
-      if (isEIP1559Compatible && addedTransactionMeta.txParams.gasPrice && !addedTransactionMeta.txParams.maxFeePerGas) {
-        // Convert legacy gasPrice to EIP-1559 fees for intent transactions on EIP-1559 networks
-        addedTransactionMeta.txParams.maxFeePerGas = addedTransactionMeta.txParams.gasPrice;
-        addedTransactionMeta.txParams.maxPriorityFeePerGas = addedTransactionMeta.txParams.gasPrice;
-        addedTransactionMeta.txParams.type = TransactionEnvelopeType.feeMarket;
-        delete addedTransactionMeta.txParams.gasPrice; // Remove legacy gas price
-      } else if (!isEIP1559Compatible && addedTransactionMeta.txParams.gasPrice) {
-        // Ensure legacy type for non-EIP-1559 networks
-        addedTransactionMeta.txParams.type = TransactionEnvelopeType.legacy;
-      }
+    } else if (
+      isEIP1559Compatible &&
+      addedTransactionMeta.txParams.gasPrice &&
+      !addedTransactionMeta.txParams.maxFeePerGas
+    ) {
+      // Convert legacy gasPrice to EIP-1559 fees for intent transactions on EIP-1559 networks
+      addedTransactionMeta.txParams.maxFeePerGas =
+        addedTransactionMeta.txParams.gasPrice;
+      addedTransactionMeta.txParams.maxPriorityFeePerGas =
+        addedTransactionMeta.txParams.gasPrice;
+      addedTransactionMeta.txParams.type = TransactionEnvelopeType.feeMarket;
+      delete addedTransactionMeta.txParams.gasPrice; // Remove legacy gas price
+    } else if (
+      !isEIP1559Compatible &&
+      addedTransactionMeta.txParams.gasPrice
+    ) {
+      // Ensure legacy type for non-EIP-1559 networks
+      addedTransactionMeta.txParams.type = TransactionEnvelopeType.legacy;
     }
 
-    // Checks if a transaction already exists with a given actionId
-    if (!existingTransactionMeta) {
+      // Checks if a transaction already exists with a given actionId
+      if (!existingTransactionMeta) {
       // Set security provider response
       if (method && this.#securityProviderRequest) {
         const securityProviderResponse = await this.#securityProviderRequest(
@@ -2914,8 +2917,8 @@ export class TransactionController extends BaseController<
         // These are tracked externally and should not be signed or sent.
         const isIntentTransaction = Boolean(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this.#getTransaction(transactionId) as any)?.swapMetaData?.isIntentTx ===
-            true,
+          (this.#getTransaction(transactionId) as any)?.swapMetaData
+            ?.isIntentTx === true,
         );
 
         if (requireApproval === false && isIntentTransaction) {

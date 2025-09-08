@@ -219,6 +219,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const { type, status, id } = transactionMeta;
 
         // Skip intent transactions - they have their own tracking via CoW API
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((transactionMeta as any).swapMetaData?.isIntentTx) {
           return;
         }
@@ -464,7 +465,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // We know it's in progress but not the exact status yet
     const txHistoryItem = {
       txMetaId: bridgeTxMeta.id,
-      originalTransactionId: (bridgeTxMeta as any).originalTransactionId || bridgeTxMeta.id, // Keep original for intent transactions
+
+      originalTransactionId:
+        (bridgeTxMeta as unknown as { originalTransactionId: string })
+          .originalTransactionId || bridgeTxMeta.id, // Keep original for intent transactions
       batchId: bridgeTxMeta.batchId,
       quote: quoteResponse.quote,
       startTime,
@@ -511,10 +515,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (!txHistoryItem) {
       return;
     }
-  const { quote } = txHistoryItem;
-  const isIntent = txId.startsWith('intent:');
-  const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
-  if (isBridgeTx || isIntent) {
+    const { quote } = txHistoryItem;
+    const isIntent = txId.startsWith('intent:');
+    const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
+    if (isBridgeTx || isIntent) {
       this.#pollingTokensByTxMetaId[txId] = this.startPolling({
         bridgeTxMetaId: txId,
       });
@@ -702,8 +706,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const orderUid = bridgeTxMetaId.replace(/^intent:/, '');
-    const srcChainId = historyItem.quote.srcChainId;
+    const orderUid = bridgeTxMetaId.replace(/^intent:/u, '');
+    const { srcChainId } = historyItem.quote;
     const networkPath = COW_NETWORK_PATHS[srcChainId];
     if (!networkPath) {
       // Unsupported mapping: stop polling with failure
@@ -714,14 +718,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             chainId: srcChainId,
             txHash: '',
           },
-        } as unknown as typeof state.txHistory[string]['status'];
+        } as unknown as (typeof state.txHistory)[string]['status'];
       });
       return;
     }
 
     try {
       const url = `${COW_API_BASE}/${networkPath}/api/v1/orders/${orderUid}`;
-      const res: any = await this.#fetchFn(url, { method: 'GET' });
+      const res = await this.#fetchFn(url, { method: 'GET' });
 
       // CoW API status enum mapping
       const rawStatus = res?.status ?? '';
@@ -736,10 +740,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (isComplete) {
         // Prefer authoritative trades endpoint for one or multiple fills
         const tradesUrl = `${COW_API_BASE}/${networkPath}/api/v1/trades?orderUid=${orderUid}`;
-        const trades: any[] = (await this.#fetchFn(tradesUrl, { method: 'GET' })) ?? [];
+        const trades =
+          (await this.#fetchFn(tradesUrl, { method: 'GET' })) ?? [];
         allHashes = trades
-          .map((t) => t?.txHash || t?.transactionHash)
-          .filter((h: unknown): h is string => typeof h === 'string' && h.length > 0);
+          .map(
+            (t: { txHash: unknown; transactionHash: unknown }) =>
+              t?.txHash || t?.transactionHash,
+          )
+          .filter(
+            (h: unknown): h is string => typeof h === 'string' && h.length > 0,
+          );
         // Fallback to any hash on order if trades missing
         if (allHashes.length === 0) {
           const possible = [
@@ -747,20 +757,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             res?.transactionHash,
             res?.executedTransaction,
             res?.executedTransactionHash,
-          ].filter((h: unknown): h is string => typeof h === 'string' && h.length > 0);
+          ].filter(
+            (h: unknown): h is string => typeof h === 'string' && h.length > 0,
+          );
           allHashes = possible;
         }
         txHash = allHashes[allHashes.length - 1] || '';
       }
 
+      let statusType: StatusTypes;
+      if (isComplete) {
+        statusType = StatusTypes.COMPLETE;
+      } else if (isFailed) {
+        statusType = StatusTypes.FAILED;
+      } else if (isPending) {
+        statusType = StatusTypes.PENDING;
+      } else {
+        statusType = StatusTypes.PENDING; // Default to pending for unknown statuses
+      }
+
       const newStatus = {
-        status: isComplete
-          ? StatusTypes.COMPLETE
-          : isFailed
-          ? StatusTypes.FAILED
-          : isPending
-          ? StatusTypes.PENDING
-          : StatusTypes.PENDING, // Default to pending for unknown statuses
+        status: statusType,
         srcChain: {
           chainId: srcChainId,
           txHash: txHash || historyItem.status.srcChain.txHash || '',
@@ -778,7 +795,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         attempts: undefined,
         srcTxHashes:
           allHashes.length > 0
-            ? Array.from(new Set([...(historyItem.srcTxHashes ?? []), ...allHashes]))
+            ? Array.from(
+                new Set([...(historyItem.srcTxHashes ?? []), ...allHashes]),
+              )
             : historyItem.srcTxHashes,
       };
 
@@ -788,16 +807,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Update the actual transaction in TransactionController to sync with CoW status
       // Use the original transaction ID (not the intent: prefixed bridge history key)
-      const originalTxId = (historyItem as any).originalTransactionId || historyItem.txMetaId;
+      const originalTxId =
+        (historyItem as unknown as { originalTransactionId: string })
+          .originalTransactionId || historyItem.txMetaId;
       if (originalTxId && !originalTxId.startsWith('intent:')) {
         try {
-          const transactionStatus = isComplete
-            ? TransactionStatus.confirmed
-            : isFailed
-            ? TransactionStatus.failed
-            : isPending
-            ? TransactionStatus.submitted
-            : TransactionStatus.submitted; // Default to submitted for unknown statuses
+          let transactionStatus: TransactionStatus;
+          if (isComplete) {
+            transactionStatus = TransactionStatus.confirmed;
+          } else if (isFailed) {
+            transactionStatus = TransactionStatus.failed;
+          } else if (isPending) {
+            transactionStatus = TransactionStatus.submitted;
+          } else {
+            transactionStatus = TransactionStatus.submitted; // Default to submitted for unknown statuses
+          }
 
           // Merge with existing TransactionMeta to avoid wiping required fields
           const { transactions } = this.messagingSystem.call(
@@ -820,7 +844,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               ...(txHash
                 ? ({
                     txReceipt: {
-                      ...(existingTxMeta as any).txReceipt,
+                      ...(
+                        existingTxMeta as unknown as {
+                          txReceipt: TransactionReceipt;
+                        }
+                      ).txReceipt,
                       transactionHash: txHash,
                       status: (isComplete ? '0x1' : '0x0') as unknown as string,
                     },
@@ -834,11 +862,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             );
           }
         } catch (error) {
-          console.error('📝 [fetchCowOrderStatus] Failed to update transaction status', {
-            originalTxId,
-            bridgeHistoryKey: bridgeTxMetaId,
-            error,
-          });
+          console.error(
+            '📝 [fetchCowOrderStatus] Failed to update transaction status',
+            {
+              originalTxId,
+              bridgeHistoryKey: bridgeTxMetaId,
+              error,
+            },
+          );
         }
       }
 
@@ -1029,7 +1060,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         if (
           meta.status === TransactionStatus.confirmed ||
           // Some environments move directly to finalized
-          (TransactionStatus as any).finalized === meta.status
+          (TransactionStatus as unknown as { finalized: string }).finalized === meta.status
         ) {
           return meta;
         }
@@ -1134,17 +1165,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
     // Exclude gasLimit from trade to avoid type issues (it can be null)
     const { gasLimit: tradeGasLimit, ...tradeWithoutGasLimit } = trade;
-    
+
     const transactionParams: Parameters<
       TransactionController['addTransaction']
     >[0] = {
       ...tradeWithoutGasLimit,
       chainId: hexChainId,
       // Only add gasLimit and gas if they're valid (not undefined/null/zero)
-      ...(tradeGasLimit && tradeGasLimit !== 0 && { 
-        gasLimit: tradeGasLimit.toString(),
-        gas: tradeGasLimit.toString(),
-      }),
+      ...(tradeGasLimit &&
+        tradeGasLimit !== 0 && {
+          gasLimit: tradeGasLimit.toString(),
+          gas: tradeGasLimit.toString(),
+        }),
     };
     const transactionParamsWithMaxGas: TransactionParams = {
       ...transactionParams,
@@ -1195,10 +1227,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       networkGasFeeEstimates: gasFeeEstimates,
       txGasFeeEstimates,
     });
-    
+
     // Let the TransactionController handle gas limit estimation when no gas is provided
     // This fixes the issue where approval transactions had zero gas
-    const maxGasLimit = transactionParams.gas ? toHex(transactionParams.gas) : undefined;
+    const maxGasLimit = transactionParams.gas
+      ? toHex(transactionParams.gas)
+      : undefined;
 
     return {
       maxFeePerGas,
@@ -1434,6 +1468,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * UI-signed intent submission (fast path): the UI generates the EIP-712 signature and calls this with the raw signature.
    * Here we POST the order to the intent backend (e.g., CoW) and create a synthetic history entry for UX.
    *
+   * @param params - Object containing intent submission parameters
    * @param params.quoteResponse - Quote carrying intent data
    * @param params.signature - Hex signature produced by eth_signTypedData_v4
    * @param params.accountAddress - The EOA submitting the order
@@ -1615,13 +1650,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         initialOrderStatus,
       );
 
-      const initialTransactionStatus = isComplete
-        ? TransactionStatus.confirmed
-        : isFailed
-          ? TransactionStatus.failed
-          : isPending
-            ? TransactionStatus.submitted
-            : TransactionStatus.submitted;
+      let initialTransactionStatus: TransactionStatus;
+      if (isComplete) {
+        initialTransactionStatus = TransactionStatus.confirmed;
+      } else if (isFailed) {
+        initialTransactionStatus = TransactionStatus.failed;
+      } else if (isPending) {
+        initialTransactionStatus = TransactionStatus.submitted;
+      } else {
+        initialTransactionStatus = TransactionStatus.submitted;
+      }
 
       // Update transaction with proper initial status based on CoW order
       const statusUpdatedTxMeta = {
@@ -1652,7 +1690,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...syntheticMeta,
           id: bridgeHistoryKey, // Use intent: prefix for bridge history key
           originalTransactionId: syntheticMeta.id, // Keep original txId for TransactionController updates
-        } as any;
+        } as TransactionMeta;
 
         this.#addTxToHistory({
           accountAddress,
@@ -1668,7 +1706,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         });
 
         // Debug: Check if the bridge history was added
-        const bridgeHistoryState = this.state.txHistory;
 
         // Start polling using the intent: prefixed key to route to CoW API
         this.#startPollingForTxId(bridgeHistoryKey);
@@ -1746,7 +1783,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { transactions } = this.messagingSystem.call(
       'TransactionController:getState',
     );
-    const txMeta = transactions?.find((t: TransactionMeta) => t.id === txMetaId);
+    const txMeta = transactions?.find(
+      (t: TransactionMeta) => t.id === txMetaId,
+    );
     const approvalTxMeta = transactions?.find(
       (t: TransactionMeta) => t.id === historyItem.approvalTxId,
     );

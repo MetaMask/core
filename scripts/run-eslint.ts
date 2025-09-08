@@ -160,7 +160,7 @@ async function main() {
  * @returns The parsed arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { cache, fix, quiet, ...rest } = await yargs(process.argv.slice(2))
+  const { cache, fix, quiet, ...rest } = yargs(process.argv.slice(2))
     .option('cache', {
       type: 'boolean',
       description: 'Cache results to speed up future runs',
@@ -168,8 +168,7 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
     })
     .option('fix', {
       type: 'boolean',
-      description:
-        'Automatically fix all problems; pair with --quiet to only fix errors',
+      description: 'Automatically fix all problems; pair with --quiet to only fix errors',
       default: false,
     })
     .option('quiet', {

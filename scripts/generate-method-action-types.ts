@@ -39,7 +39,7 @@ type CommandLineArguments = {
  * @returns The command line arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { check, fix } = await yargs(process.argv.slice(2))
+  const { check, fix } = yargs(process.argv.slice(2))
     .option('check', {
       type: 'boolean',
       description: 'Check if generated action type files are up to date',
@@ -282,6 +282,7 @@ function createASTVisitor(context: VisitorContext) {
     if (ts.isVariableStatement(node)) {
       const declaration = node.declarationList.declarations[0];
       if (
+        declaration &&
         ts.isIdentifier(declaration.name) &&
         declaration.name.text === 'MESSENGER_EXPOSED_METHODS'
       ) {
@@ -408,7 +409,7 @@ function extractJSDoc(
   }
 
   const jsDoc = jsDocTags[0];
-  if (ts.isJSDoc(jsDoc)) {
+  if (jsDoc && ts.isJSDoc(jsDoc)) {
     const fullText = sourceFile.getFullText();
     const start = jsDoc.getFullStart();
     const end = jsDoc.getEnd();
@@ -437,17 +438,17 @@ function formatJSDoc(rawJsDoc: string): string {
     } else if (i === lines.length - 1) {
       // Last line should be */
       formattedLines.push(' */');
-    } else {
+    } else if (typeof line === 'undefined') {
       // Middle lines should start with ' * '
+      formattedLines.push(' *');
+    } else if (line.trim().startsWith('*')) {
+      // Remove existing * and normalize
+      const content = line.trim().substring(1).trim();
+      formattedLines.push(content ? ` * ${content}` : ' *');
+    } else {
+      // Handle lines that don't start with *
       const trimmed = line.trim();
-      if (trimmed.startsWith('*')) {
-        // Remove existing * and normalize
-        const content = trimmed.substring(1).trim();
-        formattedLines.push(content ? ` * ${content}` : ' *');
-      } else {
-        // Handle lines that don't start with *
-        formattedLines.push(trimmed ? ` * ${trimmed}` : ' *');
-      }
+      formattedLines.push(trimmed ? ` * ${trimmed}` : ' *');
     }
   }
 
