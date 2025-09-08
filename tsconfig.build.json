@@ -16,6 +16,7 @@
     { "path": "./packages/controller-utils/tsconfig.build.json" },
     { "path": "./packages/delegation-controller/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
+    { "path": "./packages/eip-5792-middleware/tsconfig.build.json" },
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/error-reporting-service/tsconfig.build.json" },
@@ -54,6 +55,7 @@
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/shield-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
+    { "path": "./packages/subscription-controller/tsconfig.build.json" },
     {
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },

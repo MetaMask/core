@@ -205,6 +205,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
       this.restartPollingForFailedAttempts.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
+      this.getBridgeHistoryItemByTxMetaId.bind(this),
+    );
 
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
@@ -255,7 +259,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             id,
-            getEVMTxPropertiesFromTransactionMeta(transactionMeta),
           );
         }
         if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
@@ -1243,6 +1246,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
 
     const { batchId } = await this.#addTransactionBatchFn(transactionParams);
+
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
       messagingSystem: this.messagingSystem,
       updateTransactionFn: this.#updateTransactionFn,
@@ -1354,7 +1358,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () => {
-          if (isStxEnabledOnClient || quoteResponse.quote.gasless7702) {
+          if (isStxEnabledOnClient || quoteResponse.quote.gasIncluded7702) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
@@ -1367,6 +1371,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 quoteResponse,
                 requireApproval,
               });
+
             approvalTxId = approvalMeta?.id;
             return tradeMeta;
           }
@@ -1376,6 +1381,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             quoteResponse,
             requireApproval,
           );
+
           approvalTxId = approvalTxMeta?.id;
 
           await handleMobileHardwareWalletDelay(requireApproval);

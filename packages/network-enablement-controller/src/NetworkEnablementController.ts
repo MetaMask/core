@@ -17,7 +17,7 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
-import { SolScope } from './types';
+import { BtcScope, SolScope } from './types';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
@@ -117,6 +117,9 @@ const getDefaultNetworkEnablementControllerState =
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
+      },
+      [KnownCaipNamespace.Bip122]: {
+        [BtcScope.Mainnet]: true,
       },
     },
   });
@@ -270,6 +273,20 @@ export class NetworkEnablementController extends BaseController<
         // Enable Solana mainnet
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
+
+      // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
+      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
+      if (
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Mainnet
+        ]
+      ) {
+        // Ensure namespace bucket exists
+        this.#ensureNamespaceBucket(s, bitcoinKeys.namespace);
+        // Enable Bitcoin mainnet
+        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
+          true;
+      }
     });
   }
 
@@ -334,6 +351,18 @@ export class NetworkEnablementController extends BaseController<
         ]
       ) {
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
+      }
+
+      // Enable Bitcoin mainnet if it exists in configurations
+      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
+      if (
+        s.enabledNetworkMap[bitcoinKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Mainnet
+        ]
+      ) {
+        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
+          true;
       }
     });
   }

@@ -11,6 +11,10 @@ import type {
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
+} from '@metamask/network-controller';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 
 import type {
@@ -48,6 +52,11 @@ export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
   handler: MultichainAccountService['createMultichainAccountGroup'];
 };
 
+export type MultichainAccountServiceSetBasicFunctionalityAction = {
+  type: `${typeof serviceName}:setBasicFunctionality`;
+  handler: MultichainAccountService['setBasicFunctionality'];
+};
+
 export type MultichainAccountServiceAlignWalletAction = {
   type: `${typeof serviceName}:alignWallet`;
   handler: MultichainAccountService['alignWallet'];
@@ -56,6 +65,11 @@ export type MultichainAccountServiceAlignWalletAction = {
 export type MultichainAccountServiceAlignWalletsAction = {
   type: `${typeof serviceName}:alignWallets`;
   handler: MultichainAccountService['alignWallets'];
+};
+
+export type MultichainAccountServiceGetIsAlignmentInProgressAction = {
+  type: `${typeof serviceName}:getIsAlignmentInProgress`;
+  handler: MultichainAccountService['getIsAlignmentInProgress'];
 };
 
 /**
@@ -69,8 +83,10 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceGetMultichainAccountWalletsAction
   | MultichainAccountServiceCreateNextMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
-  | MultichainAccountServiceAlignWalletsAction;
+  | MultichainAccountServiceAlignWalletsAction
+  | MultichainAccountServiceGetIsAlignmentInProgressAction;
 
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
@@ -88,7 +104,9 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}

@@ -63,6 +63,7 @@ Array [
       "custom_slippage": true,
       "destination_transaction": "PENDING",
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 6,
       "provider": "provider_bridge",
@@ -101,6 +102,7 @@ Array [
       "destination_transaction": "PENDING",
       "error_message": "error_message",
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -136,6 +138,7 @@ Array [
       "custom_slippage": true,
       "error_message": "Failed to submit tx",
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 12,
@@ -171,6 +174,7 @@ Array [
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 0,
       "provider": "provider_bridge",
@@ -210,6 +214,7 @@ Array [
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "is_hardware_wallet": false,
       "price_impact": 12,
       "provider": "provider_bridge",
@@ -322,7 +327,7 @@ Array [
 exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should track the InputSourceDestinationFlipped event 1`] = `
 Array [
   Array [
-    "Unified SwapBridge Source Destination Flipped",
+    "Unified SwapBridge Source Destination Switched",
     Object {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
@@ -367,6 +372,7 @@ Array [
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_best_quote": true,
       "is_hardware_wallet": false,
@@ -398,6 +404,7 @@ Array [
       "chain_id_source": "eip155:1",
       "custom_slippage": false,
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 0,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -485,6 +492,7 @@ Array [
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "gas_included": false,
+      "gas_included_7702": false,
       "initial_load_time_all_quotes": 11000,
       "is_hardware_wallet": false,
       "price_impact": 0,
@@ -902,7 +910,7 @@ Array [
     },
   ],
   Array [
-    "Unified SwapBridge Quote Error",
+    "Unified SwapBridge Quotes Error",
     Object {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
