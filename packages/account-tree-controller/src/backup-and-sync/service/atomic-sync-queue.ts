@@ -39,7 +39,6 @@ export class AtomicSyncQueue {
     }
 
     const syncEvent: AtomicSyncEvent = {
-      id: `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       execute: syncFunction,
     };
 
@@ -82,7 +81,7 @@ export class AtomicSyncQueue {
           await event.execute();
         } catch (error) {
           this.#context.contextualLogger.error(
-            `Failed to process atomic sync event ${event.id}`,
+            'Failed to process atomic sync event',
             error,
           );
         }

@@ -151,10 +151,23 @@ export class AccountTreeController extends BaseController<
     // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
 
-    // Initialize trace function before syncing service
+    // Temporary map to track which groups contain new accounts (for naming optimization)
+    this.#newGroupsMap = new WeakMap();
+
+    // Rules to apply to construct the wallets tree.
+    this.#rules = [
+      // 1. We group by entropy-source
+      new EntropyRule(this.messagingSystem),
+      // 2. We group by Snap ID
+      new SnapRule(this.messagingSystem),
+      // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
+      new KeyringRule(this.messagingSystem),
+    ];
+
+    // Initialize trace function
     this.#trace = config?.trace ?? traceFallback;
 
-    // Initialize backup and sync config before syncing service
+    // Initialize backup and sync config
     this.#backupAndSyncConfig = {
       emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => {
         const formattedEvent = formatAnalyticsEvent(event);
@@ -169,18 +182,6 @@ export class AccountTreeController extends BaseController<
     this.#syncingService = new BackupAndSyncService(
       this.#createBackupAndSyncContext(),
     );
-    // Temporary map to track which groups contain new accounts (for naming optimization)
-    this.#newGroupsMap = new WeakMap();
-
-    // Rules to apply to construct the wallets tree.
-    this.#rules = [
-      // 1. We group by entropy-source
-      new EntropyRule(this.messagingSystem),
-      // 2. We group by Snap ID
-      new SnapRule(this.messagingSystem),
-      // 3. We group by wallet type (this rule cannot fail and will group all non-matching accounts)
-      new KeyringRule(this.messagingSystem),
-    ];
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',

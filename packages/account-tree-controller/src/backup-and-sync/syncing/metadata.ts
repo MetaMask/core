@@ -1,7 +1,4 @@
-import type {
-  BackupAndSyncAnalyticsAction,
-  BackupAndSyncAnalyticsEvent,
-} from '../analytics';
+import type { BackupAndSyncAnalyticsAction } from '../analytics';
 import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
 
@@ -19,7 +16,7 @@ import type { BackupAndSyncContext } from '../types';
  * @param options.applyLocalUpdate - Function to apply the user storage value locally.
  * @param options.validateUserStorageValue - Function to validate user storage data.
  * @param options.analytics - Optional analytics configuration for tracking updates.
- * @param options.analytics.event - The analytics event to emit when updating from user storage.
+ * @param options.analytics.action - The analytics action for the event.
  * @param options.analytics.profileId - The profile ID for analytics.
  * @returns Promise resolving to true if local data should be pushed to user storage.
  */

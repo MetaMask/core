@@ -104,6 +104,5 @@ export type LegacyAccountSyncingContext = {
 };
 
 export type AtomicSyncEvent = {
-  id: string;
   execute: () => Promise<void>;
 };
