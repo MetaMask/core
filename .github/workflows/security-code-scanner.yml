@@ -12,6 +12,7 @@ on:
 jobs:
   run-security-scan:
     name: Run security scan
+    if: "github.event_name == 'push' || github.event.action != 'edited'"
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -45,3 +46,11 @@ jobs:
           rules_excluded: example
           project_metrics_token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
           slack_webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
+
+  skip:
+    name: Skip
+    if: "github.event_name == 'pull_request' && github.event.action == 'edited'"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip
+        run: /bin/true

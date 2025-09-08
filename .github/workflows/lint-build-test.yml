@@ -6,6 +6,7 @@ on:
 jobs:
   prepare:
     name: Prepare
+    if: "github.event_name == 'push' || github.event.action != 'edited'"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -110,3 +111,11 @@ jobs:
             echo "Working tree dirty at end of job"
             exit 1
           fi
+
+  skip:
+    name: Skip
+    if: "github.event_name == 'pull_request' && github.event.action == 'edited'"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip
+        run: /bin/true
