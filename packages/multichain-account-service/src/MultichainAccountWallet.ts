@@ -229,12 +229,6 @@ export class MultichainAccountWallet<
   async createMultichainAccountGroup(
     groupIndex: number,
   ): Promise<MultichainAccountGroup<Account>> {
-    return this.#createMultichainAccountGroup(groupIndex);
-  }
-
-  async #createMultichainAccountGroup(
-    groupIndex: number,
-  ): Promise<MultichainAccountGroup<Account>> {
     const nextGroupIndex = this.getNextGroupIndex();
     if (groupIndex > nextGroupIndex) {
       throw new Error(
@@ -335,7 +329,7 @@ export class MultichainAccountWallet<
   async createNextMultichainAccountGroup(): Promise<
     MultichainAccountGroup<Account>
   > {
-    return this.#createMultichainAccountGroup(this.getNextGroupIndex());
+    return this.createMultichainAccountGroup(this.getNextGroupIndex());
   }
 
   /**
