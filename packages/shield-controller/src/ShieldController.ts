@@ -15,15 +15,24 @@ import type { CoverageResult, ShieldBackend } from './types';
 const log = createModuleLogger(projectLogger, 'ShieldController');
 
 export type CoverageResultRecordEntry = {
-  results: CoverageResult[]; // history of coverage results, latest first
+  /**
+   * History of coverage results, latest first.
+   */
+  results: CoverageResult[];
 };
 
 export type ShieldControllerState = {
+  /**
+   * Coverage results by transaction ID.
+   */
   coverageResults: Record<
     string, // txId
     CoverageResultRecordEntry
   >;
-  orderedTransactionHistory: string[]; // List of txIds ordered by time, latest first
+  /**
+   * List of txIds ordered by time, latest first.
+   */
+  orderedTransactionHistory: string[];
 };
 
 /**

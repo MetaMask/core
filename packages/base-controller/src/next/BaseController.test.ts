@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-export */
 import { Messenger } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
@@ -8,11 +9,13 @@ import type {
   ControllerEvents,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StatePropertyMetadata,
 } from './BaseController';
 import {
   BaseController,
   getAnonymizedState,
   getPersistentState,
+  deriveStateFromMetadata,
 } from './BaseController';
 
 export const countControllerName = 'CountController';
@@ -33,8 +36,10 @@ export type CountControllerEvent = ControllerStateChangeEvent<
 
 export const countControllerStateMetadata = {
   count: {
-    persist: true,
     anonymous: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
   },
 };
 
@@ -104,8 +109,10 @@ type MessagesControllerEvent = ControllerStateChangeEvent<
 
 const messagesControllerStateMetadata = {
   messages: {
-    persist: true,
     anonymous: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
   },
 };
 
@@ -573,362 +580,6 @@ describe('BaseController', () => {
     expect(listener1.callCount).toBe(0);
     expect(listener2.callCount).toBe(0);
   });
-});
-
-describe('getAnonymizedState', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('should return empty state', () => {
-    expect(getAnonymizedState({}, {})).toStrictEqual({});
-  });
-
-  it('should return empty state when no properties are anonymized', () => {
-    const anonymizedState = getAnonymizedState(
-      { count: 1 },
-      { count: { anonymous: false, persist: false } },
-    );
-    expect(anonymizedState).toStrictEqual({});
-  });
-
-  it('should return state that is already anonymized', () => {
-    const anonymizedState = getAnonymizedState(
-      {
-        password: 'secret password',
-        privateKey: '123',
-        network: 'mainnet',
-        tokens: ['DAI', 'USDC'],
-      },
-      {
-        password: {
-          anonymous: false,
-          persist: false,
-        },
-        privateKey: {
-          anonymous: false,
-          persist: false,
-        },
-        network: {
-          anonymous: true,
-          persist: false,
-        },
-        tokens: {
-          anonymous: true,
-          persist: false,
-        },
-      },
-    );
-    expect(anonymizedState).toStrictEqual({
-      network: 'mainnet',
-      tokens: ['DAI', 'USDC'],
-    });
-  });
-
-  it('should use anonymizing function to anonymize state', () => {
-    const anonymizeTransactionHash = (hash: string) => {
-      return hash.split('').reverse().join('');
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        transactionHash: '0x1234',
-      },
-      {
-        transactionHash: {
-          anonymous: anonymizeTransactionHash,
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ transactionHash: '4321x0' });
-  });
-
-  it('should allow returning a partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: { hash: string; value: number }) => {
-      return { value: txMeta.value };
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        txMeta: {
-          hash: '0x123',
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: anonymizeTxMeta,
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ txMeta: { value: 10 } });
-  });
-
-  it('should allow returning a nested partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: {
-      hash: string;
-      value: number;
-      history: { hash: string; value: number }[];
-    }) => {
-      return {
-        history: txMeta.history.map((entry) => {
-          return { value: entry.value };
-        }),
-        value: txMeta.value,
-      };
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        txMeta: {
-          hash: '0x123',
-          history: [
-            {
-              hash: '0x123',
-              value: 9,
-            },
-          ],
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: anonymizeTxMeta,
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({
-      txMeta: { history: [{ value: 9 }], value: 10 },
-    });
-  });
-
-  it('should allow transforming types in an anonymizing function', () => {
-    const anonymizedState = getAnonymizedState(
-      {
-        count: '1',
-      },
-      {
-        count: {
-          anonymous: (count) => Number(count),
-          persist: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ count: 1 });
-  });
-
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getAnonymizedState(
-      {
-        extraState: 'extraState',
-        privateKey: '123',
-        network: 'mainnet',
-      },
-      // @ts-expect-error Intentionally testing invalid state
-      {
-        privateKey: {
-          anonymous: true,
-          persist: true,
-        },
-        network: {
-          anonymous: false,
-          persist: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      privateKey: '123',
-    });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
-  });
-});
-
-describe('getPersistentState', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('should return empty state', () => {
-    expect(getPersistentState({}, {})).toStrictEqual({});
-  });
-
-  it('should return empty state when no properties are persistent', () => {
-    const persistentState = getPersistentState(
-      { count: 1 },
-      { count: { anonymous: false, persist: false } },
-    );
-    expect(persistentState).toStrictEqual({});
-  });
-
-  it('should return persistent state', () => {
-    const persistentState = getPersistentState(
-      {
-        password: 'secret password',
-        privateKey: '123',
-        network: 'mainnet',
-        tokens: ['DAI', 'USDC'],
-      },
-      {
-        password: {
-          anonymous: false,
-          persist: true,
-        },
-        privateKey: {
-          anonymous: false,
-          persist: true,
-        },
-        network: {
-          anonymous: false,
-          persist: false,
-        },
-        tokens: {
-          anonymous: false,
-          persist: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      password: 'secret password',
-      privateKey: '123',
-    });
-  });
-
-  it('should use function to derive persistent state', () => {
-    const normalizeTransacitonHash = (hash: string) => {
-      return hash.toLowerCase();
-    };
-
-    const persistentState = getPersistentState(
-      {
-        transactionHash: '0X1234',
-      },
-      {
-        transactionHash: {
-          anonymous: false,
-          persist: normalizeTransacitonHash,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ transactionHash: '0x1234' });
-  });
-
-  it('should allow returning a partial object from a persist function', () => {
-    const getPersistentTxMeta = (txMeta: { hash: string; value: number }) => {
-      return { value: txMeta.value };
-    };
-
-    const persistentState = getPersistentState(
-      {
-        txMeta: {
-          hash: '0x123',
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: false,
-          persist: getPersistentTxMeta,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ txMeta: { value: 10 } });
-  });
-
-  it('should allow returning a nested partial object from a persist function', () => {
-    const getPersistentTxMeta = (txMeta: {
-      hash: string;
-      value: number;
-      history: { hash: string; value: number }[];
-    }) => {
-      return {
-        history: txMeta.history.map((entry) => {
-          return { value: entry.value };
-        }),
-        value: txMeta.value,
-      };
-    };
-
-    const persistentState = getPersistentState(
-      {
-        txMeta: {
-          hash: '0x123',
-          history: [
-            {
-              hash: '0x123',
-              value: 9,
-            },
-          ],
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: false,
-          persist: getPersistentTxMeta,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({
-      txMeta: { history: [{ value: 9 }], value: 10 },
-    });
-  });
-
-  it('should allow transforming types in a persist function', () => {
-    const persistentState = getPersistentState(
-      {
-        count: '1',
-      },
-      {
-        count: {
-          anonymous: false,
-          persist: (count) => Number(count),
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ count: 1 });
-  });
-
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getPersistentState(
-      {
-        extraState: 'extraState',
-        privateKey: '123',
-        network: 'mainnet',
-      },
-      // @ts-expect-error Intentionally testing invalid state
-      {
-        privateKey: {
-          anonymous: false,
-          persist: true,
-        },
-        network: {
-          anonymous: false,
-          persist: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      privateKey: '123',
-    });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
-  });
 
   describe('inter-controller communication', () => {
     // These two contrived mock controllers are setup to test with.
@@ -958,8 +609,10 @@ describe('getPersistentState', () => {
 
     const visitorControllerStateMetadata = {
       visitors: {
-        persist: true,
         anonymous: true,
+        includeInStateLogs: true,
+        persist: true,
+        usedInUi: true,
       },
     };
 
@@ -1026,8 +679,10 @@ describe('getPersistentState', () => {
 
     const visitorOverflowControllerMetadata = {
       maxVisitors: {
-        persist: false,
         anonymous: true,
+        includeInStateLogs: true,
+        persist: false,
+        usedInUi: true,
       },
     };
 
@@ -1121,6 +776,669 @@ describe('getPersistentState', () => {
 
       expect(visitorOverflowController.state.maxVisitors).toBe(2);
       expect(visitorController.state.visitors).toHaveLength(0);
+    });
+  });
+});
+
+describe('getAnonymizedState', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  it('should return empty state', () => {
+    expect(getAnonymizedState({}, {})).toStrictEqual({});
+  });
+
+  it('should return empty state when no properties are anonymized', () => {
+    const anonymizedState = getAnonymizedState(
+      { count: 1 },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+    expect(anonymizedState).toStrictEqual({});
+  });
+
+  it('should return state that is already anonymized', () => {
+    const anonymizedState = getAnonymizedState(
+      {
+        password: 'secret password',
+        privateKey: '123',
+        network: 'mainnet',
+        tokens: ['DAI', 'USDC'],
+      },
+      {
+        password: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+        privateKey: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+        network: {
+          anonymous: true,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+        tokens: {
+          anonymous: true,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+    expect(anonymizedState).toStrictEqual({
+      network: 'mainnet',
+      tokens: ['DAI', 'USDC'],
+    });
+  });
+
+  it('should use anonymizing function to anonymize state', () => {
+    const anonymizeTransactionHash = (hash: string) => {
+      return hash.split('').reverse().join('');
+    };
+
+    const anonymizedState = getAnonymizedState(
+      {
+        transactionHash: '0x1234',
+      },
+      {
+        transactionHash: {
+          anonymous: anonymizeTransactionHash,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(anonymizedState).toStrictEqual({ transactionHash: '4321x0' });
+  });
+
+  it('should allow returning a partial object from an anonymizing function', () => {
+    const anonymizeTxMeta = (txMeta: { hash: string; value: number }) => {
+      return { value: txMeta.value };
+    };
+
+    const anonymizedState = getAnonymizedState(
+      {
+        txMeta: {
+          hash: '0x123',
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          anonymous: anonymizeTxMeta,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(anonymizedState).toStrictEqual({ txMeta: { value: 10 } });
+  });
+
+  it('should allow returning a nested partial object from an anonymizing function', () => {
+    const anonymizeTxMeta = (txMeta: {
+      hash: string;
+      value: number;
+      history: { hash: string; value: number }[];
+    }) => {
+      return {
+        history: txMeta.history.map((entry) => {
+          return { value: entry.value };
+        }),
+        value: txMeta.value,
+      };
+    };
+
+    const anonymizedState = getAnonymizedState(
+      {
+        txMeta: {
+          hash: '0x123',
+          history: [
+            {
+              hash: '0x123',
+              value: 9,
+            },
+          ],
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          anonymous: anonymizeTxMeta,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(anonymizedState).toStrictEqual({
+      txMeta: { history: [{ value: 9 }], value: 10 },
+    });
+  });
+
+  it('should allow transforming types in an anonymizing function', () => {
+    const anonymizedState = getAnonymizedState(
+      {
+        count: '1',
+      },
+      {
+        count: {
+          anonymous: (count) => Number(count),
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(anonymizedState).toStrictEqual({ count: 1 });
+  });
+
+  it('should suppress errors thrown when deriving state', () => {
+    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    const persistentState = getAnonymizedState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: true,
+          includeInStateLogs: true,
+          persist: true,
+          usedInUi: true,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+    expect(persistentState).toStrictEqual({
+      privateKey: '123',
+    });
+    expect(setTimeoutStub.callCount).toBe(1);
+    const onTimeout = setTimeoutStub.firstCall.args[0];
+    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+  });
+});
+
+describe('getPersistentState', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  it('should return empty state', () => {
+    expect(getPersistentState({}, {})).toStrictEqual({});
+  });
+
+  it('should return empty state when no properties are persistent', () => {
+    const persistentState = getPersistentState(
+      { count: 1 },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+    expect(persistentState).toStrictEqual({});
+  });
+
+  it('should return persistent state', () => {
+    const persistentState = getPersistentState(
+      {
+        password: 'secret password',
+        privateKey: '123',
+        network: 'mainnet',
+        tokens: ['DAI', 'USDC'],
+      },
+      {
+        password: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: true,
+          usedInUi: false,
+        },
+        privateKey: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: true,
+          usedInUi: false,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+        tokens: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: false,
+        },
+      },
+    );
+    expect(persistentState).toStrictEqual({
+      password: 'secret password',
+      privateKey: '123',
+    });
+  });
+
+  it('should use function to derive persistent state', () => {
+    const normalizeTransacitonHash = (hash: string) => {
+      return hash.toLowerCase();
+    };
+
+    const persistentState = getPersistentState(
+      {
+        transactionHash: '0X1234',
+      },
+      {
+        transactionHash: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: normalizeTransacitonHash,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(persistentState).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('should allow returning a partial object from a persist function', () => {
+    const getPersistentTxMeta = (txMeta: { hash: string; value: number }) => {
+      return { value: txMeta.value };
+    };
+
+    const persistentState = getPersistentState(
+      {
+        txMeta: {
+          hash: '0x123',
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: getPersistentTxMeta,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(persistentState).toStrictEqual({ txMeta: { value: 10 } });
+  });
+
+  it('should allow returning a nested partial object from a persist function', () => {
+    const getPersistentTxMeta = (txMeta: {
+      hash: string;
+      value: number;
+      history: { hash: string; value: number }[];
+    }) => {
+      return {
+        history: txMeta.history.map((entry) => {
+          return { value: entry.value };
+        }),
+        value: txMeta.value,
+      };
+    };
+
+    const persistentState = getPersistentState(
+      {
+        txMeta: {
+          hash: '0x123',
+          history: [
+            {
+              hash: '0x123',
+              value: 9,
+            },
+          ],
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: getPersistentTxMeta,
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(persistentState).toStrictEqual({
+      txMeta: { history: [{ value: 9 }], value: 10 },
+    });
+  });
+
+  it('should allow transforming types in a persist function', () => {
+    const persistentState = getPersistentState(
+      {
+        count: '1',
+      },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: (count) => Number(count),
+          usedInUi: false,
+        },
+      },
+    );
+
+    expect(persistentState).toStrictEqual({ count: 1 });
+  });
+
+  it('should suppress errors thrown when deriving state', () => {
+    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    const persistentState = getPersistentState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: true,
+          usedInUi: false,
+        },
+        network: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          usedInUi: true,
+        },
+      },
+    );
+    expect(persistentState).toStrictEqual({
+      privateKey: '123',
+    });
+    expect(setTimeoutStub.callCount).toBe(1);
+    const onTimeout = setTimeoutStub.firstCall.args[0];
+    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+  });
+});
+
+describe('deriveStateFromMetadata', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  it('returns an empty object when deriving state for an unset property', () => {
+    const derivedState = deriveStateFromMetadata(
+      { count: 1 },
+      {
+        count: {
+          anonymous: false,
+          includeInStateLogs: false,
+          persist: false,
+          // usedInUi is not set
+        },
+      },
+      'usedInUi',
+    );
+
+    expect(derivedState).toStrictEqual({});
+  });
+
+  describe.each([
+    'anonymous',
+    'includeInStateLogs',
+    'persist',
+    'usedInUi',
+  ] as const)('%s', (property: keyof StatePropertyMetadata<Json>) => {
+    it('should return empty state', () => {
+      expect(deriveStateFromMetadata({}, {}, property)).toStrictEqual({});
+    });
+
+    it('should return empty state when no properties are enabled', () => {
+      const derivedState = deriveStateFromMetadata(
+        { count: 1 },
+        {
+          count: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({});
+    });
+
+    it('should return derived state', () => {
+      const derivedState = deriveStateFromMetadata(
+        {
+          password: 'secret password',
+          privateKey: '123',
+          network: 'mainnet',
+          tokens: ['DAI', 'USDC'],
+        },
+        {
+          password: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+          tokens: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({
+        password: 'secret password',
+        privateKey: '123',
+      });
+    });
+
+    if (property !== 'usedInUi') {
+      it('should use function to derive state', () => {
+        const normalizeTransactionHash = (hash: string) => {
+          return hash.toLowerCase();
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            transactionHash: '0X1234',
+          },
+          {
+            transactionHash: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: normalizeTransactionHash,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ transactionHash: '0x1234' });
+      });
+
+      it('should allow returning a partial object from a deriver', () => {
+        const getDerivedTxMeta = (txMeta: { hash: string; value: number }) => {
+          return { value: txMeta.value };
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            txMeta: {
+              hash: '0x123',
+              value: 10,
+            },
+          },
+          {
+            txMeta: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: getDerivedTxMeta,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ txMeta: { value: 10 } });
+      });
+
+      it('should allow returning a nested partial object from a deriver', () => {
+        const getDerivedTxMeta = (txMeta: {
+          hash: string;
+          value: number;
+          history: { hash: string; value: number }[];
+        }) => {
+          return {
+            history: txMeta.history.map((entry) => {
+              return { value: entry.value };
+            }),
+            value: txMeta.value,
+          };
+        };
+
+        const derivedState = deriveStateFromMetadata(
+          {
+            txMeta: {
+              hash: '0x123',
+              history: [
+                {
+                  hash: '0x123',
+                  value: 9,
+                },
+              ],
+              value: 10,
+            },
+          },
+          {
+            txMeta: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: getDerivedTxMeta,
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({
+          txMeta: { history: [{ value: 9 }], value: 10 },
+        });
+      });
+
+      it('should allow transforming types in a deriver', () => {
+        const derivedState = deriveStateFromMetadata(
+          {
+            count: '1',
+          },
+          {
+            count: {
+              anonymous: false,
+              includeInStateLogs: false,
+              persist: false,
+              usedInUi: false,
+              [property]: (count: string) => Number(count),
+            },
+          },
+          property,
+        );
+
+        expect(derivedState).toStrictEqual({ count: 1 });
+      });
+    }
+
+    it('should suppress errors thrown when deriving state', () => {
+      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(setTimeoutStub.callCount).toBe(1);
+      const onTimeout = setTimeoutStub.firstCall.args[0];
+      expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
     });
   });
 });

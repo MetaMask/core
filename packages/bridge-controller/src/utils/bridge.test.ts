@@ -1,11 +1,12 @@
 import { Contract } from '@ethersproject/contracts';
-import { SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 
 import {
   getEthUsdtResetData,
   getNativeAssetForChainId,
+  isBitcoinChainId,
   isCrossChain,
   isEthUsdt,
   isSolanaChainId,
@@ -19,6 +20,7 @@ import {
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
+import { ChainId } from '../types';
 
 describe('Bridge utils', () => {
   beforeEach(() => {
@@ -149,6 +151,55 @@ describe('Bridge utils', () => {
     });
   });
 
+  describe('isBitcoinChainId', () => {
+    it('returns true for ChainId.BTC (numeric)', () => {
+      expect(isBitcoinChainId(ChainId.BTC)).toBe(true);
+      expect(isBitcoinChainId(20000000000001)).toBe(true);
+    });
+
+    it('returns true for ChainId.BTC (string)', () => {
+      expect(isBitcoinChainId('20000000000001')).toBe(true);
+      expect(isBitcoinChainId(ChainId.BTC.toString())).toBe(true);
+    });
+
+    it('returns true for BtcScope.Mainnet', () => {
+      expect(isBitcoinChainId(BtcScope.Mainnet)).toBe(true);
+    });
+
+    it('returns true for BtcScope.Mainnet as string', () => {
+      expect(isBitcoinChainId(BtcScope.Mainnet.toString())).toBe(true);
+    });
+
+    it('returns false for EVM chainIds (hex)', () => {
+      expect(isBitcoinChainId('0x1')).toBe(false);
+      expect(isBitcoinChainId('0x89')).toBe(false);
+      expect(isBitcoinChainId(CHAIN_IDS.MAINNET)).toBe(false);
+    });
+
+    it('returns false for EVM chainIds (numeric)', () => {
+      expect(isBitcoinChainId(1)).toBe(false);
+      expect(isBitcoinChainId(137)).toBe(false);
+      expect(isBitcoinChainId(56)).toBe(false);
+    });
+
+    it('returns false for EVM CAIP chainIds', () => {
+      expect(isBitcoinChainId('eip155:1')).toBe(false);
+      expect(isBitcoinChainId('eip155:137')).toBe(false);
+    });
+
+    it('returns false for Solana chainIds', () => {
+      expect(isBitcoinChainId(ChainId.SOLANA)).toBe(false);
+      expect(isBitcoinChainId(SolScope.Mainnet)).toBe(false);
+      expect(isBitcoinChainId('1151111081099710')).toBe(false);
+    });
+
+    it('returns false for invalid chainIds', () => {
+      expect(isBitcoinChainId('invalid')).toBe(false);
+      expect(isBitcoinChainId('test')).toBe(false);
+      expect(isBitcoinChainId('')).toBe(false);
+    });
+  });
+
   describe('getNativeAssetForChainId', () => {
     it('should return native asset for hex chainId', () => {
       const result = getNativeAssetForChainId('0x1');
@@ -183,6 +234,24 @@ describe('Bridge utils', () => {
         ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[SolScope.Mainnet],
         chainId: 1151111081099710,
         assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      });
+    });
+
+    it('should return native asset for Bitcoin chainId', () => {
+      const result = getNativeAssetForChainId(BtcScope.Mainnet);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[BtcScope.Mainnet],
+        chainId: 20000000000001,
+        assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+      });
+    });
+
+    it('should return native asset for Bitcoin numeric chainId', () => {
+      const result = getNativeAssetForChainId(ChainId.BTC);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[BtcScope.Mainnet],
+        chainId: 20000000000001,
+        assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
       });
     });
 

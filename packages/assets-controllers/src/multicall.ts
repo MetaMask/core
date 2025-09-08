@@ -582,11 +582,9 @@ const processBalanceResults = (
   results.forEach((result, index) => {
     if (result.success) {
       const { tokenAddress, userAddress, callType } = callMapping[index];
-      let balance: BN;
-
       if (callType === 'native') {
         // For native token, decode the getEthBalance result
-        balance = multicall3Contract.interface.decodeFunctionResult(
+        const balanceRaw = multicall3Contract.interface.decodeFunctionResult(
           GET_ETH_BALANCE_FUNCTION,
           result.returnData,
         )[0];
@@ -594,7 +592,7 @@ const processBalanceResults = (
         if (!balanceMap[tokenAddress]) {
           balanceMap[tokenAddress] = {};
         }
-        balanceMap[tokenAddress][userAddress] = balance;
+        balanceMap[tokenAddress][userAddress] = new BN(balanceRaw.toString());
       } else if (callType === 'staking') {
         // Staking is now handled separately in two-step process
         // This case should not occur anymore
@@ -603,7 +601,7 @@ const processBalanceResults = (
         );
       } else {
         // For ERC20 tokens, decode the balanceOf result
-        balance = erc20Contract.interface.decodeFunctionResult(
+        const balanceRaw = erc20Contract.interface.decodeFunctionResult(
           BALANCE_OF_FUNCTION,
           result.returnData,
         )[0];
@@ -611,7 +609,7 @@ const processBalanceResults = (
         if (!balanceMap[tokenAddress]) {
           balanceMap[tokenAddress] = {};
         }
-        balanceMap[tokenAddress][userAddress] = balance;
+        balanceMap[tokenAddress][userAddress] = new BN(balanceRaw.toString());
       }
     }
   });
@@ -1040,7 +1038,7 @@ export const getTokenBalancesForMultipleAddresses = async (
     // Note: Staking balances will be handled separately in two steps after token/native calls
 
     // Execute all calls in batches
-    const maxCallsPerBatch = 100; // Limit calls per batch to avoid gas/size limits
+    const maxCallsPerBatch = 300; // Limit calls per batch to avoid gas/size limits
     const allResults: Aggregate3Result[] = [];
 
     await reduceInBatchesSerially<Aggregate3Call, void>({

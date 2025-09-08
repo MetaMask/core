@@ -1,7 +1,6 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
@@ -81,6 +80,26 @@ export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
   handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
 };
 
+export type AccountTreeControllerSetAccountWalletNameAction = {
+  type: `${typeof controllerName}:setAccountWalletName`;
+  handler: AccountTreeController['setAccountWalletName'];
+};
+
+export type AccountTreeControllerSetAccountGroupNameAction = {
+  type: `${typeof controllerName}:setAccountGroupName`;
+  handler: AccountTreeController['setAccountGroupName'];
+};
+
+export type AccountTreeControllerSetAccountGroupHiddenAction = {
+  type: `${typeof controllerName}:setAccountGroupHidden`;
+  handler: AccountTreeController['setAccountGroupHidden'];
+};
+
+export type AccountTreeControllerSetAccountGroupPinnedAction = {
+  type: `${typeof controllerName}:setAccountGroupPinned`;
+  handler: AccountTreeController['setAccountGroupPinned'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -93,20 +112,44 @@ export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
   | AccountTreeControllerSetSelectedAccountGroupAction
   | AccountTreeControllerGetSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | AccountTreeControllerSetAccountWalletNameAction
+  | AccountTreeControllerSetAccountGroupNameAction
+  | AccountTreeControllerSetAccountGroupPinnedAction
+  | AccountTreeControllerSetAccountGroupHiddenAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   AccountTreeControllerState
 >;
 
+/**
+ * Represents the `AccountTreeController:accountTreeChange` event.
+ * This event is emitted when nodes (wallets, groups, or accounts) are added or removed.
+ */
+export type AccountTreeControllerAccountTreeChangeEvent = {
+  type: `${typeof controllerName}:accountTreeChange`;
+  payload: [AccountTreeControllerState['accountTree']];
+};
+
+/**
+ * Represents the `AccountTreeController:selectedAccountGroupChange` event.
+ * This event is emitted when the selected account group changes.
+ */
+export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
+  type: `${typeof controllerName}:selectedAccountGroupChange`;
+  payload: [AccountGroupId | '', AccountGroupId | ''];
+};
+
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent;
 
-export type AccountTreeControllerEvents = AccountTreeControllerStateChangeEvent;
+export type AccountTreeControllerEvents =
+  | AccountTreeControllerStateChangeEvent
+  | AccountTreeControllerAccountTreeChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
 export type AccountTreeControllerMessenger = RestrictedMessenger<
   typeof controllerName,

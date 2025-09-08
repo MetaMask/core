@@ -1,5 +1,6 @@
 export type { AccountWalletObject } from './wallet';
 export type { AccountGroupObject } from './group';
+export { isAccountGroupNameUnique } from './group';
 
 export type {
   AccountTreeControllerState,
@@ -7,7 +8,14 @@ export type {
   AccountTreeControllerActions,
   AccountTreeControllerSetSelectedAccountGroupAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerSetAccountWalletNameAction,
+  AccountTreeControllerSetAccountGroupNameAction,
+  AccountTreeControllerSetAccountGroupPinnedAction,
+  AccountTreeControllerSetAccountGroupHiddenAction,
   AccountTreeControllerStateChangeEvent,
+  AccountTreeControllerAccountTreeChangeEvent,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types';

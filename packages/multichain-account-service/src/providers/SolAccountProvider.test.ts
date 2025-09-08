@@ -7,6 +7,7 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 
+import { AccountProviderWrapper } from './AccountProviderWrapper';
 import { SolAccountProvider } from './SolAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
@@ -14,6 +15,7 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
   MOCK_SOL_ACCOUNT_1,
+  MOCK_SOL_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
 } from '../tests';
 import type {
@@ -98,7 +100,7 @@ function setup({
   >;
   accounts?: InternalAccount[];
 } = {}): {
-  provider: SolAccountProvider;
+  provider: AccountProviderWrapper;
   messenger: Messenger<
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
@@ -139,8 +141,10 @@ function setup({
       }),
   );
 
-  const provider = new SolAccountProvider(
-    getMultichainAccountServiceMessenger(messenger),
+  const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
+  const provider = new AccountProviderWrapper(
+    multichainMessenger,
+    new SolAccountProvider(multichainMessenger),
   );
 
   return {
@@ -157,6 +161,11 @@ function setup({
 }
 
 describe('SolAccountProvider', () => {
+  it('getName returns Solana', () => {
+    const { provider } = setup({ accounts: [] });
+    expect(provider.getName()).toBe('Solana');
+  });
+
   it('gets accounts', () => {
     const accounts = [MOCK_SOL_ACCOUNT_1];
     const { provider } = setup({
@@ -239,17 +248,54 @@ describe('SolAccountProvider', () => {
     ).rejects.toThrow('Created account is not BIP-44 compatible');
   });
 
-  it('discover accounts', async () => {
-    const { provider } = setup({
-      accounts: [], // No accounts by defaults, so we can discover them
+  it('discover accounts at a new group index creates an account', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
     });
 
-    // TODO: Update this once we really implement the account discovery.
-    expect(
-      await provider.discoverAndCreateAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
-      }),
-    ).toStrictEqual([]);
+    // Simulate one discovered account at the requested index.
+    mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+    const created = await provider.discoverAndCreateAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(created).toHaveLength(1);
+    // Ensure we did go through creation path
+    expect(mocks.keyring.createAccount).toHaveBeenCalled();
+    // Provider should now expose one account (newly created)
+    expect(provider.getAccounts()).toHaveLength(1);
+  });
+
+  it('returns existing account if it already exists at index', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_SOL_ACCOUNT_1],
+    });
+
+    // Simulate one discovered account — should resolve to the existing one
+    mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+    const discovered = await provider.discoverAndCreateAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([MOCK_SOL_ACCOUNT_1]);
+  });
+
+  it('does not return any accounts if no account is discovered', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.handleRequest.mockReturnValue([]);
+
+    const discovered = await provider.discoverAndCreateAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([]);
   });
 });

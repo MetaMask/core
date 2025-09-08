@@ -12,6 +12,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject } from './group';
+import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -70,8 +71,6 @@ export type AccountContext = {
    */
   groupId: AccountGroupObject['id'];
 };
-
-const DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX = /^Account ([0-9]+)$/u;
 
 export class AccountTreeController extends BaseController<
   typeof controllerName,
@@ -153,13 +152,6 @@ export class AccountTreeController extends BaseController<
       },
     );
 
-    this.messagingSystem.subscribe(
-      'AccountsController:accountRenamed',
-      (account) => {
-        this.#handleAccountRenamed(account);
-      },
-    );
-
     this.#registerMessageHandlers();
   }
 
@@ -173,9 +165,14 @@ export class AccountTreeController extends BaseController<
   init() {
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
-    // Clear mappings for fresh rebuild
+    // Clear mappings for fresh rebuild.
     this.#accountIdToContext.clear();
     this.#groupIdToWalletId.clear();
+
+    // Keep the current selected group to check if it's still part of the tree
+    // after rebuilding it.
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
     // For now, we always re-compute all wallets, we do not re-use the existing state.
     for (const account of this.#listAccounts()) {
@@ -183,23 +180,47 @@ export class AccountTreeController extends BaseController<
     }
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
+    let previousSelectedAccountGroupStillExists = false;
     for (const wallet of Object.values(wallets)) {
       this.#applyAccountWalletMetadata(wallet);
 
       for (const group of Object.values(wallet.groups)) {
         this.#applyAccountGroupMetadata(wallet, group);
+
+        if (group.id === previousSelectedAccountGroup) {
+          previousSelectedAccountGroupStillExists = true;
+        }
       }
     }
 
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
-      if (state.accountTree.selectedAccountGroup === '') {
-        // No group is selected yet, re-sync with the AccountsController.
+      if (
+        !previousSelectedAccountGroupStillExists ||
+        previousSelectedAccountGroup === ''
+      ) {
+        // No group is selected yet OR group no longer exists, re-sync with the
+        // AccountsController.
         state.accountTree.selectedAccountGroup =
           this.#getDefaultSelectedAccountGroup(wallets);
       }
     });
+
+    // We still compare the previous and new value, the previous one could have been
+    // an empty string and `#getDefaultSelectedAccountGroup` could also return an
+    // empty string too, thus, we would re-use the same value here again. In that
+    // case, no need to fire any event.
+    if (
+      previousSelectedAccountGroup !==
+      this.state.accountTree.selectedAccountGroup
+    ) {
+      this.messagingSystem.publish(
+        `${controllerName}:selectedAccountGroupChange`,
+        this.state.accountTree.selectedAccountGroup,
+        previousSelectedAccountGroup,
+      );
+    }
   }
 
   /**
@@ -462,6 +483,10 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
+    this.messagingSystem.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
+    );
   }
 
   /**
@@ -475,6 +500,10 @@ export class AccountTreeController extends BaseController<
 
     if (context) {
       const { walletId, groupId } = context;
+
+      const previousSelectedAccountGroup =
+        this.state.accountTree.selectedAccountGroup;
+      let selectedAccountGroupChanged = false;
 
       this.update((state) => {
         const accounts =
@@ -491,8 +520,12 @@ export class AccountTreeController extends BaseController<
               accounts.length === 0
             ) {
               // The currently selected group is now empty, find a new group to select
-              state.accountTree.selectedAccountGroup =
-                this.#getDefaultAccountGroupId(state.accountTree.wallets);
+              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
+                state.accountTree.wallets,
+              );
+              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
+              selectedAccountGroupChanged =
+                newSelectedAccountGroup !== previousSelectedAccountGroup;
             }
           }
           if (accounts.length === 0) {
@@ -500,52 +533,22 @@ export class AccountTreeController extends BaseController<
           }
         }
       });
+      this.messagingSystem.publish(
+        `${controllerName}:accountTreeChange`,
+        this.state.accountTree,
+      );
+
+      // Emit selectedAccountGroupChange event if the selected group changed
+      if (selectedAccountGroupChanged) {
+        this.messagingSystem.publish(
+          `${controllerName}:selectedAccountGroupChange`,
+          this.state.accountTree.selectedAccountGroup,
+          previousSelectedAccountGroup,
+        );
+      }
 
       // Clear reverse-mapping for that account.
       this.#accountIdToContext.delete(accountId);
-    }
-  }
-
-  /**
-   * Handles "AccountsController:accountRenamed" event to rename
-   * the associated account group which contains the account being
-   * renamed.
-   *
-   * NOTE: This is mainly useful for legacy backup & sync v1.
-   *
-   * @param account - Account being renamed.
-   */
-  #handleAccountRenamed(account: InternalAccount) {
-    // We only consider HD and simple EVM accounts for the moment as they have
-    // an higher priority over others when it comes to naming.
-    // (Similar logic than `EntropyRule.getDefaultAccountGroupName`).
-    // TODO: Rename other kind of accounts, but we need to compute their "default name" with custom prefixes.
-    if (!isEvmAccountType(account.type)) {
-      return;
-    }
-
-    const context = this.#accountIdToContext.get(account.id);
-
-    if (context) {
-      const { walletId, groupId } = context;
-
-      const wallet = this.state.accountTree.wallets[walletId];
-      if (wallet) {
-        const group = wallet.groups[groupId];
-        if (group) {
-          // We both use the same naming conventions for HD and simple accounts,
-          // so we can use the same regex to check if the name is a default one.
-          const isAccountNameDefault =
-            DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX.test(account.metadata.name);
-          const isGroupNameDefault = DEFAULT_HD_SIMPLE_ACCOUNT_NAME_REGEX.test(
-            group.metadata.name,
-          );
-
-          if (isGroupNameDefault && !isAccountNameDefault) {
-            this.setAccountGroupName(groupId, account.metadata.name);
-          }
-        }
-      }
     }
   }
 
@@ -692,6 +695,19 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Asserts that an account group name is unique across all groups.
+   *
+   * @param groupId - The account group ID to exclude from the check.
+   * @param name - The name to validate for uniqueness.
+   * @throws Error if the name already exists in another group.
+   */
+  #assertAccountGroupNameIsUnique(groupId: AccountGroupId, name: string): void {
+    if (!isAccountGroupNameUnique(this.state, groupId, name)) {
+      throw new Error('Account group name already exists');
+    }
+  }
+
+  /**
    * Gets the currently selected account group ID.
    *
    * @returns The selected account group ID or empty string if none selected.
@@ -706,10 +722,11 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID to select.
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedAccountGroup === groupId) {
       return;
     }
 
@@ -723,6 +740,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      groupId,
+      previousSelectedAccountGroup,
+    );
 
     // Update AccountsController - this will trigger selectedAccountChange event,
     // but our handler is idempotent so it won't cause infinite loop
@@ -771,10 +793,11 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const currentSelectedGroup = this.state.accountTree.selectedAccountGroup;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
-    if (currentSelectedGroup === groupId) {
+    if (previousSelectedAccountGroup === groupId) {
       return;
     }
 
@@ -782,6 +805,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      groupId,
+      previousSelectedAccountGroup,
+    );
   }
 
   /**
@@ -877,10 +905,14 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID.
    * @param name - The custom name to set.
    * @throws If the account group ID is not found in the current tree.
+   * @throws If the account group name already exists.
    */
   setAccountGroupName(groupId: AccountGroupId, name: string): void {
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
+
+    // Validate that the name is unique
+    this.#assertAccountGroupNameIsUnique(groupId, name);
 
     this.update((state) => {
       // Update persistent metadata
@@ -996,6 +1028,26 @@ export class AccountTreeController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountsFromSelectedAccountGroup`,
       this.getAccountsFromSelectedAccountGroup.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountWalletName`,
+      this.setAccountWalletName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupName`,
+      this.setAccountGroupName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupPinned`,
+      this.setAccountGroupPinned.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountGroupHidden`,
+      this.setAccountGroupHidden.bind(this),
     );
   }
 }
