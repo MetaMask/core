@@ -168,7 +168,8 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
     })
     .option('fix', {
       type: 'boolean',
-      description: 'Automatically fix all problems; pair with --quiet to only fix errors',
+      description:
+        'Automatically fix all problems; pair with --quiet to only fix errors',
       default: false,
     })
     .option('quiet', {

@@ -47,8 +47,7 @@ export enum BridgeClientId {
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
+) => Promise<unknown>;
 
 /**
  * These fields are specific to Solana transactions and can likely be infered from TransactionMeta

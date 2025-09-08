@@ -1323,16 +1323,13 @@ export class TransactionController extends BaseController<
         addedTransactionMeta.txParams.gasPrice;
       addedTransactionMeta.txParams.type = TransactionEnvelopeType.feeMarket;
       delete addedTransactionMeta.txParams.gasPrice; // Remove legacy gas price
-    } else if (
-      !isEIP1559Compatible &&
-      addedTransactionMeta.txParams.gasPrice
-    ) {
+    } else if (!isEIP1559Compatible && addedTransactionMeta.txParams.gasPrice) {
       // Ensure legacy type for non-EIP-1559 networks
       addedTransactionMeta.txParams.type = TransactionEnvelopeType.legacy;
     }
 
-      // Checks if a transaction already exists with a given actionId
-      if (!existingTransactionMeta) {
+    // Checks if a transaction already exists with a given actionId
+    if (!existingTransactionMeta) {
       // Set security provider response
       if (method && this.#securityProviderRequest) {
         const securityProviderResponse = await this.#securityProviderRequest(

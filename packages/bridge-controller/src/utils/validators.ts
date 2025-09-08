@@ -156,7 +156,6 @@ const RefuelDataSchema = StepSchema;
 // Allow digit strings for amounts/validTo for flexibility across providers
 const DigitStringOrNumberSchema = union([TruthyDigitStringSchema, number()]);
 
-
 // Intent support (e.g., CoW Swap EIP-712 order signing)
 const IntentProtocolSchema = enums(['cowswap']);
 
@@ -186,7 +185,6 @@ export const IntentSchema = type({
   relayer: optional(HexAddressSchema),
   quoteId: optional(nullable(string())),
 });
-
 
 export const QuoteSchema = type({
   requestId: string(),

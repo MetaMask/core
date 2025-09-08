@@ -219,8 +219,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const { type, status, id } = transactionMeta;
 
         // Skip intent transactions - they have their own tracking via CoW API
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((transactionMeta as any).swapMetaData?.isIntentTx) {
+        // Skip intent transactions - they have their own tracking via CoW API
+        if (
+          (transactionMeta as { swapMetaData?: { isIntentTx?: boolean } })
+            .swapMetaData?.isIntentTx
+        ) {
           return;
         }
 
@@ -686,8 +689,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           );
         }
       }
-    } catch (e) {
-      console.warn('Failed to fetch bridge tx status', e);
+    } catch (error) {
+      console.warn('Failed to fetch bridge tx status', error);
       this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
@@ -728,7 +731,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const res = await this.#fetchFn(url, { method: 'GET' });
 
       // CoW API status enum mapping
-      const rawStatus = res?.status ?? '';
+      const rawStatus =
+        typeof res === 'object' && res !== null && 'status' in res
+          ? ((res as { status?: string }).status ?? '')
+          : '';
       const isComplete = rawStatus === 'fulfilled';
       const isFailed = ['cancelled', 'expired'].includes(rawStatus);
       const isPending = ['presignaturePending', 'open'].includes(rawStatus);
@@ -742,21 +748,25 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const tradesUrl = `${COW_API_BASE}/${networkPath}/api/v1/trades?orderUid=${orderUid}`;
         const trades =
           (await this.#fetchFn(tradesUrl, { method: 'GET' })) ?? [];
-        allHashes = trades
-          .map(
-            (t: { txHash: unknown; transactionHash: unknown }) =>
-              t?.txHash || t?.transactionHash,
-          )
-          .filter(
-            (h: unknown): h is string => typeof h === 'string' && h.length > 0,
-          );
+        allHashes = Array.isArray(trades)
+          ? trades
+              .map(
+                (t: { txHash?: unknown; transactionHash?: unknown }) =>
+                  t?.txHash || t?.transactionHash,
+              )
+              .filter(
+                (h: unknown): h is string =>
+                  typeof h === 'string' && h.length > 0,
+              )
+          : [];
         // Fallback to any hash on order if trades missing
         if (allHashes.length === 0) {
           const possible = [
-            res?.txHash,
-            res?.transactionHash,
-            res?.executedTransaction,
-            res?.executedTransactionHash,
+            (res as { txHash?: string }).txHash,
+            (res as { transactionHash?: string }).transactionHash,
+            (res as { executedTransaction?: string }).executedTransaction,
+            (res as { executedTransactionHash?: string })
+              .executedTransactionHash,
           ].filter(
             (h: unknown): h is string => typeof h === 'string' && h.length > 0,
           );
@@ -846,7 +856,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                     txReceipt: {
                       ...(
                         existingTxMeta as unknown as {
-                          txReceipt: TransactionReceipt;
+                          txReceipt: Record<string, unknown>;
                         }
                       ).txReceipt,
                       transactionHash: txHash,
@@ -893,7 +903,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           );
         }
       }
-    } catch (e) {
+    } catch {
       // Network or API error: apply backoff
       this.#handleFetchFailure(bridgeTxMetaId);
     }
@@ -1048,7 +1058,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Poll the TransactionController state for status changes
     // We intentionally keep this simple to avoid extra wiring/subscriptions in this controller
     // and because we only need it for the rare intent+approval path.
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { transactions } = this.messagingSystem.call(
         'TransactionController:getState',
@@ -1060,7 +1069,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         if (
           meta.status === TransactionStatus.confirmed ||
           // Some environments move directly to finalized
-          (TransactionStatus as unknown as { finalized: string }).finalized === meta.status
+          (TransactionStatus as unknown as { finalized: string }).finalized ===
+            meta.status
         ) {
           return meta;
         }
@@ -1563,7 +1573,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       });
 
       const orderUid: string | undefined =
-        typeof res === 'string' ? res : (res?.uid ?? res?.orderUid ?? res?.id);
+        typeof res === 'string'
+          ? res
+          : ((res as { uid?: string; orderUid?: string; id?: string })?.uid ??
+            (res as { uid?: string; orderUid?: string; id?: string })
+              ?.orderUid ??
+            (res as { uid?: string; orderUid?: string; id?: string })?.id);
       if (!orderUid) {
         throw new Error('submitIntent: failed to submit order');
       }
@@ -1575,7 +1590,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const orderStatusRes = await this.#fetchFn(orderStatusUrl, {
           method: 'GET',
         });
-        initialOrderStatus = orderStatusRes?.status ?? 'open';
+        initialOrderStatus =
+          (orderStatusRes as { status?: string })?.status ?? 'open';
       } catch (error) {
         console.warn(
           '📝 [submitIntent] Failed to get initial order status, using default:',
@@ -1641,7 +1657,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
       );
 
-      const intentTxMeta = await txMetaPromise;
+      const intentTxMeta = txMetaPromise;
 
       // Map initial CoW order status to TransactionController status
       const isComplete = initialOrderStatus === 'fulfilled';
