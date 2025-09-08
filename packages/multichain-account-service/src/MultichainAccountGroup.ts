@@ -6,11 +6,11 @@ import {
 } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
-import type { AccountProvider } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { MultichainAccountServiceMessenger } from './types';
+import type { NamedAccountProvider } from './providers';
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -25,11 +25,17 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: AccountProvider<Account>[];
+  readonly #providers: NamedAccountProvider<Account>[];
 
-  readonly #providerToAccounts: Map<AccountProvider<Account>, Account['id'][]>;
+  readonly #providerToAccounts: Map<
+    NamedAccountProvider<Account>,
+    Account['id'][]
+  >;
 
-  readonly #accountToProvider: Map<Account['id'], AccountProvider<Account>>;
+  readonly #accountToProvider: Map<
+    Account['id'],
+    NamedAccountProvider<Account>
+  >;
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
@@ -44,7 +50,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: AccountProvider<Account>[];
+    providers: NamedAccountProvider<Account>[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);

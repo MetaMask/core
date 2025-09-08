@@ -21,6 +21,10 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     this.provider = provider;
   }
 
+  override getName(): string {
+    return this.provider.getName();
+  }
+
   /**
    * Set the enabled state for this provider.
    *

@@ -109,6 +109,9 @@ function setup({
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
   };
+  // Default provider names can be overridden per test using mockImplementation
+  mocks.EvmAccountProvider.getName.mockImplementation(() => 'EVM');
+  mocks.SolAccountProvider.getName.mockImplementation(() => 'Solana');
 
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
