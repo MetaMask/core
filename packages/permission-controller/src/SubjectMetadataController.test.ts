@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
 import type { HasPermissions } from './PermissionController';
@@ -336,6 +336,84 @@ describe('SubjectMetadataController', () => {
       expect(controller.getSubjectMetadata('bar.io')).toStrictEqual(
         getSubjectMetadata('bar.io', 'bar', SubjectType.Website),
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const [messenger] = getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 100,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const [messenger] = getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 100,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "subjectMetadata": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const [messenger] = getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 100,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "subjectMetadata": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const [messenger] = getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 100,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "subjectMetadata": Object {},
+        }
+      `);
     });
   });
 });

@@ -78,7 +78,12 @@ export type RateLimitMessenger<RateLimitedApis extends RateLimitedApiMap> =
   >;
 
 const metadata = {
-  requests: { persist: false, anonymous: false },
+  requests: {
+    includeInStateLogs: false,
+    persist: false,
+    anonymous: false,
+    usedInUi: false,
+  },
 };
 
 /**
