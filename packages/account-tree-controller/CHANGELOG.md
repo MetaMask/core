@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add unique name validation for account groups to prevent duplicate group names ([#6492](https://github.com/MetaMask/core/pull/6492))
+  - `setAccountGroupName` now validates that group names are unique across all groups
+  - Added `isAccountGroupNameUnique` utility function in `group.ts` for checking name uniqueness
+  - Names are trimmed of leading/trailing whitespace before comparison to prevent accidental duplicates
+
 ### Changed
 
 - **BREAKING:** Remove support for `AccountsController:accountRenamed` event handling ([#6438](https://github.com/MetaMask/core/pull/6438))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+- 
 
 ## [0.12.1]
 
