@@ -3788,15 +3788,18 @@ describe('TokenBalancesController', () => {
       // Mock AccountsApiBalanceFetcher to track when line 320 logic is executed
       const mockSupports = jest.fn().mockReturnValue(true);
       const mockApiFetch = jest.fn().mockResolvedValue([]);
-      
+
       const apiBalanceFetcher = jest.requireActual(
         './multi-chain-accounts-service/api-balance-fetcher',
       );
 
       const supportsSpy = jest
-        .spyOn(apiBalanceFetcher.AccountsApiBalanceFetcher.prototype, 'supports')
+        .spyOn(
+          apiBalanceFetcher.AccountsApiBalanceFetcher.prototype,
+          'supports',
+        )
         .mockImplementation(mockSupports);
-        
+
       const fetchSpy = jest
         .spyOn(apiBalanceFetcher.AccountsApiBalanceFetcher.prototype, 'fetch')
         .mockImplementation(mockApiFetch);
@@ -3829,14 +3832,14 @@ describe('TokenBalancesController', () => {
       // Test Case 1: Execute line 517 -> line 320 with chainId in accountsApiChainIds
       mockSupports.mockReturnValue(true);
       await controller.updateBalances({ chainIds: [chainId1] }); // This triggers line 517 -> line 320
-      
+
       // Verify line 320 logic was executed (originalFetcher.supports was called)
       expect(mockSupports).toHaveBeenCalledWith(chainId1);
 
       // Test Case 2: Execute line 517 -> line 320 with chainId NOT in accountsApiChainIds
       mockSupports.mockClear();
       await controller.updateBalances({ chainIds: [chainId3] }); // This triggers line 517 -> line 320
-      
+
       // Should NOT have called originalFetcher.supports because chainId3 is not in accountsApiChainIds
       // This tests the short-circuit evaluation on line 322: this.#accountsApiChainIds.includes(chainId)
       expect(mockSupports).not.toHaveBeenCalledWith(chainId3);

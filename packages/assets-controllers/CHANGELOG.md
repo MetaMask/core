@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Replace `useAccountAPI` boolean with `accountsApiChainIds` array in `TokenBalancesController` for granular per-chain Accounts API configuration ([#6487](https://github.com/MetaMask/core/pull/6487))
+
 ## [74.3.3]
 
 ### Changed
