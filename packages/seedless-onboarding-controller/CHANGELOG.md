@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `renewRefreshToken` options in SeedlessOnboardingController constructor - A function to renew the refresh token and get new revoke token. ([#6275](https://github.com/MetaMask/core/pull/6275))
+- Added `renewRefreshToken` method to renew refresh token from client ([#6275](https://github.com/MetaMask/core/pull/6275))
+- Added `revokePendingRefreshTokens` method to revoke all pending old refresh tokens instead from client ([#6275](https://github.com/MetaMask/core/pull/6275))
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+- **BREAKING:** Updated ControllerMessenger `AllowedEvents`. ([#6292](https://github.com/MetaMask/core/pull/6292))
+- Update `setLocked()` method with `mutex` and it becomes `async` method. ([#6292](https://github.com/MetaMask/core/pull/6292))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+
+### Removed
+
+- **BREAKING:** Removed `Keyring:lock` and `Keyring:unlock` events from the controller allowed events. ([#6292](https://github.com/MetaMask/core/pull/6292))
+- Removed `revokeRefreshToken` method ([#6275](https://github.com/MetaMask/core/pull/6275))
 
 ## [3.0.0]
 

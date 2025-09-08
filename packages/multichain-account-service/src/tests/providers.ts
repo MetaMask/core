@@ -10,6 +10,8 @@ export type MockAccountProvider = {
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
   discoverAndCreateAccounts: jest.Mock;
+  isAccountCompatible?: jest.Mock;
+  getName: jest.Mock;
 };
 
 export function makeMockAccountProvider(
@@ -21,6 +23,8 @@ export function makeMockAccountProvider(
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
     discoverAndCreateAccounts: jest.fn(),
+    isAccountCompatible: jest.fn(),
+    getName: jest.fn(),
   };
 }
 

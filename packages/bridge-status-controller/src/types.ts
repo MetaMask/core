@@ -155,6 +155,7 @@ export enum BridgeStatusAction {
   SUBMIT_TX = 'submitTx',
   SUBMIT_INTENT = 'submitIntent',
   RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
+  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -257,6 +258,9 @@ export type BridgeStatusControllerSubmitIntentAction =
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
 
+export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
+  BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
@@ -265,6 +269,7 @@ export type BridgeStatusControllerActions =
   | BridgeStatusControllerSubmitTxAction
   | BridgeStatusControllerSubmitIntentAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction;
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<

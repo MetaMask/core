@@ -107,6 +107,7 @@ export {
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
+  isBitcoinChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
   isCrossChain,

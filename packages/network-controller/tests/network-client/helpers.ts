@@ -5,9 +5,9 @@ import type { BlockTracker } from '@metamask/eth-block-tracker';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
+import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
-import * as sinon from 'sinon';
+import { useFakeTimers } from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
 import type { NetworkControllerOptions } from '../../src/NetworkController';
@@ -294,6 +294,8 @@ function makeRpcCall(ethQuery: EthQuery, request: MockRequest) {
     ethQuery.sendAsync(request, (error: any, result: any) => {
       debug('[makeRpcCall > ethQuery handler] error', error, 'result', result);
       if (error) {
+        // This should be an error, but we will allow it to be whatever it is.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         reject(error);
       } else {
         resolve(result);
@@ -355,9 +357,7 @@ export async function withMockedCommunications(
 ) {
   const rpcUrl =
     providerType === 'infura'
-      ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `https://${infuraNetwork}.infura.io`
+      ? `https://${infuraNetwork}.infura.io`
       : customRpcUrl;
   const nockScope = buildScopeForMockingRequests(rpcUrl, expectedHeaders);
   // TODO: Replace `any` with type
@@ -384,7 +384,7 @@ export async function withMockedCommunications(
   try {
     return await fn(comms);
   } finally {
-    nock.isDone();
+    nockIsDone();
   }
 }
 
@@ -431,6 +431,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
   let hasPromiseBeenFulfilled = false;
   let numTimesClockHasBeenAdvanced = 0;
 
+  // This is a mistake, we are catching this promise.
+  // eslint-disable-next-line promise/catch-or-return
   promise
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -503,7 +505,7 @@ export async function withNetworkClient(
   // request the latest block) set up in `eth-json-rpc-middleware`
   // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
   // depends on `setTimeout`)
-  const clock = sinon.useFakeTimers();
+  const clock = useFakeTimers();
 
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
 
