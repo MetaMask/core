@@ -4,10 +4,13 @@ export enum ProductType {
   SHIELD = 'shield',
 }
 
+/** only usd for now */
+export type Currency = 'usd';
+
 export type Product = {
   name: ProductType;
   id: string;
-  currency: string;
+  currency: Currency;
   amount: number;
 };
 
@@ -56,8 +59,8 @@ export type Subscription = {
 export type SubscriptionPaymentMethod = {
   type: PaymentType;
   crypto?: {
-    payerAddress: string;
-    chainId: string;
+    payerAddress: Hex;
+    chainId: Hex;
     tokenSymbol: string;
   };
 };
@@ -83,8 +86,8 @@ export type StartCryptoSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   billingCycles: number;
-  chainId: string;
-  payerAddress: string;
+  chainId: Hex;
+  payerAddress: Hex;
   /**
    * e.g. "USDC"
    */
@@ -111,7 +114,8 @@ export type ProductPrice = {
   interval: RecurringInterval;
   unitAmount: number; // amount in the smallest unit of the currency, e.g., cents
   unitDecimals: number; // number of decimals for the smallest unit of the currency
-  currency: string; // "usd"
+  /** only usd for now */
+  currency: Currency;
   trialPeriodDays: number;
   minBillingCycles: number;
 };
@@ -123,7 +127,7 @@ export type ProductPricing = {
 
 export type TokenPaymentInfo = {
   symbol: string;
-  address: string;
+  address: Hex;
   decimals: number;
   /**
    * example: {
@@ -136,8 +140,8 @@ export type TokenPaymentInfo = {
 };
 
 export type ChainPaymentInfo = {
-  chainId: string;
-  paymentAddress: string;
+  chainId: Hex;
+  paymentAddress: Hex;
   tokens: TokenPaymentInfo[];
 };
 
@@ -155,11 +159,11 @@ export type GetCryptoApproveTransactionRequest = {
   /**
    * payment chain ID
    */
-  chainId: string;
+  chainId: Hex;
   /**
    * Payment token address
    */
-  paymentTokenAddress: string;
+  paymentTokenAddress: Hex;
   productType: ProductType;
   interval: RecurringInterval;
 };
@@ -170,9 +174,9 @@ export type GetCryptoApproveTransactionResponse = {
    * e.g: "100000000"
    */
   approveAmount: string;
-  spenderAddress: string;
-  paymentTokenAddress: string;
-  chainId: string;
+  spenderAddress: Hex;
+  paymentTokenAddress: Hex;
+  chainId: Hex;
 };
 
 export type ISubscriptionService = {

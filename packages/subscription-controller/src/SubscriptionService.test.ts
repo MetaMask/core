@@ -28,7 +28,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
     {
       name: ProductType.SHIELD,
       id: 'prod_shield_basic',
-      currency: 'USD',
+      currency: 'usd',
       amount: 9.99,
     },
   ],

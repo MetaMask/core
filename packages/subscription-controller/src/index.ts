@@ -36,6 +36,7 @@ export type {
   ProductPricing,
   TokenPaymentInfo,
   ChainPaymentInfo,
+  Currency,
   PricingPaymentMethod,
   PricingResponse,
 } from './types';
