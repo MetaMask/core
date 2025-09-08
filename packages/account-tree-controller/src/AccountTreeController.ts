@@ -21,6 +21,7 @@ import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
 import { ContextualLogger } from './backup-and-sync/utils';
 import type { AccountGroupObject } from './group';
+import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -755,6 +756,19 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Asserts that an account group name is unique across all groups.
+   *
+   * @param groupId - The account group ID to exclude from the check.
+   * @param name - The name to validate for uniqueness.
+   * @throws Error if the name already exists in another group.
+   */
+  #assertAccountGroupNameIsUnique(groupId: AccountGroupId, name: string): void {
+    if (!isAccountGroupNameUnique(this.state, groupId, name)) {
+      throw new Error('Account group name already exists');
+    }
+  }
+
+  /**
    * Gets the currently selected account group ID.
    *
    * @returns The selected account group ID or empty string if none selected.
@@ -952,10 +966,14 @@ export class AccountTreeController extends BaseController<
    * @param groupId - The account group ID.
    * @param name - The custom name to set.
    * @throws If the account group ID is not found in the current tree.
+   * @throws If the account group name already exists.
    */
   setAccountGroupName(groupId: AccountGroupId, name: string): void {
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
+
+    // Validate that the name is unique
+    this.#assertAccountGroupNameIsUnique(groupId, name);
 
     this.update((state) => {
       // Update persistent metadata

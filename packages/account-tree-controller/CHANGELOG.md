@@ -20,9 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for entropy-based wallets with multichain account syncing
   - Legacy account syncing compatibility for seamless migration
   - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options
-- Add new dependencies for sync functionality
-  - `@metamask/superstruct` for data validation
-  - `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies
+  - Add new dependencies for backup and sync
+    - `@metamask/superstruct` for data validation
+    - `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies
+- Add unique name validation for account groups to prevent duplicate group names ([#6492](https://github.com/MetaMask/core/pull/6492))
+  - `setAccountGroupName` now validates that group names are unique across all groups.
+  - Added `isAccountGroupNameUnique` utility function to check name uniqueness.
+  - Names are trimmed of leading/trailing whitespace before comparison to prevent accidental duplicates.
 
 ### Changed
 
