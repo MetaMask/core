@@ -2025,6 +2025,39 @@ describe('AccountTreeController', () => {
       expect(uniqueNames.size).toBe(names.length);
       expect(names.every((name) => name.length > 0)).toBe(true);
     });
+
+    it('should prevent duplicate names when comparing trimmed names', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const wallets = controller.getAccountWalletObjects();
+      expect(wallets).toHaveLength(2);
+
+      const wallet1 = wallets[0];
+      const wallet2 = wallets[1];
+      const groups1 = Object.values(wallet1.groups);
+      const groups2 = Object.values(wallet2.groups);
+
+      expect(groups1.length).toBeGreaterThanOrEqual(1);
+      expect(groups2.length).toBeGreaterThanOrEqual(1);
+
+      const groupId1 = groups1[0].id;
+      const groupId2 = groups2[0].id;
+
+      // Set name for first group with trailing spaces
+      const nameWithSpaces = '  My Group Name  ';
+      controller.setAccountGroupName(groupId1, nameWithSpaces);
+
+      // Try to set the same name for second group with different spacing - should throw
+      const nameWithDifferentSpacing = ' My Group Name ';
+      expect(() => {
+        controller.setAccountGroupName(groupId2, nameWithDifferentSpacing);
+      }).toThrow('Account group name already exists');
+    });
   });
 
   describe('Fallback Naming', () => {
