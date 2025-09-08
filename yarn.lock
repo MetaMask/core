@@ -2595,7 +2595,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^8.1.0"
     "@metamask/keyring-snap-client": "npm:^7.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/multichain-account-service": "npm:^0.6.0"
+    "@metamask/multichain-account-service": "npm:^0.7.0"
     "@metamask/network-controller": "npm:^24.1.0"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/phishing-controller": "npm:^13.1.0"
@@ -3813,7 +3813,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-service@npm:^0.6.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
+"@metamask/multichain-account-service@npm:^0.7.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
@@ -3832,6 +3832,7 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^9.0.0"
     "@metamask/snaps-utils": "npm:^11.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
