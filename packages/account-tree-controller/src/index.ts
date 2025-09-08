@@ -1,5 +1,6 @@
 export type { AccountWalletObject } from './wallet';
 export type { AccountGroupObject } from './group';
+export { isAccountGroupNameUnique } from './group';
 
 export type {
   AccountTreeControllerState,
