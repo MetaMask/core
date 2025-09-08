@@ -1,8 +1,8 @@
-import type { UserProfile } from '@metamask/profile-sync-controller/sdk';
+import type { SDK } from '@metamask/profile-sync-controller';
 
 import type { BackupAndSyncContext } from '../types';
 
-export type ProfileId = UserProfile['profileId'] | undefined;
+export type ProfileId = SDK.UserProfile['profileId'] | undefined;
 
 /**
  * Retrieves the profile ID from AuthenticationController.

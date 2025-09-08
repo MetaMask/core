@@ -2414,7 +2414,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/keyring-api": "npm:^20.1.0"
     "@metamask/keyring-controller": "npm:^23.0.0"
-    "@metamask/multichain-account-service": "npm:^0.6.0"
+    "@metamask/multichain-account-service": "npm:^0.7.0"
     "@metamask/profile-sync-controller": "npm:^24.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -2434,7 +2434,7 @@ __metadata:
     "@metamask/account-api": ^0.9.0
     "@metamask/accounts-controller": ^33.0.0
     "@metamask/keyring-controller": ^23.0.0
-    "@metamask/multichain-account-service": ^0.6.0
+    "@metamask/multichain-account-service": ^0.7.0
     "@metamask/profile-sync-controller": ^24.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
