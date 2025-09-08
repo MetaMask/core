@@ -104,6 +104,7 @@ export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
   txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
   status: StatusResponse;

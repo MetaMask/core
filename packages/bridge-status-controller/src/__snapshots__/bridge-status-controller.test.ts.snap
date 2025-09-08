@@ -12,6 +12,7 @@ Object {
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": Object {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
@@ -324,6 +325,54 @@ Object {
     "txMetaId": "bridgeTxMetaId1",
   },
 }
+`;
+
+exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
+Array [
+  Array [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  Array [
+    "TransactionController:getState",
+  ],
+  Array [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+    Object {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 105213.34261666666,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": true,
+      "destination_transaction": "COMPLETE",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": Array [],
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 1`] = `
