@@ -9,8 +9,8 @@ import type { AccountSelector } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MultichainAccountServiceMessenger } from './types';
 import type { NamedAccountProvider } from './providers';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * A multichain account group that holds multiple accounts.
