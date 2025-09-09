@@ -25,6 +25,7 @@ type ConcreteMessageManagerActions = never;
 type ConcreteMessageManagerEvents = never;
 
 class AbstractTestManager extends AbstractMessageManager<
+  'TestManager',
   ConcreteMessage,
   ConcreteMessageParams,
   ConcreteMessageParamsMetamask,
@@ -68,7 +69,7 @@ const MOCK_MESSENGER = {
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
 } as unknown as RestrictedMessenger<
-  'AbstractMessageManager',
+  'TestManager',
   never,
   never,
   string,
@@ -78,7 +79,7 @@ const MOCK_MESSENGER = {
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,
   messenger: MOCK_MESSENGER,
-  name: 'AbstractMessageManager' as const,
+  name: 'TestManager' as const,
   securityProviderRequest: undefined,
 };
 
@@ -398,7 +399,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
 
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+        'TestManager: Message not found for id: 1.',
       );
     });
   });
@@ -450,7 +451,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
 
       expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+        'TestManager: Message not found for id: 1.',
       );
     });
   });

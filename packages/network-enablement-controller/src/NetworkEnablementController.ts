@@ -179,18 +179,6 @@ export class NetworkEnablementController extends BaseController<
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
     });
-
-    // Listen for confirmed staking transactions
-    messenger.subscribe(
-      'TransactionController:transactionSubmitted',
-      (transactionMeta) => {
-        if (transactionMeta?.transactionMeta?.chainId) {
-          this.enableNetwork(
-            transactionMeta.transactionMeta.chainId as Hex | CaipChainId,
-          );
-        }
-      },
-    );
   }
 
   /**
@@ -412,10 +400,6 @@ export class NetworkEnablementController extends BaseController<
   disableNetwork(chainId: Hex | CaipChainId): void {
     const derivedKeys = deriveKeys(chainId);
     const { namespace, storageKey } = derivedKeys;
-
-    if (isOnlyNetworkEnabledInNamespace(this.state, derivedKeys)) {
-      throw new Error('Cannot disable the last remaining enabled network');
-    }
 
     this.update((s) => {
       s.enabledNetworkMap[namespace][storageKey] = false;
