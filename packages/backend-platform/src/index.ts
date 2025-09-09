@@ -9,7 +9,7 @@ export type {
   Balance,
   Transfer,
   BalanceUpdate,
-  Message,
+  AccountActivityMessage,
 } from './types';
 
 // WebSocket Service - following MetaMask Data Services pattern
