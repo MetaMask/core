@@ -1,4 +1,3 @@
-import type { Messenger } from '@metamask/base-controller';
 import { type KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -17,13 +16,8 @@ import {
   MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
+  type RootMessenger,
 } from '../tests';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-} from '../types';
 
 class MockEthKeyring implements EthKeyring {
   readonly type = 'MockEthKeyring';
@@ -90,17 +84,11 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  messenger?: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}): {
   provider: EvmAccountProvider;
-  messenger: Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >;
+  messenger: RootMessenger;
   keyring: MockEthKeyring;
   mocks: {
     getAccountByAddress: jest.Mock;
