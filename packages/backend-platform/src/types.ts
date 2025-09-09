@@ -66,7 +66,7 @@ export type BalanceUpdate = {
 /**
  * Complete transaction/balance update message
  */
-export type Message = {
+export type AccountActivityMessage = {
   /** Account address */
   address: string;
   /** Transaction information */

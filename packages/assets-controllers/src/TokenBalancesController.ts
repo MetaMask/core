@@ -14,6 +14,7 @@ import {
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
+import BN from 'bn.js';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -21,6 +22,11 @@ import type {
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
+// Define the AccountActivityService event type locally to avoid cross-package dependency
+type AccountActivityServiceBalanceUpdatedEvent = {
+  type: 'AccountActivityService:balanceUpdated';
+  payload: [{ address: string; chain: string; updates: Array<{ asset: { type: string; unit: string }; postBalance: { amount: string } }> }];
+};
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -125,7 +131,8 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | AccountActivityServiceBalanceUpdatedEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof CONTROLLER,
@@ -264,6 +271,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messagingSystem.subscribe(
       'KeyringController:accountRemoved',
       this.#onAccountRemoved,
+    );
+
+    // Subscribe to AccountActivityService balance updates for real-time updates
+    this.messagingSystem.subscribe(
+      'AccountActivityService:balanceUpdated',
+      this.#onAccountActivityBalanceUpdate.bind(this),
     );
 
     // Register action handlers for polling interval control
@@ -843,6 +856,88 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.update((s) => {
       delete s.tokenBalances[addr as ChecksumAddress];
     });
+  };
+
+  /**
+   * Handle real-time balance updates from AccountActivityService
+   * Processes balance updates and updates the token balance state
+   */
+  readonly #onAccountActivityBalanceUpdate = async ({
+    address,
+    chain,
+    updates,
+  }: {
+    address: string;
+    chain: string;
+    updates: Array<{
+      asset: { type: string; unit: string };
+      postBalance: { amount: string };
+    }>;
+  }) => {
+
+    const chainParts = chain.split(':');
+    const chainId = `0x${parseInt(chainParts[1], 10).toString(16)}`;
+    const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
+
+    let shouldPoll = false;
+
+    try {
+      this.update((state) => {
+        // Initialize account and chain if they don't exist
+        if (!state.tokenBalances[checksumAddress]) {
+          state.tokenBalances[checksumAddress] = {};
+        }
+        if (!state.tokenBalances[checksumAddress][chainId as ChainIdHex]) {
+          state.tokenBalances[checksumAddress][chainId as ChainIdHex] = {};
+        }
+
+        // Process each balance update on the fly
+        for (const update of updates) {
+          const { asset, postBalance } = update;
+          
+          // Extract token address from asset type (e.g., "eip155:1/erc20:0x...")
+          let tokenAddress: string;
+          
+          if (asset.type.includes('/erc20:')) {
+            // ERC20 token
+            tokenAddress = asset.type.split('/erc20:')[1];
+          } else if (asset.type.includes('/slip44:')) {
+            // Native token - use zero address
+            tokenAddress = '0x0000000000000000000000000000000000000000';
+          } else {
+            console.warn('Unsupported asset type:', asset.type, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+
+          if (!isStrictHexString(tokenAddress) || !isValidHexAddress(tokenAddress)) {
+            console.warn('Invalid token address:', tokenAddress, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+
+          const checksumTokenAddress = toChecksumHexAddress(tokenAddress) as ChecksumAddress;
+          const balanceHex = BNToHex(new BN(postBalance.amount)) as Hex;
+
+          // Update the balance immediately
+          state.tokenBalances[checksumAddress][chainId as ChainIdHex][checksumTokenAddress] = balanceHex;
+          console.log(`Updated balance for ${checksumAddress} on ${chain} (${chainId}): ${asset.unit} = ${postBalance.amount}`);
+        }
+      });
+    } catch (error) {
+      console.error('Error handling AccountActivityService balance update:', error);
+      shouldPoll = true;
+    }
+
+    // Single fallback polling call for any error (validation or processing)
+    if (shouldPoll) {
+      try {
+        console.log(`Triggering fallback poll for chain ${chain} (${chainId})`);
+        await this.updateBalances({ chainIds: [chainId as ChainIdHex] });
+      } catch (pollError) {
+        console.error('Error during fallback polling:', pollError);
+      }
+    }
   };
 
   /**
