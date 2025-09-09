@@ -244,6 +244,9 @@ export class SubscriptionController extends BaseController<
    * Triggers an access token refresh.
    */
   triggerAccessTokenRefresh() {
+    // We perform a sign out to clear the access token from the authentication
+    // controller. Next time the access token is requested, a new access token
+    // will be fetched.
     this.messagingSystem.call('AuthenticationController:performSignOut');
   }
 
