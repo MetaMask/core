@@ -32,6 +32,7 @@ import type {
   SubscriptionTokenPayload,
   GeoRewardsMetadata,
   TokenResponse,
+  SubscriptionDto,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
@@ -68,7 +69,7 @@ export type RemoveSubscriptionToken = (
  * State metadata for the RewardsController
  */
 const metadata = {
-  lastAuthenticatedAccount: { persist: true, anonymous: false },
+  activeAccount: { persist: true, anonymous: false },
   accounts: { persist: true, anonymous: false },
   subscriptions: { persist: true, anonymous: false },
   seasons: { persist: true, anonymous: false },
@@ -79,7 +80,7 @@ const metadata = {
  * Get the default state for the RewardsController
  */
 export const getRewardsControllerDefaultState = (): RewardsControllerState => ({
-  lastAuthenticatedAccount: null,
+  activeAccount: null,
   accounts: {},
   subscriptions: {},
   seasons: {},
@@ -98,7 +99,7 @@ export class RewardsController extends BaseController<
   RewardsControllerState,
   RewardsControllerMessenger
 > {
-  #isProcessingSilentAuth = false;
+  #geoLocation: GeoRewardsMetadata | null = null;
 
   readonly #storeSubscriptionToken?: StoreSubscriptionToken;
 
@@ -381,17 +382,17 @@ export class RewardsController extends BaseController<
       const selectedAccount = this.messagingSystem.call(
         'AccountsController:getSelectedMultichainAccount',
       );
-      log('RewardsController: selectedAccount', selectedAccount);
-
-      if (selectedAccount?.address) {
-        await this.#performSilentAuth(selectedAccount);
-      }
+      await this.#performSilentAuth(selectedAccount);
     } catch (error) {
       // Silent failure - don't throw errors for background authentication
-      log(
-        'RewardsController: Silent authentication failed:',
-        error instanceof Error ? error.message : String(error),
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (errorMessage && !errorMessage?.includes('Engine does not exis')) {
+        log(
+          'RewardsController: Silent authentication failed:',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     }
   }
 
@@ -413,20 +414,10 @@ export class RewardsController extends BaseController<
     }
 
     const now = Date.now();
-    const { lastAuthenticatedAccount } = this.state;
-
-    // Skip if within grace period and same account
-    if (
-      lastAuthenticatedAccount?.account === account &&
-      now - lastAuthenticatedAccount.lastAuthTime < AUTH_GRACE_PERIOD_MS
-    ) {
-      return true;
-    }
-
     const accountState = this.#getAccountState(account);
     if (
-      accountState &&
-      now - accountState.lastAuthTime < AUTH_GRACE_PERIOD_MS
+      accountState?.hasOptedIn &&
+      now - accountState.lastCheckedAuth < AUTH_GRACE_PERIOD_MS
     ) {
       return true;
     }
@@ -454,7 +445,14 @@ export class RewardsController extends BaseController<
    * Perform silent authentication for the given address
    * @param internalAccount - The account address to authenticate
    */
-  async #performSilentAuth(internalAccount: InternalAccount): Promise<void> {
+  async #performSilentAuth(internalAccount?: InternalAccount): Promise<void> {
+    if (!internalAccount) {
+      this.update((state: RewardsControllerState) => {
+        state.activeAccount = null;
+      });
+      return;
+    }
+
     const account: CaipAccountId | null =
       this.convertInternalAccountToCaipAccountId(internalAccount);
 
@@ -465,16 +463,39 @@ export class RewardsController extends BaseController<
           isHardwareWallet(internalAccount),
         )
       : false;
-    log('RewardsController: Should skip auth?', shouldSkip);
 
-    if (shouldSkip || this.#isProcessingSilentAuth) {
-      log('RewardsController: Skipping silent auth');
+    if (shouldSkip) {
+      // This means that we'll have a record for this account
+      let accountState = this.#getAccountState(account as CaipAccountId);
+      if (accountState) {
+        // Update last authenticated account
+        this.update((state: RewardsControllerState) => {
+          state.activeAccount = accountState;
+        });
+      } else {
+        // Update accounts map && last authenticated account
+        accountState = {
+          account: account as CaipAccountId,
+          hasOptedIn: false,
+          subscriptionId: null,
+          lastCheckedAuth: Date.now(),
+          lastCheckedAuthError: false,
+          perpsFeeDiscount: null, // Default value, will be updated when fetched
+          lastPerpsDiscountRateFetched: null,
+        };
+        this.update((state: RewardsControllerState) => {
+          state.accounts[account as CaipAccountId] =
+            accountState as RewardsAccountState;
+          state.activeAccount = accountState;
+        });
+      }
       return;
     }
 
-    try {
-      this.#isProcessingSilentAuth = true;
+    let subscription: SubscriptionDto | null = null;
+    let authUnexpectedError = false;
 
+    try {
       // Generate timestamp and sign the message
       const timestamp = Math.floor(Date.now() / 1000);
 
@@ -501,12 +522,6 @@ export class RewardsController extends BaseController<
       }
 
       // Use data service through messenger
-      const requestBody = {
-        account: internalAccount.address,
-        timestamp,
-        signature,
-      };
-
       log(
         'RewardsController: Performing silent auth for',
         internalAccount.address,
@@ -514,82 +529,64 @@ export class RewardsController extends BaseController<
 
       const loginResponse: LoginResponseDto = await this.messagingSystem.call(
         'RewardsDataService:login',
-        requestBody,
+        {
+          account: internalAccount.address,
+          timestamp,
+          signature,
+        },
       );
 
-      log('RewardsController: Silent auth successful');
-
       // Update state with successful authentication
-      const { subscription } = loginResponse;
+      subscription = loginResponse.subscription;
 
       // Store the session token for this subscription
       if (this.#storeSubscriptionToken) {
-        await this.#storeSubscriptionToken({
-          subscriptionId: subscription.id,
-          loginSessionId: loginResponse.sessionId,
-        });
+        const { success: tokenStoreSuccess } =
+          await this.#storeSubscriptionToken({
+            subscriptionId: subscription.id,
+            loginSessionId: loginResponse.sessionId,
+          });
+        if (!tokenStoreSuccess) {
+          log('RewardsController: Failed to store session token', account);
+          throw new Error('Failed to store session token');
+        }
       }
 
+      log('RewardsController: Silent auth successful');
+    } catch (error: unknown) {
+      // Handle 401 (not opted in) or other errors silently
+      if (error instanceof Error && error.message.includes('401')) {
+        // Not opted in
+      } else {
+        // Unknown error
+        subscription = null;
+        authUnexpectedError = true;
+      }
+    } finally {
+      // Update state so that we remember this account is not opted in
       this.update((state: RewardsControllerState) => {
         if (!account) {
           return;
         }
 
-        const currentTime = Date.now();
-
-        // Create or update account state
+        // Create or update account state with no subscription
         const accountState: RewardsAccountState = {
           account,
-          hasOptedIn: Boolean(subscription),
-          subscriptionId: subscription.id,
-          lastAuthTime: currentTime,
+          hasOptedIn: authUnexpectedError ? undefined : Boolean(subscription),
+          subscriptionId: subscription?.id ?? null,
+          lastCheckedAuth: Date.now(),
+          lastCheckedAuthError: authUnexpectedError,
           perpsFeeDiscount: null, // Default value, will be updated when fetched
           lastPerpsDiscountRateFetched: null,
         };
 
-        // Update accounts map
         state.accounts[account] = accountState;
+        state.activeAccount = accountState;
 
-        // Update subscriptions map
-        state.subscriptions[subscription.id] = subscription;
-
-        // Update last authenticated account
-        state.lastAuthenticatedAccount = accountState;
-      });
-    } catch (error: unknown) {
-      // Handle 401 (not opted in) or other errors silently
-      if (error instanceof Error && error.message.includes('401')) {
-        log('RewardsController: Account not opted in (401), clearing tokens');
-
-        if (account) {
-          // Update state so that we remember this account is not opted in
-          this.update((state: RewardsControllerState) => {
-            // Create or update account state with no subscription
-            const accountState: RewardsAccountState = {
-              account: account as CaipAccountId,
-              hasOptedIn: false,
-              subscriptionId: null,
-              lastAuthTime: Date.now(),
-              perpsFeeDiscount: null,
-              lastPerpsDiscountRateFetched: null,
-            };
-
-            // Update accounts map
-            state.accounts[account as CaipAccountId] = accountState;
-
-            // Update last authenticated account
-            state.lastAuthenticatedAccount = accountState;
-          });
+        if (subscription) {
+          state.subscriptions[subscription.id] = subscription;
         }
-      } else {
-        log(
-          'RewardsController: Silent auth failed:',
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-      // For other errors, we don't update the state to allow retries
-    } finally {
-      this.#isProcessingSilentAuth = false;
+      });
     }
   }
 
@@ -617,7 +614,7 @@ export class RewardsController extends BaseController<
         accountState.perpsFeeDiscount,
       );
       return {
-        hasOptedIn: accountState.hasOptedIn,
+        hasOptedIn: Boolean(accountState.hasOptedIn),
         discount: accountState.perpsFeeDiscount,
       };
     }
@@ -639,7 +636,8 @@ export class RewardsController extends BaseController<
             account,
             hasOptedIn: perpsDiscountData.hasOptedIn,
             subscriptionId: null,
-            lastAuthTime: 0,
+            lastCheckedAuth: Date.now(),
+            lastCheckedAuthError: false,
             perpsFeeDiscount: perpsDiscountData.discount ?? 0,
             lastPerpsDiscountRateFetched: Date.now(),
           };
@@ -874,13 +872,13 @@ export class RewardsController extends BaseController<
   async optIn(account: InternalAccount, referralCode?: string): Promise<void> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
     if (!rewardsEnabled) {
-      log('Rewards: Rewards feature is disabled, skipping optin', {
+      log('RewardsController: Rewards feature is disabled, skipping optin', {
         account: account.address,
       });
       return;
     }
 
-    log('Rewards: Starting optin process', {
+    log('RewardsController: Starting optin process', {
       account: account.address,
     });
 
@@ -910,7 +908,7 @@ export class RewardsController extends BaseController<
       },
     );
 
-    log('Rewards: Submitting optin with signature...');
+    log('RewardsController: Submitting optin with signature...');
     const optinResponse = await this.messagingSystem.call(
       'RewardsDataService:optin',
       {
@@ -920,27 +918,7 @@ export class RewardsController extends BaseController<
       },
     );
 
-    log('Rewards: Optin successful, updating controller state...');
-
-    // Update state with opt-in response data
-    this.update((state) => {
-      const caipAccount: CaipAccountId | null =
-        this.convertInternalAccountToCaipAccountId(account);
-      if (!caipAccount) {
-        return;
-      }
-      state.lastAuthenticatedAccount = {
-        account: caipAccount,
-        hasOptedIn: true,
-        subscriptionId: optinResponse.subscription.id,
-        lastAuthTime: Date.now(),
-        perpsFeeDiscount: null,
-        lastPerpsDiscountRateFetched: null,
-      };
-      state.accounts[caipAccount] = state.lastAuthenticatedAccount;
-      state.subscriptions[optinResponse.subscription.id] =
-        optinResponse.subscription;
-    });
+    log('RewardsController: Optin successful, updating controller state...');
 
     // Store the subscription token for authenticated requests
     if (
@@ -959,6 +937,28 @@ export class RewardsController extends BaseController<
         );
       }
     }
+
+    // Update state with opt-in response data
+    // Update state with opt-in response data
+    this.update((state) => {
+      const caipAccount: CaipAccountId | null =
+        this.convertInternalAccountToCaipAccountId(account);
+      if (!caipAccount) {
+        return;
+      }
+      state.activeAccount = {
+        account: caipAccount,
+        hasOptedIn: true,
+        subscriptionId: optinResponse.subscription.id,
+        lastCheckedAuth: Date.now(),
+        lastCheckedAuthError: false,
+        perpsFeeDiscount: null,
+        lastPerpsDiscountRateFetched: null,
+      };
+      state.accounts[caipAccount] = state.activeAccount;
+      state.subscriptions[optinResponse.subscription.id] =
+        optinResponse.subscription;
+    });
   }
 
   /**
@@ -971,19 +971,12 @@ export class RewardsController extends BaseController<
       return;
     }
 
-    if (!this.state.lastAuthenticatedAccount?.subscriptionId) {
+    if (!this.state.activeAccount?.subscriptionId) {
       log('RewardsController: No authenticated account found');
       return;
     }
 
-    const { subscriptionId } = this.state.lastAuthenticatedAccount;
-    log(
-      'RewardsController: Starting logout process for account tied to subscriptionId',
-      {
-        subscriptionId,
-      },
-    );
-
+    const { subscriptionId } = this.state.activeAccount;
     try {
       // Call the data service logout if subscriptionId is provided
       await this.messagingSystem.call(
@@ -1011,8 +1004,9 @@ export class RewardsController extends BaseController<
       // Update controller state to reflect logout
       this.update((state) => {
         // Clear last authenticated account if it matches this subscription
-        if (state.lastAuthenticatedAccount?.subscriptionId === subscriptionId) {
-          state.lastAuthenticatedAccount = null;
+        if (state.activeAccount?.subscriptionId === subscriptionId) {
+          delete state.accounts[state.activeAccount.account];
+          state.activeAccount = null;
           log('RewardsController: Cleared last authenticated account');
         }
       });
@@ -1040,6 +1034,14 @@ export class RewardsController extends BaseController<
       };
     }
 
+    if (this.#geoLocation) {
+      log('RewardsController: Using cached geo location', {
+        location: this.#geoLocation,
+      });
+
+      return this.#geoLocation;
+    }
+
     try {
       log('RewardsController: Fetching geo location for rewards metadata');
 
@@ -1059,6 +1061,7 @@ export class RewardsController extends BaseController<
       };
 
       log('RewardsController: Geo rewards metadata retrieved', result);
+      this.#geoLocation = result;
       return result;
     } catch (error) {
       log(

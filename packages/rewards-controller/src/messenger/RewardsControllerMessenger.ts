@@ -80,6 +80,11 @@ export function getRewardsControllerMessenger(
       'RewardsDataService:getPerpsDiscount',
       'RewardsDataService:getSeasonStatus',
       'RewardsDataService:getReferralDetails',
+      'RewardsDataService:generateChallenge',
+      'RewardsDataService:optin',
+      'RewardsDataService:logout',
+      'RewardsDataService:fetchGeoLocation',
+      'RewardsDataService:validateReferralCode',
     ],
     allowedEvents: [
       'AccountsController:selectedAccountChange',

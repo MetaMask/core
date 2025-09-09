@@ -46,6 +46,11 @@ describe('getRewardsControllerMessenger', () => {
       'RewardsDataService:getPerpsDiscount',
       'RewardsDataService:getSeasonStatus',
       'RewardsDataService:getReferralDetails',
+      'RewardsDataService:generateChallenge',
+      'RewardsDataService:optin',
+      'RewardsDataService:logout',
+      'RewardsDataService:fetchGeoLocation',
+      'RewardsDataService:validateReferralCode',
     ].sort();
 
     const actualActions = [...params.allowedActions].sort();
@@ -68,12 +73,9 @@ describe('getRewardsControllerMessenger', () => {
 
     // Sanity checks: ensure a few *not allowed* actions are absent
     const notAllowed = [
-      'RewardsDataService:generateChallenge',
-      'RewardsDataService:optin',
-      'RewardsDataService:logout',
-      'RewardsDataService:fetchGeoLocation',
-      'RewardsDataService:validateReferralCode',
       'RemoteFeatureFlagController:getState',
+      'SomeOtherController:someAction',
+      'AnotherController:anotherAction',
     ];
     for (const a of notAllowed) {
       expect(params.allowedActions).not.toContain(a);
