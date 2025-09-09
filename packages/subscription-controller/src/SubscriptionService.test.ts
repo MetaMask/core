@@ -25,6 +25,8 @@ jest.mock('@metamask/controller-utils', () => ({
   handleFetch: jest.fn(),
 }));
 
+const handleFetchMock = handleFetch as jest.Mock;
+
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
@@ -129,7 +131,7 @@ describe('SubscriptionService', () => {
   describe('getSubscriptions', () => {
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        (handleFetch as jest.Mock).mockResolvedValue({
+        handleFetchMock.mockResolvedValue({
           customerId: 'cus_1',
           subscriptions: [MOCK_SUBSCRIPTION],
           trialedProducts: [],
@@ -148,9 +150,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for error responses', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        (handleFetch as jest.Mock).mockRejectedValue(
-          new Error('Network error'),
-        );
+        handleFetchMock.mockRejectedValue(new Error('Network error'));
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -160,9 +160,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        (handleFetch as jest.Mock).mockRejectedValue(
-          new Error('Network error'),
-        );
+        handleFetchMock.mockRejectedValue(new Error('Network error'));
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -184,7 +182,7 @@ describe('SubscriptionService', () => {
     it('should handle null exceptions in catch block', async () => {
       const config = createMockConfig({});
       const service = new SubscriptionService(config);
-      (handleFetch as jest.Mock).mockRejectedValue(null);
+      handleFetchMock.mockRejectedValue(null);
 
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
@@ -194,7 +192,7 @@ describe('SubscriptionService', () => {
     it('should handle non-Error exceptions in catch block', async () => {
       await withMockSubscriptionService(async ({ service }) => {
         // Mock handleFetch to throw null (not an Error instance)
-        (handleFetch as jest.Mock).mockRejectedValue(null);
+        handleFetchMock.mockRejectedValue(null);
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -206,7 +204,7 @@ describe('SubscriptionService', () => {
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        (handleFetch as jest.Mock).mockResolvedValue({});
+        handleFetchMock.mockResolvedValue({});
 
         await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
@@ -216,9 +214,7 @@ describe('SubscriptionService', () => {
 
     it('should throw SubscriptionServiceError for network errors', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        (handleFetch as jest.Mock).mockRejectedValue(
-          new Error('Network error'),
-        );
+        handleFetchMock.mockRejectedValue(new Error('Network error'));
 
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
@@ -230,9 +226,7 @@ describe('SubscriptionService', () => {
   describe('startSubscription', () => {
     it('should start subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
-        (handleFetch as jest.Mock).mockResolvedValue(
-          MOCK_START_SUBSCRIPTION_RESPONSE,
-        );
+        handleFetchMock.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
 
         const result = await service.startSubscriptionWithCard(
           MOCK_START_SUBSCRIPTION_REQUEST,
@@ -251,9 +245,7 @@ describe('SubscriptionService', () => {
         recurringInterval: RecurringInterval.month,
       };
 
-      (handleFetch as jest.Mock).mockResolvedValue(
-        MOCK_START_SUBSCRIPTION_RESPONSE,
-      );
+      handleFetchMock.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
 
       const result = await service.startSubscriptionWithCard(request);
 
@@ -294,7 +286,7 @@ describe('SubscriptionService', () => {
           status: SubscriptionStatus.active,
         };
 
-        (handleFetch as jest.Mock).mockResolvedValue(response);
+        handleFetchMock.mockResolvedValue(response);
 
         const result = await service.startSubscriptionWithCrypto(request);
 
@@ -313,7 +305,7 @@ describe('SubscriptionService', () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
 
-      (handleFetch as jest.Mock).mockResolvedValue(mockPricingResponse);
+      handleFetchMock.mockResolvedValue(mockPricingResponse);
 
       const result = await service.getPricing();
 
