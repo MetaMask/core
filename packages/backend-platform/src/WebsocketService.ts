@@ -402,7 +402,7 @@ export class WebSocketService {
 
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
-    this.#rejectPendingRequests(new Error('WebSocket disconnected'));
+    this.#clearPendingRequests(new Error('WebSocket disconnected'));
 
     // Clear any pending connection promise
     this.#connectionPromise = null;
@@ -544,13 +544,13 @@ export class WebSocketService {
    */
   cleanup(): void {
     this.#clearTimers();
-    this.#subscriptions.clear();
+    this.#clearSubscriptions();
 
     // Clear any pending connection promise
     this.#connectionPromise = null;
 
     // Clear all pending requests
-    this.#rejectPendingRequests(new Error('Service cleanup'));
+    this.#clearPendingRequests(new Error('Service cleanup'));
 
     if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
       this.#ws.close(1000, 'Service cleanup');
@@ -874,6 +874,11 @@ export class WebSocketService {
     // Clear any pending connection promise
     this.#connectionPromise = null;
 
+    // Clear subscriptions and pending requests on any disconnect
+    // This ensures clean state for reconnection
+    this.#clearPendingRequests(new Error('WebSocket connection closed'));
+    this.#clearSubscriptions();
+
     // Log close reason for debugging
     const closeReason = this.#getCloseReason(event.code);
     console.log(
@@ -974,18 +979,22 @@ export class WebSocketService {
 
 
   /**
-   * Rejects all pending requests with the given error
+   * Clears all pending requests and rejects them with the given error
    *
    * @param error - Error to reject with
    */
-  #rejectPendingRequests(error: Error): void {
+  #clearPendingRequests(error: Error): void {
     for (const [, request] of this.#pendingRequests) {
       clearTimeout(request.timeout);
       request.reject(error);
     }
     this.#pendingRequests.clear();
+  }
 
-    // Clear subscription callbacks on disconnect
+  /**
+   * Clears all active subscriptions
+   */
+  #clearSubscriptions(): void {
     this.#subscriptions.clear();
   }
 
