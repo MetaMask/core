@@ -1284,7 +1284,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         request: {
           id: expect.any(String),
           jsonrpc: '2.0',
-          method: 'ClientRequest:signAndSendTransaction',
+          method: 'signAndSendTransaction',
           params: {
             transaction: 'ABCD',
             scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',

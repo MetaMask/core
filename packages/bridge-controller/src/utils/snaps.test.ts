@@ -96,9 +96,7 @@ describe('Snaps Utils', () => {
       expect(result.handler).toBe('onClientRequest');
       expect(result.request.id).toBe('test-uuid-1234');
       expect(result.request.jsonrpc).toBe('2.0');
-      expect(result.request.method).toBe(
-        'signAndSendTransaction',
-      );
+      expect(result.request.method).toBe('signAndSendTransaction');
       expect(result.request.params.transaction).toBe(transaction);
       expect(result.request.params.scope).toBe(scope);
       expect(result.request.params.accountId).toBe(accountId);
@@ -128,9 +126,7 @@ describe('Snaps Utils', () => {
       expect(result.handler).toBe('onClientRequest');
       expect(result.request.id).toBe('test-uuid-1234');
       expect(result.request.jsonrpc).toBe('2.0');
-      expect(result.request.method).toBe(
-        'signAndSendTransaction',
-      );
+      expect(result.request.method).toBe('signAndSendTransaction');
       expect(result.request.params.transaction).toBe(transaction);
       expect(result.request.params.scope).toBe(scope);
       expect(result.request.params.accountId).toBe(accountId);
