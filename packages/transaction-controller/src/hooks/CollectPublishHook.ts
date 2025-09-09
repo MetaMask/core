@@ -1,5 +1,6 @@
 import type { DeferredPromise, Hex } from '@metamask/utils';
 import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
+import { sortBy } from 'lodash';
 
 import { projectLogger } from '../logger';
 import type { PublishHook, PublishHookResult, TransactionMeta } from '../types';
@@ -15,18 +16,19 @@ export type CollectPublishHookResult = {
  * Used by batch transactions to publish multiple transactions at once.
  */
 export class CollectPublishHook {
-  readonly #publishPromises: DeferredPromise<PublishHookResult>[];
-
-  readonly #signedTransactions: Hex[];
+  #results: {
+    nonce: number;
+    promise: DeferredPromise<PublishHookResult>;
+    signedTransaction: Hex;
+  }[];
 
   readonly #transactionCount: number;
 
   readonly #readyPromise: DeferredPromise<CollectPublishHookResult>;
 
   constructor(transactionCount: number) {
-    this.#publishPromises = [];
     this.#readyPromise = createDeferredPromise();
-    this.#signedTransactions = [];
+    this.#results = [];
     this.#transactionCount = transactionCount;
   }
 
@@ -56,19 +58,19 @@ export class CollectPublishHook {
       throw new Error('Transaction hash count mismatch');
     }
 
-    for (let i = 0; i < this.#publishPromises.length; i++) {
-      const publishPromise = this.#publishPromises[i];
+    for (let i = 0; i < this.#results.length; i++) {
+      const result = this.#results[i];
       const transactionHash = transactionHashes[i];
 
-      publishPromise.resolve({ transactionHash });
+      result.promise.resolve({ transactionHash });
     }
   }
 
   error(error: unknown) {
     log('Error', { error });
 
-    for (const publishPromise of this.#publishPromises) {
-      publishPromise.reject(error);
+    for (const result of this.#results) {
+      result.promise.reject(error);
     }
   }
 
@@ -76,19 +78,34 @@ export class CollectPublishHook {
     transactionMeta: TransactionMeta,
     signedTx: string,
   ): Promise<PublishHookResult> {
-    this.#signedTransactions.push(signedTx as Hex);
+    const nonceHex = transactionMeta.txParams.nonce ?? '0x0';
+    const nonceDecimal = parseInt(nonceHex, 16);
 
-    log('Processing transaction', { transactionMeta, signedTx });
+    log('Processing transaction', {
+      nonce: nonceDecimal,
+      signedTx,
+      transactionMeta,
+    });
 
     const publishPromise = createDeferredPromise<PublishHookResult>();
 
-    this.#publishPromises.push(publishPromise);
+    this.#results.push({
+      nonce: nonceDecimal,
+      promise: publishPromise,
+      signedTransaction: signedTx as Hex,
+    });
 
-    if (this.#signedTransactions.length === this.#transactionCount) {
+    this.#results = sortBy(this.#results, (r) => r.nonce);
+
+    if (this.#results.length === this.#transactionCount) {
       log('All transactions signed');
 
+      const signedTransactions = this.#results.map(
+        (result) => result.signedTransaction,
+      );
+
       this.#readyPromise.resolve({
-        signedTransactions: this.#signedTransactions,
+        signedTransactions,
       });
     }
 
