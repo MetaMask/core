@@ -1,7 +1,8 @@
+import { noop } from 'lodash';
+
 import { CollectPublishHook } from './CollectPublishHook';
 import type { TransactionMeta } from '..';
 import { flushPromises } from '../../../../tests/helpers';
-import { noop } from 'lodash';
 
 const SIGNED_TX_MOCK = '0x123';
 const SIGNED_TX_2_MOCK = '0x456';
