@@ -1,9 +1,13 @@
 import type { Messenger } from '@metamask/base-controller';
-import type { KeyringMetadata } from '@metamask/keyring-controller';
+import { type KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+} from '@metamask/network-controller';
 
 import { EvmAccountProvider } from './EvmAccountProvider';
 import {
@@ -56,6 +60,7 @@ class MockEthKeyring implements EthKeyring {
         MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
           .withUuid()
           .withAddressSuffix(`${this.accounts.length}`)
+          .withGroupIndex(this.accounts.length)
           .get(),
       );
     }
@@ -63,6 +68,13 @@ class MockEthKeyring implements EthKeyring {
     return this.accounts
       .slice(newAccountsIndex)
       .map((account) => account.address);
+  });
+
+  removeAccount = jest.fn().mockImplementation((address: string) => {
+    const index = this.accounts.findIndex((a) => a.address === address);
+    if (index >= 0) {
+      this.accounts.splice(index, 1);
+    }
   });
 }
 
@@ -92,6 +104,7 @@ function setup({
   keyring: MockEthKeyring;
   mocks: {
     getAccountByAddress: jest.Mock;
+    mockProviderRequest: jest.Mock;
   };
 } {
   const keyring = new MockEthKeyring(accounts);
@@ -106,6 +119,14 @@ function setup({
     .mockImplementation((address: string) =>
       keyring.accounts.find((account) => account.address === address),
     );
+
+  const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
+    if (method === 'eth_getTransactionCount') {
+      return '0x2';
+    }
+    throw new Error(`Unknown method: ${method}`);
+  });
+
   messenger.registerActionHandler(
     'AccountsController:getAccountByAddress',
     mockGetAccountByAddress,
@@ -114,6 +135,24 @@ function setup({
   messenger.registerActionHandler(
     'KeyringController:withKeyring',
     async (_, operation) => operation({ keyring, metadata: keyring.metadata }),
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    () => 'mock-network-client-id',
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    () => {
+      const provider = {
+        request: mockProviderRequest,
+      };
+
+      return {
+        provider,
+      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+    },
   );
 
   const provider = new EvmAccountProvider(
@@ -126,11 +165,17 @@ function setup({
     keyring,
     mocks: {
       getAccountByAddress: mockGetAccountByAddress,
+      mockProviderRequest,
     },
   };
 }
 
 describe('EvmAccountProvider', () => {
+  it('getName returns EVM', () => {
+    const { provider } = setup({ accounts: [] });
+    expect(provider.getName()).toBe('EVM');
+  });
+
   it('gets accounts', () => {
     const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
     const { provider } = setup({
@@ -223,17 +268,76 @@ describe('EvmAccountProvider', () => {
     ).rejects.toThrow('Internal account does not exist');
   });
 
-  it('discover accounts', async () => {
+  it('discover accounts at the next group index', async () => {
     const { provider } = setup({
-      accounts: [], // No accounts by defaults, so we can discover them
+      accounts: [],
     });
 
-    // TODO: Update this once we really implement the account discovery.
+    const expectedAccount = {
+      ...MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withAddressSuffix('0')
+        .get(),
+      id: expect.any(String),
+    };
+
     expect(
       await provider.discoverAndCreateAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
+    ).toStrictEqual([expectedAccount]);
+
+    expect(provider.getAccounts()).toStrictEqual([expectedAccount]);
+  });
+
+  it('removes discovered account if no transaction history is found', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    mocks.mockProviderRequest.mockReturnValue('0x0');
+
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      }),
     ).toStrictEqual([]);
+
+    await Promise.resolve();
+
+    expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+  });
+
+  it('removes discovered account if RPC request fails', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    mocks.mockProviderRequest.mockImplementation(() => {
+      throw new Error('RPC request failed');
+    });
+
+    await expect(
+      provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      }),
+    ).rejects.toThrow('RPC request failed');
+
+    expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+  });
+
+  it('returns an existing account if it already exists', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    expect(
+      await provider.discoverAndCreateAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([MOCK_HD_ACCOUNT_1]);
   });
 });

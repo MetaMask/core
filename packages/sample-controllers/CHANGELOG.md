@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SampleGasPricesServiceFetchGasPricesAction`
   - `SampleGasPricesServiceMessenger`
 - Export `getDefaultPetnamesControllerState` ([#6168](https://github.com/MetaMask/core/pull/6168))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6471](https://github.com/MetaMask/core/pull/6471))
 
 ### Changed
 
