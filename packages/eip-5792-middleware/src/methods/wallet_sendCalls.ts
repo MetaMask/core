@@ -1,8 +1,11 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { SendCallsStruct } from '../constants';
-import type { ProcessSendCallsHook, SendCallsPayload } from '../types';
+import {
+  type ProcessSendCallsHook,
+  type SendCallsPayload,
+  SendCallsStruct,
+} from '../types';
 import { validateAndNormalizeKeyholder, validateParams } from '../utils';
 
 /**
