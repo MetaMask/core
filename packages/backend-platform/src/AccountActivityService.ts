@@ -18,6 +18,19 @@ import type {
 } from './types';
 
 const SERVICE_NAME = 'AccountActivityService';
+
+// Temporary list of supported chains for fallback polling - this hardcoded list will be replaced with a dynamic logic
+const SUPPORTED_CHAINS = [
+  '0x1', // 1
+  '0x89', // 137
+  '0x38', // 56
+  '0xe728', // 59144
+  '0x2105', // 8453
+  '0xa', // 10
+  '0xa4b1', // 42161
+  '0x82750', // 534352
+  '0x531', // 1329
+] as const;
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
 /**
@@ -31,11 +44,10 @@ export type AccountSubscription = {
  * Configuration options for the account activity service
  */
 export type AccountActivityServiceOptions = {
-  // Account monitoring options
-  maxActiveSubscriptions?: number;
-  
-  // Transaction processing options
-  processAllTransactions?: boolean;
+  /** Maximum number of concurrent subscription operations (default: 100) */
+  maxConcurrentSubscriptions?: number;
+  /** Custom subscription namespace (default: 'account-activity.v1') */
+  subscriptionNamespace?: string;
 };
 
 
@@ -59,7 +71,9 @@ export type AccountActivityServiceActions =
 
 type AllowedActions = 
   | { type: 'AccountsController:listMultichainAccounts'; handler: (chainId?: string) => InternalAccount[] }
-  | { type: 'AccountsController:getAccountByAddress'; handler: (address: string) => InternalAccount | undefined };
+  | { type: 'AccountsController:getAccountByAddress'; handler: (address: string) => InternalAccount | undefined }
+  | { type: 'TokenBalancesController:updateChainPollingConfigs'; handler: (configs: Record<string, { interval: number }>, options?: { immediateUpdate?: boolean }) => void }
+  | { type: 'TokenBalancesController:getDefaultPollingInterval'; handler: () => number };
 
 // Event types for the messaging system
 export type AccountActivityServiceAccountSubscribedEvent = {
@@ -98,6 +112,7 @@ type AllowedEvents =
   | { type: 'AccountsController:accountAdded'; payload: [InternalAccount] }
   | { type: 'AccountsController:accountRemoved'; payload: [string] }
   | { type: 'AccountsController:listMultichainAccounts'; payload: [string] }
+  | { type: 'BackendWebSocketService:connectionStateChanged'; payload: [{ state: string; url: string; reconnectAttempts: number; lastError?: string; connectedAt?: number }] }
   | AccountActivityServiceAccountSubscribedEvent
   | AccountActivityServiceAccountUnsubscribedEvent
   | AccountActivityServiceTransactionUpdatedEvent
@@ -135,9 +150,6 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
  * const service = new AccountActivityService({
  *   messenger: activityMessenger,
  *   webSocketService: wsService,
- *   maxActiveSubscriptions: 20,
- *   maxActiveSubscriptions: 20,
- *   processAllTransactions: true,
  * });
  * 
  * // Subscribe to account activity with CAIP-10 formatted address
@@ -160,6 +172,7 @@ export class AccountActivityService {
   readonly #webSocketService: WebSocketService;
   readonly #options: Required<AccountActivityServiceOptions>;
 
+
   // Note: Subscription tracking is now centralized in WebSocketService
 
   /**
@@ -172,18 +185,15 @@ export class AccountActivityService {
     this.#messenger = options.messenger;
     this.#webSocketService = options.webSocketService;
     
+    // Set configuration with defaults
     this.#options = {
-      maxActiveSubscriptions: options.maxActiveSubscriptions ?? 20,
-      processAllTransactions: options.processAllTransactions ?? true,
+      maxConcurrentSubscriptions: options.maxConcurrentSubscriptions ?? 100,
+      subscriptionNamespace: options.subscriptionNamespace ?? SUBSCRIPTION_NAMESPACE,
     };
 
     this.#registerActionHandlers();
     this.#setupAccountEventHandlers();
-    
-    // Subscribe all existing accounts on initialization
-    this.#subscribeAllExistingAccounts().catch((error: unknown) => {
-      console.error('Failed to subscribe existing accounts during initialization:', error);
-    });
+    this.#setupWebSocketEventHandlers();
   }
 
   // =============================================================================
@@ -199,7 +209,7 @@ export class AccountActivityService {
       await this.#webSocketService.connect();
 
       // Create channel name from address
-      const channel = `${SUBSCRIPTION_NAMESPACE}.${subscription.address}`;
+      const channel = `${this.#options.subscriptionNamespace}.${subscription.address}`;
 
       // Check if already subscribed
       if (this.#webSocketService.isChannelSubscribed(channel)) {
@@ -240,10 +250,11 @@ export class AccountActivityService {
    * Unsubscribe from account activity for specified address
    * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    */
-  async unsubscribeAccounts(address: string): Promise<void> {
+  async unsubscribeAccounts(subscription: AccountSubscription): Promise<void> {
+    const { address } = subscription;
     try {
       // Find channel for the specified address
-      const channel = `${SUBSCRIPTION_NAMESPACE}.${address}`;
+      const channel = `${this.#options.subscriptionNamespace}.${address}`;
       const subscriptionInfo = this.#webSocketService.getSubscriptionByChannel(channel);
       
       if (!subscriptionInfo) {
@@ -372,32 +383,50 @@ export class AccountActivityService {
   }
 
   /**
-   * Subscribe all existing accounts on initialization
+   * Set up WebSocket connection event handlers for fallback polling
    */
-  async #subscribeAllExistingAccounts(): Promise<void> {
+  #setupWebSocketEventHandlers(): void {
     try {
-      // Get all existing accounts (both EVM and non-EVM)
-      const accounts = this.#messenger.call('AccountsController:listMultichainAccounts');
-
-      if (accounts.length === 0) {
-        console.log('No accounts found to subscribe to activity service');
-        return;
-      }
-
-      // Convert addresses to CAIP-10 format and subscribe all in parallel
-      const subscriptionPromises = accounts.map(async (account: InternalAccount) => {
-        const address = this.#convertToCaip10Address(account);
-        return this.subscribeAccounts({ address });
-      });
-
-      // Wait for all subscriptions to complete
-      await Promise.all(subscriptionPromises);
-
-      console.log(`Successfully subscribed ${accounts.length} existing accounts to activity service during initialization`);
+      this.#messenger.subscribe(
+        'BackendWebSocketService:connectionStateChanged',
+        (connectionInfo) => this.#handleWebSocketStateChange(connectionInfo),
+      );
     } catch (error) {
-      console.error('Failed to subscribe existing accounts to activity service:', error);
-      throw error;
+      console.log('WebSocketService connection events not available:', error);
     }
+  }
+
+  /**
+   * Process subscriptions with concurrency control and partial failure handling
+   */
+  async #processConcurrentSubscriptions(
+    subscriptions: AccountSubscription[]
+  ): Promise<Array<{ address: string; success: boolean; error?: string }>> {
+    const results: Array<{ address: string; success: boolean; error?: string }> = [];
+    
+    // Process subscriptions in batches with concurrency control
+    for (let i = 0; i < subscriptions.length; i += this.#options.maxConcurrentSubscriptions) {
+      const batch = subscriptions.slice(i, i + this.#options.maxConcurrentSubscriptions);
+      
+      const batchPromises = batch.map(async (subscription) => {
+        try {
+          await this.subscribeAccounts(subscription);
+          return { address: subscription.address, success: true as const };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          return { 
+            address: subscription.address, 
+            success: false as const, 
+            error: errorMessage 
+          };
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+    }
+    
+    return results;
   }
 
   /**
@@ -412,6 +441,7 @@ export class AccountActivityService {
 
       // Convert to CAIP-10 format and subscribe
       const address = this.#convertToCaip10Address(account);
+      
       await this.subscribeAccounts({ address });
       console.log(`Automatically subscribed new account ${account.address} with CAIP-10 address: ${address}`);
     } catch (error) {
@@ -420,22 +450,140 @@ export class AccountActivityService {
   }
 
   /**
-   * Handle account removed event
+   * Handle account removed event - lookup account by ID since removal is infrequent
    */
   async #handleAccountRemoved(accountId: string): Promise<void> {
     try {
-      // Find the account by ID to get its address
+      // Get all accounts to find the removed one
+      // Note: This might fail if the account is already removed, which is fine
       const accounts = this.#messenger.call('AccountsController:listMultichainAccounts');
       const removedAccount = accounts.find((account: InternalAccount) => account.id === accountId);
       
-      if (removedAccount && removedAccount.address) {
-        // Convert to CAIP-10 format and unsubscribe
-        const address = this.#convertToCaip10Address(removedAccount);
-        await this.unsubscribeAccounts(address);
-        console.log(`Automatically unsubscribed removed account ${removedAccount.address} with CAIP-10 address: ${address}`);
+      if (!removedAccount || !removedAccount.address) {
+        console.log(`Account ${accountId} not found or already removed - cannot unsubscribe`);
+        return;
       }
+
+      // Convert to CAIP-10 format and unsubscribe
+      const address = this.#convertToCaip10Address(removedAccount);
+      await this.unsubscribeAccounts({ address });
+      
+      console.log(`Automatically unsubscribed removed account ${removedAccount.address} with CAIP-10 address: ${address}`);
     } catch (error) {
       console.error(`Failed to unsubscribe removed account ${accountId} from activity service:`, error);
+      // This is fine - if we can't unsubscribe, the WebSocket connection cleanup will handle it
+    }
+  }
+
+  /**
+   * Handle WebSocket connection state changes for fallback polling
+   */
+  #handleWebSocketStateChange(connectionInfo: { state: string; url: string; reconnectAttempts: number; lastError?: string; connectedAt?: number }): void {
+    const { state } = connectionInfo;
+    console.log(`AccountActivityService: WebSocket state changed to ${state}`);
+
+    if (state === 'connected') {
+      // WebSocket is connected - switch back to real-time updates
+      this.#exitFallbackMode().catch(error => {
+        console.error('Failed to exit fallback mode:', error);
+      });
+    } else if (state === 'disconnected' || state === 'error') {
+      // WebSocket is disconnected - switch to fallback polling
+      this.#enterFallbackMode().catch(error => {
+        console.error('Failed to enter fallback mode:', error);
+      });
+    }
+  }
+
+  /**
+   * Enter fallback mode: ensure TokenBalancesController is using default polling
+   */
+  async #enterFallbackMode(): Promise<void> {
+    console.log('🔄 Entering fallback mode - enabling TokenBalancesController polling');
+
+    try {
+      // Get the default polling interval
+      const defaultInterval = this.#messenger.call('TokenBalancesController:getDefaultPollingInterval');
+      
+      // Configure polling for supported chains
+      const chainConfigs: Record<string, { interval: number }> = {};
+      for (const chainId of SUPPORTED_CHAINS) {
+        chainConfigs[chainId] = { interval: defaultInterval };
+      }
+      
+      this.#messenger.call('TokenBalancesController:updateChainPollingConfigs', chainConfigs, { immediateUpdate: true });
+      
+      console.log(`Configured fallback polling for ${SUPPORTED_CHAINS.length} chains with ${defaultInterval}ms interval`);
+    } catch (error) {
+      console.error('Failed to enter fallback mode:', error);
+    }
+  }
+
+  /**
+   * Exit fallback mode: reduce polling frequency and re-subscribe to WebSocket for real-time updates
+   */
+  async #exitFallbackMode(): Promise<void> {
+    console.log('🎉 Exiting fallback mode - restoring real-time updates');
+
+    try {
+      // Set polling to a high interval since WebSocket will handle real-time updates
+      const highPollingInterval = 600000; // 10 minutes - very infrequent since WebSocket is active
+      
+      // Configure high polling intervals for supported chains (as backup)
+      const chainConfigs: Record<string, { interval: number }> = {};
+      for (const chainId of SUPPORTED_CHAINS) {
+        chainConfigs[chainId] = { interval: highPollingInterval };
+      }
+      
+      this.#messenger.call('TokenBalancesController:updateChainPollingConfigs', chainConfigs, { immediateUpdate: false });
+      console.log(`Set backup polling to high interval: ${highPollingInterval}ms`);
+
+      // Re-subscribe to all accounts for real-time WebSocket updates
+      await this.#subscribeAllAccounts();
+      
+      console.log('Successfully exited fallback mode');
+    } catch (error) {
+      console.error('Failed to exit fallback mode:', error);
+    }
+  }
+
+  /**
+   * Subscribe to all accounts with better error handling and concurrency control
+   */
+  async #subscribeAllAccounts(): Promise<void> {
+    console.log('📋 Subscribing to all accounts');
+
+    try {
+      // Get all current accounts (both EVM and non-EVM)
+      const accounts = this.#messenger.call('AccountsController:listMultichainAccounts');
+
+      if (accounts.length === 0) {
+        console.log('No accounts found to subscribe');
+        return;
+      }
+
+      console.log(`Subscribing to ${accounts.length} accounts with max concurrency: ${this.#options.maxConcurrentSubscriptions}`);
+
+      // Convert to subscriptions and process with concurrency control
+      const subscriptions = accounts.map((account: InternalAccount) => {
+        const address = this.#convertToCaip10Address(account);
+        return { address };
+      });
+
+      const results = await this.#processConcurrentSubscriptions(subscriptions);
+
+      const successful = results.filter(r => r.success).length;
+      const failed = results.filter(r => !r.success);
+
+      console.log(`Subscription results: ${successful}/${accounts.length} successful`);
+
+      if (failed.length > 0) {
+        console.warn(`Failed to subscribe ${failed.length} accounts:`, 
+          failed.map(f => ({ address: f.address, error: f.error }))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to subscribe accounts:', error);
     }
   }
 
@@ -444,9 +592,20 @@ export class AccountActivityService {
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
   cleanup(): void {
-    // Fast path: Only unsubscribe from account activity subscriptions
-    // Note: Since WebSocketService doesn't have namespace-based cleanup, we'll rely on
-    // the service's internal cleanup when it's destroyed
-    console.log('Account activity subscriptions will be cleaned up by WebSocketService');
+    try {
+      // Unregister action handlers to prevent stale references
+      this.#messenger.unregisterActionHandler('AccountActivityService:subscribeAccounts');
+      this.#messenger.unregisterActionHandler('AccountActivityService:unsubscribeAccounts');
+      
+      // Clear our own event subscriptions (events we publish)
+      this.#messenger.clearEventSubscriptions('AccountActivityService:accountSubscribed');
+      this.#messenger.clearEventSubscriptions('AccountActivityService:accountUnsubscribed');
+      this.#messenger.clearEventSubscriptions('AccountActivityService:transactionUpdated');
+      this.#messenger.clearEventSubscriptions('AccountActivityService:balanceUpdated');
+      this.#messenger.clearEventSubscriptions('AccountActivityService:subscriptionError');
+    } catch (error) {
+      console.error('AccountActivityService: Error during cleanup:', error);
+      // Continue cleanup even if some parts fail
+    }
   }
 } 

@@ -1,6 +1,6 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 
-const SERVICE_NAME = 'WebSocketService';
+const SERVICE_NAME = 'BackendWebSocketService';
 
 /**
  * WebSocket connection states
@@ -43,9 +43,6 @@ export type WebSocketServiceOptions = {
 
   /** Request timeout in milliseconds (default: 30000) */
   requestTimeout?: number;
-
-  /** Session ID retention time in milliseconds after disconnect/error (default: 600000 = 10 minutes) */
-  sessionIdRetention?: number;
 };
 
 /**
@@ -138,47 +135,46 @@ export type WebSocketConnectionInfo = {
   reconnectAttempts: number;
   lastError?: string;
   connectedAt?: number;
-  sessionId?: string;
 };
 
 // Action types for the messaging system
 export type WebSocketServiceInitAction = {
-  type: `WebSocketService:init`;
+  type: `BackendWebSocketService:init`;
   handler: WebSocketService['init'];
 };
 
 export type WebSocketServiceConnectAction = {
-  type: `WebSocketService:connect`;
+  type: `BackendWebSocketService:connect`;
   handler: WebSocketService['connect'];
 };
 
 export type WebSocketServiceDisconnectAction = {
-  type: `WebSocketService:disconnect`;
+  type: `BackendWebSocketService:disconnect`;
   handler: WebSocketService['disconnect'];
 };
 
 export type WebSocketServiceSendMessageAction = {
-  type: `WebSocketService:sendMessage`;
+  type: `BackendWebSocketService:sendMessage`;
   handler: WebSocketService['sendMessage'];
 };
 
 export type WebSocketServiceSendRequestAction = {
-  type: `WebSocketService:sendRequest`;
+  type: `BackendWebSocketService:sendRequest`;
   handler: WebSocketService['sendRequest'];
 };
 
 export type WebSocketServiceGetConnectionInfoAction = {
-  type: `WebSocketService:getConnectionInfo`;
+  type: `BackendWebSocketService:getConnectionInfo`;
   handler: WebSocketService['getConnectionInfo'];
 };
 
 export type WebSocketServiceGetSubscriptionByChannelAction = {
-  type: `WebSocketService:getSubscriptionByChannel`;
+  type: `BackendWebSocketService:getSubscriptionByChannel`;
   handler: WebSocketService['getSubscriptionByChannel'];
 };
 
 export type WebSocketServiceIsChannelSubscribedAction = {
-  type: `WebSocketService:isChannelSubscribed`;
+  type: `BackendWebSocketService:isChannelSubscribed`;
   handler: WebSocketService['isChannelSubscribed'];
 };
 
@@ -192,14 +188,21 @@ export type WebSocketServiceActions =
   | WebSocketServiceGetSubscriptionByChannelAction
   | WebSocketServiceIsChannelSubscribedAction;
 
-export type WebSocketServiceEvents = never;
+// Event types for WebSocket connection state changes
+export type WebSocketServiceConnectionStateChangedEvent = {
+  type: 'BackendWebSocketService:connectionStateChanged';
+  payload: [WebSocketConnectionInfo];
+};
+
+export type WebSocketServiceEvents = 
+  | WebSocketServiceConnectionStateChangedEvent;
 
 export type WebSocketServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
   WebSocketServiceActions,
   WebSocketServiceEvents,
   never,
-  never
+  WebSocketServiceEvents['type']
 >;
 
 /**
@@ -231,10 +234,6 @@ export class WebSocketService {
 
   #reconnectTimer: NodeJS.Timeout | null = null;
 
-  #lastDisconnectTime: number | null = null;
-
-  #manualDisconnectPreserveSession: boolean = false; // Track if manual disconnect should preserve session
-
   // Track the current connection promise to handle concurrent connection attempts
   #connectionPromise: Promise<void> | null = null;
 
@@ -250,8 +249,6 @@ export class WebSocketService {
   #lastError: string | null = null;
 
   #connectedAt: number | null = null;
-
-  #sessionId: string | null = null;
 
   // Simplified subscription storage (single flat map)
   // Key: subscription ID string (e.g., 'sub_abc123def456')
@@ -273,49 +270,47 @@ export class WebSocketService {
       timeout: options.timeout ?? 10000,
       reconnectDelay: options.reconnectDelay ?? 500,
       maxReconnectDelay: options.maxReconnectDelay ?? 5000,
-
       requestTimeout: options.requestTimeout ?? 30000,
-      sessionIdRetention: options.sessionIdRetention ?? 600000, // 10 minutes default
     };
 
     // Register action handlers
     this.#messenger.registerActionHandler(
-      `WebSocketService:init`,
+      `BackendWebSocketService:init`,
       this.init.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:connect`,
+      `BackendWebSocketService:connect`,
       this.connect.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:disconnect`,
+      `BackendWebSocketService:disconnect`,
       this.disconnect.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:sendMessage`,
+      `BackendWebSocketService:sendMessage`,
       this.sendMessage.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:sendRequest`,
+      `BackendWebSocketService:sendRequest`,
       this.sendRequest.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:getConnectionInfo`,
+      `BackendWebSocketService:getConnectionInfo`,
       this.getConnectionInfo.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:getSubscriptionByChannel`,
+      `BackendWebSocketService:getSubscriptionByChannel`,
       this.getSubscriptionByChannel.bind(this),
     );
 
     this.#messenger.registerActionHandler(
-      `WebSocketService:isChannelSubscribed`,
+      `BackendWebSocketService:isChannelSubscribed`,
       this.isChannelSubscribed.bind(this),
     );
 
@@ -346,9 +341,6 @@ export class WebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Reset any manual disconnect flags
-    this.#manualDisconnectPreserveSession = false;
-
     // If already connected, return immediately
     if (this.#state === WebSocketState.CONNECTED) {
       return;
@@ -359,9 +351,7 @@ export class WebSocketService {
       return this.#connectionPromise;
     }
 
-    console.log(
-      `🔄 Starting connection attempt to ${this.#options.url}${this.#sessionId ? ` with session: ${this.#sessionId}` : ' (new session)'}`,
-    );
+    console.log(`🔄 Starting connection attempt to ${this.#options.url}`);
     this.#setState(WebSocketState.CONNECTING);
     this.#lastError = null;
 
@@ -397,10 +387,9 @@ export class WebSocketService {
   /**
    * Closes WebSocket connection
    *
-   * @param clearSession - Whether to clear the session ID
    * @returns Promise that resolves when disconnection is complete
    */
-  async disconnect(clearSession: boolean = false): Promise<void> {
+  async disconnect(): Promise<void> {
     if (
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
@@ -410,9 +399,6 @@ export class WebSocketService {
     }
 
     console.log(`Manual disconnect initiated - closing WebSocket connection`);
-
-    // Track if this manual disconnect should preserve session
-    this.#manualDisconnectPreserveSession = !clearSession;
 
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
@@ -424,21 +410,7 @@ export class WebSocketService {
     this.#ws.close(1000, 'Normal closure');
 
     this.#setState(WebSocketState.DISCONNECTED);
-
-    if (clearSession) {
-      console.log(
-        `WebSocket manually disconnected and session cleared: ${this.#sessionId || 'none'}`,
-      );
-      this.#sessionId = null;
-    } else {
-      console.log(
-        `WebSocket manually disconnected - keeping session: ${this.#sessionId || 'none'} (use disconnect(true) to clear session)`,
-      );
-      if (this.#sessionId) {
-        // Record disconnect time for manual disconnects too
-        this.#recordDisconnectTime();
-      }
-    }
+    console.log(`WebSocket manually disconnected`);
   }
 
   /**
@@ -489,6 +461,11 @@ export class WebSocketService {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.#pendingRequests.delete(requestId);
+        console.warn(`🔴 Request timeout after ${this.#options.requestTimeout}ms - triggering reconnection`);
+        
+        // Trigger reconnection on request timeout as it may indicate stale connection
+        this.#handleRequestTimeout();
+        
         reject(
           new Error(`Request timeout after ${this.#options.requestTimeout}ms`),
         );
@@ -524,7 +501,6 @@ export class WebSocketService {
       reconnectAttempts: this.#reconnectAttempts,
       lastError: this.#lastError ?? undefined,
       connectedAt: this.#connectedAt ?? undefined,
-      sessionId: this.#sessionId ?? undefined,
     };
   }
 
@@ -617,7 +593,7 @@ export class WebSocketService {
 
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(
-        `Cannot create subscription: WebSocket is ${this.#state}`,
+        `Cannot create subscription(s) ${channels.join(', ')}: WebSocket is ${this.#state}`,
       );
     }
 
@@ -679,6 +655,7 @@ export class WebSocketService {
     return subscription;
   }
 
+
   /**
    * Establishes the actual WebSocket connection
    *
@@ -686,20 +663,7 @@ export class WebSocketService {
    */
   async #establishConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Build WebSocket URL with query parameters
-      const url = new URL(this.#options.url);
-
-      // Add sessionId for reconnection if we have one
-      if (this.#sessionId) {
-        url.searchParams.set('sessionId', this.#sessionId);
-        console.log(
-          `🔄 Reconnecting with existing session: ${this.#sessionId}`,
-        );
-      } else {
-        console.log(`🆕 Creating new connection`);
-      }
-
-      const wsUrl = url.href;
+      const wsUrl = this.#options.url;
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
         console.log(
@@ -719,26 +683,9 @@ export class WebSocketService {
         this.#connectedAt = Date.now();
 
         // Reset reconnect attempts on successful connection
-        const wasReconnecting = this.#reconnectAttempts > 0;
-        const hadExistingSession = this.#sessionId !== null;
-
-        // Reset reconnect attempts on successful connection
         this.#reconnectAttempts = 0;
 
-        // Clear disconnect time since we're successfully connected
-        this.#lastDisconnectTime = null;
-
         this.#setupEventHandlers();
-
-        if (wasReconnecting) {
-          if (hadExistingSession) {
-            console.log(
-              `Successfully reconnected with existing session: ${this.#sessionId}`,
-            );
-          } else {
-            console.log('Successfully reconnected with new session');
-          }
-        }
 
         resolve();
       };
@@ -749,7 +696,6 @@ export class WebSocketService {
           type: event.type,
           target: event.target,
           url: wsUrl,
-          sessionId: this.#sessionId,
           readyState: ws.readyState,
           readyStateName: {
             0: 'CONNECTING',
@@ -826,47 +772,6 @@ export class WebSocketService {
     const hasSubscriptionId = 'subscriptionId' in message;
     const hasData = 'data' in message;
 
-    // Handle session-created event (optimized for mobile)
-    if (
-      hasEvent &&
-      (
-        message as
-          | ClientRequestMessage
-          | ServerResponseMessage
-          | ServerNotificationMessage
-      ).event === 'session-created' &&
-      hasData
-    ) {
-      const messageData = (message as ServerResponseMessage).data;
-      if (
-        messageData &&
-        typeof messageData === 'object' &&
-        'sessionId' in messageData
-      ) {
-        const newSessionId = messageData.sessionId as string;
-        const previousSessionId = this.#sessionId;
-
-        // Determine the type of session event
-        if (previousSessionId === null) {
-          // Initial connection - new session created
-          this.#sessionId = newSessionId;
-          console.log(`WebSocket session created: ${this.#sessionId}`);
-        } else if (previousSessionId === newSessionId) {
-          // Successful reconnection - same session restored
-          console.log(
-            `WebSocket session restored: ${this.#sessionId} - expecting server to send subscribed messages for resumed channels`,
-          );
-        } else {
-          // Failed reconnection - old session expired, new session created
-          console.log(
-            `WebSocket session expired, new session created. Old: ${previousSessionId}, New: ${newSessionId}`,
-          );
-          this.#sessionId = newSessionId;
-        }
-        return;
-      }
-    }
-
     // Handle server responses (correlated with requests)
     if (
       'data' in message &&
@@ -902,22 +807,6 @@ export class WebSocketService {
       }
     }
 
-    // Handle server-generated subscription restoration messages (no requestId)
-    if (
-      'event' in message &&
-      message.event === 'subscribed' &&
-      'data' in message &&
-      message.data &&
-      typeof message.data === 'object' &&
-      !('requestId' in message.data)
-    ) {
-      console.log(
-        `Server restored subscription: ${JSON.stringify(message.data)}`,
-      );
-      // These are server-generated subscription confirmations during session restoration
-      // No action needed - just log for debugging
-      return;
-    }
 
     // Handle server notifications (optimized for real-time mobile performance)
     if (
@@ -992,54 +881,26 @@ export class WebSocketService {
     );
 
     if (this.#state === WebSocketState.DISCONNECTING) {
-      // Manual disconnect - sessionId was already cleared in disconnect() if clearSession=true
+      // Manual disconnect
       this.#setState(WebSocketState.DISCONNECTED);
-      this.#manualDisconnectPreserveSession = false; // Reset flag
-
       return;
     }
 
-    // For unexpected disconnects, keep sessionId for reconnection
-    // First, always update the state to reflect that we're disconnected
+    // For unexpected disconnects, update the state to reflect that we're disconnected
     this.#setState(WebSocketState.DISCONNECTED);
-
-    // Check if this was a manual disconnect that should preserve session
-    if (this.#manualDisconnectPreserveSession && event.code === 1000) {
-      console.log(
-        `🌙 Manual disconnect with session preservation - keeping session: ${this.#sessionId || 'none'}`,
-      );
-      this.#manualDisconnectPreserveSession = false; // Reset flag
-      return;
-    }
 
     // Check if we should attempt reconnection based on close code
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
 
     if (shouldReconnect) {
-      console.log(
-        `Connection lost unexpectedly, will attempt reconnection with session: ${this.#sessionId || 'none'}`,
-      );
-      if (!this.#sessionId) {
-        console.log(
-          `⚠️  WARNING: No sessionId available for reconnection - will create new session`,
-        );
-      } else {
-        // Record disconnect time for session retention
-        this.#recordDisconnectTime();
-      }
+      console.log(`Connection lost unexpectedly, will attempt reconnection`);
       this.#scheduleReconnect();
     } else {
-      // Non-recoverable error - clear session immediately and set error state
-      console.log(
-        `🔄 Clearing session due to non-recoverable error: ${this.#sessionId || 'none'}`,
-      );
-      this.#sessionId = null;
+      // Non-recoverable error - set error state
+      console.log(`Non-recoverable error - close code: ${event.code} - ${closeReason}`);
       this.#setState(WebSocketState.ERROR);
       this.#lastError = `Non-recoverable close code: ${event.code} - ${closeReason}`;
     }
-
-    // Reset the manual disconnect flag in all cases
-    this.#manualDisconnectPreserveSession = false;
   }
 
   /**
@@ -1049,6 +910,22 @@ export class WebSocketService {
    */
   #handleError(error: Error): void {
     this.#lastError = error.message;
+  }
+
+  /**
+   * Handles request timeout by forcing reconnection
+   * Request timeouts often indicate a stale or broken connection
+   */
+  #handleRequestTimeout(): void {
+    console.log('🔄 Request timeout detected - forcing WebSocket reconnection');
+    
+    // Only trigger reconnection if we're currently connected
+    if (this.#state === WebSocketState.CONNECTED) {
+      // Force close the current connection to trigger reconnection logic
+      this.#ws.close(1001, 'Request timeout - forcing reconnect');
+    } else {
+      console.log(`⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`);
+    }
   }
 
   /**
@@ -1069,9 +946,6 @@ export class WebSocketService {
       console.log(
         `🔄 ${delay}ms delay elapsed - starting reconnection attempt #${this.#reconnectAttempts}...`,
       );
-
-      // Check if session has expired before attempting reconnection
-      this.#checkAndClearExpiredSession();
 
       this.connect().catch((error) => {
         console.error(
@@ -1098,41 +972,6 @@ export class WebSocketService {
     }
   }
 
-  /**
-   * Checks if the session has expired and clears it if needed
-   */
-  #checkAndClearExpiredSession(): void {
-    if (!this.#sessionId || !this.#lastDisconnectTime) {
-      return;
-    }
-
-    const now = Date.now();
-    const timeSinceDisconnect = now - this.#lastDisconnectTime;
-    const retentionMs = this.#options.sessionIdRetention;
-    const retentionMinutes = Math.round(retentionMs / 60000);
-
-    if (timeSinceDisconnect >= retentionMs) {
-      console.log(
-        `⏰ Session expired after ${retentionMinutes} minutes - cleared sessionId: ${this.#sessionId} (disconnected ${Math.round(timeSinceDisconnect / 60000)} minutes ago)`,
-      );
-      this.#sessionId = null;
-      this.#lastDisconnectTime = null;
-    } else {
-      console.log(
-        `⏰ Session still valid: ${this.#sessionId} - expires in ${Math.round((retentionMs - timeSinceDisconnect) / 60000)} minutes`,
-      );
-    }
-  }
-
-  /**
-   * Records the disconnect time for session retention tracking
-   */
-  #recordDisconnectTime(): void {
-    this.#lastDisconnectTime = Date.now();
-    console.log(
-      `⏰ Recorded disconnect time for session: ${this.#sessionId} - will expire in ${Math.round(this.#options.sessionIdRetention / 60000)} minutes`,
-    );
-  }
 
   /**
    * Rejects all pending requests with the given error
@@ -1146,7 +985,7 @@ export class WebSocketService {
     }
     this.#pendingRequests.clear();
 
-    // Clear subscription callbacks and centralized tracking on disconnect
+    // Clear subscription callbacks on disconnect
     this.#subscriptions.clear();
   }
 
@@ -1171,6 +1010,13 @@ export class WebSocketService {
         console.log(
           `🔴 WebSocket disconnection detected - state: ${oldState} → ${newState}`,
         );
+      }
+
+      // Publish connection state change event
+      try {
+        this.#messenger.publish('BackendWebSocketService:connectionStateChanged', this.getConnectionInfo());
+      } catch (error) {
+        console.error('Failed to publish WebSocket connection state change:', error);
       }
     }
   }
