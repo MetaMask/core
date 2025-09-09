@@ -350,21 +350,19 @@ export class SubscriptionController extends BaseController<
     // conversionRate is in usd decimal. In most currencies, we only care about 2 decimals (cents)
     // So, scale must be max of 10 ** 4 (most exchanges trade with max 4 decimals of usd)
     // This allows us to avoid floating point math and keep precision.
-    const CONVERSION_RATE_SCALE = 10n ** 4n;
-    const conversionRateScaled = BigInt(
-      Number(conversionRate) * Number(CONVERSION_RATE_SCALE),
-    );
+    const SCALE = 10n ** 4n;
+    const conversionRateScaled =
+      BigInt(Math.round(Number(conversionRate) * Number(SCALE))) / SCALE;
+    // price of the product
     const priceAmount = this.#getSubscriptionPriceAmount(price);
-    const priceAmountScaled = BigInt(
-      priceAmount * Number(CONVERSION_RATE_SCALE),
-    );
+    const priceAmountScaled =
+      BigInt(Math.round(priceAmount * Number(SCALE))) / SCALE;
 
-    const amount =
-      ((priceAmountScaled / CONVERSION_RATE_SCALE) *
-        BigInt(10) ** BigInt(tokenPaymentInfo.decimals) *
-        CONVERSION_RATE_SCALE) /
-      conversionRateScaled;
-    return amount;
+    const tokenDecimal = BigInt(10) ** BigInt(tokenPaymentInfo.decimals);
+
+    const tokenAmount =
+      (priceAmountScaled * tokenDecimal) / conversionRateScaled;
+    return tokenAmount;
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
