@@ -3026,7 +3026,7 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "ClientRequest:signAndSendTransaction",
+        "method": "signAndSendTransaction",
         "params": Object {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3102,7 +3102,7 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "ClientRequest:signAndSendTransaction",
+        "method": "signAndSendTransaction",
         "params": Object {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3349,7 +3349,7 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "ClientRequest:signAndSendTransaction",
+        "method": "signAndSendTransaction",
         "params": Object {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3425,7 +3425,7 @@ Array [
       "request": Object {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
-        "method": "ClientRequest:signAndSendTransaction",
+        "method": "signAndSendTransaction",
         "params": Object {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
