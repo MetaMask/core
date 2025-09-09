@@ -33,3 +33,21 @@ export type {
   WebSocketState,
   WebSocketEventType,
 } from './WebsocketService';
+export { WebSocketService } from './WebsocketService';
+
+// Account Activity Service
+export type {
+  AccountSubscription,
+  AccountActivityServiceOptions,
+  AccountActivityServiceSubscribeAccountsAction,
+  AccountActivityServiceUnsubscribeAccountsAction,
+  AccountActivityServiceActions,
+  AccountActivityServiceAccountSubscribedEvent,
+  AccountActivityServiceAccountUnsubscribedEvent,
+  AccountActivityServiceTransactionUpdatedEvent,
+  AccountActivityServiceBalanceUpdatedEvent,
+  AccountActivityServiceSubscriptionErrorEvent,
+  AccountActivityServiceEvents,
+  AccountActivityServiceMessenger,
+} from './AccountActivityService';
+export { AccountActivityService } from './AccountActivityService';
