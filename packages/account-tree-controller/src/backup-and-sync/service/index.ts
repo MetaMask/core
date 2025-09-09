@@ -2,6 +2,7 @@ import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 
 import { AtomicSyncQueue } from './atomic-sync-queue';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountTreeControllerState } from '../../types';
 import { TraceName } from '../analytics';
 import type { ProfileId } from '../authentication';
@@ -193,7 +194,7 @@ export class BackupAndSyncService {
               error instanceof Error ? error.message : String(error);
             const errorString = `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`;
 
-            this.#context.contextualLogger.error(errorString);
+            backupAndSyncLogger(errorString);
             throw new Error(errorString);
           }
 
@@ -248,7 +249,7 @@ export class BackupAndSyncService {
               error instanceof Error ? error.message : String(error);
             const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
 
-            this.#context.contextualLogger.error(errorString);
+            backupAndSyncLogger(errorString);
 
             // Attempt to rollback state changes for this wallet
             try {
@@ -258,11 +259,11 @@ export class BackupAndSyncService {
                 );
               }
               restoreStateFromSnapshot(this.#context, stateSnapshot);
-              this.#context.contextualLogger.log(
+              backupAndSyncLogger(
                 `Rolled back state changes for wallet ${wallet.id}`,
               );
             } catch (rollbackError) {
-              this.#context.contextualLogger.error(
+              backupAndSyncLogger(
                 `Failed to rollback state for wallet ${wallet.id}:`,
                 rollbackError instanceof Error
                   ? rollbackError.message
@@ -275,10 +276,7 @@ export class BackupAndSyncService {
           }
         }
       } catch (error) {
-        this.#context.contextualLogger.error(
-          'Error during multichain account syncing:',
-          error,
-        );
+        backupAndSyncLogger('Error during multichain account syncing:', error);
         throw error;
       }
     };
@@ -331,7 +329,7 @@ export class BackupAndSyncService {
         walletProfileId,
       );
     } catch (error) {
-      this.#context.contextualLogger.error(
+      backupAndSyncLogger(
         `Error in single wallet sync for ${walletId}:`,
         error,
       );
@@ -382,10 +380,7 @@ export class BackupAndSyncService {
         walletProfileId,
       );
     } catch (error) {
-      this.#context.contextualLogger.error(
-        `Error in single group sync for ${groupId}:`,
-        error,
-      );
+      backupAndSyncLogger(`Error in single group sync for ${groupId}:`, error);
       throw error;
     }
   }

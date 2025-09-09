@@ -19,7 +19,6 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import { ContextualLogger } from './backup-and-sync/utils';
 import type { AccountGroupObject } from './group';
 import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
@@ -175,9 +174,6 @@ export class AccountTreeController extends BaseController<
           config.backupAndSync.onBackupAndSyncEvent(formatAnalyticsEvent(event))
         );
       },
-      contextualLogger: new ContextualLogger({
-        isEnabled: config?.backupAndSync?.enableDebugLogging ?? false,
-      }),
     };
 
     // Initialize the backup and sync service

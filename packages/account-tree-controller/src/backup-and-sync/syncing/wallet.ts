@@ -1,4 +1,5 @@
 import { compareAndSyncMetadata } from './metadata';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
@@ -28,7 +29,7 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
     context.controller.state.accountWalletsMetadata[localWallet.id];
 
   if (!walletFromUserStorage) {
-    context.contextualLogger.info(
+    backupAndSyncLogger(
       `Wallet ${localWallet.id} did not exist in user storage, pushing to user storage...`,
     );
     return true;

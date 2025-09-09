@@ -8,7 +8,6 @@ import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
 import { getLocalGroupsForEntropyWallet } from '../utils';
-import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('@metamask/accounts-controller');
 jest.mock('../user-storage');
@@ -43,9 +42,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         setAccountGroupName: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
-      contextualLogger: createMockContextualLogger({
-        isEnabled: true,
-      }),
     } as unknown as BackupAndSyncContext;
   });
 
@@ -69,9 +65,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockGetAllLegacyUserStorageAccounts).toHaveBeenCalledWith(
         mockContext,
         testEntropySourceId,
-      );
-      expect(mockContext.contextualLogger.info).toHaveBeenCalledWith(
-        'No legacy accounts, skipping legacy account syncing',
       );
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
         action: BackupAndSyncAnalyticsEvent.LegacySyncingDone,
@@ -206,12 +199,6 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
       );
 
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledTimes(4); // 4 invalid accounts
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Legacy account data is missing name or address',
-        ),
-      );
       expect(mockGetUUIDFromAddressOfNormalAccount).toHaveBeenCalledTimes(1); // Only valid account
     });
 

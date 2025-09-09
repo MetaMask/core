@@ -1,17 +1,12 @@
 import { getProfileId } from './utils';
 import type { AccountTreeController } from '../../AccountTreeController';
 import type { BackupAndSyncContext } from '../types';
-import { createMockContextualLogger } from '../utils/test-utils';
 
 describe('BackupAndSyncAuthentication - Utils', () => {
   describe('getProfileId', () => {
     const mockMessenger = {
       call: jest.fn(),
     };
-
-    const mockContextualLogger = createMockContextualLogger({
-      isEnabled: true,
-    });
 
     const mockContext: BackupAndSyncContext = {
       messenger: mockMessenger as unknown as BackupAndSyncContext['messenger'],
@@ -20,7 +15,6 @@ describe('BackupAndSyncAuthentication - Utils', () => {
       traceFn: jest.fn(),
       groupIdToWalletId: new Map(),
       emitAnalyticsEventFn: jest.fn(),
-      contextualLogger: mockContextualLogger,
     };
 
     const mockEntropySourceId = 'entropy-123';

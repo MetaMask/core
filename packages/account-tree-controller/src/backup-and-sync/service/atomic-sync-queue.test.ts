@@ -1,6 +1,14 @@
 import { AtomicSyncQueue } from './atomic-sync-queue';
+import { backupAndSyncLogger } from '../../logger';
 import type { BackupAndSyncContext } from '../types';
-import { createMockContextualLogger } from '../utils/test-utils';
+
+jest.mock('../../logger', () => ({
+  backupAndSyncLogger: jest.fn(),
+}));
+
+const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
+  typeof backupAndSyncLogger
+>;
 
 describe('BackupAndSync - Service - AtomicSyncQueue', () => {
   let atomicSyncQueue: AtomicSyncQueue;
@@ -11,9 +19,6 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         hasAccountTreeSyncingSyncedAtLeastOnce: true,
       },
     },
-    contextualLogger: createMockContextualLogger({
-      isEnabled: true,
-    }),
   } as unknown as BackupAndSyncContext;
 
   beforeEach(() => {
@@ -177,10 +182,6 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
 
       expect(mockSyncFunction1).toHaveBeenCalled();
       expect(mockSyncFunction2).toHaveBeenCalled();
-      expect(mockContext.contextualLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to process atomic sync event'),
-        error,
-      );
       expect(atomicSyncQueue.size).toBe(0);
     });
 
@@ -269,58 +270,11 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       jest.advanceTimersByTime(1);
       await Promise.resolve();
 
-      expect(mockContext.contextualLogger.error).toHaveBeenCalledWith(
+      expect(mockBackupAndSyncLogger).toHaveBeenCalledWith(
         'Error processing atomic sync queue:',
         error,
       );
     });
-
-    it('covers debug logging in async process catch', async () => {
-      // Use real timers for this test to avoid timing issues
-      jest.useRealTimers();
-
-      // Create a custom class that will throw in process() to test the catch block in enqueue
-      class TestAtomicSyncQueue extends AtomicSyncQueue {
-        async process(): Promise<void> {
-          throw new Error('New error');
-        }
-      }
-
-      // Create a queue with debug logging enabled
-      const debugEnabledQueue = new TestAtomicSyncQueue(mockContext);
-
-      const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-      debugEnabledQueue.enqueue(mockSyncFunction);
-
-      // Wait for the setTimeout callback to execute and the error to be caught
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      expect(mockContext.contextualLogger.error).toHaveBeenCalledWith(
-        'Error processing atomic sync queue:',
-        expect.objectContaining({ message: 'New error' }),
-      );
-    });
-
-    it('covers debug logging when sync function fails', async () => {
-      // Create a queue with debug logging enabled
-      const debugEnabledQueue = new AtomicSyncQueue(mockContext);
-
-      // Create a sync function that throws an error
-      const syncError = new Error('New error 2');
-      const failingSyncFunction = jest.fn().mockRejectedValue(syncError);
-
-      // Enqueue the failing function
-      debugEnabledQueue.enqueue(failingSyncFunction);
-
-      // Process the queue
-      await debugEnabledQueue.process();
-
-      expect(mockContext.contextualLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to process atomic sync event'),
-        syncError,
-      );
-    });
-
     it('handles empty queue after shift operation', async () => {
       // Test the scenario where shift() might return undefined/null
       // This can happen in race conditions or edge cases

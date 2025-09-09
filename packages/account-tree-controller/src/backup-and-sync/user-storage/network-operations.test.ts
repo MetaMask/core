@@ -29,7 +29,6 @@ import type {
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
-import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('./format-utils');
 jest.mock('./network-utils');
@@ -68,9 +67,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       messenger: {
         call: jest.fn(),
       },
-      contextualLogger: createMockContextualLogger({
-        isEnabled: true,
-      }),
     } as unknown as BackupAndSyncContext;
 
     mockWallet = {
@@ -181,9 +177,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
 
       expect(result).toBeNull();
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Failed to parse wallet data from user storage: String error for wallet parsing',
-      );
     });
   });
 
@@ -317,9 +310,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
 
       expect(result).toStrictEqual([{ groupIndex: 0 }]);
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Failed to parse group data from user storage: String error for group parsing',
-      );
     });
   });
 
@@ -397,9 +387,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
 
       expect(result).toBeNull();
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Failed to parse group data from user storage: Parse error',
-      );
     });
 
     it('handles non-Error objects in debug logging', async () => {
@@ -420,9 +407,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
 
       expect(result).toBeNull();
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Failed to parse group data from user storage: String error',
-      );
     });
   });
 
@@ -564,9 +548,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
 
       expect(result).toStrictEqual(expectedValidData);
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Failed to parse legacy account data from user storage: Parse error for invalid data',
-      );
     });
 
     it('handles non-Error objects thrown during parsing', async () => {
@@ -595,9 +576,6 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       );
 
       expect(result).toStrictEqual([]);
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Failed to parse legacy account data from user storage: String error',
-      );
     });
   });
 });

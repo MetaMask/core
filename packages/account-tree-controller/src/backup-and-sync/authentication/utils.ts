@@ -1,5 +1,6 @@
 import type { SDK } from '@metamask/profile-sync-controller';
 
+import { backupAndSyncLogger } from '../../logger';
 import type { BackupAndSyncContext } from '../types';
 
 export type ProfileId = SDK.UserProfile['profileId'] | undefined;
@@ -22,7 +23,7 @@ export const getProfileId = async (
     );
     return sessionProfile.profileId;
   } catch (error) {
-    context.contextualLogger.warn(`Failed to retrieve profile ID:`, error);
+    backupAndSyncLogger(`Failed to retrieve profile ID:`, error);
     return undefined;
   }
 };

@@ -30,7 +30,6 @@ import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
 } from '../utils';
-import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('./atomic-sync-queue');
 jest.mock('../authentication');
@@ -130,9 +129,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       },
       traceFn: jest.fn().mockImplementation((_config, fn) => fn()),
       groupIdToWalletId: new Map(),
-      contextualLogger: createMockContextualLogger({
-        isEnabled: true,
-      }),
     } as unknown as BackupAndSyncContext;
 
     backupAndSyncService = new BackupAndSyncService(mockContext);

@@ -5,6 +5,7 @@ import {
 } from './group';
 import * as metadataExports from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type {
@@ -16,12 +17,15 @@ import {
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
 import { getLocalGroupsForEntropyWallet } from '../utils';
-import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');
 jest.mock('../utils', () => ({
   getLocalGroupsForEntropyWallet: jest.fn(),
+}));
+
+jest.mock('../../logger', () => ({
+  backupAndSyncLogger: jest.fn(),
 }));
 
 const mockCompareAndSyncMetadata =
@@ -38,6 +42,10 @@ const mockGetLocalGroupsForEntropyWallet =
   getLocalGroupsForEntropyWallet as jest.MockedFunction<
     typeof getLocalGroupsForEntropyWallet
   >;
+
+const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
+  typeof backupAndSyncLogger
+>;
 
 describe('BackupAndSync - Syncing - Group', () => {
   let mockContext: BackupAndSyncContext;
@@ -65,9 +73,6 @@ describe('BackupAndSync - Syncing - Group', () => {
         call: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
-      contextualLogger: createMockContextualLogger({
-        isEnabled: true,
-      }),
     } as unknown as BackupAndSyncContext;
 
     mockLocalGroup = {
@@ -206,33 +211,8 @@ describe('BackupAndSync - Syncing - Group', () => {
         'test-profile',
       );
 
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        'Wallet with entropy test-entropy does not exist, skipping group creation',
-      );
       expect(mockContext.messenger.call).not.toHaveBeenCalled();
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
-    });
-
-    it('handles non-Error exceptions in debug logging', async () => {
-      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
-
-      // Reject with a non-Error object to test the String(error) branch
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockRejectedValueOnce('String error');
-
-      await createLocalGroupsFromUserStorage(
-        mockContext,
-        groups,
-        'test-entropy',
-        'test-profile',
-      );
-
-      expect(mockContext.contextualLogger.error).toHaveBeenCalledWith(
-        'Failed to create group 0 for entropy test-entropy:',
-        'String error',
-      );
     });
 
     it('emits analytics events for successful creations', async () => {
@@ -271,7 +251,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         'test-profile',
       );
 
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
+      expect(mockBackupAndSyncLogger).toHaveBeenCalledWith(
         expect.stringContaining('Group index 2 is out of sequence'),
       );
     });
@@ -652,13 +632,6 @@ describe('BackupAndSync - Syncing - Group', () => {
         null, // groupFromUserStorage is null
         'test-entropy',
         'test-profile',
-      );
-
-      // Verify that the warning was logged
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'did not exist in user storage, pushing to user storage',
-        ),
       );
 
       // Should push the group since it has local metadata

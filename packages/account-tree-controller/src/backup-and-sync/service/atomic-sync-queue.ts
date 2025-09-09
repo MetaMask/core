@@ -1,3 +1,4 @@
+import { backupAndSyncLogger } from '../../logger';
 import type { AtomicSyncEvent, BackupAndSyncContext } from '../types';
 
 /**
@@ -47,10 +48,7 @@ export class AtomicSyncQueue {
     // Process queue asynchronously without blocking
     setTimeout(() => {
       this.process().catch((error) => {
-        this.#context.contextualLogger.error(
-          'Error processing atomic sync queue:',
-          error,
-        );
+        backupAndSyncLogger('Error processing atomic sync queue:', error);
       });
     }, 0);
   }
@@ -80,10 +78,7 @@ export class AtomicSyncQueue {
         try {
           await event.execute();
         } catch (error) {
-          this.#context.contextualLogger.error(
-            'Failed to process atomic sync event',
-            error,
-          );
+          backupAndSyncLogger('Failed to process atomic sync event', error);
         }
       }
     } finally {

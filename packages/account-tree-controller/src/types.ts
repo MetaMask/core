@@ -30,7 +30,6 @@ import type {
   BackupAndSyncAnalyticsEventPayload,
   BackupAndSyncEmitAnalyticsEventParams,
 } from './backup-and-sync/analytics';
-import type { ContextualLogger } from './backup-and-sync/utils';
 import type {
   AccountGroupObject,
   AccountTreeGroupPersistedMetadata,
@@ -188,5 +187,4 @@ export type AccountTreeControllerConfig = {
 
 export type AccountTreeControllerInternalBackupAndSyncConfig = {
   emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
-  contextualLogger: ContextualLogger;
 };

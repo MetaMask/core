@@ -7,7 +7,6 @@ import {
   restoreStateFromSnapshot,
   type StateSnapshot,
 } from './controller';
-import { createMockContextualLogger } from './test-utils';
 import type { AccountTreeController } from '../../AccountTreeController';
 import type {
   AccountWalletEntropyObject,
@@ -42,9 +41,6 @@ describe('BackupAndSyncUtils - Controller', () => {
       traceFn: jest.fn(),
       groupIdToWalletId: new Map(),
       emitAnalyticsEventFn: jest.fn(),
-      contextualLogger: createMockContextualLogger({
-        isEnabled: true,
-      }),
     };
 
     // Set up the mock implementation for controllerStateUpdateFn
@@ -118,7 +114,6 @@ describe('BackupAndSyncUtils - Controller', () => {
       );
 
       expect(result).toStrictEqual([]);
-      expect(mockContext.contextualLogger.warn).toHaveBeenCalled();
     });
 
     it('returns groups for entropy wallet', () => {

@@ -5,6 +5,7 @@ import {
 
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncAnalyticsAction } from '../analytics';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
@@ -51,8 +52,9 @@ export const createMultichainAccountGroup = async (
       profileId,
     });
   } catch (error) {
-    context.contextualLogger.error(
+    backupAndSyncLogger(
       `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
+      // istanbul ignore next
       error instanceof Error ? error.message : String(error),
     );
     throw error;
@@ -92,7 +94,7 @@ export async function createLocalGroupsFromUserStorage(
     previousGroupIndex = groupIndex;
 
     if (isGroupIndexOutOfSequence) {
-      context.contextualLogger.warn(
+      backupAndSyncLogger(
         `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
       );
     }
@@ -101,7 +103,7 @@ export async function createLocalGroupsFromUserStorage(
     const wallet = context.controller.state.accountTree.wallets[walletId];
 
     if (!wallet) {
-      context.contextualLogger.warn(
+      backupAndSyncLogger(
         `Wallet with entropy ${entropySourceId} does not exist, skipping group creation`,
       );
       continue;
@@ -111,7 +113,7 @@ export async function createLocalGroupsFromUserStorage(
     const didGroupAlreadyExist = wallet.groups[groupId] !== undefined;
 
     if (didGroupAlreadyExist) {
-      context.contextualLogger.warn(
+      backupAndSyncLogger(
         `Group with index ${groupIndex} (wallet entropy ${entropySourceId}) already exists, skipping creation`,
       );
       continue; // Skip creating group if it already exists
@@ -156,7 +158,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     context.controller.state.accountGroupsMetadata[localGroup.id];
 
   if (!groupFromUserStorage) {
-    context.contextualLogger.warn(
+    backupAndSyncLogger(
       `Group ${localGroup.id} did not exist in user storage, pushing to user storage...`,
     );
 

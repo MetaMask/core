@@ -14,6 +14,7 @@ import {
 } from './format-utils';
 import { executeWithRetry } from './network-utils';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
   BackupAndSyncContext,
@@ -46,12 +47,12 @@ export const getWalletFromUserStorage = async (
     }
 
     try {
-      context.contextualLogger.info(
+      backupAndSyncLogger(
         `Retrieved wallet data from user storage: ${JSON.stringify(walletData)}`,
       );
       return parseWalletFromUserStorageResponse(walletData);
     } catch (error) {
-      context.contextualLogger.warn(
+      backupAndSyncLogger(
         `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
@@ -78,9 +79,7 @@ export const pushWalletToUserStorage = async (
     const stringifiedWallet = JSON.stringify(formattedWallet);
     const entropySourceId = wallet.metadata.entropy.id;
 
-    context.contextualLogger.info(
-      `Pushing wallet to user storage: ${stringifiedWallet}`,
-    );
+    backupAndSyncLogger(`Pushing wallet to user storage: ${stringifiedWallet}`);
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
@@ -119,7 +118,7 @@ export const getAllGroupsFromUserStorage = async (
         try {
           return parseGroupFromUserStorageResponse(groupStringifiedJSON);
         } catch (error) {
-          context.contextualLogger.warn(
+          backupAndSyncLogger(
             `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
           );
           return null;
@@ -127,7 +126,7 @@ export const getAllGroupsFromUserStorage = async (
       })
       .filter((group): group is UserStorageSyncedWalletGroup => group !== null);
 
-    context.contextualLogger.info(
+    backupAndSyncLogger(
       `Retrieved groups from user storage: ${JSON.stringify(allGroups)}`,
     );
 
@@ -163,7 +162,7 @@ export const getGroupFromUserStorage = async (
     try {
       return parseGroupFromUserStorageResponse(groupData);
     } catch (error) {
-      context.contextualLogger.warn(
+      backupAndSyncLogger(
         `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
@@ -191,9 +190,7 @@ export const pushGroupToUserStorage = async (
     const formattedGroup = formatGroupForUserStorageUsage(context, group);
     const stringifiedGroup = JSON.stringify(formattedGroup);
 
-    context.contextualLogger.info(
-      `Pushing group to user storage: ${stringifiedGroup}`,
-    );
+    backupAndSyncLogger(`Pushing group to user storage: ${stringifiedGroup}`);
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
@@ -230,7 +227,7 @@ export const pushGroupToUserStorageBatch = async (
       JSON.stringify(group),
     ]);
 
-    context.contextualLogger.info(
+    backupAndSyncLogger(
       `Pushing groups to user storage: ${entries.map(([_, value]) => value).join(', ')}`,
     );
 
@@ -272,7 +269,7 @@ export const getAllLegacyUserStorageAccounts = async (
         try {
           return parseLegacyAccountFromUserStorageResponse(stringifiedAccount);
         } catch (error) {
-          context.contextualLogger.warn(
+          backupAndSyncLogger(
             `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
           );
           return null;
@@ -283,7 +280,7 @@ export const getAllLegacyUserStorageAccounts = async (
           account !== null,
       );
 
-    context.contextualLogger.info(
+    backupAndSyncLogger(
       `Retrieved legacy accounts from user storage: ${JSON.stringify(allAccounts)}`,
     );
 

@@ -2,6 +2,7 @@ import { AccountWalletType } from '@metamask/account-api';
 import type { AccountWalletId } from '@metamask/account-api';
 
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncContext } from '../types';
@@ -33,7 +34,7 @@ export function getLocalGroupsForEntropyWallet(
 ): AccountGroupMultichainAccountObject[] {
   const wallet = context.controller.state.accountTree.wallets[walletId];
   if (!wallet || wallet.type !== AccountWalletType.Entropy) {
-    context.contextualLogger.warn(
+    backupAndSyncLogger(
       `Wallet ${walletId} not found or is not an entropy wallet`,
     );
     return [];

@@ -7,15 +7,9 @@ import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
-import { createMockContextualLogger } from '../utils/test-utils';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');
-jest.mock('../utils', () => ({
-  contextualLogger: {
-    warn: jest.fn(),
-  },
-}));
 
 const mockCompareAndSyncMetadata =
   compareAndSyncMetadata as jest.MockedFunction<typeof compareAndSyncMetadata>;
@@ -37,9 +31,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         },
         setAccountWalletName: jest.fn(),
       },
-      contextualLogger: createMockContextualLogger({
-        isEnabled: true,
-      }),
     } as unknown as BackupAndSyncContext;
 
     mockLocalWallet = {
