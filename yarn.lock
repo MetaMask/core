@@ -2421,7 +2421,7 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^9.0.0"
     "@metamask/snaps-utils": "npm:^11.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.7.0"
+    "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     fast-deep-equal: "npm:^3.1.3"
@@ -4836,25 +4836,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^11.7.0":
-  version: 11.7.0
-  resolution: "@metamask/utils@npm:11.7.0"
-  dependencies:
-    "@ethereumjs/tx": "npm:^4.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@noble/hashes": "npm:^1.3.1"
-    "@scure/base": "npm:^1.1.3"
-    "@types/debug": "npm:^4.1.7"
-    "@types/lodash": "npm:^4.17.20"
-    debug: "npm:^4.3.4"
-    lodash: "npm:^4.17.21"
-    pony-cause: "npm:^2.1.10"
-    semver: "npm:^7.5.4"
-    uuid: "npm:^9.0.1"
-  checksum: 10/0f31783f357d1043d0e83af3a7af1e686f56c821e9acc650d71c02f5ea8ee7d5868aa09d240b179305893be05d5a406ccfdd9a8c534d265d6b821c383f51ace1
-  languageName: node
-  linkType: hard
-
 "@metamask/utils@npm:^8.2.0":
   version: 8.5.0
   resolution: "@metamask/utils@npm:8.5.0"
@@ -5759,13 +5740,6 @@ __metadata:
   version: 4.17.7
   resolution: "@types/lodash@npm:4.17.7"
   checksum: 10/b8177f19cf962414a66989837481b13f546afc2e98e8d465bec59e6ac03a59c584eb7053ce511cde3a09c5f3096d22a5ae22cfb56b23f3b0da75b0743b6b1a44
-  languageName: node
-  linkType: hard
-
-"@types/lodash@npm:^4.17.20":
-  version: 4.17.20
-  resolution: "@types/lodash@npm:4.17.20"
-  checksum: 10/8cd8ad3bd78d2e06a93ae8d6c9907981d5673655fec7cb274a4d9a59549aab5bb5b3017361280773b8990ddfccf363e14d1b37c97af8a9fe363de677f9a61524
   languageName: node
   linkType: hard
 
