@@ -10,6 +10,8 @@ export type {
   MultichainAccountServiceCreateNextMultichainAccountGroupAction,
   MultichainAccountServiceGetIsAlignmentInProgressAction,
   MultichainAccountServiceSetBasicFunctionalityAction,
+  MultichainAccountServiceMultichainAccountGroupCreatedEvent,
+  MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
 } from './types';
 export {
   AccountProviderWrapper,

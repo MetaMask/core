@@ -1090,6 +1090,7 @@ export class TransactionController extends BaseController<
         transactionMeta: TransactionMeta,
       ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
       request,
+      signTransaction: this.#signTransaction.bind(this),
       update: this.update.bind(this),
       updateTransaction: this.#updateTransactionInternal.bind(this),
     });
