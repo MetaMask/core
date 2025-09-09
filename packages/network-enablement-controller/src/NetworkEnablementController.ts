@@ -265,7 +265,7 @@ export class NetworkEnablementController extends BaseController<
         }
       });
 
-      // Enable only Solana mainnet if it exists in MultichainNetworkController configurations
+      // Enable Solana mainnet if it exists in MultichainNetworkController configurations
       const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
@@ -274,11 +274,11 @@ export class NetworkEnablementController extends BaseController<
       ) {
         // Ensure namespace bucket exists
         this.#ensureNamespaceBucket(s, solanaKeys.namespace);
-        // Enable the network
+        // Enable Solana mainnet
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
 
-      // Enable only Bitcoin mainnet if it exists in MultichainNetworkController configurations
+      // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
       const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
@@ -287,7 +287,7 @@ export class NetworkEnablementController extends BaseController<
       ) {
         // Ensure namespace bucket exists
         this.#ensureNamespaceBucket(s, bitcoinKeys.namespace);
-        // Enable the network
+        // Enable Bitcoin mainnet
         s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
           true;
       }
@@ -346,7 +346,7 @@ export class NetworkEnablementController extends BaseController<
         }
       });
 
-      // Enable only Solana mainnet if it exists in configurations
+      // Enable Solana mainnet if it exists in configurations
       const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
       if (
         s.enabledNetworkMap[solanaKeys.namespace] &&
@@ -357,7 +357,7 @@ export class NetworkEnablementController extends BaseController<
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
 
-      // Enable only Bitcoin mainnet if it exists in configurations
+      // Enable Bitcoin mainnet if it exists in configurations
       const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
       if (
         s.enabledNetworkMap[bitcoinKeys.namespace] &&
