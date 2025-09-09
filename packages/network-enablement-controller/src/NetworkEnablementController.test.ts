@@ -1019,7 +1019,6 @@ describe('NetworkEnablementController', () => {
 
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
     });
-
   });
 
   describe('enableNetwork', () => {
