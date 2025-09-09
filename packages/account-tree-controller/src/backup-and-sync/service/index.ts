@@ -4,6 +4,7 @@ import { AccountWalletType } from '@metamask/account-api';
 import { AtomicSyncQueue } from './atomic-sync-queue';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountTreeControllerState } from '../../types';
+import type { AccountWalletEntropyObject } from '../../wallet';
 import { TraceName } from '../analytics';
 import type { ProfileId } from '../authentication';
 import { getProfileId } from '../authentication';
@@ -32,7 +33,6 @@ import {
   getLocalGroupsForEntropyWallet,
 } from '../utils';
 import type { StateSnapshot } from '../utils';
-import type { AccountWalletEntropyObject } from 'src/wallet';
 
 /**
  * Service responsible for managing all backup and sync operations.
