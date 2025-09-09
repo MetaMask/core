@@ -4,6 +4,7 @@ import { AccountWalletType } from '@metamask/account-api';
 import { AtomicSyncQueue } from './atomic-sync-queue';
 import type { AccountTreeControllerState } from '../../types';
 import { TraceName } from '../analytics';
+import type { ProfileId } from '../authentication';
 import { getProfileId } from '../authentication';
 import {
   createLocalGroupsFromUserStorage,
@@ -12,7 +13,11 @@ import {
   syncSingleGroupMetadata,
   syncWalletMetadata,
 } from '../syncing';
-import type { BackupAndSyncContext } from '../types';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types';
 import {
   getAllGroupsFromUserStorage,
   getGroupFromUserStorage,
@@ -26,6 +31,7 @@ import {
   getLocalGroupsForEntropyWallet,
 } from '../utils';
 import type { StateSnapshot } from '../utils';
+import type { AccountWalletEntropyObject } from 'src/wallet';
 
 /**
  * Service responsible for managing all backup and sync operations.
@@ -58,6 +64,13 @@ export class BackupAndSyncService {
    */
   get isInProgress(): boolean {
     return this.#context.controller.state.isAccountTreeSyncingInProgress;
+  }
+
+  #getEntropyWallet(
+    walletId: AccountWalletId,
+  ): AccountWalletEntropyObject | undefined {
+    const wallet = this.#context.controller.state.accountTree.wallets[walletId];
+    return wallet?.type === AccountWalletType.Entropy ? wallet : undefined;
   }
 
   /**
@@ -121,15 +134,16 @@ export class BackupAndSyncService {
       return;
     }
 
+    // Set isAccountTreeSyncingInProgress immediately to prevent race conditions
+    this.#context.controllerStateUpdateFn(
+      (state: AccountTreeControllerState) => {
+        state.isAccountTreeSyncingInProgress = true;
+      },
+    );
+
     // Encapsulate the sync logic in a function to allow tracing
     const bigSyncFn = async () => {
       try {
-        this.#context.controllerStateUpdateFn(
-          (state: AccountTreeControllerState) => {
-            state.isAccountTreeSyncingInProgress = true;
-          },
-        );
-
         // Clear stale atomic syncs - big sync supersedes them
         this.#atomicSyncQueue.clear();
 
@@ -143,20 +157,22 @@ export class BackupAndSyncService {
 
         // 2. Iterate over each local wallet
         for (const wallet of localSyncableWallets) {
-          let stateSnapshot: StateSnapshot | undefined;
           const entropySourceId = wallet.metadata.entropy.id;
 
+          let walletProfileId: ProfileId;
+          let walletFromUserStorage: UserStorageSyncedWallet | null;
+          let groupsFromUserStorage: UserStorageSyncedWalletGroup[];
+
           try {
-            const walletProfileId = await getProfileId(
+            walletProfileId = await getProfileId(
               this.#context,
               entropySourceId,
             );
 
-            const [walletFromUserStorage, groupsFromUserStorage] =
-              await Promise.all([
-                getWalletFromUserStorage(this.#context, entropySourceId),
-                getAllGroupsFromUserStorage(this.#context, entropySourceId),
-              ]);
+            [walletFromUserStorage, groupsFromUserStorage] = await Promise.all([
+              getWalletFromUserStorage(this.#context, entropySourceId),
+              getAllGroupsFromUserStorage(this.#context, entropySourceId),
+            ]);
 
             // 2.1 Decide if we need to perform legacy account syncing
             if (
@@ -172,8 +188,19 @@ export class BackupAndSyncService {
                 walletProfileId,
               );
             }
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            const errorString = `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`;
 
-            // 3. Execute multichain account syncing
+            this.#context.contextualLogger.error(errorString);
+            throw new Error(errorString);
+          }
+
+          // 3. Execute multichain account syncing
+          let stateSnapshot: StateSnapshot | undefined;
+
+          try {
             // 3.1 Wallet syncing
             // Create a state snapshot before processing each wallet for potential rollback
             stateSnapshot = createStateSnapshot(this.#context);
@@ -217,10 +244,11 @@ export class BackupAndSyncService {
               walletProfileId,
             );
           } catch (error) {
-            this.#context.contextualLogger.error(
-              `Error syncing wallet ${wallet.id}:`,
-              error instanceof Error ? error.message : String(error),
-            );
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
+
+            this.#context.contextualLogger.error(errorString);
 
             // Attempt to rollback state changes for this wallet
             try {
@@ -252,23 +280,26 @@ export class BackupAndSyncService {
           error,
         );
         throw error;
-      } finally {
-        this.#context.controllerStateUpdateFn(
-          (state: AccountTreeControllerState) => {
-            state.isAccountTreeSyncingInProgress = false;
-            state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
-          },
-        );
       }
     };
 
-    // Execute the big sync function with tracing
-    await this.#context.traceFn(
-      {
-        name: TraceName.AccountSyncFull,
-      },
-      bigSyncFn,
-    );
+    // Execute the big sync function with tracing and ensure state cleanup
+    try {
+      await this.#context.traceFn(
+        {
+          name: TraceName.AccountSyncFull,
+        },
+        bigSyncFn,
+      );
+    } finally {
+      // Always reset state, regardless of success or failure
+      this.#context.controllerStateUpdateFn(
+        (state: AccountTreeControllerState) => {
+          state.isAccountTreeSyncingInProgress = false;
+          state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
+        },
+      );
+    }
   }
 
   /**
@@ -278,9 +309,8 @@ export class BackupAndSyncService {
    */
   async #performSingleWalletSync(walletId: AccountWalletId): Promise<void> {
     try {
-      const wallet =
-        this.#context.controller.state.accountTree.wallets[walletId];
-      if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+      const wallet = this.#getEntropyWallet(walletId);
+      if (!wallet) {
         return; // Only sync entropy wallets
       }
 
@@ -321,9 +351,8 @@ export class BackupAndSyncService {
         return;
       }
 
-      const wallet =
-        this.#context.controller.state.accountTree.wallets[walletId];
-      if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+      const wallet = this.#getEntropyWallet(walletId);
+      if (!wallet) {
         return; // Only sync entropy wallets
       }
 

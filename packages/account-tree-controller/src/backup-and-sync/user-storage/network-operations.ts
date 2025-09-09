@@ -28,6 +28,8 @@ import type {
  * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID.
  * @returns The wallet from user storage or null if not found or invalid.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
  */
 export const getWalletFromUserStorage = async (
   context: BackupAndSyncContext,
@@ -63,6 +65,9 @@ export const getWalletFromUserStorage = async (
  * @param context - The backup and sync context.
  * @param wallet - The wallet to push to user storage.
  * @returns A promise that resolves when the operation is complete.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
+ * @throws When JSON.stringify fails on the formatted wallet data.
  */
 export const pushWalletToUserStorage = async (
   context: BackupAndSyncContext,
@@ -92,6 +97,8 @@ export const pushWalletToUserStorage = async (
  * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID.
  * @returns An array of groups from user storage.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
  */
 export const getAllGroupsFromUserStorage = async (
   context: BackupAndSyncContext,
@@ -135,6 +142,8 @@ export const getAllGroupsFromUserStorage = async (
  * @param entropySourceId - The entropy source ID.
  * @param groupIndex - The group index to retrieve.
  * @returns The group from user storage or null if not found or invalid.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
  */
 export const getGroupFromUserStorage = async (
   context: BackupAndSyncContext,
@@ -169,6 +178,9 @@ export const getGroupFromUserStorage = async (
  * @param group - The group to push to user storage.
  * @param entropySourceId - The entropy source ID.
  * @returns A promise that resolves when the operation is complete.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
+ * @throws When JSON.stringify fails on the formatted group data.
  */
 export const pushGroupToUserStorage = async (
   context: BackupAndSyncContext,
@@ -199,6 +211,9 @@ export const pushGroupToUserStorage = async (
  * @param groups - The groups to push to user storage.
  * @param entropySourceId - The entropy source ID.
  * @returns A promise that resolves when the operation is complete.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
+ * @throws When JSON.stringify fails on any of the formatted group data.
  */
 export const pushGroupToUserStorageBatch = async (
   context: BackupAndSyncContext,
@@ -234,6 +249,8 @@ export const pushGroupToUserStorageBatch = async (
  * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID to retrieve data for.
  * @returns A promise that resolves with the legacy user storage accounts.
+ * @throws When network operations fail after maximum retry attempts.
+ * @throws When messenger calls to UserStorageController fail due to authentication errors, encryption/decryption failures, or network issues.
  */
 export const getAllLegacyUserStorageAccounts = async (
   context: BackupAndSyncContext,
@@ -251,11 +268,9 @@ export const getAllLegacyUserStorageAccounts = async (
     }
 
     const allAccounts = accountsData
-      .map((accountStringifiedJSON) => {
+      .map((stringifiedAccount) => {
         try {
-          return parseLegacyAccountFromUserStorageResponse(
-            accountStringifiedJSON,
-          );
+          return parseLegacyAccountFromUserStorageResponse(stringifiedAccount);
         } catch (error) {
           context.contextualLogger.warn(
             `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
