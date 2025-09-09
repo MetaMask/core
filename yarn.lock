@@ -4234,6 +4234,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/keyring-controller": "npm:^23.0.0"
+    "@metamask/messenger": "npm:^0.2.0"
     "@metamask/utils": "npm:^11.4.2"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
