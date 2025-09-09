@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/snaps/pull/6525))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
 ### Changed
 
