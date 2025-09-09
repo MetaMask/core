@@ -5,11 +5,12 @@ import { type GetCallsStatusHook, GetCallsStatusStruct } from '../types';
 import { validateParams } from '../utils';
 
 /**
+ * The RPC method handler middleware for `wallet_getCallStatus`
  *
- * @param req a
- * @param res a
- * @param param2 s
- * @param param2.getCallsStatus a
+ * @param req - The JSON RPC request's end callback.
+ * @param res - The JSON RPC request's pending response object.
+ * @param hooks - The hooks object.
+ * @param hooks.getCallsStatus - Function that retrieves the status of a transaction batch by its ID.
  */
 export async function walletGetCallsStatus(
   req: JsonRpcRequest,

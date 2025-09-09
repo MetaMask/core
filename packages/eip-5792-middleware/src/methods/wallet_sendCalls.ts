@@ -9,12 +9,13 @@ import {
 import { validateAndNormalizeKeyholder, validateParams } from '../utils';
 
 /**
+ * The RPC method handler middleware for `wallet_sendCalls`
  *
- * @param req a
- * @param res a
- * @param param2 a
- * @param param2.getAccounts s
- * @param param2.processSendCalls sd
+ * @param req - The JSON RPC request's end callback.
+ * @param res - The JSON RPC request's pending response object.
+ * @param hooks - The hooks object.
+ * @param hooks.getAccounts - Function that retrieves available accounts.
+ * @param hooks.processSendCalls - Function that processes a sendCalls request for EIP-5792 transactions.
  */
 export async function walletSendCalls(
   req: JsonRpcRequest,

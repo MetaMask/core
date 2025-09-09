@@ -5,12 +5,13 @@ import { type GetCapabilitiesHook, GetCapabilitiesStruct } from '../types';
 import { validateAndNormalizeKeyholder, validateParams } from '../utils';
 
 /**
+ * The RPC method handler middleware for `wallet_getCapabilities`
  *
- * @param req a
- * @param res a
- * @param param2 s
- * @param param2.getAccounts s
- * @param param2.getCapabilities a
+ * @param req - The JSON RPC request's end callback.
+ * @param res - The JSON RPC request's pending response object.
+ * @param hooks - The hooks object.
+ * @param hooks.getAccounts - Function that retrieves available accounts.
+ * @param hooks.getCapabilities - Function that retrieves the capabilities for atomic transactions on specified chains.
  */
 export async function walletGetCapabilities(
   req: JsonRpcRequest,
