@@ -97,8 +97,6 @@ export class AccountTreeController extends BaseController<
   AccountTreeControllerState,
   AccountTreeControllerMessenger
 > {
-  readonly #serviceStartTime = Date.now();
-
   readonly #accountIdToContext: Map<AccountId, AccountContext>;
 
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
@@ -107,8 +105,6 @@ export class AccountTreeController extends BaseController<
    * Service responsible for all backup and sync operations.
    */
   readonly #backupAndSyncService: BackupAndSyncService;
-
-  readonly #newGroupsMap: WeakMap<AccountGroupObject, boolean>;
 
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
 
@@ -149,9 +145,6 @@ export class AccountTreeController extends BaseController<
 
     // Reverse map to allow fast wallet node access from a group ID.
     this.#groupIdToWalletId = new Map();
-
-    // Temporary map to track which groups contain new accounts (for naming optimization)
-    this.#newGroupsMap = new WeakMap();
 
     // Rules to apply to construct the wallets tree.
     this.#rules = [
@@ -399,17 +392,10 @@ export class AccountTreeController extends BaseController<
         groupIndex = 0;
       }
 
-      // For new groups, use default naming. For existing groups, try computed name first
-      const isNewGroup = this.#newGroupsMap.get(group) || false;
-      group.metadata.name = isNewGroup
-        ? rule.getDefaultAccountGroupName(groupIndex)
-        : rule.getComputedAccountGroupName(typedGroup) ||
-          rule.getDefaultAccountGroupName(groupIndex);
-
-      // Clear the flag after use to prevent stale state across rebuilds
-      if (isNewGroup) {
-        this.#newGroupsMap.delete(group);
-      }
+      // Use computed name first, then fallback to default naming if empty
+      group.metadata.name =
+        rule.getComputedAccountGroupName(typedGroup) ||
+        rule.getDefaultAccountGroupName(groupIndex);
     }
 
     // Apply persisted UI states
@@ -649,9 +635,6 @@ export class AccountTreeController extends BaseController<
       this.#getSnapRule().match(account) ??
       this.#getKeyringRule().match(account); // This one cannot fail.
 
-    // Determine if this account is new (created after service start)
-    const isNewAccount = account.metadata.importTime > this.#serviceStartTime;
-
     // Update controller's state.
     const walletId = result.wallet.id;
     let wallet = wallets[walletId];
@@ -691,10 +674,6 @@ export class AccountTreeController extends BaseController<
       } as AccountGroupObject;
       group = wallet.groups[groupId];
 
-      // Store whether this is a new group (has new accounts) for naming logic
-      // We use a WeakMap to avoid polluting the group object with temporary data
-      this.#newGroupsMap.set(group, isNewAccount);
-
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
 
@@ -703,10 +682,6 @@ export class AccountTreeController extends BaseController<
         this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
-      // If adding to existing group, update the "new" status if this account is new
-      if (isNewAccount) {
-        this.#newGroupsMap.set(group, true);
-      }
       group.accounts.push(account.id);
     }
 

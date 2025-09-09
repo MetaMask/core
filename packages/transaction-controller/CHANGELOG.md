@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update nonce of existing transaction if converted to batch via `batchTransactions` but not first transaction ([#6528](https://github.com/MetaMask/core/pull/6528))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [60.2.0]

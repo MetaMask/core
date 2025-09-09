@@ -555,7 +555,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_1.id],
                   metadata: {
-                    name: MOCK_SNAP_ACCOUNT_1.metadata.name,
+                    name: 'Account 2',
                     entropy: {
                       groupIndex:
                         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
@@ -2166,9 +2166,8 @@ describe('AccountTreeController', () => {
   });
 
   describe('Fallback Naming', () => {
-    it('detects new groups based on account import time', () => {
-      const serviceStartTime = Date.now();
-      const mockAccountWithNewImportTime: Bip44Account<InternalAccount> = {
+    it('uses consistent default naming regardless of account import time', () => {
+      const mockAccount1: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         options: {
           ...MOCK_HD_ACCOUNT_1.options,
@@ -2180,11 +2179,11 @@ describe('AccountTreeController', () => {
         },
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
-          importTime: serviceStartTime + 1000, // Imported after service start
+          importTime: Date.now() + 1000,
         },
       };
 
-      const mockAccountWithOldImportTime: Bip44Account<InternalAccount> = {
+      const mockAccount2: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_2,
         options: {
           ...MOCK_HD_ACCOUNT_2.options,
@@ -2196,12 +2195,12 @@ describe('AccountTreeController', () => {
         },
         metadata: {
           ...MOCK_HD_ACCOUNT_2.metadata,
-          importTime: serviceStartTime - 1000, // Imported before service start
+          importTime: Date.now() - 1000,
         },
       };
 
       const { controller } = setup({
-        accounts: [mockAccountWithOldImportTime, mockAccountWithNewImportTime],
+        accounts: [mockAccount2, mockAccount1],
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
@@ -2213,19 +2212,19 @@ describe('AccountTreeController', () => {
 
       const expectedGroupId1 = toMultichainAccountGroupId(
         expectedWalletId,
-        mockAccountWithNewImportTime.options.entropy.groupIndex,
+        mockAccount1.options.entropy.groupIndex,
       );
 
       const expectedGroupId2 = toMultichainAccountGroupId(
         expectedWalletId,
-        mockAccountWithOldImportTime.options.entropy.groupIndex,
+        mockAccount2.options.entropy.groupIndex,
       );
 
       const wallet = controller.state.accountTree.wallets[expectedWalletId];
       const group1 = wallet?.groups[expectedGroupId1];
       const group2 = wallet?.groups[expectedGroupId2];
 
-      // Groups should be named by index within the wallet
+      // Groups should use consistent default naming regardless of import time
       expect(group1?.metadata.name).toBe('Account 1');
       expect(group2?.metadata.name).toBe('Account 2');
     });
@@ -2288,8 +2287,7 @@ describe('AccountTreeController', () => {
     });
 
     it('handles adding new accounts to existing groups correctly', () => {
-      const serviceStartTime = Date.now();
-      // Create an existing account (imported before service start)
+      // Create an existing account
       const existingAccount: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'existing-account',
@@ -2304,11 +2302,11 @@ describe('AccountTreeController', () => {
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
           name: '', // Empty name to trigger naming logic
-          importTime: serviceStartTime - 1000, // Imported before service start
+          importTime: Date.now() - 1000,
         },
       };
 
-      // Create a new account (imported after service start) for the same group
+      // Create a new account for the same group
       const newAccount: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'new-account',
@@ -2323,7 +2321,7 @@ describe('AccountTreeController', () => {
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
           name: '', // Empty name to trigger naming logic
-          importTime: serviceStartTime + 1000, // Imported after service start
+          importTime: Date.now() + 1000,
         },
       };
 
@@ -2349,22 +2347,22 @@ describe('AccountTreeController', () => {
       const wallet = controller.state.accountTree.wallets[expectedWalletId];
       const group = wallet?.groups[expectedGroupId];
 
-      // The group should now be treated as "new" and use fallback naming
+      // The group should use consistent default naming
       expect(group?.metadata.name).toBe('Account 1');
       expect(group?.accounts).toHaveLength(2);
       expect(group?.accounts).toContain(existingAccount.id);
       expect(group?.accounts).toContain(newAccount.id);
     });
 
-    it('handles groups not in WeakMap (fallback to false)', () => {
-      // Create an account with empty name to trigger naming logic
+    it('uses default naming when rule-based naming returns empty', () => {
+      // Create an account with empty name to trigger fallback to default naming
       const mockAccountWithEmptyName: Bip44Account<InternalAccount> = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'account-with-empty-name',
         metadata: {
           ...MOCK_HD_ACCOUNT_1.metadata,
-          name: '', // Empty name will cause rule-based naming to fail
-          importTime: Date.now() - 1000, // Old account (not new)
+          name: '',
+          importTime: Date.now() - 1000,
         },
       };
 
@@ -2383,9 +2381,41 @@ describe('AccountTreeController', () => {
       const wallet = controller.state.accountTree.wallets[expectedWalletId];
       const group = wallet?.groups[expectedGroupId];
 
-      // Should use computed name first since it's not a new group, then fallback to default
+      // Should use computed name first, then fallback to default
       // Since the account has empty name, computed name will be empty, so it falls back to default
       expect(group?.metadata.name).toBe('Account 1');
+    });
+
+    it('prevents chain-specific names like "Solana Account 2" from becoming group names', () => {
+      const mockSolanaAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'solana-account-id',
+        type: SolAccountType.DataAccount,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'Solana Account 2', // This should NOT become the group name
+          importTime: Date.now() - 1000, // Old account
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockSolanaAccount],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const expectedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const expectedGroupId = toMultichainAccountGroupId(expectedWalletId, 0);
+
+      const wallet = controller.state.accountTree.wallets[expectedWalletId];
+      const group = wallet?.groups[expectedGroupId];
+
+      // The group should use default naming "Account 1", not "Solana Account 2"
+      expect(group?.metadata.name).toBe('Account 1');
+      expect(group?.metadata.name).not.toBe('Solana Account 2');
     });
   });
 

@@ -1,11 +1,16 @@
+import type { Hex } from '@metamask/utils';
+
 export enum ProductType {
   SHIELD = 'shield',
 }
 
+/** only usd for now */
+export type Currency = 'usd';
+
 export type Product = {
   name: ProductType;
   id: string;
-  currency: string;
+  currency: Currency;
   amount: number;
 };
 
@@ -18,15 +23,6 @@ export enum RecurringInterval {
   month = 'month',
   year = 'year',
 }
-
-export type PaymentMethod = {
-  type: PaymentType;
-  crypto?: {
-    payerAddress: string;
-    chainId: string;
-    tokenSymbol: string;
-  };
-};
 
 export enum SubscriptionStatus {
   // Initial states
@@ -57,7 +53,16 @@ export type Subscription = {
   currentPeriodEnd: string; // ISO 8601
   status: SubscriptionStatus;
   interval: RecurringInterval;
-  paymentMethod: PaymentMethod;
+  paymentMethod: SubscriptionPaymentMethod;
+};
+
+export type SubscriptionPaymentMethod = {
+  type: PaymentType;
+  crypto?: {
+    payerAddress: Hex;
+    chainId: Hex;
+    tokenSymbol: string;
+  };
 };
 
 export type GetSubscriptionsResponse = {
@@ -76,36 +81,61 @@ export type StartSubscriptionResponse = {
   checkoutSessionUrl: string;
 };
 
+export type StartCryptoSubscriptionRequest = {
+  products: ProductType[];
+  isTrialRequested: boolean;
+  recurringInterval: RecurringInterval;
+  billingCycles: number;
+  chainId: Hex;
+  payerAddress: Hex;
+  /**
+   * e.g. "USDC"
+   */
+  tokenSymbol: string;
+  rawTransaction: Hex;
+};
+
+export type StartCryptoSubscriptionResponse = {
+  subscriptionId: string;
+  status: SubscriptionStatus;
+};
+
 export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
 
 export type ProductPrice = {
-  interval: string; // "month" | "year"
-  unitAmount: string; // amount in the smallest unit of the currency, e.g., cents
+  interval: RecurringInterval;
+  unitAmount: number; // amount in the smallest unit of the currency, e.g., cents
   unitDecimals: number; // number of decimals for the smallest unit of the currency
-  currency: string; // "usd"
+  /** only usd for now */
+  currency: Currency;
   trialPeriodDays: number;
   minBillingCycles: number;
 };
 
 export type ProductPricing = {
-  name: string;
+  name: ProductType;
   prices: ProductPrice[];
 };
 
 export type TokenPaymentInfo = {
   symbol: string;
-  address: string;
+  address: Hex;
   decimals: number;
+  /**
+   * example: {
+      usd: '1.0',
+    },
+   */
   conversionRate: {
     usd: string;
   };
 };
 
 export type ChainPaymentInfo = {
-  chainId: string;
-  paymentAddress: string;
+  chainId: Hex;
+  paymentAddress: Hex;
   tokens: TokenPaymentInfo[];
 };
 
@@ -119,6 +149,36 @@ export type PricingResponse = {
   paymentMethods: PricingPaymentMethod[];
 };
 
+export type GetCryptoApproveTransactionRequest = {
+  /**
+   * payment chain ID
+   */
+  chainId: Hex;
+  /**
+   * Payment token address
+   */
+  paymentTokenAddress: Hex;
+  productType: ProductType;
+  interval: RecurringInterval;
+};
+
+export type GetCryptoApproveTransactionResponse = {
+  /**
+   * The amount to approve
+   * e.g: "100000000"
+   */
+  approveAmount: string;
+  /**
+   * The contract address (spender)
+   */
+  paymentAddress: Hex;
+  /**
+   * The payment token address
+   */
+  paymentTokenAddress: Hex;
+  chainId: Hex;
+};
+
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
@@ -126,4 +186,7 @@ export type ISubscriptionService = {
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
   getPricing(): Promise<PricingResponse>;
+  startSubscriptionWithCrypto(
+    request: StartCryptoSubscriptionRequest,
+  ): Promise<StartCryptoSubscriptionResponse>;
 };

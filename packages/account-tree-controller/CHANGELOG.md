@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `@metamask/superstruct` for data validation.
   - Add `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies.
 
+## [0.13.1]
+
+### Fixed
+
+- Fix account group naming inconsistency across app restarts where non-EVM account names would bubble up inappropriately ([#6479](https://github.com/MetaMask/core/pull/6479))
+
 ## [0.13.0]
 
 ### Added
@@ -190,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.1...HEAD
+[0.13.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.0...@metamask/account-tree-controller@0.13.1
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.1...@metamask/account-tree-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...@metamask/account-tree-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.11.0...@metamask/account-tree-controller@0.12.0
