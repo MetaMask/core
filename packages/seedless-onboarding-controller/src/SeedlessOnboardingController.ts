@@ -11,7 +11,11 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  isNullOrUndefined,
+} from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -93,60 +97,89 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
 const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerState> =
   {
     vault: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     socialBackupsMetadata: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     nodeAuthTokens: {
+      includeInStateLogs: (nodeAuthTokens) =>
+        !isNullOrUndefined(nodeAuthTokens),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     authConnection: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: true,
     },
     authConnectionId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     groupedAuthConnectionId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     userId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     socialLoginEmail: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     vaultEncryptionKey: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     vaultEncryptionSalt: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     authPubKey: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     passwordOutdatedCache: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     refreshToken: {
+      includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     revokeToken: {
+      includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     pendingToBeRevokedTokens: {
       persist: true,
@@ -154,26 +187,37 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     },
     // stays in vault
     accessToken: {
+      includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
+      includeInStateLogs: (metadataAccessToken) =>
+        !isNullOrUndefined(metadataAccessToken),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     encryptedSeedlessEncryptionKey: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     encryptedKeyringEncryptionKey: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     isSeedlessOnboardingUserAuthenticated: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
   };
 
