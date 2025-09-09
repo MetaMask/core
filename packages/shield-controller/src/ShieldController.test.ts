@@ -4,6 +4,7 @@ import { ShieldController } from './ShieldController';
 import { createMockBackend } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
 import { generateMockTxMeta } from '../tests/utils';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 /**
  * Sets up a ShieldController for testing.
@@ -140,6 +141,71 @@ describe('ShieldController', () => {
       );
       expect(await coverageResultReceived).toBeUndefined();
       expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "coverageResults": Object {},
+          "orderedTransactionHistory": Array [],
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "coverageResults": Object {},
+          "orderedTransactionHistory": Array [],
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "coverageResults": Object {},
+          "orderedTransactionHistory": Array [],
+        }
+      `);
     });
   });
 });

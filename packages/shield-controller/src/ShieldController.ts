@@ -2,6 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import type {
   TransactionControllerStateChangeEvent,
@@ -99,14 +100,18 @@ export type ShieldControllerMessenger = RestrictedMessenger<
  * Metadata for the ShieldController state, describing how to "anonymize"
  * the state and which parts should be persisted.
  */
-const metadata = {
+const metadata: StateMetadata<ShieldControllerState> = {
   coverageResults: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   orderedTransactionHistory: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
