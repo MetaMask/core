@@ -1,25 +1,27 @@
 /**
  * Account Activity Service for monitoring account transactions and balance changes
- * 
+ *
  * This service subscribes to account activity and receives all transactions
  * and balance updates for those accounts via the comprehensive AccountActivityMessage format.
  */
 
-
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { 
-  WebSocketService,
-  WebSocketConnectionInfo,
-  WebSocketServiceConnectionStateChangedEvent,
-} from './WebsocketService';
-import type { 
+
+import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
+import type {
+  WebSocketService,
+  WebSocketConnectionInfo,
+  WebSocketServiceConnectionStateChangedEvent,
+} from './WebsocketService';
+import { WebSocketState } from './WebsocketService';
 
-const SERVICE_NAME = 'AccountActivityService';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SERVICE_NAME = 'AccountActivityService' as const;
 
 // Temporary list of supported chains for fallback polling - this hardcoded list will be replaced with a dynamic logic
 const SUPPORTED_CHAINS = [
@@ -50,9 +52,6 @@ export type AccountActivityServiceOptions = {
   subscriptionNamespace?: string;
 };
 
-
-
-
 // Action types for the messaging system
 export type AccountActivityServiceSubscribeAccountsAction = {
   type: `AccountActivityService:subscribeAccounts`;
@@ -64,16 +63,30 @@ export type AccountActivityServiceUnsubscribeAccountsAction = {
   handler: AccountActivityService['unsubscribeAccounts'];
 };
 
-
-export type AccountActivityServiceActions = 
+export type AccountActivityServiceActions =
   | AccountActivityServiceSubscribeAccountsAction
-  | AccountActivityServiceUnsubscribeAccountsAction
+  | AccountActivityServiceUnsubscribeAccountsAction;
 
-type AllowedActions = 
-  | { type: 'AccountsController:getAccountByAddress'; handler: (address: string) => InternalAccount | undefined }
-  | { type: 'AccountsController:getSelectedAccount'; handler: () => InternalAccount }
-  | { type: 'TokenBalancesController:updateChainPollingConfigs'; handler: (configs: Record<string, { interval: number }>, options?: { immediateUpdate?: boolean }) => void }
-  | { type: 'TokenBalancesController:getDefaultPollingInterval'; handler: () => number };
+type AllowedActions =
+  | {
+      type: 'AccountsController:getAccountByAddress';
+      handler: (address: string) => InternalAccount | undefined;
+    }
+  | {
+      type: 'AccountsController:getSelectedAccount';
+      handler: () => InternalAccount;
+    }
+  | {
+      type: 'TokenBalancesController:updateChainPollingConfigs';
+      handler: (
+        configs: Record<string, { interval: number }>,
+        options?: { immediateUpdate?: boolean },
+      ) => void;
+    }
+  | {
+      type: 'TokenBalancesController:getDefaultPollingInterval';
+      handler: () => number;
+    };
 
 // Event types for the messaging system
 export type AccountActivityServiceAccountSubscribedEvent = {
@@ -101,17 +114,20 @@ export type AccountActivityServiceSubscriptionErrorEvent = {
   payload: [{ addresses: string[]; error: string; operation: string }];
 };
 
-export type AccountActivityServiceEvents = 
+export type AccountActivityServiceEvents =
   | AccountActivityServiceAccountSubscribedEvent
   | AccountActivityServiceAccountUnsubscribedEvent
   | AccountActivityServiceTransactionUpdatedEvent
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceSubscriptionErrorEvent;
 
-type AllowedEvents = 
+type AllowedEvents =
   | { type: 'AccountsController:accountAdded'; payload: [InternalAccount] }
   | { type: 'AccountsController:accountRemoved'; payload: [string] }
-  | { type: 'AccountsController:selectedAccountChange'; payload: [InternalAccount] }
+  | {
+      type: 'AccountsController:selectedAccountChange';
+      payload: [InternalAccount];
+    }
   | WebSocketServiceConnectionStateChangedEvent
   | AccountActivityServiceAccountSubscribedEvent
   | AccountActivityServiceAccountUnsubscribedEvent
@@ -129,36 +145,36 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
 
 /**
  * Account Activity Service
- * 
+ *
  * High-performance service for real-time account activity monitoring using optimized
  * WebSocket subscriptions with direct callback routing. Automatically subscribes to
  * the currently selected account and switches subscriptions when the selected account changes.
  * Receives transactions and balance updates using the comprehensive AccountActivityMessage format.
- * 
+ *
  * Performance Features:
  * - Direct callback routing (no EventEmitter overhead)
  * - Minimal subscription tracking (no duplication with WebSocketService)
- * - Optimized cleanup for mobile environments  
+ * - Optimized cleanup for mobile environments
  * - Single-account subscription (only selected account)
  * - Comprehensive balance updates with transfer tracking
- * 
+ *
  * Architecture:
  * - WebSocketService manages the actual WebSocket subscriptions and callbacks
  * - AccountActivityService only tracks channel-to-subscriptionId mappings
  * - Automatically subscribes to selected account on initialization
  * - Switches subscriptions when selected account changes
  * - No duplication of subscription state between services
- * 
+ *
  * @example
  * ```typescript
  * const service = new AccountActivityService({
  *   messenger: activityMessenger,
  *   webSocketService: wsService,
  * });
- * 
+ *
  * // Service automatically subscribes to the currently selected account
  * // When user switches accounts, service automatically resubscribes
- * 
+ *
  * // All transactions and balance updates are received via optimized
  * // WebSocket callbacks and processed with zero-allocation routing
  * // Balance updates include comprehensive transfer details and post-transaction balances
@@ -166,9 +182,11 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
  */
 export class AccountActivityService {
   readonly #messenger: AccountActivityServiceMessenger;
+
   readonly #webSocketService: WebSocketService;
+
   readonly #options: Required<AccountActivityServiceOptions>;
-  
+
   // Track the currently subscribed account address (in CAIP-10 format)
   #currentSubscribedAddress: string | null = null;
 
@@ -176,17 +194,22 @@ export class AccountActivityService {
 
   /**
    * Creates a new Account Activity service instance
+   *
+   * @param options - Configuration options including messenger and WebSocket service
    */
-  constructor(options: AccountActivityServiceOptions & { 
-    messenger: AccountActivityServiceMessenger;
-    webSocketService: WebSocketService;
-  }) {
+  constructor(
+    options: AccountActivityServiceOptions & {
+      messenger: AccountActivityServiceMessenger;
+      webSocketService: WebSocketService;
+    },
+  ) {
     this.#messenger = options.messenger;
     this.#webSocketService = options.webSocketService;
-    
+
     // Set configuration with defaults
     this.#options = {
-      subscriptionNamespace: options.subscriptionNamespace ?? SUBSCRIPTION_NAMESPACE,
+      subscriptionNamespace:
+        options.subscriptionNamespace ?? SUBSCRIPTION_NAMESPACE,
     };
 
     this.#registerActionHandlers();
@@ -200,6 +223,7 @@ export class AccountActivityService {
 
   /**
    * Get the currently subscribed account address
+   *
    * @returns The CAIP-10 formatted address of the currently subscribed account, or null if none
    */
   getCurrentSubscribedAccount(): string | null {
@@ -209,6 +233,8 @@ export class AccountActivityService {
   /**
    * Subscribe to account activity (transactions and balance updates)
    * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   *
+   * @param subscription - Account subscription configuration with address
    */
   async subscribeAccounts(subscription: AccountSubscription): Promise<void> {
     try {
@@ -228,11 +254,10 @@ export class AccountActivityService {
         callback: (notification) => {
           // Fast path: Direct processing of account activity updates
           this.#handleAccountActivityUpdate(
-            notification.data as AccountActivityMessage
+            notification.data as AccountActivityMessage,
           );
         },
       });
-
 
       // Track the subscribed address
       this.#currentSubscribedAddress = subscription.address;
@@ -241,31 +266,36 @@ export class AccountActivityService {
       this.#messenger.publish(`AccountActivityService:accountSubscribed`, {
         addresses: [subscription.address],
       });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown subscription error';
-      
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown subscription error';
+
       this.#messenger.publish(`AccountActivityService:subscriptionError`, {
         addresses: [subscription.address],
         error: errorMessage,
         operation: 'subscribe',
       });
 
-      throw new Error(`Failed to subscribe to account activity: ${errorMessage}`);
+      throw new Error(
+        `Failed to subscribe to account activity: ${errorMessage}`,
+      );
     }
   }
 
   /**
    * Unsubscribe from account activity for specified address
    * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   *
+   * @param subscription - Account subscription configuration with address to unsubscribe
    */
   async unsubscribeAccounts(subscription: AccountSubscription): Promise<void> {
     const { address } = subscription;
     try {
       // Find channel for the specified address
       const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptionInfo = this.#webSocketService.getSubscriptionByChannel(channel);
-      
+      const subscriptionInfo =
+        this.#webSocketService.getSubscriptionByChannel(channel);
+
       if (!subscriptionInfo) {
         console.log(`No subscription found for address: ${address}`);
         return;
@@ -284,17 +314,19 @@ export class AccountActivityService {
       this.#messenger.publish(`AccountActivityService:accountUnsubscribed`, {
         addresses: [address],
       });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown unsubscription error';
-      
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown unsubscription error';
+
       this.#messenger.publish(`AccountActivityService:subscriptionError`, {
         addresses: [address],
         error: errorMessage,
         operation: 'unsubscribe',
       });
 
-      throw new Error(`Failed to unsubscribe from account activity: ${errorMessage}`);
+      throw new Error(
+        `Failed to unsubscribe from account activity: ${errorMessage}`,
+      );
     }
   }
 
@@ -304,20 +336,23 @@ export class AccountActivityService {
 
   /**
    * Convert an InternalAccount address to CAIP-10 format or raw address
+   *
+   * @param account - The internal account to convert
+   * @returns The CAIP-10 formatted address or raw address
    */
   #convertToCaip10Address(account: InternalAccount): string {
     // Check if account has EVM scopes
-    if (account.scopes.some(scope => scope.startsWith('eip155:'))) {
+    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
       // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
       return `eip155:0:${account.address}`;
     }
-    
+
     // Check if account has Solana scopes
-    if (account.scopes.some(scope => scope.startsWith('solana:'))) {
+    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
       // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
       return `solana:0:${account.address}`;
     }
-    
+
     // For other chains or unknown scopes, return raw address
     return account.address;
   }
@@ -337,17 +372,16 @@ export class AccountActivityService {
     );
   }
 
-
-
   /**
    * Handle account activity updates (transactions + balance changes)
    * Processes the comprehensive AccountActivityMessage format with detailed balance updates and transfers
-   * 
+   *
+   * @param payload - The account activity message containing transaction and balance updates
    * @example AccountActivityMessage format handling:
-   * Input: { 
-   *   address: "0x123", 
+   * Input: {
+   *   address: "0x123",
    *   tx: { hash: "0x...", chain: "eip155:1", status: "completed", ... },
-   *   updates: [{ 
+   *   updates: [{
    *     asset: { fungible: true, type: "eip155:1/erc20:0x...", unit: "USDT" },
    *     postBalance: { amount: "1254.75" },
    *     transfers: [{ from: "0x...", to: "0x...", amount: "500.00" }]
@@ -358,20 +392,24 @@ export class AccountActivityService {
   #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
     try {
       const { address, tx, updates } = payload;
-      
-      console.log(`AccountActivityService: Handling account activity update for ${address} with ${updates.length} balance updates`);
-      
+
+      console.log(
+        `AccountActivityService: Handling account activity update for ${address} with ${updates.length} balance updates`,
+      );
+
       // Process transaction update
       this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
-      
+
       // Publish comprehensive balance updates with transfer details
       console.log('AccountActivityService: Publishing balance update event...');
-      this.#messenger.publish(`AccountActivityService:balanceUpdated`, { 
-        address, 
-        chain: tx.chain, 
-        updates 
+      this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
+        address,
+        chain: tx.chain,
+        updates,
       });
-      console.log('AccountActivityService: Balance update event published successfully');
+      console.log(
+        'AccountActivityService: Balance update event published successfully',
+      );
     } catch (error) {
       console.error('Error handling account activity update:', error);
       console.error('Payload that caused error:', payload);
@@ -386,7 +424,8 @@ export class AccountActivityService {
       // Subscribe to selected account change events
       this.#messenger.subscribe(
         'AccountsController:selectedAccountChange',
-        (account: InternalAccount) => this.#handleSelectedAccountChange(account),
+        (account: InternalAccount) =>
+          this.#handleSelectedAccountChange(account),
       );
 
       // Subscribe to account added events
@@ -395,14 +434,17 @@ export class AccountActivityService {
         (account: InternalAccount) => this.#handleAccountAdded(account),
       );
 
-      // Subscribe to account removed events  
+      // Subscribe to account removed events
       this.#messenger.subscribe(
         'AccountsController:accountRemoved',
         (accountId: string) => this.#handleAccountRemoved(accountId),
       );
     } catch (error) {
       // AccountsController events might not be available in all environments
-      console.log('AccountsController events not available for account management:', error);
+      console.log(
+        'AccountsController events not available for account management:',
+        error,
+      );
     }
   }
 
@@ -420,44 +462,59 @@ export class AccountActivityService {
     }
   }
 
-
   /**
    * Handle selected account change event
+   *
+   * @param newAccount - The newly selected account
    */
-  async #handleSelectedAccountChange(newAccount: InternalAccount): Promise<void> {
+  async #handleSelectedAccountChange(
+    newAccount: InternalAccount,
+  ): Promise<void> {
     console.log(`Selected account changed to: ${newAccount.address}`);
-    
+
     try {
       // Convert new account to CAIP-10 format
       const newAddress = this.#convertToCaip10Address(newAccount);
-      
+
       // If already subscribed to this account, no need to change
       if (this.#currentSubscribedAddress === newAddress) {
         console.log(`Already subscribed to account: ${newAddress}`);
         return;
       }
-      
+
       // First, unsubscribe from the currently subscribed account if any
       if (this.#currentSubscribedAddress) {
-        console.log(`Unsubscribing from previous account: ${this.#currentSubscribedAddress}`);
+        console.log(
+          `Unsubscribing from previous account: ${this.#currentSubscribedAddress}`,
+        );
         try {
-          await this.unsubscribeAccounts({ address: this.#currentSubscribedAddress });
+          await this.unsubscribeAccounts({
+            address: this.#currentSubscribedAddress,
+          });
         } catch (unsubscribeError) {
-          console.warn(`Failed to unsubscribe from previous account ${this.#currentSubscribedAddress}:`, unsubscribeError);
+          console.warn(
+            `Failed to unsubscribe from previous account ${this.#currentSubscribedAddress}:`,
+            unsubscribeError,
+          );
           // Continue with subscription to new account even if unsubscribe failed
         }
       }
-      
+
       // Subscribe to the new selected account
       await this.subscribeAccounts({ address: newAddress });
       console.log(`Subscribed to new selected account: ${newAddress}`);
     } catch (error) {
-      console.error(`Failed to subscribe to new selected account ${newAccount.address}:`, error);
+      console.error(
+        `Failed to subscribe to new selected account ${newAccount.address}:`,
+        error,
+      );
     }
   }
 
   /**
    * Handle account added event
+   *
+   * @param account - The newly added account
    */
   async #handleAccountAdded(account: InternalAccount): Promise<void> {
     try {
@@ -467,16 +524,23 @@ export class AccountActivityService {
       }
 
       // Only subscribe if this is the currently selected account
-      const selectedAccount = this.#messenger.call('AccountsController:getSelectedAccount');
+      const selectedAccount = this.#messenger.call(
+        'AccountsController:getSelectedAccount',
+      );
       if (selectedAccount.id === account.id) {
         // Convert to CAIP-10 format and subscribe
         const address = this.#convertToCaip10Address(account);
-        
+
         await this.subscribeAccounts({ address });
-        console.log(`Automatically subscribed new selected account ${account.address} with CAIP-10 address: ${address}`);
+        console.log(
+          `Automatically subscribed new selected account ${account.address} with CAIP-10 address: ${address}`,
+        );
       }
     } catch (error) {
-      console.error(`Failed to subscribe new account ${account.address} to activity service:`, error);
+      console.error(
+        `Failed to subscribe new account ${account.address} to activity service:`,
+        error,
+      );
     }
   }
 
@@ -484,34 +548,45 @@ export class AccountActivityService {
    * Handle account removed event
    * Since we only subscribe to the selected account, AccountsController will handle
    * selecting a new account and we'll get a selectedAccountChange event
+   *
+   * @param accountId - The ID of the removed account
    */
   async #handleAccountRemoved(accountId: string): Promise<void> {
-    console.log(`Account ${accountId} removed - selectedAccountChange event will handle resubscription if needed`);
+    console.log(
+      `Account ${accountId} removed - selectedAccountChange event will handle resubscription if needed`,
+    );
     // No action needed - AccountsController will select a new account and trigger selectedAccountChange
   }
 
   /**
    * Handle WebSocket connection state changes for fallback polling and resubscription
+   *
+   * @param connectionInfo - WebSocket connection state information
    */
   #handleWebSocketStateChange(connectionInfo: WebSocketConnectionInfo): void {
     const { state } = connectionInfo;
     console.log(`AccountActivityService: WebSocket state changed to ${state}`);
 
-    if (state === 'connected') {
+    if (state === WebSocketState.CONNECTED) {
       // WebSocket connected - use backup polling and resubscribe
       try {
         this.#updateTokenBalancesControllerPollingRate(600000, false); // 10min backup polling
-        this.#subscribeSelectedAccount().catch(error => {
+        this.#subscribeSelectedAccount().catch((error) => {
           console.error('Failed to resubscribe to selected account:', error);
         });
       } catch (error) {
         console.error('Failed to handle WebSocket connected state:', error);
       }
-    } else if (state === 'disconnected' || state === 'error') {
+    } else if (
+      state === WebSocketState.DISCONNECTED ||
+      state === WebSocketState.ERROR
+    ) {
       // WebSocket disconnected - clear subscription and use active polling
       this.#currentSubscribedAddress = null;
       try {
-        const defaultInterval = this.#messenger.call('TokenBalancesController:getDefaultPollingInterval');
+        const defaultInterval = this.#messenger.call(
+          'TokenBalancesController:getDefaultPollingInterval',
+        );
         this.#updateTokenBalancesControllerPollingRate(defaultInterval, true);
       } catch (error) {
         console.error('Failed to handle WebSocket disconnected state:', error);
@@ -521,17 +596,25 @@ export class AccountActivityService {
 
   /**
    * Update TokenBalancesController polling rate with specified settings
+   *
    * @param pollingInterval - The polling interval in milliseconds
    * @param immediateUpdate - Whether to immediately update existing polls
    */
-  #updateTokenBalancesControllerPollingRate(pollingInterval: number, immediateUpdate: boolean): void {
+  #updateTokenBalancesControllerPollingRate(
+    pollingInterval: number,
+    immediateUpdate: boolean,
+  ): void {
     // Configure polling for all supported chains
     const chainConfigs: Record<string, { interval: number }> = {};
     for (const chainId of SUPPORTED_CHAINS) {
       chainConfigs[chainId] = { interval: pollingInterval };
     }
-    
-    this.#messenger.call('TokenBalancesController:updateChainPollingConfigs', chainConfigs, { immediateUpdate });
+
+    this.#messenger.call(
+      'TokenBalancesController:updateChainPollingConfigs',
+      chainConfigs,
+      { immediateUpdate },
+    );
   }
 
   /**
@@ -542,18 +625,22 @@ export class AccountActivityService {
 
     try {
       // Get the currently selected account
-      const selectedAccount = this.#messenger.call('AccountsController:getSelectedAccount');
+      const selectedAccount = this.#messenger.call(
+        'AccountsController:getSelectedAccount',
+      );
 
       if (!selectedAccount || !selectedAccount.address) {
         console.log('No selected account found to subscribe');
         return;
       }
 
-      console.log(`Subscribing to selected account: ${selectedAccount.address}`);
+      console.log(
+        `Subscribing to selected account: ${selectedAccount.address}`,
+      );
 
       // Convert to CAIP-10 format and subscribe
       const address = this.#convertToCaip10Address(selectedAccount);
-      
+
       // Only subscribe if we're not already subscribed to this account
       if (this.#currentSubscribedAddress !== address) {
         await this.subscribeAccounts({ address });
@@ -574,20 +661,34 @@ export class AccountActivityService {
     try {
       // Clear tracked subscription
       this.#currentSubscribedAddress = null;
-      
+
       // Unregister action handlers to prevent stale references
-      this.#messenger.unregisterActionHandler('AccountActivityService:subscribeAccounts');
-      this.#messenger.unregisterActionHandler('AccountActivityService:unsubscribeAccounts');
-      
+      this.#messenger.unregisterActionHandler(
+        'AccountActivityService:subscribeAccounts',
+      );
+      this.#messenger.unregisterActionHandler(
+        'AccountActivityService:unsubscribeAccounts',
+      );
+
       // Clear our own event subscriptions (events we publish)
-      this.#messenger.clearEventSubscriptions('AccountActivityService:accountSubscribed');
-      this.#messenger.clearEventSubscriptions('AccountActivityService:accountUnsubscribed');
-      this.#messenger.clearEventSubscriptions('AccountActivityService:transactionUpdated');
-      this.#messenger.clearEventSubscriptions('AccountActivityService:balanceUpdated');
-      this.#messenger.clearEventSubscriptions('AccountActivityService:subscriptionError');
+      this.#messenger.clearEventSubscriptions(
+        'AccountActivityService:accountSubscribed',
+      );
+      this.#messenger.clearEventSubscriptions(
+        'AccountActivityService:accountUnsubscribed',
+      );
+      this.#messenger.clearEventSubscriptions(
+        'AccountActivityService:transactionUpdated',
+      );
+      this.#messenger.clearEventSubscriptions(
+        'AccountActivityService:balanceUpdated',
+      );
+      this.#messenger.clearEventSubscriptions(
+        'AccountActivityService:subscriptionError',
+      );
     } catch (error) {
       console.error('AccountActivityService: Error during cleanup:', error);
       // Continue cleanup even if some parts fail
     }
   }
-} 
+}

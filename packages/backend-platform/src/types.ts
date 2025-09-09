@@ -1,4 +1,3 @@
-
 /**
  * Basic transaction information
  */

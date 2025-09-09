@@ -1,6 +1,7 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 
-const SERVICE_NAME = 'BackendWebSocketService';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SERVICE_NAME = 'BackendWebSocketService' as const;
 
 /**
  * WebSocket connection states
@@ -194,8 +195,8 @@ export type WebSocketServiceConnectionStateChangedEvent = {
   payload: [WebSocketConnectionInfo];
 };
 
-export type WebSocketServiceEvents = 
-  | WebSocketServiceConnectionStateChangedEvent;
+export type WebSocketServiceEvents =
+  WebSocketServiceConnectionStateChangedEvent;
 
 export type WebSocketServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
@@ -314,7 +315,9 @@ export class WebSocketService {
       this.isChannelSubscribed.bind(this),
     );
 
-    void this.init();
+    this.init().catch((error) => {
+      console.error('WebSocket service initialization failed:', error);
+    });
   }
 
   /**
@@ -348,7 +351,8 @@ export class WebSocketService {
 
     // If already connecting, wait for the existing connection attempt to complete
     if (this.#state === WebSocketState.CONNECTING && this.#connectionPromise) {
-      return this.#connectionPromise;
+      await this.#connectionPromise;
+      return;
     }
 
     console.log(`🔄 Starting connection attempt to ${this.#options.url}`);
@@ -461,11 +465,13 @@ export class WebSocketService {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.#pendingRequests.delete(requestId);
-        console.warn(`🔴 Request timeout after ${this.#options.requestTimeout}ms - triggering reconnection`);
-        
+        console.warn(
+          `🔴 Request timeout after ${this.#options.requestTimeout}ms - triggering reconnection`,
+        );
+
         // Trigger reconnection on request timeout as it may indicate stale connection
         this.#handleRequestTimeout();
-        
+
         reject(
           new Error(`Request timeout after ${this.#options.requestTimeout}ms`),
         );
@@ -655,7 +661,6 @@ export class WebSocketService {
     return subscription;
   }
 
-
   /**
    * Establishes the actual WebSocket connection
    *
@@ -768,7 +773,6 @@ export class WebSocketService {
    */
   #handleMessage(message: WebSocketMessage): void {
     // Fast path: Check message type using property existence (mobile optimization)
-    const hasEvent = 'event' in message;
     const hasSubscriptionId = 'subscriptionId' in message;
     const hasData = 'data' in message;
 
@@ -806,7 +810,6 @@ export class WebSocketService {
         return;
       }
     }
-
 
     // Handle server notifications (optimized for real-time mobile performance)
     if (
@@ -902,7 +905,9 @@ export class WebSocketService {
       this.#scheduleReconnect();
     } else {
       // Non-recoverable error - set error state
-      console.log(`Non-recoverable error - close code: ${event.code} - ${closeReason}`);
+      console.log(
+        `Non-recoverable error - close code: ${event.code} - ${closeReason}`,
+      );
       this.#setState(WebSocketState.ERROR);
       this.#lastError = `Non-recoverable close code: ${event.code} - ${closeReason}`;
     }
@@ -923,13 +928,15 @@ export class WebSocketService {
    */
   #handleRequestTimeout(): void {
     console.log('🔄 Request timeout detected - forcing WebSocket reconnection');
-    
+
     // Only trigger reconnection if we're currently connected
     if (this.#state === WebSocketState.CONNECTED) {
       // Force close the current connection to trigger reconnection logic
       this.#ws.close(1001, 'Request timeout - forcing reconnect');
     } else {
-      console.log(`⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`);
+      console.log(
+        `⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`,
+      );
     }
   }
 
@@ -977,7 +984,6 @@ export class WebSocketService {
     }
   }
 
-
   /**
    * Clears all pending requests and rejects them with the given error
    *
@@ -1023,9 +1029,15 @@ export class WebSocketService {
 
       // Publish connection state change event
       try {
-        this.#messenger.publish('BackendWebSocketService:connectionStateChanged', this.getConnectionInfo());
+        this.#messenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          this.getConnectionInfo(),
+        );
       } catch (error) {
-        console.error('Failed to publish WebSocket connection state change:', error);
+        console.error(
+          'Failed to publish WebSocket connection state change:',
+          error,
+        );
       }
     }
   }
