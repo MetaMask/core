@@ -54,7 +54,7 @@
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
 ## Rewards Team
-/packages/rewards-controller      @MetaMask/mobile-platform
+/packages/rewards-controller      @MetaMask/rewards
 
 ## Vault Team
 /packages/delegation-controller           @MetaMask/vault
