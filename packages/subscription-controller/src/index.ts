@@ -39,6 +39,7 @@ export type {
   Currency,
   PricingPaymentMethod,
   PricingResponse,
+  UpdatePaymentMethodOpts,
 } from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';
