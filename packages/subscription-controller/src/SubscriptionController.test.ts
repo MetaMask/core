@@ -83,7 +83,7 @@ function createCustomSubscriptionMessenger(props?: {
  * @param overrideMessengers.messenger - messenger to override
  * @returns series of mocks to actions that can be called
  */
-function mockSubscriptionMessenger(overrideMessengers?: {
+function createMockSubscriptionMessenger(overrideMessengers?: {
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   messenger: SubscriptionControllerMessenger;
 }) {
@@ -101,15 +101,6 @@ function mockSubscriptionMessenger(overrideMessengers?: {
     messenger,
     mockPerformSignOut,
   };
-}
-
-/**
- * Creates a mock subscription messenger for testing.
- *
- * @returns The mock messenger and related mocks.
- */
-function createMockSubscriptionMessenger() {
-  return mockSubscriptionMessenger();
 }
 
 /**
