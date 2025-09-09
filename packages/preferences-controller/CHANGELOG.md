@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6534](https://github.com/MetaMask/core/pull/6534))
+  - Previously, `PreferencesController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** Rename controller state property from `useMultiRpcMigration` to `showMultiRpcModal` ([#6707](https://github.com/MetaMask/core/pull/6707))
 - **BREAKING:** Rename controller method from `setUseMultiRpcMigration` to `setShowMultiRpcModal` ([#6707](https://github.com/MetaMask/core/pull/6707))
 - **BREAKING:** Rename controller state property from `openSeaEnabled` to `displayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
