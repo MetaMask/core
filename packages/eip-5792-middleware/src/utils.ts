@@ -40,12 +40,15 @@ export function getAccountKeyringType(
 }
 
 /**
+ * Validates and normalizes a keyholder address for EIP-5792 operations.
  *
- * @param address a
- * @param req a
- * @param param2 s
- * @param param2.getAccounts s
- * @returns s
+ * @param address - The Ethereum address to validate and normalize.
+ * @param req - The JSON-RPC request object for permission checking.
+ * @param options - Configuration object containing the getAccounts function.
+ * @param options.getAccounts - Function to retrieve accounts for the requester.
+ * @returns A normalized (lowercase) hex address if valid and authorized.
+ * @throws JsonRpcError with unauthorized error if the requester doesn't have      permission to access the address.
+ * @throws JsonRpcError with invalid params if the address format is invalid.
  */
 export async function validateAndNormalizeKeyholder(
   address: Hex,
@@ -80,9 +83,11 @@ export async function validateAndNormalizeKeyholder(
 }
 
 /**
+ * Validates parameters against a Superstruct schema and throws an error if validation fails.
  *
- * @param value -
- * @param struct -
+ * @param value - The value to validate against the struct schema.
+ * @param struct - The Superstruct schema to validate against.
+ * @throws JsonRpcError with invalid params if the value doesn't match the struct schema.
  */
 export function validateParams<ParamsType>(
   value: unknown | ParamsType,
@@ -98,9 +103,10 @@ export function validateParams<ParamsType>(
 }
 
 /**
+ * Checks if a string resembles an Ethereum address format.
  *
- * @param str a
- * @returns a
+ * @param str - The string to check for address-like format.
+ * @returns True if the string has the correct length for an Ethereum address.
  */
 export function resemblesAddress(str: string): boolean {
   // hex prefix 2 + 20 bytes
@@ -108,10 +114,11 @@ export function resemblesAddress(str: string): boolean {
 }
 
 /**
+ * Formats a Superstruct validation error into a human-readable string.
  *
- * @param error a
- * @param message s
- * @returns s
+ * @param error - The Superstruct validation error to format.
+ * @param message - The base error message to prepend to the formatted details.
+ * @returns A formatted error message string with validation failure details.
  */
 function formatValidationError(error: StructError, message: string): string {
   return `${message}\n\n${error
