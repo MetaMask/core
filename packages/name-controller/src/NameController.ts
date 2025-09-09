@@ -1,10 +1,10 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   NameProvider,
@@ -89,12 +89,10 @@ export type NameControllerActions = GetNameState;
 
 export type NameControllerEvents = NameStateChange;
 
-export type NameControllerMessenger = RestrictedMessenger<
+export type NameControllerMessenger = Messenger<
   typeof controllerName,
   NameControllerActions,
-  NameControllerEvents,
-  never,
-  never
+  NameControllerEvents
 >;
 
 export type NameControllerOptions = {
