@@ -1,4 +1,10 @@
-import { Messenger } from '@metamask/base-controller';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
@@ -9,7 +15,6 @@ import {
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
-  type PhishingControllerActions,
   type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
@@ -17,6 +22,7 @@ import {
   PHISHING_DETECTION_SCAN_ENDPOINT,
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   type BulkPhishingDetectionScanResponse,
+  type PhishingControllerMessenger,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
 import type { PhishingDetectionScanResult } from './types';
@@ -25,18 +31,44 @@ import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
 
-/**
- * Constructs a restricted messenger.
- *
- * @returns A restricted messenger.
- */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<PhishingControllerActions, never>();
+type AllPhishingControllerActions =
+  MessengerActions<PhishingControllerMessenger>;
 
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
+type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPhishingControllerActions,
+  AllPhishingControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
+ * Constructs a messenger for use in PhishingController tests.
+ *
+ * @returns A messenger.
+ */
+function getMessenger() {
+  const rootMessenger = getRootMessenger();
+
+  return new Messenger<
+    typeof controllerName,
+    AllPhishingControllerActions,
+    AllPhishingControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
   });
 }
 
@@ -48,7 +80,7 @@ function getRestrictedMessenger() {
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
-    messenger: getRestrictedMessenger(),
+    messenger: getMessenger(),
     ...options,
   });
 }
