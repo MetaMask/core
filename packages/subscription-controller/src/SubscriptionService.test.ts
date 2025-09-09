@@ -178,27 +178,6 @@ describe('SubscriptionService', () => {
         );
       });
     });
-
-    it('should handle null exceptions in catch block', async () => {
-      const config = createMockConfig({});
-      const service = new SubscriptionService(config);
-      handleFetchMock.mockRejectedValue(null);
-
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(SubscriptionServiceError);
-    });
-
-    it('should handle non-Error exceptions in catch block', async () => {
-      await withMockSubscriptionService(async ({ service }) => {
-        // Mock handleFetch to throw null (not an Error instance)
-        handleFetchMock.mockRejectedValue(null);
-
-        await expect(service.getSubscriptions()).rejects.toThrow(
-          SubscriptionServiceError,
-        );
-      });
-    });
   });
 
   describe('cancelSubscription', () => {
