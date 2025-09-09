@@ -104,12 +104,6 @@ export type AuthUtils = {
   getAccessToken: () => Promise<string>;
 };
 
-export type FetchFunction = (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
-
 export type ProductPrice = {
   interval: RecurringInterval;
   unitAmount: number; // amount in the smallest unit of the currency, e.g., cents
@@ -188,10 +182,10 @@ export type GetCryptoApproveTransactionResponse = {
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
   cancelSubscription(request: { subscriptionId: string }): Promise<void>;
-  getPricing(): Promise<PricingResponse>;
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
+  getPricing(): Promise<PricingResponse>;
   startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse>;

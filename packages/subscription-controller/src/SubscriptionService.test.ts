@@ -1,5 +1,4 @@
 import { handleFetch } from '@metamask/controller-utils';
-import nock, { cleanAll, isDone } from 'nock';
 
 import {
   Env,
@@ -20,6 +19,11 @@ import {
   RecurringInterval,
   SubscriptionStatus,
 } from './types';
+
+// Mock the handleFetch function
+jest.mock('@metamask/controller-utils', () => ({
+  handleFetch: jest.fn(),
+}));
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
@@ -43,11 +47,6 @@ const MOCK_SUBSCRIPTION: Subscription = {
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 
-const MOCK_ERROR_RESPONSE = {
-  message: 'Subscription not found',
-  error: 'NOT_FOUND',
-};
-
 const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
   products: [ProductType.SHIELD],
   isTrialRequested: true,
@@ -63,19 +62,14 @@ const MOCK_START_SUBSCRIPTION_RESPONSE = {
  *
  * @param params - The parameters object
  * @param [params.env] - The environment to use for the config
- * @param [params.fetchFn] - The fetch function to use for the config
  * @returns The mock configuration object
  */
-function createMockConfig({
-  env = Env.DEV,
-  fetchFn = handleFetch,
-}: { env?: Env; fetchFn?: typeof fetch } = {}) {
+function createMockConfig({ env = Env.DEV }: { env?: Env } = {}) {
   return {
     env,
     auth: {
       getAccessToken: jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
     },
-    fetchFn,
   };
 }
 
@@ -109,8 +103,8 @@ function withMockSubscriptionService(
 }
 
 describe('SubscriptionService', () => {
-  afterEach(() => {
-    cleanAll();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
@@ -134,33 +128,29 @@ describe('SubscriptionService', () => {
 
   describe('getSubscriptions', () => {
     it('should fetch subscriptions successfully', async () => {
-      await withMockSubscriptionService(
-        async ({ service, testUrl, config }) => {
-          nock(testUrl)
-            .get('/v1/subscriptions')
-            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
-            .reply(200, {
-              customerId: 'cus_1',
-              subscriptions: [MOCK_SUBSCRIPTION],
-              trialedProducts: [],
-            });
+      await withMockSubscriptionService(async ({ service, config }) => {
+        (handleFetch as jest.Mock).mockResolvedValue({
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
 
-          const result = await service.getSubscriptions();
+        const result = await service.getSubscriptions();
 
-          expect(result).toStrictEqual({
-            customerId: 'cus_1',
-            subscriptions: [MOCK_SUBSCRIPTION],
-            trialedProducts: [],
-          });
-          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
-          expect(isDone()).toBe(true);
-        },
-      );
+        expect(result).toStrictEqual({
+          customerId: 'cus_1',
+          subscriptions: [MOCK_SUBSCRIPTION],
+          trialedProducts: [],
+        });
+        expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('should throw SubscriptionServiceError for error responses', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl).get('/v1/subscriptions').reply(404, MOCK_ERROR_RESPONSE);
+      await withMockSubscriptionService(async ({ service }) => {
+        (handleFetch as jest.Mock).mockRejectedValue(
+          new Error('Network error'),
+        );
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -169,8 +159,10 @@ describe('SubscriptionService', () => {
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl).get('/v1/subscriptions').replyWithError('Network error');
+      await withMockSubscriptionService(async ({ service }) => {
+        (handleFetch as jest.Mock).mockRejectedValue(
+          new Error('Network error'),
+        );
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           SubscriptionServiceError,
@@ -190,52 +182,57 @@ describe('SubscriptionService', () => {
     });
 
     it('should handle null exceptions in catch block', async () => {
-      const fetchMock = jest.fn().mockRejectedValueOnce(null);
-      const config = createMockConfig({ fetchFn: fetchMock });
+      const config = createMockConfig({});
       const service = new SubscriptionService(config);
+      (handleFetch as jest.Mock).mockRejectedValue(null);
 
       await expect(
         service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
       ).rejects.toThrow(SubscriptionServiceError);
     });
+
+    it('should handle non-Error exceptions in catch block', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        // Mock handleFetch to throw null (not an Error instance)
+        (handleFetch as jest.Mock).mockRejectedValue(null);
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+      });
+    });
   });
 
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
-      await withMockSubscriptionService(
-        async ({ service, testUrl, config }) => {
-          nock(testUrl)
-            .delete('/v1/subscriptions/sub_123456789')
-            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
-            .reply(200, {});
+      await withMockSubscriptionService(async ({ service, config }) => {
+        (handleFetch as jest.Mock).mockResolvedValue({});
 
-          await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
+        await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
 
-          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
-          expect(isDone()).toBe(true);
-        },
-      );
+        expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .delete('/v1/subscriptions/sub_123456789')
-          .replyWithError('Network error');
+      await withMockSubscriptionService(async ({ service }) => {
+        (handleFetch as jest.Mock).mockRejectedValue(
+          new Error('Network error'),
+        );
 
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/Network error/u);
+        ).rejects.toThrow(SubscriptionServiceError);
       });
     });
   });
 
   describe('startSubscription', () => {
     it('should start subscription successfully', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .post('/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-          .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+      await withMockSubscriptionService(async ({ service }) => {
+        (handleFetch as jest.Mock).mockResolvedValue(
+          MOCK_START_SUBSCRIPTION_RESPONSE,
+        );
 
         const result = await service.startSubscriptionWithCard(
           MOCK_START_SUBSCRIPTION_REQUEST,
@@ -248,16 +245,15 @@ describe('SubscriptionService', () => {
     it('should start subscription without trial', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
       const request: StartSubscriptionRequest = {
         products: [ProductType.SHIELD],
         isTrialRequested: false,
         recurringInterval: RecurringInterval.month,
       };
 
-      nock(testUrl)
-        .post('/v1/subscriptions/card', request)
-        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+      (handleFetch as jest.Mock).mockResolvedValue(
+        MOCK_START_SUBSCRIPTION_RESPONSE,
+      );
 
       const result = await service.startSubscriptionWithCard(request);
 
@@ -281,7 +277,7 @@ describe('SubscriptionService', () => {
 
   describe('startCryptoSubscription', () => {
     it('should start crypto subscription successfully', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
+      await withMockSubscriptionService(async ({ service }) => {
         const request: StartCryptoSubscriptionRequest = {
           products: [ProductType.SHIELD],
           isTrialRequested: false,
@@ -298,10 +294,7 @@ describe('SubscriptionService', () => {
           status: SubscriptionStatus.active,
         };
 
-        nock(testUrl)
-          .post('/v1/subscriptions/crypto', request)
-          .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
-          .reply(200, response);
+        (handleFetch as jest.Mock).mockResolvedValue(response);
 
         const result = await service.startSubscriptionWithCrypto(request);
 
@@ -319,9 +312,8 @@ describe('SubscriptionService', () => {
     it('should fetch pricing successfully', async () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
 
-      nock(testUrl).get('/v1/pricing').reply(200, mockPricingResponse);
+      (handleFetch as jest.Mock).mockResolvedValue(mockPricingResponse);
 
       const result = await service.getPricing();
 

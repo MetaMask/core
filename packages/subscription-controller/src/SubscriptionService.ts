@@ -1,3 +1,5 @@
+import { handleFetch } from '@metamask/controller-utils';
+
 import {
   getEnvUrls,
   SubscriptionControllerErrorMessage,
@@ -6,7 +8,6 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
-  FetchFunction,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
@@ -19,7 +20,6 @@ import type {
 export type SubscriptionServiceConfig = {
   env: Env;
   auth: AuthUtils;
-  fetchFn: FetchFunction;
 };
 
 export const SUBSCRIPTION_URL = (env: Env, path: string) =>
@@ -28,14 +28,11 @@ export const SUBSCRIPTION_URL = (env: Env, path: string) =>
 export class SubscriptionService implements ISubscriptionService {
   readonly #env: Env;
 
-  readonly #fetch: FetchFunction;
-
   public authUtils: AuthUtils;
 
   constructor(config: SubscriptionServiceConfig) {
     this.#env = config.env;
     this.authUtils = config.auth;
-    this.#fetch = config.fetchFn;
   }
 
   async getSubscriptions(): Promise<GetSubscriptionsResponse> {
@@ -82,7 +79,7 @@ export class SubscriptionService implements ISubscriptionService {
       const headers = await this.#getAuthorizationHeader();
       const url = new URL(SUBSCRIPTION_URL(this.#env, path));
 
-      const response = await this.#fetch(url.toString(), {
+      const response = await handleFetch(url.toString(), {
         method,
         headers: {
           'Content-Type': 'application/json',
