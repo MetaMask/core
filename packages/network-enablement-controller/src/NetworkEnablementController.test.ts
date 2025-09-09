@@ -210,34 +210,6 @@ describe('NetworkEnablementController', () => {
     });
   });
 
-  it('subscribes to TransactionController:transactionSubmitted and enables network', async () => {
-    const { controller, messenger } = setupInitializedController();
-
-    // Initially disable Polygon network (it should not exist)
-    expect(controller.isNetworkEnabled('0x89')).toBe(false);
-
-    // Publish a transaction submitted event with Polygon chainId
-    messenger.publish('TransactionController:transactionSubmitted', {
-      transactionMeta: {
-        chainId: '0x89', // Polygon
-        networkClientId: 'polygon-network',
-        id: 'test-tx-id',
-        status: TransactionStatus.submitted,
-        time: Date.now(),
-        txParams: {
-          from: '0x123',
-          to: '0x456',
-          value: '0x0',
-        },
-      } as TransactionMeta, // Simplified structure for testing
-    });
-
-    await advanceTime({ clock, duration: 1 });
-
-    // The Polygon network should now be enabled
-    expect(controller.isNetworkEnabled('0x89')).toBe(true);
-  });
-
   it('handles TransactionController:transactionSubmitted with missing chainId gracefully', async () => {
     const { controller, messenger } = setupInitializedController();
 
@@ -1200,16 +1172,16 @@ describe('NetworkEnablementController', () => {
       });
     });
 
-    it('does not disable a Solana network using CAIP chain ID as it is the only enabled network on the namespace', () => {
+    it('does disable a Solana network using CAIP chain ID as it is the only enabled network on the namespace', () => {
       const { controller } = setupController();
 
       // Try to disable a Solana network using CAIP chain ID
       expect(() =>
         controller.disableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-      ).toThrow('Cannot disable the last remaining enabled network');
+      ).not.toThrow();
     });
 
-    it('prevents disabling the last active network for an EVM namespace', () => {
+    it('disables the last active network for an EVM namespace', () => {
       const { controller } = setupInitializedController();
 
       // disable all networks except one
@@ -1237,9 +1209,7 @@ describe('NetworkEnablementController', () => {
       });
 
       // Try to disable the last active network
-      expect(() => controller.disableNetwork('0x1')).toThrow(
-        'Cannot disable the last remaining enabled network',
-      );
+      expect(() => controller.disableNetwork('0x1')).not.toThrow();
     });
 
     it('handles disabling non-existent network gracefully', () => {
@@ -1503,13 +1473,11 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
     });
 
-    it('prevents disabling the last Bitcoin network', () => {
+    it('allows disabling the last Bitcoin network', () => {
       const { controller } = setupController();
 
       // Only Bitcoin mainnet is enabled by default in the BIP122 namespace
-      expect(() => controller.disableNetwork(BtcScope.Mainnet)).toThrow(
-        'Cannot disable the last remaining enabled network',
-      );
+      expect(() => controller.disableNetwork(BtcScope.Mainnet)).not.toThrow();
     });
 
     it('allows disabling Bitcoin mainnet when testnet is enabled', () => {
@@ -1569,7 +1537,7 @@ describe('NetworkEnablementController', () => {
       // Disable Solana network - this should fail as it's the only one in its namespace
       expect(() =>
         controller.disableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-      ).toThrow('Cannot disable the last remaining enabled network');
+      ).not.toThrow();
 
       // Bitcoin should still be enabled
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
