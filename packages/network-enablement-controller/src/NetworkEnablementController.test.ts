@@ -632,6 +632,110 @@ describe('NetworkEnablementController', () => {
       );
       expect(controller.state.enabledNetworkMap).toHaveProperty('cosmos');
     });
+
+    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', () => {
+      const { controller } = setupController();
+
+      // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
+                [BtcScope.Testnet]: {
+                  chainId: BtcScope.Testnet,
+                  name: 'Bitcoin Testnet',
+                },
+              },
+              selectedMultichainNetworkChainId: BtcScope.Mainnet,
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Initialize the controller to trigger line 378 (init() method sets testnet to false)
+      controller.init();
+
+      // Verify Bitcoin testnet is set to false by init() - line 378
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Bip122][
+          BtcScope.Testnet
+        ],
+      ).toBe(false);
+    });
+
+    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', () => {
+      const { controller } = setupController();
+
+      // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
+                [BtcScope.Signet]: {
+                  chainId: BtcScope.Signet,
+                  name: 'Bitcoin Signet',
+                },
+              },
+              selectedMultichainNetworkChainId: BtcScope.Mainnet,
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Initialize the controller to trigger line 391 (init() method sets signet to false)
+      controller.init();
+
+      // Verify Bitcoin signet is set to false by init() - line 391
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Bip122][
+          BtcScope.Signet
+        ],
+      ).toBe(false);
+    });
   });
 
   describe('enableAllPopularNetworks', () => {
@@ -915,6 +1019,7 @@ describe('NetworkEnablementController', () => {
 
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
     });
+
   });
 
   describe('enableNetwork', () => {

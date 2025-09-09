@@ -385,7 +385,7 @@ export class NetworkEnablementController extends BaseController<
       if (
         s.enabledNetworkMap[bitcoinSignetKeys.namespace] &&
         multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Testnet
+          BtcScope.Signet
         ]
       ) {
         s.enabledNetworkMap[bitcoinSignetKeys.namespace][
