@@ -63,6 +63,7 @@ describe('getRewardsFeatureFlag', () => {
 
     // Note: the function’s TS return type is boolean, but at runtime it can be undefined
     // because it casts via `as boolean` without defaulting. We assert the runtime behavior here.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = getRewardsFeatureFlag(messenger as any);
     expect(messenger.call).toHaveBeenCalledWith(
       'RemoteFeatureFlagController:getState',
@@ -75,6 +76,7 @@ describe('getRewardsFeatureFlag', () => {
       // remoteFeatureFlags: undefined
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = getRewardsFeatureFlag(messenger as any);
     expect(messenger.call).toHaveBeenCalledWith(
       'RemoteFeatureFlagController:getState',
@@ -85,6 +87,7 @@ describe('getRewardsFeatureFlag', () => {
   it('returns undefined when controller state is undefined (defensive)', () => {
     const messenger = makeMessenger(undefined);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = getRewardsFeatureFlag(messenger as any);
     expect(messenger.call).toHaveBeenCalledWith(
       'RemoteFeatureFlagController:getState',

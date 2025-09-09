@@ -1,6 +1,6 @@
 import { isHardwareWallet } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import { InternalAccount } from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAccountId } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
@@ -9,7 +9,7 @@ import {
   getRewardsControllerDefaultState,
   type RemoveSubscriptionToken,
   RewardsController,
-  RewardsControllerMessenger,
+  type RewardsControllerMessenger,
   type StoreSubscriptionToken,
 } from './RewardsController';
 import type {
@@ -799,12 +799,11 @@ describe('RewardsController', () => {
 
       const mockTimestamp = 1609459200; // Fixed timestamp for predictable testing
       const expectedMessage = `rewards,${mockInternalAccount.address},${mockTimestamp}`;
-      const expectedHexMessage =
-        '0x' + Buffer.from(expectedMessage, 'utf8').toString('hex');
+      const expectedHexMessage = `0x${Buffer.from(expectedMessage, 'utf8').toString('hex')}`;
 
       // Mock Date.now to return predictable timestamp
       const originalDateNow = Date.now;
-      Date.now = jest.fn(() => mockTimestamp * 1000);
+      jest.spyOn(Date, 'now').mockImplementation(() => mockTimestamp * 1000);
 
       mockMessenger.call
         .mockReturnValueOnce(mockInternalAccount)
@@ -1550,9 +1549,7 @@ describe('RewardsController', () => {
       expect(mockToHex).toHaveBeenCalledWith(mockChallengeResponse.message);
 
       // Verify the fallback Buffer conversion was used by checking the hex data passed to signing
-      const expectedBufferHex =
-        '0x' +
-        Buffer.from(mockChallengeResponse.message, 'utf8').toString('hex');
+      const expectedBufferHex = `0x${Buffer.from(mockChallengeResponse.message, 'utf8').toString('hex')}`;
       expect(mockMessenger.call).toHaveBeenNthCalledWith(
         3,
         'KeyringController:signPersonalMessage',
@@ -1676,7 +1673,7 @@ describe('RewardsController', () => {
       );
 
       // Verify state is not set since account format is unsupported
-      expect(controller.state.lastAuthenticatedAccount).toStrictEqual(null);
+      expect(controller.state.lastAuthenticatedAccount).toBeNull();
     });
   });
 
@@ -2292,6 +2289,7 @@ describe('RewardsController', () => {
 
   describe('silent auth skipping behavior', () => {
     let originalDateNow: () => number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let subscribeCallback: any;
 
     beforeEach(() => {
@@ -2301,7 +2299,7 @@ describe('RewardsController', () => {
 
       // Mock Date.now for consistent testing
       originalDateNow = Date.now;
-      Date.now = jest.fn(() => 1000000); // Fixed timestamp
+      jest.spyOn(Date, 'now').mockImplementation(() => 1000000); // Fixed timestamp
 
       // Get the account change subscription callback
       const subscribeCalls = mockMessenger.subscribe.mock.calls.find(

@@ -6,7 +6,7 @@ import { isHardwareWallet } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
-  CaipAccountId,
+  type CaipAccountId,
   parseCaipChainId,
   toCaipAccountId,
 } from '@metamask/utils';
@@ -106,6 +106,10 @@ export class RewardsController extends BaseController<
 
   /**
    * Calculate tier status and next tier information
+   * @param seasonTiers - Array of season tiers
+   * @param currentTierId - The ID of the current tier
+   * @param currentPoints - The user's current points
+   * @returns SeasonTierState - The current and next tier information
    */
   calculateTierStatus(
     seasonTiers: SeasonTierDto[],
@@ -148,6 +152,8 @@ export class RewardsController extends BaseController<
 
   /**
    * Convert SeasonDto to SeasonDtoState for storage
+   * @param season - The season DTO from the API
+   * @returns SeasonDtoState - The converted season state
    */
   #convertSeasonToState(season: SeasonStatusDto['season']): SeasonDtoState {
     return {
@@ -161,6 +167,8 @@ export class RewardsController extends BaseController<
 
   /**
    * Convert SeasonStatusDto to SeasonStatusState and update seasons map
+   * @param seasonStatus - The season status DTO from the API
+   * @returns SeasonStatusState - The converted season status state
    */
   #convertSeasonStatusToSubscriptionState(
     seasonStatus: SeasonStatusDto,
@@ -272,6 +280,7 @@ export class RewardsController extends BaseController<
     );
 
     // Initialize silent authentication on startup
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#handleAuthenticationTrigger('Controller initialized');
   }
 
@@ -284,6 +293,8 @@ export class RewardsController extends BaseController<
 
   /**
    * Get account state for a given CAIP-10 address
+   * @param account - The CAIP-10 account ID
+   * @returns RewardsAccountState or null if not found
    */
   #getAccountState(account: CaipAccountId): RewardsAccountState | null {
     return this.state.accounts[account] || null;
@@ -291,6 +302,9 @@ export class RewardsController extends BaseController<
 
   /**
    * Create composite key for season status storage
+   * @param seasonId - The season ID or 'current'
+   * @param subscriptionId - The subscription ID
+   * @returns Composite key string
    */
   #createSeasonStatusCompositeKey(
     seasonId: string,
@@ -301,6 +315,9 @@ export class RewardsController extends BaseController<
 
   /**
    * Get stored season status for a given composite key
+   * @param subscriptionId - The subscription ID
+   * @param seasonId - The season ID or 'current'
+   * @returns SeasonStatusState or null if not found
    */
   #getSeasonStatus(
     subscriptionId: string,
@@ -315,6 +332,9 @@ export class RewardsController extends BaseController<
 
   /**
    * Sign a message for rewards authentication
+   * @param account - The account to sign with
+   * @param timestamp - The current timestamp
+   * @returns Promise<string> - The signed message
    */
   async #signRewardsMessage(
     account: InternalAccount,
@@ -330,7 +350,7 @@ export class RewardsController extends BaseController<
     message: string,
   ): Promise<string> {
     // Convert message to hex format for signing
-    const hexMessage = '0x' + Buffer.from(message, 'utf8').toString('hex');
+    const hexMessage = `0x${Buffer.from(message, 'utf8').toString('hex')}`;
 
     // Use KeyringController to sign the message
     const signature = await this.messagingSystem.call(
@@ -346,6 +366,7 @@ export class RewardsController extends BaseController<
 
   /**
    * Handle authentication triggers (account changes, keyring unlock)
+   * @param reason - Optional reason for the trigger
    */
   async #handleAuthenticationTrigger(reason?: string): Promise<void> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
@@ -376,6 +397,10 @@ export class RewardsController extends BaseController<
 
   /**
    * Check if silent authentication should be skipped
+   * @param account - The CAIP-10 account ID
+   * @param address - The raw account address
+   * @param isHardwareAccount - Whether the account is a hardware wallet
+   * @returns boolean - True if silent auth should be skipped, false otherwise
    */
   #shouldSkipSilentAuth(
     account: CaipAccountId,
@@ -383,7 +408,9 @@ export class RewardsController extends BaseController<
     isHardwareAccount: boolean,
   ): boolean {
     // Skip for hardware and Solana accounts
-    if (isHardwareAccount || isSolanaAddress(address)) return true;
+    if (isHardwareAccount || isSolanaAddress(address)) {
+      return true;
+    }
 
     const now = Date.now();
     const { lastAuthenticatedAccount } = this.state;
@@ -425,6 +452,7 @@ export class RewardsController extends BaseController<
 
   /**
    * Perform silent authentication for the given address
+   * @param internalAccount - The account address to authenticate
    */
   async #performSilentAuth(internalAccount: InternalAccount): Promise<void> {
     const account: CaipAccountId | null =
@@ -492,7 +520,7 @@ export class RewardsController extends BaseController<
       log('RewardsController: Silent auth successful');
 
       // Update state with successful authentication
-      const subscription = loginResponse.subscription;
+      const { subscription } = loginResponse;
 
       // Store the session token for this subscription
       if (this.#storeSubscriptionToken) {
@@ -512,7 +540,7 @@ export class RewardsController extends BaseController<
         // Create or update account state
         const accountState: RewardsAccountState = {
           account,
-          hasOptedIn: !!subscription,
+          hasOptedIn: Boolean(subscription),
           subscriptionId: subscription.id,
           lastAuthTime: currentTime,
           perpsFeeDiscount: null, // Default value, will be updated when fetched
@@ -566,8 +594,8 @@ export class RewardsController extends BaseController<
   }
 
   /**
-   * Update perps fee discount for a given address
-   * @param address - The account address in CAIP-10 format
+   * Update perps fee discount for a given account
+   * @param account - The account address in CAIP-10 format
    * @returns Promise<PerpsDiscountData | null> - The perps discount data or null on failure
    */
   async #getPerpsFeeDiscountData(
@@ -643,13 +671,17 @@ export class RewardsController extends BaseController<
    */
   async getHasAccountOptedIn(account: CaipAccountId): Promise<boolean> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
-    if (!rewardsEnabled) return false;
+    if (!rewardsEnabled) {
+      return false;
+    }
     const accountState = this.#getAccountState(account);
-    if (accountState?.hasOptedIn) return accountState.hasOptedIn;
+    if (accountState?.hasOptedIn) {
+      return accountState.hasOptedIn;
+    }
 
     // Right now we'll derive this from either cached map state or perps fee discount api call.
     const perpsDiscountData = await this.#getPerpsFeeDiscountData(account);
-    return !!perpsDiscountData?.hasOptedIn;
+    return Boolean(perpsDiscountData?.hasOptedIn);
   }
 
   /**
@@ -659,7 +691,9 @@ export class RewardsController extends BaseController<
    */
   async getPerpsDiscountForAccount(account: CaipAccountId): Promise<number> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
-    if (!rewardsEnabled) return 0;
+    if (!rewardsEnabled) {
+      return 0;
+    }
     const perpsDiscountData = await this.#getPerpsFeeDiscountData(account);
     return perpsDiscountData?.discount || 0;
   }
@@ -673,7 +707,9 @@ export class RewardsController extends BaseController<
     request: EstimatePointsDto,
   ): Promise<EstimatedPointsDto> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
-    if (!rewardsEnabled) return { pointsEstimate: 0, bonusBips: 0 };
+    if (!rewardsEnabled) {
+      return { pointsEstimate: 0, bonusBips: 0 };
+    }
     try {
       const estimatedPoints = await this.messagingSystem.call(
         'RewardsDataService:estimatePoints',
@@ -700,8 +736,8 @@ export class RewardsController extends BaseController<
 
   /**
    * Get season status with caching
-   * @param seasonId - The ID of the season to get status for
    * @param subscriptionId - The subscription ID for authentication
+   * @param seasonId - The ID of the season to get status for
    * @returns Promise<SeasonStatusState> - The season status data
    */
   async getSeasonStatus(
@@ -862,8 +898,7 @@ export class RewardsController extends BaseController<
       hexMessage = toHex(challengeResponse.message);
     } catch (error) {
       // Fallback: use Buffer to convert to hex if toHex fails
-      hexMessage =
-        '0x' + Buffer.from(challengeResponse.message, 'utf8').toString('hex');
+      hexMessage = `0x${Buffer.from(challengeResponse.message, 'utf8').toString('hex')}`;
     }
 
     // Use KeyringController for silent signature
@@ -922,14 +957,12 @@ export class RewardsController extends BaseController<
           'RewardsController: Failed to store subscription token:',
           tokenResponse?.error || 'Unknown error',
         );
-        return;
       }
     }
   }
 
   /**
    * Logout user from rewards and clear associated data
-   * @param subscriptionId - Optional subscription ID to logout from
    */
   async logout(): Promise<void> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
@@ -943,7 +976,7 @@ export class RewardsController extends BaseController<
       return;
     }
 
-    const subscriptionId = this.state.lastAuthenticatedAccount.subscriptionId;
+    const { subscriptionId } = this.state.lastAuthenticatedAccount;
     log(
       'RewardsController: Starting logout process for account tied to subscriptionId',
       {

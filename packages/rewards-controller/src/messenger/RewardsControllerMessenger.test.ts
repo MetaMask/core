@@ -2,6 +2,7 @@ import { getRewardsControllerMessenger } from './RewardsControllerMessenger';
 
 type FakeMessenger = {
   getRestricted: jest.Mock<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any,
     [
       params: {
@@ -23,6 +24,7 @@ describe('getRewardsControllerMessenger', () => {
   });
 
   it('requests a restricted messenger with the expected name, actions, and events', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = getRewardsControllerMessenger(messenger as any);
 
     // 1) Returned value is exactly what getRestricted returned
@@ -60,6 +62,7 @@ describe('getRewardsControllerMessenger', () => {
   });
 
   it('does not include unintended actions', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getRewardsControllerMessenger(messenger as any);
     const [params] = messenger.getRestricted.mock.calls[0];
 
@@ -78,6 +81,7 @@ describe('getRewardsControllerMessenger', () => {
   });
 
   it('does not include unintended events', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getRewardsControllerMessenger(messenger as any);
     const [params] = messenger.getRestricted.mock.calls[0];
 

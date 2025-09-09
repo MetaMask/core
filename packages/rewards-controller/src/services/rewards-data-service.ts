@@ -36,55 +36,55 @@ type GetSubscriptionToken = (subscriptionId: string) => Promise<TokenResponse>;
 
 // Auth endpoint action types
 
-export interface RewardsDataServiceLoginAction {
+export type RewardsDataServiceLoginAction = {
   type: `${typeof SERVICE_NAME}:login`;
   handler: RewardsDataService['login'];
-}
+};
 
-export interface RewardsDataServiceEstimatePointsAction {
+export type RewardsDataServiceEstimatePointsAction = {
   type: `${typeof SERVICE_NAME}:estimatePoints`;
   handler: RewardsDataService['estimatePoints'];
-}
+};
 
-export interface RewardsDataServiceGetPerpsDiscountAction {
+export type RewardsDataServiceGetPerpsDiscountAction = {
   type: `${typeof SERVICE_NAME}:getPerpsDiscount`;
   handler: RewardsDataService['getPerpsDiscount'];
-}
+};
 
-export interface RewardsDataServiceOptinAction {
+export type RewardsDataServiceOptinAction = {
   type: `${typeof SERVICE_NAME}:optin`;
   handler: RewardsDataService['optin'];
-}
+};
 
-export interface RewardsDataServiceLogoutAction {
+export type RewardsDataServiceLogoutAction = {
   type: `${typeof SERVICE_NAME}:logout`;
   handler: RewardsDataService['logout'];
-}
+};
 
-export interface RewardsDataServiceGenerateChallengeAction {
+export type RewardsDataServiceGenerateChallengeAction = {
   type: `${typeof SERVICE_NAME}:generateChallenge`;
   handler: RewardsDataService['generateChallenge'];
-}
+};
 
-export interface RewardsDataServiceGetSeasonStatusAction {
+export type RewardsDataServiceGetSeasonStatusAction = {
   type: `${typeof SERVICE_NAME}:getSeasonStatus`;
   handler: RewardsDataService['getSeasonStatus'];
-}
+};
 
-export interface RewardsDataServiceGetReferralDetailsAction {
+export type RewardsDataServiceGetReferralDetailsAction = {
   type: `${typeof SERVICE_NAME}:getReferralDetails`;
   handler: RewardsDataService['getReferralDetails'];
-}
+};
 
-export interface RewardsDataServiceFetchGeoLocationAction {
+export type RewardsDataServiceFetchGeoLocationAction = {
   type: `${typeof SERVICE_NAME}:fetchGeoLocation`;
   handler: RewardsDataService['fetchGeoLocation'];
-}
+};
 
-export interface RewardsDataServiceValidateReferralCodeAction {
+export type RewardsDataServiceValidateReferralCodeAction = {
   type: `${typeof SERVICE_NAME}:validateReferralCode`;
   handler: RewardsDataService['validateReferralCode'];
-}
+};
 
 export type RewardsDataServiceActions =
   | RewardsDataServiceLoginAction
@@ -278,6 +278,9 @@ export class RewardsDataService {
   /**
    * Perform login via signature for the current account.
    * @param body - The login request body containing account, timestamp, and signature.
+   * @param body.account - The CAIP-10 account address.
+   * @param body.timestamp - The timestamp of the signature.
+   * @param body.signature - The signature.
    * @returns The login response DTO.
    */
   async login(body: {

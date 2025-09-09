@@ -1,6 +1,6 @@
 import {
   RewardsController,
-  RewardsControllerMessenger,
+  type RewardsControllerMessenger,
 } from './RewardsController';
 
 export { RewardsController };

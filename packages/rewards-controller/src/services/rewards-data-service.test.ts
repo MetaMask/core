@@ -68,7 +68,7 @@ const buildService = ({
 
   const svc = new RewardsDataService({
     messenger: mockMessenger,
-    fetch: fetchImpl as any,
+    fetch: fetchImpl,
     version,
     appType,
     locale,
@@ -551,7 +551,7 @@ describe('RewardsDataService', () => {
         .mockResolvedValue(okJsonResponse({ challengeId: 'c1', message: 'm' }));
       const { svc } = buildService({ fetchImpl });
 
-      const res = await svc.generateChallenge({ address: '0xabc' } as any);
+      const res = await svc.generateChallenge({ address: '0xabc' });
       expect(res).toStrictEqual({ challengeId: 'c1', message: 'm' });
     });
     it('generateChallenge() throws on non-ok response', async () => {
@@ -560,9 +560,9 @@ describe('RewardsDataService', () => {
         .mockResolvedValue({ ok: false, status: 400 } as Response);
       const { svc } = buildService({ fetchImpl });
 
-      await expect(
-        svc.generateChallenge({ address: '0xabc' } as any),
-      ).rejects.toThrow('Generate challenge failed: 400');
+      await expect(svc.generateChallenge({ address: '0xabc' })).rejects.toThrow(
+        'Generate challenge failed: 400',
+      );
     });
   });
 

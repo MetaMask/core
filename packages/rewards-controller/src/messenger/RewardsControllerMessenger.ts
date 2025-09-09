@@ -1,15 +1,15 @@
-import {
-  type AccountsControllerGetSelectedMultichainAccountAction,
+import type {
+  AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import { Messenger, RestrictedMessenger } from '@metamask/base-controller';
-import {
+import type { Messenger, RestrictedMessenger } from '@metamask/base-controller';
+import type {
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
-import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
-import {
+import type {
   RewardsDataServiceLoginAction,
   RewardsDataServiceEstimatePointsAction,
   RewardsDataServiceGetPerpsDiscountAction,
@@ -21,7 +21,10 @@ import {
   RewardsDataServiceFetchGeoLocationAction,
   RewardsDataServiceValidateReferralCodeAction,
 } from '../services';
-import { RewardsControllerActions, RewardsControllerEvents } from '../types';
+import type {
+  RewardsControllerActions,
+  RewardsControllerEvents,
+} from '../types';
 
 const name = 'RewardsController';
 
@@ -54,6 +57,13 @@ export type RewardsControllerMessenger = RestrictedMessenger<
   AllowedEvents['type']
 >;
 
+/**
+ * Creates a messenger restricted to the actions and events.
+ *
+ * @param messenger - The base messenger to restrict.
+ *
+ * @returns The restricted messenger.
+ */
 export function getRewardsControllerMessenger(
   messenger: Messenger<
     RewardsControllerActions | AllowedActions,
