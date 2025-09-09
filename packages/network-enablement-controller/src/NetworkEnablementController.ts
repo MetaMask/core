@@ -4,7 +4,6 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import { BtcScope, SolScope } from './types';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
@@ -18,6 +17,7 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
+import { BtcScope, SolScope } from './types';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
