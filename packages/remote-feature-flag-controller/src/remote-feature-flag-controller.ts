@@ -1,15 +1,16 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
   FeatureFlags,
   ServiceResponse,
   FeatureFlagScopeValue,
+  RemoteFeatureFlagControllerState,
+  RemoteFeatureFlagControllerGetStateAction,
 } from './remote-feature-flag-controller-types';
 import {
   generateDeterministicRandomNumber,
@@ -18,38 +19,27 @@ import {
 
 // === GENERAL ===
 
-export const controllerName = 'RemoteFeatureFlagController';
+const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
-
-export type RemoteFeatureFlagControllerState = {
-  remoteFeatureFlags: FeatureFlags;
-  cacheTimestamp: number;
-};
 
 const remoteFeatureFlagControllerMetadata = {
   remoteFeatureFlags: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   cacheTimestamp: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
 
 // === MESSENGER ===
-
-export type RemoteFeatureFlagControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    RemoteFeatureFlagControllerState
-  >;
 
 export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
   type: `${typeof controllerName}:updateRemoteFeatureFlags`;
@@ -58,8 +48,6 @@ export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
 
 export type RemoteFeatureFlagControllerActions =
   RemoteFeatureFlagControllerGetStateAction;
-
-export type AllowedActions = never;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -70,14 +58,10 @@ export type RemoteFeatureFlagControllerStateChangeEvent =
 export type RemoteFeatureFlagControllerEvents =
   RemoteFeatureFlagControllerStateChangeEvent;
 
-export type AllowedEvents = never;
-
-export type RemoteFeatureFlagControllerMessenger = RestrictedMessenger<
+export type RemoteFeatureFlagControllerMessenger = Messenger<
   typeof controllerName,
-  RemoteFeatureFlagControllerActions | AllowedActions,
-  RemoteFeatureFlagControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  RemoteFeatureFlagControllerActions,
+  RemoteFeatureFlagControllerEvents
 >;
 
 /**

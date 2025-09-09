@@ -1,4 +1,4 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type { ControllerGetStateAction } from '@metamask/base-controller/next';
 import type { Json } from '@metamask/utils';
 
 // Define accepted values for client, distribution, and environment
