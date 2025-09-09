@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `areUint8ArraysEqual` function to compare two `Uint8Array` types ([#268](https://github.com/MetaMask/utils/pull/268))
+
 ## [11.7.0]
 
 ### Added

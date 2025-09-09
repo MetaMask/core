@@ -52,6 +52,7 @@ describe('index', () => {
         "VersionRangeStruct",
         "VersionStruct",
         "add0x",
+        "areUint8ArraysEqual",
         "assert",
         "assertExhaustive",
         "assertIsBytes",
