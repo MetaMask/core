@@ -23,7 +23,10 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
-import { AccountTreeController } from './AccountTreeController';
+import {
+  AccountTreeController,
+  getDefaultAccountTreeControllerState,
+} from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
@@ -225,6 +228,7 @@ function getAccountTreeControllerMessenger(
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:setSelectedAccount',
+      'UserStorageController:getState',
       'UserStorageController:performGetStorage',
       'UserStorageController:performGetStorageAllFeatureEntries',
       'UserStorageController:performSetStorage',
@@ -248,7 +252,8 @@ function getAccountTreeControllerMessenger(
  * @param options.config - Configuration options for the controller.
  * @param options.config.backupAndSync - Configuration options for backup and sync.
  * @param options.config.backupAndSync.onBackupAndSyncEvent - Event handler for backup and sync events.
- * @param options.config.backupAndSync.enableDebugLogging - Flag to enable debug logging.
+ * @param options.config.backupAndSync.isAccountSyncingEnabled - Flag to enable account syncing.
+ * @param options.config.backupAndSync.isBackupAndSyncEnabled - Flag to enable backup and sync.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
@@ -256,7 +261,13 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
   keyrings = [],
-  config,
+  config = {
+    backupAndSync: {
+      isAccountSyncingEnabled: true,
+      isBackupAndSyncEnabled: true,
+      onBackupAndSyncEvent: jest.fn(),
+    },
+  },
 }: {
   state?: Partial<AccountTreeControllerState>;
   messenger?: Messenger<
@@ -267,10 +278,11 @@ function setup({
   keyrings?: KeyringObject[];
   config?: {
     backupAndSync?: {
+      isAccountSyncingEnabled?: boolean;
+      isBackupAndSyncEnabled?: boolean;
       onBackupAndSyncEvent?: (
         event: BackupAndSyncAnalyticsEventPayload,
       ) => void;
-      enableDebugLogging?: boolean;
     };
   };
 } = {}): {
@@ -317,6 +329,7 @@ function setup({
       getSelectedAccount: jest.fn(),
     },
     UserStorageController: {
+      getState: jest.fn(),
       performGetStorage: jest.fn(),
       performGetStorageAllFeatureEntries: jest.fn(),
       performSetStorage: jest.fn(),
@@ -372,6 +385,15 @@ function setup({
     );
 
     // Mock UserStorageController methods
+    mocks.UserStorageController.getState.mockImplementation(() => ({
+      isBackupAndSyncEnabled: config?.backupAndSync?.isBackupAndSyncEnabled,
+      isAccountSyncingEnabled: config?.backupAndSync?.isAccountSyncingEnabled,
+    }));
+    messenger.registerActionHandler(
+      'UserStorageController:getState',
+      mocks.UserStorageController.getState,
+    );
+
     messenger.registerActionHandler(
       'UserStorageController:performGetStorage',
       mocks.UserStorageController.performGetStorage,
@@ -2833,11 +2855,12 @@ describe('AccountTreeController', () => {
       jest.clearAllMocks();
     });
 
-    it('calls performFullSync on the syncing service', async () => {
+    it('calls fullSync on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
-      const performFullSyncSpy = jest
-        .spyOn(BackupAndSyncService.prototype, 'performFullSync')
-        .mockResolvedValue(undefined);
+      const fullSyncSpy = jest.spyOn(
+        BackupAndSyncService.prototype,
+        'performFullSync',
+      );
 
       const { controller } = setup({
         accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
@@ -2848,12 +2871,12 @@ describe('AccountTreeController', () => {
 
       await controller.syncWithUserStorage();
 
-      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+      expect(fullSyncSpy).toHaveBeenCalledTimes(1);
     });
 
     it('handles sync errors gracefully', async () => {
       const syncError = new Error('Sync failed');
-      const performFullSyncSpy = jest
+      const fullSyncSpy = jest
         .spyOn(BackupAndSyncService.prototype, 'performFullSync')
         .mockRejectedValue(syncError);
 
@@ -2867,7 +2890,7 @@ describe('AccountTreeController', () => {
       await expect(controller.syncWithUserStorage()).rejects.toThrow(
         syncError.message,
       );
-      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+      expect(fullSyncSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2895,19 +2918,17 @@ describe('AccountTreeController', () => {
       expect(controller.state.accountWalletsMetadata).not.toStrictEqual({});
 
       // Clear the metadata
-      controller.clearPersistedMetadataAndSyncingState();
+      controller.clearState();
 
       // Verify everything is cleared
-      expect(controller.state.accountGroupsMetadata).toStrictEqual({});
-      expect(controller.state.accountWalletsMetadata).toStrictEqual({});
-      expect(controller.state.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(
-        false,
+      expect(controller.state).toStrictEqual(
+        getDefaultAccountTreeControllerState(),
       );
     });
   });
 
   describe('backup and sync config initialization', () => {
-    it('initializes backup and sync config with provided analytics callback and debug logging', async () => {
+    it('initializes backup and sync config with provided analytics callback', async () => {
       const mockAnalyticsCallback = jest.fn();
 
       const { controller } = setup({
@@ -2915,8 +2936,9 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
         config: {
           backupAndSync: {
+            isAccountSyncingEnabled: true,
+            isBackupAndSyncEnabled: true,
             onBackupAndSyncEvent: mockAnalyticsCallback,
-            enableDebugLogging: true,
           },
         },
       });

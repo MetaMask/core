@@ -1,5 +1,5 @@
 import { backupAndSyncLogger } from '../../logger';
-import type { AtomicSyncEvent, BackupAndSyncContext } from '../types';
+import type { AtomicSyncEvent } from '../types';
 
 /**
  * Manages atomic sync operations in a queue to prevent concurrent execution
@@ -17,40 +17,71 @@ export class AtomicSyncQueue {
   #isProcessingInProgress = false;
 
   /**
-   * Backup and sync context.
+   * Clears the queue and enqueues a new sync function.
+   *
+   * @param syncFunction - The sync function to enqueue.
+   * @param options - Configuration options.
+   * @param options.await - If true, returns a Promise that resolves when the sync completes.
+   * @returns A Promise if await is true, otherwise void.
    */
-  readonly #context: BackupAndSyncContext;
-
-  constructor(context: BackupAndSyncContext) {
-    this.#context = context;
+  clearAndEnqueue<T extends boolean = false>(
+    syncFunction: () => Promise<void>,
+    options?: { await?: T },
+  ): T extends true ? Promise<void> : void {
+    this.clear();
+    return this.enqueue(syncFunction, options);
   }
 
   /**
    * Enqueues an atomic sync function for processing.
    *
    * @param syncFunction - The sync function to enqueue.
+   * @param options - Configuration options.
+   * @param options.await - If true, returns a Promise that resolves when the sync function completes.
+   * @returns A Promise if await is true, otherwise void.
    */
-  enqueue(syncFunction: () => Promise<void>): void {
-    // Block enqueueing if big sync is running or if no initial sync has occurred
-    if (
-      this.#context.controller.state.isAccountTreeSyncingInProgress ||
-      !this.#context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
-    ) {
-      return;
-    }
+  enqueue<T extends boolean = false>(
+    syncFunction: () => Promise<void>,
+    options?: { await?: T },
+  ): T extends true ? Promise<void> : void {
+    const shouldAwait = options?.await;
+    let resolvePromise: (() => void) | undefined;
+    let rejectPromise: ((error: unknown) => void) | undefined;
 
+    // Create promise handlers if awaiting
+    const promise = shouldAwait
+      ? new Promise<void>((resolve, reject) => {
+          resolvePromise = resolve;
+          rejectPromise = reject;
+        })
+      : undefined;
+
+    // Create the sync function, wrapping with promise handlers if needed
     const syncEvent: AtomicSyncEvent = {
-      execute: syncFunction,
+      execute: shouldAwait
+        ? async () => {
+            try {
+              await syncFunction();
+              resolvePromise?.();
+            } catch (error) {
+              rejectPromise?.(error);
+            }
+          }
+        : syncFunction,
     };
 
+    // Add to queue and start processing
     this.#queue.push(syncEvent);
-
-    // Process queue asynchronously without blocking
     setTimeout(() => {
       this.process().catch((error) => {
         backupAndSyncLogger('Error processing atomic sync queue:', error);
       });
     }, 0);
+
+    // Return promise if awaiting, otherwise void
+    return (shouldAwait ? promise : undefined) as T extends true
+      ? Promise<void>
+      : void;
   }
 
   /**

@@ -12,7 +12,7 @@ import {
   createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
   syncGroupsMetadata,
-  syncSingleGroupMetadata,
+  syncGroupMetadata,
   syncWalletMetadata,
 } from '../syncing';
 import type {
@@ -38,8 +38,8 @@ import type { StateSnapshot } from '../utils';
  * Service responsible for managing all backup and sync operations.
  *
  * This service handles:
- * - Full sync operations (performFullSync)
- * - Single item sync operations (wallet and group syncing)
+ * - Full sync operations
+ * - Single item sync operations
  * - Sync queue management
  * - Sync state management
  */
@@ -51,11 +51,15 @@ export class BackupAndSyncService {
    */
   readonly #atomicSyncQueue: AtomicSyncQueue;
 
+  /**
+   * Cached promise for ongoing full sync operations.
+   * Ensures multiple callers await the same sync operation.
+   */
+  #ongoingFullSyncPromise: Promise<void> | null = null;
+
   constructor(context: BackupAndSyncContext) {
     this.#context = context;
-
-    // Initialize with debug logging from context
-    this.#atomicSyncQueue = new AtomicSyncQueue(context);
+    this.#atomicSyncQueue = new AtomicSyncQueue();
   }
 
   /**
@@ -67,6 +71,42 @@ export class BackupAndSyncService {
     return this.#context.controller.state.isAccountTreeSyncingInProgress;
   }
 
+  /**
+   * Checks if the account tree has been synced at least once.
+   *
+   * @returns True if the account tree has been synced at least once.
+   */
+  get hasSyncedAtLeastOnce(): boolean {
+    return this.#context.controller.state
+      .hasAccountTreeSyncingSyncedAtLeastOnce;
+  }
+
+  clearState(): void {
+    this.#atomicSyncQueue.clear();
+    this.#ongoingFullSyncPromise = null;
+  }
+
+  /**
+   * Checks if backup and sync is enabled by checking UserStorageController state.
+   *
+   * @returns True if backup and sync + account syncing is enabled.
+   */
+  #isBackupAndSyncEnabled(): boolean {
+    const userStorageControllerState = this.#context.messenger.call(
+      'UserStorageController:getState',
+    );
+    const { isAccountSyncingEnabled, isBackupAndSyncEnabled } =
+      userStorageControllerState;
+
+    return isBackupAndSyncEnabled && isAccountSyncingEnabled;
+  }
+
+  /**
+   * Gets the entropy wallet associated with the given wallet ID.
+   *
+   * @param walletId - The wallet ID to look up.
+   * @returns The associated entropy wallet, or undefined if not found.
+   */
   #getEntropyWallet(
     walletId: AccountWalletId,
   ): AccountWalletEntropyObject | undefined {
@@ -75,35 +115,80 @@ export class BackupAndSyncService {
   }
 
   /**
-   * Enqueues a single wallet sync operation.
+   * Enqueues a single wallet sync operation (fire-and-forget).
    *
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (
-      !this.#context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
-    ) {
+    if (!this.#isBackupAndSyncEnabled()) {
+      return;
+    }
+
+    if (!this.hasSyncedAtLeastOnce) {
+      // Run big sync
+      // eslint-disable-next-line no-void
+      void this.performFullSync();
       return;
     }
 
     this.#atomicSyncQueue.enqueue(() =>
-      this.#performSingleWalletSync(walletId),
+      this.#performSingleWalletSyncInner(walletId),
     );
   }
 
   /**
-   * Enqueues a single group sync operation.
+   * Enqueues a single group sync operation (fire-and-forget).
    *
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
-    if (
-      !this.#context.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce
-    ) {
+    if (!this.#isBackupAndSyncEnabled()) {
       return;
     }
 
-    this.#atomicSyncQueue.enqueue(() => this.#performSingleGroupSync(groupId));
+    if (!this.hasSyncedAtLeastOnce) {
+      // Run big sync
+      // eslint-disable-next-line no-void
+      void this.performFullSync();
+      return;
+    }
+
+    this.#atomicSyncQueue.enqueue(() =>
+      this.#performSingleGroupSyncInner(groupId),
+    );
+  }
+
+  /**
+   * Performs a full synchronization of the local account tree with user storage, ensuring consistency
+   * between local state and cloud-stored account data.
+   * If a full sync is already in progress, it will return the ongoing promise.
+   * This clears the atomic sync queue before starting the full sync.
+   *
+   * @returns A promise that resolves when the sync is complete.
+   */
+  async performFullSync(): Promise<void> {
+    if (!this.#isBackupAndSyncEnabled()) {
+      return undefined;
+    }
+
+    if (this.#ongoingFullSyncPromise) {
+      return this.#ongoingFullSyncPromise;
+    }
+
+    this.#ongoingFullSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(
+      () => this.#performFullSyncInner(),
+      {
+        await: true,
+      },
+    );
+
+    try {
+      await this.#ongoingFullSyncPromise;
+    } finally {
+      this.#ongoingFullSyncPromise = null;
+    }
+
+    return undefined;
   }
 
   /**
@@ -128,7 +213,7 @@ export class BackupAndSyncService {
    *
    * @throws Will throw if the sync operation encounters unrecoverable errors
    */
-  async performFullSync(): Promise<void> {
+  async #performFullSyncInner(): Promise<void> {
     // Prevent multiple syncs from running at the same time.
     // Also prevents atomic updates from being applied while syncing is in progress.
     if (this.isInProgress) {
@@ -145,9 +230,6 @@ export class BackupAndSyncService {
     // Encapsulate the sync logic in a function to allow tracing
     const bigSyncFn = async () => {
       try {
-        // Clear stale atomic syncs - big sync supersedes them
-        this.#atomicSyncQueue.clear();
-
         // 1. Identifies all local entropy wallets that can be synchronized
         const localSyncableWallets = getLocalEntropyWallets(this.#context);
 
@@ -279,6 +361,10 @@ export class BackupAndSyncService {
         backupAndSyncLogger('Error during multichain account syncing:', error);
         throw error;
       }
+
+      this.#context.controllerStateUpdateFn((state) => {
+        state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
+      });
     };
 
     // Execute the big sync function with tracing and ensure state cleanup
@@ -294,7 +380,6 @@ export class BackupAndSyncService {
       this.#context.controllerStateUpdateFn(
         (state: AccountTreeControllerState) => {
           state.isAccountTreeSyncingInProgress = false;
-          state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
         },
       );
     }
@@ -305,7 +390,9 @@ export class BackupAndSyncService {
    *
    * @param walletId - The wallet ID to sync.
    */
-  async #performSingleWalletSync(walletId: AccountWalletId): Promise<void> {
+  async #performSingleWalletSyncInner(
+    walletId: AccountWalletId,
+  ): Promise<void> {
     try {
       const wallet = this.#getEntropyWallet(walletId);
       if (!wallet) {
@@ -342,7 +429,7 @@ export class BackupAndSyncService {
    *
    * @param groupId - The group ID to sync.
    */
-  async #performSingleGroupSync(groupId: AccountGroupId): Promise<void> {
+  async #performSingleGroupSyncInner(groupId: AccountGroupId): Promise<void> {
     try {
       const walletId = this.#context.groupIdToWalletId.get(groupId);
       if (!walletId) {
@@ -372,7 +459,7 @@ export class BackupAndSyncService {
         group.metadata.entropy.groupIndex,
       );
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         this.#context,
         group,
         groupFromUserStorage,

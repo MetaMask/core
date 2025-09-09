@@ -1,6 +1,6 @@
 import {
   createLocalGroupsFromUserStorage,
-  syncSingleGroupMetadata,
+  syncGroupMetadata,
   syncGroupsMetadata,
 } from './group';
 import * as metadataExports from './metadata';
@@ -257,14 +257,14 @@ describe('BackupAndSync - Syncing - Group', () => {
     });
   });
 
-  describe('syncSingleGroupMetadata', () => {
+  describe('syncGroupMetadata', () => {
     it('pushes group when sync check returns true', async () => {
       mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         name: { value: 'Local Name', lastUpdatedAt: 1000 },
       };
       mockCompareAndSyncMetadata.mockResolvedValue(true);
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         mockContext,
         mockLocalGroup,
         {
@@ -284,7 +284,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('does not push group when sync check returns false', async () => {
       mockCompareAndSyncMetadata.mockResolvedValue(false);
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         mockContext,
         mockLocalGroup,
         {
@@ -331,7 +331,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         },
       );
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         mockContext,
         mockLocalGroup,
         {
@@ -396,7 +396,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         },
       );
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         mockContext,
         mockLocalGroup,
         {
@@ -461,7 +461,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         },
       );
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         mockContext,
         mockLocalGroup,
         {
@@ -611,7 +611,7 @@ describe('BackupAndSync - Syncing - Group', () => {
     });
   });
 
-  describe('syncSingleGroupMetadata - debug logging coverage', () => {
+  describe('syncGroupMetadata - debug logging coverage', () => {
     it('logs when group does not exist in user storage', async () => {
       const testContext = {
         ...mockContext,
@@ -626,7 +626,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       mockGetLocalGroupsForEntropyWallet.mockReturnValue([mockLocalGroup]);
       mockPushGroupToUserStorage.mockResolvedValue();
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         testContext,
         mockLocalGroup,
         null, // groupFromUserStorage is null
@@ -666,7 +666,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         },
       );
 
-      await syncSingleGroupMetadata(
+      await syncGroupMetadata(
         testContext,
         mockLocalGroup,
         groupFromUserStorage,

@@ -1,6 +1,5 @@
 import { AtomicSyncQueue } from './atomic-sync-queue';
 import { backupAndSyncLogger } from '../../logger';
-import type { BackupAndSyncContext } from '../types';
 
 jest.mock('../../logger', () => ({
   backupAndSyncLogger: jest.fn(),
@@ -12,18 +11,10 @@ const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
 
 describe('BackupAndSync - Service - AtomicSyncQueue', () => {
   let atomicSyncQueue: AtomicSyncQueue;
-  const mockContext = {
-    controller: {
-      state: {
-        isAccountTreeSyncingInProgress: false,
-        hasAccountTreeSyncingSyncedAtLeastOnce: true,
-      },
-    },
-  } as unknown as BackupAndSyncContext;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    atomicSyncQueue = new AtomicSyncQueue(mockContext);
+    atomicSyncQueue = new AtomicSyncQueue();
   });
 
   afterEach(() => {
@@ -32,13 +23,13 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
 
   describe('constructor', () => {
     it('initializes with default debug logging function', () => {
-      const queue = new AtomicSyncQueue(mockContext);
+      const queue = new AtomicSyncQueue();
       expect(queue.size).toBe(0);
       expect(queue.isProcessing).toBe(false);
     });
 
     it('initializes with provided debug logging function', () => {
-      const queue = new AtomicSyncQueue(mockContext);
+      const queue = new AtomicSyncQueue();
       expect(queue.size).toBe(0);
       expect(queue.isProcessing).toBe(false);
     });
@@ -51,52 +42,6 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       atomicSyncQueue.enqueue(mockSyncFunction);
 
       expect(atomicSyncQueue.size).toBe(1);
-    });
-
-    it('does not enqueue when big sync is in progress', () => {
-      const mockContextWithBigSyncInProgress = {
-        ...mockContext,
-        controller: {
-          ...mockContext.controller,
-          state: {
-            ...mockContext.controller.state,
-            isAccountTreeSyncingInProgress: true,
-          },
-        },
-      } as unknown as BackupAndSyncContext;
-
-      const atomicSyncQueueWithBigSyncInProgress = new AtomicSyncQueue(
-        mockContextWithBigSyncInProgress,
-      );
-
-      const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-
-      atomicSyncQueueWithBigSyncInProgress.enqueue(mockSyncFunction);
-
-      expect(atomicSyncQueueWithBigSyncInProgress.size).toBe(0);
-    });
-
-    it('does not enqueue if big sync has never been ran', () => {
-      const mockContextWithNoBigSyncEver = {
-        ...mockContext,
-        controller: {
-          ...mockContext.controller,
-          state: {
-            ...mockContext.controller.state,
-            hasAccountTreeSyncingSyncedAtLeastOnce: false,
-          },
-        },
-      } as unknown as BackupAndSyncContext;
-
-      const atomicSyncQueueWithNoBigSyncEver = new AtomicSyncQueue(
-        mockContextWithNoBigSyncEver,
-      );
-
-      const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-
-      atomicSyncQueueWithNoBigSyncEver.enqueue(mockSyncFunction);
-
-      expect(atomicSyncQueueWithNoBigSyncEver.size).toBe(0);
     });
 
     it('triggers async processing after enqueueing', async () => {
@@ -129,32 +74,6 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       expect(mockSyncFunction1).toHaveBeenCalled();
       expect(mockSyncFunction2).toHaveBeenCalled();
       expect(atomicSyncQueue.size).toBe(0);
-    });
-
-    it('does not process when big sync is in progress', async () => {
-      const mockContextWithBigSyncInProgress = {
-        ...mockContext,
-        controller: {
-          ...mockContext.controller,
-          state: {
-            ...mockContext.controller.state,
-            isAccountTreeSyncingInProgress: true,
-          },
-        },
-      } as unknown as BackupAndSyncContext;
-
-      const atomicSyncQueueWithBigSyncInProgress = new AtomicSyncQueue(
-        mockContextWithBigSyncInProgress,
-      );
-
-      const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-
-      atomicSyncQueueWithBigSyncInProgress.enqueue(mockSyncFunction);
-
-      await atomicSyncQueueWithBigSyncInProgress.process();
-
-      expect(mockSyncFunction).not.toHaveBeenCalled();
-      expect(atomicSyncQueueWithBigSyncInProgress.size).toBe(0);
     });
 
     it('does not process when already processing', async () => {
@@ -241,7 +160,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
 
     it('accesses size property correctly', () => {
       // Create a fresh queue to test size property
-      const freshQueue = new AtomicSyncQueue(mockContext);
+      const freshQueue = new AtomicSyncQueue();
       expect(freshQueue.size).toBe(0);
 
       // Add multiple items
@@ -275,6 +194,19 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         error,
       );
     });
+
+    it('rejects promise when awaited sync function throws error', async () => {
+      const error = new Error('Sync function failed');
+      const mockSyncFunction = jest.fn().mockRejectedValue(error);
+
+      const promise = atomicSyncQueue.enqueue(mockSyncFunction, {
+        await: true,
+      });
+
+      await expect(promise).rejects.toThrow('Sync function failed');
+      expect(mockSyncFunction).toHaveBeenCalled();
+    });
+
     it('handles empty queue after shift operation', async () => {
       // Test the scenario where shift() might return undefined/null
       // This can happen in race conditions or edge cases

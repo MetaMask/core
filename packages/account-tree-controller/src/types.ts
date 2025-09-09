@@ -119,6 +119,7 @@ export type AllowedActions =
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
   | SnapControllerGetSnap
+  | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorage
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntries
   | UserStorageController.UserStorageControllerPerformSetStorage
@@ -181,7 +182,6 @@ export type AccountTreeControllerConfig = {
   trace?: TraceCallback;
   backupAndSync?: {
     onBackupAndSyncEvent?: (event: BackupAndSyncAnalyticsEventPayload) => void;
-    enableDebugLogging?: boolean;
   };
 };
 

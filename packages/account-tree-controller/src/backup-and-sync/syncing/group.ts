@@ -234,7 +234,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
  * @param entropySourceId - The entropy source ID.
  * @param profileId - The profile ID for analytics.
  */
-export async function syncSingleGroupMetadata(
+export async function syncGroupMetadata(
   context: BackupAndSyncContext,
   localGroup: AccountGroupMultichainAccountObject,
   groupFromUserStorage: UserStorageSyncedWalletGroup | null,
