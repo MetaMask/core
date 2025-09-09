@@ -612,7 +612,9 @@ async function processTransactionWithHook(
       : undefined;
 
     const newNonce =
-      index > 0 && currentNonceNum ? currentNonceNum + index : undefined;
+      index > 0 && currentNonceNum !== undefined
+        ? currentNonceNum + index
+        : undefined;
 
     updateTransaction({ transactionId: id }, (_transactionMeta) => {
       _transactionMeta.batchId = batchId;
@@ -628,8 +630,17 @@ async function processTransactionWithHook(
         newNonce,
       });
 
-      signedTransaction = (await signTransaction(getTransaction(id))) as Hex;
+      const metadataToSign = getTransaction(id);
 
+      const newSignature = (await signTransaction(metadataToSign)) as
+        | Hex
+        | undefined;
+
+      if (!newSignature) {
+        throw new Error('Failed to resign transaction');
+      }
+
+      signedTransaction = newSignature;
       transactionMeta = getTransaction(id);
 
       log('New signature', signedTransaction);
