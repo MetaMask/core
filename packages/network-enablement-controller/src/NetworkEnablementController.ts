@@ -4,6 +4,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
+import { BtcScope, SolScope } from './types';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
@@ -17,7 +18,6 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
-import { BtcScope, SolScope } from './types';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
@@ -117,9 +117,13 @@ const getDefaultNetworkEnablementControllerState =
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
+        [SolScope.Testnet]: false,
+        [SolScope.Devnet]: false,
       },
       [KnownCaipNamespace.Bip122]: {
         [BtcScope.Mainnet]: true,
+        [BtcScope.Testnet]: false,
+        [BtcScope.Signet]: false,
       },
     },
   });
@@ -261,7 +265,7 @@ export class NetworkEnablementController extends BaseController<
         }
       });
 
-      // Enable Solana mainnet if it exists in MultichainNetworkController configurations
+      // Enable only Solana mainnet if it exists in MultichainNetworkController configurations
       const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
@@ -270,11 +274,11 @@ export class NetworkEnablementController extends BaseController<
       ) {
         // Ensure namespace bucket exists
         this.#ensureNamespaceBucket(s, solanaKeys.namespace);
-        // Enable Solana mainnet
+        // Enable the network
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
 
-      // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
+      // Enable only Bitcoin mainnet if it exists in MultichainNetworkController configurations
       const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
@@ -283,7 +287,7 @@ export class NetworkEnablementController extends BaseController<
       ) {
         // Ensure namespace bucket exists
         this.#ensureNamespaceBucket(s, bitcoinKeys.namespace);
-        // Enable Bitcoin mainnet
+        // Enable the network
         s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
           true;
       }
@@ -342,7 +346,7 @@ export class NetworkEnablementController extends BaseController<
         }
       });
 
-      // Enable Solana mainnet if it exists in configurations
+      // Enable only Solana mainnet if it exists in configurations
       const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
       if (
         s.enabledNetworkMap[solanaKeys.namespace] &&
@@ -353,7 +357,7 @@ export class NetworkEnablementController extends BaseController<
         s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
       }
 
-      // Enable Bitcoin mainnet if it exists in configurations
+      // Enable only Bitcoin mainnet if it exists in configurations
       const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
       if (
         s.enabledNetworkMap[bitcoinKeys.namespace] &&
