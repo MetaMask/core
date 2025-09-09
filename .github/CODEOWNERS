@@ -53,9 +53,6 @@
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
-## Rewards Team
-/packages/rewards-controller      @MetaMask/rewards
-
 ## Vault Team
 /packages/delegation-controller           @MetaMask/vault
 
@@ -96,6 +93,7 @@
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/profile-sync-controller      @MetaMask/identity
 /packages/remote-feature-flag-controller @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/rewards-controller           @MetaMask/rewards @MetaMask/core-platform
 /packages/foundryup                    @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Package Release related
@@ -145,6 +143,8 @@
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/core-platform
 /packages/profile-sync-controller/package.json    @MetaMask/identity @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/identity @MetaMask/core-platform
+/packages/rewards-controller/package.json    @MetaMask/rewards @MetaMask/core-platform
+/packages/rewards-controller/CHANGELOG.md    @MetaMask/rewards @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/selected-network-controller/CHANGELOG.md @MetaMask/wallet-api-platform-engineers @MetaMask/core-platform
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
