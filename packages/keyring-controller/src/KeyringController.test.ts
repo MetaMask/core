@@ -4267,91 +4267,85 @@ describe('KeyringController', () => {
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'anonymous',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "isUnlocked": true,
-          }
-        `);
-      });
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'anonymous',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "isUnlocked": false,
+            }
+          `);
+        },
+      );
     });
 
     it('includes expected state in state logs', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'includeInStateLogs',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "isUnlocked": true,
-            "keyrings": Array [
-              Object {
-                "accounts": Array [
-                  "0xfd157b9067b05826da97c5b222127b8ec3e02346",
-                ],
-                "metadata": Object {
-                  "id": "01K4N03WWKXQXT8ATNS430D9SM",
-                  "name": "",
-                },
-                "type": "HD Key Tree",
-              },
-            ],
-          }
-        `);
-      });
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInStateLogs',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "isUnlocked": false,
+              "keyrings": Array [],
+            }
+          `);
+        },
+      );
     });
 
     it('persists expected state', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'persist',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "vault": "{\\"data\\":\\"{\\\\\\"tag\\\\\\":{\\\\\\"key\\\\\\":{\\\\\\"password\\\\\\":\\\\\\"password123\\\\\\",\\\\\\"salt\\\\\\":\\\\\\"salt\\\\\\"},\\\\\\"iv\\\\\\":\\\\\\"iv\\\\\\"},\\\\\\"value\\\\\\":[{\\\\\\"type\\\\\\":\\\\\\"HD Key Tree\\\\\\",\\\\\\"data\\\\\\":{\\\\\\"mnemonic\\\\\\":[107,101,101,110,32,108,101,110,100,32,98,101,110,99,104,32,98,101,97,117,116,121,32,99,104,111,111,115,101,32,119,114,101,115,116,108,101,32,98,101,99,97,117,115,101,32,99,97,117,103,104,116,32,109,97,116,101,114,105,97,108,32,101,109,112,111,119,101,114,32,98,111,116,116,111,109,32,116,119,105,115,116],\\\\\\"numberOfAccounts\\\\\\":1,\\\\\\"hdPath\\\\\\":\\\\\\"m/44'/60'/0'/0\\\\\\"},\\\\\\"metadata\\\\\\":{\\\\\\"id\\\\\\":\\\\\\"01K4N03WWSG75M5QZVDHXTJBYX\\\\\\",\\\\\\"name\\\\\\":\\\\\\"\\\\\\"}}]}\\",\\"iv\\":\\"iv\\",\\"salt\\":\\"salt\\"}",
-          }
-        `);
-      });
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "vault": "{\\"data\\":\\"{\\\\\\"tag\\\\\\":{\\\\\\"key\\\\\\":{\\\\\\"password\\\\\\":\\\\\\"password123\\\\\\",\\\\\\"salt\\\\\\":\\\\\\"salt\\\\\\"},\\\\\\"iv\\\\\\":\\\\\\"iv\\\\\\"},\\\\\\"value\\\\\\":[{\\\\\\"type\\\\\\":\\\\\\"HD Key Tree\\\\\\",\\\\\\"data\\\\\\":{\\\\\\"mnemonic\\\\\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\\\\\"numberOfAccounts\\\\\\":1,\\\\\\"hdPath\\\\\\":\\\\\\"m/44'/60'/0'/0\\\\\\"},\\\\\\"metadata\\\\\\":{\\\\\\"id\\\\\\":\\\\\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\\\\\",\\\\\\"name\\\\\\":\\\\\\"\\\\\\"}}]}\\",\\"iv\\":\\"iv\\",\\"salt\\":\\"salt\\"}",
+            }
+          `);
+        },
+      );
     });
 
     it('exposes expected state to UI', async () => {
-      await withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'usedInUi',
-          ),
-        ).toMatchInlineSnapshot(`
-          Object {
-            "isUnlocked": true,
-            "keyrings": Array [
-              Object {
-                "accounts": Array [
-                  "0xb2a01f1dc0fcbe0156b013e0714a9c7bd6efc844",
-                ],
-                "metadata": Object {
-                  "id": "01K4N03WWXANZQV0W7K88M9Y9F",
-                  "name": "",
-                },
-                "type": "HD Key Tree",
-              },
-            ],
-          }
-        `);
-      });
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'usedInUi',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "isUnlocked": false,
+              "keyrings": Array [],
+            }
+          `);
+        },
+      );
     });
   });
 });
