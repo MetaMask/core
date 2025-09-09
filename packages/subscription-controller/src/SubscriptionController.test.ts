@@ -205,7 +205,8 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger, mockPerformSignOut, baseMessenger } = createMockSubscriptionMessenger();
+  const { messenger, mockPerformSignOut, baseMessenger } =
+    createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
   const controller = new SubscriptionController({
