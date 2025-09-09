@@ -54,7 +54,7 @@ describe('Snaps Utils', () => {
       expect(result.handler).toBe('onClientRequest');
       expect(result.request.id).toBe('test-uuid-1234');
       expect(result.request.jsonrpc).toBe('2.0');
-      expect(result.request.method).toBe('ClientRequest:computeFee');
+      expect(result.request.method).toBe('computeFee');
       expect(result.request.params.transaction).toBe(transaction);
       expect(result.request.params.accountId).toBe(accountId);
       expect(result.request.params.scope).toBe(scope);
@@ -97,7 +97,7 @@ describe('Snaps Utils', () => {
       expect(result.request.id).toBe('test-uuid-1234');
       expect(result.request.jsonrpc).toBe('2.0');
       expect(result.request.method).toBe(
-        'ClientRequest:signAndSendTransaction',
+        'signAndSendTransaction',
       );
       expect(result.request.params.transaction).toBe(transaction);
       expect(result.request.params.scope).toBe(scope);
@@ -129,7 +129,7 @@ describe('Snaps Utils', () => {
       expect(result.request.id).toBe('test-uuid-1234');
       expect(result.request.jsonrpc).toBe('2.0');
       expect(result.request.method).toBe(
-        'ClientRequest:signAndSendTransaction',
+        'signAndSendTransaction',
       );
       expect(result.request.params.transaction).toBe(transaction);
       expect(result.request.params.scope).toBe(scope);

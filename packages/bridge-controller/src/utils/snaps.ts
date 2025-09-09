@@ -46,7 +46,7 @@ export const computeFeeRequest = (
     request: {
       id: uuid(),
       jsonrpc: '2.0',
-      method: 'ClientRequest:computeFee',
+      method: 'computeFee',
       params: {
         transaction,
         accountId,
@@ -81,7 +81,7 @@ export const signAndSendTransactionRequest = (
     request: {
       id: uuid(),
       jsonrpc: '2.0',
-      method: 'ClientRequest:signAndSendTransaction',
+      method: 'signAndSendTransaction',
       params: {
         transaction,
         scope,

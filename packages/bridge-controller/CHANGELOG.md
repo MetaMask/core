@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update Snap methods to use new unified interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Replace `getFeeForTransaction` with `ClientRequest:computeFee` method
+  - Replace `getFeeForTransaction` with `computeFee` method (handled via onClientRequest)
   - Update fee format to return native units (e.g., SOL) instead of smallest units (e.g., Lamports)
   - Add support for Tron chain alongside existing Bitcoin and Solana support
   - Export `signAndSendTransactionRequest` utility function

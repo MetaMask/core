@@ -593,7 +593,7 @@ describe('BridgeController', function () {
                 (params as { handler: string })?.handler ===
                   'onClientRequest' &&
                 (params as { request?: { method: string } })?.request
-                  ?.method === 'ClientRequest:computeFee'
+                  ?.method === 'computeFee'
               ) {
                 return setTimeout(() => {
                   resolve([
@@ -1703,7 +1703,7 @@ describe('BridgeController', function () {
                 (params as { handler: string })?.handler ===
                   'onClientRequest' &&
                 (params as { request?: { method: string } })?.request
-                  ?.method === 'ClientRequest:computeFee'
+                  ?.method === 'computeFee'
               ) {
                 return setTimeout(() => {
                   resolve([
@@ -1866,7 +1866,7 @@ describe('BridgeController', function () {
             if (
               (params as { handler: string })?.handler === 'onClientRequest' &&
               (params as { request?: { method: string } })?.request?.method ===
-                'ClientRequest:computeFee'
+                'computeFee'
             ) {
               return setTimeout(() => {
                 resolve([
