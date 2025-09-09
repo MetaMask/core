@@ -65,11 +65,6 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'POST', request);
   }
 
-  async getPricing(): Promise<PricingResponse> {
-    const path = 'pricing';
-    return await this.#makeRequest<PricingResponse>(path);
-  }
-
   async #makeRequest<Result>(
     path: string,
     method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
@@ -102,5 +97,10 @@ export class SubscriptionService implements ISubscriptionService {
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.authUtils.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  async getPricing(): Promise<PricingResponse> {
+    const path = 'pricing';
+    return await this.#makeRequest<PricingResponse>(path);
   }
 }
