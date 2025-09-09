@@ -104,7 +104,10 @@ function createCustomSubscriptionMessenger(props?: {
     AllowedEvents['type']
   >({
     name: controllerName,
-    allowedActions: ['AuthenticationController:getBearerToken'],
+    allowedActions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:performSignOut',
+    ],
     allowedEvents: props?.overrideEvents ?? [
       'AuthenticationController:stateChange',
     ],
@@ -124,29 +127,24 @@ function createCustomSubscriptionMessenger(props?: {
  * @param overrideMessengers.messenger - messenger to override
  * @returns series of mocks to actions that can be called
  */
-function mockSubscriptionMessenger(overrideMessengers?: {
+function createMockSubscriptionMessenger(overrideMessengers?: {
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   messenger: SubscriptionControllerMessenger;
 }) {
   const { baseMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
 
+  const mockPerformSignOut = jest.fn();
+  baseMessenger.registerActionHandler(
+    'AuthenticationController:performSignOut',
+    mockPerformSignOut,
+  );
+
   return {
     baseMessenger,
     messenger,
+    mockPerformSignOut,
   };
-}
-
-/**
- * Creates a mock subscription messenger for testing.
- *
- * @returns The mock messenger and related mocks.
- */
-function createMockSubscriptionMessenger(): {
-  messenger: SubscriptionControllerMessenger;
-  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
-} {
-  return mockSubscriptionMessenger();
 }
 
 /**
@@ -188,6 +186,7 @@ type WithControllerCallback<ReturnValue> = (params: {
   messenger: SubscriptionControllerMessenger;
   baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   mockService: ReturnType<typeof createMockSubscriptionService>['mockService'];
+  mockPerformSignOut: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -206,7 +205,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ) {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { messenger, baseMessenger } = createMockSubscriptionMessenger();
+  const { messenger, mockPerformSignOut, baseMessenger } = createMockSubscriptionMessenger();
   const { mockService } = createMockSubscriptionService();
 
   const controller = new SubscriptionController({
@@ -221,6 +220,7 @@ async function withController<ReturnValue>(
     messenger,
     baseMessenger,
     mockService,
+    mockPerformSignOut,
   });
 }
 
@@ -805,6 +805,16 @@ describe('SubscriptionController', () => {
             interval: RecurringInterval.month,
           }),
         ).rejects.toThrow('Conversion rate not found');
+      });
+    });
+  });
+
+  describe('triggerAuthTokenRefresh', () => {
+    it('should trigger auth token refresh', async () => {
+      await withController(async ({ controller, mockPerformSignOut }) => {
+        controller.triggerAccessTokenRefresh();
+
+        expect(mockPerformSignOut).toHaveBeenCalledWith();
       });
     });
   });

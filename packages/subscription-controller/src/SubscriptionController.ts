@@ -72,7 +72,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerStartSubscriptionWithCryptoAction;
 
 export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerToken
+  | AuthenticationController.AuthenticationControllerPerformSignOut;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -241,12 +242,19 @@ export class SubscriptionController extends BaseController<
           : subscription,
       );
     });
+
+    this.triggerAccessTokenRefresh();
   }
 
   async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
 
-    return await this.#subscriptionService.startSubscriptionWithCard(request);
+    const response =
+      await this.#subscriptionService.startSubscriptionWithCard(request);
+
+    this.triggerAccessTokenRefresh();
+
+    return response;
   }
 
   async startSubscriptionWithCrypto(request: StartCryptoSubscriptionRequest) {
@@ -373,6 +381,16 @@ export class SubscriptionController extends BaseController<
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
     }
+  }
+
+  /**
+   * Triggers an access token refresh.
+   */
+  triggerAccessTokenRefresh() {
+    // We perform a sign out to clear the access token from the authentication
+    // controller. Next time the access token is requested, a new access token
+    // will be fetched.
+    this.messagingSystem.call('AuthenticationController:performSignOut');
   }
 
   #assertIsUserSubscribed(request: { subscriptionId: string }) {
