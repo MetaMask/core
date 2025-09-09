@@ -4138,6 +4138,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
+    "@metamask/messenger": "npm:^0.2.0"
     "@metamask/utils": "npm:^11.4.2"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^27.4.1"
