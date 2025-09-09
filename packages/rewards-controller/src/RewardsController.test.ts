@@ -1089,6 +1089,54 @@ describe('RewardsController', () => {
         '0x123',
       );
     });
+
+    it('should log and throw error when storing session token fails', async () => {
+      // Given: Internal account with valid EVM scope
+      const mockInternalAccount = {
+        address: '0x123',
+        type: 'eip155:eoa' as const,
+        id: 'test-id',
+        scopes: ['eip155:1' as const],
+        options: {},
+        methods: ['personal_sign'],
+        metadata: {
+          name: 'Test Account',
+          keyring: { type: 'HD Key Tree' },
+          importTime: Date.now(),
+        },
+      };
+
+      mockStoreSubscriptionToken.mockResolvedValueOnce({
+        success: false,
+        error: 'Storage error',
+      });
+
+      const mockLoginResponse = {
+        sessionId: 'session123',
+        subscription: { id: 'sub123', referralCode: 'REF123', accounts: [] },
+      };
+
+      mockMessenger.call
+        .mockReturnValueOnce(mockInternalAccount)
+        .mockResolvedValueOnce('0xsignature')
+        .mockResolvedValueOnce(mockLoginResponse);
+
+      // When: Authentication is triggered
+      const subscribeCallback = mockMessenger.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountsController:selectedAccountChange',
+      )?.[1];
+
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (subscribeCallback) {
+        await subscribeCallback(mockInternalAccount, mockInternalAccount);
+      }
+
+      // Then: Should have performed silent auth for the account
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Failed to store session token',
+        'eip155:1:0x123',
+      );
+    });
   });
 
   describe('getSeasonStatus', () => {
@@ -1956,6 +2004,244 @@ describe('RewardsController', () => {
 
       // Assert
       expect(controller.state.activeAccount).toBeNull();
+    });
+
+    it('should only log the error if session token removal fails', async () => {
+      // Arrange
+      const mockSubscriptionId = 'sub-123';
+      const mockActiveAccount = {
+        account: CAIP_ACCOUNT_1,
+        lastCheckedAuthError: false,
+        hasOptedIn: true,
+        subscriptionId: mockSubscriptionId,
+        lastCheckedAuth: Date.now(),
+        perpsFeeDiscount: 10.0,
+        lastPerpsDiscountRateFetched: Date.now(),
+      } as RewardsAccountState;
+      const mockInternalAccount = {
+        address: '0x123',
+        type: 'eip155:eoa' as const,
+        id: 'test-id',
+        scopes: ['eip155:1' as const],
+        options: {},
+        methods: ['personal_sign'],
+        metadata: {
+          name: 'Test Account',
+          keyring: { type: 'HD Key Tree' },
+          importTime: Date.now(),
+        },
+      };
+
+      // Ensure feature flag is enabled
+      mockGetRewardsFeatureFlag.mockReturnValue(true);
+
+      // Mock getSelectedMultichainAccount to return valid account during initialization
+      mockMessenger.call.mockReturnValue(mockInternalAccount);
+
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: mockActiveAccount,
+          accounts: {
+            [CAIP_ACCOUNT_1]: mockActiveAccount,
+          },
+          subscriptions: {},
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+        removeSubscriptionToken: mockRemoveSubscriptionToken,
+      });
+
+      // Clear only the messenger calls made during initialization, preserve other mocks
+      mockMessenger.call.mockClear();
+      mockStoreSubscriptionToken.mockClear();
+      mockRemoveSubscriptionToken.mockClear();
+
+      // Mock successful data service logout and token removal for the actual test
+      mockMessenger.call.mockResolvedValue(undefined);
+      mockRemoveSubscriptionToken.mockResolvedValue({ success: false });
+
+      // Verify state is correctly set before calling logout
+      expect(controller.state.activeAccount).not.toBeNull();
+      expect(controller.state.activeAccount?.subscriptionId).toBe(
+        mockSubscriptionId,
+      );
+
+      // Act
+      await controller.logout();
+
+      // Assert
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'RewardsDataService:logout',
+        mockSubscriptionId,
+      );
+
+      // Verify state was cleared
+      expect(controller.state.activeAccount).toBeNull();
+      expect(logSpy).toHaveBeenNthCalledWith(
+        4,
+        'RewardsController: Warning - failed to remove session token:',
+        'Unknown error',
+      );
+    });
+
+    it('should only log the error if session token removal function is not passed', async () => {
+      // Arrange
+      const mockSubscriptionId = 'sub-123';
+      const mockActiveAccount = {
+        account: CAIP_ACCOUNT_1,
+        lastCheckedAuthError: false,
+        hasOptedIn: true,
+        subscriptionId: mockSubscriptionId,
+        lastCheckedAuth: Date.now(),
+        perpsFeeDiscount: 10.0,
+        lastPerpsDiscountRateFetched: Date.now(),
+      } as RewardsAccountState;
+      const mockInternalAccount = {
+        address: '0x123',
+        type: 'eip155:eoa' as const,
+        id: 'test-id',
+        scopes: ['eip155:1' as const],
+        options: {},
+        methods: ['personal_sign'],
+        metadata: {
+          name: 'Test Account',
+          keyring: { type: 'HD Key Tree' },
+          importTime: Date.now(),
+        },
+      };
+
+      // Ensure feature flag is enabled
+      mockGetRewardsFeatureFlag.mockReturnValue(true);
+
+      // Mock getSelectedMultichainAccount to return valid account during initialization
+      mockMessenger.call.mockReturnValue(mockInternalAccount);
+
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: mockActiveAccount,
+          accounts: {
+            [CAIP_ACCOUNT_1]: mockActiveAccount,
+          },
+          subscriptions: {},
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+        removeSubscriptionToken: undefined,
+      });
+
+      // Clear only the messenger calls made during initialization, preserve other mocks
+      mockMessenger.call.mockClear();
+      mockStoreSubscriptionToken.mockClear();
+
+      // Mock successful data service logout and token removal for the actual test
+      mockMessenger.call.mockResolvedValue(undefined);
+
+      // Verify state is correctly set before calling logout
+      expect(controller.state.activeAccount).not.toBeNull();
+      expect(controller.state.activeAccount?.subscriptionId).toBe(
+        mockSubscriptionId,
+      );
+
+      // Act
+      await controller.logout();
+
+      // Assert
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'RewardsDataService:logout',
+        mockSubscriptionId,
+      );
+
+      // Verify state was cleared
+      expect(controller.state.activeAccount).toBeNull();
+      expect(logSpy).toHaveBeenNthCalledWith(
+        4,
+        'RewardsController: No removeSubscriptionToken function defined',
+      );
+    });
+
+    it('should throw error if anything inside login throws error', async () => {
+      // Arrange
+      const mockSubscriptionId = 'sub-123';
+      const mockActiveAccount = {
+        account: CAIP_ACCOUNT_1,
+        lastCheckedAuthError: false,
+        hasOptedIn: true,
+        subscriptionId: mockSubscriptionId,
+        lastCheckedAuth: Date.now(),
+        perpsFeeDiscount: 10.0,
+        lastPerpsDiscountRateFetched: Date.now(),
+      } as RewardsAccountState;
+      const mockInternalAccount = {
+        address: '0x123',
+        type: 'eip155:eoa' as const,
+        id: 'test-id',
+        scopes: ['eip155:1' as const],
+        options: {},
+        methods: ['personal_sign'],
+        metadata: {
+          name: 'Test Account',
+          keyring: { type: 'HD Key Tree' },
+          importTime: Date.now(),
+        },
+      };
+
+      // Ensure feature flag is enabled
+      mockGetRewardsFeatureFlag.mockReturnValue(true);
+
+      // Mock getSelectedMultichainAccount to return valid account during initialization
+      mockMessenger.call.mockReturnValue(mockInternalAccount);
+
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: mockActiveAccount,
+          accounts: {
+            [CAIP_ACCOUNT_1]: mockActiveAccount,
+          },
+          subscriptions: {},
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+        removeSubscriptionToken: mockRemoveSubscriptionToken,
+      });
+
+      // Clear only the messenger calls made during initialization, preserve other mocks
+      mockMessenger.call.mockClear();
+      mockStoreSubscriptionToken.mockClear();
+
+      // Mock successful data service logout and failed token removal for the actual test
+      mockMessenger.call.mockResolvedValue(undefined);
+      mockRemoveSubscriptionToken.mockRejectedValue(
+        new Error('Subscription token removal failed'),
+      );
+
+      // Verify state is correctly set before calling logout
+      expect(controller.state.activeAccount).not.toBeNull();
+      expect(controller.state.activeAccount?.subscriptionId).toBe(
+        mockSubscriptionId,
+      );
+
+      // Act
+      await expect(controller.logout()).rejects.toThrow(
+        'Subscription token removal failed',
+      );
+
+      // Assert
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'RewardsDataService:logout',
+        mockSubscriptionId,
+      );
+
+      // Verify state was cleared
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Logout failed to complete',
+        'Subscription token removal failed',
+      );
     });
   });
 
