@@ -4354,6 +4354,9 @@ __metadata:
   resolution: "@metamask/rewards-controller@workspace:packages/rewards-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/keyring-internal-api": "npm:^8.1.0"
+    "@metamask/utils": "npm:^11.4.2"
+    "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"

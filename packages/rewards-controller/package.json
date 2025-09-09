@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/keyring-internal-api": "^8.1.0",
-    "@metamask/utils": "^11.7.0",
+    "@metamask/utils": "^11.4.2",
     "@solana/addresses": "^2.0.0"
   },
   "devDependencies": {
