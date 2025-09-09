@@ -9,14 +9,20 @@ import type {
 } from '@metamask/network-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type { Infer } from '@metamask/superstruct';
+import {
+  array,
+  boolean,
+  nonempty,
+  object,
+  optional,
+  record,
+  string,
+  tuple,
+  type,
+} from '@metamask/superstruct';
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
-
-import type {
-  GetCallsStatusStruct,
-  GetCapabilitiesStruct,
-  SendCallsStruct,
-} from './constants';
+import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
 
 type Actions =
   | AccountsControllerGetStateAction
@@ -80,3 +86,39 @@ export type ProcessSendCallsHook = (
   sendCalls: SendCallsPayload,
   req: JsonRpcRequest,
 ) => Promise<SendCallsResult>;
+
+// /** Structs **/
+// Even though these aren't actually typescript types, these structs essentially represent
+// runtime types, so we keep them in this file.
+export const GetCallsStatusStruct = tuple([StrictHexStruct]);
+
+export const GetCapabilitiesStruct = tuple([
+  HexChecksumAddressStruct,
+  optional(array(StrictHexStruct)),
+]);
+
+export const CapabilitiesStruct = record(
+  string(),
+  type({
+    optional: optional(boolean()),
+  }),
+);
+
+export const SendCallsStruct = tuple([
+  object({
+    version: nonempty(string()),
+    id: optional(StrictHexStruct),
+    from: optional(HexChecksumAddressStruct),
+    chainId: StrictHexStruct,
+    atomicRequired: boolean(),
+    calls: array(
+      object({
+        to: optional(HexChecksumAddressStruct),
+        data: optional(StrictHexStruct),
+        value: optional(StrictHexStruct),
+        capabilities: optional(CapabilitiesStruct),
+      }),
+    ),
+    capabilities: optional(CapabilitiesStruct),
+  }),
+]);

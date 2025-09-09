@@ -1,16 +1,4 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
-import {
-  array,
-  boolean,
-  nonempty,
-  object,
-  optional,
-  record,
-  string,
-  tuple,
-  type,
-} from '@metamask/superstruct';
-import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
 
 export const VERSION = '2.0.0';
 
@@ -39,38 +27,3 @@ export enum GetCallsStatusCode {
   REVERTED = 500,
   REVERTED_PARTIAL = 600,
 }
-
-export const GetCallsStatusStruct = tuple([StrictHexStruct]);
-
-// wallet_getCapabilities
-export const GetCapabilitiesStruct = tuple([
-  HexChecksumAddressStruct,
-  optional(array(StrictHexStruct)),
-]);
-
-export const CapabilitiesStruct = record(
-  string(),
-  type({
-    optional: optional(boolean()),
-  }),
-);
-
-// wallet_sendCalls
-export const SendCallsStruct = tuple([
-  object({
-    version: nonempty(string()),
-    id: optional(StrictHexStruct),
-    from: optional(HexChecksumAddressStruct),
-    chainId: StrictHexStruct,
-    atomicRequired: boolean(),
-    calls: array(
-      object({
-        to: optional(HexChecksumAddressStruct),
-        data: optional(StrictHexStruct),
-        value: optional(StrictHexStruct),
-        capabilities: optional(CapabilitiesStruct),
-      }),
-    ),
-    capabilities: optional(CapabilitiesStruct),
-  }),
-]);
