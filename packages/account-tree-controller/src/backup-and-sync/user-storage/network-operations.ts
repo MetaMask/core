@@ -70,16 +70,17 @@ export const pushWalletToUserStorage = async (
 ): Promise<void> => {
   return executeWithRetry(async () => {
     const formattedWallet = formatWalletForUserStorageUsage(context, wallet);
+    const stringifiedWallet = JSON.stringify(formattedWallet);
     const entropySourceId = wallet.metadata.entropy.id;
 
     context.contextualLogger.info(
-      `Pushing wallet to user storage: ${JSON.stringify(formattedWallet)}`,
+      `Pushing wallet to user storage: ${stringifiedWallet}`,
     );
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_WALLETS_FEATURE_KEY}.${USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY}`,
-      JSON.stringify(formattedWallet),
+      stringifiedWallet,
       entropySourceId,
     );
   });
@@ -176,15 +177,16 @@ export const pushGroupToUserStorage = async (
 ): Promise<void> => {
   return executeWithRetry(async () => {
     const formattedGroup = formatGroupForUserStorageUsage(context, group);
+    const stringifiedGroup = JSON.stringify(formattedGroup);
 
     context.contextualLogger.info(
-      `Pushing group to user storage: ${JSON.stringify(formattedGroup)}`,
+      `Pushing group to user storage: ${stringifiedGroup}`,
     );
 
     return await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_GROUPS_FEATURE_KEY}.${formattedGroup.groupIndex}`,
-      JSON.stringify(formattedGroup),
+      stringifiedGroup,
       entropySourceId,
     );
   });
@@ -207,13 +209,14 @@ export const pushGroupToUserStorageBatch = async (
     const formattedGroups = groups.map((group) =>
       formatGroupForUserStorageUsage(context, group),
     );
+
     const entries: [string, string][] = formattedGroups.map((group) => [
       String(group.groupIndex),
       JSON.stringify(group),
     ]);
 
     context.contextualLogger.info(
-      `Pushing groups to user storage: ${JSON.stringify(formattedGroups)}`,
+      `Pushing groups to user storage: ${entries.map(([_, value]) => value).join(', ')}`,
     );
 
     return await context.messenger.call(
