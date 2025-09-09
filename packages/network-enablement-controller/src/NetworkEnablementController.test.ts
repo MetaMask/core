@@ -114,9 +114,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -153,9 +157,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -190,9 +198,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -303,9 +315,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -370,9 +386,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet (exists in multichain config)
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -649,9 +669,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -668,9 +692,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -737,9 +765,13 @@ describe('NetworkEnablementController', () => {
           [KnownCaipNamespace.Eip155]: expectedEip155Networks,
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -889,9 +921,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -908,9 +944,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Unaffected (different namespace)
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -947,9 +987,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -967,9 +1011,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -987,9 +1035,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1018,9 +1070,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1075,9 +1131,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             'bip122:000000000019d6689c085ae165831e93': true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1100,9 +1160,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1133,9 +1197,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1374,6 +1442,8 @@ describe('NetworkEnablementController', () => {
         controller.state.enabledNetworkMap[KnownCaipNamespace.Bip122],
       ).toStrictEqual({
         [BtcScope.Mainnet]: true,
+        [BtcScope.Testnet]: false,
+        [BtcScope.Signet]: false,
       });
     });
 
@@ -1382,16 +1452,25 @@ describe('NetworkEnablementController', () => {
 
       // Initially enabled
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
 
       // Enable Bitcoin testnet (should disable mainnet due to exclusive behavior)
       controller.enableNetwork(BtcScope.Testnet);
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
 
+      // Enable Bitcoin signet (should disable mainnet and testnet)
+      controller.enableNetwork(BtcScope.Signet);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+
       // Re-enable mainnet (should disable testnet)
       controller.enableNetwork(BtcScope.Mainnet);
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
     });
 
     it('allows disabling the last Bitcoin network', () => {
