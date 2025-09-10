@@ -68,7 +68,7 @@ export type ProcessRequestExecutionPermissionsHook = (
 
 export async function walletRequestExecutionPermissions(
   req: JsonRpcRequest,
-  res: PendingJsonRpcResponse<Json>,
+  res: PendingJsonRpcResponse,
   {
     processRequestExecutionPermissions,
   }: {

@@ -1,7 +1,6 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Infer } from '@metamask/superstruct';
 import {
-  type Json,
   type JsonRpcRequest,
   object,
   type PendingJsonRpcResponse,
@@ -31,7 +30,7 @@ export type ProcessRevokeExecutionPermissionHook = (
 
 export async function walletRevokeExecutionPermission(
   req: JsonRpcRequest,
-  res: PendingJsonRpcResponse<Json>,
+  res: PendingJsonRpcResponse,
   {
     processRevokeExecutionPermission,
   }: {

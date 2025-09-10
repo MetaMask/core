@@ -10,7 +10,7 @@ import { projectLogger, createModuleLogger } from './logging-utils';
 import type { JsonRpcRequestToCache, JsonRpcCacheMiddleware } from './types';
 import { cacheIdentifierForRequest } from './utils/cache';
 
-type RequestHandlers = (handledRes: PendingJsonRpcResponse<Json>) => void;
+type RequestHandlers = (handledRes: PendingJsonRpcResponse) => void;
 interface InflightRequest {
   [cacheId: string]: RequestHandlers[];
 }
@@ -72,11 +72,11 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
   );
 
   async function createActiveRequestHandler(
-    res: PendingJsonRpcResponse<Json>,
+    res: PendingJsonRpcResponse,
     activeRequestHandlers: RequestHandlers[],
   ): Promise<void> {
     const { resolve, promise } = deferredPromise();
-    activeRequestHandlers.push((handledRes: PendingJsonRpcResponse<Json>) => {
+    activeRequestHandlers.push((handledRes: PendingJsonRpcResponse) => {
       // append a copy of the result and error to the response
       res.result = klona(handledRes.result);
       res.error = klona(handledRes.error);
@@ -86,7 +86,7 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
   }
 
   function handleActiveRequest(
-    res: PendingJsonRpcResponse<Json>,
+    res: PendingJsonRpcResponse,
     activeRequestHandlers: RequestHandlers[],
   ): void {
     // use setTimeout so we can resolve our original request first

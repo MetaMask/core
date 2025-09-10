@@ -1,8 +1,4 @@
-import type {
-  Json,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
 
 import type {
@@ -70,7 +66,7 @@ const RESULT_MOCK: RequestExecutionPermissionsResult = [
 describe('wallet_requestExecutionPermissions', () => {
   let request: JsonRpcRequest;
   let params: RequestExecutionPermissionsRequestParams;
-  let response: PendingJsonRpcResponse<Json>;
+  let response: PendingJsonRpcResponse;
   let processRequestExecutionPermissionsMock: jest.MockedFunction<ProcessRequestExecutionPermissionsHook>;
 
   async function callMethod() {
@@ -85,7 +81,7 @@ describe('wallet_requestExecutionPermissions', () => {
 
     request = klona(REQUEST_MOCK);
     params = request.params as RequestExecutionPermissionsRequestParams;
-    response = {} as PendingJsonRpcResponse<Json>;
+    response = {} as PendingJsonRpcResponse;
 
     processRequestExecutionPermissionsMock = jest.fn();
     processRequestExecutionPermissionsMock.mockResolvedValue(RESULT_MOCK);

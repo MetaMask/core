@@ -39,7 +39,7 @@ function hasProperty<ObjectToCheck, Property extends ValidPropertyType>(
 }
 
 function getResultBlockNumber(
-  response: PendingJsonRpcResponse<Json>,
+  response: PendingJsonRpcResponse,
 ): string | undefined {
   const { result } = response;
   if (
