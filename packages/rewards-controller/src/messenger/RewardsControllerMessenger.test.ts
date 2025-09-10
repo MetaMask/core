@@ -42,6 +42,7 @@ describe('getRewardsControllerMessenger', () => {
       'AccountsController:getSelectedMultichainAccount',
       'KeyringController:signPersonalMessage',
       'RewardsDataService:login',
+      'RewardsDataService:getPointsEvents',
       'RewardsDataService:estimatePoints',
       'RewardsDataService:getPerpsDiscount',
       'RewardsDataService:getSeasonStatus',

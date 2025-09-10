@@ -2,6 +2,7 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import { successfulFetch } from '@metamask/controller-utils';
 
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
   LoginResponseDto,
@@ -16,14 +17,13 @@ import type {
   ChallengeResponseDto,
   LoginDto,
   EnvironmentType,
+  GetPointsEventsDto,
+  PaginatedPointsEventsDto,
 } from '../types';
 
 const SERVICE_NAME = 'RewardsDataService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
-
-// Default timeout for all API requests (10 seconds)
-const DEFAULT_REQUEST_TIMEOUT_MS = 10000;
 
 // Geolocation URLs for different environments
 const GEOLOCATION_URLS = {
@@ -39,6 +39,11 @@ type GetSubscriptionToken = (subscriptionId: string) => Promise<TokenResponse>;
 export type RewardsDataServiceLoginAction = {
   type: `${typeof SERVICE_NAME}:login`;
   handler: RewardsDataService['login'];
+};
+
+export type RewardsDataServiceGetPointsEventsAction = {
+  type: `${typeof SERVICE_NAME}:getPointsEvents`;
+  handler: RewardsDataService['getPointsEvents'];
 };
 
 export type RewardsDataServiceEstimatePointsAction = {
@@ -88,6 +93,7 @@ export type RewardsDataServiceValidateReferralCodeAction = {
 
 export type RewardsDataServiceActions =
   | RewardsDataServiceLoginAction
+  | RewardsDataServiceGetPointsEventsAction
   | RewardsDataServiceEstimatePointsAction
   | RewardsDataServiceGetPerpsDiscountAction
   | RewardsDataServiceGetSeasonStatusAction
@@ -163,6 +169,10 @@ export class RewardsDataService {
     this.#messenger.registerActionHandler(
       `${SERVICE_NAME}:login`,
       this.login.bind(this),
+    );
+    this.#messenger.registerActionHandler(
+      `${SERVICE_NAME}:getPointsEvents`,
+      this.getPointsEvents.bind(this),
     );
     this.#messenger.registerActionHandler(
       `${SERVICE_NAME}:estimatePoints`,
@@ -300,6 +310,36 @@ export class RewardsDataService {
     }
 
     return (await response.json()) as LoginResponseDto;
+  }
+
+  /**
+   * Get a list of points events for the season
+   * @param params - The request parameters containing
+   * @returns The list of points events DTO.
+   */
+  async getPointsEvents(
+    params: GetPointsEventsDto,
+  ): Promise<PaginatedPointsEventsDto> {
+    const { seasonId, subscriptionId, cursor } = params;
+
+    let url = `/seasons/${seasonId}/points-events`;
+    if (cursor) {
+      url += `?cursor=${encodeURIComponent(cursor)}`;
+    }
+
+    const response = await this.makeRequest(
+      url,
+      {
+        method: 'GET',
+      },
+      subscriptionId,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Get points events failed: ${response.status}`);
+    }
+
+    return (await response.json()) as PaginatedPointsEventsDto;
   }
 
   /**

@@ -20,6 +20,7 @@ import type {
   RewardsDataServiceLogoutAction,
   RewardsDataServiceFetchGeoLocationAction,
   RewardsDataServiceValidateReferralCodeAction,
+  RewardsDataServiceGetPointsEventsAction,
 } from '../services';
 import type {
   RewardsControllerActions,
@@ -33,6 +34,7 @@ type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction
   | KeyringControllerSignPersonalMessageAction
   | RewardsDataServiceLoginAction
+  | RewardsDataServiceGetPointsEventsAction
   | RewardsDataServiceEstimatePointsAction
   | RewardsDataServiceGetPerpsDiscountAction
   | RewardsDataServiceGetSeasonStatusAction
@@ -76,6 +78,7 @@ export function getRewardsControllerMessenger(
       'AccountsController:getSelectedMultichainAccount',
       'KeyringController:signPersonalMessage',
       'RewardsDataService:login',
+      'RewardsDataService:getPointsEvents',
       'RewardsDataService:estimatePoints',
       'RewardsDataService:getPerpsDiscount',
       'RewardsDataService:getSeasonStatus',
