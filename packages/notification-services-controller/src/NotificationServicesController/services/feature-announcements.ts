@@ -140,8 +140,8 @@ const fetchFeatureAnnouncementNotifications = async (
             mobileLinkText: mobileLinkFields?.mobileLinkText,
             mobileLinkUrl: mobileLinkFields?.mobileLinkUrl,
           },
-          mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
           extensionMinimumVersionNumber: fields.extensionMinimumVersionNumber,
+          mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
         },
       };
 
