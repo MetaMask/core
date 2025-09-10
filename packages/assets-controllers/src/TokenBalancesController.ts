@@ -1,3 +1,7 @@
+import BN from 'bn.js';
+import { produce } from 'immer';
+import { isEqual } from 'lodash';
+
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -14,7 +18,6 @@ import {
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
-import BN from 'bn.js';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -22,11 +25,6 @@ import type {
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
-// Define the AccountActivityService event type locally to avoid cross-package dependency
-type AccountActivityServiceBalanceUpdatedEvent = {
-  type: 'AccountActivityService:balanceUpdated';
-  payload: [{ address: string; chain: string; updates: Array<{ asset: { type: string; unit: string }; postBalance: { amount: string } }> }];
-};
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -34,8 +32,6 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
-import { produce } from 'immer';
-import { isEqual } from 'lodash';
 
 import type {
   AccountTrackerUpdateNativeBalancesAction,
@@ -53,6 +49,34 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+
+// Define the AccountActivityService event type locally to avoid cross-package dependency
+// This matches the exact definition in @metamask/backend-platform
+type AccountActivityServiceBalanceUpdatedEvent = {
+  type: 'AccountActivityService:balanceUpdated';
+  payload: [
+    {
+      address: string;
+      chain: string;
+      updates: Array<{
+        asset: {
+          fungible: boolean;
+          type: string;
+          unit: string;
+        };
+        postBalance: {
+          amount: string;
+          error?: string;
+        };
+        transfers: Array<{
+          from: string;
+          to: string;
+          amount: string;
+        }>;
+      }>;
+    },
+  ];
+};
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
