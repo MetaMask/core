@@ -38,13 +38,11 @@ export type TokenScanResult = {
 /**
  * Response for bulk token screening requests
  */
-export type BulkTokenScanResponse = {
-  results: Record<string, TokenScanResult>;
-  errors: Record<string, string[]>;
-};
+export type BulkTokenScanResponse = Record<string, TokenScanResult>;
 
 /**
  * Token data stored in cache (excludes chainId and tokenAddress which are in the key)
+ * For now, we only cache the result type, but we could add more data if needed in the future
  */
 type TokenScanCacheData = Omit<TokenScanResult, 'chainId' | 'tokenAddress'>;
 
@@ -956,7 +954,7 @@ export class PhishingController extends BaseController<
    * @param request - The bulk scan request containing chainId and tokens.
    * @param request.chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
    * @param request.tokens - Array of token addresses to scan.
-   * @returns A mapping of token identifiers to their scan results and errors.
+   * @returns A mapping of lowercase token addresses to their scan results. Tokens that fail to scan are omitted.
    */
   bulkScanTokens = async (request: {
     chainId: string;
@@ -965,23 +963,15 @@ export class PhishingController extends BaseController<
     const { chainId, tokens } = request;
 
     if (!tokens || tokens.length === 0) {
-      return {
-        results: {},
-        errors: {},
-      };
+      return {};
     }
 
     // Limit to 20 tokens per request
     const MAX_TOKENS_PER_REQUEST = 20;
     if (tokens.length > MAX_TOKENS_PER_REQUEST) {
-      return {
-        results: {},
-        errors: {
-          too_many_tokens: [
-            `Maximum of ${MAX_TOKENS_PER_REQUEST} tokens allowed per request`,
-          ],
-        },
-      };
+      throw new Error(
+        `Maximum of ${MAX_TOKENS_PER_REQUEST} tokens allowed per request`,
+      );
     }
 
     // Convert hex chainId to decimal for chain name lookup
@@ -989,28 +979,20 @@ export class PhishingController extends BaseController<
     const chain = this.#chainIdToName[decimalChainId];
 
     if (!chain) {
-      return {
-        results: {},
-        errors: {
-          invalid_chain: [`Unknown chain ID: ${chainId}`],
-        },
-      };
+      throw new Error(`Unknown chain ID: ${chainId}`);
     }
 
-    const combinedResponse: BulkTokenScanResponse = {
-      results: {},
-      errors: {},
-    };
-
+    const results: Record<string, TokenScanResult> = {};
     const tokensToFetch: string[] = [];
 
     // Check cache for each token
     for (const tokenAddress of tokens) {
-      const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+      const normalizedAddress = tokenAddress.toLowerCase();
+      const cacheKey = `${chainId}:${normalizedAddress}`;
       const cachedResult = this.#tokenScanCache.get(cacheKey);
 
       if (cachedResult) {
-        combinedResponse.results[cacheKey] = {
+        results[normalizedAddress] = {
           chainId,
           tokenAddress,
           resultType: cachedResult.resultType,
@@ -1041,37 +1023,22 @@ export class PhishingController extends BaseController<
             );
 
             if (!res.ok) {
-              return {
-                error: `${res.status} ${res.statusText}`,
-              };
+              throw new Error(`${res.status} ${res.statusText}`);
             }
 
-            const data = await res.json();
-            return data;
+            return await res.json();
           },
           true,
           5000, // 5 second timeout
         );
 
-        if (!apiResponse) {
-          // Add timeout error for all tokens
-          tokensToFetch.forEach((tokenAddress) => {
-            const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
-            combinedResponse.errors[cacheKey] = ['timeout of 5000ms exceeded'];
-          });
-        } else if ('error' in apiResponse) {
-          // Add API error for all tokens
-          tokensToFetch.forEach((tokenAddress) => {
-            const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
-            combinedResponse.errors[cacheKey] = [apiResponse.error];
-          });
-        } else if (apiResponse.results) {
-          // Process bulk response results
-          tokensToFetch.forEach((tokenAddress) => {
-            const tokenResult = apiResponse.results[tokenAddress.toLowerCase()];
-            const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+        // Process bulk response results if we got them
+        if (apiResponse?.results) {
+          for (const tokenAddress of tokensToFetch) {
+            const normalizedAddress = tokenAddress.toLowerCase();
+            const tokenResult = apiResponse.results[normalizedAddress];
 
-            if (tokenResult && tokenResult.result_type) {
+            if (tokenResult?.result_type) {
               const result: TokenScanResult = {
                 chainId,
                 tokenAddress,
@@ -1079,31 +1046,22 @@ export class PhishingController extends BaseController<
               };
 
               // Add to cache
+              const cacheKey = `${chainId}:${normalizedAddress}`;
               this.#tokenScanCache.set(cacheKey, {
                 resultType: tokenResult.result_type,
               });
 
-              combinedResponse.results[cacheKey] = result;
-            } else {
-              // Token not found in response
-              combinedResponse.errors[cacheKey] = [
-                'Token not found in response',
-              ];
+              results[normalizedAddress] = result;
             }
-          });
+          }
         }
       } catch (error) {
-        // Add error for all tokens
-        tokensToFetch.forEach((tokenAddress) => {
-          const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
-          combinedResponse.errors[cacheKey] = [
-            error instanceof Error ? error.message : 'Unknown error',
-          ];
-        });
+        // On error, just return what we have from cache
+        // Consumers can detect missing tokens and retry if needed
       }
     }
 
-    return combinedResponse;
+    return results;
   };
 
   /**
