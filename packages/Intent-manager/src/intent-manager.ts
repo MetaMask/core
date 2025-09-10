@@ -3,8 +3,6 @@ import { CowSwapProvider } from './providers/cowswap';
 import type {
   BaseIntentProvider,
   IntentOrder,
-  IntentQuote,
-  IntentQuoteRequest,
   IntentSubmissionParams,
   ProviderSelectionCriteria,
   ProviderRegistry,
@@ -140,43 +138,6 @@ export class IntentManager {
     }
 
     return availableProviders;
-  }
-
-  /**
-   * Generate quotes from multiple providers
-   *
-   * @param request - The quote request parameters
-   * @param criteria - Optional criteria for provider selection
-   * @returns Array of quotes sorted by best rate (highest destAmount)
-   */
-  async generateQuotes(
-    request: IntentQuoteRequest,
-    criteria?: ProviderSelectionCriteria,
-  ): Promise<IntentQuote[]> {
-    const providers = this.getAvailableProviders(criteria);
-    const quotes: IntentQuote[] = [];
-
-    await Promise.allSettled(
-      providers.map(async (provider) => {
-        try {
-          const isValid = await provider.validateQuoteRequest(request);
-          if (isValid) {
-            const quote = await provider.generateQuote(request);
-            quotes.push(quote);
-          }
-        } catch (error) {
-          console.warn(
-            `Failed to get quote from ${provider.getName()}:`,
-            error,
-          );
-        }
-      }),
-    );
-
-    // Sort by best rate (highest destination amount)
-    return quotes.sort(
-      (a, b) => parseFloat(b.destAmount) - parseFloat(a.destAmount),
-    );
   }
 
   async submitIntent(params: IntentSubmissionParams): Promise<IntentOrder> {

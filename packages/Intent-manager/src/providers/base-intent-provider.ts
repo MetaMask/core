@@ -1,6 +1,4 @@
 import type {
-  IntentQuoteRequest,
-  IntentQuote,
   IntentOrder,
   IntentSubmissionParams,
   IntentProviderConfig,
@@ -37,14 +35,6 @@ export abstract class BaseIntentProvider {
   abstract getSupportedChains(): number[];
 
   /**
-   * Generate a quote for the given request
-   *
-   * @param request - The quote request parameters
-   * @returns Promise resolving to an intent quote
-   */
-  abstract generateQuote(request: IntentQuoteRequest): Promise<IntentQuote>;
-
-  /**
    * Submit an order based on the quote and signature
    *
    * @param params - The submission parameters including quote and signature
@@ -72,30 +62,6 @@ export abstract class BaseIntentProvider {
    * @returns Promise resolving to true if cancellation was successful
    */
   abstract cancelOrder(orderId: string, chainId: number): Promise<boolean>;
-
-  /**
-   * Validate that a quote request is valid for this provider
-   *
-   * @param request - The quote request to validate
-   * @returns Promise resolving to true if the request is valid
-   */
-  abstract validateQuoteRequest(request: IntentQuoteRequest): Promise<boolean>;
-
-  /**
-   * Estimate gas cost for executing the given quote
-   *
-   * @param quote - The quote to estimate gas for
-   * @returns Promise resolving to the estimated gas amount as a string
-   */
-  abstract estimateGas(quote: IntentQuote): Promise<string>;
-
-  /**
-   * Lifecycle hook called after a quote is generated
-   * Override this method to add provider-specific post-quote logic
-   *
-   * @param quote - The generated quote
-   */
-  protected async onQuoteGenerated?(quote: IntentQuote): Promise<void>;
 
   /**
    * Lifecycle hook called after an order is submitted

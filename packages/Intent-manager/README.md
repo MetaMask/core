@@ -2,26 +2,23 @@
 
 # `@metamask/intent-manager`
 
-A comprehensive intent management system for MetaMask that orchestrates cross-chain token swaps and bridging operations through multiple decentralized exchange (DEX) providers. This package provides quote aggregation, order execution, and lifecycle management for user intents.
+A comprehensive intent management system for MetaMask that orchestrates cross-chain token swaps and bridging operations through multiple decentralized exchange (DEX) providers. This package provides order execution and lifecycle management for user intents.
 
 ## Overview
 
 The Intent Manager provides a unified interface for:
 
-- **Multi-Provider Quote Aggregation**: Get quotes from multiple DEX providers (CowSwap, 1inch, etc.)
 - **Cross-Chain Operations**: Support for token swaps and bridging across different blockchain networks
-- **Order Lifecycle Management**: Handle quote generation, order submission, execution tracking, and status monitoring
+- **Order Lifecycle Management**: Handle order submission, execution tracking, and status monitoring
 - **Provider Management**: Pluggable architecture for adding new DEX providers
 - **State Management**: Track intent orders and maintain execution history
 
 ## Key Features
 
-- 🔄 **Cross-chain token swaps** with automatic best-rate selection
+- 🔄 **Cross-chain token swaps** through multiple providers
 - 🏪 **Multi-provider support** with extensible provider architecture
 - 📊 **Real-time order tracking** and status updates
-- ⚡ **Gas estimation** and fee calculation
-- 🛡️ **Slippage protection** and validation
-- 📈 **Price impact analysis** for informed decision making
+- 🛡️ **Order lifecycle management** with comprehensive error handling
 
 ## Installation
 
@@ -39,38 +36,32 @@ npm install @metamask/intent-manager
 
 ```typescript
 import { IntentManager } from '@metamask/intent-manager';
-import type { IntentQuoteRequest } from '@metamask/intent-manager';
+import type { IntentSubmissionParams } from '@metamask/intent-manager';
 
 // Initialize the intent manager
 const intentManager = new IntentManager();
 
-// Request quotes for a cross-chain swap
-const quoteRequest: IntentQuoteRequest = {
-  srcChainId: 1, // Ethereum Mainnet
-  destChainId: 42161, // Arbitrum One
-  srcTokenAddress: '0xA0b86a33E6441e6e80D0c4C6C7527d72', // USDC
-  destTokenAddress: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', // WETH
-  amount: '1000000000000000000', // 1 token (18 decimals)
+// Submit an intent order (order data would come from backend)
+const submissionParams: IntentSubmissionParams = {
+  providerName: 'cowswap',
+  chainId: 1, // Ethereum Mainnet
+  orderData: {
+    sellToken: '0xA0b86a33E6441e6e80D0c4C6C7527d72', // USDC
+    buyToken: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', // WETH
+    sellAmount: '1000000000000000000', // 1 token (18 decimals)
+    // ... other order data from backend
+  },
+  signature: '0x...', // User signature
   userAddress: '0x742d35Cc6634C0532925a3b8D4C9db96',
-  slippage: 0.005, // 0.5% slippage tolerance
 };
 
-// Get quotes from all available providers
-const quotes = await intentManager.generateQuotes(quoteRequest);
-
-// Submit the best quote
-const bestQuote = quotes[0]; // Quotes are sorted by best rate
-const order = await intentManager.submitIntent({
-  quote: bestQuote,
-  signature: '0x...', // User signature
-  userAddress: quoteRequest.userAddress,
-});
+const order = await intentManager.submitIntent(submissionParams);
 
 // Monitor order status
 const status = await intentManager.getOrderStatus(
   order.id,
-  bestQuote.provider,
-  quoteRequest.srcChainId
+  'cowswap',
+  1
 );
 ```
 
@@ -88,28 +79,17 @@ new IntentManager(initialState?: Partial<IntentManagerState>)
 
 #### Core Methods
 
-##### `generateQuotes(request, criteria?): Promise<IntentQuote[]>`
-
-Generates quotes from available providers for a given request.
-
-```typescript
-const quotes = await intentManager.generateQuotes({
-  srcChainId: 1,
-  destChainId: 42161,
-  srcTokenAddress: '0x...',
-  destTokenAddress: '0x...',
-  amount: '1000000000000000000',
-  userAddress: '0x...',
-});
-```
-
 ##### `submitIntent(params): Promise<IntentOrder>`
 
-Submits an intent order based on a selected quote.
+Submits an intent order with the provided order data.
 
 ```typescript
 const order = await intentManager.submitIntent({
-  quote: selectedQuote,
+  providerName: 'cowswap',
+  chainId: 1,
+  orderData: {
+    // Order data from backend
+  },
   signature: '0x...',
   userAddress: '0x...',
 });
@@ -172,40 +152,7 @@ const providers = intentManager.getAvailableProviders({
 
 ## Core Types
 
-### IntentQuoteRequest
 
-Parameters for requesting quotes from providers.
-
-```typescript
-type IntentQuoteRequest = {
-  srcChainId: number;
-  destChainId: number;
-  srcTokenAddress: string;
-  destTokenAddress: string;
-  amount: string;
-  userAddress: string;
-  slippage?: number;
-};
-```
-
-### IntentQuote
-
-Quote response from a provider.
-
-```typescript
-type IntentQuote = {
-  id: string;
-  provider: string;
-  srcAmount: string;
-  destAmount: string;
-  estimatedGas: string;
-  estimatedTime: number; // seconds
-  priceImpact: number;
-  fees: IntentFee[];
-  validUntil: number; // timestamp
-  metadata: Record<string, unknown>;
-};
-```
 
 ### IntentOrder
 
@@ -285,10 +232,6 @@ class CustomProvider extends BaseIntentProvider {
     return [1, 42161]; // Ethereum and Arbitrum
   }
 
-  async generateQuote(request: IntentQuoteRequest): Promise<IntentQuote> {
-    // Implement quote generation logic
-  }
-
   async submitOrder(params: IntentSubmissionParams): Promise<IntentOrder> {
     // Implement order submission logic
   }
@@ -297,7 +240,9 @@ class CustomProvider extends BaseIntentProvider {
     // Implement status checking logic
   }
 
-  // ... implement other required methods
+  async cancelOrder(orderId: string, chainId: number): Promise<boolean> {
+    // Implement order cancellation logic
+  }
 }
 
 // Register the custom provider
@@ -311,12 +256,12 @@ The Intent Manager provides comprehensive error handling:
 
 ```typescript
 try {
-  const quotes = await intentManager.generateQuotes(request);
+  const order = await intentManager.submitIntent(submissionParams);
 } catch (error) {
   if (error.message.includes('Unsupported chain')) {
     // Handle unsupported chain error
-  } else if (error.message.includes('Insufficient liquidity')) {
-    // Handle liquidity error
+  } else if (error.message.includes('Provider not found')) {
+    // Handle provider error
   } else {
     // Handle other errors
   }
@@ -325,25 +270,7 @@ try {
 
 ## Best Practices
 
-### Quote Selection
 
-- **Compare Multiple Quotes**: Always request quotes from multiple providers
-- **Consider Total Cost**: Factor in gas fees, protocol fees, and price impact
-- **Check Validity**: Ensure quotes haven't expired before submission
-
-```typescript
-const quotes = await intentManager.generateQuotes(request);
-
-// Filter valid quotes
-const validQuotes = quotes.filter(quote => quote.validUntil > Date.now());
-
-// Sort by best net amount (considering fees)
-const sortedQuotes = validQuotes.sort((a, b) => {
-  const aNet = BigInt(a.destAmount) - BigInt(a.estimatedGas);
-  const bNet = BigInt(b.destAmount) - BigInt(b.estimatedGas);
-  return bNet > aNet ? 1 : -1;
-});
-```
 
 ### Order Monitoring
 

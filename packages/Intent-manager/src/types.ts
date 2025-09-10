@@ -23,19 +23,6 @@ export enum IntentOrderStatus {
 }
 
 /**
- * Request parameters for generating an intent quote
- */
-export type IntentQuoteRequest = {
-  srcChainId: number;
-  destChainId: number;
-  srcTokenAddress: string;
-  destTokenAddress: string;
-  amount: string;
-  userAddress: string;
-  slippage?: number;
-};
-
-/**
  * Fee information for an intent
  */
 export type IntentFee = {
@@ -121,10 +108,7 @@ export type BaseIntentProvider = {
   getName(): string;
   getVersion(): string;
   getSupportedChains(): number[];
-  generateQuote(request: IntentQuoteRequest): Promise<IntentQuote>;
   submitOrder(params: IntentSubmissionParams): Promise<IntentOrder>;
   getOrderStatus(orderId: string, chainId: number): Promise<IntentOrder>;
   cancelOrder(orderId: string, chainId: number): Promise<boolean>;
-  validateQuoteRequest(request: IntentQuoteRequest): Promise<boolean>;
-  estimateGas(quote: IntentQuote): Promise<string>;
 };

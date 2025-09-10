@@ -41,7 +41,7 @@ export type {
   FeeData,
   TxData,
   Intent,
-  CowSwapOrderLike,
+  IntentOrderLike,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,

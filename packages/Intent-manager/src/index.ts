@@ -12,8 +12,6 @@ export {
 export { IntentStatus, IntentOrderStatus } from './types';
 
 export type {
-  IntentQuoteRequest,
-  IntentQuote,
   IntentOrder,
   IntentFee,
   IntentSubmissionParams,
@@ -28,3 +26,10 @@ export type { IntentManagerState } from './intent-manager';
 
 // Export providers
 export * from './providers';
+
+// Export validators and schemas
+export { IntentOrderSchema, IntentSchema } from './validators';
+export type {
+  IntentOrder as IntentOrderType,
+  Intent as IntentType,
+} from './validators';

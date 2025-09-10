@@ -19,7 +19,11 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
-import type { IntentManager, IntentOrder } from '@metamask/intent-manager';
+import type {
+  IntentManager,
+  IntentOrder,
+  IntentSubmissionParams,
+} from '@metamask/intent-manager';
 import { IntentOrderStatus } from '@metamask/intent-manager';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -1538,11 +1542,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
 
       // Submit intent order using the intent manager
-      const intentOrder = await this.#intentManager.submitIntent({
+      const submissionParams = {
         quote: intentQuote,
         signature,
         userAddress: accountAddress,
-      });
+      } as IntentSubmissionParams;
+      const intentOrder =
+        await this.#intentManager.submitIntent(submissionParams);
 
       const chainId = quoteResponse.quote.srcChainId;
       const orderUid = intentOrder.id;

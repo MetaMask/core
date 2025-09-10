@@ -5,6 +5,6 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [],
+  "references": [{ "path": "../controller-utils/tsconfig.build.json" }],
   "include": ["../../types", "./src"]
 }

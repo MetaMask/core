@@ -1,12 +1,9 @@
 import {
   COW_API_BASE,
   COW_NETWORK_PATHS,
-  COW_SETTLEMENT_CONTRACT,
   COWSWAP_PROVIDER_CONFIG,
 } from './constants';
 import type {
-  IntentQuote,
-  IntentQuoteRequest,
   IntentOrder,
   IntentSubmissionParams,
   IntentOrderStatus,
@@ -15,23 +12,9 @@ import { IntentOrderStatus as OrderStatus } from '../../types';
 import { BaseIntentProvider } from '../base-intent-provider';
 
 /**
- * CowSwap quote response interface
- */
-type CowSwapQuoteResponse = {
-  id?: string;
-  buyAmount?: string;
-  estimatedGas?: string;
-  priceImpact?: number;
-  feeAmount?: string;
-  validTo?: number;
-  order?: Record<string, unknown>;
-  settlementContract?: string;
-};
-
-/**
  * CowSwap intent provider implementation
  *
- * Handles quote generation, order submission, and status polling for CowSwap intents.
+ * Handles order submission and status polling for CowSwap intents.
  * Based on the existing CowSwap integration logic from bridge-status-controller.
  */
 export class CowSwapProvider extends BaseIntentProvider {
@@ -49,52 +32,6 @@ export class CowSwapProvider extends BaseIntentProvider {
 
   getSupportedChains(): number[] {
     return Object.keys(COW_NETWORK_PATHS).map(Number);
-  }
-
-  async generateQuote(request: IntentQuoteRequest): Promise<IntentQuote> {
-    const networkPath = COW_NETWORK_PATHS[request.srcChainId];
-    if (!networkPath) {
-      throw this.handleError(
-        new Error(`Unsupported chain: ${request.srcChainId}`),
-        'generateQuote',
-      );
-    }
-
-    try {
-      // Implementation for CowSwap quote generation
-      // This would call the actual CowSwap API
-      const response = await this.fetchQuote(request, networkPath);
-
-      const quote: IntentQuote = {
-        id: response.id || `cow-${Date.now()}`,
-        provider: this.getName(),
-        srcAmount: request.amount,
-        destAmount: response.buyAmount || '0',
-        estimatedGas: response.estimatedGas || '21000',
-        estimatedTime: 300, // 5 minutes typical for CowSwap
-        priceImpact: response.priceImpact || 0,
-        fees: [
-          {
-            type: 'protocol',
-            amount: response.feeAmount || '0',
-            token: request.srcTokenAddress,
-          },
-        ],
-        validUntil: response.validTo || Date.now() + 300000, // 5 minutes from now
-        metadata: {
-          order: response.order,
-          settlementContract:
-            response.settlementContract || COW_SETTLEMENT_CONTRACT,
-          chainId: request.srcChainId,
-          networkPath,
-        },
-      };
-
-      await this.onQuoteGenerated?.(quote);
-      return quote;
-    } catch (error) {
-      throw this.handleError(error as Error, 'generateQuote');
-    }
   }
 
   async submitOrder(params: IntentSubmissionParams): Promise<IntentOrder> {
@@ -227,23 +164,6 @@ export class CowSwapProvider extends BaseIntentProvider {
     return false;
   }
 
-  async validateQuoteRequest(request: IntentQuoteRequest): Promise<boolean> {
-    // Basic validation - check if chain is supported
-    if (!this.getSupportedChains().includes(request.srcChainId)) {
-      return false;
-    }
-
-    // Additional validation could be added here
-    // e.g., token address validation, amount validation, etc.
-    return true;
-  }
-
-  async estimateGas(quote: IntentQuote): Promise<string> {
-    // CowSwap uses meta-transactions, so gas estimation is minimal
-    // The actual settlement is handled by solvers
-    return '21000';
-  }
-
   private mapCowSwapStatus(cowStatus: string): IntentOrderStatus {
     switch (cowStatus) {
       case 'presignaturePending':
@@ -258,15 +178,5 @@ export class CowSwapProvider extends BaseIntentProvider {
       default:
         return OrderStatus.FAILED;
     }
-  }
-
-  private async fetchQuote(
-    request: IntentQuoteRequest,
-    networkPath: string,
-  ): Promise<CowSwapQuoteResponse> {
-    // TODO: Implement actual CowSwap quote API call
-    // For now, return a mock response structure
-    // This logic currently was handled by the Birdge controller call our bridge API backend
-    throw new Error('CowSwap quote fetching not yet implemented');
   }
 }
