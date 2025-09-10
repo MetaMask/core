@@ -28,16 +28,22 @@ export const controllerName = 'AccountTreeController';
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
     accountTree: {
+      includeInStateLogs: true,
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
+      usedInUi: true,
     },
     accountGroupsMetadata: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     accountWalletsMetadata: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
   };
 
