@@ -146,7 +146,7 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
   AccountActivityServiceActions | AccountActivityServiceAllowedActions,
   AccountActivityServiceEvents | AccountActivityServiceAllowedEvents,
-  AccountActivityServiceAllowedActions ['type'],
+  AccountActivityServiceAllowedActions['type'],
   AccountActivityServiceAllowedEvents['type']
 >;
 
@@ -505,8 +505,6 @@ export class AccountActivityService {
       );
     }
   }
-
-
 
   /**
    * Handle WebSocket connection state changes for fallback polling and resubscription
