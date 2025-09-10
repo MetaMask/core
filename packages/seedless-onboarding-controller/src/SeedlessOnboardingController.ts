@@ -11,7 +11,11 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  isNullOrUndefined,
+} from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -178,8 +182,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     pendingToBeRevokedTokens: {
+      includeInStateLogs: (pendingToBeRevokedTokens) =>
+        !isNullOrUndefined(pendingToBeRevokedTokens) &&
+        pendingToBeRevokedTokens.length > 0,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     // stays in vault
     accessToken: {
