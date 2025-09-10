@@ -48,7 +48,12 @@ export type SubjectMetadataControllerState = {
 };
 
 const stateMetadata = {
-  subjectMetadata: { persist: true, anonymous: false },
+  subjectMetadata: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState: SubjectMetadataControllerState = {
