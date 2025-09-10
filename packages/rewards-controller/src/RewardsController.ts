@@ -967,7 +967,6 @@ export class RewardsController extends BaseController<
     }
 
     // Update state with opt-in response data
-    // Update state with opt-in response data
     this.update((state) => {
       const caipAccount: CaipAccountId | null =
         this.convertInternalAccountToCaipAccountId(account);
