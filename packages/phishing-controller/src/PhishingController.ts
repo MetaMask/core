@@ -1,13 +1,13 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+} from '@metamask/base-controller/next';
 import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import { type Messenger } from '@metamask/messenger';
 import { toASCII } from 'punycode/punycode.js';
 
 import { PhishingDetector } from './PhishingDetector';
@@ -298,12 +298,10 @@ export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 
-export type PhishingControllerMessenger = RestrictedMessenger<
+export type PhishingControllerMessenger = Messenger<
   typeof controllerName,
   PhishingControllerActions,
-  PhishingControllerEvents,
-  never,
-  never
+  PhishingControllerEvents
 >;
 
 /**
@@ -400,17 +398,17 @@ export class PhishingController extends BaseController<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:maybeUpdateState` as const,
       this.maybeUpdateState.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:testOrigin` as const,
       this.test.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:bulkScanUrls` as const,
       this.bulkScanUrls.bind(this),
     );
