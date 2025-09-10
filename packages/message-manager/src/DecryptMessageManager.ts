@@ -1,9 +1,9 @@
+import { ApprovalType } from '@metamask/controller-utils';
 import type {
   ActionConstraint,
   EventConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import { ApprovalType } from '@metamask/controller-utils';
+  Messenger,
+} from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -30,14 +30,12 @@ export type DecryptMessageManagerUpdateBadgeEvent = {
   payload: [];
 };
 
-export type DecryptMessageManagerMessenger = RestrictedMessenger<
+export type DecryptMessageManagerMessenger = Messenger<
   typeof managerName,
   ActionConstraint,
   | EventConstraint
   | DecryptMessageManagerUnapprovedMessageAddedEvent
-  | DecryptMessageManagerUpdateBadgeEvent,
-  string,
-  string
+  | DecryptMessageManagerUpdateBadgeEvent
 >;
 
 type DecryptMessageManagerOptions = {
@@ -194,7 +192,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${managerName}:unapprovedMessage`, {
+    this.messenger.publish(`${managerName}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

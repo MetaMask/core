@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6545](https://github.com/MetaMask/core/pull/6545))
+  - Previously, `AbstractMessageManager`, `DecryptMessageManager` and `EncryptionPublicKeyManager` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING:** `AbstractMessageManager` now expects a `Name extends string` generic parameter to define the name of the message manager ([#6469](https://github.com/MetaMask/core/pull/6469))
   - The type is used as namespace for `BaseController` and `Messenger` events and actions.
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.3.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
