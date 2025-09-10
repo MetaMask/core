@@ -1,8 +1,3 @@
-import {
-  toMultichainAccountGroupId,
-  toMultichainAccountWalletId,
-} from '@metamask/account-api';
-
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { backupAndSyncLogger } from '../../logger';
@@ -75,50 +70,15 @@ export async function createLocalGroupsFromUserStorage(
   entropySourceId: string,
   profileId: ProfileId,
 ): Promise<void> {
-  // Sort groups from user storage by groupIndex in ascending order
-  groupsFromUserStorage.sort((a, b) => a.groupIndex - b.groupIndex);
+  const numberOfAccountGroupsToCreate = Math.max(
+    ...groupsFromUserStorage.map((g) => g.groupIndex),
+  );
 
-  let previousGroupIndex = -1;
-  for (const groupFromUserStorage of groupsFromUserStorage) {
-    const { groupIndex } = groupFromUserStorage;
-
-    if (groupIndex < 0) {
-      console.log(
-        `Invalid group index ${groupIndex} found in user storage, skipping`,
-      );
-      continue;
-    }
-
-    const isGroupIndexOutOfSequence =
-      groupIndex <= previousGroupIndex || groupIndex !== previousGroupIndex + 1;
-    previousGroupIndex = groupIndex;
-
-    if (isGroupIndexOutOfSequence) {
-      backupAndSyncLogger(
-        `Group index ${groupIndex} is out of sequence, this may indicate data corruption`,
-      );
-    }
-
-    const walletId = toMultichainAccountWalletId(entropySourceId);
-    const wallet = context.controller.state.accountTree.wallets[walletId];
-
-    if (!wallet) {
-      backupAndSyncLogger(
-        `Wallet with entropy ${entropySourceId} does not exist, skipping group creation`,
-      );
-      continue;
-    }
-
-    const groupId = toMultichainAccountGroupId(walletId, groupIndex);
-    const didGroupAlreadyExist = wallet.groups[groupId] !== undefined;
-
-    if (didGroupAlreadyExist) {
-      backupAndSyncLogger(
-        `Group with index ${groupIndex} (wallet entropy ${entropySourceId}) already exists, skipping creation`,
-      );
-      continue; // Skip creating group if it already exists
-    }
-
+  for (
+    let groupIndex = 0;
+    groupIndex <= numberOfAccountGroupsToCreate;
+    groupIndex++
+  ) {
     try {
       await createMultichainAccountGroup(
         context,

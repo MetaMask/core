@@ -20,54 +20,39 @@ export class AtomicSyncQueue {
    * Clears the queue and enqueues a new sync function.
    *
    * @param syncFunction - The sync function to enqueue.
-   * @param options - Configuration options.
-   * @param options.await - If true, returns a Promise that resolves when the sync completes.
-   * @returns A Promise if await is true, otherwise void.
+   * @returns A Promise that resolves when the sync function completes.
    */
-  clearAndEnqueue<T extends boolean = false>(
-    syncFunction: () => Promise<void>,
-    options?: { await?: T },
-  ): T extends true ? Promise<void> : void {
+  clearAndEnqueue(syncFunction: () => Promise<void>): Promise<void> {
     this.clear();
-    return this.enqueue(syncFunction, options);
+    return this.enqueue(syncFunction);
   }
 
   /**
    * Enqueues an atomic sync function for processing.
    *
    * @param syncFunction - The sync function to enqueue.
-   * @param options - Configuration options.
-   * @param options.await - If true, returns a Promise that resolves when the sync function completes.
-   * @returns A Promise if await is true, otherwise void.
+   * @returns A Promise that resolves when the sync function completes.
    */
-  enqueue<T extends boolean = false>(
-    syncFunction: () => Promise<void>,
-    options?: { await?: T },
-  ): T extends true ? Promise<void> : void {
-    const shouldAwait = options?.await;
+  enqueue(syncFunction: () => Promise<void>): Promise<void> {
     let resolvePromise: (() => void) | undefined;
     let rejectPromise: ((error: unknown) => void) | undefined;
 
-    // Create promise handlers if awaiting
-    const promise = shouldAwait
-      ? new Promise<void>((resolve, reject) => {
-          resolvePromise = resolve;
-          rejectPromise = reject;
-        })
-      : undefined;
+    // Create promise that resolves when the sync function completes
+    const promise = new Promise<void>((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
 
-    // Create the sync function, wrapping with promise handlers if needed
+    // Create the sync event with promise handlers
     const syncEvent: AtomicSyncEvent = {
-      execute: shouldAwait
-        ? async () => {
-            try {
-              await syncFunction();
-              resolvePromise?.();
-            } catch (error) {
-              rejectPromise?.(error);
-            }
-          }
-        : syncFunction,
+      execute: async () => {
+        try {
+          await syncFunction();
+          resolvePromise?.();
+        } catch (error) {
+          rejectPromise?.(error);
+        }
+      },
     };
 
     // Add to queue and start processing
@@ -78,10 +63,7 @@ export class AtomicSyncQueue {
       });
     }, 0);
 
-    // Return promise if awaiting, otherwise void
-    return (shouldAwait ? promise : undefined) as T extends true
-      ? Promise<void>
-      : void;
+    return promise;
   }
 
   /**
@@ -106,11 +88,7 @@ export class AtomicSyncQueue {
           break;
         }
 
-        try {
-          await event.execute();
-        } catch (error) {
-          backupAndSyncLogger('Failed to process atomic sync event', error);
-        }
+        await event.execute();
       }
     } finally {
       this.#isProcessingInProgress = false;

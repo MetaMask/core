@@ -195,6 +195,15 @@ export class AccountTreeController extends BaseController<
       },
     );
 
+    this.messagingSystem.subscribe(
+      'UserStorageController:stateChange',
+      (userStorageControllerState) => {
+        this.#backupAndSyncService.handleUserStorageStateChange(
+          userStorageControllerState,
+        );
+      },
+    );
+
     this.#registerMessageHandlers();
   }
 
@@ -1086,6 +1095,7 @@ export class AccountTreeController extends BaseController<
 
   /**
    * Clears the controller state and resets to default values.
+   * Also clears the backup and sync service state.
    */
   clearState(): void {
     this.update(() => {
@@ -1142,10 +1152,29 @@ export class AccountTreeController extends BaseController<
    * from user storage and pushing local changes to user storage.
    * This also performs legacy account syncing if needed.
    *
+   * IMPORTANT:
+   * If a full sync is already in progress, it will return the ongoing promise.
+   *
    * @returns A promise that resolves when the sync is complete.
    */
   async syncWithUserStorage(): Promise<void> {
     return this.#backupAndSyncService.performFullSync();
+  }
+
+  /**
+   * Bi-directionally syncs the account tree with user storage.
+   * This will ensure at least one full sync is ran, including both pulling updates
+   * from user storage and pushing local changes to user storage.
+   * This also performs legacy account syncing if needed.
+   *
+   * IMPORTANT:
+   * If the first ever full sync is already in progress, it will return the ongoing promise.
+   * If the first ever full sync was previously completed, it will NOT start a new sync, and will resolve immediately.
+   *
+   * @returns A promise that resolves when the first ever full sync is complete.
+   */
+  async syncWithUserStorageAtLeastOnce(): Promise<void> {
+    return this.#backupAndSyncService.performFullSyncAtLeastOnce();
   }
 
   /**

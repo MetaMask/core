@@ -222,6 +222,7 @@ function getAccountTreeControllerMessenger(
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:selectedAccountChange',
+      'UserStorageController:stateChange',
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
@@ -2885,9 +2886,9 @@ describe('AccountTreeController', () => {
       jest.clearAllMocks();
     });
 
-    it('calls fullSync on the syncing service', async () => {
+    it('calls performFullSync on the syncing service', async () => {
       // Spy on the BackupAndSyncService constructor and methods
-      const fullSyncSpy = jest.spyOn(
+      const performFullSyncSpy = jest.spyOn(
         BackupAndSyncService.prototype,
         'performFullSync',
       );
@@ -2901,12 +2902,12 @@ describe('AccountTreeController', () => {
 
       await controller.syncWithUserStorage();
 
-      expect(fullSyncSpy).toHaveBeenCalledTimes(1);
+      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
     });
 
     it('handles sync errors gracefully', async () => {
       const syncError = new Error('Sync failed');
-      const fullSyncSpy = jest
+      const performFullSyncSpy = jest
         .spyOn(BackupAndSyncService.prototype, 'performFullSync')
         .mockRejectedValue(syncError);
 
@@ -2920,7 +2921,85 @@ describe('AccountTreeController', () => {
       await expect(controller.syncWithUserStorage()).rejects.toThrow(
         syncError.message,
       );
-      expect(fullSyncSpy).toHaveBeenCalledTimes(1);
+      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('syncWithUserStorageAtLeastOnce', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('calls performFullSyncAtLeastOnce on the syncing service', async () => {
+      // Spy on the BackupAndSyncService constructor and methods
+      const performFullSyncAtLeastOnceSpy = jest.spyOn(
+        BackupAndSyncService.prototype,
+        'performFullSyncAtLeastOnce',
+      );
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await controller.syncWithUserStorageAtLeastOnce();
+
+      expect(performFullSyncAtLeastOnceSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles sync errors gracefully', async () => {
+      const syncError = new Error('Sync failed');
+      const performFullSyncAtLeastOnceSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performFullSyncAtLeastOnce')
+        .mockRejectedValue(syncError);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await expect(controller.syncWithUserStorageAtLeastOnce()).rejects.toThrow(
+        syncError.message,
+      );
+      expect(performFullSyncAtLeastOnceSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('UserStorageController:stateChange subscription', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('calls BackupAndSyncService.handleUserStorageStateChange', () => {
+      const handleUserStorageStateChangeSpy = jest.spyOn(
+        BackupAndSyncService.prototype,
+        'handleUserStorageStateChange',
+      );
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.publish(
+        'UserStorageController:stateChange',
+        {
+          isBackupAndSyncEnabled: false,
+          isAccountSyncingEnabled: true,
+          isBackupAndSyncUpdateLoading: false,
+          isContactSyncingEnabled: false,
+          isContactSyncingInProgress: false,
+        },
+        [],
+      );
+
+      expect(handleUserStorageStateChangeSpy).toHaveBeenCalled();
+      expect(handleUserStorageStateChangeSpy).toHaveBeenCalledTimes(1);
     });
   });
 

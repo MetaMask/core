@@ -5,7 +5,6 @@ import {
 } from './group';
 import * as metadataExports from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type {
@@ -42,10 +41,6 @@ const mockGetLocalGroupsForEntropyWallet =
   getLocalGroupsForEntropyWallet as jest.MockedFunction<
     typeof getLocalGroupsForEntropyWallet
   >;
-
-const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
-  typeof backupAndSyncLogger
->;
 
 describe('BackupAndSync - Syncing - Group', () => {
   let mockContext: BackupAndSyncContext;
@@ -92,10 +87,9 @@ describe('BackupAndSync - Syncing - Group', () => {
   });
 
   describe('createLocalGroupsFromUserStorage', () => {
-    it('sorts groups by groupIndex and create them', async () => {
+    it('creates groups up until the highest groupIndex from user storage', async () => {
       const unsortedGroups: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: 2 },
-        { groupIndex: 0 },
+        { groupIndex: 4 },
         { groupIndex: 1 },
       ];
 
@@ -111,7 +105,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         'test-profile',
       );
 
-      expect(mockContext.messenger.call).toHaveBeenCalledTimes(3);
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(5);
       expect(mockContext.messenger.call).toHaveBeenNthCalledWith(
         1,
         'MultichainAccountService:createMultichainAccountGroup',
@@ -127,47 +121,21 @@ describe('BackupAndSync - Syncing - Group', () => {
         'MultichainAccountService:createMultichainAccountGroup',
         { entropySource: 'test-entropy', groupIndex: 2 },
       );
-    });
-
-    it('skips groups with invalid groupIndex', async () => {
-      const groupsWithInvalid: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: -1 },
-        { groupIndex: 0 },
-      ];
-
-      await createLocalGroupsFromUserStorage(
-        mockContext,
-        groupsWithInvalid,
-        'test-entropy',
-        'test-profile',
-      );
-
-      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
-      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+      expect(mockContext.messenger.call).toHaveBeenNthCalledWith(
+        4,
         'MultichainAccountService:createMultichainAccountGroup',
-        { entropySource: 'test-entropy', groupIndex: 0 },
+        { entropySource: 'test-entropy', groupIndex: 3 },
       );
-    });
-
-    it('skips existing groups', async () => {
-      mockContext.controller.state.accountTree.wallets[
-        'entropy:test-entropy'
-      ].groups = {
-        'entropy:test-entropy/0': {
-          metadata: { entropy: { groupIndex: 0 } },
-        } as unknown as AccountGroupMultichainAccountObject,
-      };
-
-      const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
-
-      await createLocalGroupsFromUserStorage(
-        mockContext,
-        groups,
-        'test-entropy',
-        'test-profile',
+      expect(mockContext.messenger.call).toHaveBeenNthCalledWith(
+        5,
+        'MultichainAccountService:createMultichainAccountGroup',
+        { entropySource: 'test-entropy', groupIndex: 4 },
       );
-
-      expect(mockContext.messenger.call).not.toHaveBeenCalled();
+      expect(mockContext.messenger.call).not.toHaveBeenNthCalledWith(
+        6,
+        'MultichainAccountService:createMultichainAccountGroup',
+        { entropySource: 'test-entropy', groupIndex: 5 },
+      );
     });
 
     it('continues on creation errors', async () => {
@@ -193,28 +161,6 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledTimes(1);
     });
 
-    it('skips group creation when wallet does not exist', async () => {
-      const groups: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: 0 },
-        { groupIndex: 1 },
-      ];
-
-      // Remove the wallet from the state to simulate non-existence
-      delete mockContext.controller.state.accountTree.wallets[
-        'entropy:test-entropy'
-      ];
-
-      await createLocalGroupsFromUserStorage(
-        mockContext,
-        groups,
-        'test-entropy',
-        'test-profile',
-      );
-
-      expect(mockContext.messenger.call).not.toHaveBeenCalled();
-      expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
-    });
-
     it('emits analytics events for successful creations', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
@@ -229,31 +175,6 @@ describe('BackupAndSync - Syncing - Group', () => {
         action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
       });
-    });
-
-    it('logs when group is out of sequence', async () => {
-      const unsortedGroups: UserStorageSyncedWalletGroup[] = [
-        { groupIndex: 0 },
-        { groupIndex: 2 },
-      ];
-
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(undefined);
-
-      await createLocalGroupsFromUserStorage(
-        {
-          ...mockContext,
-        },
-        unsortedGroups,
-        'test-entropy',
-        'test-profile',
-      );
-
-      expect(mockBackupAndSyncLogger).toHaveBeenCalledWith(
-        expect.stringContaining('Group index 2 is out of sequence'),
-      );
     });
   });
 

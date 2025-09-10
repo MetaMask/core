@@ -1,3 +1,4 @@
+/* eslint-disable no-void */
 import { AtomicSyncQueue } from './atomic-sync-queue';
 import { backupAndSyncLogger } from '../../logger';
 
@@ -35,11 +36,27 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     });
   });
 
+  describe('clearAndEnqueue', () => {
+    it('clears queue and enqueues new sync function', () => {
+      const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
+      const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
+
+      // First enqueue some functions
+      void atomicSyncQueue.enqueue(mockSyncFunction1);
+      void atomicSyncQueue.enqueue(mockSyncFunction1);
+      expect(atomicSyncQueue.size).toBe(2);
+
+      // Then clearAndEnqueue should clear existing and add new
+      void atomicSyncQueue.clearAndEnqueue(mockSyncFunction2);
+      expect(atomicSyncQueue.size).toBe(1);
+    });
+  });
+
   describe('enqueue', () => {
     it('enqueues sync function when big sync is not in progress', () => {
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction);
+      void atomicSyncQueue.enqueue(mockSyncFunction);
 
       expect(atomicSyncQueue.size).toBe(1);
     });
@@ -48,7 +65,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       jest.useFakeTimers();
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction);
+      void atomicSyncQueue.enqueue(mockSyncFunction);
 
       expect(atomicSyncQueue.size).toBe(1);
 
@@ -66,8 +83,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1);
-      atomicSyncQueue.enqueue(mockSyncFunction2);
+      void atomicSyncQueue.enqueue(mockSyncFunction1);
+      void atomicSyncQueue.enqueue(mockSyncFunction2);
 
       await atomicSyncQueue.process();
 
@@ -82,7 +99,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         await atomicSyncQueue.process();
       });
 
-      atomicSyncQueue.enqueue(mockSyncFunction);
+      void atomicSyncQueue.enqueue(mockSyncFunction);
 
       await atomicSyncQueue.process();
 
@@ -94,14 +111,20 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockRejectedValue(error);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1);
-      atomicSyncQueue.enqueue(mockSyncFunction2);
+      const promise1 = atomicSyncQueue.enqueue(mockSyncFunction1);
+      const promise2 = atomicSyncQueue.enqueue(mockSyncFunction2);
 
       await atomicSyncQueue.process();
 
       expect(mockSyncFunction1).toHaveBeenCalled();
       expect(mockSyncFunction2).toHaveBeenCalled();
       expect(atomicSyncQueue.size).toBe(0);
+
+      // Handle the rejected promises to avoid unhandled rejections
+      /* eslint-disable jest/no-restricted-matchers */
+      await expect(promise1).rejects.toThrow('Sync function failed');
+      await expect(promise2).resolves.toBeUndefined();
+      /* eslint-enable jest/no-restricted-matchers */
     });
 
     it('returns early when queue is empty', async () => {
@@ -117,8 +140,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1);
-      atomicSyncQueue.enqueue(mockSyncFunction2);
+      void atomicSyncQueue.enqueue(mockSyncFunction1);
+      void atomicSyncQueue.enqueue(mockSyncFunction2);
 
       expect(atomicSyncQueue.size).toBe(2);
 
@@ -132,10 +155,10 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
     it('returns correct queue size', () => {
       expect(atomicSyncQueue.size).toBe(0);
 
-      atomicSyncQueue.enqueue(jest.fn());
+      void atomicSyncQueue.enqueue(jest.fn());
       expect(atomicSyncQueue.size).toBe(1);
 
-      atomicSyncQueue.enqueue(jest.fn());
+      void atomicSyncQueue.enqueue(jest.fn());
       expect(atomicSyncQueue.size).toBe(2);
     });
 
@@ -146,7 +169,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       });
 
-      atomicSyncQueue.enqueue(slowSyncFunction);
+      void atomicSyncQueue.enqueue(slowSyncFunction);
 
       const processPromise = atomicSyncQueue.process();
 
@@ -164,9 +187,9 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       expect(freshQueue.size).toBe(0);
 
       // Add multiple items
-      freshQueue.enqueue(jest.fn());
-      freshQueue.enqueue(jest.fn());
-      freshQueue.enqueue(jest.fn());
+      void freshQueue.enqueue(jest.fn());
+      void freshQueue.enqueue(jest.fn());
+      void freshQueue.enqueue(jest.fn());
 
       expect(freshQueue.size).toBe(3);
 
@@ -184,7 +207,7 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       jest.spyOn(atomicSyncQueue, 'process').mockRejectedValueOnce(error);
 
       const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
-      atomicSyncQueue.enqueue(mockSyncFunction);
+      void atomicSyncQueue.enqueue(mockSyncFunction);
 
       jest.advanceTimersByTime(1);
       await Promise.resolve();
@@ -199,11 +222,20 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const error = new Error('Sync function failed');
       const mockSyncFunction = jest.fn().mockRejectedValue(error);
 
-      const promise = atomicSyncQueue.enqueue(mockSyncFunction, {
-        await: true,
-      });
+      const promise = atomicSyncQueue.enqueue(mockSyncFunction);
 
       await expect(promise).rejects.toThrow('Sync function failed');
+      expect(mockSyncFunction).toHaveBeenCalled();
+    });
+
+    it('returns promise that resolves when sync function succeeds', async () => {
+      const mockSyncFunction = jest.fn().mockResolvedValue(undefined);
+
+      const promise = atomicSyncQueue.enqueue(mockSyncFunction);
+
+      /* eslint-disable jest/no-restricted-matchers */
+      await expect(promise).resolves.toBeUndefined();
+      /* eslint-enable jest/no-restricted-matchers */
       expect(mockSyncFunction).toHaveBeenCalled();
     });
 
@@ -213,8 +245,8 @@ describe('BackupAndSync - Service - AtomicSyncQueue', () => {
       const mockSyncFunction1 = jest.fn().mockResolvedValue(undefined);
       const mockSyncFunction2 = jest.fn().mockResolvedValue(undefined);
 
-      atomicSyncQueue.enqueue(mockSyncFunction1);
-      atomicSyncQueue.enqueue(mockSyncFunction2);
+      void atomicSyncQueue.enqueue(mockSyncFunction1);
+      void atomicSyncQueue.enqueue(mockSyncFunction2);
 
       // Process concurrently to potentially create race conditions
       const promise1 = atomicSyncQueue.process();

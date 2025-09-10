@@ -1,5 +1,6 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
+import type { UserStorageController } from '@metamask/profile-sync-controller';
 
 import { AtomicSyncQueue } from './atomic-sync-queue';
 import { backupAndSyncLogger } from '../../logger';
@@ -57,6 +58,12 @@ export class BackupAndSyncService {
    */
   #ongoingFullSyncPromise: Promise<void> | null = null;
 
+  /**
+   * Cached promise for the first ongoing full sync operation.
+   * Ensures multiple callers await the same sync operation.
+   */
+  #firstOngoingFullSyncPromise: Promise<void> | null = null;
+
   constructor(context: BackupAndSyncContext) {
     this.#context = context;
     this.#atomicSyncQueue = new AtomicSyncQueue();
@@ -81,17 +88,12 @@ export class BackupAndSyncService {
       .hasAccountTreeSyncingSyncedAtLeastOnce;
   }
 
-  clearState(): void {
-    this.#atomicSyncQueue.clear();
-    this.#ongoingFullSyncPromise = null;
-  }
-
   /**
    * Checks if backup and sync is enabled by checking UserStorageController state.
    *
    * @returns True if backup and sync + account syncing is enabled.
    */
-  #isBackupAndSyncEnabled(): boolean {
+  get isBackupAndSyncEnabled(): boolean {
     const userStorageControllerState = this.#context.messenger.call(
       'UserStorageController:getState',
     );
@@ -99,6 +101,30 @@ export class BackupAndSyncService {
       userStorageControllerState;
 
     return isBackupAndSyncEnabled && isAccountSyncingEnabled;
+  }
+
+  /**
+   * Clears the atomic queue and resets ongoing operations.
+   */
+  clearState(): void {
+    this.#atomicSyncQueue.clear();
+    this.#ongoingFullSyncPromise = null;
+    this.#firstOngoingFullSyncPromise = null;
+  }
+
+  /**
+   * Handles changes to the user storage state.
+   * Used to clear the backup and sync service state.
+   *
+   * @param state - The new user storage state.
+   */
+  handleUserStorageStateChange(
+    state: UserStorageController.UserStorageControllerState,
+  ): void {
+    if (!state.isAccountSyncingEnabled || !state.isBackupAndSyncEnabled) {
+      // If either syncing is disabled, clear the account tree state
+      this.clearState();
+    }
   }
 
   /**
@@ -115,12 +141,32 @@ export class BackupAndSyncService {
   }
 
   /**
+   * Sets up cleanup for ongoing sync promise tracking without affecting error propagation.
+   *
+   * @param promise - The promise to track and clean up
+   * @returns The same promise (for chaining)
+   */
+  #setupOngoingPromiseCleanup(promise: Promise<void>): Promise<void> {
+    this.#ongoingFullSyncPromise = promise;
+    // Set up cleanup without affecting the returned promise
+    promise
+      .finally(() => {
+        this.#ongoingFullSyncPromise = null;
+      })
+      .catch(() => {
+        // Only ignore errors from the cleanup operation itself
+        // The original promise errors are still propagated to callers
+      });
+    return promise;
+  }
+
+  /**
    * Enqueues a single wallet sync operation (fire-and-forget).
    *
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (!this.#isBackupAndSyncEnabled()) {
+    if (!this.isBackupAndSyncEnabled) {
       return;
     }
 
@@ -130,8 +176,8 @@ export class BackupAndSyncService {
       void this.performFullSync();
       return;
     }
-
-    this.#atomicSyncQueue.enqueue(() =>
+    // eslint-disable-next-line no-void
+    void this.#atomicSyncQueue.enqueue(() =>
       this.#performSingleWalletSyncInner(walletId),
     );
   }
@@ -142,7 +188,7 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
-    if (!this.#isBackupAndSyncEnabled()) {
+    if (!this.isBackupAndSyncEnabled) {
       return;
     }
 
@@ -153,7 +199,8 @@ export class BackupAndSyncService {
       return;
     }
 
-    this.#atomicSyncQueue.enqueue(() =>
+    // eslint-disable-next-line no-void
+    void this.#atomicSyncQueue.enqueue(() =>
       this.#performSingleGroupSyncInner(groupId),
     );
   }
@@ -164,31 +211,64 @@ export class BackupAndSyncService {
    * If a full sync is already in progress, it will return the ongoing promise.
    * This clears the atomic sync queue before starting the full sync.
    *
+   * NOTE: in some very edge cases, this can be ran concurrently if triggered quickly after
+   * toggling back and forth the backup and sync feature from the UI.
+   *
    * @returns A promise that resolves when the sync is complete.
    */
   async performFullSync(): Promise<void> {
-    if (!this.#isBackupAndSyncEnabled()) {
+    if (!this.isBackupAndSyncEnabled) {
       return undefined;
     }
 
+    // If there's an ongoing sync (including first sync), return it
     if (this.#ongoingFullSyncPromise) {
       return this.#ongoingFullSyncPromise;
     }
 
-    this.#ongoingFullSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(
-      () => this.#performFullSyncInner(),
-      {
-        await: true,
-      },
-    );
-
-    try {
-      await this.#ongoingFullSyncPromise;
-    } finally {
-      this.#ongoingFullSyncPromise = null;
+    // First sync setup - create and cache the first sync promise
+    if (!this.#firstOngoingFullSyncPromise) {
+      this.#firstOngoingFullSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(
+        () => this.#performFullSyncInner(),
+      );
+      return this.#setupOngoingPromiseCleanup(
+        this.#firstOngoingFullSyncPromise,
+      );
     }
 
-    return undefined;
+    // Create a new ongoing sync (sequential calls after previous completed)
+    const newSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(() =>
+      this.#performFullSyncInner(),
+    );
+
+    return this.#setupOngoingPromiseCleanup(newSyncPromise);
+  }
+
+  /**
+   * Performs a full synchronization of the local account tree with user storage, ensuring consistency
+   * between local state and cloud-stored account data.
+   *
+   * If the first ever full sync is already in progress, it will return the ongoing promise.
+   * If the first ever full sync has already completed, it will resolve and NOT start a new sync.
+   *
+   * This clears the atomic sync queue before starting the full sync.
+   *
+   * @returns A promise that resolves when the sync is complete.
+   */
+  async performFullSyncAtLeastOnce(): Promise<void> {
+    if (!this.isBackupAndSyncEnabled) {
+      return undefined;
+    }
+
+    if (!this.#firstOngoingFullSyncPromise) {
+      this.#firstOngoingFullSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(
+        () => this.#performFullSyncInner(),
+      );
+      // eslint-disable-next-line no-void
+      void this.#setupOngoingPromiseCleanup(this.#firstOngoingFullSyncPromise);
+    }
+
+    return this.#firstOngoingFullSyncPromise;
   }
 
   /**

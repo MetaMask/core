@@ -163,7 +163,8 @@ export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | UserStorageController.UserStorageControllerStateChangeEvent;
 
 export type AccountTreeControllerEvents =
   | AccountTreeControllerStateChangeEvent

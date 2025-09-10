@@ -220,6 +220,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
             'entropy:wallet-1/1': {
               id: 'entropy:wallet-1/1',
               name: 'Test Group',
+              metadata: {
+                entropy: { groupIndex: 1 },
+              },
             } as unknown as AccountGroupObject,
           },
         } as unknown as AccountWalletEntropyObject,
@@ -459,5 +462,253 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(await firstSyncPromise).toBeUndefined();
       expect(await secondSyncPromise).toBeUndefined();
     });
+
+    it('sets first ever ongoing promise correctly', async () => {
+      // Mock some local wallets for the full sync to process
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Track sync execution
+      let syncExecutionCount = 0;
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          syncExecutionCount += 1;
+          return fn();
+        },
+      );
+
+      // Perform first sync
+      const firstSyncPromise = backupAndSyncService.performFullSync();
+
+      // Call performFullSyncAtLeastOnce while first sync is ongoing
+      const atLeastOncePromise =
+        backupAndSyncService.performFullSyncAtLeastOnce();
+
+      // Both should resolve to the same promise (first sync sets the first ever promise)
+      expect(firstSyncPromise).toStrictEqual(atLeastOncePromise);
+
+      await Promise.all([firstSyncPromise, atLeastOncePromise]);
+
+      // Should only have executed once
+      expect(syncExecutionCount).toBe(1);
+    });
+  });
+
+  describe('performFullSyncAtLeastOnce', () => {
+    beforeEach(() => {
+      setupMockUserStorageControllerState(true, true);
+      // Clear all mocks before each test
+      jest.clearAllMocks();
+      mockGetLocalEntropyWallets.mockClear();
+    });
+
+    it('returns undefined when backup and sync is disabled', async () => {
+      setupMockUserStorageControllerState(true, false);
+
+      const result = await backupAndSyncService.performFullSyncAtLeastOnce();
+
+      expect(result).toBeUndefined();
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+    });
+
+    it('creates and returns first sync promise when called for the first time', async () => {
+      // Mock some local wallets for the full sync to process
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Track sync execution
+      let syncExecutionCount = 0;
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          syncExecutionCount += 1;
+          return fn();
+        },
+      );
+
+      const syncPromise = backupAndSyncService.performFullSyncAtLeastOnce();
+
+      expect(syncPromise).toBeInstanceOf(Promise);
+
+      await syncPromise;
+
+      expect(syncExecutionCount).toBe(1);
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns same promise for concurrent calls during first sync', async () => {
+      // Mock some local wallets for the full sync to process
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Track sync execution
+      let syncExecutionCount = 0;
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          syncExecutionCount += 1;
+          return fn();
+        },
+      );
+
+      // Fire multiple calls rapidly
+      const promises = [
+        backupAndSyncService.performFullSyncAtLeastOnce(),
+        backupAndSyncService.performFullSyncAtLeastOnce(),
+        backupAndSyncService.performFullSyncAtLeastOnce(),
+      ];
+
+      // All promises should be the same reference (promise caching)
+      expect(promises[0]).toStrictEqual(promises[1]);
+      expect(promises[1]).toStrictEqual(promises[2]);
+
+      // Wait for all to complete
+      await Promise.all(promises);
+
+      // Should only have executed the sync logic once
+      expect(syncExecutionCount).toBe(1);
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
+
+      // All promises should resolve successfully to the same value
+      const results = await Promise.all(promises);
+      expect(results[0]).toStrictEqual(results[1]);
+      expect(results[1]).toStrictEqual(results[2]);
+    });
+
+    it('returns same completed promise for calls after first sync completes', async () => {
+      // Mock some local wallets for the full sync to process
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Track sync execution
+      let syncExecutionCount = 0;
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          syncExecutionCount += 1;
+          return fn();
+        },
+      );
+
+      // Start first sync and wait for it to complete
+      const firstSyncPromise =
+        backupAndSyncService.performFullSyncAtLeastOnce();
+      await firstSyncPromise;
+
+      // Start second call after first one is complete
+      const secondSyncPromise =
+        backupAndSyncService.performFullSyncAtLeastOnce();
+
+      // Should return the same promise (cached first sync promise)
+      expect(firstSyncPromise).toStrictEqual(secondSyncPromise);
+
+      // Wait for second promise (should resolve immediately since it's already complete)
+      await secondSyncPromise;
+
+      // Should only have executed the sync logic once (no new sync created)
+      expect(syncExecutionCount).toBe(1);
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
+
+      // Both promises should resolve successfully
+      expect(await firstSyncPromise).toBeUndefined();
+      expect(await secondSyncPromise).toBeUndefined();
+    });
+
+    it('does not create new syncs after first sync completes', async () => {
+      // Mock some local wallets for the full sync to process
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Track sync execution
+      let syncExecutionCount = 0;
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          syncExecutionCount += 1;
+          return fn();
+        },
+      );
+
+      // Multiple sequential calls
+      await backupAndSyncService.performFullSyncAtLeastOnce();
+      await backupAndSyncService.performFullSyncAtLeastOnce();
+      await backupAndSyncService.performFullSyncAtLeastOnce();
+
+      // Should only have executed once, regardless of how many times it's called
+      expect(syncExecutionCount).toBe(1);
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
+    });
+
+    it('interacts correctly with performFullSync', async () => {
+      // Mock some local wallets for the full sync to process
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Track sync execution
+      let syncExecutionCount = 0;
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          syncExecutionCount += 1;
+          return fn();
+        },
+      );
+
+      // Call performFullSyncAtLeastOnce first
+      const atLeastOncePromise =
+        backupAndSyncService.performFullSyncAtLeastOnce();
+
+      // Then call performFullSync while first is ongoing
+      const fullSyncPromise = backupAndSyncService.performFullSync();
+
+      // They should return the same promise (both use the first sync promise)
+      expect(atLeastOncePromise).toStrictEqual(fullSyncPromise);
+
+      await Promise.all([atLeastOncePromise, fullSyncPromise]);
+
+      // Should only have executed once
+      expect(syncExecutionCount).toBe(1);
+
+      // Now call performFullSync again after completion
+      const secondFullSyncPromise = backupAndSyncService.performFullSync();
+
+      // This should be different from the first (new sync created)
+      expect(secondFullSyncPromise).not.toBe(fullSyncPromise);
+
+      await secondFullSyncPromise;
+
+      // Should have executed twice now (one for each performFullSync call)
+      expect(syncExecutionCount).toBe(2);
+
+      // But performFullSyncAtLeastOnce should still return the original promise
+      const laterAtLeastOncePromise =
+        backupAndSyncService.performFullSyncAtLeastOnce();
+      expect(laterAtLeastOncePromise).toStrictEqual(atLeastOncePromise);
+
+      // And should not trigger another sync
+      await laterAtLeastOncePromise;
+      expect(syncExecutionCount).toBe(2); // Still only 2
+    }, 15000); // Increase timeout to 15 seconds
   });
 });
