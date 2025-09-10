@@ -4115,6 +4115,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
+    "@metamask/messenger": "npm:^0.2.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.4.2"
     "@types/deep-freeze-strict": "npm:^1.1.0"

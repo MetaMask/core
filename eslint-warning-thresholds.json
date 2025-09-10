@@ -280,14 +280,8 @@
     "import-x/no-named-as-default-member": 1,
     "promise/catch-or-return": 1
   },
-  "packages/permission-controller/src/Permission.ts": {
-    "prettier/prettier": 11
-  },
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
-  },
-  "packages/permission-controller/src/PermissionController.ts": {
-    "prettier/prettier": 12
   },
   "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
     "import-x/order": 1
