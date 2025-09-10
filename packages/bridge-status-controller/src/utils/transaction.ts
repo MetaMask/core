@@ -10,7 +10,6 @@ import {
   type QuoteMetadata,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
-import { signAndSendTransactionRequest } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import type {
   BatchTransactionParams,
@@ -26,6 +25,7 @@ import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
+import { signAndSendTransactionRequest } from './snaps';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { LINEA_DELAY_MS } from '../constants';
 import type {
