@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `multichainAccountGroupCreated` event emitted from wallet level when new groups are created.
   - Add `multichainAccountGroupUpdated` event emitted from wallet level when groups are synchronized.
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6544](https://github.com/MetaMask/core/pull/6544))
+  - Previously, `MultichainAccountService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [0.7.0]
 
 ### Added
