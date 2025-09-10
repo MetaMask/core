@@ -11,6 +11,7 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Json } from '@metamask/utils';
 
 import {
   createSnapPublicKeyRequest,
@@ -49,7 +50,27 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   srpSessionData: {
-    includeInStateLogs: true,
+    // Remove access token from state logs
+    includeInStateLogs: (srpSessionData) => {
+      // Using non-null assertion here to assert that it's not undefined, because if it was, this
+      // wouldn't get called.
+      // The type includes `| undefined` only because we don't yet use `strictOptionalTypes`
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return Object.entries(srpSessionData!).reduce<Record<string, Json>>(
+        (sanitizedSrpSessionData, [key, value]) => {
+          const token: Partial<(typeof value)['token']> = {
+            ...value.token,
+          };
+          delete token.accessToken;
+          sanitizedSrpSessionData[key] = {
+            ...value,
+            token,
+          };
+          return sanitizedSrpSessionData;
+        },
+        {},
+      );
+    },
     persist: true,
     anonymous: false,
     usedInUi: true,

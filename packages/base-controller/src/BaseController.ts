@@ -394,6 +394,7 @@ export function deriveStateFromMetadata<
   metadata: StateMetadata<ControllerState>,
   metadataProperty: keyof StatePropertyMetadata<Json>,
 ): Record<keyof ControllerState, Json> {
+  // Cast to keyof ControllerState because `Object.keys` erases index type, returning string
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
     Record<keyof ControllerState, Json>
   >((derivedState, key) => {

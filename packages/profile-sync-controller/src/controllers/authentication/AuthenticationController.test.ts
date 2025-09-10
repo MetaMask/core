@@ -14,6 +14,7 @@ import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
 import { MOCK_USER_PROFILE_LINEAGE_RESPONSE } from '../../sdk/mocks/auth';
+import { hasProperty } from '@metamask/utils';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -543,6 +544,7 @@ describe('metadata', () => {
     const controller = new AuthenticationController({
       messenger: createMockAuthenticationMessenger().messenger,
       metametrics: createMockAuthMetaMetrics(),
+      state: mockSignedInState(),
     });
 
     expect(
@@ -553,41 +555,114 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       Object {
-        "isSignedIn": false,
+        "isSignedIn": true,
       }
     `);
   });
 
-  it('includes expected state in state logs', () => {
-    const controller = new AuthenticationController({
-      messenger: createMockAuthenticationMessenger().messenger,
-      metametrics: createMockAuthMetaMetrics(),
-    });
+  describe('includeInStateLogs', () => {
+    it('includes expected state in state logs, with access token stripped out', () => {
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: mockSignedInState(),
+      });
 
-    expect(
-      deriveStateFromMetadata(
+      const derivedState = deriveStateFromMetadata(
         controller.state,
         controller.metadata,
         'includeInStateLogs',
-      ),
-    ).toMatchInlineSnapshot(`
-      Object {
-        "isSignedIn": false,
-      }
-    `);
+      );
+
+      expect(derivedState).toMatchInlineSnapshot(`
+        Object {
+          "isSignedIn": true,
+          "srpSessionData": Object {
+            "MOCK_ENTROPY_SOURCE_ID": Object {
+              "profile": Object {
+                "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+                "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+                "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+              },
+              "token": Object {
+                "expiresIn": 1757528159922,
+                "obtainedAt": 0,
+              },
+            },
+            "MOCK_ENTROPY_SOURCE_ID2": Object {
+              "profile": Object {
+                "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+                "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+                "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+              },
+              "token": Object {
+                "expiresIn": 1757528159922,
+                "obtainedAt": 0,
+              },
+            },
+          },
+        }
+      `);
+    });
+
+    it('returns expected state in state logs when srpSessionData is unset', () => {
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "isSignedIn": false,
+        }
+      `);
+    });
   });
 
   it('persists expected state', () => {
     const controller = new AuthenticationController({
       messenger: createMockAuthenticationMessenger().messenger,
       metametrics: createMockAuthMetaMetrics(),
+      state: mockSignedInState(),
     });
 
     expect(
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
       Object {
-        "isSignedIn": false,
+        "isSignedIn": true,
+        "srpSessionData": Object {
+          "MOCK_ENTROPY_SOURCE_ID": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1757528159923,
+              "obtainedAt": 0,
+            },
+          },
+          "MOCK_ENTROPY_SOURCE_ID2": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1757528159923,
+              "obtainedAt": 0,
+            },
+          },
+        },
       }
     `);
   });
@@ -596,6 +671,7 @@ describe('metadata', () => {
     const controller = new AuthenticationController({
       messenger: createMockAuthenticationMessenger().messenger,
       metametrics: createMockAuthMetaMetrics(),
+      state: mockSignedInState(),
     });
 
     expect(
@@ -606,7 +682,33 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       Object {
-        "isSignedIn": false,
+        "isSignedIn": true,
+        "srpSessionData": Object {
+          "MOCK_ENTROPY_SOURCE_ID": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1757528159924,
+              "obtainedAt": 0,
+            },
+          },
+          "MOCK_ENTROPY_SOURCE_ID2": Object {
+            "profile": Object {
+              "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
+              "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
+              "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
+            },
+            "token": Object {
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "expiresIn": 1757528159924,
+              "obtainedAt": 0,
+            },
+          },
+        },
       }
     `);
   });
