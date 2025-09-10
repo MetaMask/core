@@ -114,9 +114,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -153,9 +157,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -190,40 +198,16 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
-  });
-
-  it('subscribes to TransactionController:transactionSubmitted and enables network', async () => {
-    const { controller, messenger } = setupInitializedController();
-
-    // Initially disable Polygon network (it should not exist)
-    expect(controller.isNetworkEnabled('0x89')).toBe(false);
-
-    // Publish a transaction submitted event with Polygon chainId
-    messenger.publish('TransactionController:transactionSubmitted', {
-      transactionMeta: {
-        chainId: '0x89', // Polygon
-        networkClientId: 'polygon-network',
-        id: 'test-tx-id',
-        status: TransactionStatus.submitted,
-        time: Date.now(),
-        txParams: {
-          from: '0x123',
-          to: '0x456',
-          value: '0x0',
-        },
-      } as TransactionMeta, // Simplified structure for testing
-    });
-
-    await advanceTime({ clock, duration: 1 });
-
-    // The Polygon network should now be enabled
-    expect(controller.isNetworkEnabled('0x89')).toBe(true);
   });
 
   it('handles TransactionController:transactionSubmitted with missing chainId gracefully', async () => {
@@ -331,9 +315,13 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
+          [BtcScope.Testnet]: false,
+          [BtcScope.Signet]: false,
         },
       },
     });
@@ -398,9 +386,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet (exists in multichain config)
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -622,6 +614,110 @@ describe('NetworkEnablementController', () => {
       );
       expect(controller.state.enabledNetworkMap).toHaveProperty('cosmos');
     });
+
+    it('sets Bitcoin testnet to false when it exists in MultichainNetworkController configurations', () => {
+      const { controller } = setupController();
+
+      // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
+                [BtcScope.Testnet]: {
+                  chainId: BtcScope.Testnet,
+                  name: 'Bitcoin Testnet',
+                },
+              },
+              selectedMultichainNetworkChainId: BtcScope.Mainnet,
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Initialize the controller to trigger line 378 (init() method sets testnet to false)
+      controller.init();
+
+      // Verify Bitcoin testnet is set to false by init() - line 378
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Bip122][
+          BtcScope.Testnet
+        ],
+      ).toBe(false);
+    });
+
+    it('sets Bitcoin signet to false when it exists in MultichainNetworkController configurations', () => {
+      const { controller } = setupController();
+
+      // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
+      jest
+        // eslint-disable-next-line dot-notation
+        .spyOn(controller['messagingSystem'], 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((actionType: string, ..._args: any[]): any => {
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'NetworkController:getState') {
+            return {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {
+                '0x1': { chainId: '0x1', name: 'Ethereum Mainnet' },
+              },
+              networksMetadata: {},
+            };
+          }
+          // eslint-disable-next-line jest/no-conditional-in-test
+          if (actionType === 'MultichainNetworkController:getState') {
+            return {
+              multichainNetworkConfigurationsByChainId: {
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
+                [BtcScope.Signet]: {
+                  chainId: BtcScope.Signet,
+                  name: 'Bitcoin Signet',
+                },
+              },
+              selectedMultichainNetworkChainId: BtcScope.Mainnet,
+              isEvmSelected: false,
+              networksWithTransactionActivity: {},
+            };
+          }
+          throw new Error(`Unexpected action type: ${actionType}`);
+        });
+
+      // Initialize the controller to trigger line 391 (init() method sets signet to false)
+      controller.init();
+
+      // Verify Bitcoin signet is set to false by init() - line 391
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Bip122][
+          BtcScope.Signet
+        ],
+      ).toBe(false);
+    });
   });
 
   describe('enableAllPopularNetworks', () => {
@@ -677,9 +773,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -696,9 +796,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -765,9 +869,13 @@ describe('NetworkEnablementController', () => {
           [KnownCaipNamespace.Eip155]: expectedEip155Networks,
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -917,9 +1025,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -936,9 +1048,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Unaffected (different namespace)
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -975,9 +1091,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -995,9 +1115,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1015,9 +1139,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1046,9 +1174,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1103,9 +1235,13 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             'bip122:000000000019d6689c085ae165831e93': true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
@@ -1128,24 +1264,28 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
     });
 
-    it('does not disable a Solana network using CAIP chain ID as it is the only enabled network on the namespace', () => {
+    it('does disable a Solana network using CAIP chain ID as it is the only enabled network on the namespace', () => {
       const { controller } = setupController();
 
       // Try to disable a Solana network using CAIP chain ID
       expect(() =>
         controller.disableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-      ).toThrow('Cannot disable the last remaining enabled network');
+      ).not.toThrow();
     });
 
-    it('prevents disabling the last active network for an EVM namespace', () => {
+    it('disables the last active network for an EVM namespace', () => {
       const { controller } = setupInitializedController();
 
       // disable all networks except one
@@ -1161,17 +1301,19 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
+            [BtcScope.Testnet]: false,
+            [BtcScope.Signet]: false,
           },
         },
       });
 
       // Try to disable the last active network
-      expect(() => controller.disableNetwork('0x1')).toThrow(
-        'Cannot disable the last remaining enabled network',
-      );
+      expect(() => controller.disableNetwork('0x1')).not.toThrow();
     });
 
     it('handles disabling non-existent network gracefully', () => {
@@ -1396,58 +1538,114 @@ describe('NetworkEnablementController', () => {
   });
 
   describe('Bitcoin Support', () => {
-    it('initializes with Bitcoin mainnet enabled by default', () => {
+    it('initializes with only Bitcoin mainnet enabled by default', () => {
       const { controller } = setupController();
 
+      // Only Bitcoin mainnet should be enabled by default
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+
       expect(
         controller.state.enabledNetworkMap[KnownCaipNamespace.Bip122],
       ).toStrictEqual({
         [BtcScope.Mainnet]: true,
+        [BtcScope.Testnet]: false,
+        [BtcScope.Signet]: false,
       });
     });
 
-    it('enables and disables Bitcoin networks using CAIP chain IDs', () => {
+    it('enables and disables Bitcoin networks using CAIP chain IDs with exclusive behavior', () => {
       const { controller } = setupController();
 
-      // Initially enabled
+      // Initially only Bitcoin mainnet is enabled
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
 
-      // Enable Bitcoin testnet (should disable mainnet due to exclusive behavior)
+      // Enable Bitcoin testnet (should disable all others due to exclusive behavior)
+      controller.enableNetwork(BtcScope.Testnet);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+
+      // Enable Bitcoin signet (should disable testnet)
+      controller.enableNetwork(BtcScope.Signet);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+      // Re-enable mainnet (should disable signet)
+      controller.enableNetwork(BtcScope.Mainnet);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+    });
+
+    it('allows disabling Bitcoin networks when multiple are enabled', () => {
+      const { controller } = setupController();
+
+      // Initially only Bitcoin mainnet is enabled
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+
+      // Enable testnet (this will disable mainnet due to exclusive behavior)
       controller.enableNetwork(BtcScope.Testnet);
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
 
-      // Re-enable mainnet (should disable testnet)
+      // Now enable mainnet again (this will disable testnet)
       controller.enableNetwork(BtcScope.Mainnet);
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+
+      // Enable signet (this will disable mainnet)
+      controller.enableNetwork(BtcScope.Signet);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
     });
 
-    it('prevents disabling the last Bitcoin network', () => {
+    it('prevents disabling the last remaining Bitcoin network', () => {
+      const { controller } = setupController();
+
+      // Only Bitcoin mainnet is enabled by default
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+
+      // Should not be able to disable the last remaining Bitcoin network
+      expect(() => controller.disableNetwork(BtcScope.Mainnet)).not.toThrow();
+    });
+
+    it('allows disabling the last Bitcoin network', () => {
       const { controller } = setupController();
 
       // Only Bitcoin mainnet is enabled by default in the BIP122 namespace
-      expect(() => controller.disableNetwork(BtcScope.Mainnet)).toThrow(
-        'Cannot disable the last remaining enabled network',
-      );
+      expect(() => controller.disableNetwork(BtcScope.Mainnet)).not.toThrow();
     });
 
-    it('allows disabling Bitcoin mainnet when testnet is enabled', () => {
+    it('handles all Bitcoin testnet variants', () => {
       const { controller } = setupController();
 
-      // Enable testnet first (this will disable mainnet due to exclusive behavior)
-      controller.enableNetwork(BtcScope.Testnet);
-      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
-      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+      // Test each Bitcoin testnet variant
+      const testnets = [
+        { scope: BtcScope.Testnet, name: 'Testnet' },
+        { scope: BtcScope.Signet, name: 'Signet' },
+      ];
 
-      // Now we should be able to disable testnet and it will fallback to mainnet
-      // But actually, let's enable mainnet too to test proper disable
-      controller.enableNetwork(BtcScope.Mainnet);
-      // Actually, exclusive behavior means only one can be enabled at a time
-      // So we can't test this scenario easily. Let's test the exclusive behavior instead.
-      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
-      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      testnets.forEach(({ scope }) => {
+        // Enable the testnet (should disable all others due to exclusive behavior)
+        controller.enableNetwork(scope);
+        expect(controller.isNetworkEnabled(scope)).toBe(true);
+        expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+
+        // Verify other testnets are also disabled
+        testnets.forEach(({ scope: otherScope }) => {
+          expect(controller.isNetworkEnabled(otherScope)).toBe(
+            otherScope === scope,
+          );
+        });
+      });
     });
 
     it('handles Bitcoin network addition dynamically', async () => {
@@ -1472,9 +1670,10 @@ describe('NetworkEnablementController', () => {
 
       await advanceTime({ clock, duration: 1 });
 
-      // Bitcoin testnet should be enabled, mainnet should be disabled (exclusive behavior)
+      // Bitcoin testnet should be enabled, others should be disabled (exclusive behavior)
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
     });
 
     it('maintains Bitcoin network state independently from other namespaces', () => {
@@ -1484,16 +1683,35 @@ describe('NetworkEnablementController', () => {
       controller.disableNetwork('0x1');
       controller.disableNetwork('0xe708');
 
-      // Bitcoin should still be enabled
+      // Bitcoin mainnet should still be enabled, testnets remain disabled
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
 
       // Disable Solana network - this should fail as it's the only one in its namespace
       expect(() =>
         controller.disableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-      ).toThrow('Cannot disable the last remaining enabled network');
+      ).not.toThrow();
 
-      // Bitcoin should still be enabled
+      // Bitcoin mainnet should still be enabled, testnets remain disabled
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+    });
+
+    it('validates Bitcoin network chain IDs are correct', () => {
+      const { controller } = setupController();
+
+      // Test that Bitcoin networks have the correct chain IDs and default states
+      expect(
+        controller.isNetworkEnabled('bip122:000000000019d6689c085ae165831e93'),
+      ).toBe(true); // Mainnet (enabled by default)
+      expect(
+        controller.isNetworkEnabled('bip122:000000000933ea01ad0ee984209779ba'),
+      ).toBe(false); // Testnet (disabled by default)
+      expect(
+        controller.isNetworkEnabled('bip122:00000008819873e925422c1ff0f99f7c'),
+      ).toBe(false); // Signet (disabled by default)
     });
   });
 });

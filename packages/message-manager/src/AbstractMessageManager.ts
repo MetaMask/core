@@ -98,8 +98,8 @@ export type MessageManagerState<Message extends AbstractMessage> = {
   unapprovedMessagesCount: number;
 };
 
-export type UpdateBadgeEvent = {
-  type: `${string}:updateBadge`;
+export type UpdateBadgeEvent<Namespace extends string> = {
+  type: `${Namespace}:updateBadge`;
   payload: [];
 };
 
@@ -121,19 +121,20 @@ export type SecurityProviderRequest = (
  * @property state - Initial state to set on this controller.
  */
 export type AbstractMessageManagerOptions<
+  Name extends string,
   Message extends AbstractMessage,
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > = {
   additionalFinishStatuses?: string[];
   messenger: RestrictedMessenger<
-    string,
+    Name,
     Action,
-    Event | UpdateBadgeEvent,
+    Event | UpdateBadgeEvent<Name>,
     string,
     string
   >;
-  name: string;
+  name: Name;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<Message>;
 };
@@ -142,15 +143,22 @@ export type AbstractMessageManagerOptions<
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
+  Name extends string,
   Message extends AbstractMessage,
   Params extends AbstractMessageParams,
   ParamsMetamask extends AbstractMessageParamsMetamask,
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > extends BaseController<
-  string,
+  Name,
   MessageManagerState<Message>,
-  RestrictedMessenger<string, Action, Event | UpdateBadgeEvent, string, string>
+  RestrictedMessenger<
+    Name,
+    Action,
+    Event | UpdateBadgeEvent<Name>,
+    string,
+    string
+  >
 > {
   protected messages: Message[];
 
@@ -166,7 +174,7 @@ export abstract class AbstractMessageManager<
     name,
     securityProviderRequest,
     state = {} as MessageManagerState<Message>,
-  }: AbstractMessageManagerOptions<Message, Action, Event>) {
+  }: AbstractMessageManagerOptions<Name, Message, Action, Event>) {
     super({
       messenger,
       metadata: stateMetadata,
@@ -239,7 +247,7 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      this.messagingSystem.publish(`${this.name as string}:updateBadge`);
+      this.messagingSystem.publish(`${this.name}:updateBadge`);
     }
   }
 

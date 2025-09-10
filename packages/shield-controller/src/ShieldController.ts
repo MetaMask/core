@@ -101,12 +101,16 @@ export type ShieldControllerMessenger = RestrictedMessenger<
  */
 const metadata = {
   coverageResults: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   orderedTransactionHistory: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
 };
 
