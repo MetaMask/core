@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@metamask/eth-json-rpc-middleware": "^17.0.1",
+    "@metamask/superstruct": "^3.1.0",
     "@metamask/transaction-controller": "^60.2.0",
     "@metamask/utils": "^11.4.2",
     "uuid": "^8.3.2"
@@ -59,6 +60,7 @@
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "klona": "^2.0.6",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",

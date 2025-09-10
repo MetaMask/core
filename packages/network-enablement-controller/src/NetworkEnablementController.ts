@@ -117,6 +117,8 @@ const getDefaultNetworkEnablementControllerState =
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
+        [SolScope.Testnet]: false,
+        [SolScope.Devnet]: false,
       },
       [KnownCaipNamespace.Bip122]: {
         [BtcScope.Mainnet]: true,

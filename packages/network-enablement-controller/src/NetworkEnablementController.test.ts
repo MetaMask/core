@@ -114,6 +114,8 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
@@ -155,6 +157,8 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
@@ -194,6 +198,8 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
@@ -309,6 +315,8 @@ describe('NetworkEnablementController', () => {
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
+          [SolScope.Testnet]: false,
+          [SolScope.Devnet]: false,
         },
         [KnownCaipNamespace.Bip122]: {
           [BtcScope.Mainnet]: true,
@@ -378,6 +386,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet (exists in multichain config)
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -763,6 +773,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -784,6 +796,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -855,6 +869,8 @@ describe('NetworkEnablementController', () => {
           [KnownCaipNamespace.Eip155]: expectedEip155Networks,
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1009,6 +1025,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1030,6 +1048,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Unaffected (different namespace)
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1071,6 +1091,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1093,6 +1115,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1115,6 +1139,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1148,6 +1174,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1207,6 +1235,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             'bip122:000000000019d6689c085ae165831e93': true,
@@ -1234,6 +1264,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
@@ -1269,6 +1301,8 @@ describe('NetworkEnablementController', () => {
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
+            [SolScope.Testnet]: false,
+            [SolScope.Devnet]: false,
           },
           [KnownCaipNamespace.Bip122]: {
             [BtcScope.Mainnet]: true,
