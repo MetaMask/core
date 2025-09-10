@@ -54,7 +54,7 @@ describe('getRewardsFeatureFlag', () => {
     expect(res).toBe(false);
   });
 
-  it('returns undefined when rewards flag is missing', () => {
+  it('returns false when rewards flag is missing', () => {
     const messenger = makeMessenger({
       remoteFeatureFlags: {
         // no rewards key
@@ -68,10 +68,10 @@ describe('getRewardsFeatureFlag', () => {
     expect(messenger.call).toHaveBeenCalledWith(
       'RemoteFeatureFlagController:getState',
     );
-    expect(res).toBeUndefined();
+    expect(res).toBe(false);
   });
 
-  it('returns undefined when remoteFeatureFlags is missing', () => {
+  it('returns false when remoteFeatureFlags is missing', () => {
     const messenger = makeMessenger({
       // remoteFeatureFlags: undefined
     });
@@ -81,10 +81,10 @@ describe('getRewardsFeatureFlag', () => {
     expect(messenger.call).toHaveBeenCalledWith(
       'RemoteFeatureFlagController:getState',
     );
-    expect(res).toBeUndefined();
+    expect(res).toBe(false);
   });
 
-  it('returns undefined when controller state is undefined (defensive)', () => {
+  it('returns false when controller state is undefined (defensive)', () => {
     const messenger = makeMessenger(undefined);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,6 +92,6 @@ describe('getRewardsFeatureFlag', () => {
     expect(messenger.call).toHaveBeenCalledWith(
       'RemoteFeatureFlagController:getState',
     );
-    expect(res).toBeUndefined();
+    expect(res).toBe(false);
   });
 });

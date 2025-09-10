@@ -17,8 +17,8 @@ export function getRewardsFeatureFlag<
     'RemoteFeatureFlagController:getState',
   );
 
-  const rewardsFlag = remoteFeatureFlagControllerState?.remoteFeatureFlags
-    ?.rewards as boolean;
+  const rewardsFlag = (remoteFeatureFlagControllerState?.remoteFeatureFlags
+    ?.rewards ?? false) as boolean;
 
   return rewardsFlag;
 }
