@@ -13,10 +13,6 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { GetCallsStatusHook } from './methods/wallet-get-calls-status';
-import { walletGetCallsStatus } from './methods/wallet-get-calls-status';
-import type { GetCapabilitiesHook } from './methods/wallet-get-capabilities';
-import { walletGetCapabilities } from './methods/wallet-get-capabilities';
 import {
   type ProcessRequestExecutionPermissionsHook,
   walletRequestExecutionPermissions,
@@ -25,8 +21,6 @@ import {
   type ProcessRevokeExecutionPermissionHook,
   walletRevokeExecutionPermission,
 } from './methods/wallet-revoke-execution-permission';
-import type { ProcessSendCallsHook } from './methods/wallet-send-calls';
-import { walletSendCalls } from './methods/wallet-send-calls';
 import type { Block } from './types';
 import { stripArrayTypeIfPresent } from './utils/common';
 import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
@@ -67,8 +61,6 @@ export type TypedMessageV1Params = Omit<TypedMessageParams, 'data'> & {
 
 export interface WalletMiddlewareOptions {
   getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
-  getCallsStatus?: GetCallsStatusHook;
-  getCapabilities?: GetCapabilitiesHook;
   processDecryptMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest,
@@ -104,15 +96,12 @@ export interface WalletMiddlewareOptions {
     req: JsonRpcRequest,
     version: string,
   ) => Promise<string>;
-  processSendCalls?: ProcessSendCallsHook;
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
 }
 
 export function createWalletMiddleware({
   getAccounts,
-  getCallsStatus,
-  getCapabilities,
   processDecryptMessage,
   processEncryptionPublicKey,
   processPersonalMessage,
@@ -121,7 +110,6 @@ export function createWalletMiddleware({
   processTypedMessage,
   processTypedMessageV3,
   processTypedMessageV4,
-  processSendCalls,
   processRequestExecutionPermissions,
   processRevokeExecutionPermission,
 }: // }: WalletMiddlewareOptions): JsonRpcMiddleware<string, Block> {
@@ -147,19 +135,6 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     eth_getEncryptionPublicKey: createAsyncMiddleware(encryptionPublicKey),
     eth_decrypt: createAsyncMiddleware(decryptMessage),
     personal_ecRecover: createAsyncMiddleware(personalRecover),
-
-    // EIP-5792
-    wallet_getCapabilities: createAsyncMiddleware(async (req, res) =>
-      walletGetCapabilities(req, res, { getAccounts, getCapabilities }),
-    ),
-    wallet_sendCalls: createAsyncMiddleware(async (req, res) =>
-      walletSendCalls(req, res, { getAccounts, processSendCalls }),
-    ),
-    wallet_getCallsStatus: createAsyncMiddleware(async (req, res) =>
-      walletGetCallsStatus(req, res, {
-        getCallsStatus,
-      }),
-    ),
 
     // EIP-7715
     wallet_requestExecutionPermissions: createAsyncMiddleware(
