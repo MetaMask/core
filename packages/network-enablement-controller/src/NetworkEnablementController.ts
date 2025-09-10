@@ -1,10 +1,10 @@
-import { BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller/next';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
@@ -94,12 +94,10 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionSubmittedEvent;
 
-export type NetworkEnablementControllerMessenger = RestrictedMessenger<
+export type NetworkEnablementControllerMessenger = Messenger<
   typeof controllerName,
   NetworkEnablementControllerActions | AllowedActions,
-  NetworkEnablementControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  NetworkEnablementControllerEvents | AllowedEvents
 >;
 
 /**
@@ -231,10 +229,10 @@ export class NetworkEnablementController extends BaseController<
   enableAllPopularNetworks(): void {
     this.update((s) => {
       // Get current network configurations to check if networks exist
-      const networkControllerState = this.messagingSystem.call(
+      const networkControllerState = this.messenger.call(
         'NetworkController:getState',
       );
-      const multichainState = this.messagingSystem.call(
+      const multichainState = this.messenger.call(
         'MultichainNetworkController:getState',
       );
 
@@ -296,12 +294,12 @@ export class NetworkEnablementController extends BaseController<
   init(): void {
     this.update((s) => {
       // Get network configurations from NetworkController (EVM networks)
-      const networkControllerState = this.messagingSystem.call(
+      const networkControllerState = this.messenger.call(
         'NetworkController:getState',
       );
 
       // Get network configurations from MultichainNetworkController (all networks)
-      const multichainState = this.messagingSystem.call(
+      const multichainState = this.messenger.call(
         'MultichainNetworkController:getState',
       );
 
