@@ -1,3 +1,7 @@
+import BN from 'bn.js';
+import { produce } from 'immer';
+import { isEqual } from 'lodash';
+
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -28,8 +32,6 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
-import { produce } from 'immer';
-import { isEqual } from 'lodash';
 
 import type {
   AccountTrackerUpdateNativeBalancesAction,
@@ -47,6 +49,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -88,10 +91,16 @@ export type TokenBalancesControllerGetChainPollingConfigAction = {
   handler: TokenBalancesController['getChainPollingConfig'];
 };
 
+export type TokenBalancesControllerGetDefaultPollingIntervalAction = {
+  type: `TokenBalancesController:getDefaultPollingInterval`;
+  handler: TokenBalancesController['getDefaultPollingInterval'];
+};
+
 export type TokenBalancesControllerActions =
   | TokenBalancesControllerGetStateAction
   | TokenBalancesControllerUpdateChainPollingConfigsAction
-  | TokenBalancesControllerGetChainPollingConfigAction;
+  | TokenBalancesControllerGetChainPollingConfigAction
+  | TokenBalancesControllerGetDefaultPollingIntervalAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
@@ -119,7 +128,10 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | { type: 'AccountActivityService:balanceUpdated'; payload: any[] }
+  | { type: 'AccountActivityService:websocketConnected'; payload: any[] }
+  | { type: 'AccountActivityService:websocketDisconnected'; payload: any[] };
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof CONTROLLER,
@@ -260,6 +272,22 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#onAccountRemoved,
     );
 
+    // Subscribe to AccountActivityService balance updates for real-time updates
+    this.messagingSystem.subscribe(
+      'AccountActivityService:balanceUpdated',
+      this.#onAccountActivityBalanceUpdate.bind(this),
+    );
+
+    // Subscribe to AccountActivityService WebSocket state changes for polling management
+    this.messagingSystem.subscribe(
+      'AccountActivityService:websocketConnected',
+      this.#onWebSocketConnected.bind(this),
+    );
+    this.messagingSystem.subscribe(
+      'AccountActivityService:websocketDisconnected',
+      this.#onWebSocketDisconnected.bind(this),
+    );
+
     // Register action handlers for polling interval control
     this.messagingSystem.registerActionHandler(
       `TokenBalancesController:updateChainPollingConfigs`,
@@ -269,6 +297,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messagingSystem.registerActionHandler(
       `TokenBalancesController:getChainPollingConfig`,
       this.getChainPollingConfig.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `TokenBalancesController:getDefaultPollingInterval`,
+      this.getDefaultPollingInterval.bind(this),
     );
   }
 
@@ -462,6 +495,16 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         interval: this.#defaultInterval,
       }
     );
+  }
+
+  /**
+   * Get the default polling interval for this controller
+   * This is the base interval used for chains without specific configuration
+   * 
+   * @returns The default polling interval in milliseconds
+   */
+  getDefaultPollingInterval(): number {
+    return this.#defaultInterval;
   }
 
   override async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
@@ -793,6 +836,130 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   /**
+   * Handle real-time balance updates from AccountActivityService
+   * Processes balance updates and updates the token balance state
+   */
+  readonly #onAccountActivityBalanceUpdate = async ({
+    address,
+    chain,
+    updates,
+  }: {
+    address: string;
+    chain: string;
+    updates: Array<{
+      asset: { type: string; unit: string };
+      postBalance: { amount: string };
+    }>;
+  }) => {
+
+    const chainParts = chain.split(':');
+    const chainId = `0x${parseInt(chainParts[1], 10).toString(16)}`;
+    const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
+
+    let shouldPoll = false;
+
+    try {
+      this.update((state) => {
+        // Initialize account and chain if they don't exist
+        if (!state.tokenBalances[checksumAddress]) {
+          state.tokenBalances[checksumAddress] = {};
+        }
+        if (!state.tokenBalances[checksumAddress][chainId as ChainIdHex]) {
+          state.tokenBalances[checksumAddress][chainId as ChainIdHex] = {};
+        }
+
+        // Process each balance update on the fly
+        for (const update of updates) {
+          const { asset, postBalance } = update;
+          
+          // Extract token address from asset type (e.g., "eip155:1/erc20:0x...")
+          let tokenAddress: string;
+          
+          if (asset.type.includes('/erc20:')) {
+            // ERC20 token
+            tokenAddress = asset.type.split('/erc20:')[1];
+          } else if (asset.type.includes('/slip44:')) {
+            // Native token - use zero address
+            tokenAddress = '0x0000000000000000000000000000000000000000';
+          } else {
+            console.warn('Unsupported asset type:', asset.type, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+
+          if (!isStrictHexString(tokenAddress) || !isValidHexAddress(tokenAddress)) {
+            console.warn('Invalid token address:', tokenAddress, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+
+          const checksumTokenAddress = toChecksumHexAddress(tokenAddress) as ChecksumAddress;
+          const balanceHex = BNToHex(new BN(postBalance.amount)) as Hex;
+
+          // Update the balance immediately
+          state.tokenBalances[checksumAddress][chainId as ChainIdHex][checksumTokenAddress] = balanceHex;
+          console.log(`Updated balance for ${checksumAddress} on ${chain} (${chainId}): ${asset.unit} = ${postBalance.amount}`);
+        }
+      });
+    } catch (error) {
+      console.error('Error handling AccountActivityService balance update:', error);
+      shouldPoll = true;
+    }
+
+    // Single fallback polling call for any error (validation or processing)
+    if (shouldPoll) {
+      try {
+        console.log(`Triggering fallback poll for chain ${chain} (${chainId})`);
+        await this.updateBalances({ chainIds: [chainId as ChainIdHex] });
+      } catch (pollError) {
+        console.error('Error during fallback polling:', pollError);
+      }
+    }
+  };
+
+  /**
+   * Handle WebSocket connected event from AccountActivityService
+   * Switch to backup polling with longer intervals
+   */
+  readonly #onWebSocketConnected = ({
+    supportedChains,
+    backupPollingInterval,
+  }: {
+    supportedChains: readonly string[];
+    backupPollingInterval: number;
+  }) => {
+    console.log('TokenBalancesController: WebSocket connected, switching to backup polling');
+    
+    // Configure backup polling for all supported chains
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    for (const chainId of supportedChains) {
+      chainConfigs[chainId as ChainIdHex] = { interval: backupPollingInterval };
+    }
+
+    this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: false });
+  };
+
+  /**
+   * Handle WebSocket disconnected event from AccountActivityService
+   * Switch to active polling with default intervals
+   */
+  readonly #onWebSocketDisconnected = ({
+    supportedChains,
+  }: {
+    supportedChains: readonly string[];
+  }) => {
+    console.log('TokenBalancesController: WebSocket disconnected, switching to active polling');
+    
+    // Configure active polling for all supported chains using default interval
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    for (const chainId of supportedChains) {
+      chainConfigs[chainId as ChainIdHex] = { interval: this.#defaultInterval };
+    }
+
+    this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
+  };
+
+  /**
    * Clean up all timers and resources when controller is destroyed
    */
   override destroy(): void {
@@ -801,12 +968,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#intervalPollingTimers.clear();
 
     // Unregister action handlers
-    this.messagingSystem.unregisterActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-    );
-    this.messagingSystem.unregisterActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-    );
+      this.messagingSystem.unregisterActionHandler(
+        `TokenBalancesController:updateChainPollingConfigs`,
+      );
+      this.messagingSystem.unregisterActionHandler(
+        `TokenBalancesController:getChainPollingConfig`,
+      );
 
     super.destroy();
   }
