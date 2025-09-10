@@ -122,3 +122,23 @@ export enum RecommendedAction {
    */
   Verified = 'VERIFIED',
 }
+
+/**
+ * Result of a token screening scan
+ */
+export type TokenScanResult = {
+  result_type: 'Benign' | 'Warning' | 'Malicious' | 'Spam';
+  chain: string;
+  address: string;
+};
+
+/**
+ * Response for bulk token screening requests
+ */
+export type BulkTokenScanResponse = Record<string, TokenScanResult>;
+
+/**
+ * Token data stored in cache (excludes chain and address which are in the key)
+ * For now, we only cache the result type, but we could add more data if needed in the future
+ */
+export type TokenScanCacheData = Omit<TokenScanResult, 'chain' | 'address'>;

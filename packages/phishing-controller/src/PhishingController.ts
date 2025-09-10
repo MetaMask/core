@@ -17,6 +17,9 @@ import {
   type PhishingDetectorResult,
   type PhishingDetectionScanResult,
   RecommendedAction,
+  type TokenScanCacheData,
+  type TokenScanResult,
+  type BulkTokenScanResponse,
 } from './types';
 import {
   applyDiffs,
@@ -25,26 +28,6 @@ import {
   roundToNearestMinute,
   getHostnameFromWebUrl,
 } from './utils';
-
-/**
- * Result of a token screening scan
- */
-export type TokenScanResult = {
-  result_type: 'Benign' | 'Warning' | 'Malicious' | 'Spam';
-  chain: string;
-  address: string;
-};
-
-/**
- * Response for bulk token screening requests
- */
-export type BulkTokenScanResponse = Record<string, TokenScanResult>;
-
-/**
- * Token data stored in cache (excludes chain and address which are in the key)
- * For now, we only cache the result type, but we could add more data if needed in the future
- */
-type TokenScanCacheData = Omit<TokenScanResult, 'chain' | 'address'>;
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
