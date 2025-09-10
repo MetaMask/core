@@ -280,15 +280,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
 
     // Register action handlers for polling interval control
-          this.messagingSystem.registerActionHandler(
-        `TokenBalancesController:updateChainPollingConfigs`,
-        this.updateChainPollingConfigs.bind(this),
-      );
+    this.messagingSystem.registerActionHandler(
+      `TokenBalancesController:updateChainPollingConfigs`,
+      this.updateChainPollingConfigs.bind(this),
+    );
 
-      this.messagingSystem.registerActionHandler(
-        `TokenBalancesController:getChainPollingConfig`,
-        this.getChainPollingConfig.bind(this),
-      );
+    this.messagingSystem.registerActionHandler(
+      `TokenBalancesController:getChainPollingConfig`,
+      this.getChainPollingConfig.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `TokenBalancesController:getDefaultPollingInterval`,
+      this.getDefaultPollingInterval.bind(this),
+    );
   }
 
   #chainIdsWithTokens(): ChainIdHex[] {

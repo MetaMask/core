@@ -143,7 +143,7 @@ class AccountActivityService {
   getCurrentSubscribedAccount(): string | null;
   
   // Lifecycle
-  cleanup(): void;
+  destroy(): void;
 }
 ```
 

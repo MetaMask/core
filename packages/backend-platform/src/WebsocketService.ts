@@ -189,6 +189,10 @@ export type WebSocketServiceActions =
   | WebSocketServiceGetSubscriptionByChannelAction
   | WebSocketServiceIsChannelSubscribedAction;
 
+export type WebSocketServiceAllowedActions = never;
+
+export type WebSocketServiceAllowedEvents = never;
+
 // Event types for WebSocket connection state changes
 export type WebSocketServiceConnectionStateChangedEvent = {
   type: 'BackendWebSocketService:connectionStateChanged';
@@ -200,10 +204,10 @@ export type WebSocketServiceEvents =
 
 export type WebSocketServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
-  WebSocketServiceActions,
-  WebSocketServiceEvents,
-  never,
-  WebSocketServiceEvents['type']
+  WebSocketServiceActions | WebSocketServiceAllowedActions,
+  WebSocketServiceEvents | WebSocketServiceAllowedEvents,
+  WebSocketServiceAllowedActions['type'],
+  WebSocketServiceAllowedEvents['type']
 >;
 
 /**
@@ -220,7 +224,7 @@ export type WebSocketServiceMessenger = RestrictedMessenger<
  * Mobile apps should handle lifecycle events (background/foreground) by:
  * 1. Calling disconnect() when app goes to background
  * 2. Calling connect() when app returns to foreground
- * 3. Calling cleanup() on app termination
+ * 3. Calling destroy() on app termination
  */
 export class WebSocketService {
   readonly #messenger: WebSocketServiceMessenger;
@@ -545,10 +549,10 @@ export class WebSocketService {
   }
 
   /**
-   * Clean up resources and close connections
+   * Destroy the service and clean up resources
    * Called when service is being destroyed or app is terminating
    */
-  cleanup(): void {
+  destroy(): void {
     this.#clearTimers();
     this.#clearSubscriptions();
 
