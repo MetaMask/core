@@ -20,6 +20,7 @@ import {
   type TokenScanCacheData,
   type TokenScanResult,
   type BulkTokenScanResponse,
+  type BulkTokenScanRequest,
 } from './types';
 import {
   applyDiffs,
@@ -911,10 +912,9 @@ export class PhishingController extends BaseController<
    * @param request.tokens - Array of token addresses to scan.
    * @returns A mapping of lowercase token addresses to their scan results. Tokens that fail to scan are omitted.
    */
-  bulkScanTokens = async (request: {
-    chainId: string;
-    tokens: string[];
-  }): Promise<BulkTokenScanResponse> => {
+  bulkScanTokens = async (
+    request: BulkTokenScanRequest,
+  ): Promise<BulkTokenScanResponse> => {
     const { chainId, tokens } = request;
 
     if (!tokens || tokens.length === 0) {

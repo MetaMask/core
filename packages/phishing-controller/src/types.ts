@@ -124,6 +124,14 @@ export enum RecommendedAction {
 }
 
 /**
+ * Request for bulk token screening
+ */
+export type BulkTokenScanRequest = {
+  chainId: string;
+  tokens: string[];
+};
+
+/**
  * Result of a token screening scan
  */
 export type TokenScanResult = {
