@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `@metamask/superstruct` for data validation.
   - Add `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies.
 
+### Changed
+
+- Account group name uniqueness validation now scoped to wallet level instead of global ([#6550](https://github.com/MetaMask/core/pull/6550))
+  - `isAccountGroupNameUnique` now checks for duplicates only within the same wallet, allowing different wallets to have groups with the same name.
+  - Function now throws an error for non-existent group IDs instead of returning `true`.
+  - Updated `setAccountGroupName` behavior to allow duplicate names across different wallets.
+
 ## [0.13.1]
 
 ### Fixed

@@ -29,6 +29,7 @@ import {
 } from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
+import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -2079,7 +2080,7 @@ describe('AccountTreeController', () => {
       }).not.toThrow();
     });
 
-    it('prevents setting duplicate names across different groups', () => {
+    it('allows duplicate names across different wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -2107,10 +2108,10 @@ describe('AccountTreeController', () => {
       // Set name for first group - should succeed
       controller.setAccountGroupName(groupId1, duplicateName);
 
-      // Try to set the same name for second group - should throw
+      // Set the same name for second group in different wallet - should succeed
       expect(() => {
         controller.setAccountGroupName(groupId2, duplicateName);
-      }).toThrow('Account group name already exists');
+      }).not.toThrow();
     });
 
     it('ensures unique names when generating default names', () => {
@@ -2132,7 +2133,7 @@ describe('AccountTreeController', () => {
       expect(names.every((name) => name.length > 0)).toBe(true);
     });
 
-    it('prevents duplicate names when comparing trimmed names', () => {
+    it('allows duplicate names with different spacing across different wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -2158,11 +2159,89 @@ describe('AccountTreeController', () => {
       const nameWithSpaces = '  My Group Name  ';
       controller.setAccountGroupName(groupId1, nameWithSpaces);
 
-      // Try to set the same name for second group with different spacing - should throw
+      // Set the same name for second group with different spacing in different wallet - should succeed
       const nameWithDifferentSpacing = ' My Group Name ';
       expect(() => {
         controller.setAccountGroupName(groupId2, nameWithDifferentSpacing);
+      }).not.toThrow();
+    });
+
+    it('prevents duplicate names within the same wallet', () => {
+      // Create two accounts with the same entropy source to ensure they're in the same wallet
+      const mockAccount1: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-id-1',
+        address: '0x123',
+        options: {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: 'mock-keyring-id-1',
+            groupIndex: 0,
+            derivationPath: '',
+          },
+        },
+      };
+
+      const mockAccount2: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_2,
+        id: 'mock-id-2',
+        address: '0x456',
+        options: {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: 'mock-keyring-id-1', // Same entropy ID as account1
+            groupIndex: 1, // Different group index to create separate groups
+            derivationPath: '',
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccount1, mockAccount2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallets = controller.getAccountWalletObjects();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groups = Object.values(wallet.groups);
+
+      expect(groups.length).toBeGreaterThanOrEqual(2);
+
+      const groupId1 = groups[0].id;
+      const groupId2 = groups[1].id;
+      const duplicateName = 'Duplicate Group Name';
+
+      // Set name for first group - should succeed
+      controller.setAccountGroupName(groupId1, duplicateName);
+
+      // Try to set the same name for second group in same wallet - should throw
+      expect(() => {
+        controller.setAccountGroupName(groupId2, duplicateName);
       }).toThrow('Account group name already exists');
+    });
+
+    it('throws error for non-existent group ID', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Test the isAccountGroupNameUnique function directly with a non-existent group ID
+      expect(() => {
+        isAccountGroupNameUnique(
+          controller.state,
+          'non-existent-group-id' as AccountGroupId,
+          'Some Name',
+        );
+      }).toThrow(
+        'Account group with ID "non-existent-group-id" not found in tree',
+      );
     });
   });
 
