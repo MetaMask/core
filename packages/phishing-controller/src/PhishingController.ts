@@ -406,7 +406,6 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
-    // Initialize URL scan cache
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -417,8 +416,6 @@ export class PhishingController extends BaseController<
         });
       },
     });
-
-    // Initialize token scan cache
     this.#tokenScanCache = new CacheManager<TokenScanCacheData>({
       cacheTTL: tokenScanCacheTTL,
       maxCacheSize: tokenScanCacheMaxSize,
@@ -882,52 +879,28 @@ export class PhishingController extends BaseController<
    * @returns The chain name.
    */
   readonly #chainIdToName: Record<string, string> = {
-    '1': 'ethereum',
-    '10': 'optimism',
-    '56': 'bsc',
-    '137': 'polygon',
-    '250': 'fantom',
-    '42161': 'arbitrum',
-    '43114': 'avalanche',
-    '8453': 'base',
-    '534352': 'scroll',
-    '59144': 'linea',
-    '324': 'zksync',
-    '1101': 'polygon-zkevm',
-    '42220': 'celo',
-    '100': 'gnosis',
-    '1284': 'moonbeam',
-    '1285': 'moonriver',
-    '122': 'fuse',
-    '9001': 'evmos',
-    '1313161554': 'aurora',
-    '1666600000': 'harmony',
-    '25': 'cronos',
-    '288': 'boba',
-    '106': 'velas',
-    '1088': 'metis',
-    '2222': 'kava',
-    '10000': 'smartbch',
-    '32659': 'fusion',
-    '30': 'rsk',
-    '4689': 'iotex',
-    '1030': 'conflux',
-    '71402': 'godwoken',
-    '888': 'wanchain',
-    '66': 'okc',
-    '128': 'heco',
-    '336': 'shiden',
-    '592': 'astar',
-    '3': 'ropsten',
-    '4': 'rinkeby',
-    '5': 'goerli',
-    '42': 'kovan',
-    '80001': 'mumbai',
-    '420': 'optimism-goerli',
-    '421613': 'arbitrum-goerli',
-    '11155111': 'sepolia',
-    '84531': 'base-goerli',
-    '84532': 'base-sepolia',
+    '0x1': 'ethereum',
+    '0x89': 'polygon',
+    '0x38': 'bsc',
+    '0xa4b1': 'arbitrum',
+    '0xa86a': 'avalanche',
+    '0x2105': 'base',
+    '0xa': 'optimism',
+    '0x76adf1': 'zora',
+    '0xe708': 'linea',
+    '0x27bc86aa': 'degen',
+    '0x144': 'zksync',
+    '0x82750': 'scroll',
+    '0x13e31': 'blast',
+    '0x74c': 'soneium',
+    '0x79a': 'soneium-minato',
+    '0x14a34': 'base-sepolia',
+    '0xab5': 'abstract',
+    '0x849ea': 'zero-network',
+    '0x138de': 'berachain',
+    '0x82': 'unichain',
+    '0x7e4': 'ronin',
+    '0x127': 'hedera',
   };
 
   /**
@@ -956,9 +929,8 @@ export class PhishingController extends BaseController<
       );
     }
 
-    // Convert hex chainId to decimal for chain name lookup
-    const decimalChainId = parseInt(chainId, 16).toString();
-    const chain = this.#chainIdToName[decimalChainId];
+    // Look up chain name using hex chainId directly
+    const chain = this.#chainIdToName[chainId.toLowerCase()];
 
     if (!chain) {
       throw new Error(`Unknown chain ID: ${chainId}`);
