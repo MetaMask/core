@@ -67,7 +67,21 @@ export type AccountActivityServiceActions =
   | AccountActivityServiceSubscribeAccountsAction
   | AccountActivityServiceUnsubscribeAccountsAction;
 
-type AllowedActions =
+// Allowed actions that AccountActivityService can call on other controllers
+export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
+  'AccountsController:getAccountByAddress',
+  'AccountsController:getSelectedAccount',
+  'TokenBalancesController:updateChainPollingConfigs',
+  'TokenBalancesController:getDefaultPollingInterval',
+] as const;
+
+// Allowed events that AccountActivityService can listen to
+export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
+  'AccountsController:selectedAccountChange',
+  'BackendWebSocketService:connectionStateChanged',
+] as const;
+
+export type AccountActivityServiceAllowedActions =
   | {
       type: 'AccountsController:getAccountByAddress';
       handler: (address: string) => InternalAccount | undefined;
@@ -121,26 +135,19 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceSubscriptionErrorEvent;
 
-type AllowedEvents =
-  | { type: 'AccountsController:accountAdded'; payload: [InternalAccount] }
-  | { type: 'AccountsController:accountRemoved'; payload: [string] }
+export type AccountActivityServiceAllowedEvents =
   | {
       type: 'AccountsController:selectedAccountChange';
       payload: [InternalAccount];
     }
-  | WebSocketServiceConnectionStateChangedEvent
-  | AccountActivityServiceAccountSubscribedEvent
-  | AccountActivityServiceAccountUnsubscribedEvent
-  | AccountActivityServiceTransactionUpdatedEvent
-  | AccountActivityServiceBalanceUpdatedEvent
-  | AccountActivityServiceSubscriptionErrorEvent;
+  | WebSocketServiceConnectionStateChangedEvent;
 
 export type AccountActivityServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
-  AccountActivityServiceActions | AllowedActions,
-  AccountActivityServiceEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AccountActivityServiceActions | AccountActivityServiceAllowedActions,
+  AccountActivityServiceEvents | AccountActivityServiceAllowedEvents,
+  AccountActivityServiceAllowedActions ['type'],
+  AccountActivityServiceAllowedEvents['type']
 >;
 
 /**
@@ -417,7 +424,7 @@ export class AccountActivityService {
   }
 
   /**
-   * Set up account event handlers
+   * Set up account event handlers for selected account changes
    */
   #setupAccountEventHandlers(): void {
     try {
@@ -426,18 +433,6 @@ export class AccountActivityService {
         'AccountsController:selectedAccountChange',
         (account: InternalAccount) =>
           this.#handleSelectedAccountChange(account),
-      );
-
-      // Subscribe to account added events
-      this.#messenger.subscribe(
-        'AccountsController:accountAdded',
-        (account: InternalAccount) => this.#handleAccountAdded(account),
-      );
-
-      // Subscribe to account removed events
-      this.#messenger.subscribe(
-        'AccountsController:accountRemoved',
-        (accountId: string) => this.#handleAccountRemoved(accountId),
       );
     } catch (error) {
       // AccountsController events might not be available in all environments
@@ -511,52 +506,7 @@ export class AccountActivityService {
     }
   }
 
-  /**
-   * Handle account added event
-   *
-   * @param account - The newly added account
-   */
-  async #handleAccountAdded(account: InternalAccount): Promise<void> {
-    try {
-      // Only handle accounts with valid addresses
-      if (!account.address || typeof account.address !== 'string') {
-        return;
-      }
 
-      // Only subscribe if this is the currently selected account
-      const selectedAccount = this.#messenger.call(
-        'AccountsController:getSelectedAccount',
-      );
-      if (selectedAccount.id === account.id) {
-        // Convert to CAIP-10 format and subscribe
-        const address = this.#convertToCaip10Address(account);
-
-        await this.subscribeAccounts({ address });
-        console.log(
-          `Automatically subscribed new selected account ${account.address} with CAIP-10 address: ${address}`,
-        );
-      }
-    } catch (error) {
-      console.error(
-        `Failed to subscribe new account ${account.address} to activity service:`,
-        error,
-      );
-    }
-  }
-
-  /**
-   * Handle account removed event
-   * Since we only subscribe to the selected account, AccountsController will handle
-   * selecting a new account and we'll get a selectedAccountChange event
-   *
-   * @param accountId - The ID of the removed account
-   */
-  async #handleAccountRemoved(accountId: string): Promise<void> {
-    console.log(
-      `Account ${accountId} removed - selectedAccountChange event will handle resubscription if needed`,
-    );
-    // No action needed - AccountsController will select a new account and trigger selectedAccountChange
-  }
 
   /**
    * Handle WebSocket connection state changes for fallback polling and resubscription
@@ -654,10 +604,10 @@ export class AccountActivityService {
   }
 
   /**
-   * Clean up all subscriptions and resources
+   * Destroy the service and clean up all resources
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
-  cleanup(): void {
+  destroy(): void {
     try {
       // Clear tracked subscription
       this.#currentSubscribedAddress = null;
