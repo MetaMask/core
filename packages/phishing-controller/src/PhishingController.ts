@@ -30,9 +30,9 @@ import {
  * Result of a token screening scan
  */
 export type TokenScanResult = {
-  chainId: string;
-  tokenAddress: string;
-  resultType: 'Benign' | 'Warning' | 'Malicious' | 'Spam';
+  result_type: 'Benign' | 'Warning' | 'Malicious' | 'Spam';
+  chain: string;
+  address: string;
 };
 
 /**
@@ -41,10 +41,10 @@ export type TokenScanResult = {
 export type BulkTokenScanResponse = Record<string, TokenScanResult>;
 
 /**
- * Token data stored in cache (excludes chainId and tokenAddress which are in the key)
+ * Token data stored in cache (excludes chain and address which are in the key)
  * For now, we only cache the result type, but we could add more data if needed in the future
  */
-type TokenScanCacheData = Omit<TokenScanResult, 'chainId' | 'tokenAddress'>;
+type TokenScanCacheData = Omit<TokenScanResult, 'chain' | 'address'>;
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -993,9 +993,9 @@ export class PhishingController extends BaseController<
 
       if (cachedResult) {
         results[normalizedAddress] = {
-          chainId,
-          tokenAddress,
-          resultType: cachedResult.resultType,
+          result_type: cachedResult.result_type,
+          chain: chainId,
+          address: normalizedAddress,
         };
       } else {
         tokensToFetch.push(tokenAddress);
@@ -1040,15 +1040,15 @@ export class PhishingController extends BaseController<
 
             if (tokenResult?.result_type) {
               const result: TokenScanResult = {
-                chainId,
-                tokenAddress,
-                resultType: tokenResult.result_type,
+                result_type: tokenResult.result_type,
+                chain: tokenResult.chain || chainId,
+                address: tokenResult.address || normalizedAddress,
               };
 
               // Add to cache
               const cacheKey = `${chainId}:${normalizedAddress}`;
               this.#tokenScanCache.set(cacheKey, {
-                resultType: tokenResult.result_type,
+                result_type: tokenResult.result_type,
               });
 
               results[normalizedAddress] = result;
