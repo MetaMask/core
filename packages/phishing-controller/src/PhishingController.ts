@@ -921,19 +921,21 @@ export class PhishingController extends BaseController<
       return {};
     }
 
-    // Limit to 20 tokens per request
-    const MAX_TOKENS_PER_REQUEST = 20;
+    // Limit to 100 tokens per request
+    const MAX_TOKENS_PER_REQUEST = 100;
     if (tokens.length > MAX_TOKENS_PER_REQUEST) {
-      throw new Error(
+      console.warn(
         `Maximum of ${MAX_TOKENS_PER_REQUEST} tokens allowed per request`,
       );
+      return {};
     }
 
     // Look up chain name using hex chainId directly
     const chain = this.#chainIdToName[chainId.toLowerCase()];
 
     if (!chain) {
-      throw new Error(`Unknown chain ID: ${chainId}`);
+      console.warn(`Unknown chain ID: ${chainId}`);
+      return {};
     }
 
     const results: Record<string, TokenScanResult> = {};
@@ -977,13 +979,13 @@ export class PhishingController extends BaseController<
             );
 
             if (!res.ok) {
-              throw new Error(`${res.status} ${res.statusText}`);
+              console.warn(`${res.status} ${res.statusText}`);
             }
 
             return await res.json();
           },
           true,
-          5000, // 5 second timeout
+          8000, // 8 second timeout
         );
 
         // Process bulk response results if we got them
