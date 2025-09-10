@@ -670,11 +670,11 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Asserts that an account group name is unique across all groups.
+   * Asserts that an account group name is unique within the same wallet.
    *
    * @param groupId - The account group ID to exclude from the check.
    * @param name - The name to validate for uniqueness.
-   * @throws Error if the name already exists in another group.
+   * @throws Error if the name already exists in another group within the same wallet.
    */
   #assertAccountGroupNameIsUnique(groupId: AccountGroupId, name: string): void {
     if (!isAccountGroupNameUnique(this.state, groupId, name)) {
