@@ -14,21 +14,29 @@ import type { LoginResponse } from '../../sdk';
 import { Platform } from '../../sdk';
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
 import { MOCK_USER_PROFILE_LINEAGE_RESPONSE } from '../../sdk/mocks/auth';
-import { hasProperty } from '@metamask/utils';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
   'MOCK_ENTROPY_SOURCE_ID2',
 ];
 
-const mockSignedInState = (): AuthenticationControllerState => {
+/**
+ * Return mock state for the scenario where a user is signed in.
+ *
+ * @param options - Options.
+ * @param options.expiresIn - The timestamp to use for the `expiresIn` token property.
+ * @returns Mock AuthenticationController state reflecting a signed in user.
+ */
+const mockSignedInState = ({
+  expiresIn = Date.now() + 3600,
+}: { expiresIn?: number } = {}): AuthenticationControllerState => {
   const srpSessionData = {} as Record<string, LoginResponse>;
 
   MOCK_ENTROPY_SOURCE_IDS.forEach((id) => {
     srpSessionData[id] = {
       token: {
         accessToken: MOCK_OATH_TOKEN_RESPONSE.access_token,
-        expiresIn: Date.now() + 3600,
+        expiresIn,
         obtainedAt: 0,
       },
       profile: {
@@ -378,8 +386,9 @@ describe('AuthenticationController', () => {
       );
 
       for (const id of MOCK_ENTROPY_SOURCE_IDS) {
-        const resultWithEntropySourceId =
-          await controller.getSessionProfile(id);
+        const resultWithEntropySourceId = await controller.getSessionProfile(
+          id,
+        );
         expect(resultWithEntropySourceId).toBeDefined();
         expect(resultWithEntropySourceId).toStrictEqual(
           originalState.srpSessionData?.[id]?.profile,
@@ -544,7 +553,8 @@ describe('metadata', () => {
     const controller = new AuthenticationController({
       messenger: createMockAuthenticationMessenger().messenger,
       metametrics: createMockAuthMetaMetrics(),
-      state: mockSignedInState(),
+      // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+      state: mockSignedInState({ expiresIn: 1_000 }),
     });
 
     expect(
@@ -565,7 +575,8 @@ describe('metadata', () => {
       const controller = new AuthenticationController({
         messenger: createMockAuthenticationMessenger().messenger,
         metametrics: createMockAuthMetaMetrics(),
-        state: mockSignedInState(),
+        // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+        state: mockSignedInState({ expiresIn: 1_000 }),
       });
 
       const derivedState = deriveStateFromMetadata(
@@ -585,7 +596,7 @@ describe('metadata', () => {
                 "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
               },
               "token": Object {
-                "expiresIn": 1757528159922,
+                "expiresIn": 1000,
                 "obtainedAt": 0,
               },
             },
@@ -596,7 +607,7 @@ describe('metadata', () => {
                 "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
               },
               "token": Object {
-                "expiresIn": 1757528159922,
+                "expiresIn": 1000,
                 "obtainedAt": 0,
               },
             },
@@ -629,7 +640,8 @@ describe('metadata', () => {
     const controller = new AuthenticationController({
       messenger: createMockAuthenticationMessenger().messenger,
       metametrics: createMockAuthMetaMetrics(),
-      state: mockSignedInState(),
+      // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+      state: mockSignedInState({ expiresIn: 1_000 }),
     });
 
     expect(
@@ -646,7 +658,7 @@ describe('metadata', () => {
             },
             "token": Object {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-              "expiresIn": 1757528159923,
+              "expiresIn": 1000,
               "obtainedAt": 0,
             },
           },
@@ -658,7 +670,7 @@ describe('metadata', () => {
             },
             "token": Object {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-              "expiresIn": 1757528159923,
+              "expiresIn": 1000,
               "obtainedAt": 0,
             },
           },
@@ -671,7 +683,8 @@ describe('metadata', () => {
     const controller = new AuthenticationController({
       messenger: createMockAuthenticationMessenger().messenger,
       metametrics: createMockAuthMetaMetrics(),
-      state: mockSignedInState(),
+      // Set `expiresIn` to an arbitrary number so that it stays consistent between test runs
+      state: mockSignedInState({ expiresIn: 1_000 }),
     });
 
     expect(
@@ -692,7 +705,7 @@ describe('metadata', () => {
             },
             "token": Object {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-              "expiresIn": 1757528159924,
+              "expiresIn": 1000,
               "obtainedAt": 0,
             },
           },
@@ -704,7 +717,7 @@ describe('metadata', () => {
             },
             "token": Object {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-              "expiresIn": 1757528159924,
+              "expiresIn": 1000,
               "obtainedAt": 0,
             },
           },
