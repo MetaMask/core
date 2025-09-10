@@ -3025,6 +3025,437 @@ describe('PhishingController', () => {
       expect(nock.pendingMocks()).toHaveLength(0);
     });
   });
+
+  describe('bulkScanTokens', () => {
+    let controller: PhishingController;
+    let clock: sinon.SinonFakeTimers;
+
+    const mockChainId = '0x1';
+    const mockTokens = [
+      '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+      '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+    ];
+
+    const mockApiResponse = {
+      results: {
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+          result_type: 'Benign',
+        },
+        '0xdac17f958d2ee523a2206206994597c13d831ec7': {
+          result_type: 'Benign',
+        },
+        '0x6b175474e89094c44da98b954eedeac495271d0f': {
+          result_type: 'Malicious',
+        },
+      },
+    };
+
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+      controller = getPhishingController({
+        tokenScanCacheTTL: 300, // 5 minutes
+        tokenScanCacheMaxSize: 100,
+      });
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should scan multiple tokens and return results', async () => {
+      const scope = nock('https://security-alerts.api.cx.metamask.io')
+        .post('/token/scan-bulk', {
+          chain: 'ethereum',
+          tokens: mockTokens,
+        })
+        .reply(200, mockApiResponse);
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: mockTokens,
+      });
+
+      expect(scope.isDone()).toBe(true);
+      expect(response).toStrictEqual({
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+          result_type: 'Benign',
+          chain: '0x1',
+          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        },
+        '0xdac17f958d2ee523a2206206994597c13d831ec7': {
+          result_type: 'Benign',
+          chain: '0x1',
+          address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+        },
+        '0x6b175474e89094c44da98b954eedeac495271d0f': {
+          result_type: 'Malicious',
+          chain: '0x1',
+          address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+        },
+      });
+    });
+
+    it('should handle empty token arrays', async () => {
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: [],
+      });
+      expect(response).toStrictEqual({});
+    });
+
+    it('should return empty object when exceeding maximum token limit', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const tooManyTokens = Array(101).fill(mockTokens[0]);
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: tooManyTokens,
+      });
+
+      expect(response).toStrictEqual({});
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Maximum of 100 tokens allowed per request',
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('should return empty object for unknown chain ID', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const response = await controller.bulkScanTokens({
+        chainId: '0x999999', // Unknown chain
+        tokens: mockTokens,
+      });
+
+      expect(response).toStrictEqual({});
+      expect(consoleSpy).toHaveBeenCalledWith('Unknown chain ID: 0x999999');
+      consoleSpy.mockRestore();
+    });
+
+    it('should normalize token addresses to lowercase', async () => {
+      const mixedCaseTokens = [
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        '0xDAC17F958D2EE523A2206206994597C13D831EC7',
+      ];
+
+      const scope = nock('https://security-alerts.api.cx.metamask.io')
+        .post('/token/scan-bulk', {
+          chain: 'ethereum',
+          tokens: mixedCaseTokens,
+        })
+        .reply(200, {
+          results: {
+            '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+              result_type: 'Benign',
+            },
+            '0xdac17f958d2ee523a2206206994597c13d831ec7': {
+              result_type: 'Benign',
+            },
+          },
+        });
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: mixedCaseTokens,
+      });
+
+      expect(scope.isDone()).toBe(true);
+      expect(Object.keys(response)).toStrictEqual([
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        '0xdac17f958d2ee523a2206206994597c13d831ec7',
+      ]);
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const scope = nock('https://security-alerts.api.cx.metamask.io')
+        .post('/token/scan-bulk')
+        .reply(500, 'Internal Server Error');
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: mockTokens,
+      });
+
+      expect(scope.isDone()).toBe(true);
+      expect(response).toStrictEqual({});
+      expect(consoleWarnSpy).toHaveBeenCalledWith('500 Internal Server Error');
+
+      consoleSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    describe('caching behavior', () => {
+      it('should cache token scan results', async () => {
+        const scope = nock('https://security-alerts.api.cx.metamask.io')
+          .post('/token/scan-bulk', {
+            chain: 'ethereum',
+            tokens: [mockTokens[0]],
+          })
+          .reply(200, {
+            results: {
+              '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+                result_type: 'Benign',
+              },
+            },
+          });
+
+        // First call - should hit API
+        const response1 = await controller.bulkScanTokens({
+          chainId: mockChainId,
+          tokens: [mockTokens[0]],
+        });
+
+        expect(scope.isDone()).toBe(true);
+        expect(response1).toHaveProperty(
+          '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        );
+
+        // Second call - should use cache
+        const response2 = await controller.bulkScanTokens({
+          chainId: mockChainId,
+          tokens: [mockTokens[0]],
+        });
+
+        expect(response2).toStrictEqual(response1);
+        // No additional API calls should have been made
+        // eslint-disable-next-line import-x/no-named-as-default-member
+        expect(nock.pendingMocks()).toHaveLength(0);
+
+        expect(controller.state.tokenScanCache).toHaveProperty(
+          '0x1:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        );
+      });
+
+      it('should respect cache TTL', async () => {
+        const firstScope = nock('https://security-alerts.api.cx.metamask.io')
+          .post('/token/scan-bulk')
+          .reply(200, {
+            results: {
+              '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+                result_type: 'Benign',
+              },
+            },
+          });
+
+        // First call
+        await controller.bulkScanTokens({
+          chainId: mockChainId,
+          tokens: [mockTokens[0]],
+        });
+
+        expect(firstScope.isDone()).toBe(true);
+
+        // Advance time past cache TTL (5 minutes)
+        clock.tick(301 * 1000);
+
+        const secondScope = nock('https://security-alerts.api.cx.metamask.io')
+          .post('/token/scan-bulk')
+          .reply(200, {
+            results: {
+              '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+                result_type: 'Malicious', // Changed result
+              },
+            },
+          });
+
+        // Second call after TTL - should hit API again
+        const response = await controller.bulkScanTokens({
+          chainId: mockChainId,
+          tokens: [mockTokens[0]],
+        });
+
+        expect(secondScope.isDone()).toBe(true);
+        expect(
+          response['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'].result_type,
+        ).toBe('Malicious');
+      });
+
+      it('should handle mixed cached and uncached tokens', async () => {
+        // Cache first token
+        const firstScope = nock('https://security-alerts.api.cx.metamask.io')
+          .post('/token/scan-bulk', {
+            chain: 'ethereum',
+            tokens: [mockTokens[0]],
+          })
+          .reply(200, {
+            results: {
+              '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+                result_type: 'Benign',
+              },
+            },
+          });
+
+        await controller.bulkScanTokens({
+          chainId: mockChainId,
+          tokens: [mockTokens[0]],
+        });
+
+        expect(firstScope.isDone()).toBe(true);
+
+        // Now request both cached and uncached tokens
+        const secondScope = nock('https://security-alerts.api.cx.metamask.io')
+          .post('/token/scan-bulk', {
+            chain: 'ethereum',
+            tokens: [mockTokens[1], mockTokens[2]], // Only uncached tokens
+          })
+          .reply(200, {
+            results: {
+              '0xdac17f958d2ee523a2206206994597c13d831ec7': {
+                result_type: 'Benign',
+              },
+              '0x6b175474e89094c44da98b954eedeac495271d0f': {
+                result_type: 'Malicious',
+              },
+            },
+          });
+
+        const response = await controller.bulkScanTokens({
+          chainId: mockChainId,
+          tokens: mockTokens, // All three tokens
+        });
+
+        expect(secondScope.isDone()).toBe(true);
+        expect(Object.keys(response)).toHaveLength(3);
+        expect(
+          response['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'].result_type,
+        ).toBe('Benign'); // From cache
+        expect(
+          response['0xdac17f958d2ee523a2206206994597c13d831ec7'].result_type,
+        ).toBe('Benign'); // From API
+        expect(
+          response['0x6b175474e89094c44da98b954eedeac495271d0f'].result_type,
+        ).toBe('Malicious'); // From API
+      });
+    });
+
+    describe('different chain support', () => {
+      it.each([
+        ['0x89', 'polygon'],
+        ['0x38', 'bsc'],
+        ['0xa4b1', 'arbitrum'],
+        ['0xa86a', 'avalanche'],
+        ['0x2105', 'base'],
+        ['0xa', 'optimism'],
+      ])(
+        'should support chain %s as %s',
+        async (chainId, expectedChainName) => {
+          const scope = nock('https://security-alerts.api.cx.metamask.io')
+            .post('/token/scan-bulk', {
+              chain: expectedChainName,
+              tokens: [mockTokens[0]],
+            })
+            .reply(200, {
+              results: {
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+                  result_type: 'Benign',
+                },
+              },
+            });
+
+          const response = await controller.bulkScanTokens({
+            chainId,
+            tokens: [mockTokens[0]],
+          });
+
+          expect(scope.isDone()).toBe(true);
+          expect(response).toHaveProperty(
+            '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+          );
+          expect(
+            response['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'].chain,
+          ).toBe(chainId);
+        },
+      );
+    });
+
+    it('should handle partial API responses', async () => {
+      const scope = nock('https://security-alerts.api.cx.metamask.io')
+        .post('/token/scan-bulk', {
+          chain: 'ethereum',
+          tokens: mockTokens,
+        })
+        .reply(200, {
+          results: {
+            // Only returns 2 out of 3 requested tokens
+            '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+              result_type: 'Benign',
+            },
+            '0xdac17f958d2ee523a2206206994597c13d831ec7': {
+              result_type: 'Benign',
+            },
+          },
+        });
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: mockTokens,
+      });
+
+      expect(scope.isDone()).toBe(true);
+      expect(Object.keys(response)).toHaveLength(2);
+      expect(response).not.toHaveProperty(
+        '0x6b175474e89094c44da98b954eedeac495271d0f',
+      );
+    });
+
+    it('should handle malformed API responses', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const scope = nock('https://security-alerts.api.cx.metamask.io')
+        .post('/token/scan-bulk')
+        .reply(200, {
+          // Missing 'results' key
+          data: { something: 'else' },
+        });
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: mockTokens,
+      });
+
+      expect(scope.isDone()).toBe(true);
+      expect(response).toStrictEqual({});
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should preserve existing token scan cache when updating state', async () => {
+      // First, cache a token scan result
+      const firstScope = nock('https://security-alerts.api.cx.metamask.io')
+        .post('/token/scan-bulk')
+        .reply(200, {
+          results: {
+            '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
+              result_type: 'Benign',
+            },
+          },
+        });
+
+      await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: [mockTokens[0]],
+      });
+
+      expect(firstScope.isDone()).toBe(true);
+
+      // Verify cache exists in state
+      expect(controller.state.tokenScanCache).toHaveProperty(
+        '0x1:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      );
+
+      // Perform some other action that updates state
+      controller.bypass('https://example.com');
+
+      // Verify token cache is still preserved
+      expect(controller.state.tokenScanCache).toHaveProperty(
+        '0x1:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      );
+    });
+  });
 });
 
 describe('URL Scan Cache', () => {
