@@ -12,7 +12,14 @@ import {
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
-import { controllerName } from './constants';
+import {
+  AUTH_GRACE_PERIOD_MS,
+  controllerName,
+  DEFAULT_BLOCKED_REGIONS,
+  PERPS_DISCOUNT_CACHE_THRESHOLD_MS,
+  REFERRAL_DETAILS_CACHE_THRESHOLD_MS,
+  SEASON_STATUS_CACHE_THRESHOLD_MS,
+} from './constants';
 import { getRewardsFeatureFlag } from './feature-flags';
 import { projectLogger, createModuleLogger } from './logger';
 import type { RewardsControllerMessenger } from './messenger/RewardsControllerMessenger';
@@ -41,21 +48,6 @@ const log = createModuleLogger(projectLogger, controllerName);
 
 // Re-export the messenger type for convenience
 export type { RewardsControllerMessenger };
-
-// Default blocked regions for rewards (ISO 3166-1 alpha-2 codes)
-export const DEFAULT_BLOCKED_REGIONS = ['UK'];
-
-// Silent authentication constants
-const AUTH_GRACE_PERIOD_MS = 1000 * 60 * 10; // 10 minutes
-
-// Perps discount refresh threshold
-const PERPS_DISCOUNT_CACHE_THRESHOLD_MS = 1000 * 60 * 5; // 5 minutes
-
-// Season status cache threshold
-const SEASON_STATUS_CACHE_THRESHOLD_MS = 1000 * 60 * 1; // 1 minute
-
-// Referral details cache threshold
-const REFERRAL_DETAILS_CACHE_THRESHOLD_MS = 1000 * 60 * 10; // 10 minutes
 
 // Function to store subscription token
 export type StoreSubscriptionToken = (
@@ -106,6 +98,34 @@ export class RewardsController extends BaseController<
   readonly #storeSubscriptionToken?: StoreSubscriptionToken;
 
   readonly #removeSubscriptionToken?: RemoveSubscriptionToken;
+
+  // Constructor
+  constructor({
+    messenger,
+    state,
+    storeSubscriptionToken,
+    removeSubscriptionToken,
+  }: {
+    messenger: RewardsControllerMessenger;
+    state?: Partial<RewardsControllerState>;
+    storeSubscriptionToken?: StoreSubscriptionToken;
+    removeSubscriptionToken?: RemoveSubscriptionToken;
+  }) {
+    super({
+      name: controllerName,
+      metadata,
+      messenger,
+      state: {
+        ...defaultRewardsControllerState,
+        ...state,
+      },
+    });
+
+    this.#storeSubscriptionToken = storeSubscriptionToken;
+    this.#removeSubscriptionToken = removeSubscriptionToken;
+    this.#registerActionHandlers();
+    this.#initializeEventSubscriptions();
+  }
 
   /**
    * Calculate tier status and next tier information
@@ -192,33 +212,6 @@ export class RewardsController extends BaseController<
       tier: tierState,
       lastFetched: Date.now(),
     };
-  }
-
-  constructor({
-    messenger,
-    state,
-    storeSubscriptionToken,
-    removeSubscriptionToken,
-  }: {
-    messenger: RewardsControllerMessenger;
-    state?: Partial<RewardsControllerState>;
-    storeSubscriptionToken?: StoreSubscriptionToken;
-    removeSubscriptionToken?: RemoveSubscriptionToken;
-  }) {
-    super({
-      name: controllerName,
-      metadata,
-      messenger,
-      state: {
-        ...defaultRewardsControllerState,
-        ...state,
-      },
-    });
-
-    this.#storeSubscriptionToken = storeSubscriptionToken;
-    this.#removeSubscriptionToken = removeSubscriptionToken;
-    this.#registerActionHandlers();
-    this.#initializeEventSubscriptions();
   }
 
   /**
@@ -561,9 +554,7 @@ export class RewardsController extends BaseController<
       log('RewardsController: Silent auth successful');
     } catch (error: unknown) {
       // Handle 401 (not opted in) or other errors silently
-      if (error instanceof Error && error.message.includes('401')) {
-        // Not opted in
-      } else {
+      if (!(error instanceof Error && error.message.includes('401'))) {
         // Unknown error
         subscription = null;
         authUnexpectedError = true;
@@ -1121,15 +1112,7 @@ export class RewardsController extends BaseController<
    */
   async validateReferralCode(code: string): Promise<boolean> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
-    if (!rewardsEnabled) {
-      return false;
-    }
-
-    if (!code.trim()) {
-      return false;
-    }
-
-    if (code.length !== 6) {
+    if (!rewardsEnabled || !code.trim() || code.length !== 6) {
       return false;
     }
 
