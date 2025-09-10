@@ -3591,6 +3591,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/intent-manager@workspace:packages/Intent-manager":
+  version: 0.0.0-use.local
+  resolution: "@metamask/intent-manager@workspace:packages/Intent-manager"
+  dependencies:
+    "@lavamoat/allow-scripts": "npm:^3.0.4"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/utils": "npm:^11.4.2"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    jest-environment-jsdom: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
