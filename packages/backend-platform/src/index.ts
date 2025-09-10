@@ -53,6 +53,8 @@ export type {
   AccountActivityServiceTransactionUpdatedEvent,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceSubscriptionErrorEvent,
+  AccountActivityServiceWebSocketConnectedEvent,
+  AccountActivityServiceWebSocketDisconnectedEvent,
   AccountActivityServiceEvents,
   AccountActivityServiceMessenger,
 } from './AccountActivityService';

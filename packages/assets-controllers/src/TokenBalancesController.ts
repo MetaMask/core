@@ -50,33 +50,6 @@ import type {
   TokensControllerStateChangeEvent,
 } from './TokensController';
 
-// Define the AccountActivityService event type locally to avoid cross-package dependency
-// This matches the exact definition in @metamask/backend-platform
-type AccountActivityServiceBalanceUpdatedEvent = {
-  type: 'AccountActivityService:balanceUpdated';
-  payload: [
-    {
-      address: string;
-      chain: string;
-      updates: Array<{
-        asset: {
-          fungible: boolean;
-          type: string;
-          unit: string;
-        };
-        postBalance: {
-          amount: string;
-          error?: string;
-        };
-        transfers: Array<{
-          from: string;
-          to: string;
-          amount: string;
-        }>;
-      }>;
-    },
-  ];
-};
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -156,7 +129,9 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
-  | AccountActivityServiceBalanceUpdatedEvent;
+  | { type: 'AccountActivityService:balanceUpdated'; payload: any[] }
+  | { type: 'AccountActivityService:websocketConnected'; payload: any[] }
+  | { type: 'AccountActivityService:websocketDisconnected'; payload: any[] };
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof CONTROLLER,
@@ -301,6 +276,16 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.messagingSystem.subscribe(
       'AccountActivityService:balanceUpdated',
       this.#onAccountActivityBalanceUpdate.bind(this),
+    );
+
+    // Subscribe to AccountActivityService WebSocket state changes for polling management
+    this.messagingSystem.subscribe(
+      'AccountActivityService:websocketConnected',
+      this.#onWebSocketConnected.bind(this),
+    );
+    this.messagingSystem.subscribe(
+      'AccountActivityService:websocketDisconnected',
+      this.#onWebSocketDisconnected.bind(this),
     );
 
     // Register action handlers for polling interval control
@@ -967,6 +952,48 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         console.error('Error during fallback polling:', pollError);
       }
     }
+  };
+
+  /**
+   * Handle WebSocket connected event from AccountActivityService
+   * Switch to backup polling with longer intervals
+   */
+  readonly #onWebSocketConnected = ({
+    supportedChains,
+    backupPollingInterval,
+  }: {
+    supportedChains: readonly string[];
+    backupPollingInterval: number;
+  }) => {
+    console.log('TokenBalancesController: WebSocket connected, switching to backup polling');
+    
+    // Configure backup polling for all supported chains
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    for (const chainId of supportedChains) {
+      chainConfigs[chainId as ChainIdHex] = { interval: backupPollingInterval };
+    }
+
+    this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: false });
+  };
+
+  /**
+   * Handle WebSocket disconnected event from AccountActivityService
+   * Switch to active polling with default intervals
+   */
+  readonly #onWebSocketDisconnected = ({
+    supportedChains,
+  }: {
+    supportedChains: readonly string[];
+  }) => {
+    console.log('TokenBalancesController: WebSocket disconnected, switching to active polling');
+    
+    // Configure active polling for all supported chains using default interval
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    for (const chainId of supportedChains) {
+      chainConfigs[chainId as ChainIdHex] = { interval: this.#defaultInterval };
+    }
+
+    this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
   };
 
   /**
