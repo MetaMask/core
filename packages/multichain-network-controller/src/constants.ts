@@ -1,4 +1,4 @@
-import { type StateMetadata } from '@metamask/base-controller';
+import { type StateMetadata } from '@metamask/base-controller/next';
 import {
   type CaipChainId,
   BtcScope,
