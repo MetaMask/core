@@ -2,7 +2,7 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import { createFetchMiddleware } from './fetch';
-import type { AbstractRpcService } from './types';
+import type { AbstractRpcServiceLike } from './types';
 
 describe('createFetchMiddleware', () => {
   it('calls the RPC service with the correct request headers and body when no `originHttpHeaderKey` option given', async () => {
@@ -236,7 +236,7 @@ describe('createFetchMiddleware', () => {
  *
  * @returns The fake failover service.
  */
-function buildRpcService(): AbstractRpcService {
+function buildRpcService(): AbstractRpcServiceLike {
   return {
     async request<Params extends JsonRpcParams, Result extends Json>(
       jsonRpcRequest: JsonRpcRequest<Params>,
@@ -246,27 +246,6 @@ function buildRpcService(): AbstractRpcService {
         id: jsonRpcRequest.id,
         jsonrpc: jsonRpcRequest.jsonrpc,
         result: 'ok' as Result,
-      };
-    },
-    onRetry() {
-      return {
-        dispose() {
-          // do nothing
-        },
-      };
-    },
-    onBreak() {
-      return {
-        dispose() {
-          // do nothing
-        },
-      };
-    },
-    onDegraded() {
-      return {
-        dispose() {
-          // do nothing
-        },
       };
     },
   };

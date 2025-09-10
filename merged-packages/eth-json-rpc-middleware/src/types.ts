@@ -30,61 +30,19 @@ export type BlockCache = Record<string, Block>;
 export type Cache = Record<number, BlockCache>;
 
 /**
- * The interface for a service class responsible for making a request to an RPC
- * endpoint.
+ * A copy of the `AbstractRpcService` type in metamask/network-controller`, but
+ * keeping only the `request` method.
+ *
+ * We cannot get `AbstractRpcService` directly from
+ * `@metamask/network-controller` because relying on this package would create a
+ * circular dependency.
+ *
+ * This type should be accurate as of `@metamask/network-controller` 24.x and
+ * `@metamask/utils` 11.x.
  */
-export type AbstractRpcService = {
-  /**
-   * Listens for when the RPC service retries the request.
-   *
-   * @param listener - The callback to be called when the retry occurs.
-   * @returns A disposable.
-   */
-  onRetry: (
-    listener: (
-      data: ({ error: Error } | { value: unknown }) & {
-        delay: number;
-        attempt: number;
-        endpointUrl: string;
-      },
-    ) => void,
-  ) => {
-    dispose(): void;
-  };
-
-  /**
-   * Listens for when the RPC service retries the request too many times in a
-   * row.
-   *
-   * @param listener - The callback to be called when the circuit is broken.
-   * @returns A disposable.
-   */
-  onBreak: (
-    listener: (
-      data: ({ error: Error } | { value: unknown } | { isolated: true }) & {
-        endpointUrl: string;
-      },
-    ) => void,
-  ) => {
-    dispose(): void;
-  };
-
-  /**
-   * Listens for when the policy underlying this RPC service detects a slow
-   * request.
-   *
-   * @param listener - The callback to be called when the request is slow.
-   * @returns A disposable.
-   */
-  onDegraded: (listener: (data: { endpointUrl: string }) => void) => {
-    dispose(): void;
-  };
-
-  /**
-   * Makes a request to the RPC endpoint.
-   */
-  request<Params extends JsonRpcParams, Result extends Json>(
+export type AbstractRpcServiceLike = {
+  request: <Params extends JsonRpcParams, Result extends Json>(
     jsonRpcRequest: JsonRpcRequest<Params>,
     fetchOptions?: RequestInit,
-  ): Promise<JsonRpcResponse<Result | null>>;
+  ) => Promise<JsonRpcResponse<Result | null>>;
 };

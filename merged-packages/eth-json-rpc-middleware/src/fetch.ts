@@ -3,7 +3,7 @@ import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { AbstractRpcService } from './types';
+import type { AbstractRpcServiceLike } from './types';
 
 /**
  * Like a JSON-RPC request, but includes an optional `origin` property.
@@ -30,7 +30,7 @@ export function createFetchMiddleware({
   rpcService,
   options = {},
 }: {
-  rpcService: AbstractRpcService;
+  rpcService: AbstractRpcServiceLike;
   options?: {
     originHttpHeaderKey?: string;
   };
