@@ -1058,6 +1058,7 @@ export class PhishingController extends BaseController<
       } catch (error) {
         // On error, just return what we have from cache
         // Consumers can detect missing tokens and retry if needed
+        console.error('Error scanning tokens:', error);
       }
     }
 
