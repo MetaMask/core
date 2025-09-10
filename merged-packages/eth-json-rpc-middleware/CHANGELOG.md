@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
 ### Changed
 
 - **BREAKING:** `createFetchMiddleware` no longer takes `fetch`, `btoa`, `rpcUrl`, and `originHttpHeaderKey` ([#402](https://github.com/MetaMask/eth-json-rpc-middleware/pull/402))
@@ -18,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove support for `wallet_getCapabilities`, `wallet_sendCalls`, and `wallet_getCallsStatus` from wallet middleware ([#401](https://github.com/MetaMask/eth-json-rpc-middleware/pull/401))
+  - These handlers have been moved to the `@metamask/eip-5792-middleware` package.
 - **BREAKING:** Remove `PayloadWithOrigin` type ([#402](https://github.com/MetaMask/eth-json-rpc-middleware/pull/402))
   - There is no equivalent.
 - **BREAKING:** Remove `createFetchConfigFromReq` function ([#402](https://github.com/MetaMask/eth-json-rpc-middleware/pull/402))
@@ -436,7 +440,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.1.0...v18.0.0
 [17.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.0.1...v17.1.0
 [17.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v17.0.0...v17.0.1
 [17.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.1...v17.0.0
