@@ -1,7 +1,3 @@
-import type {
-  SendCalls,
-  SendCallsResult,
-} from '@metamask/eth-json-rpc-middleware';
 import type { KeyringTypes } from '@metamask/keyring-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type {
@@ -22,7 +18,11 @@ import {
   MessageType,
   VERSION,
 } from '../constants';
-import type { EIP5792Messenger } from '../types';
+import type {
+  EIP5792Messenger,
+  SendCallsPayload,
+  SendCallsResult,
+} from '../types';
 import { getAccountKeyringType } from '../utils';
 
 /**
@@ -67,7 +67,7 @@ export type ProcessSendCallsRequest = JsonRpcRequest & {
 export async function processSendCalls(
   hooks: ProcessSendCallsHooks,
   messenger: EIP5792Messenger,
-  params: SendCalls,
+  params: SendCallsPayload,
   req: ProcessSendCallsRequest,
 ): Promise<SendCallsResult> {
   const {
@@ -159,7 +159,7 @@ async function processSingleTransaction({
   networkClientId: string;
   origin?: string;
   securityAlertId: string;
-  sendCalls: SendCalls;
+  sendCalls: SendCallsPayload;
   transactions: { params: BatchTransactionParams }[];
   validateSecurity: (
     securityRequest: ValidateSecurityRequest,
@@ -232,7 +232,7 @@ async function processMultipleTransaction({
   messenger: EIP5792Messenger;
   networkClientId: string;
   origin?: string;
-  sendCalls: SendCalls;
+  sendCalls: SendCallsPayload;
   securityAlertId: string;
   transactions: { params: BatchTransactionParams }[];
   validateSecurity: (
@@ -288,7 +288,7 @@ function generateBatchId(): Hex {
  * @param sendCalls - The sendCalls request to validate.
  * @param dappChainId - The chain ID that the dApp is connected to.
  */
-function validateSingleSendCall(sendCalls: SendCalls, dappChainId: Hex) {
+function validateSingleSendCall(sendCalls: SendCallsPayload, dappChainId: Hex) {
   validateSendCallsVersion(sendCalls);
   validateCapabilities(sendCalls);
   validateDappChainId(sendCalls, dappChainId);
@@ -304,7 +304,7 @@ function validateSingleSendCall(sendCalls: SendCalls, dappChainId: Hex) {
  * @param keyringType - The type of keyring associated with the account.
  */
 function validateSendCalls(
-  sendCalls: SendCalls,
+  sendCalls: SendCallsPayload,
   dappChainId: Hex,
   dismissSmartAccountSuggestionEnabled: boolean,
   chainBatchSupport: IsAtomicBatchSupportedResultEntry | undefined,
@@ -326,7 +326,7 @@ function validateSendCalls(
  * @param sendCalls - The sendCalls request to validate.
  * @throws JsonRpcError if the version is not supported.
  */
-function validateSendCallsVersion(sendCalls: SendCalls) {
+function validateSendCallsVersion(sendCalls: SendCallsPayload) {
   const { version } = sendCalls;
 
   if (version !== VERSION) {
@@ -343,7 +343,7 @@ function validateSendCallsVersion(sendCalls: SendCalls) {
  * @param dappChainId - The chain ID that the dApp is connected to
  * @throws JsonRpcError if the chain IDs don't match
  */
-function validateDappChainId(sendCalls: SendCalls, dappChainId: Hex) {
+function validateDappChainId(sendCalls: SendCallsPayload, dappChainId: Hex) {
   const { chainId: requestChainId } = sendCalls;
 
   if (
@@ -365,7 +365,7 @@ function validateDappChainId(sendCalls: SendCalls, dappChainId: Hex) {
  * @throws JsonRpcError if the chain ID doesn't match or EIP-7702 is not supported
  */
 function validateSendCallsChainId(
-  sendCalls: SendCalls,
+  sendCalls: SendCallsPayload,
   dappChainId: Hex,
   chainBatchSupport: IsAtomicBatchSupportedResultEntry | undefined,
 ) {
@@ -384,7 +384,7 @@ function validateSendCallsChainId(
  * @param sendCalls - The sendCalls request to validate.
  * @throws JsonRpcError if unsupported non-optional capabilities are requested.
  */
-function validateCapabilities(sendCalls: SendCalls) {
+function validateCapabilities(sendCalls: SendCallsPayload) {
   const { calls, capabilities } = sendCalls;
 
   const requiredTopLevelCapabilities = Object.keys(capabilities ?? {}).filter(

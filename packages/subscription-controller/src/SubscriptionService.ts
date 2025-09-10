@@ -85,8 +85,7 @@ export class SubscriptionService implements ISubscriptionService {
 
       return response;
     } catch (e) {
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? 'unknown error');
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
 
       throw new SubscriptionServiceError(
         `failed to make request. ${errorMessage}`,
