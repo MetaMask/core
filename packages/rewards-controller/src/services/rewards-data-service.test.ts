@@ -49,6 +49,11 @@ const okJsonResponse = <T>(data: T, status = 200): Response =>
     text: async () => JSON.stringify(data),
   }) as unknown as Response;
 
+/**
+ * Creates a fetch mock that simulates an operation that can be aborted via AbortSignal.
+ *
+ * @returns A fetch mock that simulates an operation that can be aborted via AbortSignal.
+ */
 function makeAbortingFetchMock() {
   class AbortErr extends Error {
     name = 'AbortError';
@@ -63,6 +68,7 @@ function makeAbortingFetchMock() {
       // Otherwise, wait for abort event
       signal?.addEventListener('abort', () => reject(new AbortErr('Aborted')));
       // Intentionally never resolve; the test will abort via timer
+      return undefined;
     });
   });
 }
@@ -698,6 +704,7 @@ describe('RewardsDataService', () => {
 
       // Call the private method directly to pass a custom timeout
       const customTimeout = 1234;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const p: Promise<Response> = (svc as any).makeRequest(
         '/slow',
         { method: 'GET' },
