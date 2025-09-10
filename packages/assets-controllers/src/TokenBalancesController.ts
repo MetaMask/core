@@ -143,8 +143,8 @@ export type TokenBalancesControllerOptions = {
   state?: Partial<TokenBalancesControllerState>;
   /** When `true`, balances for *all* known accounts are queried. */
   queryMultipleAccounts?: boolean;
-  /** Enable Accounts‑API strategy (if supported chain). */
-  useAccountsAPI?: boolean;
+  /** Array of chainIds that should use Accounts-API strategy (if supported by API). */
+  accountsApiChainIds?: ChainIdHex[];
   /** Disable external HTTP calls (privacy / offline mode). */
   allowExternalServices?: () => boolean;
   /** Custom logger. */
@@ -174,6 +174,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 > {
   readonly #queryAllAccounts: boolean;
 
+  readonly #accountsApiChainIds: ChainIdHex[];
+
   readonly #balanceFetchers: BalanceFetcher[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
@@ -201,7 +203,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainPollingIntervals = {},
     state = {},
     queryMultipleAccounts = true,
-    useAccountsAPI = false,
+    accountsApiChainIds = [],
     allowExternalServices = () => true,
   }: TokenBalancesControllerOptions) {
     super({
@@ -212,13 +214,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     });
 
     this.#queryAllAccounts = queryMultipleAccounts;
+    this.#accountsApiChainIds = [...accountsApiChainIds];
     this.#defaultInterval = interval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
     // Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(useAccountsAPI && allowExternalServices()
-        ? [new AccountsApiBalanceFetcher('extension', this.#getProvider)]
+      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+        ? [this.#createAccountsApiFetcher()]
         : []),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
         allTokens: this.#allTokens,
@@ -296,6 +299,31 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
+  };
+
+  /**
+   * Creates an AccountsApiBalanceFetcher that only supports chains in the accountsApiChainIds array
+   *
+   * @returns A BalanceFetcher that wraps AccountsApiBalanceFetcher with chainId filtering
+   */
+  readonly #createAccountsApiFetcher = (): BalanceFetcher => {
+    const originalFetcher = new AccountsApiBalanceFetcher(
+      'extension',
+      this.#getProvider,
+    );
+
+    return {
+      supports: (chainId: ChainIdHex): boolean => {
+        // Only support chains that are both:
+        // 1. In our specified accountsApiChainIds array
+        // 2. Actually supported by the AccountsApi
+        return (
+          this.#accountsApiChainIds.includes(chainId) &&
+          originalFetcher.supports(chainId)
+        );
+      },
+      fetch: originalFetcher.fetch.bind(originalFetcher),
+    };
   };
 
   /**
