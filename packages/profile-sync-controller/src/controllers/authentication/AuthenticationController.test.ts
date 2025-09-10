@@ -386,9 +386,8 @@ describe('AuthenticationController', () => {
       );
 
       for (const id of MOCK_ENTROPY_SOURCE_IDS) {
-        const resultWithEntropySourceId = await controller.getSessionProfile(
-          id,
-        );
+        const resultWithEntropySourceId =
+          await controller.getSessionProfile(id);
         expect(resultWithEntropySourceId).toBeDefined();
         expect(resultWithEntropySourceId).toStrictEqual(
           originalState.srpSessionData?.[id]?.profile,
