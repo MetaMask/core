@@ -65,6 +65,7 @@ export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
 export const TOKEN_SCREENING_ENDPOINT = '/token/scan';
+export const TOKEN_BULK_SCREENING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
 export const DEFAULT_URL_SCAN_CACHE_TTL = 300; // 5 minutes in seconds
@@ -900,67 +901,69 @@ export class PhishingController extends BaseController<
    * @param chainId - The chain ID.
    * @returns The chain name.
    */
-  #getChainNameFromId(chainId: string): string {
-    const chainIdToName: Record<string, string> = {
-      '1': 'ethereum',
-      '10': 'optimism',
-      '56': 'bsc',
-      '137': 'polygon',
-      '250': 'fantom',
-      '42161': 'arbitrum',
-      '43114': 'avalanche',
-      '8453': 'base',
-      '534352': 'scroll',
-      '59144': 'linea',
-      '324': 'zksync',
-      '1101': 'polygon-zkevm',
-      '42220': 'celo',
-      '100': 'gnosis',
-      '1284': 'moonbeam',
-      '1285': 'moonriver',
-      '122': 'fuse',
-      '9001': 'evmos',
-      '1313161554': 'aurora',
-      '1666600000': 'harmony',
-      '25': 'cronos',
-      '288': 'boba',
-      '106': 'velas',
-      '1088': 'metis',
-      '2222': 'kava',
-      '10000': 'smartbch',
-      '32659': 'fusion',
-      '30': 'rsk',
-      '4689': 'iotex',
-      '1030': 'conflux',
-      '71402': 'godwoken',
-      '888': 'wanchain',
-      '66': 'okc',
-      '128': 'heco',
-      '336': 'shiden',
-      '592': 'astar',
-      '3': 'ropsten',
-      '4': 'rinkeby',
-      '5': 'goerli',
-      '42': 'kovan',
-      '80001': 'mumbai',
-      '420': 'optimism-goerli',
-      '421613': 'arbitrum-goerli',
-      '11155111': 'sepolia',
-      '84531': 'base-goerli',
-      '84532': 'base-sepolia',
-    };
-    return chainIdToName[chainId] || 'ethereum';
-  }
+  readonly #chainIdToName: Record<string, string> = {
+    '1': 'ethereum',
+    '10': 'optimism',
+    '56': 'bsc',
+    '137': 'polygon',
+    '250': 'fantom',
+    '42161': 'arbitrum',
+    '43114': 'avalanche',
+    '8453': 'base',
+    '534352': 'scroll',
+    '59144': 'linea',
+    '324': 'zksync',
+    '1101': 'polygon-zkevm',
+    '42220': 'celo',
+    '100': 'gnosis',
+    '1284': 'moonbeam',
+    '1285': 'moonriver',
+    '122': 'fuse',
+    '9001': 'evmos',
+    '1313161554': 'aurora',
+    '1666600000': 'harmony',
+    '25': 'cronos',
+    '288': 'boba',
+    '106': 'velas',
+    '1088': 'metis',
+    '2222': 'kava',
+    '10000': 'smartbch',
+    '32659': 'fusion',
+    '30': 'rsk',
+    '4689': 'iotex',
+    '1030': 'conflux',
+    '71402': 'godwoken',
+    '888': 'wanchain',
+    '66': 'okc',
+    '128': 'heco',
+    '336': 'shiden',
+    '592': 'astar',
+    '3': 'ropsten',
+    '4': 'rinkeby',
+    '5': 'goerli',
+    '42': 'kovan',
+    '80001': 'mumbai',
+    '420': 'optimism-goerli',
+    '421613': 'arbitrum-goerli',
+    '11155111': 'sepolia',
+    '84531': 'base-goerli',
+    '84532': 'base-sepolia',
+  };
 
   /**
    * Scan multiple tokens for malicious activity in bulk.
    *
-   * @param tokens - Array of token objects to scan.
+   * @param request - The bulk scan request containing chainId and tokens.
+   * @param request.chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
+   * @param request.tokens - Array of token addresses to scan.
    * @returns A mapping of token identifiers to their scan results and errors.
    */
-  bulkScanTokens = async (
-    tokens: { chainId: string; tokenAddress: string }[],
-  ): Promise<BulkTokenScanResponse> => {
+  bulkScanTokens = async (request: {
+    chainId: string;
+    tokens: string[];
+  }): Promise<BulkTokenScanResponse> => {
+    const { chainId, tokens } = request;
+
     if (!tokens || tokens.length === 0) {
       return {
         results: {},
@@ -981,96 +984,123 @@ export class PhishingController extends BaseController<
       };
     }
 
+    // Convert hex chainId to decimal for chain name lookup
+    const decimalChainId = parseInt(chainId, 16).toString();
+    const chain = this.#chainIdToName[decimalChainId];
+
+    if (!chain) {
+      return {
+        results: {},
+        errors: {
+          invalid_chain: [`Unknown chain ID: ${chainId}`],
+        },
+      };
+    }
+
     const combinedResponse: BulkTokenScanResponse = {
       results: {},
       errors: {},
     };
 
-    const tokensToFetch: {
-      chainId: string;
-      tokenAddress: string;
-      key: string;
-    }[] = [];
+    const tokensToFetch: string[] = [];
 
     // Check cache for each token
-    for (const token of tokens) {
-      const cacheKey = `${token.chainId}:${token.tokenAddress.toLowerCase()}`;
+    for (const tokenAddress of tokens) {
+      const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
       const cachedResult = this.#tokenScanCache.get(cacheKey);
 
       if (cachedResult) {
         combinedResponse.results[cacheKey] = {
-          chainId: token.chainId,
-          tokenAddress: token.tokenAddress,
+          chainId,
+          tokenAddress,
           resultType: cachedResult.resultType,
         };
       } else {
-        tokensToFetch.push({ ...token, key: cacheKey });
+        tokensToFetch.push(tokenAddress);
       }
     }
 
     // If there are tokens to fetch, call the API
     if (tokensToFetch.length > 0) {
-      // The security alerts API only supports single token requests, so we need to make individual calls
-      const promises = tokensToFetch.map(async (token) => {
-        try {
-          const apiResponse = await safelyExecuteWithTimeout(
-            async () => {
-              const res = await fetch(
-                `${SECURITY_ALERTS_BASE_URL}${TOKEN_SCREENING_ENDPOINT}`,
-                {
-                  method: 'POST',
-                  headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    chain: this.#getChainNameFromId(token.chainId),
-                    address: token.tokenAddress,
-                  }),
+      try {
+        const apiResponse = await safelyExecuteWithTimeout(
+          async () => {
+            const res = await fetch(
+              `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCREENING_ENDPOINT}`,
+              {
+                method: 'POST',
+                headers: {
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
                 },
-              );
+                body: JSON.stringify({
+                  chain,
+                  tokens: tokensToFetch,
+                }),
+              },
+            );
 
-              if (!res.ok) {
-                return {
-                  error: `${res.status} ${res.statusText}`,
-                };
-              }
+            if (!res.ok) {
+              return {
+                error: `${res.status} ${res.statusText}`,
+              };
+            }
 
-              const data = await res.json();
-              return data;
-            },
-            true,
-            5000, // 5 second timeout
-          );
+            const data = await res.json();
+            return data;
+          },
+          true,
+          5000, // 5 second timeout
+        );
 
-          if (!apiResponse) {
-            combinedResponse.errors[token.key] = ['timeout of 5000ms exceeded'];
-          } else if ('error' in apiResponse) {
-            combinedResponse.errors[token.key] = [apiResponse.error];
-          } else {
-            // Map the API response to our format
-            const result: TokenScanResult = {
-              chainId: token.chainId,
-              tokenAddress: token.tokenAddress,
-              resultType: apiResponse.result_type,
-            };
+        if (!apiResponse) {
+          // Add timeout error for all tokens
+          tokensToFetch.forEach((tokenAddress) => {
+            const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+            combinedResponse.errors[cacheKey] = ['timeout of 5000ms exceeded'];
+          });
+        } else if ('error' in apiResponse) {
+          // Add API error for all tokens
+          tokensToFetch.forEach((tokenAddress) => {
+            const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+            combinedResponse.errors[cacheKey] = [apiResponse.error];
+          });
+        } else if (apiResponse.results) {
+          // Process bulk response results
+          tokensToFetch.forEach((tokenAddress) => {
+            const tokenResult = apiResponse.results[tokenAddress.toLowerCase()];
+            const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
 
-            // Add to cache
-            this.#tokenScanCache.set(token.key, {
-              resultType: apiResponse.result_type,
-            });
+            if (tokenResult && tokenResult.result_type) {
+              const result: TokenScanResult = {
+                chainId,
+                tokenAddress,
+                resultType: tokenResult.result_type,
+              };
 
-            combinedResponse.results[token.key] = result;
-          }
-        } catch (error) {
-          combinedResponse.errors[token.key] = [
+              // Add to cache
+              this.#tokenScanCache.set(cacheKey, {
+                resultType: tokenResult.result_type,
+              });
+
+              combinedResponse.results[cacheKey] = result;
+            } else {
+              // Token not found in response
+              combinedResponse.errors[cacheKey] = [
+                'Token not found in response',
+              ];
+            }
+          });
+        }
+      } catch (error) {
+        // Add error for all tokens
+        tokensToFetch.forEach((tokenAddress) => {
+          const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
+          combinedResponse.errors[cacheKey] = [
             error instanceof Error ? error.message : 'Unknown error',
           ];
-        }
-      });
-
-      // Wait for all requests to complete
-      await Promise.all(promises);
+        });
+      }
     }
 
     return combinedResponse;
