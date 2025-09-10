@@ -62,13 +62,12 @@ export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
-export const TOKEN_SCREENING_ENDPOINT = '/token/scan';
 export const TOKEN_BULK_SCREENING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
-export const DEFAULT_URL_SCAN_CACHE_TTL = 300; // 5 minutes in seconds
-export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 100;
-export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 5 * 60; // 5 minutes in seconds
+export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 250;
+export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
 export const DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE = 1000;
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
