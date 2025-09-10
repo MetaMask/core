@@ -19,6 +19,8 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
+import type { IntentManager, IntentOrder } from '@metamask/intent-manager';
+import { IntentOrderStatus } from '@metamask/intent-manager';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionController,
@@ -76,21 +78,6 @@ import {
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
 
-// CoW intent: API base and network path mapping (adjust as needed)
-const COW_API_BASE = 'https://api.cow.fi';
-const COW_NETWORK_PATHS: Record<number, string> = {
-  // Ethereum Mainnet
-  1: 'mainnet',
-  // Arbitrum One
-  42161: 'arbitrum_one',
-  // Base
-  8453: 'base',
-  // Avalanche C-Chain
-  43114: 'avalanche',
-  // Polygon PoS
-  137: 'polygon',
-};
-
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
   // basically match the behavior of TransactionController
@@ -127,6 +114,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
 
   readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
+
+  #intentManager?: IntentManager;
 
   readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
 
@@ -297,6 +286,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
     });
   };
+
+  /**
+   * Set the intent manager instance for handling intent operations
+   *
+   * @param intentManager - The intent manager instance
+   */
+  setIntentManager(intentManager: IntentManager): void {
+    this.#intentManager = intentManager;
+  }
 
   wipeBridgeStatus = ({
     address,
@@ -599,9 +597,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }: FetchBridgeTxStatusArgs) => {
     const { txHistory } = this.state;
 
-    // Intent-based items: poll CoW API instead of Bridge API
+    // Intent-based items: poll intent provider instead of Bridge API
     if (bridgeTxMetaId.startsWith('intent:')) {
-      await this.#fetchCowOrderStatus({ bridgeTxMetaId });
+      await this.#fetchIntentOrderStatus({ bridgeTxMetaId });
       return;
     }
 
@@ -695,9 +693,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
-  readonly #fetchCowOrderStatus = async ({
+  readonly #fetchIntentOrderStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs) => {
+    if (!this.#intentManager) {
+      console.warn('Intent manager not available for status polling');
+      return;
+    }
+
     const { txHistory } = this.state;
     const historyItem = txHistory[bridgeTxMetaId];
     if (!historyItem) {
@@ -709,205 +712,183 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const orderUid = bridgeTxMetaId.replace(/^intent:/u, '');
-    const { srcChainId } = historyItem.quote;
-    const networkPath = COW_NETWORK_PATHS[srcChainId];
-    if (!networkPath) {
-      // Unsupported mapping: stop polling with failure
-      this.update((state) => {
-        state.txHistory[bridgeTxMetaId].status = {
-          status: StatusTypes.FAILED,
-          srcChain: {
-            chainId: srcChainId,
-            txHash: '',
-          },
-        } as unknown as (typeof state.txHistory)[string]['status'];
-      });
-      return;
-    }
-
     try {
-      const url = `${COW_API_BASE}/${networkPath}/api/v1/orders/${orderUid}`;
-      const res = await this.#fetchFn(url, { method: 'GET' });
+      const orderUid = bridgeTxMetaId.replace(/^intent:/u, '');
+      const { srcChainId } = historyItem.quote;
 
-      // CoW API status enum mapping
-      const rawStatus =
-        typeof res === 'object' && res !== null && 'status' in res
-          ? ((res as { status?: string }).status ?? '')
-          : '';
-      const isComplete = rawStatus === 'fulfilled';
-      const isFailed = ['cancelled', 'expired'].includes(rawStatus);
-      const isPending = ['presignaturePending', 'open'].includes(rawStatus);
+      // Extract provider name from order metadata or default to empty and let intent manager throw error
+      const providerName = historyItem.quote.intent?.protocol || '';
 
-      // Try to find a tx hash in common fields
-      let txHash = '';
-      let allHashes: string[] = [];
+      const intentOrder = await this.#intentManager.getOrderStatus(
+        orderUid,
+        providerName,
+        srcChainId,
+      );
 
-      if (isComplete) {
-        // Prefer authoritative trades endpoint for one or multiple fills
-        const tradesUrl = `${COW_API_BASE}/${networkPath}/api/v1/trades?orderUid=${orderUid}`;
-        const trades =
-          (await this.#fetchFn(tradesUrl, { method: 'GET' })) ?? [];
-        allHashes = Array.isArray(trades)
-          ? trades
-              .map(
-                (t: { txHash?: unknown; transactionHash?: unknown }) =>
-                  t?.txHash || t?.transactionHash,
-              )
-              .filter(
-                (h: unknown): h is string =>
-                  typeof h === 'string' && h.length > 0,
-              )
-          : [];
-        // Fallback to any hash on order if trades missing
-        if (allHashes.length === 0) {
-          const possible = [
-            (res as { txHash?: string }).txHash,
-            (res as { transactionHash?: string }).transactionHash,
-            (res as { executedTransaction?: string }).executedTransaction,
-            (res as { executedTransactionHash?: string })
-              .executedTransactionHash,
-          ].filter(
-            (h: unknown): h is string => typeof h === 'string' && h.length > 0,
-          );
-          allHashes = possible;
-        }
-        txHash = allHashes[allHashes.length - 1] || '';
-      }
-
-      let statusType: StatusTypes;
-      if (isComplete) {
-        statusType = StatusTypes.COMPLETE;
-      } else if (isFailed) {
-        statusType = StatusTypes.FAILED;
-      } else if (isPending) {
-        statusType = StatusTypes.PENDING;
-      } else {
-        statusType = StatusTypes.PENDING; // Default to pending for unknown statuses
-      }
-
-      const newStatus = {
-        status: statusType,
-        srcChain: {
-          chainId: srcChainId,
-          txHash: txHash || historyItem.status.srcChain.txHash || '',
-        },
-      } as typeof historyItem.status;
-
-      const newBridgeHistoryItem = {
-        ...historyItem,
-        status: newStatus,
-        completionTime:
-          newStatus.status === StatusTypes.COMPLETE ||
-          newStatus.status === StatusTypes.FAILED
-            ? Date.now()
-            : undefined,
-        attempts: undefined,
-        srcTxHashes:
-          allHashes.length > 0
-            ? Array.from(
-                new Set([...(historyItem.srcTxHashes ?? []), ...allHashes]),
-              )
-            : historyItem.srcTxHashes,
-      };
-
-      this.update((state) => {
-        state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
-      });
-
-      // Update the actual transaction in TransactionController to sync with CoW status
-      // Use the original transaction ID (not the intent: prefixed bridge history key)
-      const originalTxId =
-        (historyItem as unknown as { originalTransactionId: string })
-          .originalTransactionId || historyItem.txMetaId;
-      if (originalTxId && !originalTxId.startsWith('intent:')) {
-        try {
-          let transactionStatus: TransactionStatus;
-          if (isComplete) {
-            transactionStatus = TransactionStatus.confirmed;
-          } else if (isFailed) {
-            transactionStatus = TransactionStatus.failed;
-          } else if (isPending) {
-            transactionStatus = TransactionStatus.submitted;
-          } else {
-            transactionStatus = TransactionStatus.submitted; // Default to submitted for unknown statuses
-          }
-
-          // Merge with existing TransactionMeta to avoid wiping required fields
-          const { transactions } = this.messagingSystem.call(
-            'TransactionController:getState',
-          );
-          const existingTxMeta = (transactions as TransactionMeta[]).find(
-            (t) => t.id === originalTxId,
-          );
-
-          if (!existingTxMeta) {
-            console.warn(
-              '📝 [fetchCowOrderStatus] Skipping update; transaction not found',
-              { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
-            );
-          } else {
-            const updatedTxMeta: TransactionMeta = {
-              ...existingTxMeta,
-              status: transactionStatus,
-              ...(txHash ? { hash: txHash } : {}),
-              ...(txHash
-                ? ({
-                    txReceipt: {
-                      ...(
-                        existingTxMeta as unknown as {
-                          txReceipt: Record<string, unknown>;
-                        }
-                      ).txReceipt,
-                      transactionHash: txHash,
-                      status: (isComplete ? '0x1' : '0x0') as unknown as string,
-                    },
-                  } as Partial<TransactionMeta>)
-                : {}),
-            } as TransactionMeta;
-
-            this.#updateTransactionFn(
-              updatedTxMeta,
-              `BridgeStatusController - CoW order status updated: ${rawStatus}`,
-            );
-          }
-        } catch (error) {
-          console.error(
-            '📝 [fetchCowOrderStatus] Failed to update transaction status',
-            {
-              originalTxId,
-              bridgeHistoryKey: bridgeTxMetaId,
-              error,
-            },
-          );
-        }
-      }
-
-      const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-      const isFinal =
-        newStatus.status === StatusTypes.COMPLETE ||
-        newStatus.status === StatusTypes.FAILED;
-      if (isFinal && pollingToken) {
-        this.stopPollingByPollingToken(pollingToken);
-        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-
-        if (newStatus.status === StatusTypes.COMPLETE) {
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.Completed,
-            bridgeTxMetaId,
-          );
-        } else if (newStatus.status === StatusTypes.FAILED) {
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.Failed,
-            bridgeTxMetaId,
-          );
-        }
-      }
-    } catch {
-      // Network or API error: apply backoff
+      // Update bridge history with intent order status
+      this.#updateBridgeHistoryFromIntentOrder(
+        bridgeTxMetaId,
+        intentOrder,
+        historyItem,
+      );
+    } catch (error) {
+      console.error('Failed to fetch intent order status:', error);
       this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
+
+  #updateBridgeHistoryFromIntentOrder(
+    bridgeTxMetaId: string,
+    intentOrder: IntentOrder,
+    historyItem: BridgeHistoryItem,
+  ) {
+    const { srcChainId } = historyItem.quote;
+
+    // Map intent order status to bridge status using enum values
+    let statusType: StatusTypes;
+    const isComplete = [
+      IntentOrderStatus.CONFIRMED,
+      IntentOrderStatus.COMPLETED,
+    ].includes(intentOrder.status);
+    const isFailed = [
+      IntentOrderStatus.FAILED,
+      IntentOrderStatus.CANCELLED,
+      IntentOrderStatus.EXPIRED,
+    ].includes(intentOrder.status);
+    const isPending = [
+      IntentOrderStatus.PENDING,
+      IntentOrderStatus.SUBMITTED,
+    ].includes(intentOrder.status);
+
+    if (isComplete) {
+      statusType = StatusTypes.COMPLETE;
+    } else if (isFailed) {
+      statusType = StatusTypes.FAILED;
+    } else if (isPending) {
+      statusType = StatusTypes.PENDING;
+    } else {
+      statusType = StatusTypes.PENDING; // Default to pending for unknown statuses
+    }
+
+    // Extract transaction hashes from intent order
+    const txHash = intentOrder.txHash || '';
+    // Check metadata for additional transaction hashes
+    const metadataTxHashes = Array.isArray(intentOrder.metadata.txHashes)
+      ? (intentOrder.metadata.txHashes as string[])
+      : [];
+    const allHashes =
+      metadataTxHashes.length > 0 ? metadataTxHashes : txHash ? [txHash] : [];
+
+    const newStatus = {
+      status: statusType,
+      srcChain: {
+        chainId: srcChainId,
+        txHash: txHash || historyItem.status.srcChain.txHash || '',
+      },
+    } as typeof historyItem.status;
+
+    const newBridgeHistoryItem = {
+      ...historyItem,
+      status: newStatus,
+      completionTime:
+        newStatus.status === StatusTypes.COMPLETE ||
+        newStatus.status === StatusTypes.FAILED
+          ? Date.now()
+          : undefined,
+      attempts: undefined,
+      srcTxHashes:
+        allHashes.length > 0
+          ? Array.from(
+              new Set([...(historyItem.srcTxHashes ?? []), ...allHashes]),
+            )
+          : historyItem.srcTxHashes,
+    };
+
+    this.update((state) => {
+      state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
+    });
+
+    // Update the actual transaction in TransactionController to sync with intent status
+    // Use the original transaction ID (not the intent: prefixed bridge history key)
+    const originalTxId =
+      historyItem.originalTransactionId || historyItem.txMetaId;
+    if (originalTxId && !originalTxId.startsWith('intent:')) {
+      try {
+        const transactionStatus = this.#mapIntentOrderStatusToTransactionStatus(
+          intentOrder.status,
+        );
+
+        // Merge with existing TransactionMeta to avoid wiping required fields
+        const { transactions } = this.messagingSystem.call(
+          'TransactionController:getState',
+        );
+        const existingTxMeta = (transactions as TransactionMeta[]).find(
+          (t) => t.id === originalTxId,
+        );
+
+        if (!existingTxMeta) {
+          console.warn(
+            '📝 [fetchIntentOrderStatus] Skipping update; transaction not found',
+            { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
+          );
+        } else {
+          const updatedTxMeta: TransactionMeta = {
+            ...existingTxMeta,
+            status: transactionStatus,
+            ...(txHash ? { hash: txHash } : {}),
+            ...(txHash
+              ? ({
+                  txReceipt: {
+                    ...(
+                      existingTxMeta as unknown as {
+                        txReceipt: Record<string, unknown>;
+                      }
+                    ).txReceipt,
+                    transactionHash: txHash,
+                    status: (isComplete ? '0x1' : '0x0') as unknown as string,
+                  },
+                } as Partial<TransactionMeta>)
+              : {}),
+          } as TransactionMeta;
+
+          this.#updateTransactionFn(
+            updatedTxMeta,
+            `BridgeStatusController - Intent order status updated: ${intentOrder.status}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          '📝 [fetchIntentOrderStatus] Failed to update transaction status',
+          {
+            originalTxId,
+            bridgeHistoryKey: bridgeTxMetaId,
+            error,
+          },
+        );
+      }
+    }
+
+    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    const isFinal =
+      newStatus.status === StatusTypes.COMPLETE ||
+      newStatus.status === StatusTypes.FAILED;
+    if (isFinal && pollingToken) {
+      this.stopPollingByPollingToken(pollingToken);
+      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+
+      if (newStatus.status === StatusTypes.COMPLETE) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Completed,
+          bridgeTxMetaId,
+        );
+      } else if (newStatus.status === StatusTypes.FAILED) {
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Failed,
+          bridgeTxMetaId,
+        );
+      }
+    }
+  }
 
   readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {
     const { txHistory } = this.state;
@@ -1476,7 +1457,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   /**
    * UI-signed intent submission (fast path): the UI generates the EIP-712 signature and calls this with the raw signature.
-   * Here we POST the order to the intent backend (e.g., CoW) and create a synthetic history entry for UX.
+   * Here we submit the order to the intent provider and create a synthetic history entry for UX.
    *
    * @param params - Object containing intent submission parameters
    * @param params.quoteResponse - Quote carrying intent data
@@ -1490,6 +1471,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
     const { quoteResponse, signature, accountAddress } = params;
+
+    if (!this.#intentManager) {
+      throw new Error('Intent manager not initialized');
+    }
 
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = this.messagingSystem.call(
@@ -1506,8 +1491,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     try {
       const { intent } = (quoteResponse as QuoteResponse & { intent?: Intent })
         .quote;
-      if (!intent || intent.protocol !== 'cowswap') {
-        throw new Error('submitIntent: missing or unsupported intent');
+      if (!intent) {
+        throw new Error('submitIntent: missing intent data');
       }
 
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
@@ -1528,7 +1513,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         approvalTxId = approvalTxMeta?.id;
 
         // Optionally wait for approval confirmation with timeout and graceful fallback
-        // CoW order can be created before allowance is mined, but waiting helps avoid MEV issues
+        // Intent order can be created before allowance is mined, but waiting helps avoid MEV issues
         if (approvalTxId) {
           try {
             // Wait with a shorter timeout and continue if it fails
@@ -1537,7 +1522,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               pollMs: 3_000, // Poll less frequently to avoid rate limits
             });
           } catch (error) {
-            // Log but don't throw - continue with CoW order submission
+            // Log but don't throw - continue with intent order submission
             console.warn(
               'Approval confirmation failed, continuing with intent submission:',
               error,
@@ -1546,58 +1531,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
       }
 
-      // Map chainId to CoW API server path (prod)
-      const chainId = quoteResponse.quote.srcChainId;
-      const serverPath = COW_NETWORK_PATHS[chainId];
-      if (!serverPath) {
-        throw new Error(
-          `submitIntent: unsupported chainId for CoW intents: ${chainId}`,
-        );
-      }
+      // Create intent quote from bridge quote response
+      const intentQuote = this.#convertBridgeQuoteToIntentQuote(
+        quoteResponse,
+        intent,
+      );
 
-      // Build OrderCreation payload (simplified)
-      const orderBody = {
-        ...intent.order,
-        feeAmount: '0',
-        from: accountAddress,
+      // Submit intent order using the intent manager
+      const intentOrder = await this.#intentManager.submitIntent({
+        quote: intentQuote,
         signature,
-        signingScheme: 'eip712',
-      } as Record<string, unknown>;
-
-      // POST to CoW prod
-      const url = `https://api.cow.fi/${serverPath}/api/v1/orders`;
-      const res = await this.#fetchFn(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderBody),
+        userAddress: accountAddress,
       });
 
-      const orderUid: string | undefined =
-        typeof res === 'string'
-          ? res
-          : ((res as { uid?: string; orderUid?: string; id?: string })?.uid ??
-            (res as { uid?: string; orderUid?: string; id?: string })
-              ?.orderUid ??
-            (res as { uid?: string; orderUid?: string; id?: string })?.id);
-      if (!orderUid) {
-        throw new Error('submitIntent: failed to submit order');
-      }
-
-      // Get initial order status from CoW API
-      let initialOrderStatus = 'open'; // Default status
-      try {
-        const orderStatusUrl = `${COW_API_BASE}/${serverPath}/api/v1/orders/${orderUid}`;
-        const orderStatusRes = await this.#fetchFn(orderStatusUrl, {
-          method: 'GET',
-        });
-        initialOrderStatus =
-          (orderStatusRes as { status?: string })?.status ?? 'open';
-      } catch (error) {
-        console.warn(
-          '📝 [submitIntent] Failed to get initial order status, using default:',
-          error,
-        );
-      }
+      const chainId = quoteResponse.quote.srcChainId;
+      const orderUid = intentOrder.id;
 
       // Determine transaction type: swap for same-chain, bridge for cross-chain
       const isCrossChainTx = isCrossChain(
@@ -1619,7 +1567,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         from: accountAddress,
         to:
           intent.settlementContract ||
-          '0x9008D19f58AAbd9eD0D60971565AA8510560ab41', // CoW settlement contract
+          '0x9008D19f58AAbd9eD0D60971565AA8510560ab41', // Default settlement contract
         data: `0x${orderUid.slice(-8)}`, // Use last 8 chars of orderUid to make each transaction unique
         value: '0x0',
         gas: '0x5208', // Minimal gas for display purposes
@@ -1659,25 +1607,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const intentTxMeta = txMetaPromise;
 
-      // Map initial CoW order status to TransactionController status
-      const isComplete = initialOrderStatus === 'fulfilled';
-      const isFailed = ['cancelled', 'expired'].includes(initialOrderStatus);
-      const isPending = ['presignaturePending', 'open'].includes(
-        initialOrderStatus,
-      );
+      // Map intent order status to TransactionController status
+      const initialTransactionStatus =
+        this.#mapIntentOrderStatusToTransactionStatus(intentOrder.status);
 
-      let initialTransactionStatus: TransactionStatus;
-      if (isComplete) {
-        initialTransactionStatus = TransactionStatus.confirmed;
-      } else if (isFailed) {
-        initialTransactionStatus = TransactionStatus.failed;
-      } else if (isPending) {
-        initialTransactionStatus = TransactionStatus.submitted;
-      } else {
-        initialTransactionStatus = TransactionStatus.submitted;
-      }
-
-      // Update transaction with proper initial status based on CoW order
+      // Update transaction with proper initial status based on intent order
       const statusUpdatedTxMeta = {
         ...intentTxMeta,
         status: initialTransactionStatus,
@@ -1685,7 +1619,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       this.#updateTransactionFn(
         statusUpdatedTxMeta,
-        `BridgeStatusController - Initial CoW order status: ${initialOrderStatus}`,
+        `BridgeStatusController - Initial intent order status: ${intentOrder.status}`,
       );
 
       // Update with actual transaction metadata
@@ -1698,7 +1632,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Record in bridge history with actual transaction metadata
       try {
-        // Use intent: prefix for CoW transactions to route to CoW API
+        // Use intent: prefix for intent transactions to route to intent manager
         const bridgeHistoryKey = `intent:${orderUid}`;
 
         // Create a bridge transaction metadata that includes the original txId
@@ -1721,9 +1655,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           approvalTxId,
         });
 
-        // Debug: Check if the bridge history was added
-
-        // Start polling using the intent: prefixed key to route to CoW API
+        // Start polling using the intent: prefixed key to route to intent manager
         this.#startPollingForTxId(bridgeHistoryKey);
       } catch (error) {
         console.error(
@@ -1746,6 +1678,48 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       throw error;
     }
   };
+
+  #convertBridgeQuoteToIntentQuote(
+    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+    intent: Intent,
+  ) {
+    return {
+      id: `bridge-${Date.now()}`,
+      provider: intent.protocol,
+      srcAmount: quoteResponse.quote.srcTokenAmount,
+      destAmount: quoteResponse.quote.destTokenAmount,
+      estimatedGas: '21000',
+      estimatedTime: 300, // 5 minutes
+      priceImpact: 0,
+      fees: [],
+      validUntil: Date.now() + 300000, // 5 minutes from now
+      metadata: {
+        order: intent.order,
+        settlementContract: intent.settlementContract,
+        chainId: quoteResponse.quote.srcChainId,
+        bridgeQuote: quoteResponse,
+      },
+    };
+  }
+
+  #mapIntentOrderStatusToTransactionStatus(
+    intentStatus: IntentOrderStatus,
+  ): TransactionStatus {
+    switch (intentStatus) {
+      case IntentOrderStatus.PENDING:
+      case IntentOrderStatus.SUBMITTED:
+        return TransactionStatus.submitted;
+      case IntentOrderStatus.CONFIRMED:
+      case IntentOrderStatus.COMPLETED:
+        return TransactionStatus.confirmed;
+      case IntentOrderStatus.FAILED:
+      case IntentOrderStatus.CANCELLED:
+      case IntentOrderStatus.EXPIRED:
+        return TransactionStatus.failed;
+      default:
+        return TransactionStatus.submitted;
+    }
+  }
 
   /**
    * Tracks post-submission events for a cross-chain swap based on the history item

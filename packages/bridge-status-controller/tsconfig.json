@@ -9,6 +9,7 @@
     { "path": "../base-controller" },
     { "path": "../bridge-controller" },
     { "path": "../controller-utils" },
+    { "path": "../intent-manager" },
     { "path": "../network-controller" },
     { "path": "../polling-controller" },
     { "path": "../transaction-controller" },

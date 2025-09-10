@@ -8,8 +8,23 @@ export {
   MAX_RETRY_ATTEMPTS,
 } from './constants';
 
-// Export enums
-export { IntentStatus } from './types';
+// Export types and enums
+export { IntentStatus, IntentOrderStatus } from './types';
+
+export type {
+  IntentQuoteRequest,
+  IntentQuote,
+  IntentOrder,
+  IntentFee,
+  IntentSubmissionParams,
+  IntentProviderConfig,
+  ProviderRegistry,
+  ProviderSelectionCriteria,
+} from './types';
 
 // Export main controller
 export { IntentManager } from './intent-manager';
+export type { IntentManagerState } from './intent-manager';
+
+// Export providers
+export * from './providers';
