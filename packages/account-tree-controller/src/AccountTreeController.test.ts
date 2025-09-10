@@ -2133,7 +2133,9 @@ describe('AccountTreeController', () => {
           'non-existent-group-id' as AccountGroupId,
           'Some Name',
         );
-      }).toThrow('Account group with ID "non-existent-group-id" not found in tree');
+      }).toThrow(
+        'Account group with ID "non-existent-group-id" not found in tree',
+      );
     });
   });
 
