@@ -21,8 +21,10 @@ export const controllerName = 'DelegationController';
 
 const delegationControllerMetadata = {
   delegations: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
 } satisfies StateMetadata<DelegationControllerState>;
 

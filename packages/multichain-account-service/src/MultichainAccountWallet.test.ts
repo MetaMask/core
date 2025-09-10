@@ -28,6 +28,8 @@ import {
   MOCK_WALLET_1_SOL_ACCOUNT,
   MockAccountBuilder,
   setupAccountProvider,
+  getMultichainAccountServiceMessenger,
+  getRootMessenger,
 } from './tests';
 
 function setup({
@@ -57,6 +59,7 @@ function setup({
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     providers,
     entropySource,
+    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
   });
 
   return { wallet, providers };

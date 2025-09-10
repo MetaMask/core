@@ -19,6 +19,7 @@ import { createProjectLogger } from '@metamask/utils';
 
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
+import type { MultichainAccountServiceMessenger } from './types';
 
 /**
  * The context for a provider discovery.
@@ -55,22 +56,31 @@ export class MultichainAccountWallet<
 
   readonly #accountGroups: Map<number, MultichainAccountGroup<Account>>;
 
+  readonly #messenger: MultichainAccountServiceMessenger;
+
+  // eslint-disable-next-line @typescript-eslint/prefer-readonly
+  #initialized = false;
+
   #isAlignmentInProgress: boolean = false;
 
   constructor({
     providers,
     entropySource,
+    messenger,
   }: {
     providers: NamedAccountProvider<Account>[];
     entropySource: EntropySourceId;
+    messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
     this.#providers = providers;
     this.#entropySource = entropySource;
+    this.#messenger = messenger;
     this.#accountGroups = new Map();
 
-    // Initial synchronization.
+    // Initial synchronization (don't emit events during initialization).
     this.sync();
+    this.#initialized = true;
   }
 
   /**
@@ -96,6 +106,7 @@ export class MultichainAccountWallet<
             groupIndex: entropy.groupIndex,
             wallet: this,
             providers: this.#providers,
+            messenger: this.#messenger,
           });
 
           // This existing multichain account group might differ from the
@@ -308,11 +319,19 @@ export class MultichainAccountWallet<
         wallet: this,
         providers: this.#providers,
         groupIndex,
+        messenger: this.#messenger,
       });
     }
 
     // Register the account to our internal map.
     this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
+
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
+    }
 
     return group;
   }
