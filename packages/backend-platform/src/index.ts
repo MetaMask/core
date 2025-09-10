@@ -29,7 +29,11 @@ export type {
   WebSocketServiceGetConnectionInfoAction,
   WebSocketServiceGetSubscriptionByChannelAction,
   WebSocketServiceIsChannelSubscribedAction,
+  WebSocketServiceAllowedActions,
+  WebSocketServiceAllowedEvents,
   WebSocketServiceMessenger,
+  WebSocketServiceEvents,
+  WebSocketServiceConnectionStateChangedEvent,
   WebSocketState,
   WebSocketEventType,
 } from './WebsocketService';
@@ -42,6 +46,8 @@ export type {
   AccountActivityServiceSubscribeAccountsAction,
   AccountActivityServiceUnsubscribeAccountsAction,
   AccountActivityServiceActions,
+  AccountActivityServiceAllowedActions,
+  AccountActivityServiceAllowedEvents,
   AccountActivityServiceAccountSubscribedEvent,
   AccountActivityServiceAccountUnsubscribedEvent,
   AccountActivityServiceTransactionUpdatedEvent,
@@ -49,5 +55,9 @@ export type {
   AccountActivityServiceSubscriptionErrorEvent,
   AccountActivityServiceEvents,
   AccountActivityServiceMessenger,
+} from './AccountActivityService';
+export {
+  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './AccountActivityService';
 export { AccountActivityService } from './AccountActivityService';
