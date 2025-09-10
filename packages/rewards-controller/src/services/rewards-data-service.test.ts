@@ -49,6 +49,24 @@ const okJsonResponse = <T>(data: T, status = 200): Response =>
     text: async () => JSON.stringify(data),
   }) as unknown as Response;
 
+function makeAbortingFetchMock() {
+  class AbortErr extends Error {
+    name = 'AbortError';
+  }
+  return jest.fn().mockImplementation((_url: string, init?: RequestInit) => {
+    const signal = init?.signal as AbortSignal | undefined;
+    return new Promise<Response>((_resolve, reject) => {
+      // If already aborted, reject immediately
+      if (signal?.aborted) {
+        return reject(new AbortErr('Aborted'));
+      }
+      // Otherwise, wait for abort event
+      signal?.addEventListener('abort', () => reject(new AbortErr('Aborted')));
+      // Intentionally never resolve; the test will abort via timer
+    });
+  });
+}
+
 // Helper to build service with injectable deps
 const buildService = ({
   fetchImpl = jest
@@ -662,6 +680,78 @@ describe('RewardsDataService', () => {
     });
   });
 
+  describe('makeRequest timeout behavior', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.spyOn(global, 'setTimeout');
+      jest.spyOn(global, 'clearTimeout');
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it('aborts and throws when the (custom) timeout elapses', async () => {
+      const fetchMock = makeAbortingFetchMock();
+      const { svc } = buildService({ fetchImpl: fetchMock });
+
+      // Call the private method directly to pass a custom timeout
+      const customTimeout = 1234;
+      const p: Promise<Response> = (svc as any).makeRequest(
+        '/slow',
+        { method: 'GET' },
+        /* subscriptionId */ undefined,
+        /* timeoutMs */ customTimeout,
+      );
+
+      // A single timer should be scheduled with our custom timeout
+      expect(setTimeout).toHaveBeenCalledTimes(1);
+      expect((setTimeout as unknown as jest.Mock).mock.calls[0][1]).toBe(
+        customTimeout,
+      );
+
+      // Fast-forward time to trigger AbortController.abort()
+      jest.advanceTimersByTime(customTimeout);
+
+      // The promise should reject with the timeout message coming from catch block
+      await expect(p).rejects.toThrow(
+        `Request timeout after ${customTimeout}ms`,
+      );
+
+      // The timer must be cleared in the catch path
+      expect(clearTimeout).toHaveBeenCalledTimes(1);
+
+      // And fetch should have been called once with an AbortSignal
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init?.signal).toBeDefined();
+    });
+
+    it('aborts and throws using the default timeout when none is provided', async () => {
+      const fetchMock = makeAbortingFetchMock();
+      const { svc } = buildService({ fetchImpl: fetchMock });
+
+      // Hit makeRequest via a public method (e.g., login) which uses the default timeout
+      const op = svc.login({
+        account: '0xabc',
+        timestamp: 1,
+        signature: '0xsig',
+      });
+
+      // Extract the ms used by setTimeout for this call (the implementation’s default)
+      expect(setTimeout).toHaveBeenCalledTimes(1);
+      const defaultMs = (setTimeout as unknown as jest.Mock).mock
+        .calls[0][1] as number;
+
+      // Advance exactly that amount
+      jest.advanceTimersByTime(defaultMs);
+
+      await expect(op).rejects.toThrow(`Request timeout after ${defaultMs}ms`);
+      expect(clearTimeout).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('headers', () => {
     it('should include correct headers in requests', async () => {
       const mockResponse = {
@@ -982,20 +1072,6 @@ describe('RewardsDataService', () => {
           }),
         }),
       );
-    });
-
-    it('should handle timeout correctly', async () => {
-      // Mock fetch that never resolves (simulate timeout)
-      mockFetch.mockImplementation(
-        () =>
-          new Promise((_resolve, reject) => {
-            setTimeout(() => reject(new Error('AbortError')), 100);
-          }),
-      );
-
-      await expect(
-        service.getReferralDetails(mockSubscriptionId),
-      ).rejects.toThrow('AbortError');
     });
   });
 
