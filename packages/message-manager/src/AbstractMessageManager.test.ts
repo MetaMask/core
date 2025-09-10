@@ -1,5 +1,5 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
 import type {
   AbstractMessage,
@@ -68,13 +68,7 @@ const MOCK_MESSENGER = {
   publish: jest.fn(),
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
-} as unknown as RestrictedMessenger<
-  'TestManager',
-  never,
-  never,
-  string,
-  string
->;
+} as unknown as Messenger<'TestManager', never, never>;
 
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,

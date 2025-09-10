@@ -1,10 +1,10 @@
-import { BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller/next';
+import type { ApprovalType } from '@metamask/controller-utils';
 import type {
   ActionConstraint,
   EventConstraint,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
-import type { ApprovalType } from '@metamask/controller-utils';
+  Messenger,
+} from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -127,13 +127,7 @@ export type AbstractMessageManagerOptions<
   Event extends EventConstraint,
 > = {
   additionalFinishStatuses?: string[];
-  messenger: RestrictedMessenger<
-    Name,
-    Action,
-    Event | UpdateBadgeEvent<Name>,
-    string,
-    string
-  >;
+  messenger: Messenger<Name, Action, Event | UpdateBadgeEvent<Name>>;
   name: Name;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<Message>;
@@ -152,13 +146,7 @@ export abstract class AbstractMessageManager<
 > extends BaseController<
   Name,
   MessageManagerState<Message>,
-  RestrictedMessenger<
-    Name,
-    Action,
-    Event | UpdateBadgeEvent<Name>,
-    string,
-    string
-  >
+  Messenger<Name, Action, Event | UpdateBadgeEvent<Name>>
 > {
   protected messages: Message[];
 
@@ -190,7 +178,7 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Adds request props to the messsage params and returns a new messageParams object.
+   * Adds request props to the message params and returns a new messageParams object.
    * @param messageParams - The messageParams to add the request props to.
    * @param req - The original request object.
    * @returns The messageParams with the request props added.
@@ -247,7 +235,7 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      this.messagingSystem.publish(`${this.name}:updateBadge`);
+      this.messenger.publish(`${this.name}:updateBadge` as const);
     }
   }
 

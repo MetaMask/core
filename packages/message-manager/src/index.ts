@@ -1,4 +1,8 @@
 export * from './AbstractMessageManager';
 export * from './EncryptionPublicKeyManager';
 export * from './DecryptMessageManager';
-export * from './types';
+export type {
+  SignTypedDataMessageV3V4,
+  PersonalMessageParams,
+  TypedMessageParams,
+} from './types';
