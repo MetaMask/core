@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0]
 
-### Uncategorized
-
-- Release/529.0.0 ([#6440](https://github.com/MetaMask/core/pull/6440))
-- Release 513.0.0 ([#6381](https://github.com/MetaMask/core/pull/6381))
-
 ### Added
 
 - Add Solana and Bitcoin testnet support with the default values disabled ([#6532](https://github.com/MetaMask/core/pull/6532))
