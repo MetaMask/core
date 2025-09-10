@@ -71,8 +71,6 @@ export type AccountActivityServiceActions =
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getAccountByAddress',
   'AccountsController:getSelectedAccount',
-  'TokenBalancesController:updateChainPollingConfigs',
-  'TokenBalancesController:getDefaultPollingInterval',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
@@ -89,17 +87,6 @@ export type AccountActivityServiceAllowedActions =
   | {
       type: 'AccountsController:getSelectedAccount';
       handler: () => InternalAccount;
-    }
-  | {
-      type: 'TokenBalancesController:updateChainPollingConfigs';
-      handler: (
-        configs: Record<string, { interval: number }>,
-        options?: { immediateUpdate?: boolean },
-      ) => void;
-    }
-  | {
-      type: 'TokenBalancesController:getDefaultPollingInterval';
-      handler: () => number;
     };
 
 // Event types for the messaging system
@@ -128,12 +115,24 @@ export type AccountActivityServiceSubscriptionErrorEvent = {
   payload: [{ addresses: string[]; error: string; operation: string }];
 };
 
+export type AccountActivityServiceWebSocketConnectedEvent = {
+  type: `AccountActivityService:websocketConnected`;
+  payload: [{ supportedChains: readonly string[]; backupPollingInterval: number }];
+};
+
+export type AccountActivityServiceWebSocketDisconnectedEvent = {
+  type: `AccountActivityService:websocketDisconnected`;
+  payload: [{ supportedChains: readonly string[] }];
+};
+
 export type AccountActivityServiceEvents =
   | AccountActivityServiceAccountSubscribedEvent
   | AccountActivityServiceAccountUnsubscribedEvent
   | AccountActivityServiceTransactionUpdatedEvent
   | AccountActivityServiceBalanceUpdatedEvent
-  | AccountActivityServiceSubscriptionErrorEvent;
+  | AccountActivityServiceSubscriptionErrorEvent
+  | AccountActivityServiceWebSocketConnectedEvent
+  | AccountActivityServiceWebSocketDisconnectedEvent;
 
 export type AccountActivityServiceAllowedEvents =
   | {
@@ -518,7 +517,12 @@ export class AccountActivityService {
     if (state === WebSocketState.CONNECTED) {
       // WebSocket connected - use backup polling and resubscribe
       try {
-        this.#updateTokenBalancesControllerPollingRate(600000, false); // 10min backup polling
+        // Publish event for TokenBalancesController to use backup polling (10min intervals)
+        this.#messenger.publish(`AccountActivityService:websocketConnected`, {
+          supportedChains: SUPPORTED_CHAINS,
+          backupPollingInterval: 600000, // 10 minutes
+        });
+
         this.#subscribeSelectedAccount().catch((error) => {
           console.error('Failed to resubscribe to selected account:', error);
         });
@@ -529,40 +533,17 @@ export class AccountActivityService {
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
-      // WebSocket disconnected - clear subscription and use active polling
+      // WebSocket disconnected - clear subscription and signal active polling needed
       this.#currentSubscribedAddress = null;
       try {
-        const defaultInterval = this.#messenger.call(
-          'TokenBalancesController:getDefaultPollingInterval',
-        );
-        this.#updateTokenBalancesControllerPollingRate(defaultInterval, true);
+        // Publish event for TokenBalancesController to switch to active polling
+        this.#messenger.publish(`AccountActivityService:websocketDisconnected`, {
+          supportedChains: SUPPORTED_CHAINS,
+        });
       } catch (error) {
         console.error('Failed to handle WebSocket disconnected state:', error);
       }
     }
-  }
-
-  /**
-   * Update TokenBalancesController polling rate with specified settings
-   *
-   * @param pollingInterval - The polling interval in milliseconds
-   * @param immediateUpdate - Whether to immediately update existing polls
-   */
-  #updateTokenBalancesControllerPollingRate(
-    pollingInterval: number,
-    immediateUpdate: boolean,
-  ): void {
-    // Configure polling for all supported chains
-    const chainConfigs: Record<string, { interval: number }> = {};
-    for (const chainId of SUPPORTED_CHAINS) {
-      chainConfigs[chainId] = { interval: pollingInterval };
-    }
-
-    this.#messenger.call(
-      'TokenBalancesController:updateChainPollingConfigs',
-      chainConfigs,
-      { immediateUpdate },
-    );
   }
 
   /**
