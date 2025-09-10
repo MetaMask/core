@@ -9,7 +9,7 @@ import type {
 
 /**
  * Abstract base class for intent providers
- * 
+ *
  * This class provides the foundation for implementing specific intent providers
  * like CowSwap, 1inch, 0x Protocol, etc. Each provider must implement the
  * abstract methods to handle their specific API and business logic.
@@ -38,7 +38,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Generate a quote for the given request
-   * 
+   *
    * @param request - The quote request parameters
    * @returns Promise resolving to an intent quote
    */
@@ -46,7 +46,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Submit an order based on the quote and signature
-   * 
+   *
    * @param params - The submission parameters including quote and signature
    * @returns Promise resolving to the created order
    */
@@ -54,16 +54,19 @@ export abstract class BaseIntentProvider {
 
   /**
    * Get the current status of an order
-   * 
+   *
    * @param orderId - The order ID to check
    * @param chainId - The chain ID where the order was placed
    * @returns Promise resolving to the order status
    */
-  abstract getOrderStatus(orderId: string, chainId: number): Promise<IntentOrder>;
+  abstract getOrderStatus(
+    orderId: string,
+    chainId: number,
+  ): Promise<IntentOrder>;
 
   /**
    * Cancel an existing order
-   * 
+   *
    * @param orderId - The order ID to cancel
    * @param chainId - The chain ID where the order was placed
    * @returns Promise resolving to true if cancellation was successful
@@ -72,7 +75,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Validate that a quote request is valid for this provider
-   * 
+   *
    * @param request - The quote request to validate
    * @returns Promise resolving to true if the request is valid
    */
@@ -80,7 +83,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Estimate gas cost for executing the given quote
-   * 
+   *
    * @param quote - The quote to estimate gas for
    * @returns Promise resolving to the estimated gas amount as a string
    */
@@ -89,7 +92,7 @@ export abstract class BaseIntentProvider {
   /**
    * Lifecycle hook called after a quote is generated
    * Override this method to add provider-specific post-quote logic
-   * 
+   *
    * @param quote - The generated quote
    */
   protected async onQuoteGenerated?(quote: IntentQuote): Promise<void>;
@@ -97,7 +100,7 @@ export abstract class BaseIntentProvider {
   /**
    * Lifecycle hook called after an order is submitted
    * Override this method to add provider-specific post-submission logic
-   * 
+   *
    * @param order - The submitted order
    */
   protected async onOrderSubmitted?(order: IntentOrder): Promise<void>;
@@ -105,7 +108,7 @@ export abstract class BaseIntentProvider {
   /**
    * Lifecycle hook called when an order status changes
    * Override this method to add provider-specific status change logic
-   * 
+   *
    * @param order - The order with updated status
    * @param previousStatus - The previous status of the order
    */
@@ -116,7 +119,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Handle errors in a consistent way across providers
-   * 
+   *
    * @param error - The original error
    * @param context - Context about where the error occurred
    * @returns A new error with provider-specific context
@@ -127,6 +130,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Get the configuration for this provider
+   * @returns The provider configuration
    */
   getConfig(): IntentProviderConfig {
     return { ...this.config };
@@ -134,7 +138,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Check if this provider supports the given chain
-   * 
+   *
    * @param chainId - The chain ID to check
    * @returns True if the chain is supported
    */
@@ -144,7 +148,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Check if this provider has a specific feature
-   * 
+   *
    * @param feature - The feature name to check
    * @returns True if the feature is supported
    */

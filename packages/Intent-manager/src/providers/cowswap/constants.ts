@@ -22,7 +22,8 @@ export const COW_NETWORK_PATHS: Record<number, string> = {
 /**
  * Default CowSwap settlement contract address
  */
-export const COW_SETTLEMENT_CONTRACT = '0x9008D19f58AAbd9eD0D60971565AA8510560ab41';
+export const COW_SETTLEMENT_CONTRACT =
+  '0x9008D19f58AAbd9eD0D60971565AA8510560ab41';
 
 /**
  * CowSwap provider configuration

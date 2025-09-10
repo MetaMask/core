@@ -1,4 +1,9 @@
-import { BaseIntentProvider } from '../base-intent-provider';
+import {
+  COW_API_BASE,
+  COW_NETWORK_PATHS,
+  COW_SETTLEMENT_CONTRACT,
+  COWSWAP_PROVIDER_CONFIG,
+} from './constants';
 import type {
   IntentQuote,
   IntentQuoteRequest,
@@ -7,12 +12,21 @@ import type {
   IntentOrderStatus,
 } from '../../types';
 import { IntentOrderStatus as OrderStatus } from '../../types';
-import {
-  COW_API_BASE,
-  COW_NETWORK_PATHS,
-  COW_SETTLEMENT_CONTRACT,
-  COWSWAP_PROVIDER_CONFIG,
-} from './constants';
+import { BaseIntentProvider } from '../base-intent-provider';
+
+/**
+ * CowSwap quote response interface
+ */
+type CowSwapQuoteResponse = {
+  id?: string;
+  buyAmount?: string;
+  estimatedGas?: string;
+  priceImpact?: number;
+  feeAmount?: string;
+  validTo?: number;
+  order?: Record<string, unknown>;
+  settlementContract?: string;
+};
 
 /**
  * CowSwap intent provider implementation
@@ -230,9 +244,6 @@ export class CowSwapProvider extends BaseIntentProvider {
     return '21000';
   }
 
-  /**
-   * Map CowSwap API status to our internal status enum
-   */
   private mapCowSwapStatus(cowStatus: string): IntentOrderStatus {
     switch (cowStatus) {
       case 'presignaturePending':
@@ -249,16 +260,13 @@ export class CowSwapProvider extends BaseIntentProvider {
     }
   }
 
-  /**
-   * Fetch quote from CowSwap API
-   * This is a placeholder for the actual implementation
-   */
   private async fetchQuote(
     request: IntentQuoteRequest,
     networkPath: string,
-  ): Promise<any> {
+  ): Promise<CowSwapQuoteResponse> {
     // TODO: Implement actual CowSwap quote API call
     // For now, return a mock response structure
+    // This logic currently was handled by the Birdge controller call our bridge API backend
     throw new Error('CowSwap quote fetching not yet implemented');
   }
 }
