@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6497](https://github.com/MetaMask/core/pull/6497))
+  - Previously, `ShieldController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [0.1.2]
