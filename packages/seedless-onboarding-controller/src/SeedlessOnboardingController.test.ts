@@ -5455,6 +5455,9 @@ describe('SeedlessOnboardingController', () => {
               isExpiredPwd: false,
               timestamp: 1234567890,
             },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
             refreshToken: 'refreshToken',
             revokeToken: 'revokeToken',
             socialBackupsMetadata: [],
@@ -5603,10 +5606,10 @@ describe('SeedlessOnboardingController', () => {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
-              pendingToBeRevokedTokens: Array [
+              "pendingToBeRevokedTokens": Array [
                 Object {
                   "refreshToken": "refreshToken",
-                  "revokeToken": "revokeToken"
+                  "revokeToken": "revokeToken",
                 },
               ],
               "refreshToken": "refreshToken",
