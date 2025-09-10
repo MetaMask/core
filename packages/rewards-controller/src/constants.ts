@@ -1,5 +1,7 @@
-export const controllerName = 'RewardsController'; // Default timeout for all API requests (10 seconds)
-export const DEFAULT_REQUEST_TIMEOUT_MS = 10000; // Default blocked regions for rewards (ISO 3166-1 alpha-2 codes)
+export const controllerName = 'RewardsController';
+
+// Default timeout for all API requests (10 seconds)
+export const DEFAULT_REQUEST_TIMEOUT_MS = 10000;
 
 export const DEFAULT_BLOCKED_REGIONS = ['UK'];
 // Silent authentication constants
