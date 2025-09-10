@@ -579,6 +579,24 @@ describe('RewardsController', () => {
       await expect(controller.estimatePoints(mockRequest)).rejects.toThrow(
         'API error',
       );
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Failed to estimate points:',
+        'API error',
+      );
+    });
+
+    it('should handle estimate points errors with string message', async () => {
+      const mockRequest = {
+        activityType: 'SWAP' as const,
+        account: CAIP_ACCOUNT_1,
+        activityContext: {},
+      };
+
+      mockMessenger.call.mockRejectedValue('not error object');
+
+      await expect(controller.estimatePoints(mockRequest)).rejects.toBe(
+        'not error object',
+      );
     });
   });
 
@@ -761,6 +779,62 @@ describe('RewardsController', () => {
         await controller.getPerpsDiscountForAccount(CAIP_ACCOUNT_2);
 
       expect(result).toBe(0);
+    });
+
+    it('should return 0 when getPerpsDiscount returns undefined', async () => {
+      const staleTime = Date.now() - 600000; // 10 minutes ago
+      const accountState = {
+        account: CAIP_ACCOUNT_1,
+        hasOptedIn: false,
+        subscriptionId: null,
+        lastCheckedAuth: Date.now(),
+        lastCheckedAuthError: false,
+        perpsFeeDiscount: 7.5,
+        lastPerpsDiscountRateFetched: staleTime,
+      };
+
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: null,
+          accounts: { [CAIP_ACCOUNT_1]: accountState as RewardsAccountState },
+          subscriptions: {},
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+      });
+
+      mockMessenger.call.mockResolvedValue({
+        hasOptedIn: false,
+        discount: undefined as unknown as number,
+      });
+
+      const result =
+        await controller.getPerpsDiscountForAccount(CAIP_ACCOUNT_1);
+
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'RewardsDataService:getPerpsDiscount',
+        { account: CAIP_ACCOUNT_1 },
+      );
+      expect(result).toBe(0);
+    });
+
+    it('should return 0 when getPerpsDiscount call throws error which is not an object', async () => {
+      mockMessenger.call.mockRejectedValueOnce('not error object');
+
+      const result =
+        await controller.getPerpsDiscountForAccount(CAIP_ACCOUNT_2);
+
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'RewardsDataService:getPerpsDiscount',
+        { account: CAIP_ACCOUNT_2 },
+      );
+      expect(result).toBe(0);
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Failed to update perps fee discount:',
+        'not error object',
+      );
     });
   });
 
@@ -965,6 +1039,54 @@ describe('RewardsController', () => {
       // Then: Login should be called with the original address (not CAIP format)
       expect(logSpy).toHaveBeenLastCalledWith(
         'RewardsController: Keyring is locked, skipping silent auth',
+      );
+    });
+
+    it('should exit silently when error is not an object', async () => {
+      // Given: Internal account with valid EVM scope
+      const mockInternalAccount = {
+        address: '0x123',
+        type: 'eip155:eoa' as const,
+        id: 'test-id',
+        scopes: ['eip155:1' as const],
+        options: {},
+        methods: ['personal_sign'],
+        metadata: {
+          name: 'Test Account',
+          keyring: { type: 'HD Key Tree' },
+          importTime: Date.now(),
+        },
+      };
+
+      const mockLoginResponse = {
+        sessionId: 'session123',
+        subscription: { id: 'sub123', referralCode: 'REF123', accounts: [] },
+      };
+
+      mockIsHardwareWallet.mockImplementationOnce(() => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw 'string error'; // Simulate non-object error
+      });
+
+      mockMessenger.call
+        .mockReturnValueOnce(mockInternalAccount)
+        .mockResolvedValueOnce('0xsignature')
+        .mockResolvedValueOnce(mockLoginResponse);
+
+      // When: Authentication is triggered
+      const subscribeCallback = mockMessenger.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountsController:selectedAccountChange',
+      )?.[1];
+
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (subscribeCallback) {
+        await subscribeCallback(mockInternalAccount, mockInternalAccount);
+      }
+
+      // Then: Login should be called with the original address (not CAIP format)
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Silent authentication failed:',
+        'string error',
       );
     });
 
@@ -1224,6 +1346,71 @@ describe('RewardsController', () => {
       );
     });
 
+    it('should use default seasonId as current and return cached season status when cache is fresh', async () => {
+      const recentTime = Date.now() - 30000; // 30 seconds ago (within 1 minute threshold)
+      const compositeKey = `current:${mockSubscriptionId}`;
+
+      const mockSeasonData: SeasonDtoState = {
+        id: 'current',
+        name: 'Test Season',
+        startDate: Date.now() - 86400000, // 1 day ago
+        endDate: Date.now() + 86400000, // 1 day from now
+        tiers: createTestTiers(),
+      };
+
+      const mockSeasonStatus: SeasonStatusState = {
+        season: mockSeasonData,
+        balance: {
+          total: 1500,
+          refereePortion: 300,
+          updatedAt: Date.now() - 3600000, // 1 hour ago
+        },
+        tier: {
+          currentTier: { id: 'silver', name: 'Silver', pointsNeeded: 1000 },
+          nextTier: { id: 'gold', name: 'Gold', pointsNeeded: 5000 },
+          nextTierPointsNeeded: 3500, // 5000 - 1500
+        },
+        lastFetched: recentTime,
+      };
+
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: null,
+          accounts: {},
+          subscriptions: {
+            [mockSubscriptionId]: {
+              id: mockSubscriptionId,
+              referralCode: 'REF123',
+              accounts: [],
+            },
+          },
+          seasons: {
+            // eslint-disable-next-line no-useless-computed-key
+            ['current']: mockSeasonData,
+          },
+          subscriptionReferralDetails: {},
+          seasonStatuses: {
+            [compositeKey]: mockSeasonStatus,
+          },
+        },
+      });
+
+      const result = await controller.getSeasonStatus(mockSubscriptionId);
+
+      expect(result).toStrictEqual(mockSeasonStatus);
+      expect(result?.season.id).toBe('current');
+      expect(result?.balance.total).toBe(1500);
+      expect(result?.tier.currentTier.id).toBe('silver');
+      expect(result?.tier.nextTier?.id).toBe('gold');
+      expect(result?.tier.nextTierPointsNeeded).toBe(3500);
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'RewardsDataService:getSeasonStatus',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
     it('should fetch fresh season status when cache is stale', async () => {
       const mockApiResponse = createTestSeasonStatus();
 
@@ -1325,7 +1512,7 @@ describe('RewardsController', () => {
       expect(storedSeason.tiers).toHaveLength(4);
     });
 
-    it('should handle errors from data service', async () => {
+    it('should handle error from data service', async () => {
       controller = new RewardsController({
         messenger: mockMessenger,
         state: {
@@ -1349,6 +1536,32 @@ describe('RewardsController', () => {
       await expect(
         controller.getSeasonStatus(mockSubscriptionId, mockSeasonId),
       ).rejects.toThrow('API error');
+    });
+
+    it('should handle error from data service and when error is not an object', async () => {
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: null,
+          accounts: {},
+          subscriptions: {
+            [mockSubscriptionId]: {
+              id: mockSubscriptionId,
+              referralCode: 'REF123',
+              accounts: [],
+            },
+          },
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+      });
+
+      mockMessenger.call.mockRejectedValue('no error object');
+
+      await expect(
+        controller.getSeasonStatus(mockSubscriptionId, mockSeasonId),
+      ).rejects.toBe('no error object');
     });
   });
 
@@ -1522,6 +1735,32 @@ describe('RewardsController', () => {
         controller.getReferralDetails(mockSubscriptionId),
       ).rejects.toThrow('API error');
     });
+
+    it('should throw error when getReferralDetails throws error which is not an object', async () => {
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: null,
+          accounts: {},
+          subscriptions: {
+            [mockSubscriptionId]: {
+              id: mockSubscriptionId,
+              referralCode: 'REF123',
+              accounts: [],
+            },
+          },
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+      });
+
+      mockMessenger.call.mockRejectedValue('no error object');
+
+      await expect(
+        controller.getReferralDetails(mockSubscriptionId),
+      ).rejects.toBe('no error object');
+    });
   });
 
   describe('optIn', () => {
@@ -1687,6 +1926,60 @@ describe('RewardsController', () => {
       expect(logSpy).toHaveBeenLastCalledWith(
         'RewardsController: Failed to store subscription token:',
         tokenStorageError,
+      );
+
+      // Verify state was still updated correctly despite storage failure
+      expect(controller.state.activeAccount).toStrictEqual({
+        account: 'eip155:1:0x123456789',
+        hasOptedIn: true,
+        subscriptionId: 'sub-789',
+        lastCheckedAuth: expect.any(Number),
+        lastCheckedAuthError: false,
+        perpsFeeDiscount: null,
+        lastPerpsDiscountRateFetched: null,
+      });
+    });
+
+    it('should log unknown error when subscription token storage fails without any error message', async () => {
+      // Arrange
+      const mockChallengeResponse = {
+        id: 'challenge-123',
+        message: 'test challenge message',
+      };
+      const mockSignature = '0xsignature123';
+      const mockOptinResponse = {
+        sessionId: 'session-456',
+        subscription: {
+          id: 'sub-789',
+          referralCode: 'REF123',
+          accounts: [],
+        },
+      };
+
+      // Mock successful opt-in flow but failing token storage
+      mockToHex.mockReturnValue('0xhexmessage');
+      mockMessenger.call
+        .mockResolvedValueOnce(mockChallengeResponse) // generateChallenge
+        .mockResolvedValueOnce(mockSignature) // signPersonalMessage
+        .mockResolvedValueOnce(mockOptinResponse); // optin
+
+      // Mock storeSubscriptionToken to fail
+      mockStoreSubscriptionToken.mockResolvedValueOnce({
+        success: false,
+        error: undefined,
+      });
+
+      // Act
+      await controller.optIn(mockInternalAccount);
+
+      // Assert
+      expect(mockStoreSubscriptionToken).toHaveBeenCalledWith({
+        loginSessionId: 'session-456',
+        subscriptionId: 'sub-789',
+      });
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Failed to store subscription token:',
+        'Unknown error',
       );
 
       // Verify state was still updated correctly despite storage failure
@@ -2163,7 +2456,7 @@ describe('RewardsController', () => {
       );
     });
 
-    it('should throw error if anything inside login throws error', async () => {
+    it('should throw error if anything inside logout throws error', async () => {
       // Arrange
       const mockSubscriptionId = 'sub-123';
       const mockActiveAccount = {
@@ -2241,6 +2534,83 @@ describe('RewardsController', () => {
       expect(logSpy).toHaveBeenLastCalledWith(
         'RewardsController: Logout failed to complete',
         'Subscription token removal failed',
+      );
+    });
+
+    it('should throw error if anything inside logout throws error which is not an object', async () => {
+      // Arrange
+      const mockSubscriptionId = 'sub-123';
+      const mockActiveAccount = {
+        account: CAIP_ACCOUNT_1,
+        lastCheckedAuthError: false,
+        hasOptedIn: true,
+        subscriptionId: mockSubscriptionId,
+        lastCheckedAuth: Date.now(),
+        perpsFeeDiscount: 10.0,
+        lastPerpsDiscountRateFetched: Date.now(),
+      } as RewardsAccountState;
+      const mockInternalAccount = {
+        address: '0x123',
+        type: 'eip155:eoa' as const,
+        id: 'test-id',
+        scopes: ['eip155:1' as const],
+        options: {},
+        methods: ['personal_sign'],
+        metadata: {
+          name: 'Test Account',
+          keyring: { type: 'HD Key Tree' },
+          importTime: Date.now(),
+        },
+      };
+
+      // Ensure feature flag is enabled
+      mockGetRewardsFeatureFlag.mockReturnValue(true);
+
+      // Mock getSelectedMultichainAccount to return valid account during initialization
+      mockMessenger.call.mockReturnValue(mockInternalAccount);
+
+      controller = new RewardsController({
+        messenger: mockMessenger,
+        state: {
+          activeAccount: mockActiveAccount,
+          accounts: {
+            [CAIP_ACCOUNT_1]: mockActiveAccount,
+          },
+          subscriptions: {},
+          seasons: {},
+          subscriptionReferralDetails: {},
+          seasonStatuses: {},
+        },
+        removeSubscriptionToken: mockRemoveSubscriptionToken,
+      });
+
+      // Clear only the messenger calls made during initialization, preserve other mocks
+      mockMessenger.call.mockClear();
+      mockStoreSubscriptionToken.mockClear();
+
+      // Mock successful data service logout and failed token removal for the actual test
+      mockMessenger.call.mockResolvedValue(undefined);
+      mockRemoveSubscriptionToken.mockRejectedValue('no error object');
+
+      // Verify state is correctly set before calling logout
+      expect(controller.state.activeAccount).not.toBeNull();
+      expect(controller.state.activeAccount?.subscriptionId).toBe(
+        mockSubscriptionId,
+      );
+
+      // Act
+      await expect(controller.logout()).rejects.toBe('no error object');
+
+      // Assert
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'RewardsDataService:logout',
+        mockSubscriptionId,
+      );
+
+      // Verify state was cleared
+      expect(logSpy).toHaveBeenLastCalledWith(
+        'RewardsController: Logout failed to complete',
+        'no error object',
       );
     });
   });
@@ -2361,6 +2731,18 @@ describe('RewardsController', () => {
       // Arrange
       jest.clearAllMocks();
       mockMessenger.call.mockRejectedValue(new Error('Service error'));
+
+      // Act
+      const result = await controller.validateReferralCode('ABC123');
+
+      // Assert
+      expect(result).toBe(false);
+    });
+
+    it('should handle service errors and return false when error is not an object', async () => {
+      // Arrange
+      jest.clearAllMocks();
+      mockMessenger.call.mockRejectedValue('not an object');
 
       // Act
       const result = await controller.validateReferralCode('ABC123');

@@ -20,6 +20,20 @@ jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
 }));
 
+jest.mock('../logger', () => {
+  const actual = jest.requireActual('../logger');
+  const logSpy = jest.fn();
+  return {
+    ...actual,
+    createModuleLogger: jest.fn(() => logSpy),
+    __logSpy: logSpy,
+  };
+});
+
+const { __logSpy: logSpy } = jest.requireMock('../logger') as {
+  __logSpy: jest.Mock;
+};
+
 let mockMessenger: jest.Mocked<RewardsDataServiceMessenger>;
 
 const mockGetSubscriptionToken = jest.fn<
@@ -110,6 +124,84 @@ describe('RewardsDataService', () => {
       );
       expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
         'RewardsDataService:getPerpsDiscount',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:logout',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:generateChallenge',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:getSeasonStatus',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:getReferralDetails',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:fetchGeoLocation',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:validateReferralCode',
+        expect.any(Function),
+      );
+    });
+  });
+
+  describe('initialization with default values', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockFetch = jest.fn();
+      // Create service with minimal params to use defaults
+      new RewardsDataService({
+        messenger: mockMessenger,
+        fetch: mockFetch,
+        version: '1.0.0',
+        rewardsApiUrl: 'https://api.rewards.test',
+        environment: EnvironmentType.Development,
+        getSubscriptionToken: mockGetSubscriptionToken,
+      });
+    });
+    it('should register all action handlers', () => {
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:login',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:estimatePoints',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:getPerpsDiscount',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:logout',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:generateChallenge',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:getSeasonStatus',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:getReferralDetails',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:fetchGeoLocation',
+        expect.any(Function),
+      );
+      expect(mockMessenger.registerActionHandler).toHaveBeenCalledWith(
+        'RewardsDataService:validateReferralCode',
         expect.any(Function),
       );
     });
@@ -1128,6 +1220,10 @@ describe('RewardsDataService', () => {
 
       // Assert
       expect(result).toBe('UNKNOWN');
+      expect(logSpy).toHaveBeenCalledWith(
+        'RewardsDataService: Failed to fetch geoloaction',
+        expect.any(Error),
+      );
     });
 
     it('should return location string from response', async () => {

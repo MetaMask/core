@@ -212,7 +212,7 @@ export class RewardsDataService {
    */
   private async makeRequest(
     endpoint: string,
-    options: RequestInit = {},
+    options: RequestInit,
     subscriptionId?: string,
     timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
   ): Promise<Response> {

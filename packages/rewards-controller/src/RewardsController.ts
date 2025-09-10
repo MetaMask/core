@@ -322,7 +322,7 @@ export class RewardsController extends BaseController<
    */
   #getSeasonStatus(
     subscriptionId: string,
-    seasonId: string | 'current' = 'current',
+    seasonId: string | 'current',
   ): SeasonStatusState | null {
     const compositeKey = this.#createSeasonStatusCompositeKey(
       seasonId,
@@ -387,7 +387,7 @@ export class RewardsController extends BaseController<
       // Silent failure - don't throw errors for background authentication
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      if (errorMessage && !errorMessage?.includes('Engine does not exis')) {
+      if (errorMessage && !errorMessage?.includes('Engine does not exist')) {
         log(
           'RewardsController: Silent authentication failed:',
           error instanceof Error ? error.message : String(error),
@@ -630,25 +630,28 @@ export class RewardsController extends BaseController<
       );
 
       this.update((state: RewardsControllerState) => {
+        const { hasOptedIn, discount } = {
+          hasOptedIn: perpsDiscountData.hasOptedIn,
+          discount: perpsDiscountData.discount ?? 0,
+        };
         // Create account state if it doesn't exist
         if (!state.accounts[account]) {
           state.accounts[account] = {
             account,
-            hasOptedIn: perpsDiscountData.hasOptedIn,
+            hasOptedIn,
             subscriptionId: null,
             lastCheckedAuth: Date.now(),
             lastCheckedAuthError: false,
-            perpsFeeDiscount: perpsDiscountData.discount ?? 0,
+            perpsFeeDiscount: discount,
             lastPerpsDiscountRateFetched: Date.now(),
           };
         } else {
           // Update account state
-          state.accounts[account].hasOptedIn = perpsDiscountData.hasOptedIn;
-          if (!perpsDiscountData.hasOptedIn) {
+          state.accounts[account].hasOptedIn = hasOptedIn;
+          if (!hasOptedIn) {
             state.accounts[account].subscriptionId = null;
           }
-          state.accounts[account].perpsFeeDiscount =
-            perpsDiscountData.discount ?? 0;
+          state.accounts[account].perpsFeeDiscount = discount;
           state.accounts[account].lastPerpsDiscountRateFetched = Date.now();
         }
       });
