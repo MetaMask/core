@@ -2,13 +2,13 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedMessenger,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
@@ -190,14 +190,12 @@ export type PreferencesControllerActions = PreferencesControllerGetStateAction;
 
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
-export type AllowedEvents = KeyringControllerStateChangeEvent;
+type AllowedEvents = KeyringControllerStateChangeEvent;
 
-export type PreferencesControllerMessenger = RestrictedMessenger<
+export type PreferencesControllerMessenger = Messenger<
   typeof name,
   PreferencesControllerActions,
-  PreferencesControllerEvents | AllowedEvents,
-  never,
-  AllowedEvents['type']
+  PreferencesControllerEvents | AllowedEvents
 >;
 
 /**
