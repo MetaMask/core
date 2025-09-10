@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: subscription controller cleanup ([#6529](https://github.com/MetaMask/core/pull/6529))
+
 ### Added
 
 - Initial release of the subscription controller ([#6233](https://github.com/MetaMask/core/pull/6233))
