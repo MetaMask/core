@@ -105,7 +105,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     nodeAuthTokens: {
-      includeInStateLogs: false,
+      includeInStateLogs: (nodeAuthTokens) =>
+        !isNullOrUndefined(nodeAuthTokens),
       persist: true,
       anonymous: false,
       usedInUi: false,
@@ -165,26 +166,24 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     refreshToken: {
-      includeInStateLogs: false,
+      includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
       persist: true,
       anonymous: false,
       usedInUi: false,
     },
     revokeToken: {
-      includeInStateLogs: false,
+      includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
       persist: false,
       anonymous: false,
       usedInUi: false,
     },
     pendingToBeRevokedTokens: {
-      includeInStateLogs: false,
       persist: true,
       anonymous: false,
-      usedInUi: false,
     },
     // stays in vault
     accessToken: {
-      includeInStateLogs: false,
+      includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
       persist: false,
       anonymous: false,
       usedInUi: false,
@@ -192,7 +191,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
-      includeInStateLogs: false,
+      includeInStateLogs: (metadataAccessToken) =>
+        !isNullOrUndefined(metadataAccessToken),
       persist: true,
       anonymous: false,
       usedInUi: false,
