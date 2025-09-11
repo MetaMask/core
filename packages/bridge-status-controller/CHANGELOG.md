@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Require approval for Ledger Hardware only ([#6564](https://github.com/MetaMask/core/pull/6564))
+
 ## [42.0.0]
 
 ### Added
