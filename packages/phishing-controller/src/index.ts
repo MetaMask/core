@@ -9,4 +9,4 @@ export type {
 export { PhishingDetector } from './PhishingDetector';
 export type { PhishingDetectionScanResult } from './types';
 export { PhishingDetectorResultType, RecommendedAction } from './types';
-export type { UrlScanCacheEntry } from './UrlScanCache';
+export type { CacheEntry } from './CacheManager';
