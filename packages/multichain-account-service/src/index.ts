@@ -9,6 +9,8 @@ export type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateNextMultichainAccountGroupAction,
   MultichainAccountServiceSetBasicFunctionalityAction,
+  MultichainAccountServiceMultichainAccountGroupCreatedEvent,
+  MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
   MultichainAccountServiceWalletStatusChangeEvent,
 } from './types';
 export {
