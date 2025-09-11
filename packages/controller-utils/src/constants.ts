@@ -139,6 +139,19 @@ export const BUILT_IN_NETWORKS = {
   },
 } as const;
 
+/**
+ * A map of whitelisted networks with their name, symbol and RPC URL.
+ * This list is used not to display the warnings for those networks.
+ */
+export const WHITELISTED_NETWORKS = {
+  // HyperEVM
+  '0x3e7': {
+    name: 'HyperEVM',
+    symbol: 'HYPE',
+    rpcUrl: 'https://rpc.hyperliquid.xyz',
+  },
+};
+
 // APIs
 export const OPENSEA_PROXY_URL =
   'https://proxy.api.cx.metamask.io/opensea/v1/api/v2';
