@@ -58,13 +58,11 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return Object.entries(srpSessionData!).reduce<Record<string, Json>>(
         (sanitizedSrpSessionData, [key, value]) => {
-          const token: Partial<(typeof value)['token']> = {
-            ...value.token,
-          };
-          delete token.accessToken;
+          const { accessToken: _unused, ...tokenWithoutAccessToken } =
+            value.token;
           sanitizedSrpSessionData[key] = {
             ...value,
-            token,
+            token: tokenWithoutAccessToken,
           };
           return sanitizedSrpSessionData;
         },
