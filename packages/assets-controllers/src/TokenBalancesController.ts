@@ -55,7 +55,7 @@ export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
-const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
+const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 
 const metadata = {
   tokenBalances: {
@@ -130,8 +130,7 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
   | { type: 'AccountActivityService:balanceUpdated'; payload: any[] }
-  | { type: 'AccountActivityService:websocketConnected'; payload: any[] }
-  | { type: 'AccountActivityService:websocketDisconnected'; payload: any[] };
+  | { type: 'AccountActivityService:statusChanged'; payload: [{ chainIds: string[]; status: 'up' | 'down'; }] };
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof CONTROLLER,
@@ -214,6 +213,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
+  /** Debouncing for rapid status changes to prevent excessive HTTP calls */
+  #statusChangeDebouncer: {
+    timer: NodeJS.Timeout | null;
+    pendingChanges: Map<string, 'up' | 'down'>;
+  } = {
+    timer: null,
+    pendingChanges: new Map(),
+  };
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -278,14 +286,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#onAccountActivityBalanceUpdate.bind(this),
     );
 
-    // Subscribe to AccountActivityService WebSocket state changes for polling management
+    // Subscribe to AccountActivityService status changes for dynamic polling management
     this.messagingSystem.subscribe(
-      'AccountActivityService:websocketConnected',
-      this.#onWebSocketConnected.bind(this),
-    );
-    this.messagingSystem.subscribe(
-      'AccountActivityService:websocketDisconnected',
-      this.#onWebSocketDisconnected.bind(this),
+      'AccountActivityService:statusChanged',
+      this.#onAccountActivityStatusChanged.bind(this),
     );
 
     // Register action handlers for polling interval control
@@ -955,46 +959,82 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   /**
-   * Handle WebSocket connected event from AccountActivityService
-   * Switch to backup polling with longer intervals
+   * Handle status changes from AccountActivityService
+   * Uses aggressive debouncing to prevent excessive HTTP calls from rapid up/down changes
    */
-  readonly #onWebSocketConnected = ({
-    supportedChains,
-    backupPollingInterval,
+  readonly #onAccountActivityStatusChanged = ({
+    chainIds,
+    status,
   }: {
-    supportedChains: readonly string[];
-    backupPollingInterval: number;
+    chainIds: string[];
+    status: 'up' | 'down';
   }) => {
-    console.log('TokenBalancesController: WebSocket connected, switching to backup polling');
-    
-    // Configure backup polling for all supported chains
-    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
-    for (const chainId of supportedChains) {
-      chainConfigs[chainId as ChainIdHex] = { interval: backupPollingInterval };
+    console.log(
+      `TokenBalancesController: Received status change - Chains: [${chainIds.join(', ')}], Status: ${status}`
+    );
+
+    // Update pending changes (latest status wins for each chain)
+    for (const chainId of chainIds) {
+      this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
     }
 
-    this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: false });
+    // Clear existing timer to extend debounce window
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+    }
+
+    // Set new timer - only process changes after activity settles
+    this.#statusChangeDebouncer.timer = setTimeout(() => {
+      this.#processAccumulatedStatusChanges();
+    }, 5000); // 5-second debounce window
+
+    console.log(
+      `TokenBalancesController: Queued status changes (${this.#statusChangeDebouncer.pendingChanges.size} chains pending)`
+    );
   };
 
   /**
-   * Handle WebSocket disconnected event from AccountActivityService
-   * Switch to active polling with default intervals
+   * Process all accumulated status changes in one batch to minimize HTTP calls
    */
-  readonly #onWebSocketDisconnected = ({
-    supportedChains,
-  }: {
-    supportedChains: readonly string[];
-  }) => {
-    console.log('TokenBalancesController: WebSocket disconnected, switching to active polling');
+  #processAccumulatedStatusChanges(): void {
+    const changes = Array.from(this.#statusChangeDebouncer.pendingChanges.entries());
+    this.#statusChangeDebouncer.pendingChanges.clear();
+    this.#statusChangeDebouncer.timer = null;
     
-    // Configure active polling for all supported chains using default interval
-    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
-    for (const chainId of supportedChains) {
-      chainConfigs[chainId as ChainIdHex] = { interval: this.#defaultInterval };
+    if (changes.length === 0) {
+      return;
     }
 
-    this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
-  };
+    console.log(
+      `TokenBalancesController: Processing ${changes.length} accumulated status changes after debounce`
+    );
+
+    // Calculate final polling configurations
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    
+    for (const [chainId, status] of changes) {
+      if (status === 'down') {
+        // Chain is down - use default polling since no real-time updates available
+        chainConfigs[chainId as ChainIdHex] = { interval: this.#defaultInterval };
+      } else {
+        // Chain is up - use longer intervals since WebSocket provides real-time updates  
+        const backupInterval = 300000; // 5 minutes
+        chainConfigs[chainId as ChainIdHex] = { interval: backupInterval };
+      }
+    }
+
+    // Add jitter to prevent synchronized requests across instances
+    const jitterDelay = Math.random() * this.#defaultInterval; // 0 to default interval
+    console.log(`Adding ${Math.round(jitterDelay / 1000)}s jitter before applying config changes`);
+    
+    setTimeout(() => {
+      this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
+      
+      console.log(
+        `TokenBalancesController: Applied config changes for chains: [${Object.keys(chainConfigs).join(', ')}]`
+      );
+    }, jitterDelay);
+  }
 
   /**
    * Clean up all timers and resources when controller is destroyed
@@ -1003,6 +1043,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#isControllerPollingActive = false;
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();
+
+    // Clean up debouncing timer
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
 
     // Unregister action handlers
       this.messagingSystem.unregisterActionHandler(

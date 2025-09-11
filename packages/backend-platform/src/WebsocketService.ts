@@ -77,10 +77,11 @@ export type ServerResponseMessage = {
 /**
  * Server Notification message
  * Used when server sends unsolicited data to client
+ * subscriptionId is optional for system-wide notifications
  */
 export type ServerNotificationMessage = {
   event: string;
-  subscriptionId: string;
+  subscriptionId?: string;
   channel: string;
   data: Record<string, unknown>;
 };
@@ -104,6 +105,18 @@ export type InternalSubscription = {
   /** Function to unsubscribe and clean up */
   unsubscribe: () => Promise<void>;
 };
+
+
+/**
+ * Channel-based callback configuration
+ */
+export type ChannelCallback = {
+  /** Channel name to match (also serves as the unique identifier) */
+  channelName: string;
+  /** Callback function */
+  callback: (notification: ServerNotificationMessage) => void;
+};
+
 
 /**
  * External subscription info with subscription ID (for API responses)
@@ -179,6 +192,21 @@ export type WebSocketServiceIsChannelSubscribedAction = {
   handler: WebSocketService['isChannelSubscribed'];
 };
 
+export type WebSocketServiceAddChannelCallbackAction = {
+  type: `BackendWebSocketService:addChannelCallback`;
+  handler: WebSocketService['addChannelCallback'];
+};
+
+export type WebSocketServiceRemoveChannelCallbackAction = {
+  type: `BackendWebSocketService:removeChannelCallback`;
+  handler: WebSocketService['removeChannelCallback'];
+};
+
+export type WebSocketServiceGetChannelCallbacksAction = {
+  type: `BackendWebSocketService:getChannelCallbacks`;
+  handler: WebSocketService['getChannelCallbacks'];
+};
+
 export type WebSocketServiceActions =
   | WebSocketServiceInitAction
   | WebSocketServiceConnectAction
@@ -187,7 +215,10 @@ export type WebSocketServiceActions =
   | WebSocketServiceSendRequestAction
   | WebSocketServiceGetConnectionInfoAction
   | WebSocketServiceGetSubscriptionByChannelAction
-  | WebSocketServiceIsChannelSubscribedAction;
+  | WebSocketServiceIsChannelSubscribedAction
+  | WebSocketServiceAddChannelCallbackAction
+  | WebSocketServiceRemoveChannelCallbackAction
+  | WebSocketServiceGetChannelCallbacksAction;
 
 export type WebSocketServiceAllowedActions = never;
 
@@ -260,6 +291,11 @@ export class WebSocketService {
   // Value: InternalSubscription object with channels, callback and metadata
   readonly #subscriptions = new Map<string, InternalSubscription>();
 
+  // Channel-based callback storage
+  // Key: channel name (serves as unique identifier)
+  // Value: ChannelCallback configuration
+  readonly #channelCallbacks = new Map<string, ChannelCallback>();
+
   /**
    * Creates a new WebSocket service instance
    *
@@ -317,6 +353,21 @@ export class WebSocketService {
     this.#messenger.registerActionHandler(
       `BackendWebSocketService:isChannelSubscribed`,
       this.isChannelSubscribed.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `BackendWebSocketService:addChannelCallback`,
+      this.addChannelCallback.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `BackendWebSocketService:removeChannelCallback`,
+      this.removeChannelCallback.bind(this),
+    );
+
+    this.#messenger.registerActionHandler(
+      `BackendWebSocketService:getChannelCallbacks`,
+      this.getChannelCallbacks.bind(this),
     );
 
     this.init().catch((error) => {
@@ -548,6 +599,73 @@ export class WebSocketService {
     return false;
   }
 
+
+  /**
+   * Register a callback for specific channels
+   *
+   * @param options - Channel callback configuration
+   * @param options.channelName - Channel name to match exactly
+   * @param options.callback - Function to call when channel matches
+   * @returns Channel name (used as callback ID)
+   *
+   * @example
+   * ```typescript
+   * // Listen to specific account activity channel
+   * const channelName = webSocketService.addChannelCallback({
+   *   channelName: 'account-activity.v1.eip155:0:0x1234...',
+   *   callback: (notification) => {
+   *     console.log('Account activity:', notification.data);
+   *   }
+   * });
+   *
+   * // Listen to system notifications channel
+   * const systemChannelName = webSocketService.addChannelCallback({
+   *   channelName: 'system-notifications.v1',
+   *   callback: (notification) => {
+   *     console.log('System notification:', notification.data);
+   *   }
+   * });
+   * ```
+   */
+  addChannelCallback(options: {
+    channelName: string;
+    callback: (notification: ServerNotificationMessage) => void;
+  }): string {
+    const channelCallback: ChannelCallback = {
+      channelName: options.channelName,
+      callback: options.callback,
+    };
+
+    this.#channelCallbacks.set(options.channelName, channelCallback);
+    
+    console.log(`Added channel callback for '${options.channelName}'`);
+    
+    return options.channelName;
+  }
+
+
+  /**
+   * Remove a channel callback
+   *
+   * @param channelName - The channel name returned from addChannelCallback
+   * @returns True if callback was found and removed, false otherwise
+   */
+  removeChannelCallback(channelName: string): boolean {
+    const removed = this.#channelCallbacks.delete(channelName);
+    if (removed) {
+      console.log(`Removed channel callback for '${channelName}'`);
+    }
+    return removed;
+  }
+
+
+  /**
+   * Get all registered channel callbacks (for debugging)
+   */
+  getChannelCallbacks(): ChannelCallback[] {
+    return Array.from(this.#channelCallbacks.values());
+  }
+
   /**
    * Destroy the service and clean up resources
    * Called when service is being destroyed or app is terminating
@@ -555,6 +673,9 @@ export class WebSocketService {
   destroy(): void {
     this.#clearTimers();
     this.#clearSubscriptions();
+
+    // Clear channel callbacks
+    this.#channelCallbacks.clear();
 
     // Clear any pending connection promise
     this.#connectionPromise = null;
@@ -608,11 +729,7 @@ export class WebSocketService {
     }
 
     // Send subscription request and wait for response
-    const subscriptionResponse = await this.sendRequest<{
-      subscriptionId: string;
-      succeeded?: string[];
-      failed?: string[];
-    }>({
+    const subscriptionResponse = await this.sendRequest({
       event: 'subscribe',
       data: { channels },
     });
@@ -776,80 +893,160 @@ export class WebSocketService {
    * @param message - The WebSocket message to handle
    */
   #handleMessage(message: WebSocketMessage): void {
-    // Fast path: Check message type using property existence (mobile optimization)
-    const hasSubscriptionId = 'subscriptionId' in message;
-    const hasData = 'data' in message;
+    // Handle server responses (correlated with requests) first
+    if (this.#isServerResponse(message)) {
+      this.#handleServerResponse(message as ServerResponseMessage);
+      return;
+    }
 
-    // Handle server responses (correlated with requests)
-    if (
+    // Handle subscription notifications
+    if (this.#isSubscriptionNotification(message)) {
+      this.#handleSubscriptionNotification(message as ServerNotificationMessage);
+    }
+
+    // Trigger channel callbacks for any message with a channel property
+    if (this.#isChannelMessage(message)) {
+      this.#handleChannelMessage(message);
+    }
+  }
+
+  /**
+   * Checks if a message is a server response (correlated with client requests)
+   *
+   * @param message - The message to check
+   * @returns True if the message is a server response
+   */
+  #isServerResponse(message: WebSocketMessage): boolean {
+    return (
       'data' in message &&
       message.data &&
       typeof message.data === 'object' &&
       'requestId' in message.data
-    ) {
-      const responseMessage = message as ServerResponseMessage;
-      const { requestId } = responseMessage.data;
+    );
+  }
 
-      if (this.#pendingRequests.has(requestId)) {
-        const request = this.#pendingRequests.get(requestId);
-        if (!request) {
-          return;
-        }
-        this.#pendingRequests.delete(requestId);
-        clearTimeout(request.timeout);
+  /**
+   * Checks if a message is a subscription notification (has subscriptionId)
+   *
+   * @param message - The message to check
+   * @returns True if the message is a subscription notification with subscriptionId
+   */
+  #isSubscriptionNotification(message: WebSocketMessage): boolean {
+    return (
+      'subscriptionId' in message &&
+      (message as ServerNotificationMessage).subscriptionId !== undefined &&
+      !this.#isServerResponse(message)
+    );
+  }
 
-        // Check if the response indicates failure
-        if (
-          responseMessage.data.failed &&
-          responseMessage.data.failed.length > 0
-        ) {
-          request.reject(
-            new Error(
-              `Request failed: ${responseMessage.data.failed.join(', ')}`,
-            ),
-          );
-        } else {
-          request.resolve(responseMessage.data);
-        }
-        return;
-      }
+  /**
+   * Checks if a message has a channel property (system or subscription notification)
+   *
+   * @param message - The message to check
+   * @returns True if the message has a channel property
+   */
+  #isChannelMessage(message: WebSocketMessage): message is ServerNotificationMessage {
+    return 'channel' in message;
+  }
+
+  /**
+   * Handles server response messages (correlated with client requests)
+   *
+   * @param message - The server response message to handle
+   */
+  #handleServerResponse(message: ServerResponseMessage): void {
+    const { requestId } = message.data;
+
+    if (!this.#pendingRequests.has(requestId)) {
+      return;
     }
 
-    // Handle server notifications (optimized for real-time mobile performance)
-    if (
-      hasSubscriptionId &&
-      !(
-        hasData &&
-        (message as ServerNotificationMessage).data &&
-        typeof (message as ServerNotificationMessage).data === 'object' &&
-        'requestId' in (message as ServerNotificationMessage).data
-      )
-    ) {
-      const notificationMessage = message as ServerNotificationMessage;
-      const { subscriptionId } = notificationMessage;
+    const request = this.#pendingRequests.get(requestId);
+    if (!request) {
+      return;
+    }
 
-      // Fast path: Direct callback routing by subscription ID
-      const subscription = this.#subscriptions.get(subscriptionId);
-      if (subscription) {
-        const { callback } = subscription;
-        // Development: Full error handling
-        if (process.env.NODE_ENV === 'development') {
-          try {
-            callback(notificationMessage);
-          } catch (error) {
-            console.error(
-              `Error in subscription callback for ${subscriptionId}:`,
-              error,
-            );
-          }
-        } else {
-          // Production: Direct call for maximum speed
-          callback(notificationMessage);
+    this.#pendingRequests.delete(requestId);
+    clearTimeout(request.timeout);
+
+    // Check if the response indicates failure
+    if (message.data.failed && message.data.failed.length > 0) {
+      request.reject(
+        new Error(`Request failed: ${message.data.failed.join(', ')}`),
+      );
+    } else {
+      request.resolve(message.data);
+    }
+  }
+
+  /**
+   * Handles messages with channel properties by triggering channel callbacks
+   *
+   * @param message - The message with channel property to handle
+   */
+  #handleChannelMessage(message: ServerNotificationMessage): void {
+    this.#triggerChannelCallbacks(message);
+  }
+
+  /**
+   * Handles server notifications with subscription IDs
+   *
+   * @param message - The server notification message to handle
+   */
+  #handleSubscriptionNotification(message: ServerNotificationMessage): void {
+    const { subscriptionId } = message;
+
+    // Guard: Only handle if subscriptionId exists
+    if (!subscriptionId) {
+      return;
+    }
+
+    // Fast path: Direct callback routing by subscription ID
+    const subscription = this.#subscriptions.get(subscriptionId);
+    if (subscription) {
+      const { callback } = subscription;
+      // Development: Full error handling
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          callback(message);
+        } catch (error) {
+          console.error(
+            `Error in subscription callback for ${subscriptionId}:`,
+            error,
+          );
         }
-      } else if (process.env.NODE_ENV === 'development') {
-        console.warn(
-          `No subscription found for subscriptionId: ${subscriptionId}`,
-        );
+      } else {
+        // Production: Direct call for maximum speed
+        callback(message);
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `No subscription found for subscriptionId: ${subscriptionId}`,
+      );
+    }
+  }
+
+
+  /**
+   * Triggers channel-based callbacks for incoming notifications
+   *
+   * @param notification - The notification message to check against channel callbacks
+   */
+  #triggerChannelCallbacks(notification: ServerNotificationMessage): void {
+    if (this.#channelCallbacks.size === 0) {
+      return;
+    }
+
+    // Use the channel name directly from the notification
+    const channelName = notification.channel;
+    
+    // Direct lookup for exact channel match
+    const channelCallback = this.#channelCallbacks.get(channelName);
+    if (channelCallback) {
+      try {
+        channelCallback.callback(notification);
+      } catch (error) {
+        console.error(`Error in channel callback for '${channelCallback.channelName}':`, error);
       }
     }
   }
