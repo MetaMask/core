@@ -72,7 +72,6 @@ export class MultichainAccountWallet<
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountWalletId(entropySource);
-    this.#messenger = messenger;
     this.#providers = providers;
     this.#entropySource = entropySource;
     this.#messenger = messenger;
