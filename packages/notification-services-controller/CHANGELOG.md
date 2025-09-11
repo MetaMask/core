@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.1.0]
+
 ### Added
 
 - Add `extensionMinimumVersionNumber` and `mobileMinimumVersionNumber` properties to feature annoucements ([#6554](https://github.com/MetaMask/core/pull/6554))
@@ -546,7 +548,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.0.0...@metamask/notification-services-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...@metamask/notification-services-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@16.0.0...@metamask/notification-services-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@15.0.0...@metamask/notification-services-controller@16.0.0
