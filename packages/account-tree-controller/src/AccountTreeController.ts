@@ -38,8 +38,10 @@ export const controllerName = 'AccountTreeController';
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
     accountTree: {
+      includeInStateLogs: true,
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
+      usedInUi: true,
     },
     isAccountTreeSyncingInProgress: {
       persist: false,
@@ -50,12 +52,16 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       anonymous: false,
     },
     accountGroupsMetadata: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     accountWalletsMetadata: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
   };
 

@@ -41,8 +41,18 @@ const DEFAULT_VARIATION = '';
 const controllerName = 'NameController';
 
 const stateMetadata = {
-  names: { persist: true, anonymous: false },
-  nameSources: { persist: true, anonymous: false },
+  names: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  nameSources: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({

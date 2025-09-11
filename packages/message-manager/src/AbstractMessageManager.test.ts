@@ -1,4 +1,7 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import {
+  deriveStateFromMetadata,
+  type RestrictedMessenger,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
@@ -565,6 +568,66 @@ describe('AbstractTestManager', () => {
       });
       controller.clearUnapprovedMessages();
       expect(controller.getUnapprovedMessagesCount()).toBe(0);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "unapprovedMessages": Object {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "unapprovedMessages": Object {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
     });
   });
 });

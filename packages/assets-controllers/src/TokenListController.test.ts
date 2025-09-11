@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -959,7 +959,9 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .get(getTokensPath(ChainId.sepolia))
       .reply(200, {
-        error: `ChainId ${convertHexToDecimal(ChainId.sepolia)} is not supported`,
+        error: `ChainId ${convertHexToDecimal(
+          ChainId.sepolia,
+        )} is not supported`,
       })
       .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
@@ -1065,7 +1067,9 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .get(getTokensPath(ChainId.sepolia))
       .reply(200, {
-        error: `ChainId ${convertHexToDecimal(ChainId.sepolia)} is not supported`,
+        error: `ChainId ${convertHexToDecimal(
+          ChainId.sepolia,
+        )} is not supported`,
       })
       .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
@@ -1258,6 +1262,82 @@ describe('TokenListController', () => {
           data: sampleSepoliaTokensChainCache,
         },
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: getRestrictedMessenger(getMessenger()),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "preventPollingOnNetworkRestart": false,
+          "tokensChainsCache": Object {},
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: getRestrictedMessenger(getMessenger()),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: getRestrictedMessenger(getMessenger()),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "preventPollingOnNetworkRestart": false,
+          "tokensChainsCache": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: getRestrictedMessenger(getMessenger()),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "tokensChainsCache": Object {},
+        }
+      `);
     });
   });
 });

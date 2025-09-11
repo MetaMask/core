@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options.
   - Add `@metamask/superstruct` for data validation.
 - **BREAKING:** Add `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies ([#6344](https://github.com/MetaMask/core/pull/6344))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
 
 ### Changed
 

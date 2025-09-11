@@ -1200,16 +1200,22 @@ export class NetworkController extends BaseController<
       name: controllerName,
       metadata: {
         selectedNetworkClientId: {
+          includeInStateLogs: true,
           persist: true,
           anonymous: false,
+          usedInUi: true,
         },
         networksMetadata: {
+          includeInStateLogs: true,
           persist: true,
           anonymous: false,
+          usedInUi: true,
         },
         networkConfigurationsByChainId: {
+          includeInStateLogs: true,
           persist: true,
           anonymous: false,
+          usedInUi: true,
         },
       },
       messenger,
