@@ -38,6 +38,7 @@ import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
+import type { MultichainAccountServiceWalletStatusChangeEvent } from '../../multichain-account-service/src/types';
 
 // Backward compatibility aliases using indexed access types
 /**
@@ -164,7 +165,8 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent
-  | UserStorageController.UserStorageControllerStateChangeEvent;
+  | UserStorageController.UserStorageControllerStateChangeEvent
+  | MultichainAccountServiceWalletStatusChangeEvent;
 
 export type AccountTreeControllerEvents =
   | AccountTreeControllerStateChangeEvent
