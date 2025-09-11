@@ -11,8 +11,6 @@ import {
   mockEndpointDeleteUserStorage,
   mockEndpointBatchDeleteUserStorage,
 } from './__fixtures__/mockServices';
-import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__fixtures__/test-utils';
-import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import UserStorageController, { defaultState } from './UserStorageController';
@@ -591,9 +589,6 @@ describe('UserStorageController', () => {
           isBackupAndSyncEnabled: false,
           isBackupAndSyncUpdateLoading: false,
           isAccountSyncingEnabled: false,
-          hasAccountSyncingSyncedAtLeastOnce: false,
-          isAccountSyncingReadyToBeDispatched: false,
-          isAccountSyncingInProgress: false,
           isContactSyncingEnabled: false,
           isContactSyncingInProgress: false,
         },
@@ -619,9 +614,6 @@ describe('UserStorageController', () => {
           isBackupAndSyncEnabled: false,
           isBackupAndSyncUpdateLoading: false,
           isAccountSyncingEnabled: false,
-          hasAccountSyncingSyncedAtLeastOnce: false,
-          isAccountSyncingReadyToBeDispatched: false,
-          isAccountSyncingInProgress: false,
           isContactSyncingEnabled: false,
           isContactSyncingInProgress: false,
         },
@@ -651,9 +643,6 @@ describe('UserStorageController', () => {
           isBackupAndSyncEnabled: true,
           isBackupAndSyncUpdateLoading: false,
           isAccountSyncingEnabled: true,
-          hasAccountSyncingSyncedAtLeastOnce: false,
-          isAccountSyncingReadyToBeDispatched: false,
-          isAccountSyncingInProgress: false,
           isContactSyncingEnabled: true,
           isContactSyncingInProgress: false,
         },
@@ -666,71 +655,6 @@ describe('UserStorageController', () => {
       );
       expect(controller.state.isAccountSyncingEnabled).toBe(false);
       expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-    });
-  });
-
-  describe('syncInternalAccountsWithUserStorage', () => {
-    const arrangeMocks = () => {
-      const messengerMocks = mockUserStorageMessengerForAccountSyncing();
-      const mockSyncInternalAccountsWithUserStorage = jest.spyOn(
-        AccountSyncControllerIntegrationModule,
-        'syncInternalAccountsWithUserStorage',
-      );
-      const mockSaveInternalAccountToUserStorage = jest.spyOn(
-        AccountSyncControllerIntegrationModule,
-        'saveInternalAccountToUserStorage',
-      );
-      return {
-        messenger: messengerMocks.messenger,
-        mockSyncInternalAccountsWithUserStorage,
-        mockSaveInternalAccountToUserStorage,
-      };
-    };
-
-    // NOTE the actual testing of the implementation is done in `controller-integration.ts` file.
-    // See relevant unit tests to see how this feature works and is tested
-    it('should invoke syncing from the integration module', async () => {
-      const { messenger, mockSyncInternalAccountsWithUserStorage } =
-        arrangeMocks();
-      const controller = new UserStorageController({
-        messenger,
-        // We're only verifying that calling this controller method will call the integration module
-        // The actual implementation is tested in the integration tests
-        // This is done to prevent creating unnecessary nock instances in this test
-        config: {
-          accountSyncing: {
-            onAccountAdded: jest.fn(),
-            onAccountNameUpdated: jest.fn(),
-            onAccountSyncErroneousSituation: jest.fn(),
-          },
-        },
-      });
-
-      mockSyncInternalAccountsWithUserStorage.mockImplementation(
-        async (
-          {
-            onAccountAdded,
-            onAccountNameUpdated,
-            onAccountSyncErroneousSituation,
-          },
-          {
-            getMessenger = jest.fn(),
-            getUserStorageControllerInstance = jest.fn(),
-          },
-        ) => {
-          onAccountAdded?.();
-          onAccountNameUpdated?.();
-          onAccountSyncErroneousSituation?.('error message', {});
-          getMessenger();
-          getUserStorageControllerInstance();
-          return undefined;
-        },
-      );
-
-      await controller.syncInternalAccountsWithUserStorage();
-
-      expect(mockSyncInternalAccountsWithUserStorage).toHaveBeenCalled();
-      expect(controller.state.hasAccountSyncingSyncedAtLeastOnce).toBe(true);
     });
   });
 
@@ -774,38 +698,6 @@ describe('UserStorageController', () => {
         true,
       );
       expect(controller.state.isBackupAndSyncEnabled).toBe(true);
-      expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('account syncing edge cases', () => {
-    it('handles account syncing disabled case', async () => {
-      const messengerMocks = mockUserStorageMessenger();
-      const controller = new UserStorageController({
-        messenger: messengerMocks.messenger,
-      });
-
-      await controller.setIsBackupAndSyncFeatureEnabled(
-        BACKUPANDSYNC_FEATURES.accountSyncing,
-        false,
-      );
-      await controller.syncInternalAccountsWithUserStorage();
-
-      // Should not have called the account syncing module
-      expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
-    });
-
-    it('handles syncing when not signed in', async () => {
-      const messengerMocks = mockUserStorageMessenger();
-      messengerMocks.mockAuthIsSignedIn.mockReturnValue(false);
-
-      const controller = new UserStorageController({
-        messenger: messengerMocks.messenger,
-      });
-
-      await controller.syncInternalAccountsWithUserStorage();
-
-      expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
       expect(messengerMocks.mockAuthPerformSignIn).not.toHaveBeenCalled();
     });
   });
@@ -898,9 +790,7 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       Object {
-        "hasAccountSyncingSyncedAtLeastOnce": false,
         "isAccountSyncingEnabled": true,
-        "isAccountSyncingReadyToBeDispatched": false,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
       }
@@ -916,9 +806,7 @@ describe('metadata', () => {
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
       Object {
-        "hasAccountSyncingSyncedAtLeastOnce": false,
         "isAccountSyncingEnabled": true,
-        "isAccountSyncingReadyToBeDispatched": false,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
       }
@@ -938,9 +826,7 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       Object {
-        "hasAccountSyncingSyncedAtLeastOnce": false,
         "isAccountSyncingEnabled": true,
-        "isAccountSyncingReadyToBeDispatched": false,
         "isBackupAndSyncEnabled": true,
         "isBackupAndSyncUpdateLoading": false,
         "isContactSyncingEnabled": true,
