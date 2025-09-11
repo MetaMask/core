@@ -20,20 +20,30 @@ import type {
 } from './WebsocketService';
 import { WebSocketState } from './WebsocketService';
 
+/**
+ * System notification data for chain status updates
+ */
+export type SystemNotificationData = {
+  /** Array of chain IDs affected (e.g., ['eip155:137', 'eip155:1']) */
+  chainIds: string[];
+  /** Status of the chains: 'down' or 'up' */
+  status: 'down' | 'up';
+};
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SERVICE_NAME = 'AccountActivityService' as const;
 
 // Temporary list of supported chains for fallback polling - this hardcoded list will be replaced with a dynamic logic
 const SUPPORTED_CHAINS = [
-  '0x1', // 1
-  '0x89', // 137
-  '0x38', // 56
-  '0xe728', // 59144
-  '0x2105', // 8453
-  '0xa', // 10
-  '0xa4b1', // 42161
-  '0x82750', // 534352
-  '0x531', // 1329
+  'eip155:1',     // Ethereum Mainnet
+  'eip155:137',   // Polygon
+  'eip155:56',    // BSC
+  'eip155:59144', // Linea
+  'eip155:8453',  // Base
+  'eip155:10',    // Optimism
+  'eip155:42161', // Arbitrum One
+  'eip155:534352', // Scroll
+  'eip155:1329',  // Sei
 ] as const;
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
@@ -115,14 +125,12 @@ export type AccountActivityServiceSubscriptionErrorEvent = {
   payload: [{ addresses: string[]; error: string; operation: string }];
 };
 
-export type AccountActivityServiceWebSocketConnectedEvent = {
-  type: `AccountActivityService:websocketConnected`;
-  payload: [{ supportedChains: readonly string[]; backupPollingInterval: number }];
-};
-
-export type AccountActivityServiceWebSocketDisconnectedEvent = {
-  type: `AccountActivityService:websocketDisconnected`;
-  payload: [{ supportedChains: readonly string[] }];
+export type AccountActivityServiceStatusChangedEvent = {
+  type: `AccountActivityService:statusChanged`;
+  payload: [{
+    chainIds: string[];
+    status: 'up' | 'down';
+  }];
 };
 
 export type AccountActivityServiceEvents =
@@ -131,8 +139,7 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceTransactionUpdatedEvent
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceSubscriptionErrorEvent
-  | AccountActivityServiceWebSocketConnectedEvent
-  | AccountActivityServiceWebSocketDisconnectedEvent;
+  | AccountActivityServiceStatusChangedEvent;
 
 export type AccountActivityServiceAllowedEvents =
   | {
@@ -221,6 +228,7 @@ export class AccountActivityService {
     this.#registerActionHandlers();
     this.#setupAccountEventHandlers();
     this.#setupWebSocketEventHandlers();
+    this.#setupSystemNotificationHandlers();
   }
 
   // =============================================================================
@@ -515,17 +523,21 @@ export class AccountActivityService {
     console.log(`AccountActivityService: WebSocket state changed to ${state}`);
 
     if (state === WebSocketState.CONNECTED) {
-      // WebSocket connected - use backup polling and resubscribe
+      // WebSocket connected - resubscribe and set all chains as up
       try {
-        // Publish event for TokenBalancesController to use backup polling (10min intervals)
-        this.#messenger.publish(`AccountActivityService:websocketConnected`, {
-          supportedChains: SUPPORTED_CHAINS,
-          backupPollingInterval: 600000, // 10 minutes
-        });
-
         this.#subscribeSelectedAccount().catch((error) => {
           console.error('Failed to resubscribe to selected account:', error);
         });
+        
+        // Publish initial status - all supported chains are up when WebSocket connects
+        this.#messenger.publish(`AccountActivityService:statusChanged`, {
+          chainIds: Array.from(SUPPORTED_CHAINS),
+          status: 'up' as const,
+        });
+        
+        console.log(
+          `AccountActivityService: WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`
+        );
       } catch (error) {
         console.error('Failed to handle WebSocket connected state:', error);
       }
@@ -533,16 +545,8 @@ export class AccountActivityService {
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
-      // WebSocket disconnected - clear subscription and signal active polling needed
+      // WebSocket disconnected - clear subscription
       this.#currentSubscribedAddress = null;
-      try {
-        // Publish event for TokenBalancesController to switch to active polling
-        this.#messenger.publish(`AccountActivityService:websocketDisconnected`, {
-          supportedChains: SUPPORTED_CHAINS,
-        });
-      } catch (error) {
-        console.error('Failed to handle WebSocket disconnected state:', error);
-      }
     }
   }
 
@@ -583,6 +587,61 @@ export class AccountActivityService {
   }
 
   /**
+   * Set up system notification handlers for chain status updates
+   * 
+   * Maintains minimal chain status state (only down chains) for polling optimization.
+   * System sends delta updates - no notifications = healthy system.
+   */
+  #setupSystemNotificationHandlers(): void {
+    try {
+      // Subscribe to system notifications for chain status updates
+      this.#webSocketService.addChannelCallback({
+        channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
+        callback: (notification) => {
+          try {
+            // Parse the notification data as a system notification
+            const systemData = notification.data as SystemNotificationData;
+            this.#handleSystemNotification(systemData);
+          } catch (error) {
+            console.error('Error processing system notification:', error);
+          }
+        }
+      });
+
+      console.log('AccountActivityService: System notification handlers set up successfully');
+    } catch (error) {
+      console.error('Failed to set up system notification handlers:', error);
+    }
+  }
+
+  /**
+   * Handle system notification for chain status changes
+   * Publishes only the status change (delta) for affected chains
+   * 
+   * @param data - System notification data containing chain status updates
+   */
+  #handleSystemNotification(data: SystemNotificationData): void {
+    console.log(
+      `AccountActivityService: Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`
+    );
+
+    // Publish status change directly (delta update)
+    try {
+      this.#messenger.publish(`AccountActivityService:statusChanged`, {
+        chainIds: data.chainIds,
+        status: data.status,
+      });
+
+      console.log(
+        `AccountActivityService: Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`
+      );
+    } catch (error) {
+      console.error('Failed to publish status change event:', error);
+    }
+  }
+
+
+  /**
    * Destroy the service and clean up all resources
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
@@ -591,6 +650,9 @@ export class AccountActivityService {
       // Clear tracked subscription
       this.#currentSubscribedAddress = null;
 
+      // Clean up system notification callback
+      this.#webSocketService.removeChannelCallback(`system-notifications.v1.${this.#options.subscriptionNamespace}`);
+
       // Unregister action handlers to prevent stale references
       this.#messenger.unregisterActionHandler(
         'AccountActivityService:subscribeAccounts',
@@ -598,6 +660,8 @@ export class AccountActivityService {
       this.#messenger.unregisterActionHandler(
         'AccountActivityService:unsubscribeAccounts',
       );
+
+      // No chain status tracking needed
 
       // Clear our own event subscriptions (events we publish)
       this.#messenger.clearEventSubscriptions(
@@ -614,6 +678,9 @@ export class AccountActivityService {
       );
       this.#messenger.clearEventSubscriptions(
         'AccountActivityService:subscriptionError',
+      );
+      this.#messenger.clearEventSubscriptions(
+        'AccountActivityService:statusChanged',
       );
     } catch (error) {
       console.error('AccountActivityService: Error during cleanup:', error);
