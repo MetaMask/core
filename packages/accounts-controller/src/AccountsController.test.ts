@@ -1634,6 +1634,62 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('fires :accountAdded before :selectedAccountChange', async () => {
+      const messenger = buildMessenger();
+
+      mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        messenger,
+      });
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [mockAccount.address],
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          },
+        ],
+      };
+
+      const mockEventsOrder = jest.fn();
+
+      messenger.subscribe('AccountsController:accountAdded', () => {
+        mockEventsOrder('AccountsController:accountAdded');
+      });
+      messenger.subscribe('AccountsController:selectedAccountChange', () => {
+        mockEventsOrder('AccountsController:selectedAccountChange');
+      });
+
+      expect(accountsController.getSelectedAccount()).toBe(EMPTY_ACCOUNT);
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        1,
+        'AccountsController:accountAdded',
+      );
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        2,
+        'AccountsController:selectedAccountChange',
+      );
+    });
   });
 
   describe('onSnapKeyringEvents', () => {
