@@ -690,8 +690,15 @@ describe('BridgeController', function () {
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
           solanaFeesInLamports: '14',
+          nonEvmFeesInNative: '14',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: quoteParams,
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: 1,
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
       }),
     );
     expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -746,8 +753,15 @@ describe('BridgeController', function () {
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
           solanaFeesInLamports: '14',
+          nonEvmFeesInNative: '14',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: quoteParams,
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: expect.any(Number),
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
       }),
     );
     expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -776,8 +790,15 @@ describe('BridgeController', function () {
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
           solanaFeesInLamports: '14',
+          nonEvmFeesInNative: '14',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: { ...quoteParams, srcTokenAmount: '11111' },
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: expect.any(Number),
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
       }),
     );
 
