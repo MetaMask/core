@@ -7,6 +7,7 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
+import type { Messenger } from '@metamask/base-controller';
 import {
   EthAccountType,
   SolAccountType,
@@ -27,13 +28,21 @@ import {
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
   MockAccountBuilder,
-  setupAccountProvider,
+  setupNamedAccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from './tests';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  MultichainAccountServiceActions,
+  MultichainAccountServiceEvents,
+  MultichainAccountServiceMessenger,
+} from './types';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
+  messenger = getRootMessenger(),
   providers,
   accounts = [
     [MOCK_WALLET_1_EVM_ACCOUNT],
@@ -46,23 +55,33 @@ function setup({
   ],
 }: {
   entropySource?: EntropySourceId;
+  messenger?: Messenger<
+    MultichainAccountServiceActions | AllowedActions,
+    MultichainAccountServiceEvents | AllowedEvents
+  >;
   providers?: MockAccountProvider[];
   accounts?: InternalAccount[][];
 } = {}): {
   wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
+  messenger: MultichainAccountServiceMessenger;
 } {
-  providers ??= accounts.map((providerAccounts) => {
-    return setupAccountProvider({ accounts: providerAccounts });
+  providers ??= accounts.map((providerAccounts, i) => {
+    return setupNamedAccountProvider({
+      name: `Mocked Provider ${i}`,
+      accounts: providerAccounts,
+    });
   });
+
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
-    providers,
     entropySource,
-    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
+    providers,
+    messenger: serviceMessenger,
   });
 
-  return { wallet, providers };
+  return { wallet, providers, messenger: serviceMessenger };
 }
 
 describe('MultichainAccountWallet', () => {
@@ -135,7 +154,7 @@ describe('MultichainAccountWallet', () => {
   describe('sync', () => {
     it('force sync wallet after account provider got new account', () => {
       const mockEvmAccount = MOCK_WALLET_1_EVM_ACCOUNT;
-      const provider = setupAccountProvider({
+      const provider = setupNamedAccountProvider({
         accounts: [mockEvmAccount],
       });
       const { wallet } = setup({
@@ -168,7 +187,7 @@ describe('MultichainAccountWallet', () => {
 
     it('skips non-matching wallet during sync', () => {
       const mockEvmAccount = MOCK_WALLET_1_EVM_ACCOUNT;
-      const provider = setupAccountProvider({
+      const provider = setupNamedAccountProvider({
         accounts: [mockEvmAccount],
       });
       const { wallet } = setup({
@@ -201,7 +220,7 @@ describe('MultichainAccountWallet', () => {
 
     it('cleans up old multichain account group during sync', () => {
       const mockEvmAccount = MOCK_WALLET_1_EVM_ACCOUNT;
-      const provider = setupAccountProvider({
+      const provider = setupNamedAccountProvider({
         accounts: [mockEvmAccount],
       });
       const { wallet } = setup({
@@ -371,9 +390,27 @@ describe('MultichainAccountWallet', () => {
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
         .get();
-      const { wallet, providers } = setup({
+      const { wallet, providers, messenger } = setup({
         accounts: [[mockEvmAccount1, mockEvmAccount2], [mockSolAccount]],
       });
+
+      const mockWalletStatusChange = jest
+        .fn()
+        // 1. Triggered when group alignment begins.
+        .mockImplementationOnce((walletId, status) => {
+          expect(walletId).toBe(wallet.id);
+          expect(status).toBe('in-progress:alignment');
+        })
+        // 2. Triggered when group alignment ends.
+        .mockImplementationOnce((walletId, status) => {
+          expect(walletId).toBe(wallet.id);
+          expect(status).toBe('ready');
+        });
+
+      messenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        mockWalletStatusChange,
+      );
 
       await wallet.alignAccounts();
 
@@ -398,9 +435,27 @@ describe('MultichainAccountWallet', () => {
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
         .get();
-      const { wallet, providers } = setup({
+      const { wallet, providers, messenger } = setup({
         accounts: [[mockEvmAccount], [mockSolAccount]],
       });
+
+      const mockWalletStatusChange = jest
+        .fn()
+        // 1. Triggered when group alignment begins.
+        .mockImplementationOnce((walletId, status) => {
+          expect(walletId).toBe(wallet.id);
+          expect(status).toBe('in-progress:alignment');
+        })
+        // 2. Triggered when group alignment ends.
+        .mockImplementationOnce((walletId, status) => {
+          expect(walletId).toBe(wallet.id);
+          expect(status).toBe('ready');
+        });
+
+      messenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        mockWalletStatusChange,
+      );
 
       await wallet.alignGroup(0);
 
@@ -420,96 +475,44 @@ describe('MultichainAccountWallet', () => {
     });
   });
 
-  describe('getIsAlignmentInProgress', () => {
-    it('returns false initially', () => {
-      const { wallet } = setup();
-      expect(wallet.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignment and false after completion', async () => {
-      const { wallet } = setup();
-
-      // Start alignment (don't await yet)
-      const alignmentPromise = wallet.alignAccounts();
-
-      // Check if alignment is in progress
-      expect(wallet.getIsAlignmentInProgress()).toBe(true);
-
-      // Wait for completion
-      await alignmentPromise;
-
-      // Should be false after completion
-      expect(wallet.getIsAlignmentInProgress()).toBe(false);
-    });
-  });
-
-  describe('concurrent alignment prevention', () => {
-    it('prevents concurrent alignAccounts calls', async () => {
-      // Setup with EVM account in group 0, Sol account in group 1 (missing group 0)
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(1)
-        .get();
-      const { wallet, providers } = setup({
-        accounts: [[mockEvmAccount], [mockSolAccount]],
-      });
-
-      // Make provider createAccounts slow to ensure concurrency
-      providers[1].createAccounts.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve([]), 50)),
-      );
-
-      // Start first alignment
-      const firstAlignment = wallet.alignAccounts();
-
-      // Start second alignment while first is still running
-      const secondAlignment = wallet.alignAccounts();
-
-      // Both should complete without error
-      await Promise.all([firstAlignment, secondAlignment]);
-
-      // Provider should only be called once (not twice due to concurrency protection)
-      expect(providers[1].createAccounts).toHaveBeenCalledTimes(1);
-    });
-
-    it('prevents concurrent alignGroup calls', async () => {
-      // Setup with EVM account in group 0, Sol account in group 1 (missing group 0)
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(1)
-        .get();
-      const { wallet, providers } = setup({
-        accounts: [[mockEvmAccount], [mockSolAccount]],
-      });
-
-      // Make provider createAccounts slow to ensure concurrency
-      providers[1].createAccounts.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve([]), 50)),
-      );
-
-      // Start first alignment
-      const firstAlignment = wallet.alignGroup(0);
-
-      // Start second alignment while first is still running
-      const secondAlignment = wallet.alignGroup(0);
-
-      // Both should complete without error
-      await Promise.all([firstAlignment, secondAlignment]);
-
-      // Provider should only be called once (not twice due to concurrency protection)
-      expect(providers[1].createAccounts).toHaveBeenCalledTimes(1);
-    });
-  });
 
   describe('discoverAccounts', () => {
+    it('runs discovery', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[], []],
+      });
+
+      providers[0].discoverAccounts
+        .mockImplementationOnce(async () => [MOCK_HD_ACCOUNT_1])
+        .mockImplementationOnce(async () => []);
+      providers[1].discoverAccounts
+        .mockImplementationOnce(async () => [MOCK_SOL_ACCOUNT_1])
+        .mockImplementationOnce(async () => []);
+
+      const mockWalletStatusChange = jest
+        .fn()
+        // 1. Triggered when group alignment begins.
+        .mockImplementationOnce((walletId, status) => {
+          expect(walletId).toBe(wallet.id);
+          expect(status).toBe('in-progress:discovery');
+        })
+        // 2. Triggered when group alignment ends.
+        .mockImplementationOnce((walletId, status) => {
+          expect(walletId).toBe(wallet.id);
+          expect(status).toBe('ready');
+        });
+
+      messenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        mockWalletStatusChange,
+      );
+
+      await wallet.discoverAccounts();
+
+      expect(providers[0].discoverAccounts).toHaveBeenCalledTimes(2);
+      expect(providers[1].discoverAccounts).toHaveBeenCalledTimes(2);
+    });
+
     it('fast-forwards lagging providers to the highest group index', async () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
@@ -538,6 +541,7 @@ describe('MultichainAccountWallet', () => {
       jest.useFakeTimers();
       const discovery = wallet.discoverAccounts();
       // Allow fast provider microtasks to run and advance maxGroupIndex first
+      await Promise.resolve(); // Mutex lock.
       await Promise.resolve();
       await Promise.resolve();
       jest.advanceTimersByTime(100);
