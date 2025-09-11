@@ -184,6 +184,7 @@ export const processDomainList = (list: string[]) => {
 export const getDefaultPhishingDetectorConfig = ({
   allowlist = [],
   blocklist = [],
+  c2DomainBlocklist = [],
   fuzzylist = [],
   tolerance = DEFAULT_TOLERANCE,
 }: {
@@ -195,6 +196,7 @@ export const getDefaultPhishingDetectorConfig = ({
 }): PhishingDetectorConfiguration => ({
   allowlist: processDomainList(allowlist),
   blocklist: processDomainList(blocklist),
+  c2DomainBlocklist: new Set(c2DomainBlocklist),
   fuzzylist: processDomainList(fuzzylist),
   tolerance,
 });
@@ -221,6 +223,7 @@ export const processConfigs = (
     .map((config) => ({
       ...config,
       ...getDefaultPhishingDetectorConfig(config),
+      c2DomainBlocklist: new Set(config.c2DomainBlocklist || []),
     }));
 };
 
