@@ -475,7 +475,6 @@ describe('MultichainAccountWallet', () => {
     });
   });
 
-
   describe('discoverAccounts', () => {
     it('runs discovery', async () => {
       const { wallet, providers, messenger } = setup({
