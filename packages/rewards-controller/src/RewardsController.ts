@@ -1,10 +1,22 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable jsdoc/require-returns */
 /* eslint-disable jsdoc/tag-lines */
-import { BaseController } from '@metamask/base-controller';
+import type {
+  AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import {
+  BaseController,
+  type RestrictedMessenger,
+} from '@metamask/base-controller';
 import { isHardwareWallet } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
+import type {
+  KeyringControllerSignPersonalMessageAction,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import {
   type CaipAccountId,
   parseCaipChainId,
@@ -22,7 +34,19 @@ import {
 } from './constants';
 import { getRewardsFeatureFlag } from './feature-flags';
 import { projectLogger, createModuleLogger } from './logger';
-import type { RewardsControllerMessenger } from './messenger/RewardsControllerMessenger';
+import type {
+  RewardsDataServiceEstimatePointsAction,
+  RewardsDataServiceFetchGeoLocationAction,
+  RewardsDataServiceGenerateChallengeAction,
+  RewardsDataServiceGetPerpsDiscountAction,
+  RewardsDataServiceGetPointsEventsAction,
+  RewardsDataServiceGetReferralDetailsAction,
+  RewardsDataServiceGetSeasonStatusAction,
+  RewardsDataServiceLoginAction,
+  RewardsDataServiceLogoutAction,
+  RewardsDataServiceOptinAction,
+  RewardsDataServiceValidateReferralCodeAction,
+} from './services';
 import type {
   RewardsControllerState,
   RewardsAccountState,
@@ -42,12 +66,11 @@ import type {
   SubscriptionDto,
   GetPointsEventsDto,
   PaginatedPointsEventsDto,
+  RewardsControllerActions,
+  RewardsControllerEvents,
 } from './types';
 
 const log = createModuleLogger(projectLogger, controllerName);
-
-// Re-export the messenger type for convenience
-export type { RewardsControllerMessenger };
 
 // Function to store subscription token
 export type StoreSubscriptionToken = (
@@ -83,6 +106,36 @@ export const getRewardsControllerDefaultState = (): RewardsControllerState => ({
 });
 
 export const defaultRewardsControllerState = getRewardsControllerDefaultState();
+
+// Don't reexport as per guidelines
+type AllowedActions =
+  | AccountsControllerGetSelectedMultichainAccountAction
+  | KeyringControllerSignPersonalMessageAction
+  | RewardsDataServiceLoginAction
+  | RewardsDataServiceGetPointsEventsAction
+  | RewardsDataServiceEstimatePointsAction
+  | RewardsDataServiceGetPerpsDiscountAction
+  | RewardsDataServiceGetSeasonStatusAction
+  | RewardsDataServiceGetReferralDetailsAction
+  | RewardsDataServiceGenerateChallengeAction
+  | RewardsDataServiceOptinAction
+  | RewardsDataServiceLogoutAction
+  | RewardsDataServiceFetchGeoLocationAction
+  | RewardsDataServiceValidateReferralCodeAction
+  | RemoteFeatureFlagControllerGetStateAction;
+
+// Don't reexport as per guidelines
+type AllowedEvents =
+  | AccountsControllerSelectedAccountChangeEvent
+  | KeyringControllerUnlockEvent;
+
+export type RewardsControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  RewardsControllerActions | AllowedActions,
+  RewardsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller for managing user rewards and campaigns

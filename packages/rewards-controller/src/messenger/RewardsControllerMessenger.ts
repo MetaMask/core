@@ -2,13 +2,14 @@ import type {
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { Messenger, RestrictedMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import type {
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
+import type { controllerName } from '../constants';
 import type {
   RewardsDataServiceLoginAction,
   RewardsDataServiceEstimatePointsAction,
@@ -26,8 +27,6 @@ import type {
   RewardsControllerActions,
   RewardsControllerEvents,
 } from '../types';
-
-const name = 'RewardsController';
 
 // Don't reexport as per guidelines
 type AllowedActions =
@@ -52,46 +51,9 @@ type AllowedEvents =
   | KeyringControllerUnlockEvent;
 
 export type RewardsControllerMessenger = RestrictedMessenger<
-  typeof name,
+  typeof controllerName,
   RewardsControllerActions | AllowedActions,
   RewardsControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-/**
- * Creates a messenger restricted to the actions and events.
- *
- * @param messenger - The base messenger to restrict.
- *
- * @returns The restricted messenger.
- */
-export function getRewardsControllerMessenger(
-  messenger: Messenger<
-    RewardsControllerActions | AllowedActions,
-    RewardsControllerEvents | AllowedEvents
-  >,
-): RewardsControllerMessenger {
-  return messenger.getRestricted({
-    name,
-    allowedActions: [
-      'AccountsController:getSelectedMultichainAccount',
-      'KeyringController:signPersonalMessage',
-      'RewardsDataService:login',
-      'RewardsDataService:getPointsEvents',
-      'RewardsDataService:estimatePoints',
-      'RewardsDataService:getPerpsDiscount',
-      'RewardsDataService:getSeasonStatus',
-      'RewardsDataService:getReferralDetails',
-      'RewardsDataService:generateChallenge',
-      'RewardsDataService:optin',
-      'RewardsDataService:logout',
-      'RewardsDataService:fetchGeoLocation',
-      'RewardsDataService:validateReferralCode',
-    ],
-    allowedEvents: [
-      'AccountsController:selectedAccountChange',
-      'KeyringController:unlock',
-    ],
-  });
-}
