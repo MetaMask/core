@@ -5,7 +5,7 @@ import { BigNumber } from 'bignumber.js';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
-  calcSolanaTotalNetworkFee,
+  calcNonEvmTotalNetworkFee,
   calcToAmount,
   calcSentAmount,
   calcRelayerFee,
@@ -22,10 +22,11 @@ import type {
   GenericQuoteRequest,
   QuoteResponse,
   Quote,
-  SolanaFees,
+  NonEvmFees,
   L1GasFees,
   TxData,
 } from '../types';
+import { ChainId } from '../types';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {
@@ -256,26 +257,76 @@ describe('Quote Metadata Utils', () => {
     });
   });
 
-  describe('calcSolanaTotalNetworkFee', () => {
-    const mockBridgeQuote: QuoteResponse & SolanaFees = {
-      solanaFeesInLamports: '1000000000',
+  describe('calcNonEvmTotalNetworkFee', () => {
+    const mockBridgeQuote: QuoteResponse & NonEvmFees = {
+      nonEvmFeesInNative: '1000000000',
       quote: {} as Quote,
       trade: {},
-    } as QuoteResponse & SolanaFees;
+    } as QuoteResponse & NonEvmFees;
 
     it('should calculate Solana fees correctly with exchange rates', () => {
-      const result = calcSolanaTotalNetworkFee(mockBridgeQuote, {
-        exchangeRate: '2',
-        usdExchangeRate: '1.5',
-      });
+      const result = calcNonEvmTotalNetworkFee(
+        mockBridgeQuote,
+        {
+          exchangeRate: '2',
+          usdExchangeRate: '1.5',
+        },
+        ChainId.SOLANA,
+      );
 
       expect(result.amount).toBe('1');
       expect(result.valueInCurrency).toBe('2');
       expect(result.usd).toBe('1.5');
     });
 
+    it('should calculate Bitcoin fees correctly with exchange rates', () => {
+      const btcQuote: QuoteResponse & NonEvmFees = {
+        nonEvmFeesInNative: '100000000', // 1 BTC in satoshis
+        quote: {} as Quote,
+        trade: {},
+      } as QuoteResponse & NonEvmFees;
+
+      const result = calcNonEvmTotalNetworkFee(
+        btcQuote,
+        {
+          exchangeRate: '60000',
+          usdExchangeRate: '60000',
+        },
+        ChainId.BTC,
+      );
+
+      expect(result.amount).toBe('1');
+      expect(result.valueInCurrency).toBe('60000');
+      expect(result.usd).toBe('60000');
+    });
+
+    it('should calculate Tron fees correctly with exchange rates', () => {
+      const tronQuote: QuoteResponse & NonEvmFees = {
+        nonEvmFeesInNative: '1000000', // 1 TRX (6 decimals)
+        quote: {} as Quote,
+        trade: {},
+      } as QuoteResponse & NonEvmFees;
+
+      const result = calcNonEvmTotalNetworkFee(
+        tronQuote,
+        {
+          exchangeRate: '0.1',
+          usdExchangeRate: '0.1',
+        },
+        ChainId.TRON,
+      );
+
+      expect(result.amount).toBe('1');
+      expect(result.valueInCurrency).toBe('0.1');
+      expect(result.usd).toBe('0.1');
+    });
+
     it('should handle missing exchange rates', () => {
-      const result = calcSolanaTotalNetworkFee(mockBridgeQuote, {});
+      const result = calcNonEvmTotalNetworkFee(
+        mockBridgeQuote,
+        {},
+        ChainId.SOLANA,
+      );
 
       expect(result.amount).toBe('1');
       expect(result.valueInCurrency).toBeNull();
@@ -283,9 +334,10 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle zero fees', () => {
-      const result = calcSolanaTotalNetworkFee(
-        { ...mockBridgeQuote, solanaFeesInLamports: '0' },
+      const result = calcNonEvmTotalNetworkFee(
+        { ...mockBridgeQuote, nonEvmFeesInNative: '0' },
         { exchangeRate: '2', usdExchangeRate: '1.5' },
+        ChainId.SOLANA,
       );
 
       expect(result.amount).toBe('0');

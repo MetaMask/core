@@ -82,7 +82,7 @@ export type SolanaFees = {
 };
 
 export type NonEvmFees = {
-  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (lamports for Solana, satoshis for BTC, etc.)
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in smallest units (lamports for Solana, satoshis for BTC, sun for Tron)
 };
 
 /**

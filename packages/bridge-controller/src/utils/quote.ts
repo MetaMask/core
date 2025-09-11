@@ -19,7 +19,6 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  SolanaFees,
   NonEvmFees,
 } from '../types';
 
@@ -98,23 +97,6 @@ export const getQuoteIdentifier = (quote: QuoteResponse['quote']) =>
 const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   const divisor = new BigNumber(10).pow(decimals ?? 0);
   return new BigNumber(value).div(divisor);
-};
-
-export const calcSolanaTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & SolanaFees,
-  { exchangeRate, usdExchangeRate }: ExchangeRate,
-) => {
-  const { solanaFeesInLamports } = bridgeQuote;
-  const solanaFeeInNative = calcTokenAmount(solanaFeesInLamports ?? '0', 9);
-  return {
-    amount: solanaFeeInNative.toString(),
-    valueInCurrency: exchangeRate
-      ? solanaFeeInNative.times(exchangeRate).toString()
-      : null,
-    usd: usdExchangeRate
-      ? solanaFeeInNative.times(usdExchangeRate).toString()
-      : null,
-  };
 };
 
 export const calcNonEvmTotalNetworkFee = (
