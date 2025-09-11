@@ -1074,10 +1074,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     } else {
       // Submit EVM tx
-      // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
+      // For Ledger Hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
       // Extension does not have this issue
       const requireApproval =
-        this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
+        this.#clientId === BridgeClientId.MOBILE &&
+        selectedAccount.metadata.keyring.type.includes('Ledger Hardware');
 
       // Handle smart transactions if enabled
       txMeta = await this.#trace(
