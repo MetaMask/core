@@ -121,7 +121,7 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(controller.permissionsProviderSnapId).toBe(
-        '@metamask/gator-permissions-snap' as SnapId,
+        'npm:@metamask/gator-permissions-snap' as SnapId,
       );
       expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(controller.state.isFetchingGatorPermissions).toBe(false);

@@ -35,7 +35,7 @@ const controllerName = 'GatorPermissionsController';
 
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
-  '@metamask/gator-permissions-snap' as SnapId;
+  'npm:@metamask/gator-permissions-snap' as SnapId;
 
 const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'native-token-stream': {},
