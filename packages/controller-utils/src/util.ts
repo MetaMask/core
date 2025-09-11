@@ -7,7 +7,7 @@ import {
   isHexString,
   remove0x,
   getChecksumAddress,
-  isValidHexAddress as isValidHexAddressUtil,
+  isHexChecksumAddress,
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
@@ -156,6 +156,7 @@ export function getBuyURL(
   switch (networkCode) {
     case '1':
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       return `https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=${amount}&address=${address}&crypto_currency=ETH`;
     case '5':
       return 'https://goerli-faucet.slock.it/';
@@ -358,7 +359,6 @@ function isValidHexAddressUnmemoized(
   const addressToCheck = allowNonPrefixed
     ? add0x(possibleAddress)
     : possibleAddress;
-
   if (!isStrictHexString(addressToCheck)) {
     return false;
   }
@@ -366,7 +366,7 @@ function isValidHexAddressUnmemoized(
   // We used to rely on `isValidAddress` from `@ethereumjs/util` which allows
   // for upper-case characters too. So we preserve this behavior and use our
   // faster and memoized validation function instead.
-  return isValidHexAddressUtil(addressToCheck);
+  return isHexChecksumAddress(addressToCheck);
 }
 
 /**

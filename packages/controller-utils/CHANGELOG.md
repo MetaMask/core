@@ -14,10 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getRemainingCircuitOpenDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
   - This returns the amount of time after which the underlying circuit breaker policy will resume execution of the input function after the circuit reopens.
 
-### Changed
-
-- Replace (now a package internal function) `isHexChecksumAddress` with `isValidHexAddress`. ([#6430](https://github.com/MetaMask/core/pull/6430))
-
 ## [11.12.0]
 
 ### Added
