@@ -3,6 +3,7 @@ import type {
   AccountWalletType,
   AccountWalletId,
   MultichainAccountWalletId,
+  AccountWalletStatus,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
@@ -30,11 +31,6 @@ export type AccountTreeWalletPersistedMetadata = {
 export type AccountTreeWalletMetadata = Required<
   ExtractFieldValues<AccountTreeWalletPersistedMetadata>
 >;
-
-/**
- * Account wallet status.
- */
-export type AccountWalletStatus = 'uninitialized' | 'ready';
 
 /**
  * Type constraint for a {@link AccountGroupObject}. If one of its union-members
