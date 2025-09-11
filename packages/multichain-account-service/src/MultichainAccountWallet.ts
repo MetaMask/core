@@ -363,7 +363,7 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Align all multichain account groups.
+   * Align all accounts from each existing multichain account groups.
    */
   async alignAccounts(): Promise<void> {
     if (this.#isAlignmentInProgress) {
