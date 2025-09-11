@@ -15,6 +15,8 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCryptoRequest,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -63,6 +65,22 @@ export class SubscriptionService implements ISubscriptionService {
   ): Promise<StartCryptoSubscriptionResponse> {
     const path = 'subscriptions/crypto';
     return await this.#makeRequest(path, 'POST', request);
+  }
+
+  async updatePaymentMethodCard(request: UpdatePaymentMethodCardRequest) {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
+    await this.#makeRequest(path, 'PATCH', {
+      ...request,
+      subscriptionId: undefined,
+    });
+  }
+
+  async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
+    await this.#makeRequest(path, 'PATCH', {
+      ...request,
+      subscriptionId: undefined,
+    });
   }
 
   async #makeRequest<Result>(

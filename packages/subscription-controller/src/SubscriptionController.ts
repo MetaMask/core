@@ -17,6 +17,7 @@ import type {
   ProductPrice,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
+  UpdatePaymentMethodOpts,
 } from './types';
 import {
   PaymentType,
@@ -57,6 +58,10 @@ export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
   type: `${typeof controllerName}:startSubscriptionWithCrypto`;
   handler: SubscriptionController['startSubscriptionWithCrypto'];
 };
+export type SubscriptionControllerUpdatePaymentMethodAction = {
+  type: `${typeof controllerName}:updatePaymentMethod`;
+  handler: SubscriptionController['updatePaymentMethod'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -69,7 +74,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
-  | SubscriptionControllerStartSubscriptionWithCryptoAction;
+  | SubscriptionControllerStartSubscriptionWithCryptoAction
+  | SubscriptionControllerUpdatePaymentMethodAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -208,6 +214,11 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:startSubscriptionWithCrypto',
       this.startSubscriptionWithCrypto.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:updatePaymentMethod',
+      this.updatePaymentMethod.bind(this),
+    );
   }
 
   /**
@@ -320,6 +331,19 @@ export class SubscriptionController extends BaseController<
       paymentTokenAddress: request.paymentTokenAddress,
       chainId: request.chainId,
     };
+  }
+
+  async updatePaymentMethod(opts: UpdatePaymentMethodOpts) {
+    if (opts.paymentType === PaymentType.byCard) {
+      const { paymentType, ...cardRequest } = opts;
+      await this.#subscriptionService.updatePaymentMethodCard(cardRequest);
+    } else if (opts.paymentType === PaymentType.byCrypto) {
+      const { paymentType, ...cryptoRequest } = opts;
+      await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
+    } else {
+      throw new Error('Invalid payment type');
+    }
+    await this.getSubscriptions();
   }
 
   /**
