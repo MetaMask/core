@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "MetaMask",
@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@metamask/account-api": "^0.12.0",
-    "@metamask/accounts-controller": "^33.0.0",
+    "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^23.0.0",
     "@metamask/providers": "^22.1.0",
