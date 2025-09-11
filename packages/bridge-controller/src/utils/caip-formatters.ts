@@ -23,6 +23,7 @@ import {
   isSolanaChainId,
   isTronChainId,
 } from './bridge';
+import { TRON_MAINNET_SCOPE } from '../constants/bridge';
 import type { GenericQuoteRequest } from '../types';
 import { ChainId } from '../types';
 
@@ -48,7 +49,7 @@ export const formatChainIdToCaip = (
     return BtcScope.Mainnet;
   }
   if (isTronChainId(chainId)) {
-    return 'tron:0x2b6653dc' as CaipChainId; // Tron mainnet CAIP-2 identifier
+    return TRON_MAINNET_SCOPE as CaipChainId;
   }
   return toEvmCaipChainId(numberToHex(Number(chainId)));
 };
@@ -71,7 +72,7 @@ export const formatChainIdToDec = (
   if (chainId === BtcScope.Mainnet) {
     return ChainId.BTC;
   }
-  if (chainId === 'tron:0x2b6653dc') {
+  if (chainId === TRON_MAINNET_SCOPE) {
     return ChainId.TRON;
   }
   if (isCaipChainId(chainId)) {
@@ -154,7 +155,7 @@ export const formatAddressToAssetId = (
   if (chainId === SolScope.Mainnet) {
     return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
   }
-  if (chainId === 'tron:0x2b6653dc') {
+  if (chainId === TRON_MAINNET_SCOPE) {
     return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
   }
 

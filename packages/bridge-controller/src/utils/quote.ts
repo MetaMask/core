@@ -5,7 +5,12 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isSolanaChainId } from './bridge';
+import {
+  isNativeAddress,
+  isBitcoinChainId,
+  isTronChainId,
+  isNonEvmChainId,
+} from './bridge';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -15,6 +20,7 @@ import type {
   QuoteMetadata,
   QuoteResponse,
   SolanaFees,
+  NonEvmFees,
 } from '../types';
 
 export const isValidQuoteRequest = (
@@ -31,12 +37,18 @@ export const isValidQuoteRequest = (
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
   }
-  // If bridging and one of the chains is solana, require the dest wallet address
+  // If bridging between different chain types or different non-EVM chains, require dest wallet address
+  // Cases that need destWalletAddress:
+  // 1. EVM -> non-EVM
+  // 2. non-EVM -> EVM
+  // 3. non-EVM -> different non-EVM (e.g., SOL -> BTC)
+  // Only same-chain swaps don't need destWalletAddress
   if (
     partialRequest.destChainId &&
     partialRequest.srcChainId &&
-    isSolanaChainId(partialRequest.destChainId) ===
-      !isSolanaChainId(partialRequest.srcChainId)
+    partialRequest.destChainId !== partialRequest.srcChainId && // Different chains
+    (isNonEvmChainId(partialRequest.destChainId) ||
+      isNonEvmChainId(partialRequest.srcChainId)) // At least one is non-EVM
   ) {
     stringFields.push('destWalletAddress');
     if (!partialRequest.destWalletAddress) {
@@ -102,6 +114,30 @@ export const calcSolanaTotalNetworkFee = (
     usd: usdExchangeRate
       ? solanaFeeInNative.times(usdExchangeRate).toString()
       : null,
+  };
+};
+
+export const calcNonEvmTotalNetworkFee = (
+  bridgeQuote: QuoteResponse & NonEvmFees,
+  { exchangeRate, usdExchangeRate }: ExchangeRate,
+  chainId: string | number,
+) => {
+  const { nonEvmFeesInNative } = bridgeQuote;
+  // Determine decimals based on chain
+  let decimals = 9; // Default to Solana
+  if (isBitcoinChainId(chainId)) {
+    decimals = 8; // Bitcoin uses 8 decimals
+  } else if (isTronChainId(chainId)) {
+    decimals = 6; // Tron uses 6 decimals
+  }
+
+  const feeInNative = calcTokenAmount(nonEvmFeesInNative ?? '0', decimals);
+  return {
+    amount: feeInNative.toString(),
+    valueInCurrency: exchangeRate
+      ? feeInNative.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
   };
 };
 

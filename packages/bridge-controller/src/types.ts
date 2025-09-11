@@ -78,7 +78,11 @@ export type L1GasFees = {
 };
 
 export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+  solanaFeesInLamports?: string; // @deprecated Use nonEvmFeesInNative instead
+};
+
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (lamports for Solana, satoshis for BTC, etc.)
 };
 
 /**

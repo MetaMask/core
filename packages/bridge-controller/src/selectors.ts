@@ -27,6 +27,7 @@ import {
   getNativeAssetForChainId,
   isNativeAddress,
   isSolanaChainId,
+  isNonEvmChainId,
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
@@ -41,7 +42,7 @@ import {
   calcIncludedTxFees,
   calcRelayerFee,
   calcSentAmount,
-  calcSolanaTotalNetworkFee,
+  calcNonEvmTotalNetworkFee,
   calcSwapRate,
   calcToAmount,
   calcTotalEstimatedNetworkFee,
@@ -286,10 +287,12 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (isSolanaChainId(quote.quote.srcChainId)) {
-        totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
+      if (isNonEvmChainId(quote.quote.srcChainId)) {
+        // Use the new generic function for all non-EVM chains
+        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,
           nativeExchangeRate,
+          quote.quote.srcChainId,
         );
         gasFee = {
           effective: totalEstimatedNetworkFee,

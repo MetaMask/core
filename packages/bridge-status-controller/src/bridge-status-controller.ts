@@ -9,7 +9,6 @@ import type {
 import {
   formatChainIdToHex,
   isNonEvmChainId,
-  isSolanaChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
@@ -236,7 +235,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             id,
           );
         }
-        if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
+        if (type === TransactionType.bridge && !isNonEvmChainId(chainId)) {
           this.#startPollingForTxId(id);
         }
       },
@@ -1151,10 +1150,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         approvalTxId,
       });
 
-      if (isSolanaChainId(quoteResponse.quote.srcChainId)) {
+      if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
         // Start polling for bridge tx status
         this.#startPollingForTxId(txMeta.id);
-        // Track Solana Swap completed event
+        // Track non-EVM Swap completed event
         if (!isBridgeTx) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,

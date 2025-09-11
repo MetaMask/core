@@ -14,6 +14,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
+  TRON_MAINNET_SCOPE,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import {
@@ -192,11 +193,18 @@ export const isBitcoinChainId = (
 
 export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
   if (isCaipChainId(chainId)) {
-    return chainId === 'tron:0x2b6653dc'; // Tron mainnet CAIP-2 identifier
+    return chainId === TRON_MAINNET_SCOPE;
   }
   return chainId.toString() === ChainId.TRON.toString();
 };
 
+/**
+ * Checks if a chain ID represents a non-EVM blockchain supported by swaps
+ * Currently supports Solana, Bitcoin, and Tron
+ *
+ * @param chainId - The chain ID to check
+ * @returns True if the chain is a supported non-EVM chain, false otherwise
+ */
 export const isNonEvmChainId = (
   chainId: GenericQuoteRequest['srcChainId'],
 ): boolean => {

@@ -9,6 +9,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
+import { BigNumber as BN } from 'bignumber.js';
 
 import {
   type BridgeClientId,
@@ -26,6 +27,7 @@ import {
   type L1GasFees,
   type GenericQuoteRequest,
   type SolanaFees,
+  type NonEvmFees,
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
@@ -293,7 +295,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const providerConfig = this.#getSelectedNetworkClient()?.configuration;
 
       let insufficientBal: boolean | undefined;
-      if (isSolanaChainId(updatedQuoteRequest.srcChainId)) {
+      if (isNonEvmChainId(updatedQuoteRequest.srcChainId)) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
       } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
@@ -355,9 +357,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trackResponseValidationFailures(validationFailures);
 
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(baseQuotes);
     const quotesWithFees =
-      quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     // Sort perps quotes by increasing estimated processing time (fastest first)
     if (featureId === FeatureId.PERPS) {
       return quotesWithFees.sort((a, b) => {
@@ -734,9 +736,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param quotes - Array of quote responses to append fees to
    * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
    */
-  readonly #appendSolanaFees = async (
+  readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
-  ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
+  ): Promise<(QuoteResponse & SolanaFees & NonEvmFees)[] | undefined> => {
     if (
       quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
@@ -775,11 +777,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           if (baseFee?.asset?.amount) {
             if (isSolanaChainId(quote.srcChainId)) {
               // Convert SOL to Lamports (1 SOL = 10^9 Lamports)
-              // Use string manipulation to avoid floating point precision issues
-              const parts = baseFee.asset.amount.split('.');
-              const wholePart = parts[0] || '0';
-              const decimalPart = (parts[1] || '').padEnd(9, '0').slice(0, 9);
-              feeInNative = BigInt(wholePart + decimalPart).toString();
+              const solAmount = new BN(baseFee.asset.amount);
+              const lamports = solAmount.multipliedBy(1e9);
+              feeInNative = lamports.toFixed(0);
             } else {
               // For other chains (BTC, Tron), use the fee as-is
               feeInNative = baseFee.asset.amount;
@@ -788,7 +788,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
           return {
             ...quoteResponse,
-            solanaFeesInLamports: feeInNative,
+            solanaFeesInLamports: feeInNative, // Keep for backward compatibility
+            nonEvmFeesInNative: feeInNative,
           };
         }
         return quoteResponse;
@@ -796,7 +797,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
-      (QuoteResponse & SolanaFees)[]
+      (QuoteResponse & SolanaFees & NonEvmFees)[]
     >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
         acc.push(result.value);
