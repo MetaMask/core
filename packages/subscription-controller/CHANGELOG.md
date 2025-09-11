@@ -19,4 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6504](https://github.com/MetaMask/core/pull/6504))
 - Added `updatePaymentMethodCard` and `updatePaymentMethodCrypto` methods ([#6539](https://github.com/MetaMask/core/pull/6539))
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^24.0.0` to `^25.0.0` ([#6558](https://github.com/MetaMask/core/pull/6558))
+
 [Unreleased]: https://github.com/MetaMask/core/
