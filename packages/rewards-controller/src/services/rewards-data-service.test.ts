@@ -190,6 +190,8 @@ describe('RewardsDataService', () => {
         messenger: mockMessenger,
         fetch: mockFetch,
         version: '1.0.0',
+        appType: 'mobile',
+        locale: 'en-US',
         rewardsApiUrl: 'https://api.rewards.test',
         environment: EnvironmentType.Development,
         getSubscriptionToken: mockGetSubscriptionToken,

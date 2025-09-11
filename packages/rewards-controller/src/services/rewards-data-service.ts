@@ -142,8 +142,8 @@ export class RewardsDataService {
     messenger,
     fetch: fetchFunction,
     version,
-    appType = 'mobile',
-    locale = 'en-US',
+    appType,
+    locale,
     rewardsApiUrl,
     environment,
     getSubscriptionToken,
@@ -151,8 +151,8 @@ export class RewardsDataService {
     messenger: RewardsDataServiceMessenger;
     fetch: typeof fetch;
     version: string;
-    appType?: 'mobile' | 'extension';
-    locale?: string;
+    appType: 'mobile' | 'extension';
+    locale: string;
     rewardsApiUrl: string;
     environment: EnvironmentType;
     getSubscriptionToken: GetSubscriptionToken;

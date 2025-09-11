@@ -439,7 +439,7 @@ export class RewardsController extends BaseController<
       // Silent failure - don't throw errors for background authentication
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      if (errorMessage && !errorMessage?.includes('Engine does not exist')) {
+      if (errorMessage) {
         log(
           'RewardsController: Silent authentication failed:',
           error instanceof Error ? error.message : String(error),
