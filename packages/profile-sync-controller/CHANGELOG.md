@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bring test grouping in line with other controllers ([#6530](https://github.com/MetaMask/core/pull/6530))
 - Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
   - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
