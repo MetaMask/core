@@ -1,4 +1,4 @@
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
+import type { AccountWalletId, Bip44Account, MultichainAccountWalletId } from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -224,6 +224,7 @@ function getAccountTreeControllerMessenger(
       'AccountsController:accountRemoved',
       'AccountsController:selectedAccountChange',
       'UserStorageController:stateChange',
+      'MultichainAccountService:walletStatusChange',
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
@@ -513,6 +514,7 @@ describe('AccountTreeController', () => {
             [expectedWalletId1]: {
               id: expectedWalletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [expectedWalletId1Group]: {
                   id: expectedWalletId1Group,
@@ -538,6 +540,7 @@ describe('AccountTreeController', () => {
             [expectedWalletId2]: {
               id: expectedWalletId2,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [expectedWalletId2Group1]: {
                   id: expectedWalletId2Group1,
@@ -577,6 +580,7 @@ describe('AccountTreeController', () => {
             [expectedSnapWalletId]: {
               id: expectedSnapWalletId,
               type: AccountWalletType.Snap,
+              status: 'ready',
               groups: {
                 [expectedSnapWalletIdGroup]: {
                   id: expectedSnapWalletIdGroup,
@@ -599,6 +603,7 @@ describe('AccountTreeController', () => {
             [expectedKeyringWalletId]: {
               id: expectedKeyringWalletId,
               type: AccountWalletType.Keyring,
+              status: 'ready',
               groups: {
                 [expectedKeyringWalletIdGroup]: {
                   id: expectedKeyringWalletIdGroup,
@@ -935,6 +940,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId1Group]: {
                   id: walletId1Group,
@@ -1004,6 +1010,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 // First group gets removed as a result of pruning.
                 [walletId1Group2]: {
@@ -1113,6 +1120,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId1Group]: {
                   id: walletId1Group,
@@ -1201,6 +1209,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId1Group]: {
                   id: walletId1Group,
@@ -1227,6 +1236,7 @@ describe('AccountTreeController', () => {
               // New wallet automatically added.
               id: walletId2,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId2Group]: {
                   id: walletId2Group,
@@ -1257,6 +1267,42 @@ describe('AccountTreeController', () => {
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('on MultichainAccountService:walletStatusUpdate', () => {
+    it('updates the wallet status accordingly', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'ready',
+      );
+
+      messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        walletId,
+        'in-progress:alignment',
+      );
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'in-progress:alignment',
+      );
+
+      messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        walletId,
+        'ready',
+      );
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'ready',
+      );
     });
   });
 
