@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
@@ -353,7 +353,7 @@ describe('TokenBalancesController', () => {
 
     const { controller, messenger, updateSpy } = setupController({
       tokens: initialTokens,
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
     });
 
     // Set initial balance
@@ -974,7 +974,7 @@ describe('TokenBalancesController', () => {
       };
 
       const { controller, messenger } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens,
         listAccounts: [account, account2],
       });
@@ -1050,7 +1050,7 @@ describe('TokenBalancesController', () => {
         });
 
       const { controller } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             '0x1': {
@@ -1084,7 +1084,7 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x1111111111111111111111111111111111111111';
 
       const { controller } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             '0x1': {
@@ -1121,7 +1121,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           interval: customInterval,
-          useAccountsAPI: false,
+          accountsApiChainIds: [],
           allowExternalServices: () => true,
         },
       });
@@ -1138,7 +1138,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
 
       const { controller, messenger } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             [chainId]: {
@@ -1193,7 +1193,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
 
       const { controller } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             [chainId]: {
@@ -1357,7 +1357,7 @@ describe('TokenBalancesController', () => {
     const tokenAddress = '0x0000000000000000000000000000000000000000';
 
     const { controller } = setupController({
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
       tokens: {
         allTokens: {
           [chainId]: {
@@ -1428,7 +1428,7 @@ describe('TokenBalancesController', () => {
 
     const { controller } = setupController({
       tokens,
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
       listAccounts: [createMockInternalAccount({ address: accountAddress })],
     });
 
@@ -1483,7 +1483,7 @@ describe('TokenBalancesController', () => {
 
     const { controller } = setupController({
       tokens,
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
       listAccounts: [createMockInternalAccount({ address: accountAddress })],
     });
 
@@ -1530,7 +1530,7 @@ describe('TokenBalancesController', () => {
       tokens,
       config: {
         queryMultipleAccounts: true,
-        useAccountsAPI: false,
+        accountsApiChainIds: [],
         allowExternalServices: () => true,
       },
       listAccounts: [
@@ -1786,7 +1786,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       jest
@@ -2007,7 +2007,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Mock balance fetcher to return balance with lowercase address
@@ -2076,7 +2076,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Mock balances returned with lowercase addresses
@@ -2128,7 +2128,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Mock fetcher to return balance with different mixed case address
@@ -2183,7 +2183,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Simulate the scenario that caused duplicates - different case in fetch results
@@ -2257,7 +2257,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           queryMultipleAccounts: false,
-          useAccountsAPI: false,
+          accountsApiChainIds: [],
           allowExternalServices: () => true,
         },
         tokens,
@@ -3423,7 +3423,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
-        config: { useAccountsAPI: false }, // Force use of RpcBalanceFetcher
+        config: { accountsApiChainIds: [] }, // Force use of RpcBalanceFetcher
       });
 
       // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
@@ -3483,7 +3483,7 @@ describe('TokenBalancesController', () => {
             },
           },
           queryMultipleAccounts: false,
-          useAccountsAPI: true,
+          accountsApiChainIds: ['0x1'],
           allowExternalServices: () => false,
         },
       });
@@ -3523,7 +3523,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           allowExternalServices: () => false,
-          useAccountsAPI: true, // This should be ignored when allowExternalServices is false
+          accountsApiChainIds: ['0x1'], // This should be ignored when allowExternalServices is false
         },
       });
 
@@ -3536,7 +3536,7 @@ describe('TokenBalancesController', () => {
       // Test line 197: default allowExternalServices = () => true
       const { controller } = setupController({
         config: {
-          useAccountsAPI: true,
+          accountsApiChainIds: ['0x1'],
           // allowExternalServices not provided - should use default
         },
       });
@@ -3718,7 +3718,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
-        config: { useAccountsAPI: false },
+        config: { accountsApiChainIds: [] },
       });
 
       // Mock the RpcBalanceFetcher to not support this specific chain
@@ -3772,6 +3772,142 @@ describe('TokenBalancesController', () => {
       expect(controller.state.tokenBalances).toStrictEqual({});
 
       controller.stopAllPolling();
+    });
+
+    it('should test AccountsApiFetcher supports method logic', async () => {
+      jest.setTimeout(10000);
+
+      const chainId1 = '0x1'; // Will be in accountsApiChainIds
+      const chainId2 = '0x89'; // Will be in accountsApiChainIds
+      const chainId3 = '0xa'; // NOT in accountsApiChainIds
+      const accountAddress = '0x1234567890123456789012345678901234567890';
+
+      // Create mock account for testing
+      const account = createMockInternalAccount({ address: accountAddress });
+
+      // Mock AccountsApiBalanceFetcher to track when line 320 logic is executed
+      const mockSupports = jest.fn().mockReturnValue(true);
+      const mockApiFetch = jest.fn().mockResolvedValue([]);
+
+      const apiBalanceFetcher = jest.requireActual(
+        './multi-chain-accounts-service/api-balance-fetcher',
+      );
+
+      const supportsSpy = jest
+        .spyOn(
+          apiBalanceFetcher.AccountsApiBalanceFetcher.prototype,
+          'supports',
+        )
+        .mockImplementation(mockSupports);
+
+      const fetchSpy = jest
+        .spyOn(apiBalanceFetcher.AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockImplementation(mockApiFetch);
+
+      // Mock safelyExecuteWithTimeout to prevent network timeouts
+      mockedSafelyExecuteWithTimeout.mockImplementation(async (_fn) => {
+        return []; // Return empty array to simulate no balances found
+      });
+
+      // Mock fetch globally to prevent any network calls
+      const mockGlobalFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+      global.fetch = mockGlobalFetch;
+
+      // Create controller with accountsApiChainIds to enable AccountsApi fetcher
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: [chainId1, chainId2], // This enables AccountsApi for these chains
+          allowExternalServices: () => true,
+        },
+        listAccounts: [account],
+      });
+
+      // Reset mocks after controller creation
+      mockSupports.mockClear();
+      mockApiFetch.mockClear();
+
+      // Test Case 1: Execute line 517 -> line 320 with chainId in accountsApiChainIds
+      mockSupports.mockReturnValue(true);
+      await controller.updateBalances({ chainIds: [chainId1] }); // This triggers line 517 -> line 320
+
+      // Verify line 320 logic was executed (originalFetcher.supports was called)
+      expect(mockSupports).toHaveBeenCalledWith(chainId1);
+
+      // Test Case 2: Execute line 517 -> line 320 with chainId NOT in accountsApiChainIds
+      mockSupports.mockClear();
+      await controller.updateBalances({ chainIds: [chainId3] }); // This triggers line 517 -> line 320
+
+      // Should NOT have called originalFetcher.supports because chainId3 is not in accountsApiChainIds
+      // This tests the short-circuit evaluation on line 322: this.#accountsApiChainIds.includes(chainId)
+      expect(mockSupports).not.toHaveBeenCalledWith(chainId3);
+
+      // Clean up
+      supportsSpy.mockRestore();
+      fetchSpy.mockRestore();
+      mockedSafelyExecuteWithTimeout.mockRestore();
+      // @ts-expect-error - deleting global fetch for test cleanup
+      delete global.fetch;
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "tokenBalances": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "tokenBalances": Object {},
+        }
+      `);
     });
   });
 });

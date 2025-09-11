@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replace `signAndSendTransactionWithoutConfirmation` with `ClientRequest:signAndSendTransaction` method
   - Update response handling to support new `transactionId` format from unified interface
   - Maintain backward compatibility with legacy response formats
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 
 ## [42.0.0]
 

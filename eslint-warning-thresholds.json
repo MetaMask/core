@@ -153,7 +153,7 @@
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
   },
-  "packages/eip-5792-middleware/src/methods/processSendCalls.ts": {
+  "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
     "@typescript-eslint/no-misused-promises": 1
   },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
@@ -285,9 +285,6 @@
   },
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
-  },
-  "packages/permission-controller/src/PermissionController.ts": {
-    "prettier/prettier": 12
   },
   "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
     "import-x/order": 1

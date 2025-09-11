@@ -1,5 +1,5 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -2018,28 +2018,28 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x1": Object {
-                "0x0000000000000000000000000000000000000001": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "value": 0.001,
-                },
-                "0x0000000000000000000000000000000000000002": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "value": 0.002,
-                },
-                "0x0000000000000000000000000000000000000003": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000003",
-                  "value": 0.003,
-                },
-              },
-            },
-          }
-        `);
+                        Object {
+                          "marketData": Object {
+                            "0x1": Object {
+                              "0x0000000000000000000000000000000000000001": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                "value": 0.001,
+                              },
+                              "0x0000000000000000000000000000000000000002": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                "value": 0.002,
+                              },
+                              "0x0000000000000000000000000000000000000003": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000003",
+                                "value": 0.003,
+                              },
+                            },
+                          },
+                        }
+                    `);
           },
         );
       });
@@ -2100,23 +2100,23 @@ describe('TokenRatesController', () => {
               });
 
               expect(controller.state).toMatchInlineSnapshot(`
-            Object {
-              "marketData": Object {
-                "0x2": Object {
-                  "0x0000000000000000000000000000000000000001": Object {
-                    "currency": "ETH",
-                    "tokenAddress": "0x0000000000000000000000000000000000000001",
-                    "value": 0.001,
-                  },
-                  "0x0000000000000000000000000000000000000002": Object {
-                    "currency": "ETH",
-                    "tokenAddress": "0x0000000000000000000000000000000000000002",
-                    "value": 0.002,
-                  },
-                },
-              },
-            }
-          `);
+                            Object {
+                              "marketData": Object {
+                                "0x2": Object {
+                                  "0x0000000000000000000000000000000000000001": Object {
+                                    "currency": "ETH",
+                                    "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                    "value": 0.001,
+                                  },
+                                  "0x0000000000000000000000000000000000000002": Object {
+                                    "currency": "ETH",
+                                    "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                    "value": 0.002,
+                                  },
+                                },
+                              },
+                            }
+                        `);
             },
           );
         });
@@ -2200,37 +2200,37 @@ describe('TokenRatesController', () => {
 
             // token value in terms of matic should be (token value in eth) * (eth value in matic)
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x89": Object {
-                "0x0000000000000000000000000000000000000001": Object {
-                  "allTimeHigh": undefined,
-                  "allTimeLow": undefined,
-                  "currency": "UNSUPPORTED",
-                  "dilutedMarketCap": undefined,
-                  "high1d": undefined,
-                  "low1d": undefined,
-                  "marketCap": undefined,
-                  "price": 0.0005,
-                  "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "totalVolume": undefined,
-                },
-                "0x0000000000000000000000000000000000000002": Object {
-                  "allTimeHigh": undefined,
-                  "allTimeLow": undefined,
-                  "currency": "UNSUPPORTED",
-                  "dilutedMarketCap": undefined,
-                  "high1d": undefined,
-                  "low1d": undefined,
-                  "marketCap": undefined,
-                  "price": 0.001,
-                  "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "totalVolume": undefined,
-                },
-              },
-            },
-          }
-        `);
+                        Object {
+                          "marketData": Object {
+                            "0x89": Object {
+                              "0x0000000000000000000000000000000000000001": Object {
+                                "allTimeHigh": undefined,
+                                "allTimeLow": undefined,
+                                "currency": "UNSUPPORTED",
+                                "dilutedMarketCap": undefined,
+                                "high1d": undefined,
+                                "low1d": undefined,
+                                "marketCap": undefined,
+                                "price": 0.0005,
+                                "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                "totalVolume": undefined,
+                              },
+                              "0x0000000000000000000000000000000000000002": Object {
+                                "allTimeHigh": undefined,
+                                "allTimeLow": undefined,
+                                "currency": "UNSUPPORTED",
+                                "dilutedMarketCap": undefined,
+                                "high1d": undefined,
+                                "low1d": undefined,
+                                "marketCap": undefined,
+                                "price": 0.001,
+                                "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                "totalVolume": undefined,
+                              },
+                            },
+                          },
+                        }
+                    `);
           },
         );
       });
@@ -2397,15 +2397,15 @@ describe('TokenRatesController', () => {
             });
 
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x3e7": Object {
-                "0x0000000000000000000000000000000000000001": undefined,
-                "0x0000000000000000000000000000000000000002": undefined,
-              },
-            },
-          }
-          `);
+                        Object {
+                          "marketData": Object {
+                            "0x3e7": Object {
+                              "0x0000000000000000000000000000000000000001": undefined,
+                              "0x0000000000000000000000000000000000000002": undefined,
+                            },
+                          },
+                        }
+                      `);
           },
         );
       });
@@ -2520,23 +2520,23 @@ describe('TokenRatesController', () => {
             expect(fetchTokenPricesMock).toHaveBeenCalledTimes(1);
 
             expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {
-              "0x1": Object {
-                "0x0000000000000000000000000000000000000001": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "value": 0.001,
-                },
-                "0x0000000000000000000000000000000000000002": Object {
-                  "currency": "ETH",
-                  "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "value": 0.002,
-                },
-              },
-            },
-          }
-        `);
+                        Object {
+                          "marketData": Object {
+                            "0x1": Object {
+                              "0x0000000000000000000000000000000000000001": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000001",
+                                "value": 0.001,
+                              },
+                              "0x0000000000000000000000000000000000000002": Object {
+                                "currency": "ETH",
+                                "tokenAddress": "0x0000000000000000000000000000000000000002",
+                                "value": 0.002,
+                              },
+                            },
+                          },
+                        }
+                    `);
           },
         );
       });
@@ -2679,6 +2679,64 @@ describe('TokenRatesController', () => {
           });
         },
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'anonymous',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
+    });
+
+    it('persists expected state', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "marketData": Object {},
+          }
+        `);
+      });
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "marketData": Object {},
+          }
+        `);
+      });
     });
   });
 });

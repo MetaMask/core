@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/eth-snap-keyring` from `^16.1.0` to `^17.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+
+### Fixed
+
+- Now publish `:accountAdded` before `:selectedAccountChange` on `KeyringController:stateChange` ([#6567](https://github.com/MetaMask/core/pull/6567))
+  - This was preventing the `AccountTreeController` to properly create its account group before trying to select it.
 
 ## [33.0.0]
 
