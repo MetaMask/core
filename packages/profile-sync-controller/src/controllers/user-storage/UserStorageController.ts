@@ -1,11 +1,4 @@
 import type {
-  AccountsControllerListAccountsAction,
-  AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerAccountRenamedEvent,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerUpdateAccountsAction,
-} from '@metamask/accounts-controller';
-import type {
   AddressBookControllerContactUpdatedEvent,
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerActions,
@@ -30,12 +23,9 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
-import { syncInternalAccountsWithUserStorage } from './account-syncing/controller-integration';
-import { setupAccountSyncingSubscriptions } from './account-syncing/setup-subscriptions';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
@@ -79,20 +69,6 @@ export type UserStorageControllerState = {
    * Condition used by UI to determine if contact syncing is in progress.
    */
   isContactSyncingInProgress: boolean;
-  /**
-   * Condition used to determine if account syncing has been dispatched at least once.
-   * This is used for event listeners to determine if they should be triggered.
-   * This is also used in E2E tests for verification purposes.
-   */
-  hasAccountSyncingSyncedAtLeastOnce: boolean;
-  /**
-   * Condition used by UI to determine if account syncing is ready to be dispatched.
-   */
-  isAccountSyncingReadyToBeDispatched: boolean;
-  /**
-   * Condition used by UI to determine if account syncing is in progress.
-   */
-  isAccountSyncingInProgress: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
@@ -101,9 +77,6 @@ export const defaultState: UserStorageControllerState = {
   isAccountSyncingEnabled: true,
   isContactSyncingEnabled: true,
   isContactSyncingInProgress: false,
-  hasAccountSyncingSyncedAtLeastOnce: false,
-  isAccountSyncingReadyToBeDispatched: false,
-  isAccountSyncingInProgress: false,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
@@ -137,58 +110,10 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: false,
     usedInUi: true,
   },
-  hasAccountSyncingSyncedAtLeastOnce: {
-    includeInStateLogs: true,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-  isAccountSyncingReadyToBeDispatched: {
-    includeInStateLogs: true,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-  isAccountSyncingInProgress: {
-    includeInStateLogs: false,
-    persist: false,
-    anonymous: false,
-    usedInUi: false,
-  },
 };
 
 type ControllerConfig = {
   env: Env;
-  accountSyncing?: {
-    /**
-     * Defines the strategy to use for account syncing.
-     * If true, it will prevent any new push updates from being sent to the user storage.
-     * Multichain account syncing will be handled by `@metamask/account-tree-controller`.
-     */
-    getIsMultichainAccountSyncingEnabled?: () => boolean;
-    maxNumberOfAccountsToAdd?: number;
-    /**
-     * Callback that fires when account sync adds an account.
-     * This is used for analytics.
-     */
-    onAccountAdded?: (profileId: string) => void;
-
-    /**
-     * Callback that fires when account sync updates the name of an account.
-     * This is used for analytics.
-     */
-    onAccountNameUpdated?: (profileId: string) => void;
-
-    /**
-     * Callback that fires when an erroneous situation happens during account sync.
-     * This is used for analytics.
-     */
-    onAccountSyncErroneousSituation?: (
-      profileId: string,
-      situationMessage: string,
-      sentryContext?: Record<string, unknown>,
-    ) => void;
-  };
   contactSyncing?: {
     /**
      * Callback that fires when contact sync updates a contact.
@@ -229,7 +154,6 @@ type ActionsObj = CreateActionsObj<
   | 'performDeleteStorage'
   | 'performBatchDeleteStorage'
   | 'getStorageKey'
-  | 'getIsMultichainAccountSyncingEnabled'
 >;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -251,8 +175,6 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStorageControllerGetIsMultichainAccountSyncingEnabled =
-  ActionsObj['getIsMultichainAccountSyncingEnabled'];
 
 export type AllowedActions =
   // Keyring Requests
@@ -264,11 +186,6 @@ export type AllowedActions =
   | AuthenticationControllerGetSessionProfile
   | AuthenticationControllerPerformSignIn
   | AuthenticationControllerIsSignedIn
-  // Account Syncing
-  | AccountsControllerListAccountsAction
-  | AccountsControllerUpdateAccountMetadataAction
-  | AccountsControllerUpdateAccountsAction
-  | KeyringControllerWithKeyringAction
   // Contact Syncing
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
@@ -287,9 +204,6 @@ export type AllowedEvents =
   | UserStorageControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  // Account Syncing Events
-  | AccountsControllerAccountRenamedEvent
-  | AccountsControllerAccountAddedEvent
   // Address Book Events
   | AddressBookControllerContactUpdatedEvent
   | AddressBookControllerContactDeletedEvent;
@@ -440,13 +354,6 @@ export default class UserStorageController extends BaseController<
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
 
-    // Account Syncing
-    setupAccountSyncingSubscriptions({
-      getUserStorageControllerInstance: () => this,
-      getMessenger: () => this.messagingSystem,
-      trace: this.#trace,
-    });
-
     // Contact Syncing
     setupContactSyncingSubscriptions({
       getUserStorageControllerInstance: () => this,
@@ -493,11 +400,6 @@ export default class UserStorageController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'UserStorageController:getStorageKey',
       this.getStorageKey.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:getIsMultichainAccountSyncingEnabled',
-      this.getIsMultichainAccountSyncingEnabled.bind(this),
     );
   }
 
@@ -632,13 +534,6 @@ export default class UserStorageController extends BaseController<
     });
   }
 
-  public getIsMultichainAccountSyncingEnabled(): boolean {
-    return (
-      this.#config.accountSyncing?.getIsMultichainAccountSyncingEnabled?.() ??
-      false
-    );
-  }
-
   /**
    * Retrieves the storage key, for internal use only!
    *
@@ -761,32 +656,6 @@ export default class UserStorageController extends BaseController<
     });
   }
 
-  async setHasAccountSyncingSyncedAtLeastOnce(
-    hasAccountSyncingSyncedAtLeastOnce: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.hasAccountSyncingSyncedAtLeastOnce =
-        hasAccountSyncingSyncedAtLeastOnce;
-    });
-  }
-
-  async setIsAccountSyncingReadyToBeDispatched(
-    isAccountSyncingReadyToBeDispatched: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.isAccountSyncingReadyToBeDispatched =
-        isAccountSyncingReadyToBeDispatched;
-    });
-  }
-
-  async setIsAccountSyncingInProgress(
-    isAccountSyncingInProgress: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.isAccountSyncingInProgress = isAccountSyncingInProgress;
-    });
-  }
-
   /**
    * Sets the isContactSyncingInProgress flag to prevent infinite loops during contact synchronization
    *
@@ -798,55 +667,6 @@ export default class UserStorageController extends BaseController<
     this.update((state) => {
       state.isContactSyncingInProgress = isContactSyncingInProgress;
     });
-  }
-
-  /**
-   * Syncs the internal accounts list with the user storage accounts list.
-   * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
-   * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
-   */
-  async syncInternalAccountsWithUserStorage(): Promise<void> {
-    const entropySourceIds = await this.listEntropySources();
-
-    try {
-      for (const entropySourceId of entropySourceIds) {
-        const profileId = await this.#auth.getProfileId(entropySourceId);
-
-        await syncInternalAccountsWithUserStorage(
-          {
-            maxNumberOfAccountsToAdd:
-              this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
-            onAccountAdded: () =>
-              this.#config?.accountSyncing?.onAccountAdded?.(profileId),
-            onAccountNameUpdated: () =>
-              this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
-            onAccountSyncErroneousSituation: (
-              situationMessage,
-              sentryContext,
-            ) =>
-              this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
-                profileId,
-                situationMessage,
-                sentryContext,
-              ),
-          },
-          {
-            getMessenger: () => this.messagingSystem,
-            getUserStorageControllerInstance: () => this,
-            trace: this.#trace,
-          },
-          entropySourceId,
-        );
-      }
-
-      // We do this here and not in the finally statement because we want to make sure that
-      // the accounts are saved / updated / deleted at least once before we set this flag
-      await this.setHasAccountSyncingSyncedAtLeastOnce(true);
-    } catch (e) {
-      // Silently fail for now
-      // istanbul ignore next
-      console.error(e);
-    }
   }
 
   /**
