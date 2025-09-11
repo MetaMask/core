@@ -2607,7 +2607,6 @@ describe('KeyringController', () => {
               const newPassword = 'new-password';
               const spiedEncryptionFn = jest.spyOn(
                 encryptor,
-                // eslint-disable-next-line jest/no-conditional-in-test
                 cacheEncryptionKey ? 'encryptWithDetail' : 'encrypt',
               );
 
@@ -4214,13 +4213,10 @@ describe('KeyringController', () => {
     it('should not cause a deadlock when subscribing to state changes', async () => {
       await withController(async ({ controller, initialState, messenger }) => {
         let executed = false;
-        const listener = jest.fn(() => {
-          // eslint-disable-next-line jest/no-conditional-in-test
+        const listener = jest.fn(async () => {
           if (!executed) {
             executed = true;
-            controller.persistAllKeyrings().catch(() => {
-              // Ignore errors
-            });
+            await controller.persistAllKeyrings();
           }
         });
 
