@@ -281,7 +281,7 @@ describe('Quote Metadata Utils', () => {
 
     it('should calculate Bitcoin fees correctly with exchange rates', () => {
       const btcQuote: QuoteResponse & NonEvmFees = {
-        nonEvmFeesInNative: '100000000', // 1 BTC in satoshis
+        nonEvmFeesInNative: '0.00005', // BTC fee in native units
         quote: {} as Quote,
         trade: {},
       } as QuoteResponse & NonEvmFees;
@@ -295,14 +295,14 @@ describe('Quote Metadata Utils', () => {
         ChainId.BTC,
       );
 
-      expect(result.amount).toBe('1');
-      expect(result.valueInCurrency).toBe('60000');
-      expect(result.usd).toBe('60000');
+      expect(result.amount).toBe('0.00005');
+      expect(result.valueInCurrency).toBe('3'); // 0.00005 * 60000 = 3
+      expect(result.usd).toBe('3'); // 0.00005 * 60000 = 3
     });
 
     it('should calculate Tron fees correctly with exchange rates', () => {
       const tronQuote: QuoteResponse & NonEvmFees = {
-        nonEvmFeesInNative: '1000000', // 1 TRX (6 decimals)
+        nonEvmFeesInNative: '1', // TRX fee in native units
         quote: {} as Quote,
         trade: {},
       } as QuoteResponse & NonEvmFees;
@@ -317,8 +317,8 @@ describe('Quote Metadata Utils', () => {
       );
 
       expect(result.amount).toBe('1');
-      expect(result.valueInCurrency).toBe('0.1');
-      expect(result.usd).toBe('0.1');
+      expect(result.valueInCurrency).toBe('0.1'); // 1 * 0.1 = 0.1
+      expect(result.usd).toBe('0.1'); // 1 * 0.1 = 0.1
     });
 
     it('should handle missing exchange rates', () => {
