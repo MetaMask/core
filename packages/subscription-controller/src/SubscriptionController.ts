@@ -31,6 +31,7 @@ import {
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
+  pricing?: PricingResponse;
 };
 
 // Messenger Actions
@@ -144,6 +145,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       anonymous: false,
       usedInUi: true,
     },
+    pricing: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: true,
+      usedInUi: true,
+    },
   };
 
 export class SubscriptionController extends BaseController<
@@ -227,7 +234,11 @@ export class SubscriptionController extends BaseController<
    * @returns The pricing information.
    */
   async getPricing(): Promise<PricingResponse> {
-    return await this.#subscriptionService.getPricing();
+    const pricing = await this.#subscriptionService.getPricing();
+    this.update((state) => {
+      state.pricing = pricing;
+    });
+    return pricing;
   }
 
   async getSubscriptions() {
