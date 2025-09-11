@@ -99,14 +99,14 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    * @param options.groupIndex - The group index to use.
    * @returns Promise resolving to discovered accounts, or empty array if disabled.
    */
-  async discoverAndCreateAccounts(options: {
+  async discoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
       return [];
     }
-    return this.provider.discoverAndCreateAccounts(options);
+    return this.provider.discoverAccounts(options);
   }
 }
 

@@ -931,7 +931,7 @@ describe('MultichainAccountService', () => {
       jest.spyOn(solProvider, 'getAccounts');
       jest.spyOn(solProvider, 'getAccount');
       jest.spyOn(solProvider, 'createAccounts');
-      jest.spyOn(solProvider, 'discoverAndCreateAccounts');
+      jest.spyOn(solProvider, 'discoverAccounts');
       jest.spyOn(solProvider, 'isAccountCompatible');
 
       wrapper = new AccountProviderWrapper(
@@ -985,24 +985,24 @@ describe('MultichainAccountService', () => {
       expect(result).toStrictEqual([]);
     });
 
-    it('returns empty array when discoverAndCreateAccounts() is disabled', async () => {
+    it('returns empty array when discoverAccounts() is disabled', async () => {
       const options = {
         entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
         groupIndex: 0,
       };
 
       // Enable first - should work normally
-      (solProvider.discoverAndCreateAccounts as jest.Mock).mockResolvedValue([
+      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
         MOCK_HD_ACCOUNT_1,
       ]);
-      expect(await wrapper.discoverAndCreateAccounts(options)).toStrictEqual([
+      expect(await wrapper.discoverAccounts(options)).toStrictEqual([
         MOCK_HD_ACCOUNT_1,
       ]);
 
       // Disable - should return empty array
       wrapper.setEnabled(false);
 
-      const result = await wrapper.discoverAndCreateAccounts(options);
+      const result = await wrapper.discoverAccounts(options);
       expect(result).toStrictEqual([]);
     });
 

@@ -125,7 +125,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * @param opts.groupIndex - The index of the group to create the accounts for.
    * @returns The accounts for the EVM provider.
    */
-  async discoverAndCreateAccounts(opts: {
+  async discoverAccounts(opts: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {

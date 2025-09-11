@@ -9,6 +9,7 @@ import type {
   Bip44Account,
   MultichainAccountWalletId,
   MultichainAccountWallet as MultichainAccountWalletDefinition,
+  MultichainAccountWalletStatus,
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
 import {
@@ -24,18 +25,13 @@ import type { MultichainAccountServiceMessenger } from './types';
 /**
  * The context for a provider discovery.
  */
-type AccountProviderDiscoveryContext = {
-  provider: NamedAccountProvider;
+type AccountProviderDiscoveryContext<
+  Account extends Bip44Account<KeyringAccount>,
+> = {
+  provider: NamedAccountProvider<Account>;
   stopped: boolean;
   groupIndex: number;
-  count: number;
-};
-
-/**
- * The metrics resulting from account discovery.
- */
-export type AccountDiscoveryMetrics = {
-  [providerName: string]: number;
+  accounts: Account[];
 };
 
 const log = createProjectLogger('multichain-account-service');
@@ -163,6 +159,15 @@ export class MultichainAccountWallet<
    */
   get entropySource(): EntropySourceId {
     return this.#entropySource;
+  }
+
+  /**
+   * Gets the multichain account wallet status.
+   *
+   * @returns The multichain account wallet status.
+   */
+  get status(): MultichainAccountWalletStatus {
+    return 'ready';
   }
 
   /**
@@ -360,7 +365,7 @@ export class MultichainAccountWallet<
   /**
    * Align all multichain account groups.
    */
-  async alignGroups(): Promise<void> {
+  async alignAccounts(): Promise<void> {
     if (this.#isAlignmentInProgress) {
       return; // Prevent concurrent alignments
     }
@@ -400,14 +405,14 @@ export class MultichainAccountWallet<
    *
    * @returns The discovered accounts for each provider.
    */
-  async discoverAndCreateAccounts(): Promise<AccountDiscoveryMetrics> {
+  async discoverAccounts(): Promise<Account[]> {
     // Start with the next available group index (so we can resume the discovery
     // from there).
     let maxGroupIndex = this.getNextGroupIndex();
 
     // One serialized loop per provider; all run concurrently
     const runProviderDiscovery = async (
-      context: AccountProviderDiscoveryContext,
+      context: AccountProviderDiscoveryContext<Account>,
     ) => {
       const message = (stepName: string, groupIndex: number) =>
         `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${groupIndex})`;
@@ -418,9 +423,9 @@ export class MultichainAccountWallet<
 
         log(message('STARTED', targetGroupIndex));
 
-        let accounts: Bip44Account<KeyringAccount>[] = [];
+        let accounts: Account[] = [];
         try {
-          accounts = await context.provider.discoverAndCreateAccounts({
+          accounts = await context.provider.discoverAccounts({
             entropySource: this.#entropySource,
             groupIndex: targetGroupIndex,
           });
@@ -439,7 +444,7 @@ export class MultichainAccountWallet<
 
         log(message('SUCCEEDED', targetGroupIndex));
 
-        context.count += accounts.length;
+        context.accounts = context.accounts.concat(accounts);
 
         const nextGroupIndex = targetGroupIndex + 1;
         context.groupIndex = nextGroupIndex;
@@ -450,12 +455,12 @@ export class MultichainAccountWallet<
       }
     };
 
-    const providerContexts: AccountProviderDiscoveryContext[] =
+    const providerContexts: AccountProviderDiscoveryContext<Account>[] =
       this.#providers.map((provider) => ({
         provider,
         stopped: false,
         groupIndex: maxGroupIndex,
-        count: 0,
+        accounts: [],
       }));
 
     // Start discovery for each providers.
@@ -467,14 +472,8 @@ export class MultichainAccountWallet<
 
     // Align missing accounts from group. This is required to create missing account from non-discovered
     // indexes for some providers.
-    await this.alignGroups();
+    await this.alignAccounts();
 
-    const discoveredAccounts: Record<string, number> = {};
-    for (const context of providerContexts) {
-      const providerName = context.provider.getName();
-      discoveredAccounts[providerName] = context.count;
-    }
-
-    return discoveredAccounts;
+    return providerContexts.flatMap((context) => context.accounts);
   }
 }

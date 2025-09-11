@@ -413,7 +413,7 @@ export class MultichainAccountService {
    */
   async alignWallets(): Promise<void> {
     const wallets = this.getMultichainAccountWallets();
-    await Promise.all(wallets.map((w) => w.alignGroups()));
+    await Promise.all(wallets.map((w) => w.alignAccounts()));
   }
 
   /**
@@ -423,6 +423,6 @@ export class MultichainAccountService {
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
     const wallet = this.getMultichainAccountWallet({ entropySource });
-    await wallet.alignGroups();
+    await wallet.alignAccounts();
   }
 }
