@@ -970,14 +970,7 @@ export class RewardsController extends BaseController<
     );
 
     // Try different encoding approaches to handle potential character issues
-    let hexMessage;
-    try {
-      // First try: direct toHex conversion
-      hexMessage = toHex(challengeResponse.message);
-    } catch (error) {
-      // Fallback: use Buffer to convert to hex if toHex fails
-      hexMessage = `0x${Buffer.from(challengeResponse.message, 'utf8').toString('hex')}`;
-    }
+    const hexMessage = `0x${Buffer.from(challengeResponse.message, 'utf8').toString('hex')}`;
 
     // Use KeyringController for silent signature
     const signature = await this.messagingSystem.call(

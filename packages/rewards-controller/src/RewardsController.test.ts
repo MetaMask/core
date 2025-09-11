@@ -2004,51 +2004,6 @@ describe('RewardsController', () => {
       );
     });
 
-    it('should use Buffer fallback when toHex fails during hex message conversion', async () => {
-      // Arrange
-      const mockChallengeResponse = {
-        id: 'challenge-123',
-        message: 'test challenge with special chars: éñü',
-      };
-      const mockSignature = '0xsignature123';
-      const mockOptinResponse = {
-        sessionId: 'session-456',
-        subscription: {
-          id: 'sub-789',
-          referralCode: 'REF123',
-          accounts: [],
-        },
-      };
-      mockStoreSubscriptionToken.mockResolvedValueOnce({ success: true });
-
-      // Mock toHex to throw an error, triggering the Buffer fallback
-      mockToHex.mockImplementation(() => {
-        throw new Error('toHex encoding error');
-      });
-
-      mockMessenger.call
-        .mockResolvedValueOnce(mockChallengeResponse) // generateChallenge
-        .mockResolvedValueOnce(mockSignature) // signPersonalMessage
-        .mockResolvedValueOnce(mockOptinResponse); // optin
-
-      // Act
-      await controller.optIn(mockInternalAccount);
-
-      // Assert
-      expect(mockToHex).toHaveBeenCalledWith(mockChallengeResponse.message);
-
-      // Verify the fallback Buffer conversion was used by checking the hex data passed to signing
-      const expectedBufferHex = `0x${Buffer.from(mockChallengeResponse.message, 'utf8').toString('hex')}`;
-      expect(mockMessenger.call).toHaveBeenNthCalledWith(
-        3,
-        'KeyringController:signPersonalMessage',
-        {
-          data: expectedBufferHex,
-          from: mockInternalAccount.address,
-        },
-      );
-    });
-
     it('should log error when subscription token storage fails', async () => {
       // Arrange
       const mockChallengeResponse = {
