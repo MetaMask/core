@@ -15,6 +15,7 @@ import type {
   TypeMobileLinkFields,
 } from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
+import { gte } from 'semver';
 
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
@@ -27,7 +28,8 @@ export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_toke
 type Env = {
   spaceId: string;
   accessToken: string;
-  platform: string;
+  platform: 'extension' | 'mobile';
+  platformVersion?: string;
 };
 
 /**
@@ -148,7 +150,26 @@ const fetchFeatureAnnouncementNotifications = async (
       return notification;
     });
 
-  return rawNotifications;
+  const versionKey = {
+    extension: 'extensionMinimumVersionNumber',
+    mobile: 'mobileMinimumVersionNumber',
+  } as const;
+
+  const filteredRawNotifications = rawNotifications.filter((n) => {
+    const notificationVersion = n.data?.[versionKey[env.platform]];
+    if (!env.platformVersion || !notificationVersion) {
+      return true;
+    }
+
+    try {
+      return gte(env.platformVersion, notificationVersion);
+    } catch {
+      // something went wrong filtering, do not show notif
+      return false;
+    }
+  });
+
+  return filteredRawNotifications;
 };
 
 /**

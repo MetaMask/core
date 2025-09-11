@@ -253,6 +253,7 @@ type FeatureAnnouncementEnv = {
   spaceId: string;
   accessToken: string;
   platform: 'extension' | 'mobile';
+  platformVersion?: string;
 };
 
 /**
