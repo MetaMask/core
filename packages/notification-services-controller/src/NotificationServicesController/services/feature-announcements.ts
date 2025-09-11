@@ -1,5 +1,6 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset, EntryCollection } from 'contentful';
+import { gte } from 'semver';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
@@ -15,7 +16,6 @@ import type {
   TypeMobileLinkFields,
 } from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
-import { gte } from 'semver';
 
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
