@@ -52,11 +52,15 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   srpSessionData: {
     // Remove access token from state logs
     includeInStateLogs: (srpSessionData) => {
-      // Using non-null assertion here to assert that it's not undefined, because if it was, this
-      // wouldn't get called.
-      // The type includes `| undefined` only because we don't yet use `strictOptionalTypes`
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return Object.entries(srpSessionData!).reduce<Record<string, Json>>(
+      // Unreachable branch, included just to fix a type error for the case where this property is
+      // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
+      // set here, because we don't yet use `exactOptionalPropertyTypes`.
+      // TODO: Remove branch after enabling `exactOptionalPropertyTypes`
+      // ref: https://github.com/MetaMask/core/issues/6565
+      if (srpSessionData === null || srpSessionData === undefined) {
+        return null;
+      }
+      return Object.entries(srpSessionData).reduce<Record<string, Json>>(
         (sanitizedSrpSessionData, [key, value]) => {
           const { accessToken: _unused, ...tokenWithoutAccessToken } =
             value.token;
