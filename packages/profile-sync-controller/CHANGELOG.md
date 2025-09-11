@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Strip `srpSessionData.token.accessToken` from state logs ([#6553](https://github.com/MetaMask/core/pull/6553))
+  - We haven't started using the `includeInStateLogs` metadata yet in clients, so this will have no functional impact. This change brings this metadata into alignment with the hard-coded state log generation performed by clients.today.
+- Add dependency on `@metamask/utils` ([#6553](https://github.com/MetaMask/core/pull/6553))
 
 ## [25.0.0]
 
@@ -24,7 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
   - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
-- Add dependency on `@metamask/utils` ([#6553](https://github.com/MetaMask/core/pull/6553))
 
 ### Removed
 
