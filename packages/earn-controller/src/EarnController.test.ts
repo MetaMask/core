@@ -1,5 +1,5 @@
 /* eslint-disable jest/no-conditional-in-test */
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
@@ -2564,6 +2564,273 @@ describe('EarnController', () => {
 
         expect(mockLendingContract.maxDeposit).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      const { controller } = await setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastUpdated": 0,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', async () => {
+      const { controller } = await setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastUpdated": 0,
+          "lending": Object {
+            "isEligible": true,
+            "markets": Array [
+              Object {
+                "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "chainId": 42161,
+                "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "netSupplyRate": 1.52269127978874,
+                "outputToken": Object {
+                  "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                  "chainId": 42161,
+                },
+                "protocol": "aave",
+                "rewards": Array [],
+                "totalSupplyRate": 1.52269127978874,
+                "tvlUnderlying": "132942564710249273623333",
+                "underlying": Object {
+                  "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                  "chainId": 42161,
+                },
+              },
+            ],
+            "positions": Array [
+              Object {
+                "assets": "112",
+                "chainId": 42161,
+                "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
+                "market": Object {
+                  "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "chainId": 42161,
+                  "id": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "name": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "netSupplyRate": 0.0062858302613958,
+                  "outputToken": Object {
+                    "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                    "chainId": 42161,
+                  },
+                  "protocol": "aave",
+                  "rewards": Array [],
+                  "totalSupplyRate": 0.0062858302613958,
+                  "tvlUnderlying": "315871357755",
+                  "underlying": Object {
+                    "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainId": 42161,
+                  },
+                },
+                "marketAddress": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "marketId": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "protocol": "aave",
+              },
+            ],
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', async () => {
+      const { controller } = await setupController();
+
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'persist',
+      );
+
+      // Compare `pooled_staking` separately to minimize size of snapshot
+      const {
+        pooled_staking: derivedPooledStaking,
+        ...derivedStateWithoutPooledStaking
+      } = derivedState;
+      expect(derivedPooledStaking).toStrictEqual({
+        '1': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        '560048': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        isEligible: true,
+      });
+      expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
+        Object {
+          "lending": Object {
+            "isEligible": true,
+            "markets": Array [
+              Object {
+                "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "chainId": 42161,
+                "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "netSupplyRate": 1.52269127978874,
+                "outputToken": Object {
+                  "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                  "chainId": 42161,
+                },
+                "protocol": "aave",
+                "rewards": Array [],
+                "totalSupplyRate": 1.52269127978874,
+                "tvlUnderlying": "132942564710249273623333",
+                "underlying": Object {
+                  "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                  "chainId": 42161,
+                },
+              },
+            ],
+            "positions": Array [
+              Object {
+                "assets": "112",
+                "chainId": 42161,
+                "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
+                "market": Object {
+                  "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "chainId": 42161,
+                  "id": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "name": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "netSupplyRate": 0.0062858302613958,
+                  "outputToken": Object {
+                    "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                    "chainId": 42161,
+                  },
+                  "protocol": "aave",
+                  "rewards": Array [],
+                  "totalSupplyRate": 0.0062858302613958,
+                  "tvlUnderlying": "315871357755",
+                  "underlying": Object {
+                    "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainId": 42161,
+                  },
+                },
+                "marketAddress": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "marketId": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "protocol": "aave",
+              },
+            ],
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', async () => {
+      const { controller } = await setupController();
+
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      );
+
+      // Compare `pooled_staking` separately to minimize size of snapshot
+      const {
+        pooled_staking: derivedPooledStaking,
+        ...derivedStateWithoutPooledStaking
+      } = derivedState;
+      expect(derivedPooledStaking).toStrictEqual({
+        '1': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        '560048': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        isEligible: true,
+      });
+      expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
+        Object {
+          "lending": Object {
+            "isEligible": true,
+            "markets": Array [
+              Object {
+                "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "chainId": 42161,
+                "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                "netSupplyRate": 1.52269127978874,
+                "outputToken": Object {
+                  "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
+                  "chainId": 42161,
+                },
+                "protocol": "aave",
+                "rewards": Array [],
+                "totalSupplyRate": 1.52269127978874,
+                "tvlUnderlying": "132942564710249273623333",
+                "underlying": Object {
+                  "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                  "chainId": 42161,
+                },
+              },
+            ],
+            "positions": Array [
+              Object {
+                "assets": "112",
+                "chainId": 42161,
+                "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
+                "market": Object {
+                  "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "chainId": 42161,
+                  "id": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "name": "0x078f358208685046a11c85e8ad32895ded33a249",
+                  "netSupplyRate": 0.0062858302613958,
+                  "outputToken": Object {
+                    "address": "0x078f358208685046a11c85e8ad32895ded33a249",
+                    "chainId": 42161,
+                  },
+                  "protocol": "aave",
+                  "rewards": Array [],
+                  "totalSupplyRate": 0.0062858302613958,
+                  "tvlUnderlying": "315871357755",
+                  "underlying": Object {
+                    "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                    "chainId": 42161,
+                  },
+                },
+                "marketAddress": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "marketId": "0x078f358208685046a11c85e8ad32895ded33a249",
+                "protocol": "aave",
+              },
+            ],
+          },
+        }
+      `);
     });
   });
 });
