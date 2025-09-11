@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 543.0.0 ([#6561](https://github.com/MetaMask/core/pull/6561))
+- Release/542.0.0 ([#6558](https://github.com/MetaMask/core/pull/6558))
+- Release/539.0.0 ([#6522](https://github.com/MetaMask/core/pull/6522))
+- Release/538.0.0 ([#6498](https://github.com/MetaMask/core/pull/6498))
+- Release/536.0.0 ([#6485](https://github.com/MetaMask/core/pull/6485))
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6472](https://github.com/MetaMask/core/pull/6472))
