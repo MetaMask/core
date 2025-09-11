@@ -547,38 +547,37 @@ export class RewardsController extends BaseController<
     let subscription: SubscriptionDto | null = null;
     let authUnexpectedError = false;
 
+    // Generate timestamp and sign the message
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    let signature;
     try {
-      // Generate timestamp and sign the message
-      const timestamp = Math.floor(Date.now() / 1000);
+      signature = await this.#signRewardsMessage(internalAccount, timestamp);
+    } catch (signError) {
+      log('RewardsController: Failed to generate signature:', signError);
 
-      let signature;
-      try {
-        signature = await this.#signRewardsMessage(internalAccount, timestamp);
-      } catch (signError) {
-        log('RewardsController: Failed to generate signature:', signError);
-
-        // Check if the error is due to locked keyring
-        if (
-          signError &&
-          typeof signError === 'object' &&
-          'message' in signError
-        ) {
-          const errorMessage = (signError as Error).message;
-          if (errorMessage.includes('controller is locked')) {
-            log('RewardsController: Keyring is locked, skipping silent auth');
-            return; // Exit silently when keyring is locked
-          }
+      // Check if the error is due to locked keyring
+      if (
+        signError &&
+        typeof signError === 'object' &&
+        'message' in signError
+      ) {
+        const errorMessage = (signError as Error).message;
+        if (errorMessage.includes('controller is locked')) {
+          log('RewardsController: Keyring is locked, skipping silent auth');
+          return; // Exit silently when keyring is locked
         }
-
-        throw signError;
       }
 
-      // Use data service through messenger
-      log(
-        'RewardsController: Performing silent auth for',
-        internalAccount.address,
-      );
+      throw signError;
+    }
 
+    // Use data service through messenger
+    log(
+      'RewardsController: Performing silent auth for',
+      internalAccount.address,
+    );
+    try {
       const loginResponse: LoginResponseDto = await this.messagingSystem.call(
         'RewardsDataService:login',
         {
@@ -1164,7 +1163,7 @@ export class RewardsController extends BaseController<
    */
   async validateReferralCode(code: string): Promise<boolean> {
     const rewardsEnabled = getRewardsFeatureFlag(this.messagingSystem);
-    if (!rewardsEnabled || !code.trim() || code.length !== 6) {
+    if (!rewardsEnabled || !code.trim() || code.trim().length !== 6) {
       return false;
     }
 

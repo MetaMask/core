@@ -1232,6 +1232,11 @@ describe('RewardsController', () => {
         .mockResolvedValueOnce('0xsignature')
         .mockResolvedValueOnce(mockLoginResponse);
 
+      mockStoreSubscriptionToken.mockImplementationOnce(() => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw 'string error'; // Simulate non-object error
+      });
+
       // When: Authentication is triggered
       const subscribeCallback = mockMessenger.subscribe.mock.calls.find(
         (call) => call[0] === 'AccountsController:selectedAccountChange',
@@ -1281,7 +1286,7 @@ describe('RewardsController', () => {
 
       // Then: Signature generation error should be logged
       expect(logSpy).toHaveBeenLastCalledWith(
-        'RewardsController: Failed to generate signature:',
+        'RewardsController: Silent authentication failed:',
         'random error',
       );
     });
