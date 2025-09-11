@@ -338,8 +338,7 @@ describe('KeyringController', () => {
 
     it('should throw instead of returning undefined', async () => {
       await withController(async ({ controller }) => {
-        // @ts-expect-error: intentionally mocking with invalid return for test
-        jest.spyOn(controller, 'getKeyringsByType').mockResolvedValueOnce([
+        jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
           {
             getAccounts: async () => [undefined, undefined],
           },
@@ -1172,7 +1171,7 @@ describe('KeyringController', () => {
             normalizedInitialAccounts[0]!,
           )) as EthKeyring;
           expect(keyring.type).toBe('HD Key Tree');
-          expect(keyring.getAccounts()).toStrictEqual(
+          expect(await keyring.getAccounts()).toStrictEqual(
             normalizedInitialAccounts,
           );
         });
@@ -1245,7 +1244,7 @@ describe('KeyringController', () => {
           ) as EthKeyring[];
           expect(keyrings).toHaveLength(1);
           expect(keyrings[0].type).toBe(KeyringTypes.hd);
-          expect(keyrings[0].getAccounts()).toStrictEqual(
+          expect(await keyrings[0].getAccounts()).toStrictEqual(
             controller.state.keyrings[0].accounts.map(normalize),
           );
         });
@@ -2608,6 +2607,7 @@ describe('KeyringController', () => {
               const newPassword = 'new-password';
               const spiedEncryptionFn = jest.spyOn(
                 encryptor,
+                // eslint-disable-next-line jest/no-conditional-in-test
                 cacheEncryptionKey ? 'encryptWithDetail' : 'encrypt',
               );
 
@@ -4214,10 +4214,13 @@ describe('KeyringController', () => {
     it('should not cause a deadlock when subscribing to state changes', async () => {
       await withController(async ({ controller, initialState, messenger }) => {
         let executed = false;
-        const listener = jest.fn(async () => {
+        const listener = jest.fn(() => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (!executed) {
             executed = true;
-            await controller.persistAllKeyrings();
+            controller.persistAllKeyrings().catch(() => {
+              // Ignore errors
+            });
           }
         });
 
