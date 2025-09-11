@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountWalletObject.status` support ([#6571](https://github.com/MetaMask/core/pull/6571))
+  - The `status` field will now report the current wallet status.
+  - Uses `MultichainAccountService` to report on-going operations (discovery, alignment, account creations) for `AccountWalletEntropyObject` multichain account wallet objects.
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.9.0` to `^0.12.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump dependency `@metamask/multichain-account-service` `^0.7.0` to `^0.8.0` ([#6571](https://github.com/MetaMask/core/pull/6571))
 
 ## [0.14.0]
 
