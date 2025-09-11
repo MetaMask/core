@@ -3187,6 +3187,7 @@ describe('AccountTreeController', () => {
             "wallets": Object {},
           },
           "accountWalletsMetadata": Object {},
+          "hasAccountTreeSyncingSyncedAtLeastOnce": false,
         }
       `);
     });
@@ -3204,6 +3205,7 @@ describe('AccountTreeController', () => {
         Object {
           "accountGroupsMetadata": Object {},
           "accountWalletsMetadata": Object {},
+          "hasAccountTreeSyncingSyncedAtLeastOnce": false,
         }
       `);
     });
@@ -3225,6 +3227,8 @@ describe('AccountTreeController', () => {
             "wallets": Object {},
           },
           "accountWalletsMetadata": Object {},
+          "hasAccountTreeSyncingSyncedAtLeastOnce": false,
+          "isAccountTreeSyncingInProgress": false,
         }
       `);
     });

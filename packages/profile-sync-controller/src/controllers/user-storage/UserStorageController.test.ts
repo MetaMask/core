@@ -790,9 +790,7 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       Object {
-        "hasAccountSyncingSyncedAtLeastOnce": false,
         "isAccountSyncingEnabled": true,
-        "isAccountSyncingReadyToBeDispatched": false,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
       }
@@ -808,9 +806,7 @@ describe('metadata', () => {
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
       Object {
-        "hasAccountSyncingSyncedAtLeastOnce": false,
         "isAccountSyncingEnabled": true,
-        "isAccountSyncingReadyToBeDispatched": false,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
       }
@@ -830,9 +826,7 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       Object {
-        "hasAccountSyncingSyncedAtLeastOnce": false,
         "isAccountSyncingEnabled": true,
-        "isAccountSyncingReadyToBeDispatched": false,
         "isBackupAndSyncEnabled": true,
         "isBackupAndSyncUpdateLoading": false,
         "isContactSyncingEnabled": true,

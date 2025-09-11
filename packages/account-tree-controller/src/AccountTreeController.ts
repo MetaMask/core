@@ -44,12 +44,16 @@ const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
       usedInUi: true,
     },
     isAccountTreeSyncingInProgress: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: true,
     },
     hasAccountTreeSyncingSyncedAtLeastOnce: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     accountGroupsMetadata: {
       includeInStateLogs: true,
