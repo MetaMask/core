@@ -114,9 +114,9 @@ export const getAllGroupsFromUserStorage = async (
     }
 
     const allGroups = groupData
-      .map((groupStringifiedJSON) => {
+      .map((stringifiedGroup) => {
         try {
-          return parseGroupFromUserStorageResponse(groupStringifiedJSON);
+          return parseGroupFromUserStorageResponse(stringifiedGroup);
         } catch (error) {
           backupAndSyncLogger(
             `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,

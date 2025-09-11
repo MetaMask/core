@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add backup and sync capabilities ([#6344](https://github.com/MetaMask/core/pull/6344))
-  - New `syncWithUserStorage()` method for manual sync triggers, replacing `UserStorageController:syncInternalAccountsWithUserStorage` usage in clients.
+  - New `syncWithUserStorage()` and `syncWithUserStorageAtLeastOnce()` method for manual sync triggers, replacing `UserStorageController:syncInternalAccountsWithUserStorage` usage in clients.
   - `BackupAndSyncService` with full and atomic sync operations for account tree data persistence.
   - Bidirectional metadata synchronization for wallets and groups with user storage.
-  - Automatic sync triggers on metadata changes (rename, pin/hide operations) with superstruct validation.
+  - Automatic sync triggers on metadata changes (rename, pin/hide operations).
   - New `isBackupAndSyncInProgress` state property to track sync status.
   - Analytics event tracking and performance tracing for sync operations.
   - Rollback mechanism for failed sync operations with state snapshot/restore capabilities.
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Legacy account syncing compatibility for seamless migration.
   - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options.
   - Add `@metamask/superstruct` for data validation.
-  - Add `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies.
+- **BREAKING:** Add `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies ([#6344](https://github.com/MetaMask/core/pull/6344))
 
 ### Changed
 

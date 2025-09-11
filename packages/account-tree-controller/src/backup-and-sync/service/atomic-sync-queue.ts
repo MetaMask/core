@@ -1,3 +1,5 @@
+import { createDeferredPromise } from '@metamask/utils';
+
 import { backupAndSyncLogger } from '../../logger';
 import type { AtomicSyncEvent } from '../types';
 
@@ -34,23 +36,16 @@ export class AtomicSyncQueue {
    * @returns A Promise that resolves when the sync function completes.
    */
   enqueue(syncFunction: () => Promise<void>): Promise<void> {
-    let resolvePromise: (() => void) | undefined;
-    let rejectPromise: ((error: unknown) => void) | undefined;
-
-    // Create promise that resolves when the sync function completes
-    const promise = new Promise<void>((resolve, reject) => {
-      resolvePromise = resolve;
-      rejectPromise = reject;
-    });
+    const { promise, resolve, reject } = createDeferredPromise();
 
     // Create the sync event with promise handlers
     const syncEvent: AtomicSyncEvent = {
       execute: async () => {
         try {
           await syncFunction();
-          resolvePromise?.();
+          resolve?.();
         } catch (error) {
-          rejectPromise?.(error);
+          reject?.(error);
         }
       },
     };

@@ -80,6 +80,8 @@ export async function createLocalGroupsFromUserStorage(
     groupIndex++
   ) {
     try {
+      // Creating multichain account group is idempotent, so we can safely
+      // re-create every groups starting from 0.
       await createMultichainAccountGroup(
         context,
         entropySourceId,

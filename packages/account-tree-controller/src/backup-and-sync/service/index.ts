@@ -226,20 +226,15 @@ export class BackupAndSyncService {
       return this.#ongoingFullSyncPromise;
     }
 
-    // First sync setup - create and cache the first sync promise
-    if (!this.#firstOngoingFullSyncPromise) {
-      this.#firstOngoingFullSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(
-        () => this.#performFullSyncInner(),
-      );
-      return this.#setupOngoingPromiseCleanup(
-        this.#firstOngoingFullSyncPromise,
-      );
-    }
-
     // Create a new ongoing sync (sequential calls after previous completed)
     const newSyncPromise = this.#atomicSyncQueue.clearAndEnqueue(() =>
       this.#performFullSyncInner(),
     );
+
+    // First sync setup - create and cache the first sync promise
+    if (!this.#firstOngoingFullSyncPromise) {
+      this.#firstOngoingFullSyncPromise = newSyncPromise;
+    }
 
     return this.#setupOngoingPromiseCleanup(newSyncPromise);
   }
