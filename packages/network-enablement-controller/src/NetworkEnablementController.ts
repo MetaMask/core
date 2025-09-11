@@ -131,8 +131,10 @@ const getDefaultNetworkEnablementControllerState =
 // Metadata for the controller state
 const metadata = {
   enabledNetworkMap: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
 };
 

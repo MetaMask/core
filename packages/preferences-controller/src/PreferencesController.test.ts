@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
 import { cloneDeep } from 'lodash';
 
@@ -571,6 +571,254 @@ describe('PreferencesController', () => {
     expect(controller.state.smartAccountOptInForAccounts).toHaveLength(0);
     controller.setSmartAccountOptInForAccounts(['0x1', '0x2']);
     expect(controller.state.smartAccountOptInForAccounts[0]).toBe('0x1');
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "featureFlags": Object {},
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "openSeaEnabled": false,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useMultiRpcMigration": true,
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "lostIdentities": Object {},
+          "openSeaEnabled": false,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useMultiRpcMigration": true,
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "lostIdentities": Object {},
+          "openSeaEnabled": false,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useMultiRpcMigration": true,
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = setupPreferencesController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "dismissSmartAccountSuggestionEnabled": false,
+          "featureFlags": Object {},
+          "identities": Object {},
+          "ipfsGateway": "https://ipfs.io/ipfs/",
+          "isIpfsGatewayEnabled": true,
+          "isMultiAccountBalancesEnabled": true,
+          "openSeaEnabled": false,
+          "privacyMode": false,
+          "securityAlertsEnabled": false,
+          "selectedAddress": "",
+          "showIncomingTransactions": Object {
+            "0x1": true,
+            "0x13881": true,
+            "0x38": true,
+            "0x5": true,
+            "0x504": true,
+            "0x505": true,
+            "0x507": true,
+            "0x531": true,
+            "0x61": true,
+            "0x64": true,
+            "0x89": true,
+            "0xa": true,
+            "0xa869": true,
+            "0xa86a": true,
+            "0xaa36a7": true,
+            "0xaa37dc": true,
+            "0xe704": true,
+            "0xe705": true,
+            "0xe708": true,
+            "0xfa": true,
+            "0xfa2": true,
+          },
+          "showTestNetworks": false,
+          "smartAccountOptIn": true,
+          "smartAccountOptInForAccounts": Array [],
+          "smartTransactionsOptInStatus": true,
+          "tokenSortConfig": Object {
+            "key": "tokenFiatAmount",
+            "order": "dsc",
+            "sortCallback": "stringNumeric",
+          },
+          "useMultiRpcMigration": true,
+          "useNftDetection": false,
+          "useSafeChainsListValidation": true,
+          "useTokenDetection": true,
+          "useTransactionSimulations": true,
+        }
+      `);
+    });
   });
 });
 

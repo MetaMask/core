@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "MetaMask",
@@ -48,20 +48,21 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.3.0",
-    "@metamask/eth-snap-keyring": "^16.1.0",
+    "@metamask/eth-snap-keyring": "^17.0.0",
     "@metamask/key-tree": "^10.1.1",
-    "@metamask/keyring-api": "^20.1.0",
-    "@metamask/keyring-internal-api": "^8.1.0",
-    "@metamask/keyring-snap-client": "^7.0.0",
+    "@metamask/keyring-api": "^21.0.0",
+    "@metamask/keyring-internal-api": "^9.0.0",
+    "@metamask/keyring-snap-client": "^8.0.0",
     "@metamask/keyring-utils": "^3.1.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/utils": "^11.4.2"
+    "@metamask/utils": "^11.4.2",
+    "async-mutex": "^0.5.0"
   },
   "devDependencies": {
-    "@metamask/account-api": "^0.9.0",
-    "@metamask/accounts-controller": "^33.0.0",
+    "@metamask/account-api": "^0.12.0",
+    "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-hd-keyring": "^12.0.0",
     "@metamask/keyring-controller": "^23.0.0",
@@ -79,7 +80,7 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/account-api": "^0.9.0",
+    "@metamask/account-api": "^0.12.0",
     "@metamask/accounts-controller": "^33.0.0",
     "@metamask/keyring-controller": "^23.0.0",
     "@metamask/providers": "^22.0.0",

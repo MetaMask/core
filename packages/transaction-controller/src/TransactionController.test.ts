@@ -4,7 +4,7 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -7970,6 +7970,78 @@ describe('TransactionController', () => {
       expect(() =>
         controller.updateSelectedGasFeeToken(TRANSACTION_META_MOCK.id, '0x123'),
       ).toThrow('No matching gas fee token found');
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastFetchedBlockNumbers": Object {},
+          "methodData": Object {},
+          "submitHistory": Array [],
+          "transactionBatches": Array [],
+          "transactions": Array [],
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastFetchedBlockNumbers": Object {},
+          "methodData": Object {},
+          "submitHistory": Array [],
+          "transactionBatches": Array [],
+          "transactions": Array [],
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "methodData": Object {},
+          "transactionBatches": Array [],
+          "transactions": Array [],
+        }
+      `);
     });
   });
 });

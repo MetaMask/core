@@ -680,11 +680,36 @@ export class KeyringController extends BaseController<
     super({
       name,
       metadata: {
-        vault: { persist: true, anonymous: false },
-        isUnlocked: { persist: false, anonymous: true },
-        keyrings: { persist: false, anonymous: false },
-        encryptionKey: { persist: false, anonymous: false },
-        encryptionSalt: { persist: false, anonymous: false },
+        vault: {
+          includeInStateLogs: false,
+          persist: true,
+          anonymous: false,
+          usedInUi: false,
+        },
+        isUnlocked: {
+          includeInStateLogs: true,
+          persist: false,
+          anonymous: true,
+          usedInUi: true,
+        },
+        keyrings: {
+          includeInStateLogs: true,
+          persist: false,
+          anonymous: false,
+          usedInUi: true,
+        },
+        encryptionKey: {
+          includeInStateLogs: false,
+          persist: false,
+          anonymous: false,
+          usedInUi: false,
+        },
+        encryptionSalt: {
+          includeInStateLogs: false,
+          persist: false,
+          anonymous: false,
+          usedInUi: false,
+        },
       },
       messenger,
       state: {

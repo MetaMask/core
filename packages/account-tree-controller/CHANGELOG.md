@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.9.0` to `^0.12.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+
+## [0.14.0]
+
+### Added
+
+- **BREAKING:** Add backup and sync capabilities ([#6344](https://github.com/MetaMask/core/pull/6344))
+  - New `syncWithUserStorage()` and `syncWithUserStorageAtLeastOnce()` method for manual sync triggers, replacing `UserStorageController:syncInternalAccountsWithUserStorage` usage in clients.
+  - `BackupAndSyncService` with full and atomic sync operations for account tree data persistence.
+  - Bidirectional metadata synchronization for wallets and groups with user storage.
+  - Automatic sync triggers on metadata changes (rename, pin/hide operations).
+  - New `isBackupAndSyncInProgress` state property to track sync status.
+  - Analytics event tracking and performance tracing for sync operations.
+  - Rollback mechanism for failed sync operations with state snapshot/restore capabilities.
+  - Support for entropy-based wallets with multichain account syncing.
+  - Legacy account syncing compatibility for seamless migration.
+  - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options.
+  - Add `@metamask/superstruct` for data validation.
+- **BREAKING:** Add `@metamask/multichain-account-service` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Add `@metamask/profile-sync-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344)), ([#6558](https://github.com/MetaMask/core/pull/6558))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
+
+### Changed
+
 - Account group name uniqueness validation now scoped to wallet level instead of global ([#6550](https://github.com/MetaMask/core/pull/6550))
   - `isAccountGroupNameUnique` now checks for duplicates only within the same wallet, allowing different wallets to have groups with the same name.
   - Function now throws an error for non-existent group IDs instead of returning `true`.
@@ -187,7 +211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.14.0...HEAD
+[0.14.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.1...@metamask/account-tree-controller@0.14.0
 [0.13.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.0...@metamask/account-tree-controller@0.13.1
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.1...@metamask/account-tree-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...@metamask/account-tree-controller@0.12.1

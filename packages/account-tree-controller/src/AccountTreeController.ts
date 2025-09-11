@@ -8,9 +8,17 @@ import { AccountWalletType, select } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
+import {
+  formatAnalyticsEvent,
+  traceFallback,
+} from './backup-and-sync/analytics';
+import { BackupAndSyncService } from './backup-and-sync/service';
+import type { BackupAndSyncContext } from './backup-and-sync/types';
 import type { AccountGroupObject } from './group';
 import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
@@ -18,26 +26,46 @@ import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
 import type {
+  AccountTreeControllerConfig,
+  AccountTreeControllerInternalBackupAndSyncConfig,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
-import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+import { type AccountWalletObject, type AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
     accountTree: {
+      includeInStateLogs: true,
       persist: false, // We do re-recompute this state everytime.
       anonymous: false,
+      usedInUi: true,
+    },
+    isAccountTreeSyncingInProgress: {
+      includeInStateLogs: false,
+      persist: false,
+      anonymous: false,
+      usedInUi: true,
+    },
+    hasAccountTreeSyncingSyncedAtLeastOnce: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: false,
+      usedInUi: true,
     },
     accountGroupsMetadata: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     accountWalletsMetadata: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
   };
 
@@ -52,6 +80,8 @@ export function getDefaultAccountTreeControllerState(): AccountTreeControllerSta
       wallets: {},
       selectedAccountGroup: '',
     },
+    isAccountTreeSyncingInProgress: false,
+    hasAccountTreeSyncingSyncedAtLeastOnce: false,
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
   };
@@ -81,7 +111,16 @@ export class AccountTreeController extends BaseController<
 
   readonly #groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
 
+  /**
+   * Service responsible for all backup and sync operations.
+   */
+  readonly #backupAndSyncService: BackupAndSyncService;
+
   readonly #rules: [EntropyRule, SnapRule, KeyringRule];
+
+  readonly #trace: TraceCallback;
+
+  readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
   /**
    * Constructor for AccountTreeController.
@@ -89,14 +128,17 @@ export class AccountTreeController extends BaseController<
    * @param options - The controller options.
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
+   * @param options.config - Optional configuration for the controller.
    */
 
   constructor({
     messenger,
     state,
+    config,
   }: {
     messenger: AccountTreeControllerMessenger;
     state?: Partial<AccountTreeControllerState>;
+    config?: AccountTreeControllerConfig;
   }) {
     super({
       messenger,
@@ -124,6 +166,24 @@ export class AccountTreeController extends BaseController<
       new KeyringRule(this.messagingSystem),
     ];
 
+    // Initialize trace function
+    this.#trace = config?.trace ?? traceFallback;
+
+    // Initialize backup and sync config
+    this.#backupAndSyncConfig = {
+      emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => {
+        return (
+          config?.backupAndSync?.onBackupAndSyncEvent &&
+          config.backupAndSync.onBackupAndSyncEvent(formatAnalyticsEvent(event))
+        );
+      },
+    };
+
+    // Initialize the backup and sync service
+    this.#backupAndSyncService = new BackupAndSyncService(
+      this.#createBackupAndSyncContext(),
+    );
+
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
       (account) => {
@@ -142,6 +202,15 @@ export class AccountTreeController extends BaseController<
       'AccountsController:selectedAccountChange',
       (account) => {
         this.#handleSelectedAccountChange(account);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'UserStorageController:stateChange',
+      (userStorageControllerState) => {
+        this.#backupAndSyncService.handleUserStorageStateChange(
+          userStorageControllerState,
+        );
       },
     );
 
@@ -600,6 +669,11 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
+
+      // Trigger atomic sync for new wallet (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
+      }
     }
 
     const groupId = result.group.id;
@@ -621,6 +695,11 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
+
+      // Trigger atomic sync for new group (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
+      }
     } else {
       group.accounts.push(account.id);
     }
@@ -889,6 +968,8 @@ export class AccountTreeController extends BaseController<
     // Validate that the name is unique
     this.#assertAccountGroupNameIsUnique(groupId, name);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+
     this.update((state) => {
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
@@ -898,12 +979,20 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.name =
           name;
       }
     });
+
+    // Trigger atomic sync for group rename (only for groups from entropy wallets)
+    if (
+      walletId &&
+      this.state.accountTree.wallets[walletId].type ===
+        AccountWalletType.Entropy
+    ) {
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
+    }
   }
 
   /**
@@ -928,6 +1017,14 @@ export class AccountTreeController extends BaseController<
       // Update tree node directly
       state.accountTree.wallets[walletId].metadata.name = name;
     });
+
+    // Trigger atomic sync for wallet rename (only for groups from entropy wallets)
+    if (
+      this.state.accountTree.wallets[walletId].type ===
+      AccountWalletType.Entropy
+    ) {
+      this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
+    }
   }
 
   /**
@@ -941,6 +1038,8 @@ export class AccountTreeController extends BaseController<
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+
     this.update((state) => {
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
@@ -950,12 +1049,20 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.pinned =
           pinned;
       }
     });
+
+    // Trigger atomic sync for group pinning (only for groups from entropy wallets)
+    if (
+      walletId &&
+      this.state.accountTree.wallets[walletId].type ===
+        AccountWalletType.Entropy
+    ) {
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
+    }
   }
 
   /**
@@ -969,6 +1076,8 @@ export class AccountTreeController extends BaseController<
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+
     this.update((state) => {
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
@@ -978,12 +1087,33 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.hidden =
           hidden;
       }
     });
+
+    // Trigger atomic sync for group hiding (only for groups from entropy wallets)
+    if (
+      walletId &&
+      this.state.accountTree.wallets[walletId].type ===
+        AccountWalletType.Entropy
+    ) {
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
+    }
+  }
+
+  /**
+   * Clears the controller state and resets to default values.
+   * Also clears the backup and sync service state.
+   */
+  clearState(): void {
+    this.update(() => {
+      return {
+        ...getDefaultAccountTreeControllerState(),
+      };
+    });
+    this.#backupAndSyncService.clearState();
   }
 
   /**
@@ -1024,5 +1154,53 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:setAccountGroupHidden`,
       this.setAccountGroupHidden.bind(this),
     );
+  }
+
+  /**
+   * Bi-directionally syncs the account tree with user storage.
+   * This will perform a full sync, including both pulling updates
+   * from user storage and pushing local changes to user storage.
+   * This also performs legacy account syncing if needed.
+   *
+   * IMPORTANT:
+   * If a full sync is already in progress, it will return the ongoing promise.
+   *
+   * @returns A promise that resolves when the sync is complete.
+   */
+  async syncWithUserStorage(): Promise<void> {
+    return this.#backupAndSyncService.performFullSync();
+  }
+
+  /**
+   * Bi-directionally syncs the account tree with user storage.
+   * This will ensure at least one full sync is ran, including both pulling updates
+   * from user storage and pushing local changes to user storage.
+   * This also performs legacy account syncing if needed.
+   *
+   * IMPORTANT:
+   * If the first ever full sync is already in progress, it will return the ongoing promise.
+   * If the first ever full sync was previously completed, it will NOT start a new sync, and will resolve immediately.
+   *
+   * @returns A promise that resolves when the first ever full sync is complete.
+   */
+  async syncWithUserStorageAtLeastOnce(): Promise<void> {
+    return this.#backupAndSyncService.performFullSyncAtLeastOnce();
+  }
+
+  /**
+   * Creates an backup and sync context for sync operations.
+   * Used by the backup and sync service.
+   *
+   * @returns The backup and sync context.
+   */
+  #createBackupAndSyncContext(): BackupAndSyncContext {
+    return {
+      ...this.#backupAndSyncConfig,
+      controller: this,
+      messenger: this.messagingSystem,
+      controllerStateUpdateFn: this.update.bind(this),
+      traceFn: this.#trace.bind(this),
+      groupIdToWalletId: this.#groupIdToWalletId,
+    };
   }
 }

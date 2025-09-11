@@ -125,7 +125,7 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 
-  abstract discoverAndCreateAccounts({
+  abstract discoverAccounts({
     entropySource,
     groupIndex,
   }: {

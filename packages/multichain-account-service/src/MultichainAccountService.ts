@@ -126,10 +126,6 @@ export class MultichainAccountService {
       (...args) => this.alignWallet(...args),
     );
     this.#messenger.registerActionHandler(
-      'MultichainAccountService:getIsAlignmentInProgress',
-      () => this.getIsAlignmentInProgress(),
-    );
-    this.#messenger.registerActionHandler(
       'MultichainAccountService:createMultichainAccountWallet',
       (...args) => this.createMultichainAccountWallet(...args),
     );
@@ -462,22 +458,11 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets whether wallet alignment is currently in progress.
-   *
-   * @returns True if any wallet alignment is in progress, false otherwise.
-   */
-  getIsAlignmentInProgress(): boolean {
-    return Array.from(this.#wallets.values()).some((wallet) =>
-      wallet.getIsAlignmentInProgress(),
-    );
-  }
-
-  /**
    * Align all multichain account wallets.
    */
   async alignWallets(): Promise<void> {
     const wallets = this.getMultichainAccountWallets();
-    await Promise.all(wallets.map((w) => w.alignGroups()));
+    await Promise.all(wallets.map((w) => w.alignAccounts()));
   }
 
   /**
@@ -487,6 +472,6 @@ export class MultichainAccountService {
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
     const wallet = this.getMultichainAccountWallet({ entropySource });
-    await wallet.alignGroups();
+    await wallet.alignAccounts();
   }
 }

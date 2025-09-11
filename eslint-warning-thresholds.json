@@ -286,9 +286,6 @@
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
   },
-  "packages/permission-controller/src/PermissionController.ts": {
-    "prettier/prettier": 12
-  },
   "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
     "import-x/order": 1
   },

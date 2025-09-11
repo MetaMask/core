@@ -27,7 +27,7 @@ import {
   getRootMessenger,
   makeMockAccountProvider,
   mockAsInternalAccount,
-  setupAccountProvider,
+  setupNamedAccountProvider,
 } from './tests';
 import type {
   AllowedActions,
@@ -75,7 +75,7 @@ function mockAccountProvider<Provider>(
     .mocked(providerClass)
     .mockImplementation(() => mocks as unknown as Provider);
 
-  setupAccountProvider({
+  setupNamedAccountProvider({
     mocks,
     accounts,
     filter: (account) => account.type === type,
@@ -707,58 +707,6 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('getIsAlignmentInProgress', () => {
-    it('returns false initially', () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignWallets and false after completion', async () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const alignmentPromise = service.alignWallets();
-      expect(service.getIsAlignmentInProgress()).toBe(true);
-
-      await alignmentPromise;
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignWallet and false after completion', async () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const alignmentPromise = service.alignWallet(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
-      expect(service.getIsAlignmentInProgress()).toBe(true);
-
-      await alignmentPromise;
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns false after alignment completes even with provider errors', async () => {
-      const { service, mocks } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      // Mock a provider error during alignment
-      mocks.EvmAccountProvider.createAccounts.mockRejectedValueOnce(
-        new Error('Test error'),
-      );
-
-      // Alignment should complete gracefully without throwing
-      await service.alignWallets();
-
-      // Flag should be reset even after provider errors
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-  });
-
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -901,18 +849,6 @@ describe('MultichainAccountService', () => {
       ).toBeUndefined();
     });
 
-    it('gets alignment progress with MultichainAccountService:getIsAlignmentInProgress', () => {
-      const { messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const isInProgress = messenger.call(
-        'MultichainAccountService:getIsAlignmentInProgress',
-      );
-
-      expect(isInProgress).toBe(false);
-    });
-
     it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
       const { messenger, mocks } = setup({ accounts: [], keyrings: [] });
 
@@ -967,7 +903,7 @@ describe('MultichainAccountService', () => {
       jest.spyOn(solProvider, 'getAccounts');
       jest.spyOn(solProvider, 'getAccount');
       jest.spyOn(solProvider, 'createAccounts');
-      jest.spyOn(solProvider, 'discoverAndCreateAccounts');
+      jest.spyOn(solProvider, 'discoverAccounts');
       jest.spyOn(solProvider, 'isAccountCompatible');
 
       wrapper = new AccountProviderWrapper(
@@ -1021,24 +957,24 @@ describe('MultichainAccountService', () => {
       expect(result).toStrictEqual([]);
     });
 
-    it('returns empty array when discoverAndCreateAccounts() is disabled', async () => {
+    it('returns empty array when discoverAccounts() is disabled', async () => {
       const options = {
         entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
         groupIndex: 0,
       };
 
       // Enable first - should work normally
-      (solProvider.discoverAndCreateAccounts as jest.Mock).mockResolvedValue([
+      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
         MOCK_HD_ACCOUNT_1,
       ]);
-      expect(await wrapper.discoverAndCreateAccounts(options)).toStrictEqual([
+      expect(await wrapper.discoverAccounts(options)).toStrictEqual([
         MOCK_HD_ACCOUNT_1,
       ]);
 
       // Disable - should return empty array
       wrapper.setEnabled(false);
 
-      const result = await wrapper.discoverAndCreateAccounts(options);
+      const result = await wrapper.discoverAccounts(options);
       expect(result).toStrictEqual([]);
     });
 
