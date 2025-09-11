@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add mutable operation lock (per wallets) ([#6527](https://github.com/MetaMask/core/pull/6527))
+  - Operations such as discovery, alignment, group creation will now lock an internal mutex (per wallets).
+- Add wallet status tracking with `:walletStatusChange` event ([#6527](https://github.com/MetaMask/core/pull/6527))
+  - This can be used to track what's the current status of a wallet (e.g. which operation is currently running OR if the wallet is ready to run any new operations).
+- Add `MultichainAccountWalletStatus` enum ([#6527](https://github.com/MetaMask/core/pull/6527))
+  - Enumeration of all possible wallet statuses.
+- Add `MultichainAccountWallet.status` ([#6527](https://github.com/MetaMask/core/pull/6527))
+  - To get the current status of a multichain account wallet instance.
 - Add multichain account group lifecycle events ([#6441](https://github.com/MetaMask/core/pull/6441))
   - Add `multichainAccountGroupCreated` event emitted from wallet level when new groups are created.
   - Add `multichainAccountGroupUpdated` event emitted from wallet level when groups are synchronized.
@@ -18,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.9.0` to `^0.12.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - **BREAKING:** Rename `alignGroups` to `alignAccounts` for `MultichainAccountWallet` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - **BREAKING:** Rename `MultichainAccountWallet.discoverAndCreateAccounts` to `discoverAccounts` for `MultichainAccountWallet` and `*Provider*` types ([#6560](https://github.com/MetaMask/core/pull/6560))
+- **BREAKING:** Remove `MultichainAccountService:getIsAlignementInProgress` action ([#6527](https://github.com/MetaMask/core/pull/6527))
+  - This is now being replaced with the wallet's status logic.
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump `@metamask/keyring-snap-client` from `^7.0.0` to `^8.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))

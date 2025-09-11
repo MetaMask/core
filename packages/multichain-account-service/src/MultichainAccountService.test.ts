@@ -26,7 +26,7 @@ import {
   getRootMessenger,
   makeMockAccountProvider,
   mockAsInternalAccount,
-  setupAccountProvider,
+  setupNamedAccountProvider,
 } from './tests';
 import type {
   AllowedActions,
@@ -72,7 +72,7 @@ function mockAccountProvider<Provider>(
     .mocked(providerClass)
     .mockImplementation(() => mocks as unknown as Provider);
 
-  setupAccountProvider({
+  setupNamedAccountProvider({
     mocks,
     accounts,
     filter: (account) => account.type === type,
@@ -692,58 +692,6 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('getIsAlignmentInProgress', () => {
-    it('returns false initially', () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignWallets and false after completion', async () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const alignmentPromise = service.alignWallets();
-      expect(service.getIsAlignmentInProgress()).toBe(true);
-
-      await alignmentPromise;
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignWallet and false after completion', async () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const alignmentPromise = service.alignWallet(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
-      expect(service.getIsAlignmentInProgress()).toBe(true);
-
-      await alignmentPromise;
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns false after alignment completes even with provider errors', async () => {
-      const { service, mocks } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      // Mock a provider error during alignment
-      mocks.EvmAccountProvider.createAccounts.mockRejectedValueOnce(
-        new Error('Test error'),
-      );
-
-      // Alignment should complete gracefully without throwing
-      await service.alignWallets();
-
-      // Flag should be reset even after provider errors
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-  });
-
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -884,18 +832,6 @@ describe('MultichainAccountService', () => {
           false,
         ),
       ).toBeUndefined();
-    });
-
-    it('gets alignment progress with MultichainAccountService:getIsAlignmentInProgress', () => {
-      const { messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const isInProgress = messenger.call(
-        'MultichainAccountService:getIsAlignmentInProgress',
-      );
-
-      expect(isInProgress).toBe(false);
     });
   });
 

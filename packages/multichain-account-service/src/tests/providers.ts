@@ -28,11 +28,13 @@ export function makeMockAccountProvider(
   };
 }
 
-export function setupAccountProvider({
+export function setupNamedAccountProvider({
+  name = 'Mocked Provider',
   accounts,
   mocks = makeMockAccountProvider(),
   filter = () => true,
 }: {
+  name?: string;
   mocks?: MockAccountProvider;
   accounts: KeyringAccount[];
   filter?: (account: KeyringAccount) => boolean;
@@ -45,6 +47,8 @@ export function setupAccountProvider({
     mocks.accounts.filter(
       (account) => isBip44Account(account) && filter(account),
     );
+
+  mocks.getName.mockImplementation(() => name);
 
   mocks.getAccounts.mockImplementation(getAccounts);
   mocks.getAccount.mockImplementation(

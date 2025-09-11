@@ -120,10 +120,6 @@ export class MultichainAccountService {
       'MultichainAccountService:alignWallet',
       (...args) => this.alignWallet(...args),
     );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getIsAlignmentInProgress',
-      () => this.getIsAlignmentInProgress(),
-    );
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
       this.#handleOnAccountAdded(account),
     );
@@ -395,17 +391,6 @@ export class MultichainAccountService {
     if (enabled) {
       await this.alignWallets();
     }
-  }
-
-  /**
-   * Gets whether wallet alignment is currently in progress.
-   *
-   * @returns True if any wallet alignment is in progress, false otherwise.
-   */
-  getIsAlignmentInProgress(): boolean {
-    return Array.from(this.#wallets.values()).some((wallet) =>
-      wallet.getIsAlignmentInProgress(),
-    );
   }
 
   /**

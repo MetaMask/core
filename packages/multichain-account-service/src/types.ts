@@ -1,6 +1,8 @@
 import type {
   Bip44Account,
   MultichainAccountGroup,
+  MultichainAccountWalletId,
+  MultichainAccountWalletStatus,
 } from '@metamask/account-api';
 import type {
   AccountsControllerAccountAddedEvent,
@@ -72,11 +74,6 @@ export type MultichainAccountServiceAlignWalletsAction = {
   handler: MultichainAccountService['alignWallets'];
 };
 
-export type MultichainAccountServiceGetIsAlignmentInProgressAction = {
-  type: `${typeof serviceName}:getIsAlignmentInProgress`;
-  handler: MultichainAccountService['getIsAlignmentInProgress'];
-};
-
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -90,8 +87,7 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
-  | MultichainAccountServiceAlignWalletsAction
-  | MultichainAccountServiceGetIsAlignmentInProgressAction;
+  | MultichainAccountServiceAlignWalletsAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;
@@ -103,13 +99,19 @@ export type MultichainAccountServiceMultichainAccountGroupUpdatedEvent = {
   payload: [MultichainAccountGroup<Bip44Account<KeyringAccount>>];
 };
 
+export type MultichainAccountServiceWalletStatusChangeEvent = {
+  type: `${typeof serviceName}:walletStatusChange`;
+  payload: [MultichainAccountWalletId, MultichainAccountWalletStatus];
+};
+
 /**
  * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.
  */
 export type MultichainAccountServiceEvents =
   | MultichainAccountServiceMultichainAccountGroupCreatedEvent
-  | MultichainAccountServiceMultichainAccountGroupUpdatedEvent;
+  | MultichainAccountServiceMultichainAccountGroupUpdatedEvent
+  | MultichainAccountServiceWalletStatusChangeEvent;
 
 /**
  * All actions registered by other modules that {@link MultichainAccountService}
