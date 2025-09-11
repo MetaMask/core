@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import {
   type ProviderProxy,
   type BlockTrackerProxy,
@@ -828,6 +828,68 @@ describe('PermissionController:stateChange', () => {
         expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(0);
         expect(domainProxyMap.get('example.com')).toBeUndefined();
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "domains": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "domains": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "domains": Object {},
+        }
+      `);
     });
   });
 });
