@@ -80,3 +80,27 @@ export class GatorPermissionsProviderError extends GatorPermissionsControllerErr
     });
   }
 }
+
+export class OriginNotAllowedError extends GatorPermissionsControllerError {
+  constructor({ origin }: { origin: string }) {
+    const message = `Origin ${origin} not allowed`;
+
+    super({
+      cause: new Error(message),
+      message,
+      code: GatorPermissionsControllerErrorCode.OriginNotAllowedError,
+    });
+  }
+}
+
+export class PermissionDecodingError extends GatorPermissionsControllerError {
+  constructor({ cause }: { cause: Error | string }) {
+    const innerCause = cause instanceof Error ? cause : new Error(cause);
+
+    super({
+      cause: innerCause,
+      message: `Failed to decode permission`,
+      code: GatorPermissionsControllerErrorCode.PermissionDecodingError,
+    });
+  }
+}

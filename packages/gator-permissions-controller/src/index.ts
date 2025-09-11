@@ -7,6 +7,7 @@ export type {
   GatorPermissionsControllerState,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
   GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
   GatorPermissionsControllerEnableGatorPermissionsAction,
   GatorPermissionsControllerDisableGatorPermissionsAction,
@@ -14,6 +15,7 @@ export type {
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';
+export type { DecodedPermission } from './decodePermission';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
