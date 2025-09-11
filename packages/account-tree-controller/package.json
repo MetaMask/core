@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "MetaMask",
@@ -50,6 +50,9 @@
     "@metamask/base-controller": "^8.3.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
+    "@metamask/superstruct": "^3.1.0",
+    "@metamask/utils": "^11.4.2",
+    "fast-deep-equal": "^3.1.3",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
@@ -58,6 +61,8 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^20.1.0",
     "@metamask/keyring-controller": "^23.0.0",
+    "@metamask/multichain-account-service": "^0.7.0",
+    "@metamask/profile-sync-controller": "^25.0.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/snaps-controllers": "^14.0.1",
     "@types/jest": "^27.4.1",
@@ -73,6 +78,8 @@
     "@metamask/account-api": "^0.9.0",
     "@metamask/accounts-controller": "^33.0.0",
     "@metamask/keyring-controller": "^23.0.0",
+    "@metamask/multichain-account-service": "^0.7.0",
+    "@metamask/profile-sync-controller": "^25.0.0",
     "@metamask/providers": "^22.0.0",
     "@metamask/snaps-controllers": "^14.0.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"

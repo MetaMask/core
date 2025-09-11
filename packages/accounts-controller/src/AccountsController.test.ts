@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -269,7 +269,7 @@ function setupAccountsController({
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
-}): {
+} = {}): {
   accountsController: AccountsController;
   messenger: Messenger<
     AccountsControllerActions | AllowedActions,
@@ -3837,6 +3837,77 @@ describe('AccountsController', () => {
           expect(accountName).toBe('Account 4');
         });
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
     });
   });
 });

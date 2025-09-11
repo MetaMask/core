@@ -87,12 +87,13 @@ export type AccountGroupObjectOf<GroupType extends AccountGroupType> = Extract<
 >['object'];
 
 /**
- * Checks if an account group name is unique across all groups.
+ * Checks if an account group name is unique within the same wallet.
  *
  * @param state - The account tree controller state.
  * @param groupId - The account group ID to exclude from the check.
  * @param name - The name to validate for uniqueness.
- * @returns True if the name is unique, false otherwise.
+ * @returns True if the name is unique within the same wallet, false otherwise.
+ * @throws Error if the group ID does not exist.
  */
 export function isAccountGroupNameUnique(
   state: AccountTreeControllerState,
@@ -101,13 +102,21 @@ export function isAccountGroupNameUnique(
 ): boolean {
   const trimmedName = name.trim();
 
+  // Find the wallet that contains the group being validated
   for (const wallet of Object.values(state.accountTree.wallets)) {
-    for (const group of Object.values(wallet.groups)) {
-      if (group.id !== groupId && group.metadata.name.trim() === trimmedName) {
-        return false;
+    if (wallet.groups[groupId]) {
+      // Check for duplicates only within this wallet
+      for (const group of Object.values(wallet.groups)) {
+        if (
+          group.id !== groupId &&
+          group.metadata.name.trim() === trimmedName
+        ) {
+          return false;
+        }
       }
+      return true;
     }
   }
 
-  return true;
+  throw new Error(`Account group with ID "${groupId}" not found in tree`);
 }

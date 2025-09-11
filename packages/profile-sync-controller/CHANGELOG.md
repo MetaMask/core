@@ -7,11 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
+### Added
+
+- **BREAKING:** Add missing `@metamask/address-book-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
+
 ### Changed
 
 - Implement deferred login pattern in `SRPJwtBearerAuth` to prevent race conditions during concurrent authentication attempts ([#6353](https://github.com/MetaMask/core/pull/6353))
   - Add `#deferredLogin` method that ensures only one login operation executes at a time using Promise map caching
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+
+### Removed
+
+- **BREAKING:** Remove `@metamask/accounts-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Remove all account syncing code & logic ([#6344](https://github.com/MetaMask/core/pull/6344))
+  - `UserStorageController` now only holds the account syncing enablement status, but the logic itself has been moved to `@metamask/account-tree-controller`
+- Remove `UserStorageController` optional config callback `getIsMultichainAccountSyncingEnabled`, and `getIsMultichainAccountSyncingEnabled` public method / messenger action ([#6344](https://github.com/MetaMask/core/pull/6344))
 
 ## [24.0.0]
 
@@ -710,7 +724,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@24.0.0...@metamask/profile-sync-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@23.0.0...@metamask/profile-sync-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@22.0.0...@metamask/profile-sync-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@21.0.0...@metamask/profile-sync-controller@22.0.0

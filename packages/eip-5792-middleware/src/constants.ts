@@ -18,3 +18,12 @@ export enum EIP5792ErrorCode {
   UnknownBundleId = 5730,
   RejectedUpgrade = 5750,
 }
+
+// wallet_getCallStatus
+export enum GetCallsStatusCode {
+  PENDING = 100,
+  CONFIRMED = 200,
+  FAILED_OFFCHAIN = 400,
+  REVERTED = 500,
+  REVERTED_PARTIAL = 600,
+}

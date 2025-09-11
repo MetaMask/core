@@ -117,9 +117,13 @@ const getDefaultNetworkEnablementControllerState =
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
+        [SolScope.Testnet]: false,
+        [SolScope.Devnet]: false,
       },
       [KnownCaipNamespace.Bip122]: {
         [BtcScope.Mainnet]: true,
+        [BtcScope.Testnet]: false,
+        [BtcScope.Signet]: false,
       },
     },
   });
@@ -127,8 +131,10 @@ const getDefaultNetworkEnablementControllerState =
 // Metadata for the controller state
 const metadata = {
   enabledNetworkMap: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
 };
 
@@ -351,6 +357,32 @@ export class NetworkEnablementController extends BaseController<
       ) {
         s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
           true;
+      }
+
+      // Enable Bitcoin testnet if it exists in configurations
+      const bitcoinTestnetKeys = deriveKeys(BtcScope.Testnet as CaipChainId);
+      if (
+        s.enabledNetworkMap[bitcoinTestnetKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Testnet
+        ]
+      ) {
+        s.enabledNetworkMap[bitcoinTestnetKeys.namespace][
+          bitcoinTestnetKeys.storageKey
+        ] = false;
+      }
+
+      // Enable Bitcoin signet testnet if it exists in configurations
+      const bitcoinSignetKeys = deriveKeys(BtcScope.Signet as CaipChainId);
+      if (
+        s.enabledNetworkMap[bitcoinSignetKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Signet
+        ]
+      ) {
+        s.enabledNetworkMap[bitcoinSignetKeys.namespace][
+          bitcoinSignetKeys.storageKey
+        ] = false;
       }
     });
   }

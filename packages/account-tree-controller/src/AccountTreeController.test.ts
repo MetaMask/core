@@ -8,7 +8,7 @@ import {
   toMultichainAccountWalletId,
   type AccountGroupId,
 } from '@metamask/account-api';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   EthAccountType,
   EthMethod,
@@ -23,7 +23,13 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
-import { AccountTreeController } from './AccountTreeController';
+import {
+  AccountTreeController,
+  getDefaultAccountTreeControllerState,
+} from './AccountTreeController';
+import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
+import { BackupAndSyncService } from './backup-and-sync/service';
+import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -217,12 +223,20 @@ function getAccountTreeControllerMessenger(
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:selectedAccountChange',
+      'UserStorageController:stateChange',
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:setSelectedAccount',
+      'UserStorageController:getState',
+      'UserStorageController:performGetStorage',
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      'UserStorageController:performSetStorage',
+      'UserStorageController:performBatchSetStorage',
+      'AuthenticationController:getSessionProfile',
+      'MultichainAccountService:createMultichainAccountGroup',
       'KeyringController:getState',
       'SnapController:get',
     ],
@@ -237,6 +251,11 @@ function getAccountTreeControllerMessenger(
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - Accounts to use for AccountsController:listMultichainAccounts handler.
  * @param options.keyrings - Keyring objects to use for KeyringController:getState handler.
+ * @param options.config - Configuration options for the controller.
+ * @param options.config.backupAndSync - Configuration options for backup and sync.
+ * @param options.config.backupAndSync.onBackupAndSyncEvent - Event handler for backup and sync events.
+ * @param options.config.backupAndSync.isAccountSyncingEnabled - Flag to enable account syncing.
+ * @param options.config.backupAndSync.isBackupAndSyncEnabled - Flag to enable backup and sync.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
@@ -244,6 +263,13 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
   keyrings = [],
+  config = {
+    backupAndSync: {
+      isAccountSyncingEnabled: true,
+      isBackupAndSyncEnabled: true,
+      onBackupAndSyncEvent: jest.fn(),
+    },
+  },
 }: {
   state?: Partial<AccountTreeControllerState>;
   messenger?: Messenger<
@@ -252,6 +278,15 @@ function setup({
   >;
   accounts?: InternalAccount[];
   keyrings?: KeyringObject[];
+  config?: {
+    backupAndSync?: {
+      isAccountSyncingEnabled?: boolean;
+      isBackupAndSyncEnabled?: boolean;
+      onBackupAndSyncEvent?: (
+        event: BackupAndSyncAnalyticsEventPayload,
+      ) => void;
+    };
+  };
 } = {}): {
   controller: AccountTreeController;
   messenger: Messenger<
@@ -272,6 +307,16 @@ function setup({
       getSelectedAccount: jest.Mock;
       getAccount: jest.Mock;
     };
+    UserStorageController: {
+      performGetStorage: jest.Mock;
+      performGetStorageAllFeatureEntries: jest.Mock;
+      performSetStorage: jest.Mock;
+      performBatchSetStorage: jest.Mock;
+      syncInternalAccountsWithUserStorage: jest.Mock;
+    };
+    AuthenticationController: {
+      getSessionProfile: jest.Mock;
+    };
   };
 } {
   const mocks = {
@@ -284,6 +329,22 @@ function setup({
       listMultichainAccounts: jest.fn(),
       getAccount: jest.fn(),
       getSelectedAccount: jest.fn(),
+    },
+    UserStorageController: {
+      getState: jest.fn(),
+      performGetStorage: jest.fn(),
+      performGetStorageAllFeatureEntries: jest.fn(),
+      performSetStorage: jest.fn(),
+      performBatchSetStorage: jest.fn(),
+      syncInternalAccountsWithUserStorage: jest.fn(),
+    },
+    AuthenticationController: {
+      getSessionProfile: jest.fn().mockResolvedValue({
+        profileId: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
+        metaMetricsId: '561ec651-a844-4b36-a451-04d6eac35740',
+        identifierId:
+          'da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb',
+      }),
     },
   };
 
@@ -318,6 +379,39 @@ function setup({
       'AccountsController:setSelectedAccount',
       jest.fn(),
     );
+
+    // Mock AuthenticationController:getSessionProfile
+    messenger.registerActionHandler(
+      'AuthenticationController:getSessionProfile',
+      mocks.AuthenticationController.getSessionProfile,
+    );
+
+    // Mock UserStorageController methods
+    mocks.UserStorageController.getState.mockImplementation(() => ({
+      isBackupAndSyncEnabled: config?.backupAndSync?.isBackupAndSyncEnabled,
+      isAccountSyncingEnabled: config?.backupAndSync?.isAccountSyncingEnabled,
+    }));
+    messenger.registerActionHandler(
+      'UserStorageController:getState',
+      mocks.UserStorageController.getState,
+    );
+
+    messenger.registerActionHandler(
+      'UserStorageController:performGetStorage',
+      mocks.UserStorageController.performGetStorage,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      mocks.UserStorageController.performGetStorageAllFeatureEntries,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:performSetStorage',
+      mocks.UserStorageController.performSetStorage,
+    );
+    messenger.registerActionHandler(
+      'UserStorageController:performBatchSetStorage',
+      mocks.UserStorageController.performBatchSetStorage,
+    );
   }
 
   if (keyrings) {
@@ -334,6 +428,7 @@ function setup({
   const controller = new AccountTreeController({
     messenger: getAccountTreeControllerMessenger(messenger),
     state,
+    ...(config && { config }),
   });
 
   const consoleWarnSpy = jest
@@ -528,6 +623,8 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
+        isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -863,6 +960,8 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -931,6 +1030,8 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
@@ -951,6 +1052,8 @@ describe('AccountTreeController', () => {
       expect(controller.state).toStrictEqual({
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountTree: {
           // No wallets should be present.
           wallets: {},
@@ -1036,6 +1139,8 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
     });
 
@@ -1149,6 +1254,8 @@ describe('AccountTreeController', () => {
         },
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
     });
   });
@@ -1973,7 +2080,7 @@ describe('AccountTreeController', () => {
       }).not.toThrow();
     });
 
-    it('prevents setting duplicate names across different groups', () => {
+    it('allows duplicate names across different wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -2001,10 +2108,10 @@ describe('AccountTreeController', () => {
       // Set name for first group - should succeed
       controller.setAccountGroupName(groupId1, duplicateName);
 
-      // Try to set the same name for second group - should throw
+      // Set the same name for second group in different wallet - should succeed
       expect(() => {
         controller.setAccountGroupName(groupId2, duplicateName);
-      }).toThrow('Account group name already exists');
+      }).not.toThrow();
     });
 
     it('ensures unique names when generating default names', () => {
@@ -2026,7 +2133,7 @@ describe('AccountTreeController', () => {
       expect(names.every((name) => name.length > 0)).toBe(true);
     });
 
-    it('prevents duplicate names when comparing trimmed names', () => {
+    it('allows duplicate names with different spacing across different wallets', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
@@ -2052,11 +2159,89 @@ describe('AccountTreeController', () => {
       const nameWithSpaces = '  My Group Name  ';
       controller.setAccountGroupName(groupId1, nameWithSpaces);
 
-      // Try to set the same name for second group with different spacing - should throw
+      // Set the same name for second group with different spacing in different wallet - should succeed
       const nameWithDifferentSpacing = ' My Group Name ';
       expect(() => {
         controller.setAccountGroupName(groupId2, nameWithDifferentSpacing);
+      }).not.toThrow();
+    });
+
+    it('prevents duplicate names within the same wallet', () => {
+      // Create two accounts with the same entropy source to ensure they're in the same wallet
+      const mockAccount1: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-id-1',
+        address: '0x123',
+        options: {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: 'mock-keyring-id-1',
+            groupIndex: 0,
+            derivationPath: '',
+          },
+        },
+      };
+
+      const mockAccount2: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_2,
+        id: 'mock-id-2',
+        address: '0x456',
+        options: {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: 'mock-keyring-id-1', // Same entropy ID as account1
+            groupIndex: 1, // Different group index to create separate groups
+            derivationPath: '',
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockAccount1, mockAccount2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const wallets = controller.getAccountWalletObjects();
+      expect(wallets).toHaveLength(1);
+
+      const wallet = wallets[0];
+      const groups = Object.values(wallet.groups);
+
+      expect(groups.length).toBeGreaterThanOrEqual(2);
+
+      const groupId1 = groups[0].id;
+      const groupId2 = groups[1].id;
+      const duplicateName = 'Duplicate Group Name';
+
+      // Set name for first group - should succeed
+      controller.setAccountGroupName(groupId1, duplicateName);
+
+      // Try to set the same name for second group in same wallet - should throw
+      expect(() => {
+        controller.setAccountGroupName(groupId2, duplicateName);
       }).toThrow('Account group name already exists');
+    });
+
+    it('throws error for non-existent group ID', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Test the isAccountGroupNameUnique function directly with a non-existent group ID
+      expect(() => {
+        isAccountGroupNameUnique(
+          controller.state,
+          'non-existent-group-id' as AccountGroupId,
+          'Some Name',
+        );
+      }).toThrow(
+        'Account group with ID "non-existent-group-id" not found in tree',
+      );
     });
   });
 
@@ -2772,6 +2957,280 @@ describe('AccountTreeController', () => {
       controller.setSelectedAccountGroup(groupId);
 
       expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('syncWithUserStorage', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('calls performFullSync on the syncing service', async () => {
+      // Spy on the BackupAndSyncService constructor and methods
+      const performFullSyncSpy = jest.spyOn(
+        BackupAndSyncService.prototype,
+        'performFullSync',
+      );
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await controller.syncWithUserStorage();
+
+      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles sync errors gracefully', async () => {
+      const syncError = new Error('Sync failed');
+      const performFullSyncSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performFullSync')
+        .mockRejectedValue(syncError);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await expect(controller.syncWithUserStorage()).rejects.toThrow(
+        syncError.message,
+      );
+      expect(performFullSyncSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('syncWithUserStorageAtLeastOnce', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('calls performFullSyncAtLeastOnce on the syncing service', async () => {
+      // Spy on the BackupAndSyncService constructor and methods
+      const performFullSyncAtLeastOnceSpy = jest.spyOn(
+        BackupAndSyncService.prototype,
+        'performFullSyncAtLeastOnce',
+      );
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await controller.syncWithUserStorageAtLeastOnce();
+
+      expect(performFullSyncAtLeastOnceSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles sync errors gracefully', async () => {
+      const syncError = new Error('Sync failed');
+      const performFullSyncAtLeastOnceSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performFullSyncAtLeastOnce')
+        .mockRejectedValue(syncError);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1], // Use hardware account to avoid entropy calls
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await expect(controller.syncWithUserStorageAtLeastOnce()).rejects.toThrow(
+        syncError.message,
+      );
+      expect(performFullSyncAtLeastOnceSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('UserStorageController:stateChange subscription', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('calls BackupAndSyncService.handleUserStorageStateChange', () => {
+      const handleUserStorageStateChangeSpy = jest.spyOn(
+        BackupAndSyncService.prototype,
+        'handleUserStorageStateChange',
+      );
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.publish(
+        'UserStorageController:stateChange',
+        {
+          isBackupAndSyncEnabled: false,
+          isAccountSyncingEnabled: true,
+          isBackupAndSyncUpdateLoading: false,
+          isContactSyncingEnabled: false,
+          isContactSyncingInProgress: false,
+        },
+        [],
+      );
+
+      expect(handleUserStorageStateChangeSpy).toHaveBeenCalled();
+      expect(handleUserStorageStateChangeSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('clearPersistedMetadataAndSyncingState', () => {
+    it('clears all persisted metadata and syncing state', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Set some metadata first
+      controller.setAccountGroupName(
+        'entropy:mock-keyring-id-1/0',
+        'Test Group',
+      );
+      controller.setAccountWalletName(
+        'entropy:mock-keyring-id-1',
+        'Test Wallet',
+      );
+
+      // Verify metadata exists
+      expect(controller.state.accountGroupsMetadata).not.toStrictEqual({});
+      expect(controller.state.accountWalletsMetadata).not.toStrictEqual({});
+
+      // Clear the metadata
+      controller.clearState();
+
+      // Verify everything is cleared
+      expect(controller.state).toStrictEqual(
+        getDefaultAccountTreeControllerState(),
+      );
+    });
+  });
+
+  describe('backup and sync config initialization', () => {
+    it('initializes backup and sync config with provided analytics callback', async () => {
+      const mockAnalyticsCallback = jest.fn();
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        config: {
+          backupAndSync: {
+            isAccountSyncingEnabled: true,
+            isBackupAndSyncEnabled: true,
+            onBackupAndSyncEvent: mockAnalyticsCallback,
+          },
+        },
+      });
+
+      controller.init();
+
+      // Verify config is initialized - controller should be defined and working
+      expect(controller).toBeDefined();
+      expect(controller.state).toBeDefined();
+
+      // Test that the analytics callback can be accessed through the backup and sync service
+      // We'll trigger a sync to test the callback (this should cover the callback invocation)
+      await controller.syncWithUserStorage();
+      expect(mockAnalyticsCallback).toHaveBeenCalled();
+    });
+
+    it('initializes backup and sync config with default values when no config provided', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Verify controller works without config (tests default config initialization)
+      expect(controller).toBeDefined();
+      expect(controller.state).toBeDefined();
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "accountGroupsMetadata": Object {},
+          "accountTree": Object {
+            "selectedAccountGroup": "",
+            "wallets": Object {},
+          },
+          "accountWalletsMetadata": Object {},
+          "hasAccountTreeSyncingSyncedAtLeastOnce": false,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "accountGroupsMetadata": Object {},
+          "accountWalletsMetadata": Object {},
+          "hasAccountTreeSyncingSyncedAtLeastOnce": false,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "accountGroupsMetadata": Object {},
+          "accountTree": Object {
+            "selectedAccountGroup": "",
+            "wallets": Object {},
+          },
+          "accountWalletsMetadata": Object {},
+          "hasAccountTreeSyncingSyncedAtLeastOnce": false,
+          "isAccountTreeSyncingInProgress": false,
+        }
+      `);
     });
   });
 });

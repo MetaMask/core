@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 
 import AuthenticationController from './AuthenticationController';
 import type {
@@ -535,6 +535,80 @@ describe('AuthenticationController', () => {
 
       expect(controller.isSignedIn()).toBe(true);
     });
+  });
+});
+
+describe('metadata', () => {
+  it('includes expected state in debug snapshots', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'anonymous',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": false,
+      }
+    `);
+  });
+
+  it('includes expected state in state logs', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": false,
+      }
+    `);
+  });
+
+  it('persists expected state', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+    });
+
+    expect(
+      deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": false,
+      }
+    `);
+  });
+
+  it('exposes expected state to UI', () => {
+    const controller = new AuthenticationController({
+      messenger: createMockAuthenticationMessenger().messenger,
+      metametrics: createMockAuthMetaMetrics(),
+    });
+
+    expect(
+      deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'usedInUi',
+      ),
+    ).toMatchInlineSnapshot(`
+      Object {
+        "isSignedIn": false,
+      }
+    `);
   });
 });
 
