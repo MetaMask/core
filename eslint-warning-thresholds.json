@@ -334,8 +334,7 @@
   },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 2,
-    "prettier/prettier": 1
+    "jsdoc/check-tag-names": 2
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
