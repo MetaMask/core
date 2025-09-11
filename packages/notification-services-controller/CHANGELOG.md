@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `extensionMinimumVersionNumber` and `mobileMinimumVersionNumber` properties to feature annoucements ([#6554](https://github.com/MetaMask/core/pull/6554))
+
 ## [18.0.0]
 
 ### Added
@@ -15,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `createPerpOrderNotification` function to invoke perp notification service ([#6464](https://github.com/MetaMask/core/pull/6464))
 - Add `perps/schema.ts` file from perp notification OpenAPI types ([#6464](https://github.com/MetaMask/core/pull/6464))
 - Add exported `OrderInput` type ([#6464](https://github.com/MetaMask/core/pull/6464))
-- Add `extensionMinimumVersionNumber` and `mobileMinimumVersionNumber` properties to feature annoucements ([#6554](https://github.com/MetaMask/core/pull/6554))
 
 ### Changed
 
