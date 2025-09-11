@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { RpcEndpointType } from '@metamask/network-controller';
 import {
@@ -1712,6 +1712,136 @@ describe('NetworkEnablementController', () => {
       expect(
         controller.isNetworkEnabled('bip122:00000008819873e925422c1ff0f99f7c'),
       ).toBe(false); // Signet (disabled by default)
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "enabledNetworkMap": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": true,
+              "bip122:000000000933ea01ad0ee984209779ba": false,
+              "bip122:00000008819873e925422c1ff0f99f7c": false,
+            },
+            "eip155": Object {
+              "0x1": true,
+              "0x2105": true,
+              "0xe708": true,
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "enabledNetworkMap": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": true,
+              "bip122:000000000933ea01ad0ee984209779ba": false,
+              "bip122:00000008819873e925422c1ff0f99f7c": false,
+            },
+            "eip155": Object {
+              "0x1": true,
+              "0x2105": true,
+              "0xe708": true,
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "enabledNetworkMap": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": true,
+              "bip122:000000000933ea01ad0ee984209779ba": false,
+              "bip122:00000008819873e925422c1ff0f99f7c": false,
+            },
+            "eip155": Object {
+              "0x1": true,
+              "0x2105": true,
+              "0xe708": true,
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "enabledNetworkMap": Object {
+            "bip122": Object {
+              "bip122:000000000019d6689c085ae165831e93": true,
+              "bip122:000000000933ea01ad0ee984209779ba": false,
+              "bip122:00000008819873e925422c1ff0f99f7c": false,
+            },
+            "eip155": Object {
+              "0x1": true,
+              "0x2105": true,
+              "0xe708": true,
+            },
+            "solana": Object {
+              "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": false,
+              "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": true,
+              "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": false,
+            },
+          },
+        }
+      `);
     });
   });
 });

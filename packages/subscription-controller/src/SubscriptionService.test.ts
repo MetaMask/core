@@ -6,12 +6,14 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import { SubscriptionServiceError } from './errors';
-import { SubscriptionService } from './SubscriptionService';
+import { SUBSCRIPTION_URL, SubscriptionService } from './SubscriptionService';
 import type {
   StartSubscriptionRequest,
   StartCryptoSubscriptionRequest,
   Subscription,
   PricingResponse,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCryptoRequest,
 } from './types';
 import {
   PaymentType,
@@ -57,6 +59,11 @@ const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
 
 const MOCK_START_SUBSCRIPTION_RESPONSE = {
   checkoutSessionUrl: 'https://checkout.example.com/session/123',
+};
+
+const MOCK_HEADERS = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
 };
 
 /**
@@ -289,6 +296,69 @@ describe('SubscriptionService', () => {
       const result = await service.getPricing();
 
       expect(result).toStrictEqual(mockPricingResponse);
+    });
+  });
+
+  describe('updatePaymentMethodCard', () => {
+    it('should update card payment method successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        const request: UpdatePaymentMethodCardRequest = {
+          subscriptionId: 'sub_123456789',
+          recurringInterval: RecurringInterval.month,
+        };
+
+        handleFetchMock.mockResolvedValue({});
+
+        await service.updatePaymentMethodCard(request);
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(
+            config.env,
+            'subscriptions/sub_123456789/payment-method/card',
+          ),
+          {
+            method: 'PATCH',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              ...request,
+              subscriptionId: undefined,
+            }),
+          },
+        );
+      });
+    });
+
+    it('should update crypto payment method successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        const request: UpdatePaymentMethodCryptoRequest = {
+          subscriptionId: 'sub_123456789',
+          chainId: '0x1',
+          payerAddress: '0x0000000000000000000000000000000000000001',
+          tokenSymbol: 'USDC',
+          rawTransaction: '0xdeadbeef',
+          recurringInterval: RecurringInterval.month,
+          billingCycles: 3,
+        };
+
+        handleFetchMock.mockResolvedValue({});
+
+        await service.updatePaymentMethodCrypto(request);
+
+        expect(handleFetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(
+            config.env,
+            'subscriptions/sub_123456789/payment-method/crypto',
+          ),
+          {
+            method: 'PATCH',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              ...request,
+              subscriptionId: undefined,
+            }),
+          },
+        );
+      });
     });
   });
 });

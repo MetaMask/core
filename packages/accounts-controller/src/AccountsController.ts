@@ -222,8 +222,10 @@ export type AccountsControllerMessenger = RestrictedMessenger<
 
 const accountsControllerMetadata = {
   internalAccounts: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
