@@ -50,7 +50,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 
-  abstract discoverAndCreateAccounts(options: {
+  abstract discoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;

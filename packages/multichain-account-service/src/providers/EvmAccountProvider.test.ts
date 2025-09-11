@@ -281,7 +281,7 @@ describe('EvmAccountProvider', () => {
     };
 
     expect(
-      await provider.discoverAndCreateAccounts({
+      await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -298,7 +298,7 @@ describe('EvmAccountProvider', () => {
     mocks.mockProviderRequest.mockReturnValue('0x0');
 
     expect(
-      await provider.discoverAndCreateAccounts({
+      await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
@@ -319,7 +319,7 @@ describe('EvmAccountProvider', () => {
     });
 
     await expect(
-      provider.discoverAndCreateAccounts({
+      provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
@@ -334,7 +334,7 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(
-      await provider.discoverAndCreateAccounts({
+      await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
