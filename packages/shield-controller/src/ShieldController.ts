@@ -3,10 +3,9 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import {
-  SignatureRequestType,
-  type SignatureRequest,
-  type SignatureStateChange,
+import type {
+  SignatureRequest,
+  SignatureStateChange,
 } from '@metamask/signature-controller';
 import type {
   TransactionControllerStateChangeEvent,
@@ -223,7 +222,7 @@ export class ShieldController extends BaseController<
       // `personal_sign`.
       if (
         !previousSignatureRequest &&
-        signatureRequest.type === SignatureRequestType.PersonalSign
+        signatureRequest.type === 'personal_sign'
       ) {
         this.checkSignatureCoverage(signatureRequest).catch(
           // istanbul ignore next
