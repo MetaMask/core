@@ -21,7 +21,12 @@ import type { Patch } from 'immer';
 export const controllerName = 'SelectedNetworkController';
 
 const stateMetadata = {
-  domains: { persist: true, anonymous: false },
+  domains: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({ domains: {} });
