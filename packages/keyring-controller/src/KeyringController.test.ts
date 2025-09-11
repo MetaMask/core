@@ -16,7 +16,7 @@ import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import { KeyringControllerError } from './constants';
 import type {
@@ -117,8 +117,6 @@ describe('KeyringController', () => {
     });
 
     it('allows overwriting the built-in HD keyring builder', async () => {
-      // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
-      // @ts-expect-error keyring types are mismatched
       const mockHdKeyringBuilder = buildKeyringBuilderWithSpy(HdKeyring);
       await withController(
         { keyringBuilders: [mockHdKeyringBuilder] },
@@ -340,9 +338,10 @@ describe('KeyringController', () => {
 
     it('should throw instead of returning undefined', async () => {
       await withController(async ({ controller }) => {
-        jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
+        // @ts-expect-error: intentionally mocking with invalid return for test
+        jest.spyOn(controller, 'getKeyringsByType').mockResolvedValueOnce([
           {
-            getAccounts: () => [undefined, undefined],
+            getAccounts: async () => [undefined, undefined],
           },
         ]);
 
@@ -353,23 +352,23 @@ describe('KeyringController', () => {
     });
 
     it('should throw error if the account is duplicated', async () => {
-      const mockAddress = '0x123';
+      const mockAddress: Hex = '0x123';
       const addAccountsSpy = jest.spyOn(HdKeyring.prototype, 'addAccounts');
       const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
       const serializeSpy = jest.spyOn(HdKeyring.prototype, 'serialize');
 
       addAccountsSpy.mockResolvedValue([mockAddress]);
-      getAccountsSpy.mockReturnValue([mockAddress]);
+      getAccountsSpy.mockResolvedValue([mockAddress]);
       await withController(async ({ controller }) => {
-        getAccountsSpy.mockReturnValue([mockAddress, mockAddress]);
+        getAccountsSpy.mockResolvedValue([mockAddress, mockAddress]);
         serializeSpy
           .mockResolvedValueOnce({
-            mnemonic: '',
+            mnemonic: [],
             numberOfAccounts: 1,
             hdPath: "m/44'/60'/0'/0",
           })
           .mockResolvedValueOnce({
-            mnemonic: '',
+            mnemonic: [],
             numberOfAccounts: 2,
             hdPath: "m/44'/60'/0'/0",
           });
@@ -718,7 +717,9 @@ describe('KeyringController', () => {
           });
 
           it('should throw error if the first account is not found on the keyring', async () => {
-            jest.spyOn(HdKeyring.prototype, 'getAccounts').mockReturnValue([]);
+            jest
+              .spyOn(HdKeyring.prototype, 'getAccounts')
+              .mockResolvedValue([]);
             await withController(
               { cacheEncryptionKey, skipVaultCreation: true },
               async ({ controller }) => {
@@ -2747,7 +2748,6 @@ describe('KeyringController', () => {
         });
 
         it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
           stubKeyringClassWithAccount(HdKeyring, '0x123');
           await withController(
             {
@@ -2907,7 +2907,6 @@ describe('KeyringController', () => {
 
         it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
           stubKeyringClassWithAccount(MockKeyring, '0x123');
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
           stubKeyringClassWithAccount(HdKeyring, '0x123');
           await withController(
             {
@@ -2967,7 +2966,6 @@ describe('KeyringController', () => {
 
         it('should unlock the wallet discarding existing duplicate accounts', async () => {
           stubKeyringClassWithAccount(MockKeyring, '0x123');
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
           stubKeyringClassWithAccount(HdKeyring, '0x123');
           await withController(
             {
