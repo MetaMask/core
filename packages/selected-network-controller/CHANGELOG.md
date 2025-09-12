@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** The `SelectedNetworkController` constructor no longer expects a `useRequestPreference` boolean nor an `onPreferencesStateChange` listener. Removal of these parameters means that `domains` state will always be added for sites that are granted permissions. ([#6430](https://github.com/MetaMask/core/pull/6430))
+- The `SelectedNetworkController` constructor no longer expects a `useRequestPreference` boolean nor an `onPreferencesStateChange` listener. Removal of these parameters means that `domains` state will always be added for sites that are granted permissions. ([#6430](https://github.com/MetaMask/core/pull/6430))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.3.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
 
