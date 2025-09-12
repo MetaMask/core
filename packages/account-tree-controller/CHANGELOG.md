@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Possible circular dependency issue in `logger.ts` ([#6581](https://github.com/MetaMask/core/pull/6581))
+- Fix logger initialization ([#6581](https://github.com/MetaMask/core/pull/6581))
+  - There was a circular dependency between the controller and the logger itself, preventing the logger to be initialized properly.
 
 ## [0.15.0]
 
