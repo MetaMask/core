@@ -117,6 +117,7 @@ function formatCurrencyWithMinThreshold(
 ) {
   const minThreshold = 0.01;
   const number = Number(value);
+  const absoluteValue = Math.abs(number);
 
   if (!Number.isFinite(number)) {
     return '';
@@ -126,7 +127,7 @@ function formatCurrencyWithMinThreshold(
     return formatCurrency(config, 0, currency);
   }
 
-  if (number < minThreshold) {
+  if (absoluteValue < minThreshold) {
     const formattedMin = formatCurrency(config, minThreshold, currency);
     return `<${formattedMin}`;
   }
@@ -181,6 +182,7 @@ function formatCurrencyTokenPrice(
 ) {
   const minThreshold = 0.00000001;
   const number = Number(value);
+  const absoluteValue = Math.abs(number);
 
   if (!Number.isFinite(number)) {
     return '';
@@ -190,15 +192,15 @@ function formatCurrencyTokenPrice(
     return formatCurrency(config, 0, currency);
   }
 
-  if (number < minThreshold) {
+  if (absoluteValue < minThreshold) {
     return `<${formatCurrency(config, minThreshold, currency, oneSignificantDigit)}`;
   }
 
-  if (number < 1) {
+  if (absoluteValue < 1) {
     return formatCurrency(config, number, currency, threeSignificantDigits);
   }
 
-  if (number < 1_000_000) {
+  if (absoluteValue < 1_000_000) {
     return formatCurrency(config, number, currency);
   }
 
@@ -221,6 +223,7 @@ function formatTokenQuantity(
 ) {
   const minThreshold = 0.00001;
   const number = Number(value);
+  const absoluteValue = Math.abs(number);
 
   if (!Number.isFinite(number)) {
     return '';
@@ -230,15 +233,15 @@ function formatTokenQuantity(
     return formatToken(config, 0, symbol);
   }
 
-  if (number < minThreshold) {
+  if (absoluteValue < minThreshold) {
     return `<${formatToken(config, minThreshold, symbol, oneSignificantDigit)}`;
   }
 
-  if (number < 1) {
+  if (absoluteValue < 1) {
     return formatToken(config, number, symbol, threeSignificantDigits);
   }
 
-  if (number < 1_000_000) {
+  if (absoluteValue < 1_000_000) {
     return formatToken(config, number, symbol);
   }
 

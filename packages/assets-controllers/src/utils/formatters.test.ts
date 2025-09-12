@@ -46,11 +46,15 @@ describe('formatCurrencyWithMinThreshold', () => {
     // Values below minimum threshold
     { value: 0.000001, expected: '<$0.01' },
     { value: 0.001, expected: '<$0.01' },
+    { value: -0.001, expected: '<$0.01' },
 
     // Values at and above minimum threshold
     { value: 0.01, expected: '$0.01' },
     { value: 0.1, expected: '$0.10' },
     { value: 1, expected: '$1.00' },
+    { value: -0.01, expected: '-$0.01' },
+    { value: -1, expected: '-$1.00' },
+    { value: -100, expected: '-$100.00' },
     { value: 1_000, expected: '$1,000.00' },
     { value: 1_000_000, expected: '$1,000,000.00' },
   ];
@@ -76,6 +80,7 @@ describe('formatCurrencyTokenPrice', () => {
 
     // Values below minimum threshold
     { value: 0.000000001, expected: '<$0.00000001' },
+    { value: -0.000000001, expected: '<$0.00000001' },
 
     // Values above minimum threshold but less than 1
     { value: 0.0000123, expected: '$0.0000123' },
@@ -84,9 +89,12 @@ describe('formatCurrencyTokenPrice', () => {
 
     // Values at and above 1 but less than 1,000,000
     { value: 1, expected: '$1.00' },
+    { value: -1, expected: '-$1.00' },
+    { value: -500, expected: '-$500.00' },
 
     // Values 1,000,000 and above
     { value: 1_000_000, expected: '$1.00M' },
+    { value: -2_000_000, expected: '-$2.00M' },
   ];
 
   it('formats values correctly', () => {
@@ -132,6 +140,7 @@ describe('formatTokenQuantity', () => {
 
     // Values below minimum threshold
     { value: 0.000000001, symbol: 'ETH', expected: '<0.00001 ETH' },
+    { value: -0.000000001, symbol: 'ETH', expected: '<0.00001 ETH' },
     { value: 0.0000005, symbol: 'USDC', expected: '<0.00001 USDC' },
 
     // Values above minimum threshold but less than 1
@@ -141,12 +150,15 @@ describe('formatTokenQuantity', () => {
 
     // Values 1 and above but less than 1,000,000
     { value: 1, symbol: 'ETH', expected: '1 ETH' },
+    { value: -1, symbol: 'ETH', expected: '-1 ETH' },
+    { value: -25.5, symbol: 'ETH', expected: '-25.5 ETH' },
     { value: 1.2345678, symbol: 'BTC', expected: '1.235 BTC' },
     { value: 123.45678, symbol: 'USDC', expected: '123.457 USDC' },
     { value: 999_999, symbol: 'DAI', expected: '999,999 DAI' },
 
     // Values 1,000,000 and above
     { value: 1_000_000, symbol: 'ETH', expected: '1.00M ETH' },
+    { value: -1_500_000, symbol: 'ETH', expected: '-1.50M ETH' },
     { value: 1_234_567, symbol: 'BTC', expected: '1.23M BTC' },
     { value: 1_000_000_000, symbol: 'USDC', expected: '1.00B USDC' },
   ];
