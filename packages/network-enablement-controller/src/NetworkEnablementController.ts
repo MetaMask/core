@@ -226,14 +226,22 @@ export class NetworkEnablementController extends BaseController<
   /**
    * Enables all popular networks and Solana mainnet.
    *
-   * This method enables all networks defined in POPULAR_NETWORKS (EVM networks)
-   * and Solana mainnet. Unlike the enableNetwork method which has exclusive behavior,
-   * this method enables multiple networks across namespaces simultaneously.
+   * This method first disables all networks across all namespaces, then enables
+   * all networks defined in POPULAR_NETWORKS (EVM networks), Solana mainnet, and
+   * Bitcoin mainnet. This provides exclusive behavior - only popular networks will
+   * be enabled after calling this method.
    *
    * Popular networks that don't exist in NetworkController or MultichainNetworkController configurations will be skipped silently.
    */
   enableAllPopularNetworks(): void {
     this.update((s) => {
+      // First disable all networks across all namespaces
+      Object.keys(s.enabledNetworkMap).forEach((ns) => {
+        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        });
+      });
+
       // Get current network configurations to check if networks exist
       const networkControllerState = this.messagingSystem.call(
         'NetworkController:getState',

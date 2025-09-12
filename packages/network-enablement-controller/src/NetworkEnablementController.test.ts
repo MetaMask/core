@@ -750,6 +750,10 @@ describe('NetworkEnablementController', () => {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
                 },
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
               },
               selectedMultichainNetworkChainId:
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -840,6 +844,10 @@ describe('NetworkEnablementController', () => {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
                 },
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
+                },
               },
               selectedMultichainNetworkChainId:
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -881,7 +889,7 @@ describe('NetworkEnablementController', () => {
       });
     });
 
-    it('does not disable any existing networks', async () => {
+    it('disables existing networks and enables only popular networks (exclusive behavior)', async () => {
       const { controller, messenger } = setupInitializedController();
 
       // Mock the network configurations to include popular networks
@@ -910,6 +918,10 @@ describe('NetworkEnablementController', () => {
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
                   chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
                   name: 'Solana Mainnet',
+                },
+                [BtcScope.Mainnet]: {
+                  chainId: BtcScope.Mainnet,
+                  name: 'Bitcoin Mainnet',
                 },
               },
               selectedMultichainNetworkChainId:
@@ -946,18 +958,19 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0xe708')).toBe(false);
       expect(controller.isNetworkEnabled('0x2105')).toBe(false);
 
-      // Enable all popular networks - this should not disable the non-popular network
+      // Enable all popular networks - this should disable the non-popular network (exclusive behavior)
       controller.enableAllPopularNetworks();
 
-      // All popular networks should now be enabled (no exclusive behavior)
+      // All popular networks should now be enabled (with exclusive behavior)
       expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum
       expect(controller.isNetworkEnabled('0xe708')).toBe(true); // Linea
       expect(controller.isNetworkEnabled('0x2105')).toBe(true); // Base
       expect(
         controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
       ).toBe(true); // Solana
-      // The non-popular network should remain enabled
-      expect(controller.isNetworkEnabled('0x2')).toBe(true); // Test network
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true); // Bitcoin
+      // The non-popular network should be disabled due to exclusive behavior
+      expect(controller.isNetworkEnabled('0x2')).toBe(false); // Test network
     });
 
     it('enables Bitcoin mainnet when configured in MultichainNetworkController', () => {
