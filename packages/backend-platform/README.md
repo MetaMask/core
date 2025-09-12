@@ -1,30 +1,38 @@
 # `@metamask/backend-platform`
 
-Backend platform services for MetaMask, providing real-time account activity monitoring and WebSocket connection management.
+Backend platform services for MetaMask, serving as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (Extension, Mobile). Provides real-time data delivery including account activity monitoring, price updates, and WebSocket connection management.
 
-## Overview
+## Table of Contents
+- [`@metamask/backend-platform`](#metamaskbackend-platform)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+    - [Basic Usage](#basic-usage)
+    - [Integration with Controllers](#integration-with-controllers)
+  - [Overview](#overview)
+    - [Key Components](#key-components)
+    - [Core Value Propositions](#core-value-propositions)
+  - [Features](#features)
+    - [WebSocketService](#websocketservice)
+    - [AccountActivityService (Example Implementation)](#accountactivityservice-example-implementation)
+  - [Architecture \& Design](#architecture--design)
+    - [Layered Architecture](#layered-architecture)
+    - [Dependencies Structure](#dependencies-structure)
+    - [Data Flow](#data-flow)
+      - [Sequence Diagram: Real-time Account Activity Flow](#sequence-diagram-real-time-account-activity-flow)
+      - [Key Flow Characteristics](#key-flow-characteristics)
+  - [API Reference](#api-reference)
+    - [WebSocketService](#websocketservice-1)
+      - [Constructor Options](#constructor-options)
+      - [Methods](#methods)
+    - [AccountActivityService](#accountactivityservice)
+      - [Constructor Options](#constructor-options-1)
+      - [Methods](#methods-1)
+      - [Events Published](#events-published)
+  - [Contributing](#contributing)
+    - [Development](#development)
+    - [Testing](#testing)
 
-This package provides two main services:
-
-- **`WebSocketService`**: Robust WebSocket client with automatic reconnection, request timeout handling, and subscription management
-- **`AccountActivityService`**: High-level account activity monitoring service that uses WebSocket subscriptions to provide real-time transaction and balance updates
-
-## Features
-
-### WebSocketService
-- ✅ **Automatic Reconnection**: Smart reconnection with exponential backoff
-- ✅ **Request Timeout Detection**: Automatically reconnects on stale connections  
-- ✅ **Subscription Management**: Centralized tracking of channel subscriptions
-- ✅ **Direct Callback Routing**: High-performance message routing without EventEmitter overhead
-- ✅ **Connection Health Monitoring**: Proactive connection state management
-
-### AccountActivityService  
-- ✅ **Automatic Account Management**: Subscribes/unsubscribes accounts based on selection changes
-- ✅ **Real-time Transaction Updates**: Receives transaction status changes instantly
-- ✅ **Balance Monitoring**: Tracks balance changes with comprehensive transfer details
-- ✅ **CAIP-10 Address Support**: Works with multi-chain address formats
-- ✅ **Fallback Polling Integration**: Coordinates with polling controllers for offline scenarios
-- ✅ **Performance Optimization**: Direct callback routing and minimal subscription tracking
 
 ## Installation
 
@@ -95,179 +103,289 @@ messenger.subscribe('BackendWebSocketService:connectionStateChanged', (info) => 
     );
   }
 });
+
+// Listen for account changes and manage subscriptions
+messenger.subscribe('AccountsController:selectedAccountChange', async (selectedAccount) => {
+  if (selectedAccount) {
+    await accountActivityService.subscribeAccounts({
+      address: selectedAccount.address
+    });
+  }
+});
 ```
 
-## Documentation
+## Overview
 
-### Service Documentation
-- 📖 [**WebSocketService**](./docs/websocket-service.md) - WebSocket connection management
-- 📖 [**AccountActivityService**](./docs/account-activity-service.md) - Account activity monitoring  
-- 📖 [**Integration Guide**](./docs/integration-guide.md) - Complete integration walkthrough
+The MetaMask Backend Platform serves as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (MetaMask Extension and Mobile). It provides efficient, scalable WebSocket-based real-time communication for various data services including account activity monitoring, price updates, and other time-sensitive blockchain data. The platform bridges backend data services with frontend applications through a unified real-time interface.
 
-### Key Topics
-- [Configuration Options](./docs/websocket-service.md#configuration-options)
-- [Account Management](./docs/account-activity-service.md#account-management)
-- [Event System](./docs/account-activity-service.md#event-system)
-- [Error Handling](./docs/integration-guide.md#error-handling-and-recovery)
-- [Performance Optimization](./docs/integration-guide.md#performance-monitoring)
-- [Testing](./docs/integration-guide.md#testing-integration)
+### Key Components
+
+- **WebSocketService**: Low-level WebSocket connection management and message routing
+- **AccountActivityService**: High-level account activity monitoring (one example use case)
+
+### Core Value Propositions
+
+1. **Data Layer Bridge**: Connects backend services (REST APIs, WebSocket services) with frontend applications
+2. **Real-time Data**: Instant delivery of time-sensitive information (transactions, prices, etc.)
+3. **Reliability**: Automatic reconnection with intelligent backoff
+4. **Extensibility**: Flexible architecture supporting diverse data types and use cases
+5. **Multi-chain**: CAIP-10 address format support for blockchain interoperability
+6. **Integration**: Seamless coordination with existing MetaMask controllers
+
+## Features
+
+### WebSocketService
+- ✅ **Universal Message Routing**: Route any real-time data to appropriate handlers
+- ✅ **Automatic Reconnection**: Smart reconnection with exponential backoff
+- ✅ **Request Timeout Detection**: Automatically reconnects on stale connections  
+- ✅ **Subscription Management**: Centralized tracking of channel subscriptions
+- ✅ **Direct Callback Routing**: Clean message routing without EventEmitter overhead
+- ✅ **Connection Health Monitoring**: Proactive connection state management
+- ✅ **Extensible Architecture**: Support for multiple service types (account activity, prices, etc.)
+
+### AccountActivityService (Example Implementation)
+- ✅ **Automatic Account Management**: Subscribes/unsubscribes accounts based on selection changes
+- ✅ **Real-time Transaction Updates**: Receives transaction status changes instantly
+- ✅ **Balance Monitoring**: Tracks balance changes with comprehensive transfer details
+- ✅ **CAIP-10 Address Support**: Works with multi-chain address formats
+- ✅ **Fallback Polling Integration**: Coordinates with polling controllers for offline scenarios
+- ✅ **Direct Callback Routing**: Efficient message routing and minimal subscription tracking
+
+## Architecture & Design
+
+### Layered Architecture
+
+```
+┌─────────────────────────────────────────┐
+│                FRONTEND                 │
+├─────────────────────────────────────────┤
+│        Frontend Applications            │
+│   (MetaMask Extension, Mobile, etc.)    │
+├─────────────────────────────────────────┤
+│          Integration Layer              │
+│  (Controllers, State Management, UI)    │
+├─────────────────────────────────────────┤
+│           DATA LAYER (BRIDGE)           │
+├─────────────────────────────────────────┤
+│        Backend Platform Services       │
+│  ┌─────────────────────────────────────┐ │
+│  │    High-Level Services             │ │  ← Domain-specific services
+│  │  - AccountActivityService          │ │
+│  │  - PriceUpdateService (future)     │ │
+│  │  - Custom services...              │ │
+│  └─────────────────────────────────────┘ │
+│  ┌─────────────────────────────────────┐ │
+│  │       WebSocketService             │ │  ← Transport layer
+│  │  - Connection management           │ │
+│  │  - Automatic reconnection          │ │
+│  │  - Message routing to services     │ │
+│  │  - Subscription management         │ │
+│  └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│                BACKEND                  │
+├─────────────────────────────────────────┤
+│          Backend Services               │
+│  (REST APIs, WebSocket Services, etc.)  │
+└─────────────────────────────────────────┘
+```
+
+### Dependencies Structure
+
+```mermaid
+graph TD
+    %% Core Services
+    TBC["TokenBalancesController<br/>(External Integration)"]
+    AA["AccountActivityService"]
+    WS["WebSocketService"]
+    
+    %% Service dependencies
+    WS --> AA
+    AA -.-> TBC
+    
+    %% Styling
+    classDef core fill:#f3e5f5
+    classDef integration fill:#fff3e0
+    
+    class WS,AA core
+    class TBC integration
+```
+
+### Data Flow
+
+#### Sequence Diagram: Real-time Account Activity Flow
+
+```mermaid
+sequenceDiagram
+    participant TBC as TokenBalancesController
+    participant AA as AccountActivityService
+    participant WS as WebSocketService
+    participant HTTP as HTTP Services<br/>(APIs & RPC)
+    participant Backend as WebSocket Endpoint<br/>(Backend)
+
+    Note over TBC,Backend: Initial Setup
+    TBC->>HTTP: Initial balance fetch via HTTP<br/>(first request for current state)
+ 
+    WS->>Backend: WebSocket connection request
+    Backend->>WS: Connection established
+    WS->>AA: WebSocket connection status notification<br/>(BackendWebSocketService:connectionStateChanged)<br/>{state: 'CONNECTED'}
+    
+    par StatusChanged Event
+        AA->>TBC: Chain availability notification<br/>(AccountActivityService:statusChanged)<br/>{chainIds: ['0x1', '0x89', ...], status: 'up'}
+        TBC->>TBC: Increase polling interval from 20s to 10min<br/>(.updateChainPollingConfigs({0x89: 600000}))
+    and Account Subscription
+        AA->>AA: call('AccountsController:getSelectedAccount')
+        AA->>WS: subscribe({channels, callback})
+      WS->>Backend: {event: 'subscribe', channels: ['account-activity.v1.eip155:0:0x123...']}
+      Backend->>WS: {event: 'subscribe-response', subscriptionId: 'sub-456'}
+      WS->>AA: Subscription sucessful
+    end
+
+    Note over TBC,Backend: User Account Change
+    
+    par StatusChanged Event
+      TBC->>HTTP: Fetch balances for new account<br/>(fill transition gap)
+    and Account Subscription
+      AA->>AA: User switched to different account<br/>(AccountsController:selectedAccountChange)
+      AA->>WS: subscribeAccounts (new account) 
+      WS->>Backend: {event: 'subscribe', channels: ['account-activity.v1.eip155:0:0x456...']}
+      Backend->>WS: {event: 'subscribe-response', subscriptionId: 'sub-789'}
+      AA->>WS: unsubscribeAccounts (previous account)
+      WS->>Backend: {event: 'unsubscribe', subscriptionId: 'sub-456'}
+      Backend->>WS: {event: 'unsubscribe-response'}
+    end    
+        
+
+    Note over TBC,Backend: Real-time Data Flow
+    
+    Backend->>WS: {event: 'notification', channel: 'account-activity.v1.eip155:0:0x123...',<br/>data: {address, tx, updates}}
+    WS->>AA: Direct callback routing
+    AA->>AA: Validate & process AccountActivityMessage
+    
+    par Balance Update
+        AA->>TBC: Real-time balance change notification<br/>(AccountActivityService:balanceUpdated)<br/>{address, chain, updates}
+        TBC->>TBC: Update balance state directly<br/>(or fallback poll if error)
+    and Transaction and Activity Update (Not yet implemented)
+        AA->>AA: Process transaction data<br/>(AccountActivityService:transactionUpdated)<br/>{tx: Transaction}
+        Note right of AA: Future: Forward to TransactionController<br/>for transaction state management<br/>(pending → confirmed → finalized)
+    end
+
+    Note over TBC,Backend: System Notifications
+    
+    Backend->>WS: {event: 'system-notification', data: {chainIds: ['eip155:137'], status: 'down'}}
+    WS->>AA: System notification received
+    AA->>AA: Process chain status change
+    AA->>TBC: Chain status notification<br/>(AccountActivityService:statusChanged)<br/>{chainIds: ['eip155:137'], status: 'down'}
+    TBC->>TBC: Decrease polling interval from 10min to 20s<br/>(.updateChainPollingConfigs({0x89: 20000}))
+    TBC->>HTTP: Fetch balances immediately
+    
+    Backend->>WS: {event: 'system-notification', data: {chainIds: ['eip155:137'], status: 'up'}}
+    WS->>AA: System notification received  
+    AA->>AA: Process chain status change
+    AA->>TBC: Chain status notification<br/>(AccountActivityService:statusChanged)<br/>{chainIds: ['eip155:137'], status: 'up'}
+    TBC->>TBC: Increase polling interval from 20s to 10min<br/>(.updateChainPollingConfigs({0x89: 600000}))
+
+    Note over TBC,Backend: Connection Health Management
+    
+    Backend-->>WS: Connection lost
+    WS->>TBC: WebSocket connection status notification<br/>(BackendWebSocketService:connectionStateChanged)<br/>{state: 'DISCONNECTED'}
+    TBC->>TBC: Decrease polling interval from 10min to 20s(.updateChainPollingConfigs({0x89: 20000}))
+    TBC->>HTTP: Fetch balances immediately
+    WS->>WS: Automatic reconnection<br/>with exponential backoff
+    WS->>Backend: Reconnection successful - Restart initial setup
+```
+
+#### Key Flow Characteristics
+
+1. **Initial Setup**: WebSocketService establishes connection, then AccountActivityService simultaneously notifies all chains are up AND subscribes to selected account, TokenBalancesController increases polling interval to 10 min, then makes initial HTTP request for current balance state
+2. **User Account Changes**: When users switch accounts, AccountActivityService unsubscribes from old account, TokenBalancesController makes HTTP calls to fill data gaps, then AccountActivityService subscribes to new account
+3. **Real-time Updates**: Backend pushes data through: Backend → WebSocketService → AccountActivityService → TokenBalancesController (+ future TransactionController integration)  
+4. **System Notifications**: Backend sends chain status updates (up/down) through WebSocket, AccountActivityService processes and forwards to TokenBalancesController which adjusts polling intervals and fetches balances immediately on chain down (chain down: 10min→20s + immediate fetch, chain up: 20s→10min)
+5. **Parallel Processing**: Transaction and balance updates processed simultaneously - AccountActivityService publishes both transactionUpdated (future) and balanceUpdated events in parallel
+6. **Dynamic Polling**: TokenBalancesController adjusts HTTP polling intervals based on WebSocket connection health (10 min when connected, 20s when disconnected)
+7. **Direct Balance Processing**: Real-time balance updates bypass HTTP polling and update TokenBalancesController state directly
+8. **Connection Resilience**: Automatic reconnection with resubscription to selected account
+9. **Ultra-Simple Error Handling**: Any error anywhere → force reconnection (no nested try-catch)
 
 ## API Reference
 
 ### WebSocketService
 
+The core WebSocket client providing connection management and message routing.
+
+#### Constructor Options
+
 ```typescript
-class WebSocketService {
-  constructor(options: WebSocketServiceOptions);
-  
-  // Connection management
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-  
-  // Subscription management
-  subscribe(options: SubscriptionOptions): Promise<SubscriptionInfo>;
-  isChannelSubscribed(channel: string): boolean;
-  getSubscriptionByChannel(channel: string): SubscriptionInfo | undefined;
+interface WebSocketServiceOptions {
+  messenger: RestrictedControllerMessenger;
+  url: string;
+  timeout?: number;
+  reconnectDelay?: number; 
+  maxReconnectDelay?: number;
+  requestTimeout?: number;
 }
 ```
+
+#### Methods
+
+- `connect(): Promise<void>` - Establish WebSocket connection
+- `disconnect(): Promise<void>` - Close WebSocket connection
+- `subscribe(options: SubscriptionOptions): Promise<SubscriptionResult>` - Subscribe to channels
+- `unsubscribe(subscriptionId: string): Promise<void>` - Unsubscribe from channels
+- `getConnectionState(): WebSocketState` - Get current connection state
 
 ### AccountActivityService
 
+High-level service for monitoring account activity using WebSocket data.
+
+#### Constructor Options
+
 ```typescript
-class AccountActivityService {
-  constructor(options: AccountActivityServiceOptions);
-  
-  // Account subscription
-  subscribeAccounts(subscription: AccountSubscription): Promise<void>;
-  unsubscribeAccounts(subscription: AccountSubscription): Promise<void>;
-  getCurrentSubscribedAccount(): string | null;
-  
-  // Lifecycle
-  destroy(): void;
+interface AccountActivityServiceOptions {
+  messenger: RestrictedControllerMessenger;
+  webSocketService: WebSocketService;
 }
 ```
 
-## Supported Address Formats
+#### Methods
 
-The services support CAIP-10 address formats for multi-chain compatibility:
+- `subscribeAccounts(subscription: AccountSubscription): Promise<void>` - Subscribe to account activity
+- `unsubscribeAccounts(addresses: string[]): Promise<void>` - Unsubscribe from account activity
 
-```typescript
-// Ethereum (all chains)
-'eip155:0:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6'
+#### Events Published
 
-// Ethereum mainnet specific  
-'eip155:1:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6'
-
-// Solana (all chains)
-'solana:0:9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'
-
-// Raw address (fallback)
-'0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6'
-```
-
-## Environment Configuration
-
-### Development
-```bash
-METAMASK_WEBSOCKET_URL=wss://gateway.dev-api.cx.metamask.io/v1
-```
-
-### Production
-Uses default production URL: `wss://api.metamask.io/ws`
-
-## Integration Examples
-
-### MetaMask Extension
-See [Integration Guide](./docs/integration-guide.md#metamask-extension-integration) for modular controller initialization patterns.
-
-### MetaMask Mobile  
-See [Integration Guide](./docs/integration-guide.md#mobile-integration) for React Native specific configuration.
-
-## TypeScript Support
-
-This package is written in TypeScript and exports all necessary type definitions:
-
-```typescript
-import type {
-  WebSocketService,
-  WebSocketServiceOptions,
-  AccountActivityService, 
-  AccountActivityServiceOptions,
-  AccountActivityMessage,
-  Transaction,
-  BalanceUpdate,
-  WebSocketState,
-} from '@metamask/backend-platform';
-```
-
-## Error Handling
-
-The services provide comprehensive error handling and recovery:
-
-```typescript
-// Connection error handling
-messenger.subscribe('BackendWebSocketService:connectionStateChanged', (info) => {
-  if (info.state === 'ERROR') {
-    console.error('WebSocket error:', info.error);
-  }
-});
-
-// Subscription error handling  
-messenger.subscribe('AccountActivityService:subscriptionError', ({ addresses, error }) => {
-  console.error('Subscription failed:', addresses, error);
-});
-```
-
-## Performance
-
-- **Direct Callback Routing**: Zero-allocation message processing
-- **Single Connection**: Multiple subscriptions share one WebSocket connection
-- **Minimal State Tracking**: Optimized memory usage  
-- **Smart Reconnection**: Exponential backoff prevents connection storms
-- **Request Timeout Detection**: Proactive stale connection handling
-
-## Testing
-
-The package includes comprehensive test coverage:
-
-```bash
-# Run tests
-yarn test
-
-# Run with coverage
-yarn test:coverage
-```
-
-Mock implementations are available for testing:
-
-```typescript
-const mockWebSocketService = {
-  connect: jest.fn(),
-  subscribe: jest.fn(), 
-  disconnect: jest.fn(),
-};
-```
+- `AccountActivityService:balanceUpdated` - Real-time balance changes
+- `AccountActivityService:transactionUpdated` - Transaction status updates
+- `AccountActivityService:statusChanged` - Chain/service status changes
 
 ## Contributing
 
-This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+Please follow MetaMask's [contribution guidelines](../../CONTRIBUTING.md) when submitting changes.
 
-### Development Setup
+### Development
 
 ```bash
 # Install dependencies
 yarn install
 
-# Build the package  
-yarn build
-
-# Run tests
+# Run tests  
 yarn test
 
-# Run linting
+# Build
+yarn build
+
+# Lint
 yarn lint
 ```
 
-## License
+### Testing
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+Run the test suite to ensure your changes don't break existing functionality:
+
+```bash
+yarn test
+```
+
+The test suite includes comprehensive coverage for WebSocket connection management, message routing, subscription handling, and service interactions.
