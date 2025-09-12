@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin, Tron) ([#6454](https://github.com/MetaMask/core/pull/6454))
+
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^74.0.0` to `^75.0.0` ([#6570](https://github.com/MetaMask/core/pull/6570))
-- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Update Snap methods to use new unified interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Replace `getFeeForTransaction` with `computeFee` method
+  - Update fee format to return native units (e.g., SOL) instead of smallest units (e.g., Lamports)
+  - Add support for Tron chain alongside existing Bitcoin and Solana support
 
 ## [42.0.0]
 

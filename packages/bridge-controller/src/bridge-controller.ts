@@ -9,6 +9,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
+import { BigNumber as BN } from 'bignumber.js';
 
 import {
   type BridgeClientId,
@@ -26,6 +27,7 @@ import {
   type L1GasFees,
   type GenericQuoteRequest,
   type SolanaFees,
+  type NonEvmFees,
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
@@ -38,6 +40,7 @@ import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
+  isNonEvmChainId,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -71,7 +74,7 @@ import type {
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 import {
-  getFeeForTransactionRequest,
+  computeFeeRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
 import { FeatureId } from './utils/validators';
@@ -292,7 +295,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const providerConfig = this.#getSelectedNetworkClient()?.configuration;
 
       let insufficientBal: boolean | undefined;
-      if (isSolanaChainId(updatedQuoteRequest.srcChainId)) {
+      if (isNonEvmChainId(updatedQuoteRequest.srcChainId)) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
       } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
@@ -354,9 +357,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trackResponseValidationFailures(validationFailures);
 
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(baseQuotes);
     const quotesWithFees =
-      quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     // Sort perps quotes by increasing estimated processing time (fastest first)
     if (featureId === FeatureId.PERPS) {
       return quotesWithFees.sort((a, b) => {
@@ -727,51 +730,87 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
   };
 
-  readonly #appendSolanaFees = async (
+  /**
+   * Appends transaction fees for non-EVM chains to quotes
+   *
+   * @param quotes - Array of quote responses to append fees to
+   * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
+   */
+  readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
-  ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
-    // Return early if some of the quotes are not for solana
+  ): Promise<(QuoteResponse & SolanaFees & NonEvmFees)[] | undefined> => {
     if (
-      quotes.some(({ quote: { srcChainId } }) => !isSolanaChainId(srcChainId))
+      quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
       return undefined;
     }
 
-    const solanaFeePromises = Promise.allSettled(
+    const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
-        const { trade } = quoteResponse;
+        const { trade, quote } = quoteResponse;
         const selectedAccount = this.#getMultichainSelectedAccount();
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
-          const { value: fees } = (await this.messagingSystem.call(
+          const scope = formatChainIdToCaip(quote.srcChainId);
+
+          const response = (await this.messagingSystem.call(
             'SnapController:handleRequest',
-            getFeeForTransactionRequest(
+            computeFeeRequest(
               selectedAccount.metadata.snap?.id,
               trade,
+              selectedAccount.id,
+              scope,
             ),
-          )) as { value: string };
+          )) as {
+            type: 'base' | 'priority';
+            asset: {
+              unit: string;
+              type: string;
+              amount: string;
+              fungible: true;
+            };
+          }[];
+
+          const baseFee = response?.find((fee) => fee.type === 'base');
+          let feeInNative = '0';
+
+          if (baseFee?.asset?.amount) {
+            if (isSolanaChainId(quote.srcChainId)) {
+              // Convert SOL to Lamports (1 SOL = 10^9 Lamports)
+              const solAmount = new BN(baseFee.asset.amount);
+              const lamports = solAmount.multipliedBy(1e9);
+              feeInNative = lamports.toFixed(0);
+            } else {
+              // For other chains (BTC, Tron), use the fee as-is
+              feeInNative = baseFee.asset.amount;
+            }
+          }
 
           return {
             ...quoteResponse,
-            solanaFeesInLamports: fees,
+            solanaFeesInLamports: feeInNative, // Keep for backward compatibility
+            nonEvmFeesInNative: feeInNative,
           };
         }
         return quoteResponse;
       }),
     );
 
-    const quotesWithSolanaFees = (await solanaFeePromises).reduce<
-      (QuoteResponse & SolanaFees)[]
+    const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
+      (QuoteResponse & SolanaFees & NonEvmFees)[]
     >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
         acc.push(result.value);
       } else if (result.status === 'rejected') {
-        console.error('Error calculating solana fees for quote', result.reason);
+        console.error(
+          'Error calculating non-EVM fees for quote',
+          result.reason,
+        );
       }
       return acc;
     }, []);
 
-    return quotesWithSolanaFees;
+    return quotesWithNonEvmFees;
   };
 
   #getMultichainSelectedAccount() {

@@ -5,6 +5,9 @@ import type { Hex } from '@metamask/utils';
 import { CHAIN_IDS } from './chains';
 import type { BridgeControllerState } from '../types';
 
+// Tron mainnet CAIP-2 identifier
+export const TRON_MAINNET_SCOPE = 'tron:0x2b6653dc' as const;
+
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,
   CHAIN_IDS.BSC,

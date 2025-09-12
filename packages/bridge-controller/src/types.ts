@@ -78,7 +78,11 @@ export type L1GasFees = {
 };
 
 export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+  solanaFeesInLamports?: string; // @deprecated Use nonEvmFeesInNative instead
+};
+
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in smallest units (lamports for Solana, satoshis for BTC, sun for Tron)
 };
 
 /**
@@ -278,6 +282,7 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  TRON = 728126428, // Tron mainnet chain ID
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;

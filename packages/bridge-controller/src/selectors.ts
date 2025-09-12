@@ -26,7 +26,7 @@ import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
   isNativeAddress,
-  isSolanaChainId,
+  isNonEvmChainId,
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
@@ -41,7 +41,7 @@ import {
   calcIncludedTxFees,
   calcRelayerFee,
   calcSentAmount,
-  calcSolanaTotalNetworkFee,
+  calcNonEvmTotalNetworkFee,
   calcSwapRate,
   calcToAmount,
   calcTotalEstimatedNetworkFee,
@@ -139,8 +139,8 @@ const getExchangeRateByChainIdAndAddress = (
   if (bridgeControllerRate?.exchangeRate) {
     return bridgeControllerRate;
   }
-  // If the chain is a Solana chain, use the conversion rate from the multichain assets controller
-  if (isSolanaChainId(chainId)) {
+  // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
+  if (isNonEvmChainId(chainId)) {
     const multichainAssetExchangeRate = conversionRates?.[assetId];
     if (multichainAssetExchangeRate) {
       return {
@@ -286,10 +286,12 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (isSolanaChainId(quote.quote.srcChainId)) {
-        totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
+      if (isNonEvmChainId(quote.quote.srcChainId)) {
+        // Use the new generic function for all non-EVM chains
+        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,
           nativeExchangeRate,
+          quote.quote.srcChainId,
         );
         gasFee = {
           effective: totalEstimatedNetworkFee,
