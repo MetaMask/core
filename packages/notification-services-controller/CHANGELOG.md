@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `platformVersion` property to `NotificationServicesController` `FeatureAnnouncementEnv` type ([#6568](https://github.com/MetaMask/core/pull/6568))
+- Filtering logic to filter feature annonucements by version number ([#6568](https://github.com/MetaMask/core/pull/6568))
+- Add package `semver@^7.7.2` to handle semver version comparisons for announcement notification filtering ([#6568](https://github.com/MetaMask/core/pull/6568))
+
 ## [18.1.0]
 
 ### Added
