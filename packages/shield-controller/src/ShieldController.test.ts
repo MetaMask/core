@@ -1,10 +1,14 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { SignatureControllerState } from '@metamask/signature-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
 import { ShieldController } from './ShieldController';
 import { createMockBackend } from '../tests/mocks/backend';
 import { createMockMessenger } from '../tests/mocks/messenger';
-import { generateMockTxMeta } from '../tests/utils';
+import {
+  generateMockSignatureRequest,
+  generateMockTxMeta,
+} from '../tests/utils';
 
 /**
  * Sets up a ShieldController for testing.
@@ -142,6 +146,76 @@ describe('ShieldController', () => {
       expect(await coverageResultReceived).toBeUndefined();
       expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
     });
+  });
+
+  describe('checkSignatureCoverage', () => {
+    it('should check signature coverage', async () => {
+      const { baseMessenger, backend } = setup();
+      const signatureRequest = generateMockSignatureRequest();
+      const coverageResultReceived = new Promise<void>((resolve) => {
+        baseMessenger.subscribe(
+          'ShieldController:coverageResultReceived',
+          (_coverageResult) => resolve(),
+        );
+      });
+      baseMessenger.publish(
+        'SignatureController:stateChange',
+        {
+          signatureRequests: { [signatureRequest.id]: signatureRequest },
+        } as SignatureControllerState,
+        undefined as never,
+      );
+      expect(await coverageResultReceived).toBeUndefined();
+      expect(backend.checkSignatureCoverage).toHaveBeenCalledWith(
+        signatureRequest,
+      );
+    });
+  });
+
+  it('should check coverage for multiple signature request', async () => {
+    const { baseMessenger, backend } = setup();
+    const signatureRequest1 = generateMockSignatureRequest();
+    const coverageResultReceived1 = new Promise<void>((resolve) => {
+      baseMessenger.subscribe(
+        'ShieldController:coverageResultReceived',
+        (_coverageResult) => resolve(),
+      );
+    });
+    baseMessenger.publish(
+      'SignatureController:stateChange',
+      {
+        signatureRequests: {
+          [signatureRequest1.id]: signatureRequest1,
+        },
+      } as SignatureControllerState,
+      undefined as never,
+    );
+    expect(await coverageResultReceived1).toBeUndefined();
+    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith(
+      signatureRequest1,
+    );
+
+    const signatureRequest2 = generateMockSignatureRequest();
+    const coverageResultReceived2 = new Promise<void>((resolve) => {
+      baseMessenger.subscribe(
+        'ShieldController:coverageResultReceived',
+        (_coverageResult) => resolve(),
+      );
+    });
+    baseMessenger.publish(
+      'SignatureController:stateChange',
+      {
+        signatureRequests: {
+          [signatureRequest2.id]: signatureRequest2,
+        },
+      } as SignatureControllerState,
+      undefined as never,
+    );
+
+    expect(await coverageResultReceived2).toBeUndefined();
+    expect(backend.checkSignatureCoverage).toHaveBeenCalledWith(
+      signatureRequest2,
+    );
   });
 
   describe('metadata', () => {

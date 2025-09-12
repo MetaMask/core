@@ -3,6 +3,11 @@ import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
+import {
+  SignatureRequestType,
+  type SignatureRequest,
+  type SignatureStateChange,
+} from '@metamask/signature-controller';
 import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
@@ -82,7 +87,9 @@ type AllowedActions = never;
 /**
  * The external events available to the ShieldController.
  */
-type AllowedEvents = TransactionControllerStateChangeEvent;
+type AllowedEvents =
+  | SignatureStateChange
+  | TransactionControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link ShieldController}.
@@ -138,6 +145,11 @@ export class ShieldController extends BaseController<
     previousTransactions: TransactionMeta[] | undefined,
   ) => void;
 
+  readonly #signatureControllerStateChangeHandler: (
+    signatureRequests: Record<string, SignatureRequest>,
+    previousSignatureRequests: Record<string, SignatureRequest> | undefined,
+  ) => void;
+
   constructor(options: ShieldControllerOptions) {
     const {
       messenger,
@@ -161,6 +173,8 @@ export class ShieldController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.#transactionControllerStateChangeHandler =
       this.#handleTransactionControllerStateChange.bind(this);
+    this.#signatureControllerStateChangeHandler =
+      this.#handleSignatureControllerStateChange.bind(this);
   }
 
   start() {
@@ -169,6 +183,12 @@ export class ShieldController extends BaseController<
       this.#transactionControllerStateChangeHandler,
       (state) => state.transactions,
     );
+
+    this.messagingSystem.subscribe(
+      'SignatureController:stateChange',
+      this.#signatureControllerStateChangeHandler,
+      (state) => state.signatureRequests,
+    );
   }
 
   stop() {
@@ -176,6 +196,41 @@ export class ShieldController extends BaseController<
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
+
+    this.messagingSystem.unsubscribe(
+      'SignatureController:stateChange',
+      this.#signatureControllerStateChangeHandler,
+    );
+  }
+
+  #handleSignatureControllerStateChange(
+    signatureRequests: Record<string, SignatureRequest>,
+    previousSignatureRequests: Record<string, SignatureRequest> | undefined,
+  ) {
+    const signatureRequestsArray = Object.values(signatureRequests);
+    const previousSignatureRequestsArray = Object.values(
+      previousSignatureRequests ?? {},
+    );
+    const previousSignatureRequestsById = new Map<string, SignatureRequest>(
+      previousSignatureRequestsArray.map((request) => [request.id, request]),
+    );
+    for (const signatureRequest of signatureRequestsArray) {
+      const previousSignatureRequest = previousSignatureRequestsById.get(
+        signatureRequest.id,
+      );
+
+      // Check coverage if the signature request is new and has type
+      // `personal_sign`.
+      if (
+        !previousSignatureRequest &&
+        signatureRequest.type === SignatureRequestType.PersonalSign
+      ) {
+        this.checkSignatureCoverage(signatureRequest).catch(
+          // istanbul ignore next
+          (error) => log('Error checking coverage:', error),
+        );
+      }
+    }
   }
 
   #handleTransactionControllerStateChange(
@@ -212,7 +267,7 @@ export class ShieldController extends BaseController<
    */
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
-    const coverageResult = await this.#fetchCoverageResult(txMeta);
+    const coverageResult = await this.#backend.checkCoverage(txMeta);
 
     // Publish coverage result
     this.messagingSystem.publish(
@@ -226,8 +281,29 @@ export class ShieldController extends BaseController<
     return coverageResult;
   }
 
-  async #fetchCoverageResult(txMeta: TransactionMeta): Promise<CoverageResult> {
-    return this.#backend.checkCoverage(txMeta);
+  /**
+   * Checks the coverage of a signature request.
+   *
+   * @param signatureRequest - The signature request to check coverage for.
+   * @returns The coverage result.
+   */
+  async checkSignatureCoverage(
+    signatureRequest: SignatureRequest,
+  ): Promise<CoverageResult> {
+    // Check coverage
+    const coverageResult =
+      await this.#backend.checkSignatureCoverage(signatureRequest);
+
+    // Publish coverage result
+    this.messagingSystem.publish(
+      `${controllerName}:coverageResultReceived`,
+      coverageResult,
+    );
+
+    // Update state
+    this.#addCoverageResult(signatureRequest.id, coverageResult);
+
+    return coverageResult;
   }
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {

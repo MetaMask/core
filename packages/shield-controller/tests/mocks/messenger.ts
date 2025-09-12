@@ -24,7 +24,10 @@ export function createMockMessenger() {
   const messenger = baseMessenger.getRestricted({
     name: controllerName,
     allowedActions: [],
-    allowedEvents: ['TransactionController:stateChange'],
+    allowedEvents: [
+      'SignatureController:stateChange',
+      'TransactionController:stateChange',
+    ],
   });
 
   return {

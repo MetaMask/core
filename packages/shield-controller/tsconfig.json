@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../signature-controller" },
     { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]
