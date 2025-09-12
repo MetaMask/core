@@ -457,7 +457,7 @@ describe('MultichainAccountWallet', () => {
         mockWalletStatusChange,
       );
 
-      await wallet.alignGroup(0);
+      await wallet.alignAccountsOf(0);
 
       // EVM provider already has group 0; should not be called.
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
