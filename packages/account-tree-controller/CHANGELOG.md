@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.7.0` to `^0.8.0` ([#6578](https://github.com/MetaMask/core/pull/6578))
 - **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.9.0` to `^0.12.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump dependency `@metamask/multichain-account-service` `^0.7.0` to `^0.8.0` ([#6571](https://github.com/MetaMask/core/pull/6571))
 
