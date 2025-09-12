@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
@@ -339,6 +339,75 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "cacheTimestamp": 0,
+          "remoteFeatureFlags": Object {},
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "cacheTimestamp": 0,
+          "remoteFeatureFlags": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "cacheTimestamp": 0,
+          "remoteFeatureFlags": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "remoteFeatureFlags": Object {},
+        }
+      `);
     });
   });
 });
