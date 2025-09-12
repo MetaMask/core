@@ -13,6 +13,7 @@ import {
   KeyringTypes,
   type KeyringMetadata,
 } from '@metamask/keyring-controller';
+import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -327,11 +328,7 @@ export class MultichainAccountService {
       if (!keyring.mnemonic) {
         return false;
       }
-      return (
-        convertEnglishWordlistIndicesToCodepoints(keyring.mnemonic).toString(
-          'utf8',
-        ) === mnemonic
-      );
+      return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
     });
 
     if (alreadyHasImportedSrp) {
@@ -347,6 +344,7 @@ export class MultichainAccountService {
     const wallet = new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: result.id,
+      messenger: this.#messenger,
     });
 
     this.#wallets.set(wallet.id, wallet);
