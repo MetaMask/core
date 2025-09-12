@@ -6,6 +6,7 @@ import {
   createStateSnapshot,
   restoreStateFromSnapshot,
   type StateSnapshot,
+  getLocalGroupForEntropyWallet,
 } from './controller';
 import type { AccountTreeController } from '../../AccountTreeController';
 import type {
@@ -164,6 +165,78 @@ describe('BackupAndSyncUtils - Controller', () => {
       );
 
       expect(result).toStrictEqual([]);
+    });
+  });
+
+  describe('getLocalGroupForEntropyWallet', () => {
+    it('returns undefined when wallet does not exist', () => {
+      const result = getLocalGroupForEntropyWallet(
+        mockContext,
+        'entropy:non-existent',
+        0,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when wallet is not entropy type', () => {
+      const keyringWallet = {
+        id: 'keyring:wallet-2',
+        type: AccountWalletType.Keyring,
+        name: 'Keyring Wallet',
+        groups: {},
+      } as unknown as AccountWalletKeyringObject;
+
+      mockController.state.accountTree.wallets = {
+        'keyring:wallet-2': keyringWallet,
+      };
+
+      const result = getLocalGroupForEntropyWallet(mockContext, 'wallet-2', 0);
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns group when it exists', () => {
+      const group = {
+        id: 'entropy:wallet-1/0',
+        type: AccountGroupType.MultichainAccount,
+        name: 'Group 0',
+        metadata: { entropy: { groupIndex: 0 } },
+      };
+
+      const entropyWallet = {
+        id: 'entropy:wallet-1',
+        type: AccountWalletType.Entropy,
+        name: 'Entropy Wallet',
+        groups: {
+          'entropy:wallet-1/0': group,
+        },
+      } as unknown as AccountWalletEntropyObject;
+
+      mockController.state.accountTree.wallets = {
+        'entropy:wallet-1': entropyWallet,
+      };
+
+      const result = getLocalGroupForEntropyWallet(mockContext, 'wallet-1', 0);
+
+      expect(result).toBe(group);
+    });
+
+    it('returns undefined when group does not exist', () => {
+      const entropyWallet = {
+        id: 'entropy:wallet-1',
+        type: AccountWalletType.Entropy,
+        name: 'Entropy Wallet',
+        groups: {},
+      } as unknown as AccountWalletEntropyObject;
+
+      mockController.state.accountTree.wallets = {
+        'entropy:wallet-1': entropyWallet,
+      };
+
+      const result = getLocalGroupForEntropyWallet(mockContext, 'wallet-1', 0);
+
+      expect(result).toBeUndefined();
     });
   });
 
