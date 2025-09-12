@@ -51,7 +51,7 @@
     "@metamask/utils": "^11.4.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^33.0.0",
+    "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^23.0.0",
     "@ts-bridge/cli": "^0.6.1",
