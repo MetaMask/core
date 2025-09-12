@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Shared fiat currency and token formatters
+- Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
 
 ## [75.0.0]
 
