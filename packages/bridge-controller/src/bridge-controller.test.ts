@@ -43,6 +43,7 @@ import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json'
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -2434,6 +2435,76 @@ describe('BridgeController', function () {
       `);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
+          "quoteFetchError": null,
+          "quoteRequest": Object {
+            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+          },
+          "quotes": Array [],
+          "quotesInitialLoadTime": null,
+          "quotesLastFetched": null,
+          "quotesLoadingStatus": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
+          "quoteFetchError": null,
+          "quoteRequest": Object {
+            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+          },
+          "quotes": Array [],
+          "quotesInitialLoadTime": null,
+          "quotesLastFetched": null,
+          "quotesLoadingStatus": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
     });
   });
 });
