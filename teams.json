@@ -41,6 +41,7 @@
   "metamask/profile-sync-controller": "team-assets",
   "metamask/rate-limit-controller": "team-snaps-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
+  "metamask/rewards-controller": "team-rewards",
   "metamask/sample-controllers": "team-wallet-framework",
   "metamask/selected-network-controller": "team-wallet-api-platform,team-wallet-framework,team-assets",
   "metamask/signature-controller": "team-confirmations",
