@@ -19,6 +19,8 @@ export enum GatorPermissionsControllerErrorCode {
   GatorPermissionsNotEnabled = 'gator-permissions-not-enabled',
   GatorPermissionsProviderError = 'gator-permissions-provider-error',
   GatorPermissionsMapSerializationError = 'gator-permissions-map-serialization-error',
+  PermissionDecodingError = 'permission-decoding-error',
+  OriginNotAllowedError = 'origin-not-allowed-error',
 }
 
 /**

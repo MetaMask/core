@@ -7,6 +7,7 @@ export type {
   GatorPermissionsControllerState,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
   GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
   GatorPermissionsControllerEnableGatorPermissionsAction,
   GatorPermissionsControllerDisableGatorPermissionsAction,

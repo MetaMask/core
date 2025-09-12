@@ -3,6 +3,16 @@ import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Hex } from '@metamask/utils';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
+import {
+  createTimestampTerms,
+  createNativeTokenStreamingTerms,
+  encodeDelegations,
+} from '@metamask/delegation-core';
+import { toHex } from '@metamask/controller-utils';
 
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
 import GatorPermissionsController from './GatorPermissionsController';
@@ -23,6 +33,7 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../base-controller/tests/helpers';
+import { DELEGATION_FRAMEWORK_VERSION } from './decodePermission';
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
@@ -451,6 +462,179 @@ describe('GatorPermissionsController', () => {
           "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
         }
       `);
+    });
+  });
+
+  describe('decodePermissionFromPermissionContextForOrigin', () => {
+    const chainId = CHAIN_ID.sepolia;
+    const contracts =
+      DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][chainId];
+
+    let controller: GatorPermissionsController;
+
+    beforeEach(() => {
+      controller = new GatorPermissionsController({
+        messenger: getMessenger(),
+      });
+    });
+
+    it('decodes a native-token-stream permission context successfully', async () => {
+      const {
+        TimestampEnforcer,
+        NativeTokenStreamingEnforcer,
+        ExactCalldataEnforcer,
+      } = contracts;
+
+      const delegator = '0x1111111111111111111111111111111111111111';
+      const delegate = '0x2222222222222222222222222222222222222222';
+
+      const timestampBeforeThreshold = 1720000;
+      const expiryTerms = createTimestampTerms(
+        { timestampAfterThreshold: 0, timestampBeforeThreshold },
+        { out: 'hex' },
+      );
+
+      const initialAmount = 123456n;
+      const maxAmount = 999999n;
+      const amountPerSecond = 1n;
+      const startTime = 1715664;
+      const streamTerms = createNativeTokenStreamingTerms(
+        { initialAmount, maxAmount, amountPerSecond, startTime },
+        { out: 'hex' },
+      );
+
+      const caveats = [
+        {
+          enforcer: TimestampEnforcer,
+          terms: expiryTerms,
+          args: '0x',
+        } as const,
+        {
+          enforcer: NativeTokenStreamingEnforcer,
+          terms: streamTerms,
+          args: '0x',
+        } as const,
+        { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+      ];
+
+      const permissionContext = encodeDelegations(
+        [
+          {
+            delegate,
+            delegator,
+            authority: '0x',
+            caveats,
+            salt: 0n,
+            signature: '0x',
+          },
+        ],
+        { out: 'hex' },
+      );
+
+      const result =
+        await controller.decodePermissionFromPermissionContextForOrigin({
+          origin: controller.permissionsProviderSnapId,
+          chainId,
+          permissionContext,
+        });
+
+      expect(result.chainId).toBe(toHex(chainId));
+      expect(result.address).toBe(delegator);
+      expect(result.signer).toStrictEqual({
+        type: 'account',
+        data: { address: delegate },
+      });
+      expect(result.permission.type).toBe('native-token-stream');
+      expect(result.expiry).toBe(timestampBeforeThreshold);
+      expect(result.permission.data).toStrictEqual({
+        initialAmount,
+        maxAmount,
+        amountPerSecond,
+        startTime,
+      });
+    });
+
+    it('throws when origin does not match permissions provider', async () => {
+      await expect(
+        controller.decodePermissionFromPermissionContextForOrigin({
+          origin: 'not-the-provider',
+          chainId: 1,
+          permissionContext: '0x',
+        }),
+      ).rejects.toThrow('Origin not-the-provider not allowed');
+    });
+
+    it('throws when the permission context contains multiple delegations', async () => {
+      const permissionContext = encodeDelegations(
+        [
+          {
+            delegate: '0x1',
+            delegator: '0x2',
+            authority: '0x',
+            caveats: [],
+            salt: 0n,
+            signature: '0x',
+          },
+          {
+            delegate: '0x3',
+            delegator: '0x4',
+            authority: '0x',
+            caveats: [],
+            salt: 0n,
+            signature: '0x',
+          },
+        ],
+        { out: 'hex' },
+      );
+
+      await expect(
+        controller.decodePermissionFromPermissionContextForOrigin({
+          origin: controller.permissionsProviderSnapId,
+          chainId: 1,
+          permissionContext,
+        }),
+      ).rejects.toThrow('Failed to decode permission');
+    });
+
+    it('throws when enforcers do not identify a supported permission', async () => {
+      const { TimestampEnforcer, ValueLteEnforcer } = contracts;
+
+      const expiryTerms = createTimestampTerms(
+        { timestampAfterThreshold: 0, timestampBeforeThreshold: 100 },
+        { out: 'hex' },
+      );
+
+      const caveats = [
+        {
+          enforcer: TimestampEnforcer,
+          terms: expiryTerms,
+          args: '0x',
+        } as const,
+        // Include a forbidden/irrelevant enforcer without required counterparts
+        { enforcer: ValueLteEnforcer, terms: '0x', args: '0x' } as const,
+      ];
+
+      const permissionContext = encodeDelegations(
+        [
+          {
+            delegate: '0x1111111111111111111111111111111111111111',
+            delegator: '0x2222222222222222222222222222222222222222',
+            authority: '0x',
+            caveats,
+            salt: 0n,
+            signature: '0x',
+          },
+        ],
+        { out: 'hex' },
+      );
+
+      await expect(
+        controller.decodePermissionFromPermissionContextForOrigin({
+          origin: controller.permissionsProviderSnapId,
+          chainId,
+          permissionContext,
+        }),
+      ).rejects.toThrow('Unable to identify permission type');
     });
   });
 });
