@@ -16,7 +16,7 @@ import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 
 import { KeyringControllerError } from './constants';
 import type {
