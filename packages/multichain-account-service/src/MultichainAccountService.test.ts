@@ -1019,11 +1019,13 @@ describe('MultichainAccountService', () => {
     it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
       const { service, mocks } = setup({ accounts: [], keyrings: [] });
 
-      const convertedMnemonic = convertMnemonicToWordlistIndices(MOCK_MNEMONIC);
+      const mnemonic = new Uint8Array(
+        new Uint16Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]).buffer,
+      );
 
       mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
         {
-          mnemonic: convertedMnemonic,
+          mnemonic,
         },
       ]);
 
