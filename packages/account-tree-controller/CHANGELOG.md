@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Check for group existence prior to emitting analytics event in `createMultichainAccountGroup` ([](https://github.com/MetaMask/core/pull/))
+- Check for group existence prior to emitting analytics event in `createMultichainAccountGroup` ([#6582](https://github.com/MetaMask/core/pull/6582))
 
 ### Fixed
 
