@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Fixed
 
-- Fix possible circular dependency issue in `logger.ts` ([]())
+- Possible circular dependency issue in `logger.ts` ([#6581](https://github.com/MetaMask/core/pull/6581))
 
 ## [0.15.0]
 
