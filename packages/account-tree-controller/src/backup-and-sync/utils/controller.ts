@@ -27,6 +27,7 @@ export function getLocalEntropyWallets(
 
 /**
  * Checks if a local group exists for a given entropy source ID and group index.
+ *
  * @param context - The backup and sync context.
  * @param entropySourceId - The entropy source ID.
  * @param groupIndex - The group index.
