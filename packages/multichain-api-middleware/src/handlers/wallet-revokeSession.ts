@@ -1,4 +1,7 @@
-import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permission';
+import {
+  Caip25EndowmentPermissionName,
+  Caip25Errors,
+} from '@metamask/chain-agnostic-permission';
 import type {
   JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
@@ -7,7 +10,6 @@ import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
 
 /**
@@ -42,7 +44,7 @@ async function walletRevokeSessionHandler(
       !(err instanceof PermissionDoesNotExistError)
     ) {
       console.error(err);
-      return end(rpcErrors.internal());
+      return end(Caip25Errors.unknownErrorOrNoScopesAuthorized());
     }
   }
 

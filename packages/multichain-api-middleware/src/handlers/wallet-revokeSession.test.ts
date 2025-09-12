@@ -1,9 +1,11 @@
-import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permission';
+import {
+  Caip25EndowmentPermissionName,
+  Caip25Errors,
+} from '@metamask/chain-agnostic-permission';
 import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { walletRevokeSession } from './wallet-revokeSession';
@@ -81,7 +83,9 @@ describe('wallet_revokeSession', () => {
     });
 
     await handler(baseRequest);
-    expect(end).toHaveBeenCalledWith(rpcErrors.internal());
+    expect(end).toHaveBeenCalledWith(
+      Caip25Errors.unknownErrorOrNoScopesAuthorized(),
+    );
   });
 
   it('returns true if the permission was revoked', async () => {

@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `unknownErrorOrNoScopesAuthorized` and `invalidSessionPropertiesError` to `Caip25Errors` ([#6109](https://github.com/MetaMask/core/pull/6109))
+
 ### Changed
 
 - Add return type annotation to `getCaip25PermissionFromLegacyPermissions` to make its return output assignable to `RequestedPermissions` ([#6382](https://github.com/MetaMask/core/pull/6382))
+- Update `requestedChainsNotSupportedError` message from "Requested chains are not supported" to "Requested networks are not supported" ([#6109](https://github.com/MetaMask/core/pull/6109))
 
 ## [1.1.1]
 
