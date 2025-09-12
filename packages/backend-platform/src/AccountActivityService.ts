@@ -100,15 +100,6 @@ export type AccountActivityServiceAllowedActions =
     };
 
 // Event types for the messaging system
-export type AccountActivityServiceAccountSubscribedEvent = {
-  type: `AccountActivityService:accountSubscribed`;
-  payload: [{ addresses: string[] }];
-};
-
-export type AccountActivityServiceAccountUnsubscribedEvent = {
-  type: `AccountActivityService:accountUnsubscribed`;
-  payload: [{ addresses: string[] }];
-};
 
 export type AccountActivityServiceTransactionUpdatedEvent = {
   type: `AccountActivityService:transactionUpdated`;
@@ -134,8 +125,6 @@ export type AccountActivityServiceStatusChangedEvent = {
 };
 
 export type AccountActivityServiceEvents =
-  | AccountActivityServiceAccountSubscribedEvent
-  | AccountActivityServiceAccountUnsubscribedEvent
   | AccountActivityServiceTransactionUpdatedEvent
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceSubscriptionErrorEvent
@@ -275,24 +264,9 @@ export class AccountActivityService {
 
       // Track the subscribed address
       this.#currentSubscribedAddress = subscription.address;
-
-      // Publish success event
-      this.#messenger.publish(`AccountActivityService:accountSubscribed`, {
-        addresses: [subscription.address],
-      });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown subscription error';
-
-      this.#messenger.publish(`AccountActivityService:subscriptionError`, {
-        addresses: [subscription.address],
-        error: errorMessage,
-        operation: 'subscribe',
-      });
-
-      throw new Error(
-        `Failed to subscribe to account activity: ${errorMessage}`,
-      );
+      console.warn(`Subscription failed, forcing reconnection:`, error);
+      await this.#forceReconnection();
     }
   }
 
@@ -324,23 +298,9 @@ export class AccountActivityService {
       }
 
       // Subscription cleanup is handled centrally in WebSocketService
-
-      this.#messenger.publish(`AccountActivityService:accountUnsubscribed`, {
-        addresses: [address],
-      });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown unsubscription error';
-
-      this.#messenger.publish(`AccountActivityService:subscriptionError`, {
-        addresses: [address],
-        error: errorMessage,
-        operation: 'unsubscribe',
-      });
-
-      throw new Error(
-        `Failed to unsubscribe from account activity: ${errorMessage}`,
-      );
+      console.warn(`Unsubscription failed, forcing reconnection:`, error);
+      await this.#forceReconnection();
     }
   }
 
@@ -484,32 +444,40 @@ export class AccountActivityService {
         return;
       }
 
-      // First, unsubscribe from the currently subscribed account if any
-      if (this.#currentSubscribedAddress) {
+      // First, subscribe to the new selected account to minimize data gaps
+      await this.subscribeAccounts({ address: newAddress });
+      console.log(`Subscribed to new selected account: ${newAddress}`);
+
+      // Then, unsubscribe from the previously subscribed account if any
+      if (this.#currentSubscribedAddress && this.#currentSubscribedAddress !== newAddress) {
         console.log(
           `Unsubscribing from previous account: ${this.#currentSubscribedAddress}`,
         );
-        try {
-          await this.unsubscribeAccounts({
-            address: this.#currentSubscribedAddress,
-          });
-        } catch (unsubscribeError) {
-          console.warn(
-            `Failed to unsubscribe from previous account ${this.#currentSubscribedAddress}:`,
-            unsubscribeError,
-          );
-          // Continue with subscription to new account even if unsubscribe failed
-        }
+        await this.unsubscribeAccounts({
+          address: this.#currentSubscribedAddress,
+        });
+        console.log(`Successfully unsubscribed from previous account: ${this.#currentSubscribedAddress}`);
       }
-
-      // Subscribe to the new selected account
-      await this.subscribeAccounts({ address: newAddress });
-      console.log(`Subscribed to new selected account: ${newAddress}`);
     } catch (error) {
-      console.error(
-        `Failed to subscribe to new selected account ${newAccount.address}:`,
-        error,
-      );
+      console.warn(`Account change failed, forcing reconnection:`, error);
+      await this.#forceReconnection();
+    }
+  }
+
+  /**
+   * Force WebSocket reconnection to clean up subscription state
+   */
+  async #forceReconnection(): Promise<void> {
+    try {
+      console.log('Forcing WebSocket reconnection to clean up subscription state');
+      
+      // Clear local subscription tracking since backend will clean up all subscriptions
+      this.#currentSubscribedAddress = null;
+      
+      await this.#webSocketService.disconnect();
+      await this.#webSocketService.connect();
+    } catch (error) {
+      console.error('Failed to force WebSocket reconnection:', error);
     }
   }
 
@@ -664,12 +632,6 @@ export class AccountActivityService {
       // No chain status tracking needed
 
       // Clear our own event subscriptions (events we publish)
-      this.#messenger.clearEventSubscriptions(
-        'AccountActivityService:accountSubscribed',
-      );
-      this.#messenger.clearEventSubscriptions(
-        'AccountActivityService:accountUnsubscribed',
-      );
       this.#messenger.clearEventSubscriptions(
         'AccountActivityService:transactionUpdated',
       );

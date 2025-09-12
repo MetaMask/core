@@ -2,6 +2,12 @@ import BN from 'bn.js';
 import { produce } from 'immer';
 import { isEqual } from 'lodash';
 
+import type { 
+  BalanceUpdate,
+  AccountActivityServiceBalanceUpdatedEvent,
+  AccountActivityServiceStatusChangedEvent
+} from '@metamask/backend-platform';
+
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -76,26 +82,9 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
   TokenBalancesControllerState
 >;
 
-export type TokenBalancesControllerUpdateChainPollingConfigsAction = {
-  type: `TokenBalancesController:updateChainPollingConfigs`;
-  handler: TokenBalancesController['updateChainPollingConfigs'];
-};
-
-export type TokenBalancesControllerGetChainPollingConfigAction = {
-  type: `TokenBalancesController:getChainPollingConfig`;
-  handler: TokenBalancesController['getChainPollingConfig'];
-};
-
-export type TokenBalancesControllerGetDefaultPollingIntervalAction = {
-  type: `TokenBalancesController:getDefaultPollingInterval`;
-  handler: TokenBalancesController['getDefaultPollingInterval'];
-};
 
 export type TokenBalancesControllerActions =
-  | TokenBalancesControllerGetStateAction
-  | TokenBalancesControllerUpdateChainPollingConfigsAction
-  | TokenBalancesControllerGetChainPollingConfigAction
-  | TokenBalancesControllerGetDefaultPollingIntervalAction;
+  | TokenBalancesControllerGetStateAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
@@ -124,8 +113,8 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
   | KeyringControllerAccountRemovedEvent
-  | { type: 'AccountActivityService:balanceUpdated'; payload: any[] }
-  | { type: 'AccountActivityService:statusChanged'; payload: [{ chainIds: string[]; status: 'up' | 'down'; }] };
+  | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceStatusChangedEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof CONTROLLER,
@@ -284,21 +273,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#onAccountActivityStatusChanged.bind(this),
     );
 
-    // Register action handlers for polling interval control
-    this.messagingSystem.registerActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-      this.updateChainPollingConfigs.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-      this.getChainPollingConfig.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `TokenBalancesController:getDefaultPollingInterval`,
-      this.getDefaultPollingInterval.bind(this),
-    );
   }
 
   #chainIdsWithTokens(): ChainIdHex[] {
@@ -809,6 +783,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /**
    * Handle real-time balance updates from AccountActivityService
    * Processes balance updates and updates the token balance state
+   * If any balance update has an error, triggers fallback polling for the chain
    */
   readonly #onAccountActivityBalanceUpdate = async ({
     address,
@@ -817,10 +792,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }: {
     address: string;
     chain: string;
-    updates: Array<{
-      asset: { type: string; unit: string };
-      postBalance: { amount: string };
-    }>;
+    updates: BalanceUpdate[];
   }) => {
 
     const chainParts = chain.split(':');
@@ -842,6 +814,13 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         // Process each balance update on the fly
         for (const update of updates) {
           const { asset, postBalance } = update;
+          
+          // Check if there's an error in the balance update
+          if (postBalance.error) {
+            console.warn(`Balance update has error for ${asset.unit}:`, postBalance.error, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
           
           // Extract token address from asset type (e.g., "eip155:1/erc20:0x...")
           let tokenAddress: string;
@@ -877,7 +856,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       shouldPoll = true;
     }
 
-    // Single fallback polling call for any error (validation or processing)
+    // Single fallback polling call for any error (balance errors, validation errors, or processing errors)
     if (shouldPoll) {
       try {
         console.log(`Triggering fallback poll for chain ${chain} (${chainId})`);
@@ -980,13 +959,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#statusChangeDebouncer.timer = null;
     }
 
-    // Unregister action handlers
-      this.messagingSystem.unregisterActionHandler(
-        `TokenBalancesController:updateChainPollingConfigs`,
-      );
-      this.messagingSystem.unregisterActionHandler(
-        `TokenBalancesController:getChainPollingConfig`,
-      );
 
     super.destroy();
   }
