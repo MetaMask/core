@@ -331,13 +331,13 @@ export class SubscriptionController extends BaseController<
       throw new Error('Invalid token address');
     }
 
-    const tokenApproveAmount = this.#getTokenApproveAmount(
+    const tokenApproveAmount = this.getTokenApproveAmount(
       price,
       tokenPaymentInfo,
     );
 
     return {
-      approveAmount: tokenApproveAmount.toString(),
+      approveAmount: tokenApproveAmount,
       paymentAddress: chainPaymentInfo.paymentAddress,
       paymentTokenAddress: request.paymentTokenAddress,
       chainId: request.chainId,
@@ -378,10 +378,10 @@ export class SubscriptionController extends BaseController<
    * @param tokenPaymentInfo - The token price info
    * @returns The token approve amount
    */
-  #getTokenApproveAmount(
+  getTokenApproveAmount(
     price: ProductPrice,
     tokenPaymentInfo: TokenPaymentInfo,
-  ) {
+  ): string {
     const conversionRate =
       tokenPaymentInfo.conversionRate[
         price.currency as keyof typeof tokenPaymentInfo.conversionRate
@@ -407,7 +407,7 @@ export class SubscriptionController extends BaseController<
 
     const tokenAmount =
       (priceAmountScaled * tokenDecimal) / conversionRateScaled;
-    return tokenAmount;
+    return tokenAmount.toString();
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
