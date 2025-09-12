@@ -361,4 +361,18 @@ describe('SubscriptionService', () => {
       });
     });
   });
+
+  describe('getBillingPortalUrl', () => {
+    it('should get billing portal url successfully', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockResolvedValue({
+          url: 'https://billing-portal.com',
+        });
+
+        const result = await service.getBillingPortalUrl();
+
+        expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
+      });
+    });
+  });
 });

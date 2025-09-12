@@ -12,6 +12,7 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
+  BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   ProductPrice,
@@ -441,5 +442,14 @@ export class SubscriptionController extends BaseController<
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
+  }
+
+  /**
+   * Gets the billing portal URL.
+   *
+   * @returns The billing portal URL
+   */
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    return await this.#subscriptionService.getBillingPortalUrl();
   }
 }

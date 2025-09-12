@@ -185,6 +185,7 @@ export type ISubscriptionService = {
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
+  getBillingPortalUrl(): Promise<BillingPortalResponse>;
   getPricing(): Promise<PricingResponse>;
   startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
@@ -225,4 +226,8 @@ export type UpdatePaymentMethodCryptoRequest = {
   rawTransaction: Hex;
   recurringInterval: RecurringInterval;
   billingCycles: number;
+};
+
+export type BillingPortalResponse = {
+  url: string;
 };
