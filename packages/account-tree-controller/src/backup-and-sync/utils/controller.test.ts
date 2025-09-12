@@ -172,7 +172,7 @@ describe('BackupAndSyncUtils - Controller', () => {
     it('returns undefined when wallet does not exist', () => {
       const result = getLocalGroupForEntropyWallet(
         mockContext,
-        'entropy:non-existent',
+        'non-existent',
         0,
       );
 
@@ -185,10 +185,15 @@ describe('BackupAndSyncUtils - Controller', () => {
         type: AccountWalletType.Keyring,
         name: 'Keyring Wallet',
         groups: {},
-      } as unknown as AccountWalletKeyringObject;
+        status: 'ready',
+        metadata: {
+          keyring: { type: 'HD Key Tree' },
+          name: '',
+        },
+      } as AccountWalletKeyringObject;
 
       mockController.state.accountTree.wallets = {
-        'keyring:wallet-2': keyringWallet,
+        [keyringWallet.id]: keyringWallet,
       };
 
       const result = getLocalGroupForEntropyWallet(mockContext, 'wallet-2', 0);
@@ -209,12 +214,12 @@ describe('BackupAndSyncUtils - Controller', () => {
         type: AccountWalletType.Entropy,
         name: 'Entropy Wallet',
         groups: {
-          'entropy:wallet-1/0': group,
+          [group.id]: group,
         },
       } as unknown as AccountWalletEntropyObject;
 
       mockController.state.accountTree.wallets = {
-        'entropy:wallet-1': entropyWallet,
+        [entropyWallet.id]: entropyWallet,
       };
 
       const result = getLocalGroupForEntropyWallet(mockContext, 'wallet-1', 0);
@@ -231,7 +236,7 @@ describe('BackupAndSyncUtils - Controller', () => {
       } as unknown as AccountWalletEntropyObject;
 
       mockController.state.accountTree.wallets = {
-        'entropy:wallet-1': entropyWallet,
+        [entropyWallet.id]: entropyWallet,
       };
 
       const result = getLocalGroupForEntropyWallet(mockContext, 'wallet-1', 0);
