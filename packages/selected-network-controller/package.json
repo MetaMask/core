@@ -50,7 +50,7 @@
     "@metamask/base-controller": "^8.3.0",
     "@metamask/json-rpc-engine": "^10.0.3",
     "@metamask/swappable-obj-proxy": "^2.3.0",
-    "@metamask/utils": "^11.4.2"
+    "@metamask/utils": "^11.8.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
