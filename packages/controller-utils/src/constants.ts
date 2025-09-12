@@ -140,13 +140,13 @@ export const BUILT_IN_NETWORKS = {
 } as const;
 
 /**
- * Both Extension and Mobile have logic to dissuade users from adding
- * networks that share chain IDs with other networks; if that happens
- * then those users will see warnings. Sometimes, however, we want to
- * get around that. This mapping contains networks that should bypass
+ * When a user adds a custom network to MetaMask, we perform some basic
+ * validations on the network. For instance, usually a network cannot share the
+ * same chain as another. In some cases, however, we want to allow networks that
+ * would normally be invalid. This mapping contains networks that should bypass
  * validation.
  */
-export const ALLOWED_NETWORKS_WITH_DUPLICATE_CHAINS = {
+export const NETWORKS_BYPASSING_VALIDATION = {
   // HyperEVM uses the same chain ID as Wanchain
   '0x3e7': {
     name: 'HyperEVM',
