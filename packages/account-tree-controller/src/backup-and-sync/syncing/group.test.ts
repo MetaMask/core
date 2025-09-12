@@ -20,6 +20,7 @@ import { getLocalGroupsForEntropyWallet } from '../utils';
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');
 jest.mock('../utils', () => ({
+  ...jest.requireActual('../utils'),
   getLocalGroupsForEntropyWallet: jest.fn(),
 }));
 

@@ -1054,25 +1054,133 @@ describe('NetworkController', () => {
   });
 
   describe('initializeProvider', () => {
-    for (const infuraNetworkType of INFURA_NETWORKS) {
-      const infuraChainId = ChainId[infuraNetworkType];
+    describe.each([
+      ['given no options', []],
+      ['given lookupNetwork = true', [{ lookupNetwork: true }]],
+      ['given lookupNetwork = false', [{ lookupNetwork: false }]],
+    ])('%s', (_description, args) => {
+      for (const infuraNetworkType of INFURA_NETWORKS) {
+        const infuraChainId = ChainId[infuraNetworkType];
 
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
+        describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
+          it('sets the globally selected provider to the one from the corresponding network client', async () => {
+            const infuraProjectId = 'some-infura-project-id';
+
+            await withController(
+              {
+                state: {
+                  selectedNetworkClientId: infuraNetworkType,
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]:
+                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                  },
+                },
+                infuraProjectId,
+              },
+              async ({ controller }) => {
+                const fakeProvider = buildFakeProvider([
+                  {
+                    request: {
+                      method: 'test_method',
+                      params: [],
+                    },
+                    response: {
+                      result: 'test response',
+                    },
+                  },
+                ]);
+                const fakeNetworkClient = buildFakeClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+                await controller.initializeProvider(...args);
+
+                const networkClient = controller.getSelectedNetworkClient();
+                assert(networkClient, 'Network client not set');
+                const result = await networkClient.provider.request({
+                  id: 1,
+                  jsonrpc: '2.0',
+                  method: 'test_method',
+                  params: [],
+                });
+                expect(result).toBe('test response');
+              },
+            );
+          });
+
+          if (args.length === 0 || args[0].lookupNetwork) {
+            lookupNetworkTests({
+              expectedNetworkClientType: NetworkClientType.Infura,
+              expectedNetworkClientId: infuraNetworkType,
+              initialState: {
+                selectedNetworkClientId: infuraNetworkType,
+              },
+              operation: async (controller: NetworkController) => {
+                await controller.initializeProvider(...args);
+              },
+            });
+          } else {
+            it('does not update networksMetadata even if network details request would have resolved successfully', async () => {
+              await withController(
+                {
+                  state: {
+                    selectedNetworkClientId: infuraNetworkType,
+                    networksMetadata: {
+                      [infuraNetworkType]: {
+                        EIPS: { 1559: false },
+                        status: NetworkStatus.Unknown,
+                      },
+                    },
+                  },
+                },
+                async ({ controller }) => {
+                  await setFakeProvider(controller, {
+                    stubs: [
+                      {
+                        request: {
+                          method: 'eth_getBlockByNumber',
+                          params: ['latest', false],
+                        },
+                        response: {
+                          result: {
+                            baseFeePerGas: '0x1',
+                          },
+                        },
+                      },
+                    ],
+                    stubLookupNetworkWhileSetting: true,
+                  });
+
+                  await controller.initializeProvider(...args);
+
+                  expect(
+                    controller.state.networksMetadata[infuraNetworkType],
+                  ).toStrictEqual({
+                    EIPS: { 1559: false },
+                    status: NetworkStatus.Unknown,
+                  });
+                },
+              );
+            });
+          }
+        });
+      }
+
+      describe('when the selected network client represents a custom RPC endpoint', () => {
         it('sets the globally selected provider to the one from the corresponding network client', async () => {
-          const infuraProjectId = 'some-infura-project-id';
-
           await withController(
             {
               state: {
-                selectedNetworkClientId: infuraNetworkType,
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      }),
+                    ],
+                  }),
                 },
               },
-              infuraProjectId,
             },
             async ({ controller }) => {
               const fakeProvider = buildFakeProvider([
@@ -1088,11 +1196,13 @@ describe('NetworkController', () => {
               ]);
               const fakeNetworkClient = buildFakeClient(fakeProvider);
               createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-              await controller.initializeProvider();
+              await controller.initializeProvider(...args);
 
               const networkClient = controller.getSelectedNetworkClient();
               assert(networkClient, 'Network client not set');
-              const result = await networkClient.provider.request({
+              const { result } = await promisify(
+                networkClient.provider.sendAsync,
+              ).call(networkClient.provider, {
                 id: 1,
                 jsonrpc: '2.0',
                 method: 'test_method',
@@ -1103,89 +1213,85 @@ describe('NetworkController', () => {
           );
         });
 
-        lookupNetworkTests({
-          expectedNetworkClientType: NetworkClientType.Infura,
-          expectedNetworkClientId: infuraNetworkType,
-          initialState: {
-            selectedNetworkClientId: infuraNetworkType,
-          },
-          operation: async (controller: NetworkController) => {
-            await controller.initializeProvider();
-          },
-        });
-      });
-    }
-
-    describe('when the selected network client represents a custom RPC endpoint', () => {
-      it('sets the globally selected provider to the one from the corresponding network client', async () => {
-        await withController(
-          {
-            state: {
+        if (args.length === 0 || args[0].lookupNetwork) {
+          lookupNetworkTests({
+            expectedNetworkClientType: NetworkClientType.Custom,
+            expectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            initialState: {
               selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network',
                     }),
                   ],
                 }),
               },
             },
-          },
-          async ({ controller }) => {
-            const fakeProvider = buildFakeProvider([
+            operation: async (controller: NetworkController) => {
+              await controller.initializeProvider(...args);
+            },
+          });
+        } else {
+          it('does not update networksMetadata even if network details request would have resolved successfully', async () => {
+            await withController(
               {
-                request: {
-                  method: 'test_method',
-                  params: [],
-                },
-                response: {
-                  result: 'test response',
+                state: {
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  networkConfigurationsByChainId: {
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      nativeCurrency: 'TEST',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                          url: 'https://test.network',
+                        }),
+                      ],
+                    }),
+                  },
+                  networksMetadata: {
+                    'AAAA-AAAA-AAAA-AAAA': {
+                      EIPS: { 1559: false },
+                      status: NetworkStatus.Unknown,
+                    },
+                  },
                 },
               },
-            ]);
-            const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-            await controller.initializeProvider();
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          baseFeePerGas: '0x1',
+                        },
+                      },
+                    },
+                  ],
+                  stubLookupNetworkWhileSetting: true,
+                });
 
-            const networkClient = controller.getSelectedNetworkClient();
-            assert(networkClient, 'Network client not set');
-            const { result } = await promisify(
-              networkClient.provider.sendAsync,
-            ).call(networkClient.provider, {
-              id: 1,
-              jsonrpc: '2.0',
-              method: 'test_method',
-              params: [],
-            });
-            expect(result).toBe('test response');
-          },
-        );
-      });
+                await controller.initializeProvider(...args);
 
-      lookupNetworkTests({
-        expectedNetworkClientType: NetworkClientType.Custom,
-        expectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-        initialState: {
-          selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-          networkConfigurationsByChainId: {
-            '0x1337': buildCustomNetworkConfiguration({
-              chainId: '0x1337',
-              nativeCurrency: 'TEST',
-              rpcEndpoints: [
-                buildCustomRpcEndpoint({
-                  networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  url: 'https://test.network',
-                }),
-              ],
-            }),
-          },
-        },
-        operation: async (controller: NetworkController) => {
-          await controller.initializeProvider();
-        },
+                expect(
+                  controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA'],
+                ).toStrictEqual({
+                  EIPS: { 1559: false },
+                  status: NetworkStatus.Unknown,
+                });
+              },
+            );
+          });
+        }
       });
     });
   });
