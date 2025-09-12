@@ -1,6 +1,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type { Messenger } from '@metamask/base-controller';
+import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
@@ -1019,9 +1020,7 @@ describe('MultichainAccountService', () => {
     it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
       const { service, mocks } = setup({ accounts: [], keyrings: [] });
 
-      const mnemonic = new Uint8Array(
-        new Uint16Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]).buffer,
-      );
+      const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
 
       mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
         {
@@ -1034,6 +1033,9 @@ describe('MultichainAccountService', () => {
       ).rejects.toThrow(
         'This Secret Recovery Phrase has already been imported.',
       );
+
+      // Ensure we did not attempt to create a new keyring when duplicate is detected
+      expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
     });
   });
 });
