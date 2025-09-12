@@ -74,6 +74,7 @@ import {
   handleSolanaTxResponse,
 } from './utils/transaction';
 import { generateActionId } from './utils/transaction';
+import { KeyringTypes } from '@metamask/keyring-controller';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -1078,7 +1079,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Extension does not have this issue
       const requireApproval =
         this.#clientId === BridgeClientId.MOBILE &&
-        selectedAccount.metadata.keyring.type.includes('Ledger Hardware');
+        selectedAccount.metadata.keyring.type === KeyringTypes.ledger;
 
       // Handle smart transactions if enabled
       txMeta = await this.#trace(
