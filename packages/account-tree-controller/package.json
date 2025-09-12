@@ -60,7 +60,7 @@
     "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^21.0.0",
-    "@metamask/keyring-controller": "^23.0.0",
+    "@metamask/keyring-controller": "^23.1.0",
     "@metamask/multichain-account-service": "^0.8.0",
     "@metamask/profile-sync-controller": "^25.0.0",
     "@metamask/providers": "^22.1.0",
