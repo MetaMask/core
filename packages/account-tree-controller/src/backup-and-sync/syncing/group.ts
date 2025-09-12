@@ -14,7 +14,10 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
+import {
+  getLocalGroupForEntropyWallet,
+  getLocalGroupsForEntropyWallet,
+} from '../utils';
 
 /**
  * Creates a multichain account group.
@@ -33,6 +36,12 @@ export const createMultichainAccountGroup = async (
   analyticsAction: BackupAndSyncAnalyticsAction,
 ) => {
   try {
+    const didGroupAlreadyExist = getLocalGroupForEntropyWallet(
+      context,
+      entropySourceId,
+      groupIndex,
+    );
+
     // This will be idempotent so we can create the group even if it already exists
     await context.messenger.call(
       'MultichainAccountService:createMultichainAccountGroup',
@@ -42,10 +51,12 @@ export const createMultichainAccountGroup = async (
       },
     );
 
-    context.emitAnalyticsEventFn({
-      action: analyticsAction,
-      profileId,
-    });
+    if (!didGroupAlreadyExist) {
+      context.emitAnalyticsEventFn({
+        action: analyticsAction,
+        profileId,
+      });
+    }
   } catch (error) {
     backupAndSyncLogger(
       `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
