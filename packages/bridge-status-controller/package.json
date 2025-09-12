@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.3.0",
     "@metamask/controller-utils": "^11.12.0",
-    "@metamask/keyring-api": "^20.1.0",
+    "@metamask/keyring-api": "^21.0.0",
     "@metamask/keyring-controller": "^23.0.0",
     "@metamask/polling-controller": "^14.0.0",
     "@metamask/superstruct": "^3.1.0",
@@ -58,7 +58,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^33.0.0",
+    "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/bridge-controller": "^42.0.0",
     "@metamask/gas-fee-controller": "^24.0.0",

@@ -96,16 +96,22 @@ export const defaultState: NotificationServicesPushControllerState = {
 };
 const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   isPushEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   fcmToken: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   isUpdatingFCMToken: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: true,
+    usedInUi: true,
   },
 };
 

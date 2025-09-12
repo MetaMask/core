@@ -44,7 +44,7 @@ const mockBtcAccount = {
   },
   scopes: [BtcScope.Testnet],
   options: {},
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   type: BtcAccountType.P2wpkh,
 };
 
