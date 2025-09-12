@@ -24,9 +24,13 @@ import type {
   UpdatePaymentMethodOpts,
 } from './types';
 import {
+  PAYMENT_TYPES,
   PaymentType,
+  PRODUCT_TYPES,
   ProductType,
+  RECURRING_INTERVALS,
   RecurringInterval,
+  SUBSCRIPTION_STATUSES,
   SubscriptionStatus,
 } from './types';
 
@@ -35,7 +39,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
   products: [
     {
-      name: ProductType.SHIELD,
+      name: PRODUCT_TYPES.SHIELD,
       id: 'prod_shield_basic',
       currency: 'usd',
       amount: 900,
@@ -43,18 +47,18 @@ const MOCK_SUBSCRIPTION: Subscription = {
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: SubscriptionStatus.active,
-  interval: RecurringInterval.month,
+  status: SUBSCRIPTION_STATUSES.active,
+  interval: RECURRING_INTERVALS.month,
   paymentMethod: {
-    type: PaymentType.byCard,
+    type: PAYMENT_TYPES.byCard,
   },
 };
 
 const MOCK_PRODUCT_PRICE: ProductPricing = {
-  name: ProductType.SHIELD,
+  name: PRODUCT_TYPES.SHIELD,
   prices: [
     {
-      interval: RecurringInterval.month,
+      interval: RECURRING_INTERVALS.month,
       currency: 'usd',
       unitAmount: 900,
       unitDecimals: 2,
@@ -65,7 +69,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
 };
 
 const MOCK_PRICING_PAYMENT_METHOD: PricingPaymentMethod = {
-  type: PaymentType.byCrypto,
+  type: PAYMENT_TYPES.byCrypto,
   chains: [
     {
       chainId: '0x1',
@@ -380,7 +384,7 @@ describe('SubscriptionController', () => {
             }),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: SubscriptionStatus.canceled },
+            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.canceled },
             mockSubscription2,
           ]);
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
@@ -478,16 +482,16 @@ describe('SubscriptionController', () => {
           );
 
           const result = await controller.startShieldSubscriptionWithCard({
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
           });
 
           expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
           });
         },
       );
@@ -503,9 +507,9 @@ describe('SubscriptionController', () => {
         async ({ controller, mockService }) => {
           await expect(
             controller.startShieldSubscriptionWithCard({
-              products: [ProductType.SHIELD],
+              products: [PRODUCT_TYPES.SHIELD],
               isTrialRequested: true,
-              recurringInterval: RecurringInterval.month,
+              recurringInterval: RECURRING_INTERVALS.month,
             }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserAlreadySubscribed,
@@ -532,16 +536,16 @@ describe('SubscriptionController', () => {
 
           await expect(
             controller.startShieldSubscriptionWithCard({
-              products: [ProductType.SHIELD],
+              products: [PRODUCT_TYPES.SHIELD],
               isTrialRequested: true,
-              recurringInterval: RecurringInterval.month,
+              recurringInterval: RECURRING_INTERVALS.month,
             }),
           ).rejects.toThrow(SubscriptionServiceError);
 
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
           });
         },
       );
@@ -558,9 +562,9 @@ describe('SubscriptionController', () => {
         },
         async ({ controller, mockService }) => {
           const request: StartCryptoSubscriptionRequest = {
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: false,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
             billingCycles: 3,
             chainId: '0x1',
             payerAddress: '0x0000000000000000000000000000000000000001',
@@ -570,7 +574,7 @@ describe('SubscriptionController', () => {
 
           const response: StartCryptoSubscriptionResponse = {
             subscriptionId: 'sub_crypto_123',
-            status: SubscriptionStatus.active,
+            status: SUBSCRIPTION_STATUSES.active,
           };
 
           mockService.startSubscriptionWithCrypto.mockResolvedValue(response);
@@ -653,8 +657,8 @@ describe('SubscriptionController', () => {
         const result = await controller.getCryptoApproveTransactionParams({
           chainId: '0x1',
           paymentTokenAddress: '0xtoken',
-          productType: ProductType.SHIELD,
-          interval: RecurringInterval.month,
+          productType: PRODUCT_TYPES.SHIELD,
+          interval: RECURRING_INTERVALS.month,
         });
 
         expect(result).toStrictEqual({
@@ -677,8 +681,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Product price not found');
       });
@@ -689,10 +693,10 @@ describe('SubscriptionController', () => {
         mockService.getPricing.mockResolvedValue({
           products: [
             {
-              name: ProductType.SHIELD,
+              name: PRODUCT_TYPES.SHIELD,
               prices: [
                 {
-                  interval: RecurringInterval.year,
+                  interval: RECURRING_INTERVALS.year,
                   currency: 'usd',
                   unitAmount: 10,
                   unitDecimals: 18,
@@ -709,8 +713,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Price not found');
       });
@@ -722,7 +726,7 @@ describe('SubscriptionController', () => {
           ...MOCK_PRICE_INFO_RESPONSE,
           paymentMethods: [
             {
-              type: PaymentType.byCard,
+              type: PAYMENT_TYPES.byCard,
             },
           ],
         });
@@ -731,8 +735,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Chains payment info not found');
       });
@@ -744,7 +748,7 @@ describe('SubscriptionController', () => {
           ...MOCK_PRICE_INFO_RESPONSE,
           paymentMethods: [
             {
-              type: PaymentType.byCrypto,
+              type: PAYMENT_TYPES.byCrypto,
               chains: [
                 {
                   chainId: '0x2',
@@ -760,8 +764,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Invalid chain id');
       });
@@ -775,8 +779,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken-invalid',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Invalid token address');
       });
@@ -789,7 +793,7 @@ describe('SubscriptionController', () => {
           ...MOCK_PRICE_INFO_RESPONSE,
           paymentMethods: [
             {
-              type: PaymentType.byCrypto,
+              type: PAYMENT_TYPES.byCrypto,
               chains: [
                 {
                   chainId: '0x1',
@@ -811,8 +815,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Conversion rate not found');
       });
@@ -901,13 +905,13 @@ describe('SubscriptionController', () => {
 
         await controller.updatePaymentMethod({
           subscriptionId: 'sub_123456789',
-          paymentType: PaymentType.byCard,
-          recurringInterval: RecurringInterval.month,
+          paymentType: PAYMENT_TYPES.byCard,
+          recurringInterval: RECURRING_INTERVALS.month,
         });
 
         expect(mockService.updatePaymentMethodCard).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
         });
 
         expect(controller.state.subscriptions).toStrictEqual([
@@ -924,13 +928,13 @@ describe('SubscriptionController', () => {
         );
 
         const opts: UpdatePaymentMethodOpts = {
-          paymentType: PaymentType.byCrypto,
+          paymentType: PAYMENT_TYPES.byCrypto,
           subscriptionId: 'sub_123456789',
           chainId: '0x1',
           payerAddress: '0x0000000000000000000000000000000000000001',
           tokenSymbol: 'USDC',
           rawTransaction: '0xdeadbeef',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
           billingCycles: 3,
         };
 
@@ -953,7 +957,7 @@ describe('SubscriptionController', () => {
         const opts = {
           subscriptionId: 'sub_123456789',
           paymentType: 'invalid',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
         };
         // @ts-expect-error Intentionally testing with invalid payment type.
         await expect(controller.updatePaymentMethod(opts)).rejects.toThrow(

@@ -20,8 +20,8 @@ import type {
   UpdatePaymentMethodOpts,
 } from './types';
 import {
-  PaymentType,
-  SubscriptionStatus,
+  PAYMENT_TYPES,
+  SUBSCRIPTION_STATUSES,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -262,7 +262,7 @@ export class SubscriptionController extends BaseController<
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, status: SubscriptionStatus.canceled }
+          ? { ...subscription, status: SUBSCRIPTION_STATUSES.canceled }
           : subscription,
       );
     });
@@ -313,7 +313,7 @@ export class SubscriptionController extends BaseController<
     }
 
     const chainsPaymentInfo = pricing.paymentMethods.find(
-      (t) => t.type === PaymentType.byCrypto,
+      (t) => t.type === PAYMENT_TYPES.byCrypto,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
@@ -345,10 +345,10 @@ export class SubscriptionController extends BaseController<
   }
 
   async updatePaymentMethod(opts: UpdatePaymentMethodOpts) {
-    if (opts.paymentType === PaymentType.byCard) {
+    if (opts.paymentType === PAYMENT_TYPES.byCard) {
       const { paymentType, ...cardRequest } = opts;
       await this.#subscriptionService.updatePaymentMethodCard(cardRequest);
-    } else if (opts.paymentType === PaymentType.byCrypto) {
+    } else if (opts.paymentType === PAYMENT_TYPES.byCrypto) {
       const { paymentType, ...cryptoRequest } = opts;
       await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
     } else {

@@ -41,6 +41,12 @@ export type {
   PricingResponse,
   UpdatePaymentMethodOpts,
 } from './types';
+export {
+  SUBSCRIPTION_STATUSES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  PAYMENT_TYPES,
+} from './types';
 export { SubscriptionServiceError } from './errors';
 export { Env, SubscriptionControllerErrorMessage } from './constants';
 export type { SubscriptionServiceConfig } from './SubscriptionService';

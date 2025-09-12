@@ -1,8 +1,45 @@
 import type { Hex } from '@metamask/utils';
 
-export enum ProductType {
-  SHIELD = 'shield',
-}
+export const PRODUCT_TYPES = {
+  SHIELD: 'shield',
+} as const;
+
+export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
+
+export const PAYMENT_TYPES = {
+  byCard: 'card',
+  byCrypto: 'crypto',
+} as const;
+
+export type PaymentType = (typeof PAYMENT_TYPES)[keyof typeof PAYMENT_TYPES];
+
+export const RECURRING_INTERVALS = {
+  month: 'month',
+  year: 'year',
+} as const;
+
+export type RecurringInterval =
+  (typeof RECURRING_INTERVALS)[keyof typeof RECURRING_INTERVALS];
+
+export const SUBSCRIPTION_STATUSES = {
+  // Initial states
+  incomplete: 'incomplete',
+  incompleteExpired: 'incomplete_expired',
+  // Active states
+  provisional: 'provisional',
+  trialing: 'trialing',
+  active: 'active',
+  // Payment issues
+  pastDue: 'past_due',
+  unpaid: 'unpaid',
+  // Cancelled states
+  canceled: 'canceled',
+  // Paused states
+  paused: 'paused',
+} as const;
+
+export type SubscriptionStatus =
+  (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
 
 /** only usd for now */
 export type Currency = 'usd';
@@ -13,37 +50,6 @@ export type Product = {
   currency: Currency;
   amount: number;
 };
-
-export enum PaymentType {
-  byCard = 'card',
-  byCrypto = 'crypto',
-}
-
-export enum RecurringInterval {
-  month = 'month',
-  year = 'year',
-}
-
-export enum SubscriptionStatus {
-  // Initial states
-  incomplete = 'incomplete',
-  incompleteExpired = 'incomplete_expired',
-
-  // Active states
-  provisional = 'provisional',
-  trialing = 'trialing',
-  active = 'active',
-
-  // Payment issues
-  pastDue = 'past_due',
-  unpaid = 'unpaid',
-
-  // Cancelled states
-  canceled = 'canceled',
-
-  // Paused states
-  paused = 'paused',
-}
 
 // state
 export type Subscription = {
@@ -199,10 +205,10 @@ export type ISubscriptionService = {
 
 export type UpdatePaymentMethodOpts =
   | ({
-      paymentType: PaymentType.byCard;
+      paymentType: Extract<PaymentType, 'card'>;
     } & UpdatePaymentMethodCardRequest)
   | ({
-      paymentType: PaymentType.byCrypto;
+      paymentType: Extract<PaymentType, 'crypto'>;
     } & UpdatePaymentMethodCryptoRequest);
 
 export type UpdatePaymentMethodCardRequest = {
