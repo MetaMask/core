@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a whitelist `WHITELISTED_NETWORKS` to allow clients to ignore warning messages for specific networks. ([#6557](https://github.com/MetaMask/core/pull/6557))
+- Add constant `NETWORKS_BYPASSING_VALIDATION` to allow clients to ignore warning messages for specific networks. ([#6557](https://github.com/MetaMask/core/pull/6557))
 - Add `circuitBreakDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
   - This is the amount of time that the underlying circuit breaker policy will pause execution of the input function while the circuit is broken.
 - Add `getRemainingCircuitOpenDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
