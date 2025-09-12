@@ -283,7 +283,10 @@ export class SubscriptionController extends BaseController<
 
   async startSubscriptionWithCrypto(request: StartCryptoSubscriptionRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
-    return await this.#subscriptionService.startSubscriptionWithCrypto(request);
+    const response =
+      await this.#subscriptionService.startSubscriptionWithCrypto(request);
+    this.triggerAccessTokenRefresh();
+    return response;
   }
 
   /**

@@ -1,10 +1,12 @@
+import { AccountWalletType, select } from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
   AccountGroupType,
   AccountSelector,
+  MultichainAccountWalletId,
 } from '@metamask/account-api';
-import { AccountWalletType, select } from '@metamask/account-api';
+import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -211,6 +213,13 @@ export class AccountTreeController extends BaseController<
         this.#backupAndSyncService.handleUserStorageStateChange(
           userStorageControllerState,
         );
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAccountService:walletStatusChange',
+      (walletId, status) => {
+        this.#handleMultichainAccountWalletStatusChange(walletId, status);
       },
     );
 
@@ -660,6 +669,7 @@ export class AccountTreeController extends BaseController<
     if (!wallet) {
       wallets[walletId] = {
         ...result.wallet,
+        status: 'ready',
         groups: {},
         metadata: {
           name: '', // Will get updated later.
@@ -867,7 +877,27 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Gets account group.
+   * Handles multichain account wallet status change from
+   * the MultichainAccountService.
+   *
+   * @param walletId - Multichain account wallet ID.
+   * @param walletStatus - New multichain account wallet status.
+   */
+  #handleMultichainAccountWalletStatusChange(
+    walletId: MultichainAccountWalletId,
+    walletStatus: MultichainAccountWalletStatus,
+  ): void {
+    this.update((state) => {
+      const wallet = state.accountTree.wallets[walletId];
+
+      if (wallet) {
+        wallet.status = walletStatus;
+      }
+    });
+  }
+
+  /**
+   * Gets account group object.
    *
    * @param groupId - The account group ID.
    * @returns The account group or undefined if not found.
