@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add return type annotation to `getCaip25PermissionFromLegacyPermissions` to make its return output assignable to `RequestedPermissions` ([#6382](https://github.com/MetaMask/core/pull/6382))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [1.1.1]
 

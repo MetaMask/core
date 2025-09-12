@@ -1,9 +1,11 @@
+import { type AccountGroupId } from '@metamask/account-api';
 import type {
   AccountWalletType,
   AccountWalletId,
   MultichainAccountWalletId,
+  AccountWalletStatus,
 } from '@metamask/account-api';
-import { type AccountGroupId } from '@metamask/account-api';
+import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -39,6 +41,7 @@ type IsAccountWalletObject<
   Type extends {
     type: AccountWalletType;
     id: AccountWalletId;
+    status: string; // Has to be refined by the type extending this base type.
     groups: {
       [groupId: AccountGroupId]: AccountGroupObject;
     };
@@ -52,6 +55,7 @@ type IsAccountWalletObject<
 export type AccountWalletEntropyObject = {
   type: AccountWalletType.Entropy;
   id: MultichainAccountWalletId;
+  status: MultichainAccountWalletStatus;
   groups: {
     // NOTE: Using `MultichainAccountGroupId` instead of `AccountGroupId` would introduce
     // some type problems when using a group ID as an `AccountGroupId` directly. This
@@ -72,6 +76,7 @@ export type AccountWalletEntropyObject = {
 export type AccountWalletSnapObject = {
   type: AccountWalletType.Snap;
   id: AccountWalletId;
+  status: AccountWalletStatus;
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };
@@ -88,6 +93,7 @@ export type AccountWalletSnapObject = {
 export type AccountWalletKeyringObject = {
   type: AccountWalletType.Keyring;
   id: AccountWalletId;
+  status: AccountWalletStatus;
   groups: {
     [groupId: AccountGroupId]: AccountGroupSingleAccountObject;
   };

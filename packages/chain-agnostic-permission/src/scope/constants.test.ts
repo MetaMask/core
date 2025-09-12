@@ -54,6 +54,7 @@ describe('KnownRpcMethods', () => {
           "eth_uninstallFilter",
         ],
         "solana": Array [],
+        "tron": Array [],
       }
     `);
   });
