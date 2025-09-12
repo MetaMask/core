@@ -140,11 +140,14 @@ export const BUILT_IN_NETWORKS = {
 } as const;
 
 /**
- * A map of whitelisted networks with their name, symbol and RPC URL.
- * This list is used not to display the warnings for those networks.
+ * Both Extension and Mobile have logic to dissuade users from adding
+ * networks that share chain IDs with other networks; if that happens
+ * then those users will see warnings. Sometimes, however, we want to
+ * get around that. This mapping contains networks that should bypass
+ * validation.
  */
-export const WHITELISTED_NETWORKS = {
-  // HyperEVM
+export const ALLOWED_NETWORKS_WITH_DUPLICATE_CHAINS = {
+  // HyperEVM uses the same chain ID as Wanchain
   '0x3e7': {
     name: 'HyperEVM',
     symbol: 'HYPE',
