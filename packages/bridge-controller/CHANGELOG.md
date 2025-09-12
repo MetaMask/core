@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `isGaslessSwapEnabled` LaunchDarkly config to feature flags schema ([#6573](https://github.com/MetaMask/core/pull/6573))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
+### Added
+
+- Add `totalFeeAmountUsd` to `quote` to support rewards estimation ([#6592](https://github.com/MetaMask/core/pull/6592))
+
 ## [42.0.0]
 
 ### Added
