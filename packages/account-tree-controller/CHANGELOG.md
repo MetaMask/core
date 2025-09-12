@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fix possible circular dependency issue in `logger.ts` ([]())
+
 ## [0.15.0]
 
 ### Added
