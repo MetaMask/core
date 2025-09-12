@@ -14,6 +14,8 @@ import type {
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
+  KeyringControllerAddNewKeyringAction,
+  KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
@@ -74,6 +76,11 @@ export type MultichainAccountServiceAlignWalletsAction = {
   handler: MultichainAccountService['alignWallets'];
 };
 
+export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
+  type: `${typeof serviceName}:createMultichainAccountWallet`;
+  handler: MultichainAccountService['createMultichainAccountWallet'];
+};
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
@@ -87,7 +94,8 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
-  | MultichainAccountServiceAlignWalletsAction;
+  | MultichainAccountServiceAlignWalletsAction
+  | MultichainAccountServiceCreateMultichainAccountWalletAction;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;
@@ -124,6 +132,8 @@ export type AllowedActions =
   | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerAddNewKeyringAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction;
 
