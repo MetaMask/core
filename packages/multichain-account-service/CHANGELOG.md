@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.0]
-
 ### Added
+
 - Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6478](https://github.com/MetaMask/core/pull/6478))
   - An action handler was also registered for this method so that it can be called from the clients.
 - **BREAKING** Add additional allowed actions to the `MultichainAccountService` messenger
   - `KeyringController:getKeyringsByType` and `KeyringController:addNewKeyring` actions were added.
+
+## [0.8.0]
+
+### Added
+
 - Add mutable operation lock (per wallets) ([#6527](https://github.com/MetaMask/core/pull/6527))
   - Operations such as discovery, alignment, group creation will now lock an internal mutex (per wallets).
 - Add wallet status tracking with `:walletStatusChange` event ([#6527](https://github.com/MetaMask/core/pull/6527))
