@@ -2783,6 +2783,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/keyring-api": "npm:^21.0.0"
+    "@metamask/keyring-controller": "npm:^23.0.0"
     "@metamask/network-controller": "npm:^24.1.0"
     "@metamask/polling-controller": "npm:^14.0.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -2805,6 +2806,7 @@ __metadata:
     "@metamask/accounts-controller": ^33.0.0
     "@metamask/bridge-controller": ^42.0.0
     "@metamask/gas-fee-controller": ^24.0.0
+    "@metamask/keyring-controller": ^23.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/snaps-controllers": ^14.0.0
     "@metamask/transaction-controller": ^60.0.0
