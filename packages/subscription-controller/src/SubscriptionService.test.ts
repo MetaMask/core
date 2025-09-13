@@ -16,10 +16,10 @@ import type {
   UpdatePaymentMethodCryptoRequest,
 } from './types';
 import {
-  PaymentType,
-  ProductType,
-  RecurringInterval,
-  SubscriptionStatus,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  SUBSCRIPTION_STATUSES,
 } from './types';
 
 // Mock the handleFetch function
@@ -34,7 +34,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
   products: [
     {
-      name: ProductType.SHIELD,
+      name: PRODUCT_TYPES.SHIELD,
       id: 'prod_shield_basic',
       currency: 'usd',
       amount: 9.99,
@@ -42,19 +42,19 @@ const MOCK_SUBSCRIPTION: Subscription = {
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: SubscriptionStatus.active,
-  interval: RecurringInterval.month,
+  status: SUBSCRIPTION_STATUSES.active,
+  interval: RECURRING_INTERVALS.month,
   paymentMethod: {
-    type: PaymentType.byCard,
+    type: PAYMENT_TYPES.byCard,
   },
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 
 const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
-  products: [ProductType.SHIELD],
+  products: [PRODUCT_TYPES.SHIELD],
   isTrialRequested: true,
-  recurringInterval: RecurringInterval.month,
+  recurringInterval: RECURRING_INTERVALS.month,
 };
 
 const MOCK_START_SUBSCRIPTION_RESPONSE = {
@@ -226,9 +226,9 @@ describe('SubscriptionService', () => {
       const config = createMockConfig();
       const service = new SubscriptionService(config);
       const request: StartSubscriptionRequest = {
-        products: [ProductType.SHIELD],
+        products: [PRODUCT_TYPES.SHIELD],
         isTrialRequested: false,
-        recurringInterval: RecurringInterval.month,
+        recurringInterval: RECURRING_INTERVALS.month,
       };
 
       handleFetchMock.mockResolvedValue(MOCK_START_SUBSCRIPTION_RESPONSE);
@@ -244,7 +244,7 @@ describe('SubscriptionService', () => {
       const request: StartSubscriptionRequest = {
         products: [],
         isTrialRequested: true,
-        recurringInterval: RecurringInterval.month,
+        recurringInterval: RECURRING_INTERVALS.month,
       };
 
       await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
@@ -257,9 +257,9 @@ describe('SubscriptionService', () => {
     it('should start crypto subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {
         const request: StartCryptoSubscriptionRequest = {
-          products: [ProductType.SHIELD],
+          products: [PRODUCT_TYPES.SHIELD],
           isTrialRequested: false,
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
           billingCycles: 3,
           chainId: '0x1',
           payerAddress: '0x0000000000000000000000000000000000000001',
@@ -269,7 +269,7 @@ describe('SubscriptionService', () => {
 
         const response = {
           subscriptionId: 'sub_crypto_123',
-          status: SubscriptionStatus.active,
+          status: SUBSCRIPTION_STATUSES.active,
         };
 
         handleFetchMock.mockResolvedValue(response);
@@ -304,7 +304,7 @@ describe('SubscriptionService', () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         const request: UpdatePaymentMethodCardRequest = {
           subscriptionId: 'sub_123456789',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
         };
 
         handleFetchMock.mockResolvedValue({});
@@ -336,7 +336,7 @@ describe('SubscriptionService', () => {
           payerAddress: '0x0000000000000000000000000000000000000001',
           tokenSymbol: 'USDC',
           rawTransaction: '0xdeadbeef',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
           billingCycles: 3,
         };
 
