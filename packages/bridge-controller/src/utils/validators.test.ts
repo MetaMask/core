@@ -6,12 +6,20 @@ describe('validators', () => {
       {
         response: {
           chains: {
-            '1': { isActiveDest: true, isActiveSrc: true },
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              isGaslessSwapEnabled: true,
+            },
             '10': { isActiveDest: true, isActiveSrc: true },
             '137': { isActiveDest: true, isActiveSrc: true },
             '324': { isActiveDest: true, isActiveSrc: true },
             '42161': { isActiveDest: true, isActiveSrc: true },
-            '43114': { isActiveDest: true, isActiveSrc: true },
+            '43114': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              isGaslessSwapEnabled: false,
+            },
             '56': { isActiveDest: true, isActiveSrc: true },
             '59144': { isActiveDest: true, isActiveSrc: true },
             '8453': { isActiveDest: true, isActiveSrc: true },

@@ -469,7 +469,6 @@ const defaultKeyringBuilders = [
   // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
-  // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(HdKeyring),
 ];
 

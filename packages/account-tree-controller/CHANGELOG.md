@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
+## [0.15.1]
+
+### Fixed
+
+- Check for group existence prior to emitting analytics event in `createMultichainAccountGroup` ([#6582](https://github.com/MetaMask/core/pull/6582))
+- Fix logger initialization ([#6581](https://github.com/MetaMask/core/pull/6581))
+  - There was a circular dependency between the controller and the logger itself, preventing the logger to be initialized properly.
+
+## [0.15.0]
+
+### Added
+
+- Add `AccountWalletObject.status` support ([#6571](https://github.com/MetaMask/core/pull/6571)), ([#6578](https://github.com/MetaMask/core/pull/6578))
+  - The `status` field will now report the current wallet status.
+  - Uses `MultichainAccountService` to report on-going operations (discovery, alignment, account creations) for `AccountWalletEntropyObject` multichain account wallet objects.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.7.0` to `^0.8.0` ([#6571](https://github.com/MetaMask/core/pull/6571)), ([#6578](https://github.com/MetaMask/core/pull/6578))
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.9.0` to `^0.12.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+
+## [0.14.0]
+
 ### Added
 
 - **BREAKING:** Add backup and sync capabilities ([#6344](https://github.com/MetaMask/core/pull/6344))
@@ -21,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Legacy account syncing compatibility for seamless migration.
   - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options.
   - Add `@metamask/superstruct` for data validation.
-- **BREAKING:** Add `@metamask/profile-sync-controller` and `@metamask/multichain-account-service` peer dependencies ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Add `@metamask/multichain-account-service` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
+- **BREAKING:** Add `@metamask/profile-sync-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344)), ([#6558](https://github.com/MetaMask/core/pull/6558))
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
 
 ### Changed
@@ -204,7 +232,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.1...HEAD
+[0.15.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.0...@metamask/account-tree-controller@0.15.1
+[0.15.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.14.0...@metamask/account-tree-controller@0.15.0
+[0.14.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.1...@metamask/account-tree-controller@0.14.0
 [0.13.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.0...@metamask/account-tree-controller@0.13.1
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.1...@metamask/account-tree-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.12.0...@metamask/account-tree-controller@0.12.1
