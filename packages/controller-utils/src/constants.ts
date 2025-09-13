@@ -139,6 +139,22 @@ export const BUILT_IN_NETWORKS = {
   },
 } as const;
 
+/**
+ * When a user adds a custom network to MetaMask, we perform some basic
+ * validations on the network. For instance, usually a network cannot share the
+ * same chain as another. In some cases, however, we want to allow networks that
+ * would normally be invalid. This mapping contains networks that should bypass
+ * validation.
+ */
+export const NETWORKS_BYPASSING_VALIDATION = {
+  // HyperEVM uses the same chain ID as Wanchain
+  '0x3e7': {
+    name: 'HyperEVM',
+    symbol: 'HYPE',
+    rpcUrl: 'https://rpc.hyperliquid.xyz',
+  },
+};
+
 // APIs
 export const OPENSEA_PROXY_URL =
   'https://proxy.api.cx.metamask.io/opensea/v1/api/v2';
