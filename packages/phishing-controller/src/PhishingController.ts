@@ -1054,6 +1054,12 @@ export class PhishingController extends BaseController<
       }
     }
 
+    console.log('results', results);
+
+    console.log('tokensToFetch', tokensToFetch);
+
+    console.log('tokenScanCache', this.#tokenScanCache);
+
     return results;
   };
 
