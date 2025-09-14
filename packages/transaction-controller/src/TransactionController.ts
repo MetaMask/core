@@ -43,6 +43,7 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
+import type { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import {
   errorCodes,
@@ -467,7 +468,8 @@ export type AllowedActions =
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | PhishingControllerBulkScanTokensAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -4285,6 +4287,56 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Trigger fire and forget bulk token screening via PhishingController for tokens received in simulation.
+   *
+   * @param transactionMeta
+   */
+  /**
+   * @param transactionMeta - Transaction metadata containing simulation results.
+   */
+  async #screenReceivedTokens(transactionMeta: TransactionMeta) {
+    try {
+      const { simulationData } = transactionMeta;
+
+      // Skip if simulation has errors or no data
+      if (!simulationData || simulationData.error) {
+        return;
+      }
+
+      const receivedTokens = (simulationData.tokenBalanceChanges || [])
+        .filter((change) => !change.isDecrease)
+        .map(({ address }) => address)
+        .filter((address): address is Hex => Boolean(address));
+
+      if (receivedTokens.length === 0) {
+        return;
+      }
+
+      const { chainId } = transactionMeta;
+
+      // Fire and forget
+      (async () => {
+        try {
+          await this.messagingSystem.call('PhishingController:bulkScanTokens', {
+            chainId,
+            tokens: receivedTokens,
+          });
+        } catch (innerError) {
+          log('Bulk token screening failed', {
+            innerError,
+            chainId,
+            receivedTokens,
+          });
+        }
+      })().catch(() => {
+        // Ignore any unhandled rejections
+      });
+    } catch (error) {
+      log('Error scheduling token screening', error);
+    }
+  }
+
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
@@ -4487,5 +4539,10 @@ export class TransactionController extends BaseController<
     );
 
     log('Updated transaction with afterSimulate data', updatedTransactionMeta);
+
+    // Fire-and-forget token screening for received tokens
+    this.#screenReceivedTokens(updatedTransactionMeta).catch((err) => {
+      log('Ignored error from background token screening', err);
+    });
   }
 }
