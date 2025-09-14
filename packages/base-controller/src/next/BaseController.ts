@@ -67,7 +67,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * Set this to false if the state may contain personally identifiable information, or if it's
    * too large to include in a debug snapshot.
    */
-  anonymous: boolean | StateDeriver<ControllerState>;
+  includeInDebugSnapshot: boolean | StateDeriver<ControllerState>;
   /**
    * Indicates whether this property should be included in state logs.
    *
@@ -78,7 +78,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * diagnosing errors (e.g. transaction hashes, addresses), but we still attempt to limit the
    * data we expose to what is most useful for helping users.
    */
-  includeInStateLogs?: boolean | StateDeriver<ControllerState>;
+  includeInStateLogs: boolean | StateDeriver<ControllerState>;
   /**
    * Indicates whether this property should be persisted.
    *
@@ -98,7 +98,7 @@ export type StatePropertyMetadata<ControllerState extends Json> = {
    * Note that we disallow the use of a state derivation function here to preserve type information
    * for the UI (the state deriver type always returns `Json`).
    */
-  usedInUi?: boolean;
+  usedInUi: boolean;
 };
 
 /**
@@ -377,7 +377,7 @@ export function getAnonymizedState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
 ): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'anonymous');
+  return deriveStateFromMetadata(state, metadata, 'includeInDebugSnapshot');
 }
 
 /**
