@@ -199,7 +199,7 @@ describe('MultichainAccount', () => {
       expect(providers[1].createAccounts).not.toHaveBeenCalled();
     });
 
-    it('warns if provider alignment fails', async () => {
+    it('warns if alignment fails for a single provider', async () => {
       const groupIndex = 0;
       const { group, providers, wallet } = setup({
         groupIndex,
@@ -208,7 +208,7 @@ describe('MultichainAccount', () => {
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
+        new Error('Provider 2: Unable to create accounts'),
       );
 
       await group.align();
@@ -219,7 +219,39 @@ describe('MultichainAccount', () => {
         groupIndex,
       });
       expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing`,
+        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Provider threw the following error:\n- Error: Provider 2: Unable to create accounts`,
+      );
+    });
+
+    it('warns if alignment fails for multiple providers', async () => {
+      const groupIndex = 0;
+      const { group, providers, wallet } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [], []],
+      });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      providers[1].createAccounts.mockRejectedValueOnce(
+        new Error('Provider 2: Unable to create accounts'),
+      );
+
+      providers[2].createAccounts.mockRejectedValueOnce(
+        new Error('Provider 3: Unable to create accounts'),
+      )
+
+      await group.align();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex,
+      });
+      expect(providers[2].createAccounts).toHaveBeenCalledWith({
+        entropySource: wallet.entropySource,
+        groupIndex,
+      });
+      expect(consoleSpy).toHaveBeenCalledWith(
+        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing. Providers threw the following errors:\n- Error: Provider 2: Unable to create accounts\n- Error: Provider 3: Unable to create accounts`,
       );
     });
   });

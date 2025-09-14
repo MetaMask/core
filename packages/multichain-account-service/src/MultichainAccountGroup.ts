@@ -233,8 +233,15 @@ export class MultichainAccountGroup<
     );
 
     if (results.some((result) => result.status === 'rejected')) {
+      const rejectedResults = results.filter(
+        (result) => result.status === 'rejected',
+      ) as PromiseRejectedResult[];
+      const errors = rejectedResults
+        .map((result) => `- ${result.reason}`)
+        .join('\n');
+      const hasMultipleFailures = rejectedResults.length > 1;
       console.warn(
-        `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`,
+        `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing. ${hasMultipleFailures ? 'Providers' : 'Provider'} threw the following ${hasMultipleFailures ? 'errors' : 'error'}:\n${errors}`,
       );
     }
   }
