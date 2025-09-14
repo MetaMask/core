@@ -3188,6 +3188,41 @@ describe('PhishingController', () => {
       consoleWarnSpy.mockRestore();
     });
 
+    it('should catch thrown errors and return existing results', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // This proxy is neeed to simulate the error thrown in the catch block from controllerUtils.safelyExecuteWithTimeout
+      const throwingResults = new Proxy(
+        {},
+        {
+          get() {
+            throw new Error('network failure');
+          },
+        },
+      );
+
+      const fetchSpy = jest
+        .spyOn(global as unknown as { fetch: typeof fetch }, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ results: throwingResults }),
+        } as unknown as Response);
+
+      const response = await controller.bulkScanTokens({
+        chainId: mockChainId,
+        tokens: mockTokens,
+      });
+
+      expect(response).toStrictEqual({});
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error scanning tokens:',
+        expect.any(Error),
+      );
+
+      fetchSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
     describe('caching behavior', () => {
       it('should cache token scan results', async () => {
         const scope = nock('https://security-alerts.api.cx.metamask.io')
