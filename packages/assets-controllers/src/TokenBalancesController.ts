@@ -464,9 +464,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  override async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
+  override async _executePoll({
+    chainIds,
+    queryAllAccounts = false,
+  }: {
+    chainIds: ChainIdHex[];
+    queryAllAccounts?: boolean;
+  }) {
     // This won't be called with our custom implementation, but keep for compatibility
-    await this.updateBalances({ chainIds });
+    await this.updateBalances({ chainIds, queryAllAccounts });
   }
 
   /**
@@ -492,7 +498,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({ chainIds }: { chainIds?: ChainIdHex[] } = {}) {
+  async updateBalances({
+    chainIds,
+    queryAllAccounts = false,
+  }: { chainIds?: ChainIdHex[]; queryAllAccounts?: boolean } = {}) {
     const targetChains = chainIds ?? this.#chainIdsWithTokens();
     if (!targetChains.length) {
       return;
@@ -520,7 +529,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       try {
         const balances = await fetcher.fetch({
           chainIds: supportedChains,
-          queryAllAccounts: this.#queryAllAccounts,
+          queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
         });

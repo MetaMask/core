@@ -166,7 +166,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -203,7 +203,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -237,7 +237,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -271,7 +271,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -309,7 +309,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -351,7 +351,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -396,7 +396,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -455,7 +455,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
                 '0x1': {
@@ -501,7 +501,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -546,7 +546,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -590,7 +590,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -639,7 +639,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -688,7 +688,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -740,7 +740,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -791,7 +791,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -839,7 +839,7 @@ describe('AccountTrackerController', () => {
           },
           async ({ controller, refresh }) => {
             // Should not throw an error, even for unsupported chains
-            await refresh(clock, ['networkClientId1']);
+            await refresh(clock, ['networkClientId1'], true);
 
             // State should still be updated with chain entry from syncAccounts
             expect(controller.state.accountsByChainId).toHaveProperty('0x5');
@@ -881,7 +881,7 @@ describe('AccountTrackerController', () => {
             );
 
             // Start refresh with the mocked timeout behavior
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             // With safelyExecuteWithTimeout, timeouts are handled gracefully
             // The system should continue operating without throwing errors
@@ -923,7 +923,7 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet (supported by API)
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             // Since allowExternalServices defaults to () => true (line 390), and accountsApiChainIds includes '0x1',
             // the API fetcher should be used, which means fetch should be called
@@ -956,7 +956,7 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet (supported by API)
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             // Since allowExternalServices is true and accountsApiChainIds includes '0x1',
             // the API fetcher should be used, which means fetch should be called
@@ -989,7 +989,7 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet
-            await refresh(clock, ['mainnet']);
+            await refresh(clock, ['mainnet'], true);
 
             // Since allowExternalServices is false, the API fetcher should NOT be used
             // Only RPC calls should be made, so fetch should NOT be called
@@ -1024,7 +1024,7 @@ describe('AccountTrackerController', () => {
           mockedQuery.mockResolvedValue('0x123456');
 
           // Refresh balances for mainnet
-          await refresh(clock, ['mainnet']);
+          await refresh(clock, ['mainnet'], true);
 
           // Verify that the supports method was called (meaning we reached the continue logic)
           expect(supportsSpy).toHaveBeenCalledWith('0x1');
@@ -1063,7 +1063,7 @@ describe('AccountTrackerController', () => {
           mockedQuery.mockResolvedValue('0x123456');
 
           // Refresh balances for mainnet
-          await refresh(clock, ['mainnet']);
+          await refresh(clock, ['mainnet'], true);
 
           // Verify that console.warn was called with the error message
           expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -1179,6 +1179,7 @@ describe('AccountTrackerController', () => {
 
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
+          queryAllAccounts: true,
         });
         await advanceTime({ clock, duration: 1 });
 
@@ -1212,33 +1213,35 @@ describe('AccountTrackerController', () => {
 
         controller.startPolling({
           networkClientIds: [networkClientId1],
+          queryAllAccounts: true,
         });
 
         await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
         await advanceTime({ clock, duration: 50 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
         await advanceTime({ clock, duration: 50 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
         const pollToken = controller.startPolling({
           networkClientIds: [networkClientId2],
+          queryAllAccounts: true,
         });
 
         await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(3);
         await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1]);
-        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1], true);
+        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(5);
 
         controller.stopPollingByPollingToken(pollToken);
 
         await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1]);
+        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(6);
 
         controller.stopAllPolling();
@@ -1263,6 +1266,7 @@ describe('AccountTrackerController', () => {
         expect(refreshSpy).not.toHaveBeenCalled();
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
+          queryAllAccounts: true,
         });
 
         await advanceTime({ clock, duration: 1 });
@@ -1342,6 +1346,7 @@ type WithControllerCallback<ReturnValue> = ({
   refresh: (
     clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
+    queryAllAccounts?: boolean,
   ) => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -1514,8 +1519,9 @@ async function withController<ReturnValue>(
   const refresh = async (
     clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
+    queryAllAccounts?: boolean,
   ) => {
-    const promise = controller.refresh(networkClientIds);
+    const promise = controller.refresh(networkClientIds, queryAllAccounts);
     await clock.tickAsync(1);
     await promise;
   };
