@@ -5,7 +5,8 @@ import {
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 
-import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
+import type { UpdatableField, ExtractFieldValues } from './type-utils';
+import type { AccountTreeControllerState } from './types';
 
 /**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
@@ -84,3 +85,38 @@ export type AccountGroupObjectOf<GroupType extends AccountGroupType> = Extract<
     },
   { type: GroupType }
 >['object'];
+
+/**
+ * Checks if an account group name is unique within the same wallet.
+ *
+ * @param state - The account tree controller state.
+ * @param groupId - The account group ID to exclude from the check.
+ * @param name - The name to validate for uniqueness.
+ * @returns True if the name is unique within the same wallet, false otherwise.
+ * @throws Error if the group ID does not exist.
+ */
+export function isAccountGroupNameUnique(
+  state: AccountTreeControllerState,
+  groupId: AccountGroupId,
+  name: string,
+): boolean {
+  const trimmedName = name.trim();
+
+  // Find the wallet that contains the group being validated
+  for (const wallet of Object.values(state.accountTree.wallets)) {
+    if (wallet.groups[groupId]) {
+      // Check for duplicates only within this wallet
+      for (const group of Object.values(wallet.groups)) {
+        if (
+          group.id !== groupId &&
+          group.metadata.name.trim() === trimmedName
+        ) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  throw new Error(`Account group with ID "${groupId}" not found in tree`);
+}

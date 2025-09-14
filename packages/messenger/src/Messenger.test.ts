@@ -1,365 +1,736 @@
 import type { Patch } from 'immer';
 import sinon from 'sinon';
 
-import { Messenger } from './Messenger';
+import {
+  type MockAnyNamespace,
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+} from './Messenger';
 
 describe('Messenger', () => {
   afterEach(() => {
     sinon.restore();
   });
 
-  it('should allow registering and calling an action handler', () => {
-    type CountAction = {
-      type: 'Fixture:count';
-      handler: (increment: number) => void;
-    };
-    const messenger = new Messenger<'Fixture', CountAction, never>({
-      namespace: 'Fixture',
+  describe('registerActionHandler and call', () => {
+    it('allows registering and calling an action handler', () => {
+      type CountAction = {
+        type: 'Fixture:count';
+        handler: (increment: number) => void;
+      };
+      const messenger = new Messenger<'Fixture', CountAction, never>({
+        namespace: 'Fixture',
+      });
+
+      let count = 0;
+      messenger.registerActionHandler('Fixture:count', (increment: number) => {
+        count += increment;
+      });
+      messenger.call('Fixture:count', 1);
+
+      expect(count).toBe(1);
     });
 
-    let count = 0;
-    messenger.registerActionHandler('Fixture:count', (increment: number) => {
-      count += increment;
-    });
-    messenger.call('Fixture:count', 1);
+    it('allows registering and calling an action handler for a different namespace using MOCK_ANY_NAMESPACE', () => {
+      type CountAction = {
+        type: 'Fixture:count';
+        handler: (increment: number) => void;
+      };
+      const messenger = new Messenger<MockAnyNamespace, CountAction, never>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
 
-    expect(count).toBe(1);
-  });
+      let count = 0;
+      messenger.registerActionHandler('Fixture:count', (increment: number) => {
+        count += increment;
+      });
+      messenger.call('Fixture:count', 1);
 
-  it('automatically delegates actions to parent upon registration', () => {
-    type CountAction = {
-      type: 'Fixture:count';
-      handler: (increment: number) => void;
-    };
-    const parentMessenger = new Messenger<'Parent', CountAction, never>({
-      namespace: 'Parent',
-    });
-    const messenger = new Messenger<
-      'Fixture',
-      CountAction,
-      never,
-      typeof parentMessenger
-    >({
-      namespace: 'Fixture',
-      parent: parentMessenger,
+      expect(count).toBe(1);
     });
 
-    let count = 0;
-    messenger.registerActionHandler('Fixture:count', (increment: number) => {
-      count += increment;
-    });
-    parentMessenger.call('Fixture:count', 1);
+    it('automatically delegates actions to parent upon registration', () => {
+      type CountAction = {
+        type: 'Fixture:count';
+        handler: (increment: number) => void;
+      };
+      const parentMessenger = new Messenger<'Parent', CountAction, never>({
+        namespace: 'Parent',
+      });
+      const messenger = new Messenger<
+        'Fixture',
+        CountAction,
+        never,
+        typeof parentMessenger
+      >({
+        namespace: 'Fixture',
+        parent: parentMessenger,
+      });
 
-    expect(count).toBe(1);
-  });
+      let count = 0;
+      messenger.registerActionHandler('Fixture:count', (increment: number) => {
+        count += increment;
+      });
+      parentMessenger.call('Fixture:count', 1);
 
-  it('should allow registering and calling multiple different action handlers', () => {
-    // These 'Other' types are included to demonstrate that messenger generics can indeed be unions
-    // of actions and events from different modules.
-    type GetOtherState = {
-      type: `OtherController:getState`;
-      handler: () => { stuff: string };
-    };
-
-    type OtherStateChange = {
-      type: `OtherController:stateChange`;
-      payload: [{ stuff: string }, Patch[]];
-    };
-
-    type MessageAction =
-      | { type: 'Fixture:concat'; handler: (message: string) => void }
-      | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
-    const messenger = new Messenger<
-      'Fixture',
-      MessageAction | GetOtherState,
-      OtherStateChange
-    >({ namespace: 'Fixture' });
-
-    let message = '';
-    messenger.registerActionHandler(
-      'Fixture:reset',
-      (initialMessage: string) => {
-        message = initialMessage;
-      },
-    );
-
-    messenger.registerActionHandler('Fixture:concat', (s: string) => {
-      message += s;
+      expect(count).toBe(1);
     });
 
-    messenger.call('Fixture:reset', 'hello');
-    messenger.call('Fixture:concat', ', world');
+    it('allows registering and calling multiple different action handlers', () => {
+      // These 'Other' types are included to demonstrate that messenger generics can indeed be unions
+      // of actions and events from different modules.
+      type GetOtherState = {
+        type: `OtherController:getState`;
+        handler: () => { stuff: string };
+      };
 
-    expect(message).toBe('hello, world');
-  });
+      type OtherStateChange = {
+        type: `OtherController:stateChange`;
+        payload: [{ stuff: string }, Patch[]];
+      };
 
-  it('should allow registering and calling an action handler with no parameters', () => {
-    type IncrementAction = { type: 'Fixture:increment'; handler: () => void };
-    const messenger = new Messenger<'Fixture', IncrementAction, never>({
-      namespace: 'Fixture',
+      type MessageAction =
+        | { type: 'Fixture:concat'; handler: (message: string) => void }
+        | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
+      const messenger = new Messenger<
+        'Fixture',
+        MessageAction | GetOtherState,
+        OtherStateChange
+      >({ namespace: 'Fixture' });
+
+      let message = '';
+      messenger.registerActionHandler(
+        'Fixture:reset',
+        (initialMessage: string) => {
+          message = initialMessage;
+        },
+      );
+
+      messenger.registerActionHandler('Fixture:concat', (s: string) => {
+        message += s;
+      });
+
+      messenger.call('Fixture:reset', 'hello');
+      messenger.call('Fixture:concat', ', world');
+
+      expect(message).toBe('hello, world');
     });
 
-    let count = 0;
-    messenger.registerActionHandler('Fixture:increment', () => {
-      count += 1;
-    });
-    messenger.call('Fixture:increment');
+    it('allows registering and calling an action handler with no parameters', () => {
+      type IncrementAction = { type: 'Fixture:increment'; handler: () => void };
+      const messenger = new Messenger<'Fixture', IncrementAction, never>({
+        namespace: 'Fixture',
+      });
 
-    expect(count).toBe(1);
-  });
+      let count = 0;
+      messenger.registerActionHandler('Fixture:increment', () => {
+        count += 1;
+      });
+      messenger.call('Fixture:increment');
 
-  it('should allow registering and calling an action handler with multiple parameters', () => {
-    type MessageAction = {
-      type: 'Fixture:message';
-      handler: (to: string, message: string) => void;
-    };
-    const messenger = new Messenger<'Fixture', MessageAction, never>({
-      namespace: 'Fixture',
+      expect(count).toBe(1);
     });
 
-    const messages: Record<string, string> = {};
-    messenger.registerActionHandler('Fixture:message', (to, message) => {
-      messages[to] = message;
-    });
-    messenger.call('Fixture:message', '0x123', 'hello');
+    it('allows registering and calling an action handler with multiple parameters', () => {
+      type MessageAction = {
+        type: 'Fixture:message';
+        handler: (to: string, message: string) => void;
+      };
+      const messenger = new Messenger<'Fixture', MessageAction, never>({
+        namespace: 'Fixture',
+      });
 
-    expect(messages['0x123']).toBe('hello');
-  });
+      const messages: Record<string, string> = {};
+      messenger.registerActionHandler('Fixture:message', (to, message) => {
+        messages[to] = message;
+      });
+      messenger.call('Fixture:message', '0x123', 'hello');
 
-  it('should allow registering and calling an action handler with a return value', () => {
-    type AddAction = {
-      type: 'Fixture:add';
-      handler: (a: number, b: number) => number;
-    };
-    const messenger = new Messenger<'Fixture', AddAction, never>({
-      namespace: 'Fixture',
-    });
-
-    messenger.registerActionHandler('Fixture:add', (a, b) => {
-      return a + b;
-    });
-    const result = messenger.call('Fixture:add', 5, 10);
-
-    expect(result).toBe(15);
-  });
-
-  it('should not allow registering multiple action handlers under the same name', () => {
-    type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<'Fixture', PingAction, never>({
-      namespace: 'Fixture',
+      expect(messages['0x123']).toBe('hello');
     });
 
-    messenger.registerActionHandler('Fixture:ping', () => undefined);
+    it('allows registering and calling an action handler with a return value', () => {
+      type AddAction = {
+        type: 'Fixture:add';
+        handler: (a: number, b: number) => number;
+      };
+      const messenger = new Messenger<'Fixture', AddAction, never>({
+        namespace: 'Fixture',
+      });
 
-    expect(() => {
+      messenger.registerActionHandler('Fixture:add', (a, b) => {
+        return a + b;
+      });
+      const result = messenger.call('Fixture:add', 5, 10);
+
+      expect(result).toBe(15);
+    });
+
+    it('does not allow registering multiple action handlers under the same name', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+
       messenger.registerActionHandler('Fixture:ping', () => undefined);
-    }).toThrow('A handler for Fixture:ping has already been registered');
+
+      expect(() => {
+        messenger.registerActionHandler('Fixture:ping', () => undefined);
+      }).toThrow('A handler for Fixture:ping has already been registered');
+    });
+
+    it('throws when calling unregistered action', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+    });
+
+    it('throws when registering an action handler for a different namespace', () => {
+      type CountAction = {
+        type: 'Fixture:count';
+        handler: (increment: number) => void;
+      };
+      const messenger = new Messenger<'Different', CountAction, never>({
+        namespace: 'Different',
+      });
+
+      expect(() =>
+        // @ts-expect-error Intentionally invalid parameter
+        messenger.registerActionHandler('Fixture:count', jest.fn()),
+      ).toThrow(
+        `Only allowed registering action handlers prefixed by 'Different:'`,
+      );
+    });
+
+    it('throws when unregistering an action handler for a different namespace', () => {
+      type CountAction = {
+        type: 'Source:count';
+        handler: (increment: number) => void;
+      };
+      const sourceMessenger = new Messenger<'Source', CountAction, never>({
+        namespace: 'Source',
+      });
+      const messenger = new Messenger<'Destination', CountAction, never>({
+        namespace: 'Destination',
+      });
+      sourceMessenger.delegate({ actions: ['Source:count'], messenger });
+
+      expect(() =>
+        // @ts-expect-error Intentionally invalid parameter
+        messenger.unregisterActionHandler('Source:count'),
+      ).toThrow(
+        `Only allowed unregistering action handlers prefixed by 'Destination:'`,
+      );
+    });
+
+    it('throws when calling an action from a different namespace that has been unregistered using MOCK_ANY_NAMESPACE', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<MockAnyNamespace, PingAction, never>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+
+      let pingCount = 0;
+      messenger.registerActionHandler('Fixture:ping', () => {
+        pingCount += 1;
+      });
+
+      messenger.unregisterActionHandler('Fixture:ping');
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+      expect(pingCount).toBe(0);
+    });
+
+    it('throws when calling an action that has been unregistered', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+
+      let pingCount = 0;
+      messenger.registerActionHandler('Fixture:ping', () => {
+        pingCount += 1;
+      });
+
+      messenger.unregisterActionHandler('Fixture:ping');
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+      expect(pingCount).toBe(0);
+    });
+
+    it('throws when calling an action after actions have been reset', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+
+      let pingCount = 0;
+      messenger.registerActionHandler('Fixture:ping', () => {
+        pingCount += 1;
+      });
+
+      messenger.clearActions();
+
+      expect(() => {
+        messenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+      expect(pingCount).toBe(0);
+    });
+
+    it('throws when calling a delegated action after actions have been reset', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+      let pingCount = 0;
+      messenger.registerActionHandler('Fixture:ping', () => {
+        pingCount += 1;
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        PingAction,
+        never
+      >({
+        namespace: 'Destination',
+      });
+      messenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Fixture:ping'],
+      });
+
+      messenger.clearActions();
+
+      expect(() => {
+        delegatedMessenger.call('Fixture:ping');
+      }).toThrow('A handler for Fixture:ping has not been registered');
+      expect(pingCount).toBe(0);
+    });
   });
 
-  it('should throw when calling unregistered action', () => {
-    type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<'Fixture', PingAction, never>({
-      namespace: 'Fixture',
+  describe('publish and subscribe', () => {
+    it('publishes event to subscriber', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler.calledWithExactly('hello')).toBe(true);
+      expect(handler.callCount).toBe(1);
     });
 
-    expect(() => {
-      messenger.call('Fixture:ping');
-    }).toThrow('A handler for Fixture:ping has not been registered');
-  });
+    it('publishes event from different namespace using MOCK_ANY_NAMESPACE', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
 
-  it('should throw when calling an action that has been unregistered', () => {
-    type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<'Fixture', PingAction, never>({
-      namespace: 'Fixture',
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler.calledWithExactly('hello')).toBe(true);
+      expect(handler.callCount).toBe(1);
     });
 
-    expect(() => {
-      messenger.call('Fixture:ping');
-    }).toThrow('A handler for Fixture:ping has not been registered');
+    it('automatically delegates events to parent upon first publish', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
+        namespace: 'Parent',
+      });
+      const messenger = new Messenger<
+        'Fixture',
+        never,
+        MessageEvent,
+        typeof parentMessenger
+      >({
+        namespace: 'Fixture',
+        parent: parentMessenger,
+      });
 
-    let pingCount = 0;
-    messenger.registerActionHandler('Fixture:ping', () => {
-      pingCount += 1;
+      const handler = sinon.stub();
+      parentMessenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler.calledWithExactly('hello')).toBe(true);
+      expect(handler.callCount).toBe(1);
     });
 
-    messenger.unregisterActionHandler('Fixture:ping');
+    it('allows publishing multiple different events to subscriber', () => {
+      type MessageEvent =
+        | { type: 'Fixture:message'; payload: [string] }
+        | { type: 'Fixture:ping'; payload: [] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(() => {
-      messenger.call('Fixture:ping');
-    }).toThrow('A handler for Fixture:ping has not been registered');
-    expect(pingCount).toBe(0);
-  });
+      const messageHandler = sinon.stub();
+      const pingHandler = sinon.stub();
+      messenger.subscribe('Fixture:message', messageHandler);
+      messenger.subscribe('Fixture:ping', pingHandler);
 
-  it('should throw when calling an action after actions have been reset', () => {
-    type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<'Fixture', PingAction, never>({
-      namespace: 'Fixture',
+      messenger.publish('Fixture:message', 'hello');
+      messenger.publish('Fixture:ping');
+
+      expect(messageHandler.calledWithExactly('hello')).toBe(true);
+      expect(messageHandler.callCount).toBe(1);
+      expect(pingHandler.calledWithExactly()).toBe(true);
+      expect(pingHandler.callCount).toBe(1);
     });
 
-    expect(() => {
-      messenger.call('Fixture:ping');
-    }).toThrow('A handler for Fixture:ping has not been registered');
+    it('publishes event with no payload to subscriber', () => {
+      type PingEvent = { type: 'Fixture:ping'; payload: [] };
+      const messenger = new Messenger<'Fixture', never, PingEvent>({
+        namespace: 'Fixture',
+      });
 
-    let pingCount = 0;
-    messenger.registerActionHandler('Fixture:ping', () => {
-      pingCount += 1;
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:ping', handler);
+      messenger.publish('Fixture:ping');
+
+      expect(handler.calledWithExactly()).toBe(true);
+      expect(handler.callCount).toBe(1);
     });
 
-    messenger.clearActions();
+    it('publishes event with multiple payload parameters to subscriber', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string, string];
+      };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(() => {
-      messenger.call('Fixture:ping');
-    }).toThrow('A handler for Fixture:ping has not been registered');
-    expect(pingCount).toBe(0);
-  });
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello', 'there');
 
-  it('should throw when calling a delegated action after actions have been reset', () => {
-    type PingAction = { type: 'Fixture:ping'; handler: () => void };
-    const messenger = new Messenger<'Fixture', PingAction, never>({
-      namespace: 'Fixture',
-    });
-    let pingCount = 0;
-    messenger.registerActionHandler('Fixture:ping', () => {
-      pingCount += 1;
-    });
-    const delegatedMessenger = new Messenger<'Destination', PingAction, never>({
-      namespace: 'Destination',
-    });
-    messenger.delegate({
-      messenger: delegatedMessenger,
-      actions: ['Fixture:ping'],
+      expect(handler.calledWithExactly('hello', 'there')).toBe(true);
+      expect(handler.callCount).toBe(1);
     });
 
-    messenger.clearActions();
+    it('publishes event once to subscriber even if subscribed multiple times', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(() => {
-      delegatedMessenger.call('Fixture:ping');
-    }).toThrow('A handler for Fixture:ping has not been registered');
-    expect(pingCount).toBe(0);
-  });
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:message', handler);
+      messenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
 
-  it('should publish event to subscriber', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      expect(handler.calledWithExactly('hello')).toBe(true);
+      expect(handler.callCount).toBe(1);
     });
 
-    const handler = sinon.stub();
-    messenger.subscribe('Fixture:message', handler);
-    messenger.publish('Fixture:message', 'hello');
+    it('publishes event to many subscribers', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(handler.calledWithExactly('hello')).toBe(true);
-    expect(handler.callCount).toBe(1);
-  });
+      const handler1 = sinon.stub();
+      const handler2 = sinon.stub();
+      messenger.subscribe('Fixture:message', handler1);
+      messenger.subscribe('Fixture:message', handler2);
+      messenger.publish('Fixture:message', 'hello');
 
-  it('automatically delegates events to parent upon first publish', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
-      namespace: 'Parent',
-    });
-    const messenger = new Messenger<
-      'Fixture',
-      never,
-      MessageEvent,
-      typeof parentMessenger
-    >({
-      namespace: 'Fixture',
-      parent: parentMessenger,
+      expect(handler1.calledWithExactly('hello')).toBe(true);
+      expect(handler1.callCount).toBe(1);
+      expect(handler2.calledWithExactly('hello')).toBe(true);
+      expect(handler2.callCount).toBe(1);
     });
 
-    const handler = sinon.stub();
-    parentMessenger.subscribe('Fixture:message', handler);
-    messenger.publish('Fixture:message', 'hello');
+    describe('on first state change with an initial payload function registered', () => {
+      it('publishes event if selected payload differs', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+        messenger.registerInitialEventPayload({
+          eventType: 'Fixture:complexMessage',
+          getPayload: () => [state],
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
 
-    expect(handler.calledWithExactly('hello')).toBe(true);
-    expect(handler.callCount).toBe(1);
-  });
+        state.propA += 1;
+        messenger.publish('Fixture:complexMessage', state);
 
-  it('should allow publishing multiple different events to subscriber', () => {
-    type MessageEvent =
-      | { type: 'Fixture:message'; payload: [string] }
-      | { type: 'Fixture:ping'; payload: [] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+        expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
+        expect(handler.callCount).toBe(1);
+      });
+
+      it('does not publish event if selected payload is the same', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+        messenger.registerInitialEventPayload({
+          eventType: 'Fixture:complexMessage',
+          getPayload: () => [state],
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
+
+        messenger.publish('Fixture:complexMessage', state);
+
+        expect(handler.callCount).toBe(0);
+      });
     });
 
-    const messageHandler = sinon.stub();
-    const pingHandler = sinon.stub();
-    messenger.subscribe('Fixture:message', messageHandler);
-    messenger.subscribe('Fixture:ping', pingHandler);
+    describe('on first state change with an initial payload function from another namespace registered (using MOCK_ANY_NAMESPACE)', () => {
+      it('publishes event if selected payload differs', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+          namespace: MOCK_ANY_NAMESPACE,
+        });
+        messenger.registerInitialEventPayload({
+          eventType: 'Fixture:complexMessage',
+          getPayload: () => [state],
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
 
-    messenger.publish('Fixture:message', 'hello');
-    messenger.publish('Fixture:ping');
+        state.propA += 1;
+        messenger.publish('Fixture:complexMessage', state);
 
-    expect(messageHandler.calledWithExactly('hello')).toBe(true);
-    expect(messageHandler.callCount).toBe(1);
-    expect(pingHandler.calledWithExactly()).toBe(true);
-    expect(pingHandler.callCount).toBe(1);
-  });
+        expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
+        expect(handler.callCount).toBe(1);
+      });
 
-  it('should publish event with no payload to subscriber', () => {
-    type PingEvent = { type: 'Fixture:ping'; payload: [] };
-    const messenger = new Messenger<'Fixture', never, PingEvent>({
-      namespace: 'Fixture',
+      it('does not publish event if selected payload is the same', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+          namespace: MOCK_ANY_NAMESPACE,
+        });
+        messenger.registerInitialEventPayload({
+          eventType: 'Fixture:complexMessage',
+          getPayload: () => [state],
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
+
+        messenger.publish('Fixture:complexMessage', state);
+
+        expect(handler.callCount).toBe(0);
+      });
     });
 
-    const handler = sinon.stub();
-    messenger.subscribe('Fixture:ping', handler);
-    messenger.publish('Fixture:ping');
+    describe('on first state change without an initial payload function registered', () => {
+      it('publishes event if selected payload differs', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
 
-    expect(handler.calledWithExactly()).toBe(true);
-    expect(handler.callCount).toBe(1);
-  });
+        state.propA += 1;
+        messenger.publish('Fixture:complexMessage', state);
 
-  it('should publish event with multiple payload parameters to subscriber', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string, string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+        expect(handler.getCall(0)?.args).toStrictEqual([2, undefined]);
+        expect(handler.callCount).toBe(1);
+      });
+
+      it('publishes event even when selected payload does not change', () => {
+        const state = {
+          propA: 1,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
+
+        messenger.publish('Fixture:complexMessage', state);
+
+        expect(handler.getCall(0)?.args).toStrictEqual([1, undefined]);
+        expect(handler.callCount).toBe(1);
+      });
+
+      it('does not publish if selector returns undefined', () => {
+        const state = {
+          propA: undefined,
+          propB: 1,
+        };
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [typeof state];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.propA,
+        );
+
+        messenger.publish('Fixture:complexMessage', state);
+
+        expect(handler.callCount).toBe(0);
+      });
     });
 
-    const handler = sinon.stub();
-    messenger.subscribe('Fixture:message', handler);
-    messenger.publish('Fixture:message', 'hello', 'there');
+    describe('on later state change', () => {
+      it('calls selector event handler with previous selector return value', () => {
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [Record<string, unknown>];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
 
-    expect(handler.calledWithExactly('hello', 'there')).toBe(true);
-    expect(handler.callCount).toBe(1);
-  });
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.prop1,
+        );
+        messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
+        messenger.publish('Fixture:complexMessage', { prop1: 'z', prop2: 'b' });
 
-  it('should publish event once to subscriber even if subscribed multiple times', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+        expect(handler.getCall(0).calledWithExactly('a', undefined)).toBe(true);
+        expect(handler.getCall(1).calledWithExactly('z', 'a')).toBe(true);
+        expect(handler.callCount).toBe(2);
+      });
+
+      it('publishes event with selector to subscriber', () => {
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [Record<string, unknown>];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.prop1,
+        );
+        messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
+
+        expect(handler.calledWithExactly('a', undefined)).toBe(true);
+        expect(handler.callCount).toBe(1);
+      });
+
+      it('does not publish event with selector if selector return value is unchanged', () => {
+        type MessageEvent = {
+          type: 'Fixture:complexMessage';
+          payload: [Record<string, unknown>];
+        };
+        const messenger = new Messenger<'Fixture', never, MessageEvent>({
+          namespace: 'Fixture',
+        });
+
+        const handler = sinon.stub();
+        messenger.subscribe(
+          'Fixture:complexMessage',
+          handler,
+          (obj) => obj.prop1,
+        );
+        messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
+        messenger.publish('Fixture:complexMessage', { prop1: 'a', prop3: 'c' });
+
+        expect(handler.calledWithExactly('a', undefined)).toBe(true);
+        expect(handler.callCount).toBe(1);
+      });
     });
 
-    const handler = sinon.stub();
-    messenger.subscribe('Fixture:message', handler);
-    messenger.subscribe('Fixture:message', handler);
-    messenger.publish('Fixture:message', 'hello');
-
-    expect(handler.calledWithExactly('hello')).toBe(true);
-    expect(handler.callCount).toBe(1);
-  });
-
-  it('should publish event to many subscribers', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
-    });
-
-    const handler1 = sinon.stub();
-    const handler2 = sinon.stub();
-    messenger.subscribe('Fixture:message', handler1);
-    messenger.subscribe('Fixture:message', handler2);
-    messenger.publish('Fixture:message', 'hello');
-
-    expect(handler1.calledWithExactly('hello')).toBe(true);
-    expect(handler1.callCount).toBe(1);
-    expect(handler2.calledWithExactly('hello')).toBe(true);
-    expect(handler2.callCount).toBe(1);
-  });
-
-  describe('on first state change with an initial payload function registered', () => {
-    it('should publish event if selected payload differs', () => {
+    it('automatically delegates to parent when an initial payload is registered', () => {
       const state = {
         propA: 1,
         propB: 1,
@@ -368,135 +739,39 @@ describe('Messenger', () => {
         type: 'Fixture:complexMessage';
         payload: [typeof state];
       };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
+      const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
+        namespace: 'Parent',
       });
+      const messenger = new Messenger<
+        'Fixture',
+        never,
+        MessageEvent,
+        typeof parentMessenger
+      >({
+        namespace: 'Fixture',
+        parent: parentMessenger,
+      });
+      const handler = sinon.stub();
+
       messenger.registerInitialEventPayload({
         eventType: 'Fixture:complexMessage',
         getPayload: () => [state],
       });
-      const handler = sinon.stub();
-      messenger.subscribe(
+
+      parentMessenger.subscribe(
         'Fixture:complexMessage',
         handler,
         (obj) => obj.propA,
       );
-
+      messenger.publish('Fixture:complexMessage', state);
+      expect(handler.callCount).toBe(0);
       state.propA += 1;
       messenger.publish('Fixture:complexMessage', state);
-
       expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
       expect(handler.callCount).toBe(1);
     });
 
-    it('should not publish event if selected payload is the same', () => {
-      const state = {
-        propA: 1,
-        propB: 1,
-      };
-      type MessageEvent = {
-        type: 'Fixture:complexMessage';
-        payload: [typeof state];
-      };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
-      });
-      messenger.registerInitialEventPayload({
-        eventType: 'Fixture:complexMessage',
-        getPayload: () => [state],
-      });
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.propA,
-      );
-
-      messenger.publish('Fixture:complexMessage', state);
-
-      expect(handler.callCount).toBe(0);
-    });
-  });
-
-  describe('on first state change without an initial payload function registered', () => {
-    it('should publish event if selected payload differs', () => {
-      const state = {
-        propA: 1,
-        propB: 1,
-      };
-      type MessageEvent = {
-        type: 'Fixture:complexMessage';
-        payload: [typeof state];
-      };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
-      });
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.propA,
-      );
-
-      state.propA += 1;
-      messenger.publish('Fixture:complexMessage', state);
-
-      expect(handler.getCall(0)?.args).toStrictEqual([2, undefined]);
-      expect(handler.callCount).toBe(1);
-    });
-
-    it('should publish event even when selected payload does not change', () => {
-      const state = {
-        propA: 1,
-        propB: 1,
-      };
-      type MessageEvent = {
-        type: 'Fixture:complexMessage';
-        payload: [typeof state];
-      };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
-      });
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.propA,
-      );
-
-      messenger.publish('Fixture:complexMessage', state);
-
-      expect(handler.getCall(0)?.args).toStrictEqual([1, undefined]);
-      expect(handler.callCount).toBe(1);
-    });
-
-    it('should not publish if selector returns undefined', () => {
-      const state = {
-        propA: undefined,
-        propB: 1,
-      };
-      type MessageEvent = {
-        type: 'Fixture:complexMessage';
-        payload: [typeof state];
-      };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
-      });
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.propA,
-      );
-
-      messenger.publish('Fixture:complexMessage', state);
-
-      expect(handler.callCount).toBe(0);
-    });
-  });
-
-  describe('on later state change', () => {
-    it('should call selector event handler with previous selector return value', () => {
+    it('publishes event to many subscribers with the same selector', () => {
       type MessageEvent = {
         type: 'Fixture:complexMessage';
         payload: [Record<string, unknown>];
@@ -505,247 +780,176 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.prop1,
-      );
-      messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
-      messenger.publish('Fixture:complexMessage', { prop1: 'z', prop2: 'b' });
-
-      expect(handler.getCall(0).calledWithExactly('a', undefined)).toBe(true);
-      expect(handler.getCall(1).calledWithExactly('z', 'a')).toBe(true);
-      expect(handler.callCount).toBe(2);
-    });
-
-    it('should publish event with selector to subscriber', () => {
-      type MessageEvent = {
-        type: 'Fixture:complexMessage';
-        payload: [Record<string, unknown>];
-      };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
-      });
-
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.prop1,
-      );
-      messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
-
-      expect(handler.calledWithExactly('a', undefined)).toBe(true);
-      expect(handler.callCount).toBe(1);
-    });
-
-    it('should not publish event with selector if selector return value is unchanged', () => {
-      type MessageEvent = {
-        type: 'Fixture:complexMessage';
-        payload: [Record<string, unknown>];
-      };
-      const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        namespace: 'Fixture',
-      });
-
-      const handler = sinon.stub();
-      messenger.subscribe(
-        'Fixture:complexMessage',
-        handler,
-        (obj) => obj.prop1,
-      );
+      const handler1 = sinon.stub();
+      const handler2 = sinon.stub();
+      const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
+      messenger.subscribe('Fixture:complexMessage', handler1, selector);
+      messenger.subscribe('Fixture:complexMessage', handler2, selector);
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop3: 'c' });
 
-      expect(handler.calledWithExactly('a', undefined)).toBe(true);
-      expect(handler.callCount).toBe(1);
-    });
-  });
+      expect(handler1.calledWithExactly('a', undefined)).toBe(true);
+      expect(handler1.callCount).toBe(1);
+      expect(handler2.calledWithExactly('a', undefined)).toBe(true);
+      expect(handler2.callCount).toBe(1);
+      expect(
+        selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
+      ).toBe(true);
 
-  it('automatically delegates to parent when an initial payload is registered', () => {
-    const state = {
-      propA: 1,
-      propB: 1,
-    };
-    type MessageEvent = {
-      type: 'Fixture:complexMessage';
-      payload: [typeof state];
-    };
-    const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
-      namespace: 'Parent',
-    });
-    const messenger = new Messenger<
-      'Fixture',
-      never,
-      MessageEvent,
-      typeof parentMessenger
-    >({
-      namespace: 'Fixture',
-      parent: parentMessenger,
-    });
-    const handler = sinon.stub();
+      expect(
+        selector.getCall(1).calledWithExactly({ prop1: 'a', prop2: 'b' }),
+      ).toBe(true);
 
-    messenger.registerInitialEventPayload({
-      eventType: 'Fixture:complexMessage',
-      getPayload: () => [state],
+      expect(
+        selector.getCall(2).calledWithExactly({ prop1: 'a', prop3: 'c' }),
+      ).toBe(true);
+
+      expect(
+        selector.getCall(3).calledWithExactly({ prop1: 'a', prop3: 'c' }),
+      ).toBe(true);
+      expect(selector.callCount).toBe(4);
     });
 
-    parentMessenger.subscribe(
-      'Fixture:complexMessage',
-      handler,
-      (obj) => obj.propA,
-    );
-    messenger.publish('Fixture:complexMessage', state);
-    expect(handler.callCount).toBe(0);
-    state.propA += 1;
-    messenger.publish('Fixture:complexMessage', state);
-    expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
-    expect(handler.callCount).toBe(1);
-  });
+    it('throws subscriber errors in a timeout', () => {
+      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-  it('should publish event to many subscribers with the same selector', () => {
-    type MessageEvent = {
-      type: 'Fixture:complexMessage';
-      payload: [Record<string, unknown>];
-    };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      const handler = sinon.stub().throws(() => new Error('Example error'));
+      messenger.subscribe('Fixture:message', handler);
+
+      expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
+      expect(setTimeoutStub.callCount).toBe(1);
+      const onTimeout = setTimeoutStub.firstCall.args[0];
+      expect(() => onTimeout()).toThrow('Example error');
     });
 
-    const handler1 = sinon.stub();
-    const handler2 = sinon.stub();
-    const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
-    messenger.subscribe('Fixture:complexMessage', handler1, selector);
-    messenger.subscribe('Fixture:complexMessage', handler2, selector);
-    messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
-    messenger.publish('Fixture:complexMessage', { prop1: 'a', prop3: 'c' });
+    it('continues calling subscribers when one throws', () => {
+      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(handler1.calledWithExactly('a', undefined)).toBe(true);
-    expect(handler1.callCount).toBe(1);
-    expect(handler2.calledWithExactly('a', undefined)).toBe(true);
-    expect(handler2.callCount).toBe(1);
-    expect(
-      selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
-    ).toBe(true);
+      const handler1 = sinon.stub().throws(() => new Error('Example error'));
+      const handler2 = sinon.stub();
+      messenger.subscribe('Fixture:message', handler1);
+      messenger.subscribe('Fixture:message', handler2);
 
-    expect(
-      selector.getCall(1).calledWithExactly({ prop1: 'a', prop2: 'b' }),
-    ).toBe(true);
+      expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
 
-    expect(
-      selector.getCall(2).calledWithExactly({ prop1: 'a', prop3: 'c' }),
-    ).toBe(true);
-
-    expect(
-      selector.getCall(3).calledWithExactly({ prop1: 'a', prop3: 'c' }),
-    ).toBe(true);
-    expect(selector.callCount).toBe(4);
-  });
-
-  it('should throw subscriber errors in a timeout', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      expect(handler1.calledWithExactly('hello')).toBe(true);
+      expect(handler1.callCount).toBe(1);
+      expect(handler2.calledWithExactly('hello')).toBe(true);
+      expect(handler2.callCount).toBe(1);
+      expect(setTimeoutStub.callCount).toBe(1);
+      const onTimeout = setTimeoutStub.firstCall.args[0];
+      expect(() => onTimeout()).toThrow('Example error');
     });
 
-    const handler = sinon.stub().throws(() => new Error('Example error'));
-    messenger.subscribe('Fixture:message', handler);
+    it('does not call subscriber after unsubscribing', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow('Example error');
-  });
+      const handler = sinon.stub();
+      messenger.subscribe('Fixture:message', handler);
+      messenger.unsubscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
 
-  it('should continue calling subscribers when one throws', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      expect(handler.callCount).toBe(0);
     });
 
-    const handler1 = sinon.stub().throws(() => new Error('Example error'));
-    const handler2 = sinon.stub();
-    messenger.subscribe('Fixture:message', handler1);
-    messenger.subscribe('Fixture:message', handler2);
+    it('does not call subscriber with selector after unsubscribing', () => {
+      type MessageEvent = {
+        type: 'Fixture:complexMessage';
+        payload: [{ prop1: string; prop2: string }];
+      };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+      const stub = sinon.stub();
+      const handler = (current: string, previous: string | undefined) => {
+        stub(current, previous);
+      };
+      const selector = (state: { prop1: string; prop2: string }) => state.prop1;
+      messenger.subscribe('Fixture:complexMessage', handler, selector);
+      messenger.unsubscribe('Fixture:complexMessage', handler);
 
-    expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
+      messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
 
-    expect(handler1.calledWithExactly('hello')).toBe(true);
-    expect(handler1.callCount).toBe(1);
-    expect(handler2.calledWithExactly('hello')).toBe(true);
-    expect(handler2.callCount).toBe(1);
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow('Example error');
-  });
-
-  it('should not call subscriber after unsubscribing', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      expect(stub.callCount).toBe(0);
     });
 
-    const handler = sinon.stub();
-    messenger.subscribe('Fixture:message', handler);
-    messenger.unsubscribe('Fixture:message', handler);
-    messenger.publish('Fixture:message', 'hello');
+    it('throws when publishing an event from another namespace', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Other', never, MessageEvent>({
+        namespace: 'Other',
+      });
+      const handler = jest.fn();
+      messenger.subscribe('Fixture:message', handler);
 
-    expect(handler.callCount).toBe(0);
-  });
-
-  it('should not call subscriber with selector after unsubscribing', () => {
-    type MessageEvent = {
-      type: 'Fixture:complexMessage';
-      payload: [{ prop1: string; prop2: string }];
-    };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
-    });
-    const stub = sinon.stub();
-    const handler = (current: string, previous: string | undefined) => {
-      stub(current, previous);
-    };
-    const selector = (state: { prop1: string; prop2: string }) => state.prop1;
-    messenger.subscribe('Fixture:complexMessage', handler, selector);
-    messenger.unsubscribe('Fixture:complexMessage', handler);
-
-    messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
-
-    expect(stub.callCount).toBe(0);
-  });
-
-  it('should throw when unsubscribing when there are no subscriptions', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      // @ts-expect-error Intentionally invalid parameter
+      expect(() => messenger.publish('Fixture:message', 'hello')).toThrow(
+        `Only allowed publishing events prefixed by 'Other:'`,
+      );
+      expect(handler).not.toHaveBeenCalled();
     });
 
-    const handler = sinon.stub();
-    expect(() => messenger.unsubscribe('Fixture:message', handler)).toThrow(
-      'Subscription not found for event: Fixture:message',
-    );
-  });
+    it('throws when registering an initial event payload from another namespace', () => {
+      type MessageEvent = {
+        type: 'Fixture:complexMessage';
+        payload: [null];
+      };
+      const messenger = new Messenger<'Other', never, MessageEvent>({
+        namespace: 'Other',
+      });
 
-  it('should throw when unsubscribing a handler that is not subscribed', () => {
-    type MessageEvent = { type: 'Fixture:message'; payload: [string] };
-    const messenger = new Messenger<'Fixture', never, MessageEvent>({
-      namespace: 'Fixture',
+      expect(() =>
+        messenger.registerInitialEventPayload({
+          // @ts-expect-error Intentionally invalid parameter
+          eventType: 'Fixture:complexMessage',
+          // @ts-expect-error Intentionally invalid parameter
+          getPayload: () => [null],
+        }),
+      ).toThrow(
+        `Only allowed registering initial payloads for events prefixed by 'Other:'`,
+      );
     });
 
-    const handler1 = sinon.stub();
-    const handler2 = sinon.stub();
-    messenger.subscribe('Fixture:message', handler1);
+    it('throws when unsubscribing when there are no subscriptions', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
 
-    expect(() => messenger.unsubscribe('Fixture:message', handler2)).toThrow(
-      'Subscription not found for event: Fixture:message',
-    );
+      const handler = sinon.stub();
+      expect(() => messenger.unsubscribe('Fixture:message', handler)).toThrow(
+        'Subscription not found for event: Fixture:message',
+      );
+    });
+
+    it('throws when unsubscribing a handler that is not subscribed', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler1 = sinon.stub();
+      const handler2 = sinon.stub();
+      messenger.subscribe('Fixture:message', handler1);
+
+      expect(() => messenger.unsubscribe('Fixture:message', handler2)).toThrow(
+        'Subscription not found for event: Fixture:message',
+      );
+    });
   });
 
   describe('clearEventSubscriptions', () => {
-    it('should not call subscriber after clearing event subscriptions', () => {
+    it('does not call subscriber after clearing event subscriptions', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
@@ -759,7 +963,7 @@ describe('Messenger', () => {
       expect(handler.callCount).toBe(0);
     });
 
-    it('should not throw when clearing event that has no subscriptions', () => {
+    it('does not throw when clearing event that has no subscriptions', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
@@ -770,7 +974,7 @@ describe('Messenger', () => {
       ).not.toThrow();
     });
 
-    it('should leave delegated events intact after clearing event subscriptions', () => {
+    it('leaves delegated events intact after clearing event subscriptions', () => {
       type ExampleEvent = {
         type: 'Source:event';
         payload: ['test'];
@@ -798,7 +1002,7 @@ describe('Messenger', () => {
   });
 
   describe('clearSubscriptions', () => {
-    it('should not call subscriber after resetting subscriptions', () => {
+    it('does not call subscriber after resetting subscriptions', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
@@ -812,7 +1016,7 @@ describe('Messenger', () => {
       expect(handler.callCount).toBe(0);
     });
 
-    it('should not throw when clearing subscriptions on messenger that has no subscriptions', () => {
+    it('does not throw when clearing subscriptions on messenger that has no subscriptions', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
@@ -821,7 +1025,7 @@ describe('Messenger', () => {
       expect(() => messenger.clearSubscriptions()).not.toThrow();
     });
 
-    it('should leave delegated events intact after clearing subscriptions', () => {
+    it('leaves delegated events intact after clearing subscriptions', () => {
       type ExampleEvent = {
         type: 'Source:event';
         payload: ['test'];
@@ -849,7 +1053,7 @@ describe('Messenger', () => {
   });
 
   describe('registerMethodActionHandlers', () => {
-    it('should register action handlers for specified methods on the given messenger client', () => {
+    it('registers action handlers for specified methods on the given messenger client', () => {
       type TestActions =
         | { type: 'TestService:getType'; handler: () => string }
         | {
@@ -885,7 +1089,7 @@ describe('Messenger', () => {
       expect(count).toBe(42);
     });
 
-    it('should bind action handlers to the given messenger client', () => {
+    it('binds action handlers to the given messenger client', () => {
       type TestAction = {
         type: 'TestService:getPrivateValue';
         handler: () => string;
@@ -911,7 +1115,7 @@ describe('Messenger', () => {
       expect(result).toBe('secret');
     });
 
-    it('should handle async methods', async () => {
+    it('handles async methods', async () => {
       type TestAction = {
         type: 'TestService:fetchData';
         handler: (id: string) => Promise<string>;
@@ -935,7 +1139,7 @@ describe('Messenger', () => {
       expect(result).toBe('data-123');
     });
 
-    it('should not throw when given an empty methodNames array', () => {
+    it('does not throw when given an empty methodNames array', () => {
       type TestAction = { type: 'TestController:test'; handler: () => void };
       const messenger = new Messenger<'TestController', TestAction, never>({
         namespace: 'TestController',
@@ -956,7 +1160,7 @@ describe('Messenger', () => {
       }).not.toThrow();
     });
 
-    it('should skip non-function properties', () => {
+    it('skips non-function properties', () => {
       type TestAction = {
         type: 'TestController:getValue';
         handler: () => string;
@@ -990,7 +1194,7 @@ describe('Messenger', () => {
       );
     });
 
-    it('should work with class inheritance', () => {
+    it('works with class inheritance', () => {
       type TestActions =
         | { type: 'ChildController:baseMethod'; handler: () => string }
         | { type: 'ChildController:childMethod'; handler: () => string };
@@ -1215,6 +1419,68 @@ describe('Messenger', () => {
       expect(handler).toHaveBeenCalledWith('test');
     });
 
+    it('allows calling delegated action that was registered before delegation, unregistered, then registered again', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => number;
+      };
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        ExampleAction,
+        never
+      >({ namespace: 'Destination' });
+      const handler1 = jest.fn((input) => input.length);
+      const handler2 = jest.fn((input) => input.length);
+      // registration happens before delegation
+      sourceMessenger.registerActionHandler('Source:getLength', handler1);
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+      });
+      sourceMessenger.unregisterActionHandler('Source:getLength');
+      sourceMessenger.registerActionHandler('Source:getLength', handler2);
+
+      const result = delegatedMessenger.call('Source:getLength', 'test');
+      expect(result).toBe(4);
+      expect(handler1).not.toHaveBeenCalled();
+      expect(handler2).toHaveBeenCalledWith('test');
+    });
+
+    it('allows calling delegated action that was registered after delegation, unregistered, then registered again', () => {
+      type ExampleAction = {
+        type: 'Source:getLength';
+        handler: (input: string) => number;
+      };
+      const sourceMessenger = new Messenger<'Source', ExampleAction, never>({
+        namespace: 'Source',
+      });
+      const delegatedMessenger = new Messenger<
+        'Destination',
+        ExampleAction,
+        never
+      >({ namespace: 'Destination' });
+      const handler1 = jest.fn((input) => input.length);
+      const handler2 = jest.fn((input) => input.length);
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:getLength'],
+      });
+      // registration happens after delegation
+      sourceMessenger.registerActionHandler('Source:getLength', handler1);
+      sourceMessenger.unregisterActionHandler('Source:getLength');
+      sourceMessenger.registerActionHandler('Source:getLength', handler2);
+
+      const result = delegatedMessenger.call('Source:getLength', 'test');
+      expect(result).toBe(4);
+      expect(handler1).not.toHaveBeenCalled();
+      expect(handler2).toHaveBeenCalledWith('test');
+    });
+
     it('throws an error when an action is delegated a second time', () => {
       type ExampleAction = {
         type: 'Source:getLength';
@@ -1265,11 +1531,11 @@ describe('Messenger', () => {
       });
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        `Cannot call 'Source:getLength', action not registered.`,
+        `A handler for Source:getLength has not been registered`,
       );
     });
 
-    it('unregisters delegated action handlers when action is unregistered', () => {
+    it('throws an error when delegated action is called after an action is unregistered', () => {
       type ExampleAction = {
         type: 'Source:getLength';
         handler: (input: string) => number;
@@ -1282,11 +1548,13 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
+      const handler = jest.fn((input) => input.length);
+      sourceMessenger.registerActionHandler('Source:getLength', handler);
+
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
         actions: ['Source:getLength'],
       });
-
       sourceMessenger.unregisterActionHandler('Source:getLength');
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(

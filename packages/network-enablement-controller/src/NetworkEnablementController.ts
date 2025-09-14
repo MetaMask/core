@@ -16,7 +16,8 @@ import type { TransactionControllerTransactionSubmittedEvent } from '@metamask/t
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import { SolScope } from './types';
+import { POPULAR_NETWORKS } from './constants';
+import { BtcScope, SolScope } from './types';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
@@ -116,6 +117,13 @@ const getDefaultNetworkEnablementControllerState =
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
+        [SolScope.Testnet]: false,
+        [SolScope.Devnet]: false,
+      },
+      [KnownCaipNamespace.Bip122]: {
+        [BtcScope.Mainnet]: true,
+        [BtcScope.Testnet]: false,
+        [BtcScope.Signet]: false,
       },
     },
   });
@@ -123,8 +131,10 @@ const getDefaultNetworkEnablementControllerState =
 // Metadata for the controller state
 const metadata = {
   enabledNetworkMap: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
 };
 
@@ -173,18 +183,6 @@ export class NetworkEnablementController extends BaseController<
     messenger.subscribe('NetworkController:networkRemoved', ({ chainId }) => {
       this.#removeNetworkEntry(chainId);
     });
-
-    // Listen for confirmed staking transactions
-    messenger.subscribe(
-      'TransactionController:transactionSubmitted',
-      (transactionMeta) => {
-        if (transactionMeta?.transactionMeta?.chainId) {
-          this.enableNetwork(
-            transactionMeta.transactionMeta.chainId as Hex | CaipChainId,
-          );
-        }
-      },
-    );
   }
 
   /**
@@ -204,33 +202,198 @@ export class NetworkEnablementController extends BaseController<
    * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
    */
   enableNetwork(chainId: Hex | CaipChainId): void {
-    const { namespace, storageKey, reference } = deriveKeys(chainId);
-
-    const isPopular = isPopularNetwork(reference);
+    const { namespace, storageKey } = deriveKeys(chainId);
 
     this.update((s) => {
+      // disable all networks in all namespaces first
+      Object.keys(s.enabledNetworkMap).forEach((ns) => {
+        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        });
+      });
+
       // if the namespace bucket does not exist, return
       // new nemespace are added only when a new network is added
       if (!s.enabledNetworkMap[namespace]) {
         return;
       }
 
-      // If enabling a non-popular network, disable all networks in the same namespace
-      if (!isPopular) {
-        // disable all networks in the same namespace
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
-        });
-      } else {
-        // disable all custom networks
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          const { reference: keyReference } = deriveKeys(key as CaipChainId);
-          if (!isPopularNetwork(keyReference)) {
-            s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
-          }
-        });
-      }
+      // enable the network
       s.enabledNetworkMap[namespace][storageKey] = true;
+    });
+  }
+
+  /**
+   * Enables all popular networks and Solana mainnet.
+   *
+   * This method first disables all networks across all namespaces, then enables
+   * all networks defined in POPULAR_NETWORKS (EVM networks), Solana mainnet, and
+   * Bitcoin mainnet. This provides exclusive behavior - only popular networks will
+   * be enabled after calling this method.
+   *
+   * Popular networks that don't exist in NetworkController or MultichainNetworkController configurations will be skipped silently.
+   */
+  enableAllPopularNetworks(): void {
+    this.update((s) => {
+      // First disable all networks across all namespaces
+      Object.keys(s.enabledNetworkMap).forEach((ns) => {
+        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        });
+      });
+
+      // Get current network configurations to check if networks exist
+      const networkControllerState = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      const multichainState = this.messagingSystem.call(
+        'MultichainNetworkController:getState',
+      );
+
+      // Enable all popular EVM networks that exist in NetworkController configurations
+      POPULAR_NETWORKS.forEach((chainId) => {
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+
+        // Check if network exists in NetworkController configurations
+        if (
+          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
+        ) {
+          // Ensure namespace bucket exists
+          this.#ensureNamespaceBucket(s, namespace);
+          // Enable the network
+          s.enabledNetworkMap[namespace][storageKey] = true;
+        }
+      });
+
+      // Enable Solana mainnet if it exists in MultichainNetworkController configurations
+      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
+      if (
+        multichainState.multichainNetworkConfigurationsByChainId[
+          SolScope.Mainnet
+        ]
+      ) {
+        // Ensure namespace bucket exists
+        this.#ensureNamespaceBucket(s, solanaKeys.namespace);
+        // Enable Solana mainnet
+        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
+      }
+
+      // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
+      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
+      if (
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Mainnet
+        ]
+      ) {
+        // Ensure namespace bucket exists
+        this.#ensureNamespaceBucket(s, bitcoinKeys.namespace);
+        // Enable Bitcoin mainnet
+        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
+          true;
+      }
+    });
+  }
+
+  /**
+   * Initializes the network enablement state from network controller configurations.
+   *
+   * This method reads the current network configurations from both NetworkController
+   * and MultichainNetworkController and initializes the enabled network map accordingly.
+   * It ensures proper namespace buckets exist for all configured networks and enables
+   * popular networks by default.
+   *
+   * This method should be called after the NetworkController and MultichainNetworkController
+   * have been initialized and their configurations are available.
+   */
+  init(): void {
+    this.update((s) => {
+      // Get network configurations from NetworkController (EVM networks)
+      const networkControllerState = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+
+      // Get network configurations from MultichainNetworkController (all networks)
+      const multichainState = this.messagingSystem.call(
+        'MultichainNetworkController:getState',
+      );
+
+      // Initialize namespace buckets for EVM networks from NetworkController
+      Object.keys(
+        networkControllerState.networkConfigurationsByChainId,
+      ).forEach((chainId) => {
+        const { namespace } = deriveKeys(chainId as Hex);
+        this.#ensureNamespaceBucket(s, namespace);
+      });
+
+      // Initialize namespace buckets for all networks from MultichainNetworkController
+      Object.keys(
+        multichainState.multichainNetworkConfigurationsByChainId,
+      ).forEach((chainId) => {
+        const { namespace } = deriveKeys(chainId as CaipChainId);
+        this.#ensureNamespaceBucket(s, namespace);
+      });
+
+      // Enable popular networks that exist in the configurations
+      POPULAR_NETWORKS.forEach((chainId) => {
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+
+        // Check if network exists in NetworkController configurations
+        if (
+          s.enabledNetworkMap[namespace] &&
+          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
+        ) {
+          s.enabledNetworkMap[namespace][storageKey] = true;
+        }
+      });
+
+      // Enable Solana mainnet if it exists in configurations
+      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
+      if (
+        s.enabledNetworkMap[solanaKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          SolScope.Mainnet
+        ]
+      ) {
+        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
+      }
+
+      // Enable Bitcoin mainnet if it exists in configurations
+      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
+      if (
+        s.enabledNetworkMap[bitcoinKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Mainnet
+        ]
+      ) {
+        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
+          true;
+      }
+
+      // Enable Bitcoin testnet if it exists in configurations
+      const bitcoinTestnetKeys = deriveKeys(BtcScope.Testnet as CaipChainId);
+      if (
+        s.enabledNetworkMap[bitcoinTestnetKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Testnet
+        ]
+      ) {
+        s.enabledNetworkMap[bitcoinTestnetKeys.namespace][
+          bitcoinTestnetKeys.storageKey
+        ] = false;
+      }
+
+      // Enable Bitcoin signet testnet if it exists in configurations
+      const bitcoinSignetKeys = deriveKeys(BtcScope.Signet as CaipChainId);
+      if (
+        s.enabledNetworkMap[bitcoinSignetKeys.namespace] &&
+        multichainState.multichainNetworkConfigurationsByChainId[
+          BtcScope.Signet
+        ]
+      ) {
+        s.enabledNetworkMap[bitcoinSignetKeys.namespace][
+          bitcoinSignetKeys.storageKey
+        ] = false;
+      }
     });
   }
 
@@ -251,10 +414,6 @@ export class NetworkEnablementController extends BaseController<
   disableNetwork(chainId: Hex | CaipChainId): void {
     const derivedKeys = deriveKeys(chainId);
     const { namespace, storageKey } = derivedKeys;
-
-    if (isOnlyNetworkEnabledInNamespace(this.state, derivedKeys)) {
-      throw new Error('Cannot disable the last remaining enabled network');
-    }
 
     this.update((s) => {
       s.enabledNetworkMap[namespace][storageKey] = false;
@@ -335,11 +494,13 @@ export class NetworkEnablementController extends BaseController<
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(s, namespace);
 
-      // If adding a non-popular network, disable all other networks in the same namespace
+      // If adding a non-popular network, disable all other networks in all namespaces
       // This implements exclusive mode where only one non-popular network can be active
       if (!isPopularNetwork(reference)) {
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+        Object.keys(s.enabledNetworkMap).forEach((ns) => {
+          Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+            s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+          });
         });
       }
 

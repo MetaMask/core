@@ -81,7 +81,7 @@ export const createMockInternalAccount = ({
       newScopes = [EthScope.Mainnet];
       break;
     case BtcAccountType.P2wpkh:
-      methods = [BtcMethod.SendBitcoin];
+      methods = Object.values(BtcMethod);
       newScopes = [BtcScope.Mainnet];
       break;
     case SolAccountType.DataAccount:

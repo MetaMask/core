@@ -206,6 +206,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -295,6 +300,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '3600',
           usd: '3600',
         },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
+        },
         swapRate: '2.0',
         totalNetworkFee: {
           amount: '0.1',
@@ -349,6 +359,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -379,6 +390,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -449,6 +465,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -479,6 +496,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -530,6 +552,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.SOLANA,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -560,6 +583,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -610,6 +638,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -640,6 +669,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -691,6 +725,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -721,6 +756,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -772,6 +812,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -802,6 +843,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -853,6 +899,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -883,6 +930,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -1059,6 +1111,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
+          minDestTokenAmount: '1900000000000000000',
           srcAsset: {
             address: 'solanaNativeAddress',
             decimals: 9,
@@ -1088,6 +1141,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           amount: '2.0',
           valueInCurrency: '3600',
           usd: '3600',
+        },
+        minToTokenAmount: {
+          amount: '1.9',
+          valueInCurrency: '3420',
+          usd: '3420',
         },
         swapRate: '2.0',
         totalNetworkFee: {
@@ -1176,7 +1234,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     const createMockQuoteResponse = (
       overrides: {
         gasIncluded?: boolean;
-        gasless7702?: boolean;
+        gasIncluded7702?: boolean;
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
@@ -1208,7 +1266,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
             txFee: '50000000000000000',
           },
           gasIncluded: overrides.gasIncluded ?? false,
-          gasless7702: overrides.gasless7702 ?? false,
+          gasIncluded7702: overrides.gasIncluded7702 ?? false,
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: {
@@ -1283,9 +1341,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         createMockMessagingSystem() as unknown as BridgeStatusControllerMessenger;
     });
 
-    it('should handle gasless7702 flag set to true', async () => {
+    it('should handle gasIncluded7702 flag set to true', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
-        gasless7702: true,
+        gasIncluded7702: true,
         includeApproval: true,
       });
 
@@ -1298,18 +1356,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should enable 7702 (disable7702 = false) when gasless7702 is true
       expect(result.disable7702).toBe(false);
+      expect(result.isGasFeeIncluded).toBe(true);
 
-      // Should use txFee for gas calculation when gasless7702 is true
+      // Should use txFee for gas calculation when gasIncluded7702 is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
     });
 
-    it('should handle gasless7702 flag set to false', async () => {
+    it('should handle gasIncluded7702 flag set to false', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
-        gasless7702: false,
+        gasIncluded7702: false,
       });
 
       const result = await getAddTransactionBatchParams({
@@ -1320,18 +1378,18 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should disable 7702 when gasless7702 is false
       expect(result.disable7702).toBe(true);
+      expect(result.isGasFeeIncluded).toBe(false);
 
-      // Should not use txFee for gas calculation when both gasIncluded and gasless7702 are false
+      // Should not use txFee for gas calculation when both gasIncluded and gasIncluded7702 are false
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].type).toBe(TransactionType.swap);
     });
 
-    it('should handle gasIncluded with gasless7702', async () => {
+    it('should handle gasIncluded with gasIncluded7702', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
         gasIncluded: true,
-        gasless7702: false,
+        gasIncluded7702: false,
         includeResetApproval: true,
       });
 
@@ -1344,13 +1402,64 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
-      // Should disable 7702 when gasless7702 is not true
       expect(result.disable7702).toBe(true);
+      expect(result.isGasFeeIncluded).toBe(false);
 
       // Should use txFee for gas calculation when gasIncluded is true
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
+    });
+
+    it('should set isGasFeeIncluded to false and set disable7702 to true when gasIncluded7702 is undefined', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: undefined,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(false);
+      expect(result.disable7702).toBe(true);
+    });
+
+    it('should set isGasFeeIncluded to true and disable7702 to false when gasIncluded7702 is true', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(true);
+      expect(result.disable7702).toBe(false);
+    });
+
+    it('should set isGasFeeIncluded to false and disable7702 to true when gasIncluded7702 is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: false,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messagingSystem: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.isGasFeeIncluded).toBe(false);
+      expect(result.disable7702).toBe(true);
     });
   });
 
