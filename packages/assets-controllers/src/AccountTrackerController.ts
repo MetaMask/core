@@ -1,5 +1,3 @@
-import type { BigNumber } from '@ethersproject/bignumber';
-import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
@@ -19,28 +17,83 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
+  NetworkClient,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import { assert, hasProperty, type Hex } from '@metamask/utils';
+import { assert, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
-import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import {
-  SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
-  type AssetsContractController,
-  type StakedBalance,
+import type {
+  AssetsContractController,
+  StakedBalance,
 } from './AssetsContractController';
-import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
+import {
+  AccountsApiBalanceFetcher,
+  type BalanceFetcher,
+  type ProcessedBalance,
+} from './multi-chain-accounts-service/api-balance-fetcher';
+import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 
 /**
  * The name of the {@link AccountTrackerController}.
  */
 const controllerName = 'AccountTrackerController';
+
+export type ChainIdHex = Hex;
+export type ChecksumAddress = Hex;
+
+const ZERO_ADDRESS =
+  '0x0000000000000000000000000000000000000000' as ChecksumAddress;
+
+/**
+ * Creates an RPC balance fetcher configured for AccountTracker use case.
+ * Returns only native balances and staked balances (no token balances).
+ *
+ * @param getProvider - Function to get Web3Provider for a given chain ID
+ * @param getNetworkClient - Function to get NetworkClient for a given chain ID
+ * @param includeStakedAssets - Whether to include staked assets in the fetch
+ * @returns BalanceFetcher configured to fetch only native and optionally staked balances
+ */
+function createAccountTrackerRpcBalanceFetcher(
+  getProvider: (chainId: Hex) => Web3Provider,
+  getNetworkClient: (chainId: Hex) => NetworkClient,
+  includeStakedAssets: boolean,
+): BalanceFetcher {
+  // Provide empty tokens state to ensure only native and staked balances are fetched
+  const getEmptyTokensState = () => ({
+    allTokens: {},
+    allDetectedTokens: {},
+  });
+
+  const rpcBalanceFetcher = new RpcBalanceFetcher(
+    getProvider,
+    getNetworkClient,
+    getEmptyTokensState,
+  );
+
+  // Wrap the RpcBalanceFetcher to filter staked balances when not needed
+  return {
+    supports(_chainId: ChainIdHex): boolean {
+      return rpcBalanceFetcher.supports();
+    },
+
+    async fetch(params) {
+      const balances = await rpcBalanceFetcher.fetch(params);
+
+      if (!includeStakedAssets) {
+        // Filter out staked balances from the results
+        return balances.filter((balance) => balance.token === ZERO_ADDRESS);
+      }
+
+      return balances;
+    },
+  };
+}
 
 /**
  * AccountInformation
@@ -69,8 +122,10 @@ export type AccountTrackerControllerState = {
 
 const accountTrackerMetadata = {
   accountsByChainId: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -166,7 +221,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #includeStakedAssets: boolean;
 
+  readonly #accountsApiChainIds: ChainIdHex[];
+
   readonly #getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
+
+  readonly #balanceFetchers: BalanceFetcher[];
 
   /**
    * Creates an AccountTracker instance.
@@ -177,6 +236,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.messenger - The controller messaging system.
    * @param options.getStakedBalanceForChain - The function to get the staked native asset balance for a chain.
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
+   * @param options.accountsApiChainIds - Array of chainIds that should use Accounts-API strategy (if supported by API).
+   * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    */
   constructor({
     interval = 10000,
@@ -184,12 +245,16 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger,
     getStakedBalanceForChain,
     includeStakedAssets = false,
+    accountsApiChainIds = [],
+    allowExternalServices = () => true,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
     messenger: AccountTrackerControllerMessenger;
     getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
     includeStakedAssets?: boolean;
+    accountsApiChainIds?: ChainIdHex[];
+    allowExternalServices?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -214,6 +279,19 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.#getStakedBalanceForChain = getStakedBalanceForChain;
 
     this.#includeStakedAssets = includeStakedAssets;
+    this.#accountsApiChainIds = [...accountsApiChainIds];
+
+    // Initialize balance fetchers - Strategy order: API first, then RPC fallback
+    this.#balanceFetchers = [
+      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+        ? [this.#createAccountsApiFetcher()]
+        : []),
+      createAccountTrackerRpcBalanceFetcher(
+        this.#getProvider,
+        this.#getNetworkClient,
+        this.#includeStakedAssets,
+      ),
+    ];
 
     this.setIntervalLength(interval);
 
@@ -292,6 +370,56 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     }
   }
 
+  readonly #getProvider = (chainId: Hex): Web3Provider => {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const cfg = networkConfigurationsByChainId[chainId];
+    const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
+    const client = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    return new Web3Provider(client.provider);
+  };
+
+  readonly #getNetworkClient = (chainId: Hex) => {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const cfg = networkConfigurationsByChainId[chainId];
+    const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
+    return this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+  };
+
+  /**
+   * Creates an AccountsApiBalanceFetcher that only supports chains in the accountsApiChainIds array
+   *
+   * @returns A BalanceFetcher that wraps AccountsApiBalanceFetcher with chainId filtering
+   */
+  readonly #createAccountsApiFetcher = (): BalanceFetcher => {
+    const originalFetcher = new AccountsApiBalanceFetcher(
+      'extension',
+      this.#getProvider,
+    );
+
+    return {
+      supports: (chainId: ChainIdHex): boolean => {
+        // Only support chains that are both:
+        // 1. In our specified accountsApiChainIds array
+        // 2. Actually supported by the AccountsApi
+        return (
+          this.#accountsApiChainIds.includes(chainId) &&
+          originalFetcher.supports(chainId)
+        );
+      },
+      fetch: originalFetcher.fetch.bind(originalFetcher),
+    };
+  };
+
   /**
    * Resolves a networkClientId to a network client config
    * or globally selected network config if not provided
@@ -363,6 +491,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
+    const allAccounts = this.messagingSystem.call(
+      'AccountsController:listAccounts',
+    );
+    const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
+      'PreferencesController:getState',
+    );
+
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {
@@ -372,124 +507,113 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       this.syncAccounts(chainIds);
 
-      // Create an array of promises for each networkClientId
-      const updatePromises = networkClientIds.map(async (networkClientId) => {
-        const { chainId, ethQuery, provider, blockTracker } =
-          this.#getCorrectNetworkClient(networkClientId);
-        const { accountsByChainId } = this.state;
-        const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
-          'PreferencesController:getState',
+      // Use balance fetchers with fallback strategy
+      const aggregated: ProcessedBalance[] = [];
+      let remainingChains = [...chainIds] as ChainIdHex[];
+
+      // Try each fetcher in order, removing successfully processed chains
+      for (const fetcher of this.#balanceFetchers) {
+        const supportedChains = remainingChains.filter((c) =>
+          fetcher.supports(c),
         );
-
-        const accountsToUpdate = isMultiAccountBalancesEnabled
-          ? Object.keys(accountsByChainId[chainId])
-          : [toChecksumHexAddress(selectedAccount.address)];
-
-        const accountsForChain = { ...accountsByChainId[chainId] };
-
-        // Force fresh block data before multicall
-        // TODO: This is a temporary fix to ensure that the block number is up to date.
-        // We should remove this once we have a better solution for this on the block tracker controller.
-        await safelyExecuteWithTimeout(() =>
-          blockTracker?.checkForLatestBlock?.(),
-        );
-
-        const stakedBalancesPromise = this.#includeStakedAssets
-          ? this.#getStakedBalanceForChain(accountsToUpdate, networkClientId)
-          : Promise.resolve({});
-
-        if (hasProperty(SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID, chainId)) {
-          const contractAddress = SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[
-            chainId
-          ] as string;
-
-          const contract = new Contract(
-            contractAddress,
-            abiSingleCallBalancesContract,
-            new Web3Provider(provider),
-          );
-
-          const nativeBalances = await safelyExecuteWithTimeout(
-            () =>
-              contract.balances(accountsToUpdate, [
-                '0x0000000000000000000000000000000000000000',
-              ]) as Promise<BigNumber[]>,
-            false,
-            3_000, // 3s max call for multicall contract call
-          );
-
-          if (nativeBalances) {
-            accountsToUpdate.forEach((address, index) => {
-              accountsForChain[address] = {
-                balance: nativeBalances[index].toHexString(),
-              };
-            });
-          }
-        } else {
-          // Process accounts in batches using reduceInBatchesSerially
-          await reduceInBatchesSerially<string, void>({
-            values: accountsToUpdate,
-            batchSize: TOKEN_PRICES_BATCH_SIZE,
-            initialResult: undefined,
-            eachBatch: async (workingResult: void, batch: string[]) => {
-              const balancePromises = batch.map(async (address: string) => {
-                const balanceResult = await this.#getBalanceFromChain(
-                  address,
-                  ethQuery,
-                ).catch(() => null);
-
-                // Update account balances
-                if (balanceResult) {
-                  accountsForChain[address] = {
-                    balance: balanceResult,
-                  };
-                }
-              });
-
-              await Promise.allSettled(balancePromises);
-              return workingResult;
-            },
-          });
+        if (!supportedChains.length) {
+          continue;
         }
 
-        const stakedBalanceResult = await safelyExecuteWithTimeout(
-          async () =>
-            (await stakedBalancesPromise) as Record<string, StakedBalance>,
-        );
+        try {
+          const balances = await fetcher.fetch({
+            chainIds: supportedChains,
+            queryAllAccounts: isMultiAccountBalancesEnabled,
+            selectedAccount: toChecksumHexAddress(
+              selectedAccount.address,
+            ) as ChecksumAddress,
+            allAccounts,
+          });
 
-        Object.entries(stakedBalanceResult ?? {}).forEach(
-          ([address, balance]) => {
-            accountsForChain[address] = {
-              ...accountsForChain[address],
-              stakedBalance: balance,
-            };
-          },
-        );
+          if (balances && balances.length > 0) {
+            aggregated.push(...balances);
+            // Remove chains that were successfully processed
+            const processedChains = new Set(balances.map((b) => b.chainId));
+            remainingChains = remainingChains.filter(
+              (chain) => !processedChains.has(chain),
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `Balance fetcher failed for chains ${supportedChains.join(', ')}: ${String(error)}`,
+          );
+          // Continue to next fetcher (fallback)
+        }
 
-        // After all batches are processed, return the updated data
-        return { chainId, accountsForChain };
-      });
-
-      // Wait for all networkClientId updates to settle in parallel
-      const allResults = await Promise.allSettled(updatePromises);
+        // If all chains have been processed, break early
+        if (remainingChains.length === 0) {
+          break;
+        }
+      }
 
       // Build a _copy_ of the current state and track whether anything changed
       const nextAccountsByChainId: AccountTrackerControllerState['accountsByChainId'] =
         cloneDeep(this.state.accountsByChainId);
       let hasChanges = false;
 
-      allResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const { chainId, accountsForChain } = result.value;
-          // Only mark as changed if the incoming data differs
-          if (!isEqual(nextAccountsByChainId[chainId], accountsForChain)) {
-            nextAccountsByChainId[chainId] = accountsForChain;
-            hasChanges = true;
+      // Process the aggregated balance results
+      const stakedBalancesByChainAndAddress: Record<
+        string,
+        Record<string, string>
+      > = {};
+
+      aggregated.forEach(({ success, value, account, token, chainId }) => {
+        if (success && value !== undefined) {
+          const checksumAddress = toChecksumHexAddress(account);
+          const hexValue = `0x${value.toString(16)}`;
+
+          if (token === ZERO_ADDRESS) {
+            // Native balance
+            if (
+              nextAccountsByChainId[chainId][checksumAddress].balance !==
+              hexValue
+            ) {
+              nextAccountsByChainId[chainId][checksumAddress].balance =
+                hexValue;
+              hasChanges = true;
+            }
+          } else {
+            // Staked balance (from staking contract address)
+            if (!stakedBalancesByChainAndAddress[chainId]) {
+              stakedBalancesByChainAndAddress[chainId] = {};
+            }
+            stakedBalancesByChainAndAddress[chainId][checksumAddress] =
+              hexValue;
           }
         }
       });
 
-      // 👇🏻 call `update` only when something is new / different
+      // Apply staked balances
+      Object.entries(stakedBalancesByChainAndAddress).forEach(
+        ([chainId, balancesByAddress]) => {
+          Object.entries(balancesByAddress).forEach(
+            ([address, stakedBalance]) => {
+              // Ensure account structure exists
+              if (!nextAccountsByChainId[chainId]) {
+                nextAccountsByChainId[chainId] = {};
+              }
+              if (!nextAccountsByChainId[chainId][address]) {
+                nextAccountsByChainId[chainId][address] = { balance: '0x0' };
+              }
+              if (
+                nextAccountsByChainId[chainId][address].stakedBalance !==
+                stakedBalance
+              ) {
+                nextAccountsByChainId[chainId][address].stakedBalance =
+                  stakedBalance;
+                hasChanges = true;
+              }
+            },
+          );
+        },
+      );
+
+      // Only update state if something changed
       if (hasChanges) {
         this.update((state) => {
           state.accountsByChainId = nextAccountsByChainId;
@@ -498,23 +622,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     } finally {
       releaseLock();
     }
-  }
-
-  /**
-   * Fetches the balance of a given address from the blockchain.
-   *
-   * @param address - The account address to fetch the balance for.
-   * @param ethQuery - The EthQuery instance to query getBalnce with.
-   * @returns A promise that resolves to the balance in a hex string format.
-   */
-  async #getBalanceFromChain(
-    address: string,
-    ethQuery?: EthQuery,
-  ): Promise<string | undefined> {
-    return await safelyExecuteWithTimeout(async () => {
-      assert(ethQuery, 'Provider not set.');
-      return await query(ethQuery, 'getBalance', [address]);
-    });
   }
 
   /**
@@ -576,22 +683,26 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param balances - Array of balance updates, each containing address, chainId, and balance.
    */
   updateNativeBalances(
-    balances: { address: string; chainId: Hex; balance: string }[],
+    balances: { address: string; chainId: Hex; balance: Hex }[],
   ) {
     this.update((state) => {
       balances.forEach(({ address, chainId, balance }) => {
+        const checksumAddress = toChecksumHexAddress(address);
+
         // Ensure the chainId exists in the state
         if (!state.accountsByChainId[chainId]) {
           state.accountsByChainId[chainId] = {};
         }
 
         // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][address]) {
-          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        if (!state.accountsByChainId[chainId][checksumAddress]) {
+          state.accountsByChainId[chainId][checksumAddress] = {
+            balance: '0x0',
+          };
         }
 
         // Update the balance
-        state.accountsByChainId[chainId][address].balance = balance;
+        state.accountsByChainId[chainId][checksumAddress].balance = balance;
       });
     });
   }
@@ -612,18 +723,23 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ) {
     this.update((state) => {
       stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
+        const checksumAddress = toChecksumHexAddress(address);
+
         // Ensure the chainId exists in the state
         if (!state.accountsByChainId[chainId]) {
           state.accountsByChainId[chainId] = {};
         }
 
         // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][address]) {
-          state.accountsByChainId[chainId][address] = { balance: '0x0' };
+        if (!state.accountsByChainId[chainId][checksumAddress]) {
+          state.accountsByChainId[chainId][checksumAddress] = {
+            balance: '0x0',
+          };
         }
 
         // Update the staked balance
-        state.accountsByChainId[chainId][address].stakedBalance = stakedBalance;
+        state.accountsByChainId[chainId][checksumAddress].stakedBalance =
+          stakedBalance;
       });
     });
   }

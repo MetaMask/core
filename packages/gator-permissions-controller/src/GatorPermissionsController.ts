@@ -1,3 +1,4 @@
+import type { Signer } from '@metamask/7715-permission-types';
 import type {
   RestrictedMessenger,
   ControllerGetStateAction,
@@ -19,8 +20,7 @@ import type { StoredGatorPermissionSanitized } from './types';
 import {
   GatorPermissionsSnapRpcMethod,
   type GatorPermissionsMap,
-  type PermissionTypes,
-  type SignerParam,
+  type PermissionTypesWithCustom,
   type StoredGatorPermission,
 } from './types';
 import {
@@ -76,20 +76,28 @@ export type GatorPermissionsControllerState = {
 
 const gatorPermissionsControllerMetadata = {
   isGatorPermissionsEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
   gatorPermissionsMapSerialized: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isFetchingGatorPermissions: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
   gatorPermissionsProviderSnapId: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
 } satisfies StateMetadata<GatorPermissionsControllerState>;
 
@@ -284,7 +292,9 @@ export default class GatorPermissionsController extends BaseController<
     snapId,
   }: {
     snapId: SnapId;
-  }): Promise<StoredGatorPermission<SignerParam, PermissionTypes>[] | null> {
+  }): Promise<
+    StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null
+  > {
     try {
       const response = (await this.messagingSystem.call(
         'SnapController:handleRequest',
@@ -298,7 +308,7 @@ export default class GatorPermissionsController extends BaseController<
               GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
           },
         },
-      )) as StoredGatorPermission<SignerParam, PermissionTypes>[] | null;
+      )) as StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null;
 
       return response;
     } catch (error) {
@@ -321,14 +331,18 @@ export default class GatorPermissionsController extends BaseController<
    * @returns The sanitized stored gator permission.
    */
   #sanitizeStoredGatorPermission(
-    storedGatorPermission: StoredGatorPermission<SignerParam, PermissionTypes>,
-  ): StoredGatorPermissionSanitized<SignerParam, PermissionTypes> {
+    storedGatorPermission: StoredGatorPermission<
+      Signer,
+      PermissionTypesWithCustom
+    >,
+  ): StoredGatorPermissionSanitized<Signer, PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { isAdjustmentAllowed, accountMeta, signer, ...rest } =
-      permissionResponse;
+    const { rules, dependencyInfo, signer, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
-      permissionResponse: { ...rest },
+      permissionResponse: {
+        ...rest,
+      },
     };
   }
 
@@ -340,7 +354,7 @@ export default class GatorPermissionsController extends BaseController<
    */
   #categorizePermissionsDataByTypeAndChainId(
     storedGatorPermissions:
-      | StoredGatorPermission<SignerParam, PermissionTypes>[]
+      | StoredGatorPermission<Signer, PermissionTypesWithCustom>[]
       | null,
   ): GatorPermissionsMap {
     if (!storedGatorPermissions) {
@@ -369,8 +383,8 @@ export default class GatorPermissionsController extends BaseController<
               gatorPermissionsMap[permissionType][
                 chainId
               ] as StoredGatorPermissionSanitized<
-                SignerParam,
-                PermissionTypes
+                Signer,
+                PermissionTypesWithCustom
               >[]
             ).push(sanitizedStoredGatorPermission);
             break;
@@ -383,8 +397,8 @@ export default class GatorPermissionsController extends BaseController<
               gatorPermissionsMap.other[
                 chainId
               ] as StoredGatorPermissionSanitized<
-                SignerParam,
-                PermissionTypes
+                Signer,
+                PermissionTypesWithCustom
               >[]
             ).push(sanitizedStoredGatorPermission);
             break;

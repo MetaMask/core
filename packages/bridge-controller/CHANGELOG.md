@@ -7,9 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^74.0.0` to `^75.0.0` ([#6570](https://github.com/MetaMask/core/pull/6570))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Add optional `isGaslessSwapEnabled` LaunchDarkly config to feature flags schema ([#6573](https://github.com/MetaMask/core/pull/6573))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
+## [42.0.0]
+
+### Added
+
+- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+### Changed
+
+- **BREAKING** Rename QuotesError and InputSourceDestinationSwitched events to match segment schema ([#6447](https://github.com/MetaMask/core/pull/6447))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+- **BREAKING** Rename `gasless7702` to `gasIncluded7702` in QuoteRequest and Quote types
+
+## [41.4.0]
+
+### Added
+
+- Add Bitcoin as a supported bridge chain ([#6389](https://github.com/MetaMask/core/pull/6389))
+- Export `isBitcoinChainId` utility function ([#6389](https://github.com/MetaMask/core/pull/6389))
+
+## [41.3.0]
+
+### Added
+
+- Publish `QuotesValidationFailed` and `StatusValidationFailed` events ([#6362](https://github.com/MetaMask/core/pull/6362))
+
+## [41.2.0]
+
+### Changed
+
+- Update quotes to account for minDestTokenAmount ([#6373](https://github.com/MetaMask/core/pull/6373))
+
+## [41.1.0]
+
 ### Added
 
 - Add `UnifiedSwapBridgeEventName.AssetDetailTooltipClicked` event ([#6352](https://github.com/MetaMask/core/pull/6352))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
 
 ## [41.0.0]
 
@@ -519,7 +563,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...@metamask/bridge-controller@42.0.0
+[41.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.3.0...@metamask/bridge-controller@41.4.0
+[41.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...@metamask/bridge-controller@41.3.0
+[41.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.1.0...@metamask/bridge-controller@41.2.0
+[41.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.0.0...@metamask/bridge-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@40.0.0...@metamask/bridge-controller@41.0.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.1.0...@metamask/bridge-controller@40.0.0
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@39.0.1...@metamask/bridge-controller@39.1.0

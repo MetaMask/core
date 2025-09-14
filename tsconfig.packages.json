@@ -13,6 +13,7 @@
      * `jest.config.packages.js`.
      */
     "paths": {
+      "@metamask/base-controller/next": ["../base-controller/src/next"],
       "@metamask/*": ["../*/src"]
     },
     "strict": true,

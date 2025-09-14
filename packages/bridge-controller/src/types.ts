@@ -133,6 +133,10 @@ export type QuoteMetadata = {
    */
   toTokenAmount: TokenAmountValues;
   /**
+   * The minimum amount that the user will receive (minDestTokenAmount)
+   */
+  minToTokenAmount: TokenAmountValues;
+  /**
    * If gas is included: toTokenAmount
    * Otherwise: toTokenAmount - totalNetworkFee
    */
@@ -218,7 +222,7 @@ export type QuoteRequest<
   /**
    * Whether to request quotes that use EIP-7702 delegated gasless execution
    */
-  gasless7702: boolean;
+  gasIncluded7702: boolean;
   noFee?: boolean;
 };
 
@@ -273,6 +277,7 @@ export enum ChainId {
   AVALANCHE = 43114,
   LINEA = 59144,
   SOLANA = 1151111081099710,
+  BTC = 20000000000001,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;

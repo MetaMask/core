@@ -6,6 +6,7 @@ import {
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
+  getMockCreatePerpOrderNotification,
 } from '../mocks/mockResponses';
 
 type MockReply = {
@@ -68,5 +69,15 @@ export const mockMarkNotificationsAsRead = (mockReply?: MockReply) => {
     .post('')
     .reply(reply.status, reply.body);
 
+  return mockEndpoint;
+};
+
+export const mockCreatePerpNotification = (mockReply?: MockReply) => {
+  const mockResponse = getMockCreatePerpOrderNotification();
+  const reply = mockReply ?? { status: 201 };
+  const mockEndpoint = nock(mockResponse.url)
+    .persist()
+    .post('')
+    .reply(reply.status);
   return mockEndpoint;
 };

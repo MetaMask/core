@@ -12,3 +12,4 @@ export {
   ShieldController,
   getDefaultShieldControllerState,
 } from './ShieldController';
+export { ShieldRemoteBackend } from './backend';

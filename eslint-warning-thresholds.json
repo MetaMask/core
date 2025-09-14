@@ -14,9 +14,6 @@
     "n/prefer-global/text-decoder": 1,
     "no-shadow": 2
   },
-  "packages/assets-controllers/src/AccountTrackerController.test.ts": {
-    "import-x/namespace": 2
-  },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 1
@@ -110,16 +107,10 @@
     "jsdoc/tag-lines": 2
   },
   "packages/base-controller/src/BaseController.test.ts": {
-    "import-x/namespace": 16
-  },
-  "packages/base-controller/src/BaseController.ts": {
-    "jsdoc/check-tag-names": 2
+    "import-x/namespace": 18
   },
   "packages/base-controller/src/next/BaseController.test.ts": {
-    "import-x/namespace": 16
-  },
-  "packages/base-controller/src/next/BaseController.ts": {
-    "jsdoc/check-tag-names": 2
+    "import-x/namespace": 18
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
@@ -162,6 +153,9 @@
   "packages/ens-controller/src/EnsController.ts": {
     "jsdoc/check-tag-names": 6
   },
+  "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
+    "@typescript-eslint/no-misused-promises": 1
+  },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1
   },
@@ -193,7 +187,6 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 5,
     "jest/no-conditional-in-test": 2
   },
   "packages/keyring-controller/src/KeyringController.ts": {
@@ -292,9 +285,6 @@
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
   },
-  "packages/permission-controller/src/PermissionController.ts": {
-    "prettier/prettier": 12
-  },
   "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
     "import-x/order": 1
   },
@@ -355,10 +345,6 @@
   },
   "packages/seedless-onboarding-controller/src/errors.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1
-  },
-  "packages/selected-network-controller/src/SelectedNetworkController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "prettier/prettier": 6
   },
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1
