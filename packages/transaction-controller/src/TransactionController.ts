@@ -4348,19 +4348,15 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Trigger fire and forget bulk token screening via PhishingController for tokens received in simulation.
+   * Fire and forget bulk token screening via PhishingController for tokens received in simulation.
    *
-   * @param transactionMeta
-   */
-  /**
    * @param transactionMeta - Transaction metadata containing simulation results.
    */
-  async #screenReceivedTokens(transactionMeta: TransactionMeta) {
+  async #bulkScanReceivedTokens(transactionMeta: TransactionMeta) {
     try {
-      const { simulationData } = transactionMeta;
+      const { simulationData, chainId } = transactionMeta;
 
-      // Skip if simulation has errors or no data
-      if (!simulationData || simulationData.error) {
+      if (!simulationData || simulationData.error || !chainId) {
         return;
       }
 
@@ -4373,25 +4369,19 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      const { chainId } = transactionMeta;
-
-      // Fire and forget
-      (async () => {
-        try {
-          await this.messagingSystem.call('PhishingController:bulkScanTokens', {
-            chainId,
-            tokens: receivedTokens,
-          });
-        } catch (innerError) {
+      // Fire and forget as the PhishingController will cache the token screening results for UI use
+      this.messagingSystem
+        .call('PhishingController:bulkScanTokens', {
+          chainId,
+          tokens: receivedTokens,
+        })
+        .catch((innerError) => {
           log('Bulk token screening failed', {
             innerError,
             chainId,
             receivedTokens,
           });
-        }
-      })().catch(() => {
-        // Ignore any unhandled rejections
-      });
+        });
     } catch (error) {
       log('Error scheduling token screening', error);
     }
@@ -4601,9 +4591,8 @@ export class TransactionController extends BaseController<
 
     log('Updated transaction with afterSimulate data', updatedTransactionMeta);
 
-    // Fire-and-forget token screening for received tokens
-    this.#screenReceivedTokens(updatedTransactionMeta).catch((err) => {
-      log('Ignored error from background token screening', err);
+    this.#bulkScanReceivedTokens(updatedTransactionMeta).catch((err) => {
+      log('Error while bulk scanning received tokens', err);
     });
   }
 }
