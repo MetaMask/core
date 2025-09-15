@@ -20,4 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `updatePaymentMethodCard` and `updatePaymentMethodCrypto` methods ([#6539](https://github.com/MetaMask/core/pull/6539))
 - Added `getBillingPortalUrl` method ([#6580](https://github.com/MetaMask/core/pull/6580))
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
 [Unreleased]: https://github.com/MetaMask/core/
