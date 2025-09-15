@@ -131,7 +131,6 @@ import {
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
-  SimulationTokenStandard,
 } from './types';
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
