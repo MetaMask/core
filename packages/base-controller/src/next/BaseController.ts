@@ -362,40 +362,6 @@ export class BaseController<
 }
 
 /**
- * Returns an anonymized representation of the controller state.
- *
- * By "anonymized" we mean that it should not contain any information that could be personally
- * identifiable.
- *
- * @deprecated Use `deriveStateFromMetadata` instead.
- * @param state - The controller state.
- * @param metadata - The controller state metadata, which describes how to derive the
- * anonymized state.
- * @returns The anonymized controller state.
- */
-export function getAnonymizedState<ControllerState extends StateConstraint>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
-): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'includeInDebugSnapshot');
-}
-
-/**
- * Returns the subset of state that should be persisted.
- *
- * @deprecated Use `deriveStateFromMetadata` instead.
- * @param state - The controller state.
- * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
- * @returns The subset of controller state that should be persisted.
- */
-export function getPersistentState<ControllerState extends StateConstraint>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
-): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'persist');
-}
-
-/**
  * Use the metadata to derive state according to the given metadata property.
  *
  * @param state - The full controller state.
