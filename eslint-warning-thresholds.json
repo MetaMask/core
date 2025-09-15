@@ -110,7 +110,7 @@
     "import-x/namespace": 18
   },
   "packages/base-controller/src/next/BaseController.test.ts": {
-    "import-x/namespace": 18
+    "import-x/namespace": 14
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
