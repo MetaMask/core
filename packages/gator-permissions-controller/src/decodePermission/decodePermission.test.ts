@@ -11,7 +11,7 @@ import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
-import { hexToBigInt, hexToNumber, numberToHex } from '@metamask/utils';
+import { hexToBigInt, numberToHex } from '@metamask/utils';
 
 import {
   getPermissionDataAndExpiry,
@@ -274,7 +274,7 @@ describe('decodePermission', () => {
         const contractsWithoutTimestampEnforcer = {
           ...contracts,
           TimestampEnforcer: undefined,
-        } as const;
+        } as unknown as DeployedContractsByName;
 
         expect(() =>
           identifyPermissionByEnforcers({
@@ -509,7 +509,7 @@ describe('decodePermission', () => {
 
         expect(expiry).toBe(timestampBeforeThreshold);
         expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
-        expect(hexToNumber(data.periodDuration)).toBe(periodDuration);
+        expect(data.periodDuration).toBe(periodDuration);
         expect(data.startTime).toBe(startDate);
       });
 

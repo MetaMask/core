@@ -152,7 +152,7 @@ export const getPermissionDataAndExpiry = ({
         maxAmount,
         amountPerSecond,
         startTime: hexToNumber(startTimeRaw),
-      } as unknown as DecodedPermission['permission']['data'];
+      };
       break;
     }
     case 'erc20-token-periodic': {
@@ -164,14 +164,12 @@ export const getPermissionDataAndExpiry = ({
       const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =
         splitHex(erc20PeriodicTerms, [20, 32, 32, 32]);
 
-      const periodDuration = hexToNumber(periodDurationRaw);
-
       data = {
         tokenAddress,
         periodAmount,
-        periodDuration,
+        periodDuration: hexToNumber(periodDurationRaw),
         startTime: hexToNumber(startTimeRaw),
-      } as unknown as DecodedPermission['permission']['data'];
+      };
       break;
     }
 
@@ -189,7 +187,7 @@ export const getPermissionDataAndExpiry = ({
         maxAmount,
         amountPerSecond,
         startTime: hexToNumber(startTimeRaw),
-      } as unknown as DecodedPermission['permission']['data'];
+      };
       break;
     }
     case 'native-token-periodic': {
@@ -198,16 +196,16 @@ export const getPermissionDataAndExpiry = ({
         nativeTokenPeriodicEnforcer,
       );
 
-      const [periodAmount, periodDuration, startTimeRaw] = splitHex(
+      const [periodAmount, periodDurationRaw, startTimeRaw] = splitHex(
         nativeTokenPeriodicTerms,
         [32, 32, 32],
       );
 
       data = {
         periodAmount,
-        periodDuration,
+        periodDuration: hexToNumber(periodDurationRaw),
         startTime: hexToNumber(startTimeRaw),
-      } as unknown as DecodedPermission['permission']['data'];
+      };
       break;
     }
     default:
