@@ -48,13 +48,14 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.3.0",
-    "@metamask/utils": "^11.4.2"
+    "@metamask/utils": "^11.8.0"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/signature-controller": "^33.0.0",
     "@metamask/transaction-controller": "^60.3.0",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
@@ -67,6 +68,7 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
+    "@metamask/signature-controller": "^33.0.0",
     "@metamask/transaction-controller": "^60.0.0"
   },
   "engines": {
