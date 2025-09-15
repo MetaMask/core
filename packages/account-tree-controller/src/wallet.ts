@@ -23,17 +23,13 @@ import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 export type AccountTreeWalletPersistedMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
-  /** Next account number to use for default naming (Account 1, Account 2, etc.) */
-  nextAccountNumber?: number;
 };
 
 /**
  * Tree metadata for account wallets (required plain values extracted from persisted metadata).
  */
 export type AccountTreeWalletMetadata = Required<
-  ExtractFieldValues<
-    Omit<AccountTreeWalletPersistedMetadata, 'nextAccountNumber'>
-  >
+  ExtractFieldValues<AccountTreeWalletPersistedMetadata>
 >;
 
 /**

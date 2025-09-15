@@ -405,32 +405,28 @@ export class AccountTreeController extends BaseController<
       const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
       const typedGroup = typedWallet.groups[group.id] as AccountGroupObject;
 
-      // Try to get computed name first (e.g., from existing EVM account names)
-      const computedName = rule.getComputedAccountGroupName(typedGroup);
-
-      if (computedName) {
-        // Use computed name from existing accounts (e.g., "Main Account", "Trading Account")
-        group.metadata.name = computedName;
+      // Calculate group index for default naming
+      let groupIndex: number;
+      
+      // For entropy-based multichain groups, use the actual groupIndex from metadata
+      // instead of calculating from alphabetical sort position
+      if (group.type === 'multichain-account' && 'entropy' in group.metadata) {
+        groupIndex = group.metadata.entropy.groupIndex;
       } else {
-        // Generate default name based on wallet-specific numbering
-        group.metadata.name = this.#generateDefaultGroupName(
-          wallet,
-          group,
-          rule,
-        );
-        
-        // Only persist default names to ensure consistency across restarts
-        // Computed names don't need persistence as they're derived from account names
-        this.update((state) => {
-          if (!state.accountGroupsMetadata[group.id]) {
-            state.accountGroupsMetadata[group.id] = {};
-          }
-          state.accountGroupsMetadata[group.id].name = {
-            value: group.metadata.name,
-            lastUpdatedAt: Date.now(),
-          };
-        });
+        // For other wallet types (snap/keyring), use sorted position for consistency
+        const sortedGroupIds = Object.keys(wallet.groups).sort();
+        groupIndex = sortedGroupIds.indexOf(group.id);
+
+        // Defensive fallback
+        if (groupIndex === -1) {
+          groupIndex = 0;
+        }
       }
+
+      // Use computed name first, then fallback to default naming if empty
+      group.metadata.name =
+        rule.getComputedAccountGroupName(typedGroup) ||
+        rule.getDefaultAccountGroupName(groupIndex);
     }
 
     // Apply persisted UI states
@@ -440,47 +436,6 @@ export class AccountTreeController extends BaseController<
     if (persistedGroupMetadata?.hidden?.value !== undefined) {
       group.metadata.hidden = persistedGroupMetadata.hidden.value;
     }
-  }
-
-  /**
-   * Generates a default name for an account group, ensuring unique numbering
-   * within each wallet.
-   *
-   * @param wallet - The wallet containing the group.
-   * @param group - The group to generate a name for.
-   * @param rule - The rule for this wallet type.
-   * @returns The generated default name.
-   */
-  #generateDefaultGroupName(
-    wallet: AccountWalletObject,
-    group: AccountGroupObject,
-    rule: Rule<AccountWalletType, AccountGroupType>,
-  ): string {
-    // For ALL wallet types, use per-wallet sequential numbering
-    // This ensures each wallet has independent Account 1, Account 2, etc.
-    const existingNumbers = new Set<number>();
-
-    // Collect all numbers currently in use by this wallet's groups
-    for (const existingGroup of Object.values(wallet.groups)) {
-      const { id } = existingGroup;
-      const { name: persistedName } = this.state.accountGroupsMetadata[id] || {};
-      const existingName = persistedName?.value || existingGroup.metadata.name;
-
-      // Extract number from "Account X" pattern
-      const match = existingName.match(/^Account (\d+)$/);
-      if (match) {
-        const [, numberStr] = match;
-        existingNumbers.add(parseInt(numberStr, 10) - 1); // Convert to 0-based index
-      }
-    }
-
-    // Find the first available number (0-based)
-    let accountNumber = 0;
-    while (existingNumbers.has(accountNumber)) {
-      accountNumber++;
-    }
-
-    return rule.getDefaultAccountGroupName(accountNumber);
   }
 
   /**

@@ -2653,19 +2653,51 @@ describe('AccountTreeController', () => {
       expect(wallet2Groups[1].metadata.name).toBe('Account 2');
       expect(wallet2Groups[2].metadata.name).toBe('Account 3');
 
-      // Verify names are persisted
-      const wallet1Group1Id = toMultichainAccountGroupId(wallet1Id, 0);
-      const groupMetadata =
-        controller.state.accountGroupsMetadata[wallet1Group1Id];
-      expect(groupMetadata?.name?.value).toBe('Account 1');
+      // Verify second SRP starts from Account 1 independently
+      expect(wallet1Groups[0].metadata.name).toBe('Account 1');
+      expect(wallet2Groups[0].metadata.name).toBe('Account 1');
     });
 
     it('handles account naming correctly after app restart', () => {
       // This test verifies that account names remain consistent after restart
       // and don't change from "Account 1" to "Account 2" etc.
 
+      // Create two accounts in the same wallet but different groups
+      const account1: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-1',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name to force default naming
+        },
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            groupIndex: 0,
+          },
+        },
+      };
+
+      const account2: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'account-2',
+        address: '0x456',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty name to force default naming
+        },
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            groupIndex: 1,
+          },
+        },
+      };
+
       const { controller, messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        accounts: [account1, account2],
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
@@ -2678,16 +2710,16 @@ describe('AccountTreeController', () => {
       const group1Id = toMultichainAccountGroupId(walletId, 0);
       const group2Id = toMultichainAccountGroupId(walletId, 1);
 
-      // Check initial names
+      // Check initial names (both groups use entropy.groupIndex)
       const state1 = controller.state;
       const wallet1 = state1.accountTree.wallets[walletId];
-      expect(wallet1.groups[group1Id].metadata.name).toBe('Account 1');
-      expect(wallet1.groups[group2Id].metadata.name).toBe('Account 2');
+      expect(wallet1.groups[group1Id].metadata.name).toBe('Account 1'); // groupIndex 0 → Account 1
+      expect(wallet1.groups[group2Id].metadata.name).toBe('Account 2'); // groupIndex 1 → Account 2
 
       // Simulate app restart by re-initializing
       controller.init();
 
-      // Names should remain the same
+      // Names should remain the same (consistent entropy.groupIndex)
       const state2 = controller.state;
       const wallet2 = state2.accountTree.wallets[walletId];
       expect(wallet2.groups[group1Id].metadata.name).toBe('Account 1');
