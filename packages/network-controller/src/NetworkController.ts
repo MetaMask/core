@@ -1571,7 +1571,50 @@ export class NetworkController extends BaseController<
    * You can pass `false` if you'd like to disable this request and call
    * `lookupNetwork` yourself.
    */
-  async initializeProvider({
+  initializeProvider(options: { lookupNetwork: false }): void;
+
+  /**
+   * Creates proxies for accessing the global network client and its block
+   * tracker. You must call this method in order to use
+   * `getProviderAndBlockTracker` (or its replacement,
+   * `getSelectedNetworkClient`).
+   *
+   * @param options - Optional arguments.
+   * @param options.lookupNetwork - Usually, metadata for the global network
+   * will be populated via a call to `lookupNetwork` after creating the provider
+   * and block tracker proxies. This allows for responding to the status of the
+   * global network after initializing this controller; however, it requires
+   * making a request to the network to do so. In the clients, where controllers
+   * are initialized before the UI is shown, this may be undesirable, as it
+   * means that if the user has just installed MetaMask, their IP address may be
+   * shared with a third party before they have a chance to finish onboarding.
+   * You can pass `false` if you'd like to disable this request and call
+   * `lookupNetwork` yourself.
+   * @returns A promise that resolves when the network lookup completes.
+   */
+  initializeProvider(options: { lookupNetwork?: true }): Promise<void>;
+
+  /**
+   * Creates proxies for accessing the global network client and its block
+   * tracker. You must call this method in order to use
+   * `getProviderAndBlockTracker` (or its replacement,
+   * `getSelectedNetworkClient`).
+   *
+   * @param options - Optional arguments.
+   * @param options.lookupNetwork - Usually, metadata for the global network
+   * will be populated via a call to `lookupNetwork` after creating the provider
+   * and block tracker proxies. This allows for responding to the status of the
+   * global network after initializing this controller; however, it requires
+   * making a request to the network to do so. In the clients, where controllers
+   * are initialized before the UI is shown, this may be undesirable, as it
+   * means that if the user has just installed MetaMask, their IP address may be
+   * shared with a third party before they have a chance to finish onboarding.
+   * You can pass `false` if you'd like to disable this request and call
+   * `lookupNetwork` yourself.
+   * @returns A promise if `lookupNetwork` is true or undefined, otherwise
+   * returns nothing.
+   */
+  initializeProvider({
     lookupNetwork = true,
   }: {
     lookupNetwork?: boolean;
@@ -1579,8 +1622,10 @@ export class NetworkController extends BaseController<
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
 
     if (lookupNetwork) {
-      await this.lookupNetwork();
+      return this.lookupNetwork();
     }
+
+    return undefined;
   }
 
   /**
