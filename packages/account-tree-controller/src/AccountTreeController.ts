@@ -327,19 +327,26 @@ export class AccountTreeController extends BaseController<
       const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
       const typedGroup = typedWallet.groups[group.id] as AccountGroupObject;
 
-      // Calculate group index based on position within sorted group IDs
-      // We sort to ensure consistent ordering across all wallet types:
-      // - Entropy: group IDs like "entropy:abc/0", "entropy:abc/1" sort to logical order
-      // - Snap/Keyring: group IDs like "keyring:ledger/0xABC" get consistent alphabetical order
-      const sortedGroupIds = Object.keys(wallet.groups).sort();
-      let groupIndex = sortedGroupIds.indexOf(group.id);
+      // Calculate group index for default naming
+      let groupIndex: number;
+      
+      // For entropy-based multichain groups, use the actual groupIndex from metadata
+      // instead of calculating from alphabetical sort position
+      if (group.type === 'multichain-account' && 'entropy' in group.metadata) {
+        groupIndex = group.metadata.entropy.groupIndex;
+      } else {
+        // For other wallet types (snap/keyring), use sorted position for consistency
+        // - Snap/Keyring: group IDs like "keyring:ledger/0xABC" get consistent alphabetical order
+        const sortedGroupIds = Object.keys(wallet.groups).sort();
+        groupIndex = sortedGroupIds.indexOf(group.id);
 
-      // Defensive fallback: if group.id is not found in sortedGroupIds (should never happen
-      // in normal operation since we iterate over wallet.groups), use index 0 to prevent
-      // passing -1 to getDefaultAccountGroupName which would result in "Account 0"
-      /* istanbul ignore next */
-      if (groupIndex === -1) {
-        groupIndex = 0;
+        // Defensive fallback: if group.id is not found in sortedGroupIds (should never happen
+        // in normal operation since we iterate over wallet.groups), use index 0 to prevent
+        // passing -1 to getDefaultAccountGroupName which would result in "Account 0"
+        /* istanbul ignore next */
+        if (groupIndex === -1) {
+          groupIndex = 0;
+        }
       }
 
       // Use computed name first, then fallback to default naming if empty
