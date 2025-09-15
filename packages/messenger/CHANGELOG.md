@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `captureException` constructor parameter ([#6605](https://github.com/MetaMask/core/pull/6605))
+  - This function will be used to capture any errors thrown from subscribers.
+  - If this is unset but a parent is provided, `captureException` is inherited from the parent.
+
+### Changed
+
+- Stop re-throwing subscriber errors in a `setTimeout` ([#6605](https://github.com/MetaMask/core/pull/6605))
+  - Instead errors are captured with `captureException`, or logged to the console.
+
 ## [0.2.0]
 
 ### Added
