@@ -6,6 +6,7 @@ import type {
   AccountSelector,
   MultichainAccountWalletId,
 } from '@metamask/account-api';
+import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -26,7 +27,6 @@ import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
 import { SnapRule } from './rules/snap';
-import type { MultichainAccountWalletStatus } from './wallet';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,

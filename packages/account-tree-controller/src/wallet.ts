@@ -3,7 +3,9 @@ import type {
   AccountWalletType,
   AccountWalletId,
   MultichainAccountWalletId,
+  AccountWalletStatus,
 } from '@metamask/account-api';
+import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -14,20 +16,6 @@ import type {
   AccountGroupSingleAccountObject,
 } from './group';
 import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
-
-/**
- * Status of a multichain account wallet.
- */
-export type MultichainAccountWalletStatus =
-  | 'ready'
-  | 'in-progress:discovery'
-  | 'in-progress:alignment'
-  | 'in-progress:creation';
-
-/**
- * Status of a generic account wallet.
- */
-export type AccountWalletStatus = 'ready';
 
 /**
  * Persisted metadata for account wallets (stored in controller state for persistence/sync).
