@@ -171,6 +171,7 @@ function createMockSubscriptionService() {
   const mockStartSubscriptionWithCrypto = jest.fn();
   const mockUpdatePaymentMethodCard = jest.fn();
   const mockUpdatePaymentMethodCrypto = jest.fn();
+  const mockGetBillingPortalUrl = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
@@ -180,6 +181,7 @@ function createMockSubscriptionService() {
     startSubscriptionWithCrypto: mockStartSubscriptionWithCrypto,
     updatePaymentMethodCard: mockUpdatePaymentMethodCard,
     updatePaymentMethodCrypto: mockUpdatePaymentMethodCrypto,
+    getBillingPortalUrl: mockGetBillingPortalUrl,
   };
 
   return {
@@ -963,6 +965,19 @@ describe('SubscriptionController', () => {
         await expect(controller.updatePaymentMethod(opts)).rejects.toThrow(
           'Invalid payment type',
         );
+      });
+    });
+  });
+
+  describe('getBillingPortalUrl', () => {
+    it('should get the billing portal URL', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getBillingPortalUrl.mockResolvedValue({
+          url: 'https://billing-portal.com',
+        });
+
+        const result = await controller.getBillingPortalUrl();
+        expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
       });
     });
   });

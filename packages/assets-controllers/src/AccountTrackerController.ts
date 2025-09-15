@@ -207,6 +207,7 @@ export type AccountTrackerControllerMessenger = RestrictedMessenger<
 /** The input to start polling for the {@link AccountTrackerController} */
 type AccountTrackerPollingInput = {
   networkClientIds: NetworkClientId[];
+  queryAllAccounts?: boolean;
 };
 
 /**
@@ -471,13 +472,15 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    *
    * @param input - The input for the poll.
    * @param input.networkClientIds - The network client IDs used to get balances.
+   * @param input.queryAllAccounts - Whether to query all accounts or just the selected account
    */
   async _executePoll({
     networkClientIds,
+    queryAllAccounts = false,
   }: AccountTrackerPollingInput): Promise<void> {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.refresh(networkClientIds);
+    this.refresh(networkClientIds, queryAllAccounts);
   }
 
   /**
@@ -486,8 +489,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * If multi-account is enabled, updates balances for all accounts.
    *
    * @param networkClientIds - Optional network client IDs to fetch a network client with
+   * @param queryAllAccounts - Whether to query all accounts or just the selected account
    */
-  async refresh(networkClientIds: NetworkClientId[]) {
+  async refresh(
+    networkClientIds: NetworkClientId[],
+    queryAllAccounts: boolean = false,
+  ) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
@@ -523,7 +530,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         try {
           const balances = await fetcher.fetch({
             chainIds: supportedChains,
-            queryAllAccounts: isMultiAccountBalancesEnabled,
+            queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
             selectedAccount: toChecksumHexAddress(
               selectedAccount.address,
             ) as ChecksumAddress,
@@ -569,6 +576,16 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
           if (token === ZERO_ADDRESS) {
             // Native balance
+            // Ensure the account entry exists before accessing it
+            if (!nextAccountsByChainId[chainId]) {
+              nextAccountsByChainId[chainId] = {};
+            }
+            if (!nextAccountsByChainId[chainId][checksumAddress]) {
+              nextAccountsByChainId[chainId][checksumAddress] = {
+                balance: '0x0',
+              };
+            }
+
             if (
               nextAccountsByChainId[chainId][checksumAddress].balance !==
               hexValue
