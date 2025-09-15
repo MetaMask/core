@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix account group naming inconsistency where entropy groups used alphabetical sorting instead of actual groupIndex, causing incorrect sequential numbering across wallets
+- Fix account group naming inconsistency where entropy groups used alphabetical sorting instead of actual groupIndex, causing incorrect sequential numbering across wallets ([#6601](https://github.com/MetaMask/core/pull/6601))
 
 ## [0.13.1]
 

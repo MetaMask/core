@@ -329,7 +329,7 @@ export class AccountTreeController extends BaseController<
 
       // Calculate group index for default naming
       let groupIndex: number;
-      
+
       // For entropy-based multichain groups, use the actual groupIndex from metadata
       // instead of calculating from alphabetical sort position
       if (group.type === 'multichain-account' && 'entropy' in group.metadata) {
