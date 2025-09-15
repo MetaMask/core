@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Fix network-controller build ([#6452](https://github.com/MetaMask/core/pull/6452))
+- chore(network-controller): Speed up network client tests ([#6377](https://github.com/MetaMask/core/pull/6377))
+- Document recent breaking change to controller-utils ([#6343](https://github.com/MetaMask/core/pull/6343))
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
