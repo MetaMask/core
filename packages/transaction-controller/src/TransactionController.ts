@@ -131,6 +131,7 @@ import {
   TransactionType,
   TransactionStatus,
   SimulationErrorCode,
+  SimulationTokenStandard,
 } from './types';
 import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
@@ -4356,22 +4357,32 @@ export class TransactionController extends BaseController<
     try {
       const { simulationData, chainId } = transactionMeta;
 
+      log('bulkScanReceivedTokens', transactionMeta);
       console.log('bulkScanReceivedTokens', transactionMeta);
 
       if (!simulationData || simulationData.error || !chainId) {
         return;
       }
 
+      log(
+        'simulationData.tokenBalanceChanges',
+        simulationData.tokenBalanceChanges,
+      );
+
       const receivedTokens = (simulationData.tokenBalanceChanges || [])
         .filter((change) => !change.isDecrease)
         .map(({ address }) => address)
         .filter((address): address is Hex => Boolean(address));
 
+      log('receivedTokens', receivedTokens);
+
       if (receivedTokens.length === 0) {
         return;
       }
 
-      console.log('receivedTokens', receivedTokens);
+      log('receivedTokens length', receivedTokens.length);
+
+      console.log('receivedTokens length', receivedTokens.length);
 
       // Fire and forget as the PhishingController will cache the token screening results for UI use
       this.messagingSystem
@@ -4577,6 +4588,10 @@ export class TransactionController extends BaseController<
       this.#skipSimulationTransactionIds.delete(transactionId);
     }
 
+    this.#bulkScanReceivedTokens(transactionMeta).catch((err) => {
+      log('Error while bulk scanning received tokens', err);
+    });
+
     if (!updateTransaction) {
       return;
     }
@@ -4594,9 +4609,5 @@ export class TransactionController extends BaseController<
     );
 
     log('Updated transaction with afterSimulate data', updatedTransactionMeta);
-
-    this.#bulkScanReceivedTokens(updatedTransactionMeta).catch((err) => {
-      log('Error while bulk scanning received tokens', err);
-    });
   }
 }

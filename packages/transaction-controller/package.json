@@ -100,8 +100,8 @@
     "@metamask/eth-block-tracker": ">=9",
     "@metamask/gas-fee-controller": "^24.0.0",
     "@metamask/network-controller": "^24.0.0",
-    "@metamask/remote-feature-flag-controller": "^1.5.0",
-    "@metamask/phishing-controller": "^13.1.0"
+    "@metamask/phishing-controller": "^13.1.0",
+    "@metamask/remote-feature-flag-controller": "^1.5.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

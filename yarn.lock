@@ -4741,6 +4741,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^24.1.0"
     "@metamask/nonce-tracker": "npm:^6.0.0"
+    "@metamask/phishing-controller": "npm:^13.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^1.7.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.8.0"
@@ -4769,6 +4770,7 @@ __metadata:
     "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
+    "@metamask/phishing-controller": ^13.1.0
     "@metamask/remote-feature-flag-controller": ^1.5.0
   languageName: unknown
   linkType: soft
