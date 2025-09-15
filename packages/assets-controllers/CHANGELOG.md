@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
+
 ### Changed
 
 - Add `queryAllAccounts` parameter support to `AccountTrackerController.refresh()`, `AccountTrackerController._executePoll()`, and `TokenBalancesController.updateBalances()` for flexible account selection during balance updates ([#6600](https://github.com/MetaMask/core/pull/6600))
