@@ -9,15 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [43.0.0]
 
-### Uncategorized
-
-- Release/546.0.0 ([#6572](https://github.com/MetaMask/core/pull/6572))
-- Release 543.0.0 ([#6561](https://github.com/MetaMask/core/pull/6561))
-
 ### Changed
 
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency from `^42.0.0` to `^43.0.0` ([#6612](https://github.com/MetaMask/core/pull/6612))
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
 
 ## [42.0.0]
 
