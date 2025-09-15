@@ -423,6 +423,36 @@ describe('decodePermission', () => {
         expect(data.startTime).toBe(startTime);
       });
 
+      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
+        const caveats = [
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms(
+              {
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toBeNull();
+        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
+        expect(hexToBigInt(data.maxAmount)).toBe(maxAmount);
+        expect(hexToBigInt(data.amountPerSecond)).toBe(amountPerSecond);
+        expect(data.startTime).toBe(startTime);
+      });
+
       it('rejects invalid expiry with timestampAfterThreshold', () => {
         const caveats = [
           {
@@ -508,6 +538,34 @@ describe('decodePermission', () => {
         });
 
         expect(expiry).toBe(timestampBeforeThreshold);
+        expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
+        expect(data.periodDuration).toBe(periodDuration);
+        expect(data.startTime).toBe(startDate);
+      });
+
+      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
+        const caveats = [
+          {
+            enforcer: NativeTokenPeriodTransferEnforcer,
+            terms: createNativeTokenPeriodTransferTerms(
+              {
+                periodAmount,
+                periodDuration,
+                startDate,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toBeNull();
         expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
         expect(data.periodDuration).toBe(periodDuration);
         expect(data.startTime).toBe(startDate);
@@ -608,6 +666,38 @@ describe('decodePermission', () => {
         expect(data.startTime).toBe(startTime);
       });
 
+      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
+        const caveats = [
+          {
+            enforcer: ERC20StreamingEnforcer,
+            terms: createERC20StreamingTerms(
+              {
+                tokenAddress,
+                initialAmount,
+                maxAmount,
+                amountPerSecond,
+                startTime,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toBeNull();
+        expect(data.tokenAddress).toBe(tokenAddress);
+        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
+        expect(hexToBigInt(data.maxAmount)).toBe(maxAmount);
+        expect(hexToBigInt(data.amountPerSecond)).toBe(amountPerSecond);
+        expect(data.startTime).toBe(startTime);
+      });
+
       it('rejects invalid expiry with timestampAfterThreshold', () => {
         const caveats = [
           {
@@ -696,6 +786,36 @@ describe('decodePermission', () => {
         });
 
         expect(expiry).toBe(timestampBeforeThreshold);
+        expect(data.tokenAddress).toBe(tokenAddress);
+        expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
+        expect(data.periodDuration).toBe(periodDuration);
+        expect(data.startTime).toBe(startDate);
+      });
+
+      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
+        const caveats = [
+          {
+            enforcer: ERC20PeriodTransferEnforcer,
+            terms: createERC20TokenPeriodTransferTerms(
+              {
+                tokenAddress,
+                periodAmount,
+                periodDuration,
+                startDate,
+              },
+              { out: 'hex' },
+            ),
+            args: '0x',
+          } as const,
+        ];
+
+        const { expiry, data } = getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType,
+        });
+
+        expect(expiry).toBeNull();
         expect(data.tokenAddress).toBe(tokenAddress);
         expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
         expect(data.periodDuration).toBe(periodDuration);

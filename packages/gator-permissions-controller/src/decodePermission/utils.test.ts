@@ -170,16 +170,42 @@ describe('getTermsByEnforcer', () => {
       { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
     ];
 
-    expect(getTermsByEnforcer(caveats, ENFORCER)).toBe(TERMS);
+    expect(getTermsByEnforcer({ caveats, enforcer: ENFORCER })).toBe(TERMS);
   });
 
   it('throws for zero matches', () => {
     const caveats: Caveat<Hex>[] = [
       { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
     ];
-    expect(() => getTermsByEnforcer(caveats, ENFORCER)).toThrow(
+    expect(() => getTermsByEnforcer({ caveats, enforcer: ENFORCER })).toThrow(
       'Invalid caveats',
     );
+  });
+
+  it('throws for zero matches if throwIfNotFound is true', () => {
+    const caveats: Caveat<Hex>[] = [
+      { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
+    ];
+    expect(() =>
+      getTermsByEnforcer({
+        caveats,
+        enforcer: ENFORCER,
+        throwIfNotFound: true,
+      }),
+    ).toThrow('Invalid caveats');
+  });
+
+  it('returns null for zero matches if throwIfNotFound is false', () => {
+    const caveats: Caveat<Hex>[] = [
+      { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
+    ];
+    expect(
+      getTermsByEnforcer({
+        caveats,
+        enforcer: ENFORCER,
+        throwIfNotFound: false,
+      }),
+    ).toBeNull();
   });
 
   it('throws for multiple matches', () => {
@@ -187,9 +213,23 @@ describe('getTermsByEnforcer', () => {
       { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
       { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
     ];
-    expect(() => getTermsByEnforcer(caveats, ENFORCER)).toThrow(
+    expect(() => getTermsByEnforcer({ caveats, enforcer: ENFORCER })).toThrow(
       'Invalid caveats',
     );
+  });
+
+  it('throws for multiple matches if throwIfNotFound is true', () => {
+    const caveats: Caveat<Hex>[] = [
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
+    ];
+    expect(() =>
+      getTermsByEnforcer({
+        caveats,
+        enforcer: ENFORCER,
+        throwIfNotFound: true,
+      }),
+    ).toThrow('Invalid caveats');
   });
 });
 

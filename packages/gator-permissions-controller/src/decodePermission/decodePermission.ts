@@ -105,7 +105,7 @@ export const getPermissionDataAndExpiry = ({
   caveats: Caveat<Hex>[];
   permissionType: PermissionType;
 }): {
-  expiry: number;
+  expiry: number | null;
   data: DecodedPermission['permission']['data'];
 } => {
   const checksumCaveats = caveats.map((caveat) => ({
@@ -121,22 +121,30 @@ export const getPermissionDataAndExpiry = ({
     timestampEnforcer,
   } = getChecksumEnforcersByChainId(contracts);
 
-  const expiryTerms = getTermsByEnforcer(checksumCaveats, timestampEnforcer);
-  const [after, before] = splitHex(expiryTerms, [16, 16]);
+  const expiryTerms = getTermsByEnforcer({
+    caveats: checksumCaveats,
+    enforcer: timestampEnforcer,
+    throwIfNotFound: false,
+  });
 
-  if (hexToNumber(after) !== 0) {
-    throw new Error('Invalid expiry');
+  let expiry: number | null = null;
+  if (expiryTerms) {
+    const [after, before] = splitHex(expiryTerms, [16, 16]);
+
+    if (hexToNumber(after) !== 0) {
+      throw new Error('Invalid expiry');
+    }
+    expiry = hexToNumber(before);
   }
-  const expiry = hexToNumber(before);
 
   let data: DecodedPermission['permission']['data'];
 
   switch (permissionType) {
     case 'erc20-token-stream': {
-      const erc20StreamingTerms = getTermsByEnforcer(
-        checksumCaveats,
-        erc20StreamingEnforcer,
-      );
+      const erc20StreamingTerms = getTermsByEnforcer({
+        caveats: checksumCaveats,
+        enforcer: erc20StreamingEnforcer,
+      });
 
       const [
         tokenAddress,
@@ -156,10 +164,10 @@ export const getPermissionDataAndExpiry = ({
       break;
     }
     case 'erc20-token-periodic': {
-      const erc20PeriodicTerms = getTermsByEnforcer(
-        checksumCaveats,
-        erc20PeriodicEnforcer,
-      );
+      const erc20PeriodicTerms = getTermsByEnforcer({
+        caveats: checksumCaveats,
+        enforcer: erc20PeriodicEnforcer,
+      });
 
       const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =
         splitHex(erc20PeriodicTerms, [20, 32, 32, 32]);
@@ -174,10 +182,10 @@ export const getPermissionDataAndExpiry = ({
     }
 
     case 'native-token-stream': {
-      const nativeTokenStreamingTerms = getTermsByEnforcer(
-        checksumCaveats,
-        nativeTokenStreamingEnforcer,
-      );
+      const nativeTokenStreamingTerms = getTermsByEnforcer({
+        caveats: checksumCaveats,
+        enforcer: nativeTokenStreamingEnforcer,
+      });
 
       const [initialAmount, maxAmount, amountPerSecond, startTimeRaw] =
         splitHex(nativeTokenStreamingTerms, [32, 32, 32, 32]);
@@ -191,10 +199,10 @@ export const getPermissionDataAndExpiry = ({
       break;
     }
     case 'native-token-periodic': {
-      const nativeTokenPeriodicTerms = getTermsByEnforcer(
-        checksumCaveats,
-        nativeTokenPeriodicEnforcer,
-      );
+      const nativeTokenPeriodicTerms = getTermsByEnforcer({
+        caveats: checksumCaveats,
+        enforcer: nativeTokenPeriodicEnforcer,
+      });
 
       const [periodAmount, periodDurationRaw, startTimeRaw] = splitHex(
         nativeTokenPeriodicTerms,

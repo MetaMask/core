@@ -176,21 +176,38 @@ export const isSubset = <T>(subset: Set<T>, superset: Set<T>): boolean => {
 /**
  * Gets the terms for a given enforcer from a list of caveats.
  *
- * @param caveats - The list of caveats to search.
- * @param enforcer - The enforcer to search for.
+ * @param args - The arguments to this function.
+ * @param  args.throwIfNotFound - Whether to throw an error if no matching enforcer is found. Default is true.
+ * @param args.caveats - The list of caveats to search.
+ * @param args.enforcer - The enforcer to search for.
  * @returns The terms for the given enforcer.
  */
-export const getTermsByEnforcer = (caveats: Caveat<Hex>[], enforcer: Hex) => {
+export function getTermsByEnforcer<TThrowIfNotFound extends boolean = true>({
+  caveats,
+  enforcer,
+  throwIfNotFound,
+}: {
+  caveats: Caveat<Hex>[];
+  enforcer: Hex;
+  throwIfNotFound?: TThrowIfNotFound;
+}): TThrowIfNotFound extends true ? Hex : Hex | null {
   const matchingCaveats = caveats.filter(
     (caveat) => caveat.enforcer === enforcer,
   );
 
-  if (matchingCaveats.length !== 1) {
+  if (matchingCaveats.length === 0) {
+    if (throwIfNotFound ?? true) {
+      throw new Error('Invalid caveats');
+    }
+    return null as TThrowIfNotFound extends true ? Hex : Hex | null;
+  }
+
+  if (matchingCaveats.length > 1) {
     throw new Error('Invalid caveats');
   }
 
   return matchingCaveats[0].terms;
-};
+}
 
 /**
  * Splits a 0x-prefixed hex string into parts according to the provided byte lengths.
