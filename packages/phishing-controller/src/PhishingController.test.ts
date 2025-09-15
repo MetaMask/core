@@ -1330,6 +1330,34 @@ describe('PhishingController', () => {
     });
   });
 
+  it('returns positive result for unsafe hostname+pathname from MetaMask config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_STALELIST_FILE)
+      .reply(200, {
+        data: {
+          eth_phishing_detect_config: {
+            blocklist: ['example.com/path'],
+          },
+        },
+      });
+
+    const controller = getPhishingController();
+    await controller.updateStalelist();
+    expect(controller.test('https://example.com/path')).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
+    });
+  });
+
+  it('returns negative result if the hostname+pathname is in the whitelistPaths', async () => {
+    const controller = getPhishingController();
+    controller.bypass('https://example.com/path');
+    expect(controller.test('https://example.com/path')).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
