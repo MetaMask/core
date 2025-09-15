@@ -117,6 +117,22 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return accountsArray;
   }
 
+  async #getTransactionCount(
+    provider: Provider,
+    address: Hex,
+  ): Promise<number> {
+    const countHex = await this.#WithRetry(() =>
+      this.#withTimeout(
+        provider.request({
+          method: 'eth_getTransactionCount',
+          params: [address, 'latest'],
+        }) as Promise<Hex>,
+      ),
+    );
+
+    return parseInt(countHex, 16);
+  }
+
   /**
    * Discover and create accounts for the EVM provider.
    *
@@ -140,7 +156,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     // We don't want to remove the account if it's the first one.
     const shouldCleanup = didCreate && groupIndex !== 0;
     try {
-      const count = await this.#getTransactionCountWithRetry(provider, address);
+      const count = await this.#getTransactionCount(provider, address);
 
       if (count === 0 && shouldCleanup) {
         await this.withKeyring<EthKeyring>(
@@ -175,38 +191,27 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Retrieve the transaction count with exponential backoff on transient failures.
+   * Execute a function with exponential backoff on transient failures.
    *
-   * @param provider - The provider to use.
-   * @param address - The address to get the transaction count for.
+   * @param fnToExecute - The function to execute.
    * @param options - The options for the retry.
    * @param options.maxAttempts - The maximum number of attempts.
-   * @param options.timeoutMs - The timeout in milliseconds.
    * @param options.backOffMs - The backoff in milliseconds.
    * @throws An error if the transaction count cannot be retrieved.
-   * @returns The transaction count.
+   * @returns The result of the function.
    */
-  async #getTransactionCountWithRetry(
-    provider: Provider,
-    address: Hex,
+  async #WithRetry<T>(
+    fnToExecute: () => Promise<T>,
     {
       maxAttempts = 3,
-      timeoutMs = 500,
       backOffMs = 500,
-    }: { maxAttempts?: number; timeoutMs?: number; backOffMs?: number } = {},
-  ): Promise<number> {
+    }: { maxAttempts?: number; backOffMs?: number } = {},
+  ): Promise<T> {
     let lastError;
     let backOff = backOffMs;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const countHex = await this.#withTimeout<Hex>(
-          provider.request({
-            method: 'eth_getTransactionCount',
-            params: [address, 'latest'],
-          }) as Promise<Hex>,
-          timeoutMs,
-        );
-        return parseInt(countHex, 16);
+        return await fnToExecute();
       } catch (error) {
         lastError = error;
         if (attempt >= maxAttempts) {
@@ -227,7 +232,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * @param timeoutMs - The timeout in milliseconds.
    * @returns The result of the promise.
    */
-  async #withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  async #withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number = 500,
+  ): Promise<T> {
     let timer;
     try {
       return await Promise.race<T>([
