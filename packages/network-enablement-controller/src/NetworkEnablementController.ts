@@ -205,16 +205,18 @@ export class NetworkEnablementController extends BaseController<
     const { namespace, storageKey } = deriveKeys(chainId);
 
     this.update((s) => {
+      // disable all networks in all namespaces first
+      Object.keys(s.enabledNetworkMap).forEach((ns) => {
+        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        });
+      });
+
       // if the namespace bucket does not exist, return
       // new nemespace are added only when a new network is added
       if (!s.enabledNetworkMap[namespace]) {
         return;
       }
-
-      // disable all networks in the same namespace
-      Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-        s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
-      });
 
       // enable the network
       s.enabledNetworkMap[namespace][storageKey] = true;
@@ -222,16 +224,69 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Enables a network for the user within a specific namespace.
+   *
+   * This method accepts either a Hex chain ID (for EVM networks) or a CAIP-2 chain ID
+   * (for any blockchain network) and enables it within the specified namespace.
+   * The method validates that the chainId belongs to the specified namespace for safety.
+   *
+   * Before enabling the target network, this method disables all other networks
+   * in the same namespace to ensure exclusive behavior within the namespace.
+   *
+   * @param chainId - The chain ID of the network to enable. Can be either:
+   * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
+   * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
+   * @param namespace - The CAIP namespace where the network should be enabled
+   * @throws Error if the chainId's derived namespace doesn't match the provided namespace
+   */
+  enableNetworkInNamespace(
+    chainId: Hex | CaipChainId,
+    namespace: CaipNamespace,
+  ): void {
+    const { namespace: derivedNamespace, storageKey } = deriveKeys(chainId);
+
+    // Validate that the derived namespace matches the provided namespace
+    if (derivedNamespace !== namespace) {
+      throw new Error(
+        `Chain ID ${chainId} belongs to namespace ${derivedNamespace}, but namespace ${namespace} was specified`,
+      );
+    }
+
+    this.update((s) => {
+      // Ensure the namespace bucket exists
+      this.#ensureNamespaceBucket(s, namespace);
+
+      // Disable all networks in the specified namespace first
+      if (s.enabledNetworkMap[namespace]) {
+        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+        });
+      }
+
+      // Enable the target network in the specified namespace
+      s.enabledNetworkMap[namespace][storageKey] = true;
+    });
+  }
+
+  /**
    * Enables all popular networks and Solana mainnet.
    *
-   * This method enables all networks defined in POPULAR_NETWORKS (EVM networks)
-   * and Solana mainnet. Unlike the enableNetwork method which has exclusive behavior,
-   * this method enables multiple networks across namespaces simultaneously.
+   * This method first disables all networks across all namespaces, then enables
+   * all networks defined in POPULAR_NETWORKS (EVM networks), Solana mainnet, and
+   * Bitcoin mainnet. This provides exclusive behavior - only popular networks will
+   * be enabled after calling this method.
    *
    * Popular networks that don't exist in NetworkController or MultichainNetworkController configurations will be skipped silently.
    */
   enableAllPopularNetworks(): void {
     this.update((s) => {
+      // First disable all networks across all namespaces
+      Object.keys(s.enabledNetworkMap).forEach((ns) => {
+        Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+          s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        });
+      });
+
       // Get current network configurations to check if networks exist
       const networkControllerState = this.messagingSystem.call(
         'NetworkController:getState',
@@ -484,11 +539,13 @@ export class NetworkEnablementController extends BaseController<
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(s, namespace);
 
-      // If adding a non-popular network, disable all other networks in the same namespace
+      // If adding a non-popular network, disable all other networks in all namespaces
       // This implements exclusive mode where only one non-popular network can be active
       if (!isPopularNetwork(reference)) {
-        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
-          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+        Object.keys(s.enabledNetworkMap).forEach((ns) => {
+          Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
+            s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+          });
         });
       }
 
