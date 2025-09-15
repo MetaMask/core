@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `totalFeeAmountUsd` to `quote` to support rewards estimation ([#6592](https://github.com/MetaMask/core/pull/6592))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^74.0.0` to `^75.0.0` ([#6570](https://github.com/MetaMask/core/pull/6570))

@@ -203,6 +203,7 @@ export const QuoteSchema = type({
       totalFromAmountUsd: optional(string()),
       totalToAmountUsd: optional(string()),
       priceImpact: optional(string()),
+      totalFeeAmountUsd: optional(string()),
     }),
   ),
 });
