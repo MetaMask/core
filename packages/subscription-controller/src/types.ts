@@ -57,10 +57,15 @@ export type Subscription = {
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
-  cancelAtPeriodEnd: boolean;
+  cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
   interval: RecurringInterval;
   paymentMethod: SubscriptionPaymentMethod;
+  trialPeriodDays?: number;
+  trialStart?: string; // ISO 8601
+  trialEnd?: string; // ISO 8601
+  endDate?: string; // ISO 8601
+  billingCycles?: number;
 };
 
 export type SubscriptionPaymentMethod = {

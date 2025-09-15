@@ -35,9 +35,9 @@ const MOCK_SUBSCRIPTION: Subscription = {
   products: [
     {
       name: PRODUCT_TYPES.SHIELD,
-      id: 'prod_shield_basic',
       currency: 'usd',
-      amount: 9.99,
+      unitAmount: 900,
+      unitDecimals: 2,
     },
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
