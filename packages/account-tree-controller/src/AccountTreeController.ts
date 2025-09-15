@@ -410,31 +410,42 @@ export class AccountTreeController extends BaseController<
         typeof group.type
       >;
 
-      // Calculate group index for default naming
-      let groupIndex: number;
-
-      // For entropy-based multichain groups, use the actual groupIndex from metadata
-      if (group.type === AccountGroupType.MultichainAccount) {
-        groupIndex = group.metadata.entropy.groupIndex;
-      } else {
-        // For other wallet types (snap/keyring), use per-wallet sequential numbering
-        // to avoid the alphabetical sorting issue that can cause duplicate names
-        const existingGroupNames = Object.values(wallet.groups)
-          .map((g) => g.metadata.name)
-          .filter((name) => /^Account \d+$/u.test(name))
-          .map((name) => parseInt(name.replace('Account ', ''), 10) - 1); // Convert to 0-based
-
-        // Find the first available index
-        groupIndex = 0;
-        while (existingGroupNames.includes(groupIndex)) {
-          groupIndex += 1;
-        }
-      }
-
       // Use computed name first, then fallback to default naming if empty
-      group.metadata.name =
-        rule.getComputedAccountGroupName(typedGroup) ||
-        rule.getDefaultAccountGroupName(groupIndex);
+      const computedName = rule.getComputedAccountGroupName(typedGroup);
+
+      if (computedName) {
+        group.metadata.name = computedName;
+      } else {
+        // Generate default name and ensure it's unique within the wallet
+        let proposedName = '';
+        let groupIndex: number;
+
+        // For entropy-based multichain groups, start with the actual groupIndex
+        if (group.type === AccountGroupType.MultichainAccount) {
+          groupIndex = group.metadata.entropy.groupIndex;
+        } else {
+          // For other wallet types, start with sequential numbering
+          groupIndex = 0;
+        }
+
+        // Find a unique name by checking for conflicts and incrementing if needed
+        let nameExists = true;
+        while (nameExists) {
+          proposedName = rule.getDefaultAccountGroupName(groupIndex);
+
+          // Check if this name already exists in the wallet (excluding current group)
+          const currentProposedName = proposedName; // Capture for closure
+          nameExists = Object.values(wallet.groups).some(
+            (g) => g.id !== group.id && g.metadata.name === currentProposedName,
+          );
+
+          if (nameExists) {
+            groupIndex += 1; // Try next number
+          }
+        }
+
+        group.metadata.name = proposedName;
+      }
     }
 
     // Apply persisted UI states
