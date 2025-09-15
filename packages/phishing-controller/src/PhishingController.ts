@@ -969,8 +969,6 @@ export class PhishingController extends BaseController<
     // Look up chain name using hex chainId directly
     const chain = this.#chainIdToName[chainId.toLowerCase()];
 
-    console.log('chain', chain);
-
     if (!chain) {
       console.warn(`Unknown chain ID: ${chainId}`);
       return {};
@@ -999,8 +997,6 @@ export class PhishingController extends BaseController<
     // If there are tokens to fetch, call the API
     if (tokensToFetch.length > 0) {
       try {
-        console.log('tokensToFetch', tokensToFetch);
-
         const apiResponse = await safelyExecuteWithTimeout(
           async () => {
             const res = await fetch(
@@ -1018,13 +1014,9 @@ export class PhishingController extends BaseController<
               },
             );
 
-            console.log('res', res);
-
             if (!res.ok) {
               console.warn(`${res.status} ${res.statusText}`);
             }
-
-            console.log('res.json', await res.json());
 
             return await res.json();
           },
@@ -1032,15 +1024,10 @@ export class PhishingController extends BaseController<
           8000, // 8 second timeout
         );
 
-        // Process bulk response results if we got them
-        console.log('apiResponse', apiResponse);
-
         if (apiResponse?.results) {
           for (const tokenAddress of tokensToFetch) {
             const normalizedAddress = tokenAddress.toLowerCase();
             const tokenResult = apiResponse.results[normalizedAddress];
-
-            console.log('tokenResult', tokenResult);
 
             if (tokenResult?.result_type) {
               const result: TokenScanResult = {
@@ -1051,13 +1038,10 @@ export class PhishingController extends BaseController<
 
               // Add to cache
               const cacheKey = `${chainId}:${normalizedAddress}`;
-              console.log('cacheKey', cacheKey);
 
               this.#tokenScanCache.set(cacheKey, {
                 result_type: tokenResult.result_type,
               });
-
-              console.log('result', result);
 
               results[normalizedAddress] = result;
             }
@@ -1069,21 +1053,6 @@ export class PhishingController extends BaseController<
         console.error('Error scanning tokens:', error);
       }
     }
-
-    console.debug('bulkScanTokens', request);
-
-    console.debug('results', results);
-
-    console.debug('tokensToFetch', tokensToFetch);
-
-    console.debug('tokenScanCache', this.#tokenScanCache);
-
-    console.log('results', results);
-
-    console.log('tokensToFetch', tokensToFetch);
-
-    console.log('tokenScanCache', this.#tokenScanCache);
-
     return results;
   };
 

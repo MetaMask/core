@@ -4357,32 +4357,18 @@ export class TransactionController extends BaseController<
     try {
       const { simulationData, chainId } = transactionMeta;
 
-      log('bulkScanReceivedTokens', transactionMeta);
-      console.log('bulkScanReceivedTokens', transactionMeta);
-
       if (!simulationData || simulationData.error || !chainId) {
         return;
       }
-
-      log(
-        'simulationData.tokenBalanceChanges',
-        simulationData.tokenBalanceChanges,
-      );
 
       const receivedTokens = (simulationData.tokenBalanceChanges || [])
         .filter((change) => !change.isDecrease)
         .map(({ address }) => address)
         .filter((address): address is Hex => Boolean(address));
 
-      log('receivedTokens', receivedTokens);
-
       if (receivedTokens.length === 0) {
         return;
       }
-
-      log('receivedTokens length', receivedTokens.length);
-
-      console.log('receivedTokens length', receivedTokens.length);
 
       // Fire and forget as the PhishingController will cache the token screening results for UI use
       this.messagingSystem
