@@ -4463,13 +4463,33 @@ export class TransactionController extends BaseController<
 
   #registerActionHandlers(): void {
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:confirmExternalTransaction`,
+      this.confirmExternalTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:getNonceLock`,
+      this.getNonceLock.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getTransactions`,
+      this.getTransactions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:updateCustodialTransaction`,
       this.updateCustodialTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateTransaction`,
+      this.updateTransaction.bind(this),
     );
   }
 
