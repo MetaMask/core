@@ -1,8 +1,11 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountWalletType,
+  AccountGroupType,
+  select,
+} from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
-  AccountGroupType,
   AccountSelector,
   MultichainAccountWalletId,
 } from '@metamask/account-api';
@@ -407,10 +410,13 @@ export class AccountTreeController extends BaseController<
 
       // Calculate group index for default naming
       let groupIndex: number;
-      
+
       // For entropy-based multichain groups, use the actual groupIndex from metadata
       // instead of calculating from alphabetical sort position
-      if (group.type === 'multichain-account' && 'entropy' in group.metadata) {
+      if (
+        group.type === AccountGroupType.MultichainAccount &&
+        'entropy' in group.metadata
+      ) {
         groupIndex = group.metadata.entropy.groupIndex;
       } else {
         // For other wallet types (snap/keyring), use sorted position for consistency
