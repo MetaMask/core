@@ -407,14 +407,18 @@ export class AccountTreeController extends BaseController<
 
       // Try to get computed name first (e.g., from existing EVM account names)
       const computedName = rule.getComputedAccountGroupName(typedGroup);
-      
+
       if (computedName) {
         group.metadata.name = computedName;
       } else {
         // Generate default name based on wallet-specific numbering
-        group.metadata.name = this.#generateDefaultGroupName(wallet, group, rule);
+        group.metadata.name = this.#generateDefaultGroupName(
+          wallet,
+          group,
+          rule,
+        );
       }
-      
+
       // Persist the assigned name to ensure consistency across restarts
       // This prevents the name from changing on subsequent inits
       this.update((state) => {
@@ -455,29 +459,31 @@ export class AccountTreeController extends BaseController<
     if (group.type === 'multichain-account' && 'entropy' in group.metadata) {
       return rule.getDefaultAccountGroupName(group.metadata.entropy.groupIndex);
     }
-    
+
     // For other types, use sequential numbering within the wallet
     // Count existing groups to determine the next number
     const existingNumbers = new Set<number>();
-    
-    // Collect all numbers currently in use by this wallet's groups
-    for (const existingGroup of Object.values(wallet.groups)) {
-      const existingName = this.state.accountGroupsMetadata[existingGroup.id]?.name?.value || 
-                           existingGroup.metadata.name;
-      
-      // Extract number from "Account X" pattern
-      const match = existingName.match(/^Account (\d+)$/);
-      if (match) {
-        existingNumbers.add(parseInt(match[1], 10) - 1); // Convert to 0-based index
+
+      // Collect all numbers currently in use by this wallet's groups
+      for (const existingGroup of Object.values(wallet.groups)) {
+        const { id } = existingGroup;
+        const { name: persistedName } = this.state.accountGroupsMetadata[id] || {};
+        const existingName = persistedName?.value || existingGroup.metadata.name;
+
+        // Extract number from "Account X" pattern
+        const match = existingName.match(/^Account (\d+)$/);
+        if (match) {
+          const [, numberStr] = match;
+          existingNumbers.add(parseInt(numberStr, 10) - 1); // Convert to 0-based index
+        }
       }
-    }
-    
+
     // Find the first available number (0-based)
     let accountNumber = 0;
     while (existingNumbers.has(accountNumber)) {
       accountNumber++;
     }
-    
+
     return rule.getDefaultAccountGroupName(accountNumber);
   }
 

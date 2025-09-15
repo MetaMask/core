@@ -18,10 +18,10 @@ import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 /**
  * Status of a multichain account wallet.
  */
-export type MultichainAccountWalletStatus = 
-  | 'ready' 
-  | 'in-progress:discovery' 
-  | 'in-progress:alignment' 
+export type MultichainAccountWalletStatus =
+  | 'ready'
+  | 'in-progress:discovery'
+  | 'in-progress:alignment'
   | 'in-progress:creation';
 
 /**
@@ -43,7 +43,9 @@ export type AccountTreeWalletPersistedMetadata = {
  * Tree metadata for account wallets (required plain values extracted from persisted metadata).
  */
 export type AccountTreeWalletMetadata = Required<
-  ExtractFieldValues<Omit<AccountTreeWalletPersistedMetadata, 'nextAccountNumber'>>
+  ExtractFieldValues<
+    Omit<AccountTreeWalletPersistedMetadata, 'nextAccountNumber'>
+  >
 >;
 
 /**
