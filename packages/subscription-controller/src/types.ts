@@ -46,9 +46,9 @@ export type Currency = 'usd';
 
 export type Product = {
   name: ProductType;
-  id: string;
   currency: Currency;
-  amount: number;
+  unitAmount: number;
+  unitDecimals: number;
 };
 
 // state
@@ -57,6 +57,7 @@ export type Subscription = {
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
+  cancelAtPeriodEnd: boolean;
   status: SubscriptionStatus;
   interval: RecurringInterval;
   paymentMethod: SubscriptionPaymentMethod;
