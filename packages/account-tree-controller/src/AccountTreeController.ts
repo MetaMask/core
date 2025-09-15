@@ -24,7 +24,7 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject } from './group';
+import type { AccountGroupObject, AccountGroupObjectOf } from './group';
 import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
@@ -412,20 +412,20 @@ export class AccountTreeController extends BaseController<
       let groupIndex: number;
 
       // For entropy-based multichain groups, use the actual groupIndex from metadata
-      // instead of calculating from alphabetical sort position
       if (group.type === AccountGroupType.MultichainAccount) {
         groupIndex = group.metadata.entropy.groupIndex;
       } else {
-        // For other wallet types (snap/keyring), use sorted position for consistency
-        const sortedGroupIds = Object.keys(wallet.groups).sort();
-        groupIndex = sortedGroupIds.indexOf(group.id);
+        // For other wallet types (snap/keyring), use per-wallet sequential numbering
+        // to avoid the alphabetical sorting issue that can cause duplicate names
+        const existingGroupNames = Object.values(wallet.groups)
+          .map((g) => g.metadata.name)
+          .filter((name) => /^Account \d+$/u.test(name))
+          .map((name) => parseInt(name.replace('Account ', ''), 10) - 1); // Convert to 0-based
 
-        // Defensive fallback: if group.id is not found in sortedGroupIds (should never happen
-        // in normal operation since we iterate over wallet.groups), use index 0 to prevent
-        // passing -1 to getDefaultAccountGroupName which would result in "Account 0"
-        /* istanbul ignore next */
-        if (groupIndex === -1) {
-          groupIndex = 0;
+        // Find the first available index
+        groupIndex = 0;
+        while (existingGroupNames.includes(groupIndex)) {
+          groupIndex += 1;
         }
       }
 
