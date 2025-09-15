@@ -4665,6 +4665,8 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/profile-sync-controller": ^25.0.0
   languageName: unknown
   linkType: soft
 

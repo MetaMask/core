@@ -8,6 +8,7 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  BillingPortalResponse,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
@@ -119,5 +120,10 @@ export class SubscriptionService implements ISubscriptionService {
   async getPricing(): Promise<PricingResponse> {
     const path = 'pricing';
     return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 }
