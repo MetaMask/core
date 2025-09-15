@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.13.0` ([#6604](https://github.com/MetaMask/core/pull/6604))
+
 ## [1.0.0]
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.13.0` ([#6604](https://github.com/MetaMask/core/pull/6604))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 - **BREAKING:** `enableNetwork()` and `enableAllPopularNetworks()` now disable networks across all namespaces instead of only within the same namespace, implementing truly exclusive network selection across all blockchain types ([#6591](https://github.com/MetaMask/core/pull/6591))
 
