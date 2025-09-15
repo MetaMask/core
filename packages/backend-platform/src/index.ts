@@ -48,8 +48,6 @@ export type {
   AccountActivityServiceActions,
   AccountActivityServiceAllowedActions,
   AccountActivityServiceAllowedEvents,
-  AccountActivityServiceAccountSubscribedEvent,
-  AccountActivityServiceAccountUnsubscribedEvent,
   AccountActivityServiceTransactionUpdatedEvent,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceSubscriptionErrorEvent,
