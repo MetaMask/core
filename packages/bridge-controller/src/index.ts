@@ -129,6 +129,7 @@ export {
 
 export {
   selectBridgeQuotes,
+  selectDefaultSlippagePercentage,
   type BridgeAppState,
   selectExchangeRateByChainIdAndAddress,
   selectIsQuoteExpired,
