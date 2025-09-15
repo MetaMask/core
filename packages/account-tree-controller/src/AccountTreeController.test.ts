@@ -2762,6 +2762,72 @@ describe('AccountTreeController', () => {
       const uniqueNames = new Set(allNames);
       expect(uniqueNames.size).toBe(3); // All names should be unique
     });
+
+    it('prevents alphabetical sorting duplicates for hardware wallet accounts', () => {
+      // Create account 0xbbb -> Account 1
+      // Create account 0xaaa -> Should get Account 2 (not duplicate Account 1 from alphabetical sorting)
+
+      const hardwareAccount1: InternalAccount = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'hardware-bbb',
+        address: '0xbbb', // Will come AFTER 0xaaa in alphabetical order
+        metadata: {
+          ...MOCK_HARDWARE_ACCOUNT_1.metadata,
+          name: '', // Force default naming
+        },
+      };
+
+      const hardwareAccount2: InternalAccount = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'hardware-aaa',
+        address: '0xaaa', // Will come BEFORE 0xbbb in alphabetical order
+        metadata: {
+          ...MOCK_HARDWARE_ACCOUNT_1.metadata,
+          name: '', // Force default naming
+        },
+      };
+
+      // Create both accounts at once to test the naming logic
+      const { controller } = setup({
+        accounts: [hardwareAccount1, hardwareAccount2], // 0xbbb first, then 0xaaa
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+
+      const wallet = controller.state.accountTree.wallets[walletId];
+      expect(wallet).toBeDefined();
+
+      // Get both groups
+      const group1Id = toAccountGroupId(walletId, hardwareAccount1.address);
+      const group2Id = toAccountGroupId(walletId, hardwareAccount2.address);
+
+      const group1 = wallet.groups[group1Id];
+      const group2 = wallet.groups[group2Id];
+
+      expect(group1).toBeDefined();
+      expect(group2).toBeDefined();
+
+      // The key test: both should have unique names despite alphabetical address ordering
+      // With old alphabetical sorting: both would get "Account 1" (duplicate)
+      // With new logic: should get "Account 1" and "Account 2" (unique)
+
+      const allNames = [group1.metadata.name, group2.metadata.name];
+      const uniqueNames = new Set(allNames);
+
+      // Critical assertion: should have 2 unique names (no duplicates)
+      expect(uniqueNames.size).toBe(2);
+      expect(allNames).toContain('Account 1');
+      expect(allNames).toContain('Account 2');
+
+      // Verify they're actually different
+      expect(group1.metadata.name).not.toBe(group2.metadata.name);
+    });
   });
 
   describe('actions', () => {
