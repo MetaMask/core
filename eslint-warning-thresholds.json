@@ -107,7 +107,7 @@
     "jsdoc/tag-lines": 2
   },
   "packages/base-controller/src/BaseController.test.ts": {
-    "import-x/namespace": 18
+    "import-x/namespace": 15
   },
   "packages/base-controller/src/next/BaseController.test.ts": {
     "import-x/namespace": 14
