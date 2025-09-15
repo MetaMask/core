@@ -650,6 +650,14 @@ export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
   return [hostname || '', Boolean(hostname)];
 };
 
+export const getPathnameFromUrl = (url: string): string => {
+  const urlObj = newURL(url);
+  if (!urlObj) {
+    return '';
+  }
+  return urlObj.pathname;
+};
+
 /**
  * Generates all possible parent domains up to a specified limit.
  *

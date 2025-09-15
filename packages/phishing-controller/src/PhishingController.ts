@@ -30,7 +30,7 @@ import {
   getHostnameFromUrl,
   roundToNearestMinute,
   getHostnameFromWebUrl,
-  doesURLPathExist,
+  getPathnameFromUrl,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -636,11 +636,12 @@ export class PhishingController extends BaseController<
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
     const { whitelist, whitelistPaths } = this.state;
 
     if (
       whitelist.includes(hostname || punycodeOrigin) ||
-      whitelistPaths.includes(origin)
+      whitelistPaths.includes(hostnameWithPaths)
     ) {
       return;
     }
@@ -649,7 +650,7 @@ export class PhishingController extends BaseController<
     // other paths with the same hostname may not be blocked.
     if (this.#detector.isPathBlocked(origin)) {
       this.update((draftState) => {
-        draftState.whitelistPaths.push(origin);
+        draftState.whitelistPaths.push(hostnameWithPaths);
       });
       return;
     }
