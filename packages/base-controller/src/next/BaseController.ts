@@ -367,6 +367,7 @@ export class BaseController<
  * @param state - The full controller state.
  * @param metadata - The controller metadata.
  * @param metadataProperty - The metadata property to use to derive state.
+ * @param captureException - Reports an error to an error monitoring service.
  * @returns The metadata-derived controller state.
  */
 export function deriveStateFromMetadata<
@@ -375,6 +376,7 @@ export function deriveStateFromMetadata<
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
   metadataProperty: keyof StatePropertyMetadata<Json>,
+  captureException?: (error: Error) => void,
 ): Record<keyof ControllerState, Json> {
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
     Record<keyof ControllerState, Json>
@@ -393,11 +395,14 @@ export function deriveStateFromMetadata<
       }
       return derivedState;
     } catch (error) {
-      // Throw error after timeout so that it is captured as a console error
-      // (and by Sentry) without interrupting state-related operations
-      setTimeout(() => {
-        throw error;
-      });
+      // Capture error without interrupting state-related operations
+      // See [ADR core#0016](https://github.com/MetaMask/decisions/blob/main/decisions/core/0016-core-classes-error-reporting.md)
+      if (captureException) {
+        // The only things that can be thrown in this block are errors
+        captureException(error as Error);
+      } else {
+        console.error(error);
+      }
       return derivedState;
     }
   }, {} as never);

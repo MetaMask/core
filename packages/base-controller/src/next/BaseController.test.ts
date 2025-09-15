@@ -990,8 +990,48 @@ describe('deriveStateFromMetadata', () => {
       });
     }
 
-    it('should suppress errors thrown when deriving state', () => {
-      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    it('reports thrown error when deriving state', () => {
+      const captureException = jest.fn();
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('logs thrown error to console when deriving state if no captureException function is given', () => {
+      const consoleError = jest.fn();
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
       const derivedState = deriveStateFromMetadata(
         {
           extraState: 'extraState',
@@ -1022,9 +1062,10 @@ describe('deriveStateFromMetadata', () => {
         privateKey: '123',
       });
 
-      expect(setTimeoutStub.callCount).toBe(1);
-      const onTimeout = setTimeoutStub.firstCall.args[0];
-      expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
     });
   });
 });
