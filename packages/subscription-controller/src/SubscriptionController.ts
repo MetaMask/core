@@ -12,11 +12,13 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants';
 import type {
+  BillingPortalResponse,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   ProductPrice,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
+  UpdatePaymentMethodOpts,
 } from './types';
 import {
   PaymentType,
@@ -30,6 +32,7 @@ import {
 
 export type SubscriptionControllerState = {
   subscriptions: Subscription[];
+  pricing?: PricingResponse;
 };
 
 // Messenger Actions
@@ -57,6 +60,10 @@ export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
   type: `${typeof controllerName}:startSubscriptionWithCrypto`;
   handler: SubscriptionController['startSubscriptionWithCrypto'];
 };
+export type SubscriptionControllerUpdatePaymentMethodAction = {
+  type: `${typeof controllerName}:updatePaymentMethod`;
+  handler: SubscriptionController['updatePaymentMethod'];
+};
 
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -69,7 +76,8 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
-  | SubscriptionControllerStartSubscriptionWithCryptoAction;
+  | SubscriptionControllerStartSubscriptionWithCryptoAction
+  | SubscriptionControllerUpdatePaymentMethodAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -133,8 +141,16 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
     subscriptions: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
+    },
+    pricing: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: true,
+      usedInUi: true,
     },
   };
 
@@ -206,6 +222,11 @@ export class SubscriptionController extends BaseController<
       'SubscriptionController:startSubscriptionWithCrypto',
       this.startSubscriptionWithCrypto.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      'SubscriptionController:updatePaymentMethod',
+      this.updatePaymentMethod.bind(this),
+    );
   }
 
   /**
@@ -214,7 +235,11 @@ export class SubscriptionController extends BaseController<
    * @returns The pricing information.
    */
   async getPricing(): Promise<PricingResponse> {
-    return await this.#subscriptionService.getPricing();
+    const pricing = await this.#subscriptionService.getPricing();
+    this.update((state) => {
+      state.pricing = pricing;
+    });
+    return pricing;
   }
 
   async getSubscriptions() {
@@ -259,7 +284,10 @@ export class SubscriptionController extends BaseController<
 
   async startSubscriptionWithCrypto(request: StartCryptoSubscriptionRequest) {
     this.#assertIsUserNotSubscribed({ products: request.products });
-    return await this.#subscriptionService.startSubscriptionWithCrypto(request);
+    const response =
+      await this.#subscriptionService.startSubscriptionWithCrypto(request);
+    this.triggerAccessTokenRefresh();
+    return response;
   }
 
   /**
@@ -318,6 +346,19 @@ export class SubscriptionController extends BaseController<
       paymentTokenAddress: request.paymentTokenAddress,
       chainId: request.chainId,
     };
+  }
+
+  async updatePaymentMethod(opts: UpdatePaymentMethodOpts) {
+    if (opts.paymentType === PaymentType.byCard) {
+      const { paymentType, ...cardRequest } = opts;
+      await this.#subscriptionService.updatePaymentMethodCard(cardRequest);
+    } else if (opts.paymentType === PaymentType.byCrypto) {
+      const { paymentType, ...cryptoRequest } = opts;
+      await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
+    } else {
+      throw new Error('Invalid payment type');
+    }
+    await this.getSubscriptions();
   }
 
   /**
@@ -401,5 +442,14 @@ export class SubscriptionController extends BaseController<
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
+  }
+
+  /**
+   * Gets the billing portal URL.
+   *
+   * @returns The billing portal URL
+   */
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    return await this.#subscriptionService.getBillingPortalUrl();
   }
 }

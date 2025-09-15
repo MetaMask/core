@@ -35,7 +35,7 @@ const controllerName = 'GatorPermissionsController';
 
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
-  '@metamask/gator-permissions-snap' as SnapId;
+  'npm:@metamask/gator-permissions-snap' as SnapId;
 
 const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'native-token-stream': {},
@@ -76,20 +76,28 @@ export type GatorPermissionsControllerState = {
 
 const gatorPermissionsControllerMetadata = {
   isGatorPermissionsEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
   gatorPermissionsMapSerialized: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isFetchingGatorPermissions: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
   gatorPermissionsProviderSnapId: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
 } satisfies StateMetadata<GatorPermissionsControllerState>;
 

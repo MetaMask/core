@@ -1,5 +1,5 @@
 import type { AccountSigner } from '@metamask/7715-permission-types';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Hex } from '@metamask/utils';
@@ -121,7 +121,7 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(controller.permissionsProviderSnapId).toBe(
-        '@metamask/gator-permissions-snap' as SnapId,
+        'npm:@metamask/gator-permissions-snap' as SnapId,
       );
       expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
@@ -377,6 +377,80 @@ describe('GatorPermissionsController', () => {
       await controller.enableGatorPermissions();
 
       expect(controller.state.isGatorPermissionsEnabled).toBe(true);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new GatorPermissionsController({
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new GatorPermissionsController({
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+          "gatorPermissionsProviderSnapId": "npm:@metamask/gator-permissions-snap",
+          "isFetchingGatorPermissions": false,
+          "isGatorPermissionsEnabled": false,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new GatorPermissionsController({
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+          "isGatorPermissionsEnabled": false,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new GatorPermissionsController({
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
+        }
+      `);
     });
   });
 });

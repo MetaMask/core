@@ -1,5 +1,8 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import type { Messenger } from '@metamask/base-controller';
+import {
+  deriveStateFromMetadata,
+  type Messenger,
+} from '@metamask/base-controller';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
   encrypt,
@@ -5428,6 +5431,242 @@ describe('SeedlessOnboardingController', () => {
           // The first one was removed in the catch block (line 1911)
           // The second one was removed after successful revocation
           expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
+        },
+      );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'anonymous',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "authConnection": "google",
+              "authConnectionId": "authConnectionId",
+              "groupedAuthConnectionId": "groupedAuthConnectionId",
+              "isSeedlessOnboardingUserAuthenticated": false,
+              "passwordOutdatedCache": Object {
+                "isExpiredPwd": false,
+                "timestamp": 1234567890,
+              },
+            }
+          `);
+        },
+      );
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInStateLogs',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "accessToken": true,
+              "authConnection": "google",
+              "authConnectionId": "authConnectionId",
+              "authPubKey": "authPubKey",
+              "groupedAuthConnectionId": "groupedAuthConnectionId",
+              "isSeedlessOnboardingUserAuthenticated": false,
+              "metadataAccessToken": true,
+              "nodeAuthTokens": true,
+              "passwordOutdatedCache": Object {
+                "isExpiredPwd": false,
+                "timestamp": 1234567890,
+              },
+              "pendingToBeRevokedTokens": true,
+              "refreshToken": true,
+              "revokeToken": true,
+              "userId": "userId",
+            }
+          `);
+        },
+      );
+    });
+
+    it('persists expected state', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "authConnection": "google",
+              "authConnectionId": "authConnectionId",
+              "authPubKey": "authPubKey",
+              "encryptedKeyringEncryptionKey": "encryptedKeyringEncryptionKey",
+              "encryptedSeedlessEncryptionKey": "encryptedSeedlessEncryptionKey",
+              "groupedAuthConnectionId": "groupedAuthConnectionId",
+              "isSeedlessOnboardingUserAuthenticated": false,
+              "metadataAccessToken": "metadataAccessToken",
+              "nodeAuthTokens": Array [],
+              "passwordOutdatedCache": Object {
+                "isExpiredPwd": false,
+                "timestamp": 1234567890,
+              },
+              "pendingToBeRevokedTokens": Array [
+                Object {
+                  "refreshToken": "refreshToken",
+                  "revokeToken": "revokeToken",
+                },
+              ],
+              "refreshToken": "refreshToken",
+              "socialBackupsMetadata": Array [],
+              "socialLoginEmail": "socialLoginEmail",
+              "userId": "userId",
+              "vault": "vault",
+            }
+          `);
+        },
+      );
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'usedInUi',
+            ),
+          ).toMatchInlineSnapshot(`
+          Object {
+            "authConnection": "google",
+            "socialLoginEmail": "socialLoginEmail",
+          }
+        `);
         },
       );
     });

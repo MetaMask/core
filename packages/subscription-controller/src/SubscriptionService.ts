@@ -8,6 +8,7 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  BillingPortalResponse,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
@@ -15,6 +16,8 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCryptoRequest,
 } from './types';
 
 export type SubscriptionServiceConfig = {
@@ -65,6 +68,22 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'POST', request);
   }
 
+  async updatePaymentMethodCard(request: UpdatePaymentMethodCardRequest) {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
+    await this.#makeRequest(path, 'PATCH', {
+      ...request,
+      subscriptionId: undefined,
+    });
+  }
+
+  async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {
+    const path = `subscriptions/${request.subscriptionId}/payment-method/crypto`;
+    await this.#makeRequest(path, 'PATCH', {
+      ...request,
+      subscriptionId: undefined,
+    });
+  }
+
   async #makeRequest<Result>(
     path: string,
     method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' = 'GET',
@@ -85,8 +104,7 @@ export class SubscriptionService implements ISubscriptionService {
 
       return response;
     } catch (e) {
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? 'unknown error');
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
 
       throw new SubscriptionServiceError(
         `failed to make request. ${errorMessage}`,
@@ -102,5 +120,10 @@ export class SubscriptionService implements ISubscriptionService {
   async getPricing(): Promise<PricingResponse> {
     const path = 'pricing';
     return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 }

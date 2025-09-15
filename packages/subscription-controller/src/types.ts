@@ -185,8 +185,49 @@ export type ISubscriptionService = {
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
+  getBillingPortalUrl(): Promise<BillingPortalResponse>;
   getPricing(): Promise<PricingResponse>;
   startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse>;
+  updatePaymentMethodCard(
+    request: UpdatePaymentMethodCardRequest,
+  ): Promise<void>;
+  updatePaymentMethodCrypto(
+    request: UpdatePaymentMethodCryptoRequest,
+  ): Promise<void>;
+};
+
+export type UpdatePaymentMethodOpts =
+  | ({
+      paymentType: PaymentType.byCard;
+    } & UpdatePaymentMethodCardRequest)
+  | ({
+      paymentType: PaymentType.byCrypto;
+    } & UpdatePaymentMethodCryptoRequest);
+
+export type UpdatePaymentMethodCardRequest = {
+  /**
+   * Subscription ID
+   */
+  subscriptionId: string;
+
+  /**
+   * Recurring interval
+   */
+  recurringInterval: RecurringInterval;
+};
+
+export type UpdatePaymentMethodCryptoRequest = {
+  subscriptionId: string;
+  chainId: Hex;
+  payerAddress: Hex;
+  tokenSymbol: string;
+  rawTransaction: Hex;
+  recurringInterval: RecurringInterval;
+  billingCycles: number;
+};
+
+export type BillingPortalResponse = {
+  url: string;
 };
