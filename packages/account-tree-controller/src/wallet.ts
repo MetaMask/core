@@ -3,9 +3,7 @@ import type {
   AccountWalletType,
   AccountWalletId,
   MultichainAccountWalletId,
-  AccountWalletStatus,
 } from '@metamask/account-api';
-import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -18,18 +16,34 @@ import type {
 import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 
 /**
+ * Status of a multichain account wallet.
+ */
+export type MultichainAccountWalletStatus = 
+  | 'ready' 
+  | 'in-progress:discovery' 
+  | 'in-progress:alignment' 
+  | 'in-progress:creation';
+
+/**
+ * Status of a generic account wallet.
+ */
+export type AccountWalletStatus = 'ready';
+
+/**
  * Persisted metadata for account wallets (stored in controller state for persistence/sync).
  */
 export type AccountTreeWalletPersistedMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
+  /** Next account number to use for default naming (Account 1, Account 2, etc.) */
+  nextAccountNumber?: number;
 };
 
 /**
  * Tree metadata for account wallets (required plain values extracted from persisted metadata).
  */
 export type AccountTreeWalletMetadata = Required<
-  ExtractFieldValues<AccountTreeWalletPersistedMetadata>
+  ExtractFieldValues<Omit<AccountTreeWalletPersistedMetadata, 'nextAccountNumber'>>
 >;
 
 /**

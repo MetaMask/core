@@ -2543,6 +2543,184 @@ describe('AccountTreeController', () => {
       expect(group?.metadata.name).toBe('Account 1');
       expect(group?.metadata.name).not.toBe('Solana Account 2');
     });
+
+    it('ensures consistent per-wallet numbering for multiple SRPs', () => {
+      // This test reproduces the bug reported by Georgia and Kevin where
+      // multiple SRPs showed incorrect numbering like "Account 2, 2, 3, 4..."
+      
+      // Setup first SRP with multiple accounts
+      const srp1Keyring: KeyringObject = {
+        ...MOCK_HD_KEYRING_1,
+        metadata: { ...MOCK_HD_KEYRING_1.metadata, id: 'srp1-id' },
+      };
+      
+      const srp1Accounts: Bip44Account<InternalAccount>[] = [];
+      for (let i = 0; i < 5; i++) {
+        srp1Accounts.push({
+          ...MOCK_HD_ACCOUNT_1,
+          id: `srp1-account-${i}`,
+          address: `0x1${i}`,
+          metadata: {
+            ...MOCK_HD_ACCOUNT_1.metadata,
+            name: '', // Empty to force default naming
+          },
+          options: {
+            ...MOCK_HD_ACCOUNT_1.options,
+            entropy: {
+              type: 'mnemonic',
+              id: 'srp1-id',
+              derivationPath: `m/44'/60'/${i}'/0/0`,
+              groupIndex: i,
+            },
+          },
+        });
+      }
+      
+      // Setup second SRP with multiple accounts
+      const srp2Keyring: KeyringObject = {
+        ...MOCK_HD_KEYRING_2,
+        metadata: { ...MOCK_HD_KEYRING_2.metadata, id: 'srp2-id' },
+      };
+      
+      const srp2Accounts: Bip44Account<InternalAccount>[] = [];
+      for (let i = 0; i < 3; i++) {
+        srp2Accounts.push({
+          ...MOCK_HD_ACCOUNT_2,
+          id: `srp2-account-${i}`,
+          address: `0x2${i}`,
+          metadata: {
+            ...MOCK_HD_ACCOUNT_2.metadata,
+            name: '', // Empty to force default naming
+          },
+          options: {
+            ...MOCK_HD_ACCOUNT_2.options,
+            entropy: {
+              type: 'mnemonic',
+              id: 'srp2-id',
+              derivationPath: `m/44'/60'/${i}'/0/0`,
+              groupIndex: i,
+            },
+          },
+        });
+      }
+      
+      const { controller } = setup({
+        accounts: [...srp1Accounts, ...srp2Accounts],
+        keyrings: [srp1Keyring, srp2Keyring],
+      });
+
+      controller.init();
+      
+      const state = controller.state;
+      
+      // Verify first SRP has correct sequential naming
+      const wallet1Id = toMultichainAccountWalletId('srp1-id');
+      const wallet1 = state.accountTree.wallets[wallet1Id];
+      
+      expect(wallet1).toBeDefined();
+      const wallet1Groups = Object.values(wallet1.groups).sort((a, b) => {
+        const aIndex = 'entropy' in a.metadata ? a.metadata.entropy.groupIndex : 0;
+        const bIndex = 'entropy' in b.metadata ? b.metadata.entropy.groupIndex : 0;
+        return aIndex - bIndex;
+      });
+      
+      expect(wallet1Groups).toHaveLength(5);
+      expect(wallet1Groups[0].metadata.name).toBe('Account 1');
+      expect(wallet1Groups[1].metadata.name).toBe('Account 2');
+      expect(wallet1Groups[2].metadata.name).toBe('Account 3');
+      expect(wallet1Groups[3].metadata.name).toBe('Account 4');
+      expect(wallet1Groups[4].metadata.name).toBe('Account 5');
+      
+      // Verify second SRP ALSO starts from Account 1 (not Account 6!)
+      const wallet2Id = toMultichainAccountWalletId('srp2-id');
+      const wallet2 = state.accountTree.wallets[wallet2Id];
+      
+      expect(wallet2).toBeDefined();
+      const wallet2Groups = Object.values(wallet2.groups).sort((a, b) => {
+        const aIndex = 'entropy' in a.metadata ? a.metadata.entropy.groupIndex : 0;
+        const bIndex = 'entropy' in b.metadata ? b.metadata.entropy.groupIndex : 0;
+        return aIndex - bIndex;
+      });
+      
+      expect(wallet2Groups).toHaveLength(3);
+      expect(wallet2Groups[0].metadata.name).toBe('Account 1');
+      expect(wallet2Groups[1].metadata.name).toBe('Account 2');
+      expect(wallet2Groups[2].metadata.name).toBe('Account 3');
+      
+      // Verify names are persisted
+      const wallet1Group1Id = toMultichainAccountGroupId(wallet1Id, 0);
+      const persistedName = controller.state.accountGroupsMetadata[wallet1Group1Id]?.name?.value;
+      expect(persistedName).toBe('Account 1');
+    });
+
+    it('handles account naming correctly after app restart', () => {
+      // This test verifies that account names remain consistent after restart
+      // and don't change from "Account 1" to "Account 2" etc.
+      
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // First init - accounts get named
+      controller.init();
+      
+      const walletId = toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id);
+      const group1Id = toMultichainAccountGroupId(walletId, 0);
+      const group2Id = toMultichainAccountGroupId(walletId, 1);
+      
+      // Check initial names
+      const state1 = controller.state;
+      const wallet1 = state1.accountTree.wallets[walletId];
+      expect(wallet1.groups[group1Id].metadata.name).toBe('Account 1');
+      expect(wallet1.groups[group2Id].metadata.name).toBe('Account 2');
+      
+      // Simulate app restart by re-initializing
+      controller.init();
+      
+      // Names should remain the same
+      const state2 = controller.state;
+      const wallet2 = state2.accountTree.wallets[walletId];
+      expect(wallet2.groups[group1Id].metadata.name).toBe('Account 1');
+      expect(wallet2.groups[group2Id].metadata.name).toBe('Account 2');
+      
+      // Add a new account after restart
+      const newAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'new-account',
+        address: '0xNEW',
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: '', // Empty to force default naming
+        },
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            type: 'mnemonic',
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            derivationPath: "m/44'/60'/2'/0/0",
+            groupIndex: 2,
+          },
+        },
+      };
+      
+      messenger.publish('AccountsController:accountAdded', newAccount);
+      
+      // New account should get Account 3, not duplicate an existing name
+      const group3Id = toMultichainAccountGroupId(walletId, 2);
+      const state3 = controller.state;
+      const wallet3 = state3.accountTree.wallets[walletId];
+      expect(wallet3.groups[group3Id].metadata.name).toBe('Account 3');
+      
+      // All names should be different
+      const allNames = [
+        wallet3.groups[group1Id].metadata.name,
+        wallet3.groups[group2Id].metadata.name,
+        wallet3.groups[group3Id].metadata.name,
+      ];
+      const uniqueNames = new Set(allNames);
+      expect(uniqueNames.size).toBe(3); // All names should be unique
+    });
   });
 
   describe('actions', () => {
