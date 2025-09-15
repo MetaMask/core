@@ -187,7 +187,6 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 5,
     "jest/no-conditional-in-test": 2
   },
   "packages/keyring-controller/src/KeyringController.ts": {
@@ -286,9 +285,6 @@
   "packages/permission-controller/src/PermissionController.test.ts": {
     "jest/no-conditional-in-test": 4
   },
-  "packages/permission-controller/src/PermissionController.ts": {
-    "prettier/prettier": 12
-  },
   "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
     "import-x/order": 1
   },
@@ -349,10 +345,6 @@
   },
   "packages/seedless-onboarding-controller/src/errors.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1
-  },
-  "packages/selected-network-controller/src/SelectedNetworkController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "prettier/prettier": 6
   },
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1

@@ -34,8 +34,18 @@ export type TokenSearchDiscoveryDataControllerState = {
 };
 
 const tokenSearchDiscoveryDataControllerMetadata = {
-  tokenDisplayData: { persist: true, anonymous: false },
-  swapsTokenAddressesByChainId: { persist: true, anonymous: false },
+  tokenDisplayData: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  swapsTokenAddressesByChainId: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 } as const;
 
 // === MESSENGER ===

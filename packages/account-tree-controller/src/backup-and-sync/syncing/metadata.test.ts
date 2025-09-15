@@ -1,0 +1,128 @@
+import { compareAndSyncMetadata } from './metadata';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { BackupAndSyncContext } from '../types';
+
+describe('BackupAndSync - Syncing - Metadata', () => {
+  let mockContext: BackupAndSyncContext;
+  let mockApplyLocalUpdate: jest.Mock;
+  let mockValidateUserStorageValue: jest.Mock;
+
+  beforeEach(() => {
+    mockApplyLocalUpdate = jest.fn();
+    mockValidateUserStorageValue = jest.fn().mockReturnValue(true);
+
+    mockContext = {
+      emitAnalyticsEventFn: jest.fn(),
+    } as unknown as BackupAndSyncContext;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('compareAndSyncMetadata', () => {
+    it('returns false when values are identical', async () => {
+      const result = await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: { value: 'test', lastUpdatedAt: 1000 },
+        userStorageMetadata: { value: 'test', lastUpdatedAt: 2000 },
+        applyLocalUpdate: mockApplyLocalUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+      });
+
+      expect(result).toBe(false);
+      expect(mockApplyLocalUpdate).not.toHaveBeenCalled();
+      expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+    });
+
+    it('applies user storage value when it is more recent and valid', async () => {
+      const result = await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: { value: 'old', lastUpdatedAt: 1000 },
+        userStorageMetadata: { value: 'new', lastUpdatedAt: 2000 },
+        applyLocalUpdate: mockApplyLocalUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+        analytics: {
+          action: BackupAndSyncAnalyticsEvent.GroupRenamed,
+          profileId: 'test-profile',
+        },
+      });
+
+      expect(result).toBe(false);
+      expect(mockApplyLocalUpdate).toHaveBeenCalledWith('new');
+      expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
+        action: BackupAndSyncAnalyticsEvent.GroupRenamed,
+        profileId: 'test-profile',
+      });
+    });
+
+    it('returns true when local value is more recent', async () => {
+      const result = await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: { value: 'new', lastUpdatedAt: 2000 },
+        userStorageMetadata: { value: 'old', lastUpdatedAt: 1000 },
+        applyLocalUpdate: mockApplyLocalUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+      });
+
+      expect(result).toBe(true);
+      expect(mockApplyLocalUpdate).not.toHaveBeenCalled();
+      expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+    });
+
+    it('returns true when user storage value is invalid', async () => {
+      mockValidateUserStorageValue.mockReturnValue(false);
+
+      const result = await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: { value: 'local', lastUpdatedAt: 1000 },
+        userStorageMetadata: { value: 'invalid', lastUpdatedAt: 2000 },
+        applyLocalUpdate: mockApplyLocalUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+      });
+
+      expect(result).toBe(true);
+      expect(mockApplyLocalUpdate).not.toHaveBeenCalled();
+      expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+    });
+
+    it('applies user storage value when no local metadata exists', async () => {
+      const result = await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: undefined,
+        userStorageMetadata: { value: 'remote', lastUpdatedAt: 1000 },
+        applyLocalUpdate: mockApplyLocalUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+      });
+
+      expect(result).toBe(false);
+      expect(mockApplyLocalUpdate).toHaveBeenCalledWith('remote');
+    });
+
+    it('does not emit analytics when no analytics config provided', async () => {
+      await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: { value: 'old', lastUpdatedAt: 1000 },
+        userStorageMetadata: { value: 'new', lastUpdatedAt: 2000 },
+        applyLocalUpdate: mockApplyLocalUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+      });
+
+      expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+    });
+
+    it('handles async applyLocalUpdate function', async () => {
+      const asyncUpdate = jest.fn().mockResolvedValue(undefined);
+
+      await compareAndSyncMetadata({
+        context: mockContext,
+        localMetadata: { value: 'old', lastUpdatedAt: 1000 },
+        userStorageMetadata: { value: 'new', lastUpdatedAt: 2000 },
+        applyLocalUpdate: asyncUpdate,
+        validateUserStorageValue: mockValidateUserStorageValue,
+      });
+
+      expect(asyncUpdate).toHaveBeenCalledWith('new');
+    });
+  });
+});
