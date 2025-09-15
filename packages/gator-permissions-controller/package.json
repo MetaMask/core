@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/7715-permission-types": "^0.3.0",
     "@metamask/base-controller": "^8.3.0",
-    "@metamask/delegation-core": "^0.2.0-rc.1",
+    "@metamask/delegation-core": "^0.2.0",
     "@metamask/delegation-deployments": "^0.12.0",
     "@metamask/snaps-sdk": "^9.0.0",
     "@metamask/snaps-utils": "^11.0.0",
