@@ -598,8 +598,9 @@ export class PhishingController extends BaseController<
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
 
-    if (this.state.whitelistPaths.includes(origin)) {
+    if (this.state.whitelistPaths.includes(hostnameWithPaths)) {
       return { result: false, type: PhishingDetectorResultType.All };
     }
 
