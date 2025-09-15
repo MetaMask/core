@@ -423,7 +423,10 @@ export class AccountTreeController extends BaseController<
         const sortedGroupIds = Object.keys(wallet.groups).sort();
         groupIndex = sortedGroupIds.indexOf(group.id);
 
-        // Defensive fallback
+        // Defensive fallback: if group.id is not found in sortedGroupIds (should never happen
+        // in normal operation since we iterate over wallet.groups), use index 0 to prevent
+        // passing -1 to getDefaultAccountGroupName which would result in "Account 0"
+        /* istanbul ignore next */
         if (groupIndex === -1) {
           groupIndex = 0;
         }
