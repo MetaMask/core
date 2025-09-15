@@ -413,10 +413,7 @@ export class AccountTreeController extends BaseController<
 
       // For entropy-based multichain groups, use the actual groupIndex from metadata
       // instead of calculating from alphabetical sort position
-      if (
-        group.type === AccountGroupType.MultichainAccount &&
-        'entropy' in group.metadata
-      ) {
+      if (group.type === AccountGroupType.MultichainAccount) {
         groupIndex = group.metadata.entropy.groupIndex;
       } else {
         // For other wallet types (snap/keyring), use sorted position for consistency
