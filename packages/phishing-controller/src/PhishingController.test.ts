@@ -92,6 +92,18 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.All,
     });
   });
+
+  it('returns false if the URL is in the whitelistPaths', async () => {
+    const whitelistedURL = 'https://example.com/path';
+
+    const controller = getPhishingController();
+    controller.bypass(whitelistedURL);
+    const result = controller.test(whitelistedURL);
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
   it('should return false if the URL is in the allowlist', async () => {
     const allowlistedHostname = 'example.com';
 
@@ -2412,47 +2424,91 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.Allowlist,
     });
   });
-  describe('PhishingController - bypass', () => {
+  describe('bypass', () => {
     let controller: PhishingController;
 
     beforeEach(() => {
-      controller = getPhishingController();
+      controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {
+                'example.com/path': {},
+              },
+              fuzzylist: [],
+              tolerance: 0,
+              version: 0,
+              lastUpdated: 0,
+              name: ListNames.MetaMask,
+            },
+          ],
+        },
+      });
     });
 
-    it('should do nothing if the origin is already in the whitelist', () => {
-      const origin = 'https://example.com';
-      const hostname = getHostnameFromUrl(origin);
+    describe('whitelist', () => {
+      it('should do nothing if the origin is already in the whitelist', () => {
+        const origin = 'https://example.com';
+        const hostname = getHostnameFromUrl(origin);
 
-      // Call the bypass function
-      controller.bypass(origin);
-      controller.bypass(origin);
+        // Call the bypass function
+        controller.bypass(origin);
+        controller.bypass(origin);
 
-      // Verify that the whitelist has not changed
-      expect(controller.state.whitelist).toContain(hostname);
-      expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        // Verify that the whitelist has not changed
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        expect(controller.state.whitelistPaths).toHaveLength(0);
+      });
+
+      it('should add the origin to the whitelist if not already present', () => {
+        const origin = 'https://newsite.com';
+        const hostname = getHostnameFromUrl(origin);
+
+        // Call the bypass function
+        controller.bypass(origin);
+
+        // Verify that the whitelist now includes the new origin
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toHaveLength(0);
+      });
+
+      it('should add punycode origins to the whitelist if not already present', () => {
+        const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
+
+        // Call the bypass function
+        controller.bypass(punycodeOrigin);
+
+        // Verify that the whitelist now includes the punycode origin
+        expect(controller.state.whitelist).toContain(punycodeOrigin);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toHaveLength(0);
+      });
     });
 
-    it('should add the origin to the whitelist if not already present', () => {
-      const origin = 'https://newsite.com';
-      const hostname = getHostnameFromUrl(origin);
+    describe('whitelistPaths', () => {
+      it('adds the hostname + paths to the whitelistPaths if not already present', () => {
+        const origin = 'https://example.com/path';
+        controller.bypass(origin);
 
-      // Call the bypass function
-      controller.bypass(origin);
+        expect(controller.state.whitelistPaths).toContain('example.com/path');
+        expect(controller.state.whitelistPaths).toHaveLength(1);
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
 
-      // Verify that the whitelist now includes the new origin
-      expect(controller.state.whitelist).toContain(hostname);
-      expect(controller.state.whitelist).toHaveLength(1);
-    });
+      it('does not add the hostname + paths to the whitelistPaths if already present', () => {
+        const origin = 'https://example.com/path';
+        controller.bypass(origin);
+        controller.bypass(origin);
 
-    it('should add punycode origins to the whitelist if not already present', () => {
-      const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
-
-      // Call the bypass function
-      controller.bypass(punycodeOrigin);
-
-      // Verify that the whitelist now includes the punycode origin
-      expect(controller.state.whitelist).toContain(punycodeOrigin);
-      expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toContain('example.com/path');
+        expect(controller.state.whitelistPaths).toHaveLength(1);
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
     });
   });
 
