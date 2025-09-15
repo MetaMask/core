@@ -1,4 +1,0 @@
-{
-  "code": -32602,
-  "message": "Invalid transaction envelope type: specified type \"0x4\" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas"
-}
