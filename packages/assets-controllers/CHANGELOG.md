@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `queryAllAccounts` parameter support to `AccountTrackerController.refresh()`, `AccountTrackerController._executePoll()`, and `TokenBalancesController.updateBalances()` for flexible account selection during balance updates ([#6600](https://github.com/MetaMask/core/pull/6600))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [75.0.0]
