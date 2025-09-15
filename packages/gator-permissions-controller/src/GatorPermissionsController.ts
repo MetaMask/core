@@ -6,6 +6,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -53,6 +54,14 @@ const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'erc20-token-periodic': {},
   other: {},
 };
+
+/**
+ * Delegation framework version used to select the correct deployed enforcer
+ * contract addresses from `@metamask/delegation-deployments`.
+ */
+export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
+
+const contractsByChainId = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
 
 // === STATE ===
 
@@ -550,16 +559,22 @@ export default class GatorPermissionsController extends BaseController<
       throw new OriginNotAllowedError({ origin });
     }
 
+    const contracts = contractsByChainId[chainId];
+
+    if (!contracts) {
+      throw new Error(`Contracts not found for chainId: ${chainId}`);
+    }
+
     try {
       const enforcers = caveats.map((caveat) => caveat.enforcer);
 
       const permissionType = identifyPermissionByEnforcers({
         enforcers,
-        chainId,
+        contracts,
       });
 
       const { expiry, data } = getPermissionDataAndExpiry({
-        chainId,
+        contracts,
         caveats,
         permissionType,
       });

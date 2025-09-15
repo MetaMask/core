@@ -4,27 +4,32 @@ import {
   createERC20StreamingTerms,
   createERC20TokenPeriodTransferTerms,
   createTimestampTerms,
+  ROOT_AUTHORITY,
   type Hex,
 } from '@metamask/delegation-core';
 import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
-import { hexToBigInt, hexToNumber } from '@metamask/utils';
+import { hexToBigInt, hexToNumber, numberToHex } from '@metamask/utils';
 
 import {
-  DELEGATION_FRAMEWORK_VERSION,
   getPermissionDataAndExpiry,
   identifyPermissionByEnforcers,
+  reconstructDecodedPermission,
 } from './decodePermission';
+import type {
+  DecodedPermission,
+  DeployedContractsByName,
+  PermissionType,
+} from './types';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
 
 describe('decodePermission', () => {
-  const invalidChainId = 99999999;
   const chainId = CHAIN_ID.sepolia;
-  const contracts = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][chainId];
+  const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
 
   const {
     ExactCalldataEnforcer,
@@ -37,7 +42,29 @@ describe('decodePermission', () => {
     NonceEnforcer,
   } = contracts;
 
-  describe('identifyPermissionByCaveats()', () => {
+  describe('identifyPermissionByEnforcers()', () => {
+    const zeroAddress = '0x0000000000000000000000000000000000000000' as Hex;
+
+    it('throws if multiple permission types match', () => {
+      // this test is a little convoluted, because in reality it can only happen
+      // if the deployed contracts are invalid, or the rules are malformed. In
+      // order to test the case, we are creating a contract set where the
+      // enforcers match both native-token-stream and native-token-periodic.
+      const enforcers = [ExactCalldataEnforcer, NonceEnforcer, zeroAddress];
+      const contractsWithDuplicates = {
+        ...contracts,
+        NativeTokenStreamingEnforcer: zeroAddress,
+        NativeTokenPeriodTransferEnforcer: zeroAddress,
+      } as unknown as DeployedContractsByName;
+
+      expect(() => {
+        identifyPermissionByEnforcers({
+          enforcers,
+          contracts: contractsWithDuplicates,
+        });
+      }).toThrow('Multiple permission types match');
+    });
+
     describe('native-token-stream', () => {
       const expectedPermissionType = 'native-token-stream';
 
@@ -47,7 +74,7 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -58,7 +85,7 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -71,26 +98,15 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ExactCalldataEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
-      });
-
-      it('rejects invalid chainId', () => {
-        const enforcers = [
-          NativeTokenStreamingEnforcer,
-          ExactCalldataEnforcer,
-          NonceEnforcer,
-        ];
-        expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId: invalidChainId }),
-        ).toThrow('Contracts not found for chainId');
       });
 
       it('accepts lowercased addresses', () => {
@@ -99,8 +115,27 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe('native-token-stream');
+      });
+
+      it('throws if a contract is not found', () => {
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+        ];
+        const contractsWithoutTimestampEnforcer = {
+          ...contracts,
+          TimestampEnforcer: undefined,
+        } as unknown as DeployedContractsByName;
+
+        expect(() =>
+          identifyPermissionByEnforcers({
+            enforcers,
+            contracts: contractsWithoutTimestampEnforcer,
+          }),
+        ).toThrow('Contract not found: TimestampEnforcer');
       });
     });
 
@@ -112,7 +147,7 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -123,7 +158,7 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -136,26 +171,15 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ExactCalldataEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
-      });
-
-      it('rejects invalid chainId', () => {
-        const enforcers = [
-          NativeTokenPeriodTransferEnforcer,
-          ExactCalldataEnforcer,
-          NonceEnforcer,
-        ];
-        expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId: invalidChainId }),
-        ).toThrow('Contracts not found for chainId');
       });
 
       it('accepts lowercased addresses', () => {
@@ -164,8 +188,27 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
+      });
+
+      it('throws if a contract is not found', () => {
+        const enforcers = [
+          NativeTokenPeriodTransferEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+        ];
+        const contractsWithoutTimestampEnforcer = {
+          ...contracts,
+          TimestampEnforcer: undefined,
+        } as unknown as DeployedContractsByName;
+
+        expect(() =>
+          identifyPermissionByEnforcers({
+            enforcers,
+            contracts: contractsWithoutTimestampEnforcer,
+          }),
+        ).toThrow('Contract not found: TimestampEnforcer');
       });
     });
 
@@ -177,7 +220,7 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -188,7 +231,7 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -201,26 +244,15 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ERC20StreamingEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
-      });
-
-      it('rejects invalid chainId', () => {
-        const enforcers = [
-          ERC20StreamingEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId: invalidChainId }),
-        ).toThrow('Contracts not found for chainId');
       });
 
       it('accepts lowercased addresses', () => {
@@ -229,8 +261,27 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
+      });
+
+      it('throws if a contract is not found', () => {
+        const enforcers = [
+          ERC20StreamingEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        const contractsWithoutTimestampEnforcer = {
+          ...contracts,
+          TimestampEnforcer: undefined,
+        } as const;
+
+        expect(() =>
+          identifyPermissionByEnforcers({
+            enforcers,
+            contracts: contractsWithoutTimestampEnforcer,
+          }),
+        ).toThrow('Contract not found: TimestampEnforcer');
       });
     });
 
@@ -242,7 +293,7 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -253,7 +304,7 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
       });
 
@@ -266,26 +317,15 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ERC20PeriodTransferEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId }),
+          identifyPermissionByEnforcers({ enforcers, contracts }),
         ).toThrow('Unable to identify permission type');
-      });
-
-      it('rejects invalid chainId', () => {
-        const enforcers = [
-          ERC20PeriodTransferEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        expect(() =>
-          identifyPermissionByEnforcers({ enforcers, chainId: invalidChainId }),
-        ).toThrow('Contracts not found for chainId');
       });
 
       it('accepts lowercased addresses', () => {
@@ -294,8 +334,27 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, chainId });
+        const result = identifyPermissionByEnforcers({ enforcers, contracts });
         expect(result).toBe(expectedPermissionType);
+      });
+
+      it('throws if a contract is not found', () => {
+        const enforcers = [
+          ERC20PeriodTransferEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        const contractsWithoutTimestampEnforcer = {
+          ...contracts,
+          TimestampEnforcer: undefined,
+        } as unknown as DeployedContractsByName;
+
+        expect(() =>
+          identifyPermissionByEnforcers({
+            enforcers,
+            contracts: contractsWithoutTimestampEnforcer,
+          }),
+        ).toThrow('Contract not found: TimestampEnforcer');
       });
     });
   });
@@ -312,6 +371,18 @@ describe('decodePermission', () => {
       }),
       args: '0x',
     } as const;
+
+    it('throws if an invalid permission type is provided', () => {
+      const caveats = [expiryCaveat];
+      expect(() => {
+        getPermissionDataAndExpiry({
+          contracts,
+          caveats,
+          permissionType:
+            'invalid-permission-type' as unknown as PermissionType,
+        });
+      }).toThrow('Invalid permission type');
+    });
 
     describe('native-token-stream', () => {
       const permissionType = 'native-token-stream';
@@ -340,7 +411,7 @@ describe('decodePermission', () => {
         ];
 
         const { expiry, data } = getPermissionDataAndExpiry({
-          chainId,
+          contracts,
           caveats,
           permissionType,
         });
@@ -379,7 +450,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -398,7 +469,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -431,7 +502,7 @@ describe('decodePermission', () => {
         ];
 
         const { expiry, data } = getPermissionDataAndExpiry({
-          chainId,
+          contracts,
           caveats,
           permissionType,
         });
@@ -468,7 +539,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -487,7 +558,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -524,7 +595,7 @@ describe('decodePermission', () => {
         ];
 
         const { expiry, data } = getPermissionDataAndExpiry({
-          chainId,
+          contracts,
           caveats,
           permissionType,
         });
@@ -565,7 +636,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -584,7 +655,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -619,7 +690,7 @@ describe('decodePermission', () => {
         ];
 
         const { expiry, data } = getPermissionDataAndExpiry({
-          chainId,
+          contracts,
           caveats,
           permissionType,
         });
@@ -658,7 +729,7 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
@@ -677,12 +748,107 @@ describe('decodePermission', () => {
 
         expect(() =>
           getPermissionDataAndExpiry({
-            chainId,
+            contracts,
             caveats,
             permissionType,
           }),
         ).toThrow('Value must be a hexadecimal string.');
       });
+    });
+  });
+
+  describe('reconstructDecodedPermission', () => {
+    const delegator = '0x1111111111111111111111111111111111111111' as Hex;
+    const delegate = '0x2222222222222222222222222222222222222222' as Hex;
+    const specifiedOrigin = 'https://dapp.example';
+    const justification = 'Test justification';
+
+    it('constructs DecodedPermission with expiry', () => {
+      const permissionType = 'native-token-stream' as const;
+      const data: DecodedPermission['permission']['data'] = {
+        initialAmount: '0x01',
+        maxAmount: '0x02',
+        amountPerSecond: '0x03',
+        startTime: 1715664,
+      } as const;
+      const expiry = 1720000;
+
+      const result = reconstructDecodedPermission({
+        chainId,
+        permissionType,
+        delegator,
+        delegate,
+        authority: ROOT_AUTHORITY,
+        expiry,
+        data,
+        justification,
+        specifiedOrigin,
+      });
+
+      expect(result.chainId).toBe(numberToHex(chainId));
+      expect(result.address).toBe(delegator);
+      expect(result.signer).toStrictEqual({
+        type: 'account',
+        data: { address: delegate },
+      });
+      expect(result.permission).toStrictEqual({
+        type: permissionType,
+        data,
+        justification,
+      });
+      expect(result.expiry).toBe(expiry);
+      expect(result.origin).toBe(specifiedOrigin);
+    });
+
+    it('constructs DecodedPermission with null expiry', () => {
+      const permissionType = 'erc20-token-periodic' as const;
+      const data: DecodedPermission['permission']['data'] = {
+        tokenAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        periodAmount: '0x2a',
+        periodDuration: 3600,
+        startTime: 1715666,
+      } as const;
+
+      const result = reconstructDecodedPermission({
+        chainId,
+        permissionType,
+        delegator,
+        delegate,
+        authority: ROOT_AUTHORITY,
+        expiry: null,
+        data,
+        justification,
+        specifiedOrigin,
+      });
+
+      expect(result.chainId).toBe(numberToHex(chainId));
+      expect(result.expiry).toBeNull();
+      expect(result.permission.type).toBe(permissionType);
+      expect(result.permission.data).toStrictEqual(data);
+    });
+
+    it('throws on invalid authority', () => {
+      const permissionType = 'native-token-stream' as const;
+      const data: DecodedPermission['permission']['data'] = {
+        initialAmount: '0x01',
+        maxAmount: '0x02',
+        amountPerSecond: '0x03',
+        startTime: 1715664,
+      } as const;
+
+      expect(() =>
+        reconstructDecodedPermission({
+          chainId,
+          permissionType,
+          delegator,
+          delegate,
+          authority: '0x0000000000000000000000000000000000000000' as Hex,
+          expiry: 1720000,
+          data,
+          justification,
+          specifiedOrigin,
+        }),
+      ).toThrow('Invalid authority');
     });
   });
 });

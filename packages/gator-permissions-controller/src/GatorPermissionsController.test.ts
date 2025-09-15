@@ -13,9 +13,10 @@ import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { hexToBigInt, numberToHex, type Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './decodePermission';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
-import GatorPermissionsController from './GatorPermissionsController';
+import GatorPermissionsController, {
+  DELEGATION_FRAMEWORK_VERSION,
+} from './GatorPermissionsController';
 import {
   mockCustomPermissionStorageEntry,
   mockErc20TokenPeriodicStorageEntry,
@@ -485,6 +486,22 @@ describe('GatorPermissionsController', () => {
       controller = new GatorPermissionsController({
         messenger: getMessenger(),
       });
+    });
+
+    it('throws if contracts are not found', async () => {
+      await expect(
+        controller.decodePermissionFromPermissionContextForOrigin({
+          origin: controller.permissionsProviderSnapId,
+          chainId: 999999,
+          delegation: {
+            caveats: [],
+            delegator: '0x1111111111111111111111111111111111111111',
+            delegate: '0x2222222222222222222222222222222222222222',
+            authority: ROOT_AUTHORITY as Hex,
+          },
+          metadata: buildMetadata(''),
+        }),
+      ).rejects.toThrow('Contracts not found for chainId: 999999');
     });
 
     it('decodes a native-token-stream permission successfully', async () => {

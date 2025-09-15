@@ -94,11 +94,9 @@ export class OriginNotAllowedError extends GatorPermissionsControllerError {
 }
 
 export class PermissionDecodingError extends GatorPermissionsControllerError {
-  constructor({ cause }: { cause: Error | string }) {
-    const innerCause = cause instanceof Error ? cause : new Error(cause);
-
+  constructor({ cause }: { cause: Error }) {
     super({
-      cause: innerCause,
+      cause,
       message: `Failed to decode permission`,
       code: GatorPermissionsControllerErrorCode.PermissionDecodingError,
     });
