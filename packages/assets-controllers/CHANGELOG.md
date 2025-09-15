@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.13.0` ([#6604](https://github.com/MetaMask/core/pull/6604))
