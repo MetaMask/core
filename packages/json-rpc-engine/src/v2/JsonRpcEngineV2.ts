@@ -126,7 +126,7 @@ export class JsonRpcEngineV2<
   }
 
   /**
-   * Handle a JSON-RPC call. A response will be returned if the call is a request.
+   * Handle a JSON-RPC call (i.e. request or notification).
    *
    * This exists because a {@link JsonRpcCall} overload of {@link handle} cannot
    * coexist with the other overloads of that method. In particular, such an
@@ -135,7 +135,7 @@ export class JsonRpcEngineV2<
    * @param request - The JSON-RPC call to handle.
    * @param options - The options for the handle operation.
    * @param options.context - The context to pass to the middleware.
-   * @returns The JSON-RPC response, if any.
+   * @returns The JSON-RPC response, or `void` if the call is a notification.
    */
   async handleAny(
     request: JsonRpcCall & Request,
@@ -281,8 +281,8 @@ export class JsonRpcEngineV2<
     }
     if (
       hasProperty(nextRequest, 'id') !== hasProperty(currentRequest, 'id') ||
-      // @ts-expect-error - "id" does not exist on notifications, but this will
-      // produce the desired behavior at runtime.
+      // @ts-expect-error - "id" does not exist on notifications, but we can still
+      // check the value of the property at runtime.
       nextRequest.id !== currentRequest.id
     ) {
       throw new JsonRpcEngineError(
