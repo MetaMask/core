@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
 ### Fixed
 
 - **CRITICAL**: Fix multi-wallet account naming bug causing duplicate and inconsistent names across wallets ([#6601](https://github.com/MetaMask/core/pull/6601))
@@ -14,10 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Names are immediately persisted to ensure consistency across app restarts
   - Entropy groups use their actual groupIndex instead of broken alphabetical sorting
   - Prevents issues like "Account 2, Account 2, Account 3..." and missing "Account 1"
-
-### Changed
-
-- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [0.15.1]
 
