@@ -911,6 +911,7 @@ describe('BridgeController', function () {
         warnings: ['warning1'],
         usd_quoted_gas: 0,
         gas_included: false,
+        gas_included_7702: false,
         quoted_time_minutes: 10,
         usd_quoted_return: 100,
         price_impact: 0,
@@ -1494,6 +1495,66 @@ describe('BridgeController', function () {
     );
   });
 
+  it('returns early on AbortError without updating post-fetch state', async () => {
+    jest.useFakeTimers();
+
+    const abortError = new Error('Aborted');
+    // Make it look like an AbortError to hit the early return
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    abortError.name = 'AbortError';
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(
+        async () =>
+          await new Promise((_resolve, reject) => {
+            setTimeout(() => reject(abortError), 1000);
+          }),
+      );
+
+    // Minimal messenger/env setup to allow polling to start
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+      selectedNetworkClientId: 'selectedNetworkClientId',
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
+    } as never);
+
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Trigger the fetch + abort rejection
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+
+    // Early return path: no post-fetch updates
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state.quoteFetchError).toBeNull();
+    expect(bridgeController.state.quotesLoadingStatus).toBe(
+      RequestStatus.LOADING,
+    );
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesRefreshCount).toBe(0);
+    expect(bridgeController.state.quotes).toStrictEqual([]);
+  });
+
   it.each([
     [
       'should append solanaFees for Solana quotes',
@@ -1762,7 +1823,7 @@ describe('BridgeController', function () {
 
     it('should track the InputSourceDestinationFlipped event', () => {
       bridgeController.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.InputSourceDestinationFlipped,
+        UnifiedSwapBridgeEventName.InputSourceDestinationSwitched,
         {
           token_symbol_destination: 'USDC',
           token_symbol_source: 'ETH',
@@ -1821,6 +1882,7 @@ describe('BridgeController', function () {
           is_best_quote: true,
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 10,
           usd_quoted_return: 100,
           price_impact: 0,
@@ -1841,6 +1903,7 @@ describe('BridgeController', function () {
           warnings: ['warning1'],
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 10,
           usd_quoted_return: 100,
           price_impact: 0,
@@ -1893,6 +1956,7 @@ describe('BridgeController', function () {
           price_impact: 0,
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
           provider: 'provider_bridge',
@@ -1926,6 +1990,7 @@ describe('BridgeController', function () {
           slippage_limit: 0.5,
           usd_quoted_gas: 1,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 2,
           usd_quoted_return: 113,
           provider: 'provider_bridge',
@@ -1965,6 +2030,7 @@ describe('BridgeController', function () {
           provider: 'provider_bridge',
           price_impact: 6,
           gas_included: false,
+          gas_included_7702: false,
           usd_quoted_gas: 0,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
@@ -1988,6 +2054,7 @@ describe('BridgeController', function () {
           destination_transaction: StatusTypes.PENDING,
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
           price_impact: 0,
@@ -2040,6 +2107,7 @@ describe('BridgeController', function () {
           error_message: 'Failed to submit tx',
           usd_quoted_gas: 1,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 2,
           usd_quoted_return: 113,
           provider: 'provider_bridge',
@@ -2140,6 +2208,7 @@ describe('BridgeController', function () {
           warnings: ['warning1'],
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 10,
           usd_quoted_return: 100,
           price_impact: 0,
@@ -2215,7 +2284,7 @@ describe('BridgeController', function () {
           aggIds: ['other'],
           bridgeIds: ['other', 'debridge'],
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
           noFee: false,
         },
         null,
@@ -2238,7 +2307,7 @@ describe('BridgeController', function () {
               "destChainId": "1",
               "destTokenAddress": "0x1234",
               "gasIncluded": false,
-              "gasless7702": false,
+              "gasIncluded7702": false,
               "noFee": true,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -2276,7 +2345,7 @@ describe('BridgeController', function () {
           walletAddress: '0x123',
           slippage: 0.5,
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
         },
         null,
         FeatureId.PERPS,
@@ -2298,7 +2367,7 @@ describe('BridgeController', function () {
               "destChainId": "1",
               "destTokenAddress": "0x1234",
               "gasIncluded": false,
-              "gasless7702": false,
+              "gasIncluded7702": false,
               "noFee": true,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -2336,7 +2405,7 @@ describe('BridgeController', function () {
           walletAddress: '0x123',
           slippage: 0.5,
           gasIncluded: false,
-          gasless7702: false,
+          gasIncluded7702: false,
         },
         null,
       );
@@ -2349,7 +2418,7 @@ describe('BridgeController', function () {
               "destChainId": "1",
               "destTokenAddress": "0x1234",
               "gasIncluded": false,
-              "gasless7702": false,
+              "gasIncluded7702": false,
               "slippage": 0.5,
               "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "srcTokenAddress": "NATIVE",

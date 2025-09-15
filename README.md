@@ -36,6 +36,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
+- [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/error-reporting-service`](packages/error-reporting-service)
@@ -99,6 +100,7 @@ linkStyle default opacity:0.5
   controller_utils(["@metamask/controller-utils"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
+  eip-5792-middleware(["@metamask/eip-5792-middleware"])
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
   error_reporting_service(["@metamask/error-reporting-service"]);

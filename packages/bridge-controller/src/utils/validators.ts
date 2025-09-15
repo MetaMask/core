@@ -87,6 +87,7 @@ export const ChainConfigurationSchema = type({
   topAssets: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  isGaslessSwapEnabled: optional(boolean()),
 });
 
 export const PriceImpactThresholdSchema = type({
@@ -192,7 +193,7 @@ export const QuoteSchema = type({
   /**
    * Whether the quote can use EIP-7702 delegated gasless execution
    */
-  gasless7702: optional(boolean()),
+  gasIncluded7702: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),

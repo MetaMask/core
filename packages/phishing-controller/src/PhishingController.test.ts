@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
@@ -3373,5 +3373,74 @@ describe('URL Scan Cache', () => {
     // Second call should also return an error (not from cache)
     const result2 = await controller.scanUrl(invalidUrl);
     expect(result2.fetchError).toBeDefined();
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "c2DomainBlocklistLastFetched": 0,
+          "hotlistLastFetched": 0,
+          "stalelistLastFetched": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "c2DomainBlocklistLastFetched": 0,
+          "hotlistLastFetched": 0,
+          "phishingLists": Array [],
+          "stalelistLastFetched": 0,
+          "urlScanCache": Object {},
+          "whitelist": Array [],
+        }
+      `);
+    });
+
+    it('includes expected state in UI', () => {
+      const controller = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "urlScanCache": Object {},
+        }
+      `);
+    });
   });
 });

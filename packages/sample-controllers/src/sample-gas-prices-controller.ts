@@ -65,8 +65,10 @@ export type SampleGasPricesControllerState = {
  */
 const gasPricesControllerMetadata = {
   gasPricesByChainId: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 } satisfies StateMetadata<SampleGasPricesControllerState>;
 
@@ -154,22 +156,24 @@ export type SampleGasPricesControllerMessenger = RestrictedMessenger<
  * import { Messenger } from '@metamask/base-controller';
  * import type {
  *   NetworkControllerActions,
- *   NetworkControllerEvents
+ *   NetworkControllerEvents,
  * } from '@metamask/network-controller';
  * import type {
  *   SampleGasPricesControllerActions,
- *   SampleGasPricesControllerEvents
- * } from '@metamask/example-controllers';
+ *   SampleGasPricesControllerEvents,
+ *   SampleGasPricesServiceActions,
+ *   SampleGasPricesServiceEvents,
+ * } from '@metamask/sample-controllers';
  * import {
  *   SampleGasPricesController,
  *   SampleGasPricesService,
  *   selectGasPrices,
- * } from '@metamask/example-controllers';
+ * } from '@metamask/sample-controllers';
  *
  * const globalMessenger = new Messenger<
  *  SampleGasPricesServiceActions
  *  | SampleGasPricesControllerActions
- *  | NetworkControllerActions
+ *  | NetworkControllerActions,
  *  SampleGasPricesServiceEvents
  *  | SampleGasPricesControllerEvents
  *  | NetworkControllerEvents

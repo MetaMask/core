@@ -41,8 +41,10 @@ export type SamplePetnamesControllerState = {
  */
 const samplePetnamesControllerMetadata = {
   namesByChainIdAndAddress: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 } satisfies StateMetadata<SamplePetnamesControllerState>;
 
@@ -129,7 +131,7 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  * import { Messenger } from '@metamask/base-controller';
  * import type {
  *   SamplePetnamesControllerActions,
- *   SamplePetnamesControllerEvents
+ *   SamplePetnamesControllerEvents,
  * } from '@metamask/sample-controllers';
  *
  * const globalMessenger = new Messenger<

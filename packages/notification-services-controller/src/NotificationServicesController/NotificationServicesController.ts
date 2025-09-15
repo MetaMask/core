@@ -28,11 +28,13 @@ import {
 } from './processors/process-notifications';
 import * as FeatureNotifications from './services/feature-announcements';
 import * as OnChainNotifications from './services/onchain-notifications';
+import { createPerpOrderNotification } from './services/perp-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
+import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
@@ -100,45 +102,65 @@ export type NotificationServicesControllerState = {
 
 const metadata: StateMetadata<NotificationServicesControllerState> = {
   subscriptionAccountsSeen: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
 
   isMetamaskNotificationsFeatureSeen: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isNotificationServicesEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isFeatureAnnouncementsEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   metamaskNotificationsList: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   metamaskNotificationsReadList: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   isUpdatingMetamaskNotifications: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isFetchingMetamaskNotifications: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isUpdatingMetamaskNotificationsAccount: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isCheckingAccountsPresence: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
 };
 export const defaultState: NotificationServicesControllerState = {
@@ -451,6 +473,7 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
+
         async (totalAccounts, prevTotalAccounts) => {
           const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
           if (
@@ -1247,6 +1270,21 @@ export default class NotificationServicesController extends BaseController<
         `${controllerName}:notificationsListUpdated`,
         this.state.metamaskNotificationsList,
       );
+    }
+  }
+
+  /**
+   * Creates an perp order notification subscription.
+   * Requires notifications and auth to be enabled to start receiving this notifications
+   *
+   * @param input perp input
+   */
+  public async sendPerpPlaceOrderNotification(input: OrderInput) {
+    try {
+      const { bearerToken } = await this.#getBearerToken();
+      await createPerpOrderNotification(bearerToken, input);
+    } catch {
+      // Do Nothing
     }
   }
 }

@@ -11,7 +11,11 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  isNullOrUndefined,
+} from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -45,6 +49,7 @@ import type {
   VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
+  RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
 } from './types';
@@ -92,83 +97,131 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
 const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerState> =
   {
     vault: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     socialBackupsMetadata: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     nodeAuthTokens: {
+      includeInStateLogs: (nodeAuthTokens) =>
+        !isNullOrUndefined(nodeAuthTokens),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     authConnection: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: true,
     },
     authConnectionId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     groupedAuthConnectionId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     userId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     socialLoginEmail: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     vaultEncryptionKey: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     vaultEncryptionSalt: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     authPubKey: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     passwordOutdatedCache: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     refreshToken: {
+      includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     revokeToken: {
+      includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
       persist: false,
       anonymous: false,
+      usedInUi: false,
+    },
+    pendingToBeRevokedTokens: {
+      includeInStateLogs: (pendingToBeRevokedTokens) =>
+        !isNullOrUndefined(pendingToBeRevokedTokens) &&
+        pendingToBeRevokedTokens.length > 0,
+      persist: true,
+      anonymous: false,
+      usedInUi: false,
     },
     // stays in vault
     accessToken: {
+      includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
+      includeInStateLogs: (metadataAccessToken) =>
+        !isNullOrUndefined(metadataAccessToken),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     encryptedSeedlessEncryptionKey: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     encryptedKeyringEncryptionKey: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     isSeedlessOnboardingUserAuthenticated: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
   };
 
@@ -188,6 +241,8 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   readonly #refreshJWTToken: RefreshJWTToken;
 
   readonly #revokeRefreshToken: RevokeRefreshToken;
+
+  readonly #renewRefreshToken: RenewRefreshToken;
 
   /**
    * The TTL of the password outdated cache in milliseconds.
@@ -219,6 +274,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
    * @param options.revokeRefreshToken - A function to revoke the refresh token.
+   * @param options.renewRefreshToken - A function to renew the refresh token and get new revoke token.
    * @param options.passwordOutdatedCacheTTL - The TTL of the password outdated cache in milliseconds.,
    */
   constructor({
@@ -229,6 +285,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     network = Web3AuthNetwork.Mainnet,
     refreshJWTToken,
     revokeRefreshToken,
+    renewRefreshToken,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<EncryptionKey>) {
     super({
@@ -250,15 +307,7 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     });
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
-
-    // setup subscriptions to the keyring lock event
-    // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.setLocked();
-    });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.#setUnlocked();
-    });
+    this.#renewRefreshToken = renewRefreshToken;
   }
 
   async fetchMetadataAccessCreds(): Promise<{
@@ -687,17 +736,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
    *
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
+   *
+   * @returns A promise that resolves to the success of the operation.
    */
-  setLocked() {
-    this.update((state) => {
-      delete state.vaultEncryptionKey;
-      delete state.vaultEncryptionSalt;
-      delete state.revokeToken;
-      delete state.accessToken;
-    });
+  async setLocked() {
+    return await this.#withControllerLock(async () => {
+      this.update((state) => {
+        delete state.vaultEncryptionKey;
+        delete state.vaultEncryptionSalt;
+        delete state.revokeToken;
+        delete state.accessToken;
+      });
 
-    this.#cachedDecryptedVaultData = undefined;
-    this.#isUnlocked = false;
+      this.#cachedDecryptedVaultData = undefined;
+      this.#isUnlocked = false;
+    });
   }
 
   /**
@@ -1683,17 +1736,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     authPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
   }> {
+    this.#assertIsAuthenticatedUser(this.state);
     const {
       nodeAuthTokens,
       authConnectionId,
       groupedAuthConnectionId,
       userId,
     } = this.state;
-    if (!nodeAuthTokens || !authConnectionId || !userId) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
 
     const { authPubKey, keyIndex: latestKeyIndex } = await this.toprfClient
       .fetchAuthPubKey({
@@ -1764,17 +1813,17 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
   }
 
   /**
-   * Revoke the refresh token and get new refresh token and new revoke token
+   * Renew the refresh token - get new refresh token and new revoke token
    * and also updates the vault with the new revoke token.
    * This method is to be called after user is authenticated.
    *
    * @param password - The password to encrypt the vault.
    * @returns A Promise that resolves to void.
    */
-  async revokeRefreshToken(password: string) {
+  async renewRefreshToken(password: string) {
     return await this.#withControllerLock(async () => {
       this.#assertIsAuthenticatedUser(this.state);
-      const { vaultEncryptionKey } = this.state;
+      const { refreshToken, vaultEncryptionKey } = this.state;
       const {
         toprfEncryptionKey: rawToprfEncryptionKey,
         toprfPwEncryptionKey: rawToprfPwEncryptionKey,
@@ -1789,17 +1838,26 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
         );
       }
-      const { newRevokeToken, newRefreshToken } =
-        await this.#revokeRefreshToken({
+
+      const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken(
+        {
           connection: this.state.authConnection,
           revokeToken,
-        });
+        },
+      );
+
       if (newRevokeToken && newRefreshToken) {
         this.update((state) => {
           // set new revoke token in state temporarily for persisting in vault
           state.revokeToken = newRevokeToken;
           // set new refresh token to persist in state
           state.refreshToken = newRefreshToken;
+        });
+
+        // add the old refresh token to the list to be revoked later when possible
+        this.#addRefreshTokenToRevokeList({
+          refreshToken,
+          revokeToken,
         });
 
         await this.#createNewVaultWithAuthData({
@@ -1809,6 +1867,74 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
           rawToprfAuthKeyPair,
         });
       }
+    });
+  }
+
+  /**
+   * Revoke all pending refresh tokens.
+   *
+   * This method is to be called after user is authenticated.
+   *
+   * @returns A Promise that resolves to void.
+   */
+  async revokePendingRefreshTokens() {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+      const { pendingToBeRevokedTokens } = this.state;
+      if (!pendingToBeRevokedTokens || pendingToBeRevokedTokens.length === 0) {
+        return;
+      }
+
+      // revoke all pending refresh tokens in parallel
+      const promises = pendingToBeRevokedTokens.map(({ revokeToken }) => {
+        const revokePromise = async (): Promise<string | null> => {
+          try {
+            await this.#revokeRefreshToken({
+              connection: this.state.authConnection as AuthConnection,
+              revokeToken,
+            });
+            return revokeToken;
+          } catch (error) {
+            log('Error revoking refresh token', error);
+            return null;
+          }
+        };
+        return revokePromise();
+      });
+      const result = await Promise.all(promises); // no need to do Promise.allSettled because the promise already handle try catch
+      // filter out the null values
+      const revokedTokens = result.filter((token) => token !== null);
+      if (revokedTokens.length > 0) {
+        // update the state to remove the revoked tokens once all concurrent token revoke finish
+        this.update((state) => {
+          state.pendingToBeRevokedTokens =
+            state.pendingToBeRevokedTokens?.filter(
+              (token) => !revokedTokens.includes(token.revokeToken),
+            );
+        });
+      }
+    });
+  }
+
+  /**
+   * Add a pending refresh, revoke token to the state to be revoked later.
+   *
+   * @param params - The parameters for adding a pending refresh, revoke token.
+   * @param params.refreshToken - The refresh token to add.
+   * @param params.revokeToken - The revoke token to add.
+   */
+  #addRefreshTokenToRevokeList({
+    refreshToken,
+    revokeToken,
+  }: {
+    refreshToken: string;
+    revokeToken: string;
+  }) {
+    this.update((state) => {
+      state.pendingToBeRevokedTokens = [
+        ...(state.pendingToBeRevokedTokens || []),
+        { refreshToken, revokeToken },
+      ];
     });
   }
 
