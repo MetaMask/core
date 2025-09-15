@@ -121,7 +121,7 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(controller.permissionsProviderSnapId).toBe(
-        '@metamask/gator-permissions-snap' as SnapId,
+        'npm:@metamask/gator-permissions-snap' as SnapId,
       );
       expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
@@ -409,7 +409,7 @@ describe('GatorPermissionsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "gatorPermissionsMapSerialized": "{\\"native-token-stream\\":{},\\"native-token-periodic\\":{},\\"erc20-token-stream\\":{},\\"erc20-token-periodic\\":{},\\"other\\":{}}",
-          "gatorPermissionsProviderSnapId": "@metamask/gator-permissions-snap",
+          "gatorPermissionsProviderSnapId": "npm:@metamask/gator-permissions-snap",
           "isFetchingGatorPermissions": false,
           "isGatorPermissionsEnabled": false,
         }
