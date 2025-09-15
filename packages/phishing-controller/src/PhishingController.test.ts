@@ -3423,6 +3423,7 @@ describe('URL Scan Cache', () => {
           "stalelistLastFetched": 0,
           "urlScanCache": Object {},
           "whitelist": Array [],
+          "whitelistPaths": Array [],
         }
       `);
     });
