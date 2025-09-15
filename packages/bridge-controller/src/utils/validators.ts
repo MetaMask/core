@@ -87,6 +87,7 @@ export const ChainConfigurationSchema = type({
   topAssets: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  isGaslessSwapEnabled: optional(boolean()),
 });
 
 export const PriceImpactThresholdSchema = type({
