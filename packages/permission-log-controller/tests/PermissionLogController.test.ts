@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
@@ -811,6 +811,77 @@ describe('PermissionLogController', () => {
           },
         },
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "permissionActivityLog": Array [],
+          "permissionHistory": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "permissionHistory": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "permissionHistory": Object {},
+        }
+      `);
     });
   });
 });

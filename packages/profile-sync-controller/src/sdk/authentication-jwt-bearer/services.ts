@@ -2,7 +2,7 @@ import type {
   AccessToken,
   ErrorMessage,
   UserProfile,
-  UserProfileMetaMetrics,
+  UserProfileLineage,
 } from './types';
 import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
@@ -30,8 +30,8 @@ export const SRP_LOGIN_URL = (env: Env) =>
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
 
-export const PROFILE_METAMETRICS_URL = (env: Env) =>
-  `${getEnvUrls(env).authApiUrl}/api/v2/profile/metametrics`;
+export const PROFILE_LINEAGE_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -262,20 +262,20 @@ export async function authenticate(
 }
 
 /**
- * Service to get the Profile MetaMetrics
+ * Service to get the Profile Lineage
  *
  * @param env - server environment
  * @param accessToken - JWT access token used to access protected resources
- * @returns Profile MetaMetrics information.
+ * @returns Profile Lineage information.
  */
-export async function getUserProfileMetaMetrics(
+export async function getUserProfileLineage(
   env: Env,
   accessToken: string,
-): Promise<UserProfileMetaMetrics> {
-  const profileMetaMetricsUrl = new URL(PROFILE_METAMETRICS_URL(env));
+): Promise<UserProfileLineage> {
+  const profileLineageUrl = new URL(PROFILE_LINEAGE_URL(env));
 
   try {
-    const response = await fetch(profileMetaMetricsUrl, {
+    const response = await fetch(profileLineageUrl, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -289,13 +289,13 @@ export async function getUserProfileMetaMetrics(
       );
     }
 
-    const profileJson: UserProfileMetaMetrics = await response.json();
+    const profileJson: UserProfileLineage = await response.json();
 
     return profileJson;
   } catch (e) {
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`failed to get profile metametrics: ${errorMessage}`);
+    throw new SignInError(`failed to get profile lineage: ${errorMessage}`);
   }
 }

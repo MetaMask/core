@@ -1,11 +1,10 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import { MetricsActionType, MetricsSwapType } from './constants';
+import { MetricsSwapType } from './constants';
 import {
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
-  getActionTypeFromQuoteRequest,
   getSwapTypeFromQuote,
   formatProviderLabel,
   getRequestParams,
@@ -137,26 +136,6 @@ describe('properties', () => {
     });
   });
 
-  describe('getActionType', () => {
-    it('should return SWAPBRIDGE_V1 when srcChainId equals destChainId', () => {
-      const result = getActionTypeFromQuoteRequest({
-        srcChainId: '1',
-        destChainId: '1',
-      });
-
-      expect(result).toBe(MetricsActionType.SWAPBRIDGE_V1);
-    });
-
-    it('should return CROSSCHAIN_V1 when srcChainId does not equal destChainId', () => {
-      const result = getActionTypeFromQuoteRequest({
-        srcChainId: '1',
-        destChainId: '2',
-      });
-
-      expect(result).toBe(MetricsActionType.CROSSCHAIN_V1);
-    });
-  });
-
   describe('getSwapType', () => {
     it('should return SINGLE when srcChainId equals destChainId', () => {
       const result = getSwapTypeFromQuote({
@@ -210,6 +189,7 @@ describe('properties', () => {
             assetId: 'eip155:1/erc20:0x456',
           },
           destTokenAmount: '1000000',
+          minDestTokenAmount: '950000',
           feeData: {
             metabridge: {
               amount: '10000000000000000',

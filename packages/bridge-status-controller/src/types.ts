@@ -118,7 +118,8 @@ export type BridgeHistoryItem = {
      */
     amountSent: QuoteMetadata['sentAmount']['amount'];
     amountSentInUsd?: QuoteMetadata['sentAmount']['usd'];
-    quotedGasInUsd?: QuoteMetadata['gasFee']['usd'];
+    quotedGasInUsd?: QuoteMetadata['gasFee']['effective']['usd'];
+    quotedGasAmount?: QuoteMetadata['gasFee']['effective']['amount'];
     quotedReturnInUsd?: QuoteMetadata['toTokenAmount']['usd'];
     quotedRefuelSrcAmountInUsd?: string;
     quotedRefuelDestAmountInUsd?: string;
@@ -146,6 +147,7 @@ export enum BridgeStatusAction {
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
   RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
+  GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -195,6 +197,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
+  accountAddress: string;
 };
 
 /**
@@ -244,13 +247,17 @@ export type BridgeStatusControllerSubmitTxAction =
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
 
+export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
+  BridgeStatusControllerAction<BridgeStatusAction.GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
   | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerRestartPollingForFailedAttemptsAction;
+  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<

@@ -1,7 +1,12 @@
 import {
   CaveatMutatorOperation,
   PermissionType,
+  type SubjectPermissions,
+  type ExtractPermission,
+  type PermissionSpecificationConstraint,
+  type CaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
+import { pick } from 'lodash';
 
 import type { Caip25CaveatValue } from './caip25Permission';
 import {
@@ -14,7 +19,10 @@ import {
   diffScopesForCaip25CaveatValue,
   generateCaip25Caveat,
   getCaip25CaveatFromPermission,
+  getCaip25PermissionFromLegacyPermissions,
+  requestPermittedChainsPermissionIncremental,
 } from './caip25Permission';
+import { CaveatTypes, PermissionKeys } from './constants';
 import { KnownSessionProperties } from './scope/constants';
 import * as ScopeSupported from './scope/supported';
 
@@ -26,6 +34,9 @@ jest.mock('./scope/supported', () => ({
 const MockScopeSupported = jest.mocked(ScopeSupported);
 
 const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
+
+const mockRequestPermissionsIncremental = jest.fn();
+const mockGrantPermissionsIncremental = jest.fn();
 
 describe('caip25EndowmentBuilder', () => {
   describe('specificationBuilder', () => {
@@ -1757,5 +1768,591 @@ describe('generateCaip25Caveat', () => {
 
       expect(result).toBeUndefined();
     });
+  });
+});
+
+describe('requestPermittedChainsPermissionIncremental', () => {
+  it('requests permittedChains approval if autoApprove: false', async () => {
+    const subjectPermissions: Partial<
+      SubjectPermissions<
+        ExtractPermission<
+          PermissionSpecificationConstraint,
+          CaveatSpecificationConstraint
+        >
+      >
+    > = {
+      [Caip25EndowmentPermissionName]: {
+        id: 'id',
+        date: 1,
+        invoker: 'origin',
+        parentCapability: PermissionKeys.permittedChains,
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: {},
+              optionalScopes: { 'eip155:1': { accounts: [] } },
+              isMultichainOrigin: false,
+              sessionProperties: {},
+            },
+          },
+        ],
+      },
+    };
+
+    const expectedCaip25Permission = {
+      [Caip25EndowmentPermissionName]: pick(
+        subjectPermissions[Caip25EndowmentPermissionName],
+        'caveats',
+      ),
+    };
+
+    mockRequestPermissionsIncremental.mockResolvedValue([
+      subjectPermissions,
+      { id: 'id', origin: 'origin' },
+    ]);
+
+    await requestPermittedChainsPermissionIncremental({
+      origin: 'test.com',
+      chainId: '0x1',
+      autoApprove: false,
+      hooks: {
+        requestPermissionsIncremental: mockRequestPermissionsIncremental,
+        grantPermissionsIncremental: mockGrantPermissionsIncremental,
+      },
+    });
+
+    expect(mockRequestPermissionsIncremental).toHaveBeenCalledWith(
+      { origin: 'test.com' },
+      expectedCaip25Permission,
+      undefined, // undefined metadata
+    );
+  });
+
+  it('throws if permittedChains approval is rejected', async () => {
+    mockRequestPermissionsIncremental.mockRejectedValue(
+      new Error('approval rejected'),
+    );
+
+    await expect(() =>
+      requestPermittedChainsPermissionIncremental({
+        origin: 'test.com',
+        chainId: '0x1',
+        autoApprove: false,
+        hooks: {
+          requestPermissionsIncremental: mockRequestPermissionsIncremental,
+          grantPermissionsIncremental: mockGrantPermissionsIncremental,
+        },
+      }),
+    ).rejects.toThrow(new Error('approval rejected'));
+  });
+
+  it('grants permittedChains approval if autoApprove: true', async () => {
+    const subjectPermissions: Partial<
+      SubjectPermissions<
+        ExtractPermission<
+          PermissionSpecificationConstraint,
+          CaveatSpecificationConstraint
+        >
+      >
+    > = {
+      [Caip25EndowmentPermissionName]: {
+        id: 'id',
+        date: 1,
+        invoker: 'origin',
+        parentCapability: PermissionKeys.permittedChains,
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: {},
+              optionalScopes: { 'eip155:1': { accounts: [] } },
+              isMultichainOrigin: false,
+              sessionProperties: {},
+            },
+          },
+        ],
+      },
+    };
+
+    const expectedCaip25Permission = {
+      [Caip25EndowmentPermissionName]: pick(
+        subjectPermissions[Caip25EndowmentPermissionName],
+        'caveats',
+      ),
+    };
+
+    mockGrantPermissionsIncremental.mockReturnValue(subjectPermissions);
+
+    await requestPermittedChainsPermissionIncremental({
+      origin: 'test.com',
+      chainId: '0x1',
+      autoApprove: true,
+      hooks: {
+        requestPermissionsIncremental: mockRequestPermissionsIncremental,
+        grantPermissionsIncremental: mockGrantPermissionsIncremental,
+      },
+    });
+
+    expect(mockGrantPermissionsIncremental).toHaveBeenCalledWith({
+      subject: { origin: 'test.com' },
+      approvedPermissions: expectedCaip25Permission,
+    });
+  });
+
+  it('throws if autoApprove: true and granting permittedChains throws', async () => {
+    mockGrantPermissionsIncremental.mockImplementation(() => {
+      throw new Error('Invalid merged permissions for subject "test.com"');
+    });
+
+    await expect(() =>
+      requestPermittedChainsPermissionIncremental({
+        origin: 'test.com',
+        chainId: '0x1',
+        autoApprove: true,
+        hooks: {
+          requestPermissionsIncremental: mockRequestPermissionsIncremental,
+          grantPermissionsIncremental: mockGrantPermissionsIncremental,
+        },
+      }),
+    ).rejects.toThrow(
+      new Error('Invalid merged permissions for subject "test.com"'),
+    );
+  });
+
+  it('passes metadata to requestPermissionsIncremental when metadata is provided', async () => {
+    const subjectPermissions: Partial<
+      SubjectPermissions<
+        ExtractPermission<
+          PermissionSpecificationConstraint,
+          CaveatSpecificationConstraint
+        >
+      >
+    > = {
+      [Caip25EndowmentPermissionName]: {
+        id: 'id',
+        date: 1,
+        invoker: 'origin',
+        parentCapability: PermissionKeys.permittedChains,
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: {},
+              optionalScopes: { 'eip155:1': { accounts: [] } },
+              isMultichainOrigin: false,
+              sessionProperties: {},
+            },
+          },
+        ],
+      },
+    };
+
+    const expectedCaip25Permission = {
+      [Caip25EndowmentPermissionName]: pick(
+        subjectPermissions[Caip25EndowmentPermissionName],
+        'caveats',
+      ),
+    };
+
+    const metadata = { options: { someOption: 'testValue' } };
+
+    mockRequestPermissionsIncremental.mockResolvedValue([
+      subjectPermissions,
+      { id: 'id', origin: 'origin' },
+    ]);
+
+    await requestPermittedChainsPermissionIncremental({
+      origin: 'test.com',
+      chainId: '0x1',
+      autoApprove: false,
+      metadata,
+      hooks: {
+        requestPermissionsIncremental: mockRequestPermissionsIncremental,
+        grantPermissionsIncremental: mockGrantPermissionsIncremental,
+      },
+    });
+
+    expect(mockRequestPermissionsIncremental).toHaveBeenCalledWith(
+      { origin: 'test.com' },
+      expectedCaip25Permission,
+      { metadata },
+    );
+  });
+});
+
+describe('getCaip25PermissionFromLegacyPermissions', () => {
+  it('returns valid CAIP-25 permissions', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({});
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'wallet:eip155': {
+                    accounts: [],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only eth_accounts is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.eth_accounts]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictReturnedAccounts,
+            value: ['0x0000000000000000000000000000000000000001'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'wallet:eip155': {
+                    accounts: [
+                      'wallet:eip155:0x0000000000000000000000000000000000000001',
+                    ],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when only permittedChains is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.permittedChains]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictNetworkSwitching,
+            value: ['0x64'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'wallet:eip155': {
+                    accounts: [],
+                  },
+                  'eip155:100': {
+                    accounts: [],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when both are specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.eth_accounts]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictReturnedAccounts,
+            value: ['0x0000000000000000000000000000000000000001'],
+          },
+        ],
+      },
+      [PermissionKeys.permittedChains]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictNetworkSwitching,
+            value: ['0x64'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'wallet:eip155': {
+                    accounts: [
+                      'wallet:eip155:0x0000000000000000000000000000000000000001',
+                    ],
+                  },
+                  'eip155:100': {
+                    accounts: [
+                      'eip155:100:0x0000000000000000000000000000000000000001',
+                    ],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns approval from the PermissionsController for only eth_accounts when only eth_accounts is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.eth_accounts]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictReturnedAccounts,
+            value: ['0x0000000000000000000000000000000000000001'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'wallet:eip155': {
+                    accounts: [
+                      'wallet:eip155:0x0000000000000000000000000000000000000001',
+                    ],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns approval from the PermissionsController for only eth_accounts when only permittedChains is specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.permittedChains]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictNetworkSwitching,
+            value: ['0x64'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'eip155:100': {
+                    accounts: [],
+                  },
+                  'wallet:eip155': {
+                    accounts: [],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns approval from the PermissionsController for eth_accounts and permittedChains when both eth_accounts and permittedChains are specified in params', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.eth_accounts]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictReturnedAccounts,
+            value: ['0x0000000000000000000000000000000000000001'],
+          },
+        ],
+      },
+      [PermissionKeys.permittedChains]: {
+        caveats: [
+          {
+            type: CaveatTypes.restrictNetworkSwitching,
+            value: ['0x64'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'eip155:100': {
+                    accounts: [
+                      'eip155:100:0x0000000000000000000000000000000000000001',
+                    ],
+                  },
+                  'wallet:eip155': {
+                    accounts: [
+                      'wallet:eip155:0x0000000000000000000000000000000000000001',
+                    ],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns CAIP-25 approval with accounts and chainIds specified from `eth_accounts` and `endowment:permittedChains` permissions caveats', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.eth_accounts]: {
+        caveats: [
+          {
+            type: 'restrictReturnedAccounts',
+            value: ['0xdeadbeef'],
+          },
+        ],
+      },
+      [PermissionKeys.permittedChains]: {
+        caveats: [
+          {
+            type: 'restrictNetworkSwitching',
+            value: ['0x1', '0x5'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'wallet:eip155': {
+                    accounts: ['wallet:eip155:0xdeadbeef'],
+                  },
+                  'eip155:1': {
+                    accounts: ['eip155:1:0xdeadbeef'],
+                  },
+                  'eip155:5': {
+                    accounts: ['eip155:5:0xdeadbeef'],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('returns CAIP-25 approval with approved accounts for the `wallet:eip155` scope', async () => {
+    const permissions = getCaip25PermissionFromLegacyPermissions({
+      [PermissionKeys.eth_accounts]: {
+        caveats: [
+          {
+            type: 'restrictReturnedAccounts',
+            value: ['0xdeadbeef'],
+          },
+        ],
+      },
+      [PermissionKeys.permittedChains]: {
+        caveats: [
+          {
+            type: 'restrictNetworkSwitching',
+            value: ['0x1', '0x5'],
+          },
+        ],
+      },
+    });
+
+    expect(permissions).toStrictEqual(
+      expect.objectContaining({
+        [Caip25EndowmentPermissionName]: {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {
+                  'eip155:1': {
+                    accounts: ['eip155:1:0xdeadbeef'],
+                  },
+                  'eip155:5': {
+                    accounts: ['eip155:5:0xdeadbeef'],
+                  },
+                  'wallet:eip155': {
+                    accounts: ['wallet:eip155:0xdeadbeef'],
+                  },
+                },
+                isMultichainOrigin: false,
+                sessionProperties: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
   });
 });

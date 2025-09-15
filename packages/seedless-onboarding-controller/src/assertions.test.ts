@@ -1,4 +1,7 @@
-import { assertIsValidVaultData } from './assertions';
+import {
+  assertIsPasswordOutdatedCacheValid,
+  assertIsValidVaultData,
+} from './assertions';
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
 
 describe('assertIsValidVaultData', () => {
@@ -19,10 +22,10 @@ describe('assertIsValidVaultData', () => {
     it('should throw when value is null or undefined', () => {
       expect(() => {
         assertIsValidVaultData(null);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
       expect(() => {
         assertIsValidVaultData(undefined);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
     it('should throw when toprfEncryptionKey is missing or not a string', () => {
@@ -31,7 +34,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
       const invalidData2 = {
         ...createValidVaultData(),
         toprfEncryptionKey: 123,
@@ -39,7 +42,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
     it('should throw when toprfPwEncryptionKey is missing or not a string', () => {
@@ -48,7 +51,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
 
       const invalidData2 = {
         ...createValidVaultData(),
@@ -57,7 +60,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
     it('should throw when toprfAuthKeyPair is missing or not a string', () => {
@@ -66,7 +69,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
 
       const invalidData2 = {
         ...createValidVaultData(),
@@ -75,7 +78,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
     it('should throw when revokeToken exists but is not a string or undefined', () => {
@@ -86,7 +89,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
 
       const invalidData2 = {
         ...createValidVaultData(),
@@ -95,7 +98,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
 
       const invalidData3 = {
         ...createValidVaultData(),
@@ -104,7 +107,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData3);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
     it('should throw when accessToken is missing or not a string', () => {
@@ -113,7 +116,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
 
       const invalidData2 = {
         ...createValidVaultData(),
@@ -122,7 +125,7 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
   });
 
@@ -190,5 +193,53 @@ describe('assertIsValidVaultData', () => {
         assertIsValidVaultData(validDataWithExtras);
       }).not.toThrow();
     });
+  });
+});
+
+describe('assertIsPasswordOutdatedCacheValid', () => {
+  it('should throw when value is not a valid number', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(null);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is a negative number', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(-1);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should not throw when value is a valid number', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(1000);
+    }).not.toThrow();
+  });
+
+  it('should throw when value is NaN', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(NaN);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is Infinity', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(Infinity);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+
+  it('should throw when value is -Infinity', () => {
+    expect(() => {
+      assertIsPasswordOutdatedCacheValid(-Infinity);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
   });
 });

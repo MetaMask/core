@@ -31,7 +31,11 @@ export function getMultichainAccountServiceMessenger(
 ): MultichainAccountServiceMessenger {
   return messenger.getRestricted({
     name: 'MultichainAccountService',
-    allowedEvents: ['KeyringController:stateChange'],
+    allowedEvents: [
+      'KeyringController:stateChange',
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+    ],
     allowedActions: [
       'AccountsController:getAccount',
       'AccountsController:getAccountByAddress',
@@ -39,6 +43,8 @@ export function getMultichainAccountServiceMessenger(
       'SnapController:handleRequest',
       'KeyringController:withKeyring',
       'KeyringController:getState',
+      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
     ],
   });
 }

@@ -88,6 +88,7 @@ import {
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
+  AssetsFiatValues,
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
   SavedGasFees,
@@ -121,6 +122,7 @@ import type {
   BeforeSignHook,
   TransactionContainerType,
   NestedTransactionMetadata,
+  GetSimulationConfig,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -182,24 +184,34 @@ import {
  */
 const metadata = {
   transactions: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   transactionBatches: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   methodData: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   lastFetchedBlockNumbers: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
   submitHistory: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
 };
 
@@ -351,6 +363,11 @@ export type TransactionControllerOptions = {
 
   /** Gets the saved gas fee config. */
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+
+  /**
+   * Gets the transaction simulation configuration.
+   */
+  getSimulationConfig?: GetSimulationConfig;
 
   /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
@@ -752,6 +769,8 @@ export class TransactionController extends BaseController<
 
   readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
+  readonly #getSimulationConfig: GetSimulationConfig;
+
   readonly #incomingTransactionHelper: IncomingTransactionHelper;
 
   readonly #incomingTransactionOptions: IncomingTransactionOptions & {
@@ -831,6 +850,7 @@ export class TransactionController extends BaseController<
       getNetworkState,
       getPermittedAccounts,
       getSavedGasFees,
+      getSimulationConfig,
       hooks,
       incomingTransactions = {},
       isAutomaticGasFeeUpdateEnabled,
@@ -881,6 +901,8 @@ export class TransactionController extends BaseController<
     this.#getNetworkState = getNetworkState;
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
+    this.#getSimulationConfig =
+      getSimulationConfig ?? (() => Promise.resolve({}));
     this.#incomingTransactionOptions = incomingTransactions;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
@@ -1059,6 +1081,7 @@ export class TransactionController extends BaseController<
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getGasFeeEstimates: this.#getGasFeeEstimates,
       getInternalAccounts: this.#getInternalAccounts.bind(this),
+      getSimulationConfig: this.#getSimulationConfig.bind(this),
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           provider: this.#getProvider({ networkClientId }),
@@ -1077,6 +1100,7 @@ export class TransactionController extends BaseController<
         transactionMeta: TransactionMeta,
       ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
       request,
+      signTransaction: this.#signTransaction.bind(this),
       update: this.update.bind(this),
       updateTransaction: this.#updateTransactionInternal.bind(this),
     });
@@ -1107,9 +1131,11 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.assetsFiatValues - The fiat values of the assets being sent and received.
    * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
+   * @param options.isGasFeeIncluded - Whether MetaMask will be compensated for the gas fee by the transaction.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
@@ -1129,9 +1155,11 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: {
       actionId?: string;
+      assetsFiatValues?: AssetsFiatValues;
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       disableGasBuffer?: boolean;
+      isGasFeeIncluded?: boolean;
       method?: string;
       nestedTransactions?: NestedTransactionMetadata[];
       networkClientId: NetworkClientId;
@@ -1152,9 +1180,11 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      assetsFiatValues,
       batchId,
       deviceConfirmedOn,
       disableGasBuffer,
+      isGasFeeIncluded,
       method,
       nestedTransactions,
       networkClientId,
@@ -1245,6 +1275,7 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          assetsFiatValues,
           batchId,
           chainId,
           dappSuggestedGasFees,
@@ -1252,6 +1283,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
+          isGasFeeIncluded,
           isFirstTimeInteraction: undefined,
           nestedTransactions,
           networkClientId,
@@ -1602,6 +1634,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txParams: transaction,
     });
@@ -1630,6 +1663,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txParams: transaction,
     });
@@ -2042,6 +2076,7 @@ export class TransactionController extends BaseController<
    * @param params.gasPrice - Price per gas for legacy transactions.
    * @param params.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
    * @param params.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @param params.updateType - Whether to update the transaction type. Defaults to `true`.
    * @param params.to - Address to send the transaction to.
    * @param params.value - Value associated with the transaction.
    * @returns The updated transaction metadata.
@@ -2057,6 +2092,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       maxPriorityFeePerGas,
       to,
+      updateType,
       value,
     }: {
       containerTypes?: TransactionContainerType[];
@@ -2067,6 +2103,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas?: string;
       maxPriorityFeePerGas?: string;
       to?: string;
+      updateType?: boolean;
       value?: string;
     },
   ) {
@@ -2103,12 +2140,14 @@ export class TransactionController extends BaseController<
     const provider = this.#getProvider({ networkClientId });
     const ethQuery = new EthQuery(provider);
 
-    const { type } = await determineTransactionType(
-      updatedTransaction.txParams,
-      ethQuery,
-    );
+    if (updateType !== false) {
+      const { type } = await determineTransactionType(
+        updatedTransaction.txParams,
+        ethQuery,
+      );
 
-    updatedTransaction.type = type;
+      updatedTransaction.type = type;
+    }
 
     if (containerTypes) {
       updatedTransaction.containerTypes = containerTypes;
@@ -2697,6 +2736,33 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Update the required transaction IDs for a transaction.
+   *
+   * @param request - The request object.
+   * @param request.transactionId - The ID of the transaction to update.
+   * @param request.requiredTransactionIds - The additional required transaction IDs.
+   * @param request.append - Whether to append the IDs to any existing values. Defaults to true.
+   */
+  updateRequiredTransactionIds({
+    transactionId,
+    requiredTransactionIds,
+    append,
+  }: {
+    transactionId: string;
+    requiredTransactionIds: string[];
+    append?: boolean;
+  }) {
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      const { requiredTransactionIds: existing } = transactionMeta;
+
+      transactionMeta.requiredTransactionIds = [
+        ...(existing && append !== false ? existing : []),
+        ...requiredTransactionIds,
+      ];
+    });
+  }
+
   #addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -3028,7 +3094,6 @@ export class TransactionController extends BaseController<
 
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
-          transactions: transactionMeta.batchTransactions,
         });
 
         publishHookOverride = extraTransactionsPublishHook.getHook();
@@ -4144,24 +4209,28 @@ export class TransactionController extends BaseController<
       },
       tokenBalanceChanges: [],
     };
-
+    let gasUsed: Hex | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
+    let isGasFeeSponsored = false;
 
     const isBalanceChangesSkipped =
       this.#skipSimulationTransactionIds.has(transactionId);
 
     if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
-      simulationData = await this.#trace(
+      const balanceChangesResult = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
           getBalanceChanges({
             blockTime,
             chainId,
             ethQuery: this.#getEthQuery({ networkClientId }),
+            getSimulationConfig: this.#getSimulationConfig,
             nestedTransactions,
             txParams,
           }),
       );
+      simulationData = balanceChangesResult.simulationData;
+      gasUsed = balanceChangesResult.gasUsed;
 
       if (
         blockTime &&
@@ -4174,13 +4243,16 @@ export class TransactionController extends BaseController<
         };
       }
 
-      gasFeeTokens = await getGasFeeTokens({
+      const gasFeeTokensResponse = await getGasFeeTokens({
         chainId,
+        getSimulationConfig: this.#getSimulationConfig,
         isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
         messenger: this.messagingSystem,
         publicKeyEIP7702: this.#publicKeyEIP7702,
         transactionMeta,
       });
+      gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
+      isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
     }
 
     const latestTransactionMeta = this.#getTransaction(transactionId);
@@ -4204,6 +4276,8 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
+        txMeta.isGasFeeSponsored = isGasFeeSponsored;
+        txMeta.gasUsed = gasUsed;
 
         if (!isBalanceChangesSkipped) {
           txMeta.simulationData = simulationData;
@@ -4335,6 +4409,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messagingSystem,
       txMeta: transactionMeta,
     });

@@ -4,6 +4,7 @@ import { arrangeAuthAPIs } from './__fixtures__/auth';
 import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
+import * as AuthServices from './authentication-jwt-bearer/services';
 import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
 import {
   NonceRetrievalError,
@@ -174,7 +175,7 @@ describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUs
       mockNonceUrl,
       mockSrpLoginUrl,
       mockOAuth2TokenUrl,
-      mockUserProfileMetaMetricsUrl,
+      mockUserProfileLineageUrl,
     } = arrangeAuthAPIs();
 
     // Token
@@ -185,15 +186,72 @@ describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUs
     const profileResponse = await auth.getUserProfile();
     expect(profileResponse).toBeDefined();
 
-    // User Profile MetaMetrics
-    const userProfileMetaMetrics = await auth.getUserProfileMetaMetrics();
-    expect(userProfileMetaMetrics).toBeDefined();
+    // User Profile Lineage
+    const userProfileLineage = await auth.getUserProfileLineage();
+    expect(userProfileLineage).toBeDefined();
 
     // API
     expect(mockNonceUrl.isDone()).toBe(true);
     expect(mockSrpLoginUrl.isDone()).toBe(true);
     expect(mockOAuth2TokenUrl.isDone()).toBe(true);
-    expect(mockUserProfileMetaMetricsUrl.isDone()).toBe(true);
+    expect(mockUserProfileLineageUrl.isDone()).toBe(true);
+  });
+
+  it('prevents race conditions with concurrent login attempts', async () => {
+    const { auth, mockGetLoginResponse } = arrangeAuth('SRP', MOCK_SRP);
+
+    // Mock expired token that will force re-authentication on the 4th call
+    const expiredToken = createMockStoredProfile();
+    expiredToken.token.expiresIn = 1; // 1 second expiration
+    expiredToken.token.obtainedAt = Date.now() - 2000; // 2 seconds ago (expired)
+
+    // First call returns null (no cached session), subsequent calls return expired token
+    mockGetLoginResponse
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(expiredToken);
+
+    arrangeAuthAPIs();
+
+    // Spy on the service methods to count how many times they're called
+    const getNonceSpy = jest.spyOn(AuthServices, 'getNonce');
+    const authenticateSpy = jest.spyOn(AuthServices, 'authenticate');
+    const authorizeOIDCSpy = jest.spyOn(AuthServices, 'authorizeOIDC');
+
+    // Make three concurrent login attempts
+    const loginPromise1 = auth.getAccessToken();
+    const loginPromise2 = auth.getAccessToken();
+    const loginPromise3 = auth.getAccessToken();
+
+    // Wait for all promises to resolve
+    const [token1, token2, token3] = await Promise.all([
+      loginPromise1,
+      loginPromise2,
+      loginPromise3,
+    ]);
+
+    // All should return the same token
+    expect(token1).toBe(MOCK_ACCESS_JWT);
+    expect(token2).toBe(MOCK_ACCESS_JWT);
+    expect(token3).toBe(MOCK_ACCESS_JWT);
+
+    // Verify that each service was called exactly once despite three concurrent requests
+    expect(getNonceSpy).toHaveBeenCalledTimes(1);
+    expect(authenticateSpy).toHaveBeenCalledTimes(1);
+    expect(authorizeOIDCSpy).toHaveBeenCalledTimes(1);
+
+    // After the concurrent promises resolve, make another call with expired token
+    // This should trigger a second login because the cached token is expired
+    const token4 = await auth.getAccessToken();
+    expect(token4).toBe(MOCK_ACCESS_JWT);
+
+    // Service methods should now have been called twice (initial login + expired token refresh)
+    expect(getNonceSpy).toHaveBeenCalledTimes(2);
+    expect(authenticateSpy).toHaveBeenCalledTimes(2);
+    expect(authorizeOIDCSpy).toHaveBeenCalledTimes(2);
+
+    getNonceSpy.mockRestore();
+    authenticateSpy.mockRestore();
+    authorizeOIDCSpy.mockRestore();
   });
 
   it('the SRP signIn failed: nonce error', async () => {

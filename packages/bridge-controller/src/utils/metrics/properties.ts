@@ -1,6 +1,6 @@
 import type { CaipChainId } from '@metamask/utils';
 
-import { MetricsActionType, MetricsSwapType } from './constants';
+import { MetricsSwapType } from './constants';
 import type { InputKeys, InputValues } from './types';
 import type { AccountsControllerState } from '../../../../accounts-controller/src/AccountsController';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
@@ -26,7 +26,7 @@ export const toInputChangedPropertyValue: Partial<
   Record<
     keyof typeof toInputChangedPropertyKey,
     (
-      value: Partial<GenericQuoteRequest>,
+      input_value: Partial<GenericQuoteRequest>,
     ) => InputValues[keyof InputValues] | undefined
   >
 > = {
@@ -43,22 +43,6 @@ export const toInputChangedPropertyValue: Partial<
   destChainId: ({ destChainId }) =>
     destChainId ? formatChainIdToCaip(destChainId) : undefined,
   slippage: ({ slippage }) => (slippage ? Number(slippage) : slippage),
-};
-
-export const getActionType = (
-  srcChainId?: GenericQuoteRequest['srcChainId'],
-  destChainId?: GenericQuoteRequest['destChainId'],
-) => {
-  if (srcChainId && !isCrossChain(srcChainId, destChainId ?? srcChainId)) {
-    return MetricsActionType.SWAPBRIDGE_V1;
-  }
-  return MetricsActionType.CROSSCHAIN_V1;
-};
-
-export const getActionTypeFromQuoteRequest = (
-  quoteRequest: Partial<GenericQuoteRequest>,
-) => {
-  return getActionType(quoteRequest.srcChainId, quoteRequest.destChainId);
 };
 
 export const getSwapType = (

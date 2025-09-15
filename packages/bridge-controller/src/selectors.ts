@@ -264,7 +264,16 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   ) => {
     const newQuotes = quotes.map((quote) => {
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
-      const toTokenAmount = calcToAmount(quote.quote, destTokenExchangeRate);
+      const toTokenAmount = calcToAmount(
+        quote.quote.destTokenAmount,
+        quote.quote.destAsset,
+        destTokenExchangeRate,
+      );
+      const minToTokenAmount = calcToAmount(
+        quote.quote.minDestTokenAmount,
+        quote.quote.destAsset,
+        destTokenExchangeRate,
+      );
 
       const includedTxFees = calcIncludedTxFees(
         quote.quote,
@@ -272,14 +281,21 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         destTokenExchangeRate,
       );
 
-      let totalEstimatedNetworkFee, gasFee, totalMaxNetworkFee, relayerFee;
+      let totalEstimatedNetworkFee,
+        totalMaxNetworkFee,
+        relayerFee,
+        gasFee: QuoteMetadata['gasFee'];
 
       if (isSolanaChainId(quote.quote.srcChainId)) {
         totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
           quote,
           nativeExchangeRate,
         );
-        gasFee = totalEstimatedNetworkFee;
+        gasFee = {
+          effective: totalEstimatedNetworkFee,
+          total: totalEstimatedNetworkFee,
+          max: totalEstimatedNetworkFee,
+        };
         totalMaxNetworkFee = totalEstimatedNetworkFee;
       } else {
         relayerFee = calcRelayerFee(quote, nativeExchangeRate);
@@ -288,6 +304,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
           ...bridgeFeesPerGas,
           ...nativeExchangeRate,
         });
+        // Uses effectiveGasFee to calculate the total estimated network fee
         totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(
           gasFee,
           relayerFee,
@@ -307,6 +324,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         // QuoteMetadata fields
         sentAmount,
         toTokenAmount,
+        minToTokenAmount,
         swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
         totalNetworkFee: totalEstimatedNetworkFee,
         totalMaxNetworkFee,

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add constant `NETWORKS_BYPASSING_VALIDATION` to allow clients to ignore warning messages for specific networks. ([#6557](https://github.com/MetaMask/core/pull/6557))
+- Add `circuitBreakDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This is the amount of time that the underlying circuit breaker policy will pause execution of the input function while the circuit is broken.
+- Add `getRemainingCircuitOpenDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This returns the amount of time after which the underlying circuit breaker policy will resume execution of the input function after the circuit reopens.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
+## [11.12.0]
+
+### Added
+
+- Update `onDegraded` property in `ServicePolicy` so that the event listener payload may be an object with either an `error` or `value` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - The payload will be empty (i.e. the object will be `undefined`) if the degraded event merely represents a slow request.
+  - `ServicePolicy` is the type returned by `createServicePolicy`.
+  - **NOTE:** Although `error` and `value` are new, optional properties, this change makes an inadvertent breaking change to the signature of the event listener due to how TypeScript compares function types. We have conciously decided not to re-release this change under a major version, so be advised.
+
 ## [11.11.0]
 
 ### Added
@@ -548,7 +569,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.12.0...HEAD
+[11.12.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...@metamask/controller-utils@11.12.0
 [11.11.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...@metamask/controller-utils@11.11.0
 [11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0
 [11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0

@@ -4,7 +4,12 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { remove0x } from '@metamask/utils';
+import {
+  hexToNumber,
+  KnownCaipNamespace,
+  remove0x,
+  toCaipChainId,
+} from '@metamask/utils';
 import BN from 'bn.js';
 
 import type { Nft, NftMetadata } from './NftController';
@@ -451,4 +456,22 @@ export function getKeyByValue(map: Map<string, string>, value: string) {
     }
   }
   return null; // Return null if no match is found
+}
+
+/**
+ * Converts a hex chainId and account address to a CAIP account reference.
+ *
+ * @param chainId - The hex chain ID
+ * @param accountAddress - The account address
+ * @returns The CAIP account reference in format "namespace:reference:address"
+ */
+export function accountAddressToCaipReference(
+  chainId: Hex,
+  accountAddress: string,
+) {
+  const caipChainId = toCaipChainId(
+    KnownCaipNamespace.Eip155,
+    hexToNumber(chainId).toString(),
+  );
+  return `${caipChainId}:${accountAddress}`;
 }

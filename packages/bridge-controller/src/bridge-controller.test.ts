@@ -28,6 +28,7 @@ import {
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
 import { formatChainIdToCaip } from './utils/caip-formatters';
+import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
   MetaMetricsSwapsEventSource,
@@ -35,6 +36,7 @@ import {
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
+import { FeatureId } from './utils/validators';
 import { flushPromises } from '../../../tests/helpers';
 import { handleFetch } from '../../controller-utils/src';
 import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json';
@@ -311,7 +313,10 @@ describe('BridgeController', function () {
       .mockImplementationOnce(async () => {
         return await new Promise((resolve) => {
           return setTimeout(() => {
-            resolve(mockBridgeQuotesNativeErc20Eth as never);
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
           }, 5000);
         });
       });
@@ -319,10 +324,13 @@ describe('BridgeController', function () {
     fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
       return await new Promise((resolve) => {
         return setTimeout(() => {
-          resolve([
-            ...mockBridgeQuotesNativeErc20Eth,
-            ...mockBridgeQuotesNativeErc20Eth,
-          ] as never);
+          resolve({
+            quotes: [
+              ...mockBridgeQuotesNativeErc20Eth,
+              ...mockBridgeQuotesNativeErc20Eth,
+            ] as never,
+            validationFailures: [],
+          });
         }, 10000);
       });
     });
@@ -338,10 +346,13 @@ describe('BridgeController', function () {
     fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
       return await new Promise((resolve) => {
         return setTimeout(() => {
-          resolve([
-            ...mockBridgeQuotesNativeErc20Eth,
-            ...mockBridgeQuotesNativeErc20Eth,
-          ] as never);
+          resolve({
+            quotes: [
+              ...mockBridgeQuotesNativeErc20Eth,
+              ...mockBridgeQuotesNativeErc20Eth,
+            ] as never,
+            validationFailures: [],
+          });
         }, 10000);
       });
     });
@@ -599,7 +610,10 @@ describe('BridgeController', function () {
       .mockImplementation(async () => {
         return await new Promise((resolve) => {
           return setTimeout(() => {
-            resolve(mockBridgeQuotesSolErc20 as never);
+            resolve({
+              quotes: mockBridgeQuotesSolErc20 as never,
+              validationFailures: [],
+            });
           }, 2000);
         });
       });
@@ -790,18 +804,24 @@ describe('BridgeController', function () {
       .mockImplementationOnce(async () => {
         return await new Promise((resolve) => {
           return setTimeout(() => {
-            resolve(mockBridgeQuotesNativeErc20Eth as never);
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
           }, 5000);
         });
       });
 
-    fetchBridgeQuotesSpy.mockImplementation(async () => {
+    fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
       return await new Promise((resolve) => {
         return setTimeout(() => {
-          resolve([
-            ...mockBridgeQuotesNativeErc20Eth,
-            ...mockBridgeQuotesNativeErc20Eth,
-          ] as never);
+          resolve({
+            quotes: [
+              ...mockBridgeQuotesNativeErc20Eth,
+              ...mockBridgeQuotesNativeErc20Eth,
+            ] as never,
+            validationFailures: [],
+          });
         }, 10000);
       });
     });
@@ -891,11 +911,13 @@ describe('BridgeController', function () {
         warnings: ['warning1'],
         usd_quoted_gas: 0,
         gas_included: false,
+        gas_included_7702: false,
         quoted_time_minutes: 10,
         usd_quoted_return: 100,
         price_impact: 0,
         provider: 'provider_bridge',
         best_quote_provider: 'provider_bridge2',
+        can_submit: true,
       },
     );
 
@@ -975,18 +997,24 @@ describe('BridgeController', function () {
       .mockImplementationOnce(async () => {
         return await new Promise((resolve) => {
           return setTimeout(() => {
-            resolve(mockBridgeQuotesNativeErc20Eth as never);
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
           }, 5000);
         });
       });
 
-    fetchBridgeQuotesSpy.mockImplementation(async () => {
+    fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
       return await new Promise((resolve) => {
         return setTimeout(() => {
-          resolve([
-            ...mockBridgeQuotesNativeErc20Eth,
-            ...mockBridgeQuotesNativeErc20Eth,
-          ] as never);
+          resolve({
+            quotes: [
+              ...mockBridgeQuotesNativeErc20Eth,
+              ...mockBridgeQuotesNativeErc20Eth,
+            ] as never,
+            validationFailures: [],
+          });
         }, 10000);
       });
     });
@@ -1253,7 +1281,10 @@ describe('BridgeController', function () {
         .mockImplementationOnce(async () => {
           return await new Promise((resolve) => {
             return setTimeout(() => {
-              resolve(quoteResponse as never);
+              resolve({
+                quotes: quoteResponse as never,
+                validationFailures: [],
+              });
             }, 1000);
           });
         });
@@ -1380,7 +1411,10 @@ describe('BridgeController', function () {
     fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
       return await new Promise((resolve) => {
         return setTimeout(() => {
-          resolve(mockBridgeQuotesNativeErc20Eth as never);
+          resolve({
+            quotes: mockBridgeQuotesNativeErc20Eth,
+            validationFailures: [],
+          } as never);
         }, 1000);
       });
     });
@@ -1461,10 +1495,71 @@ describe('BridgeController', function () {
     );
   });
 
+  it('returns early on AbortError without updating post-fetch state', async () => {
+    jest.useFakeTimers();
+
+    const abortError = new Error('Aborted');
+    // Make it look like an AbortError to hit the early return
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    abortError.name = 'AbortError';
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(
+        async () =>
+          await new Promise((_resolve, reject) => {
+            setTimeout(() => reject(abortError), 1000);
+          }),
+      );
+
+    // Minimal messenger/env setup to allow polling to start
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+      selectedNetworkClientId: 'selectedNetworkClientId',
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
+    } as never);
+
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Trigger the fetch + abort rejection
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+
+    // Early return path: no post-fetch updates
+    expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state.quoteFetchError).toBeNull();
+    expect(bridgeController.state.quotesLoadingStatus).toBe(
+      RequestStatus.LOADING,
+    );
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
+    expect(bridgeController.state.quotesRefreshCount).toBe(0);
+    expect(bridgeController.state.quotes).toStrictEqual([]);
+  });
+
   it.each([
     [
       'should append solanaFees for Solana quotes',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
+      [],
       2,
       '5000',
       '300',
@@ -1472,6 +1567,7 @@ describe('BridgeController', function () {
     [
       'should not append solanaFees if selected account is not a snap',
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
+      [],
       2,
       undefined,
       '0',
@@ -1483,6 +1579,22 @@ describe('BridgeController', function () {
         ...mockBridgeQuotesSolErc20,
         ...mockBridgeQuotesErc20Native,
       ] as unknown as QuoteResponse[],
+      [],
+      8,
+      undefined,
+      '1',
+    ],
+    [
+      'should handle malformed quotes',
+      [
+        ...mockBridgeQuotesSolErc20,
+        ...mockBridgeQuotesErc20Native,
+      ] as unknown as QuoteResponse[],
+      [
+        'socket|quote.srcAsset.decimals',
+        'socket|quote.destAsset.address',
+        'lifi|quote.srcAsset.decimals',
+      ],
       8,
       undefined,
       '1',
@@ -1492,6 +1604,7 @@ describe('BridgeController', function () {
     async (
       _testTitle: string,
       quoteResponse: QuoteResponse[],
+      validationFailures: string[],
       expectedQuotesLength: number,
       expectedFees: string | undefined,
       expectedMinBalance: string | undefined,
@@ -1582,7 +1695,10 @@ describe('BridgeController', function () {
         .mockImplementation(async () => {
           return await new Promise((resolve) => {
             return setTimeout(() => {
-              resolve(quoteResponse as never);
+              resolve({
+                quotes: quoteResponse,
+                validationFailures,
+              });
             }, 1000);
           });
         });
@@ -1650,6 +1766,17 @@ describe('BridgeController', function () {
       expect(snapCalls).toMatchSnapshot();
 
       expect(quotes).toHaveLength(expectedQuotesLength);
+
+      // Verify validation failure tracking
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(
+        6 + (validationFailures.length ? 1 : 0),
+      );
+      expect(
+        trackMetaMetricsFn.mock.calls.filter(
+          ([eventName]) =>
+            eventName === UnifiedSwapBridgeEventName.QuotesValidationFailed,
+        ),
+      ).toMatchSnapshot();
     },
   );
 
@@ -1696,7 +1823,7 @@ describe('BridgeController', function () {
 
     it('should track the InputSourceDestinationFlipped event', () => {
       bridgeController.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.InputSourceDestinationFlipped,
+        UnifiedSwapBridgeEventName.InputSourceDestinationSwitched,
         {
           token_symbol_destination: 'USDC',
           token_symbol_source: 'ETH',
@@ -1721,6 +1848,7 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
           gas_included: false,
           stx_enabled: false,
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1739,6 +1867,7 @@ describe('BridgeController', function () {
           token_symbol_source: 'ETH',
           best_quote_provider: 'provider_bridge2',
           token_symbol_destination: 'USDC',
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1753,11 +1882,13 @@ describe('BridgeController', function () {
           is_best_quote: true,
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 10,
           usd_quoted_return: 100,
           price_impact: 0,
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
+          can_submit: false,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1772,11 +1903,29 @@ describe('BridgeController', function () {
           warnings: ['warning1'],
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 10,
           usd_quoted_return: 100,
           price_impact: 0,
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
+          can_submit: true,
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the AssetDetailTooltipClicked event', () => {
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.AssetDetailTooltipClicked,
+        {
+          token_name: 'ETH',
+          token_symbol: 'ETH',
+          token_contract: '0x123',
+          chain_name: 'Ethereum',
+          chain_id: '1',
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1804,10 +1953,10 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.SnapConfirmationViewed,
         {
-          action_type: MetricsActionType.CROSSCHAIN_V1,
           price_impact: 0,
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
           provider: 'provider_bridge',
@@ -1826,23 +1975,22 @@ describe('BridgeController', function () {
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
         state: {
-          quoteRequest: {
-            srcChainId: SolScope.Mainnet,
-            destChainId: '0xa',
-            srcTokenAddress: 'NATIVE',
-            destTokenAddress: '0x1234',
-            srcTokenAmount: '1000000',
-            walletAddress: '0x123',
-            slippage: 0.5,
-          },
-          quotes: mockBridgeQuotesSolErc20 as never,
+          ...EMPTY_INIT_STATE,
         },
       });
       controller.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         {
+          action_type: MetricsActionType.SWAPBRIDGE_V1,
+          swap_type: MetricsSwapType.CROSSCHAIN,
+          chain_id_source: formatChainIdToCaip(ChainId.SOLANA),
+          chain_id_destination: formatChainIdToCaip(1),
+          custom_slippage: false,
+          is_hardware_wallet: false,
+          slippage_limit: 0.5,
           usd_quoted_gas: 1,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 2,
           usd_quoted_return: 113,
           provider: 'provider_bridge',
@@ -1862,7 +2010,7 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         {
-          action_type: MetricsActionType.CROSSCHAIN_V1,
+          action_type: MetricsActionType.SWAPBRIDGE_V1,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,
           destination_transaction: StatusTypes.PENDING,
@@ -1882,13 +2030,13 @@ describe('BridgeController', function () {
           provider: 'provider_bridge',
           price_impact: 6,
           gas_included: false,
+          gas_included_7702: false,
           usd_quoted_gas: 0,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
           chain_id_destination: formatChainIdToCaip(10),
           token_symbol_destination: 'USDC',
           token_address_destination: getNativeAssetForChainId(10).assetId,
-          security_warnings: [],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -1900,13 +2048,13 @@ describe('BridgeController', function () {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Failed,
         {
-          action_type: MetricsActionType.CROSSCHAIN_V1,
           allowance_reset_transaction: StatusTypes.PENDING,
           approval_transaction: StatusTypes.PENDING,
           source_transaction: StatusTypes.PENDING,
           destination_transaction: StatusTypes.PENDING,
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 0,
           usd_quoted_return: 0,
           price_impact: 0,
@@ -1959,6 +2107,7 @@ describe('BridgeController', function () {
           error_message: 'Failed to submit tx',
           usd_quoted_gas: 1,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 2,
           usd_quoted_return: 113,
           provider: 'provider_bridge',
@@ -1967,6 +2116,37 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
           stx_enabled: false,
           usd_amount_source: 100,
+        },
+      );
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+
+      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track the StatusValidationFailed event', () => {
+      const controller = new BridgeController({
+        messenger: messengerMock,
+        getLayer1GasFee: getLayer1GasFeeMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: mockFetchFn,
+        trackMetaMetricsFn,
+        state: {
+          quoteRequest: {
+            srcChainId: SolScope.Mainnet,
+            destChainId: '1',
+            srcTokenAddress: 'NATIVE',
+            destTokenAddress: '0x1234',
+            srcTokenAmount: '1000000',
+            walletAddress: '0x123',
+            slippage: 0.5,
+          },
+          quotes: mockBridgeQuotesSolErc20 as never,
+        },
+      });
+      controller.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.StatusValidationFailed,
+        {
+          failures: ['Failed to submit tx'],
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -2028,11 +2208,13 @@ describe('BridgeController', function () {
           warnings: ['warning1'],
           usd_quoted_gas: 0,
           gas_included: false,
+          gas_included_7702: false,
           quoted_time_minutes: 10,
           usd_quoted_return: 100,
           price_impact: 0,
           provider: 'provider_bridge',
           best_quote_provider: 'provider_bridge2',
+          can_submit: true,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
@@ -2041,6 +2223,217 @@ describe('BridgeController', function () {
         'Error tracking cross-chain swaps MetaMetrics event',
         new TypeError("Cannot read properties of undefined (reading 'type')"),
       );
+    });
+  });
+
+  describe('fetchQuotes', () => {
+    const defaultFlags = {
+      minimumVersion: '0.0.0',
+      maxRefreshCount: 3,
+      refreshRate: 3,
+      support: true,
+      chains: {
+        '10': { isActiveSrc: true, isActiveDest: false },
+        '534352': { isActiveSrc: true, isActiveDest: false },
+        '137': { isActiveSrc: false, isActiveDest: true },
+        '42161': { isActiveSrc: false, isActiveDest: true },
+        [ChainId.SOLANA]: {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+      },
+    };
+
+    const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];
+    quotesByDecreasingProcessingTime.reverse();
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest
+        .spyOn(featureFlagUtils, 'getBridgeFeatureFlags')
+        .mockReturnValueOnce({
+          ...defaultFlags,
+          quoteRequestOverrides: {
+            [FeatureId.PERPS]: {
+              aggIds: ['debridge', 'socket'],
+              bridgeIds: ['bridge1', 'bridge2'],
+              noFee: true,
+            },
+          },
+        });
+    });
+
+    it('should override aggIds and noFee in perps request', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: quotesByDecreasingProcessingTime as never,
+          validationFailures: [],
+        });
+      const expectedControllerState = bridgeController.state;
+
+      const quotes = await bridgeController.fetchQuotes(
+        {
+          srcChainId: SolScope.Mainnet,
+          destChainId: '1',
+          srcTokenAddress: 'NATIVE',
+          destTokenAddress: '0x1234',
+          srcTokenAmount: '1000000',
+          walletAddress: '0x123',
+          slippage: 0.5,
+          aggIds: ['other'],
+          bridgeIds: ['other', 'debridge'],
+          gasIncluded: false,
+          gasIncluded7702: false,
+          noFee: false,
+        },
+        null,
+        FeatureId.PERPS,
+      );
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
+        Array [
+          Array [
+            Object {
+              "aggIds": Array [
+                "debridge",
+                "socket",
+              ],
+              "bridgeIds": Array [
+                "bridge1",
+                "bridge2",
+              ],
+              "destChainId": "1",
+              "destTokenAddress": "0x1234",
+              "gasIncluded": false,
+              "gasIncluded7702": false,
+              "noFee": true,
+              "slippage": 0.5,
+              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+              "srcTokenAddress": "NATIVE",
+              "srcTokenAmount": "1000000",
+              "walletAddress": "0x123",
+            },
+            null,
+            "extension",
+            [Function],
+            "https://bridge.api.cx.metamask.io",
+          ],
+        ]
+      `);
+      expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should add aggIds and noFee to perps request', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: quotesByDecreasingProcessingTime as never,
+          validationFailures: [],
+        });
+      const expectedControllerState = bridgeController.state;
+
+      const quotes = await bridgeController.fetchQuotes(
+        {
+          srcChainId: SolScope.Mainnet,
+          destChainId: '1',
+          srcTokenAddress: 'NATIVE',
+          destTokenAddress: '0x1234',
+          srcTokenAmount: '1000000',
+          walletAddress: '0x123',
+          slippage: 0.5,
+          gasIncluded: false,
+          gasIncluded7702: false,
+        },
+        null,
+        FeatureId.PERPS,
+      );
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
+        Array [
+          Array [
+            Object {
+              "aggIds": Array [
+                "debridge",
+                "socket",
+              ],
+              "bridgeIds": Array [
+                "bridge1",
+                "bridge2",
+              ],
+              "destChainId": "1",
+              "destTokenAddress": "0x1234",
+              "gasIncluded": false,
+              "gasIncluded7702": false,
+              "noFee": true,
+              "slippage": 0.5,
+              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+              "srcTokenAddress": "NATIVE",
+              "srcTokenAmount": "1000000",
+              "walletAddress": "0x123",
+            },
+            null,
+            "extension",
+            [Function],
+            "https://bridge.api.cx.metamask.io",
+          ],
+        ]
+      `);
+      expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+
+    it('should not add aggIds and noFee if featureId is not specified', async () => {
+      const fetchBridgeQuotesSpy = jest
+        .spyOn(fetchUtils, 'fetchBridgeQuotes')
+        .mockResolvedValueOnce({
+          quotes: mockBridgeQuotesSolErc20 as never,
+          validationFailures: [],
+        });
+      const expectedControllerState = bridgeController.state;
+
+      const quotes = await bridgeController.fetchQuotes(
+        {
+          srcChainId: SolScope.Mainnet,
+          destChainId: '1',
+          srcTokenAddress: 'NATIVE',
+          destTokenAddress: '0x1234',
+          srcTokenAmount: '1000000',
+          walletAddress: '0x123',
+          slippage: 0.5,
+          gasIncluded: false,
+          gasIncluded7702: false,
+        },
+        null,
+      );
+
+      expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+      expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
+        Array [
+          Array [
+            Object {
+              "destChainId": "1",
+              "destTokenAddress": "0x1234",
+              "gasIncluded": false,
+              "gasIncluded7702": false,
+              "slippage": 0.5,
+              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+              "srcTokenAddress": "NATIVE",
+              "srcTokenAmount": "1000000",
+              "walletAddress": "0x123",
+            },
+            null,
+            "extension",
+            [Function],
+            "https://bridge.api.cx.metamask.io",
+          ],
+        ]
+      `);
+      expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
+      expect(bridgeController.state).toStrictEqual(expectedControllerState);
     });
   });
 });

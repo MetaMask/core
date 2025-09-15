@@ -160,8 +160,18 @@ export type MultichainAssetsRatesPollingInput = {
 };
 
 const metadata = {
-  conversionRates: { persist: true, anonymous: true },
-  historicalPrices: { persist: false, anonymous: true },
+  conversionRates: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  historicalPrices: {
+    includeInStateLogs: false,
+    persist: false,
+    anonymous: true,
+    usedInUi: true,
+  },
 };
 
 export type ConversionRatesWithMarketData = {
@@ -236,10 +246,12 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      async (currencyRatesState: CurrencyRateState) => {
-        this.#currentCurrency = currencyRatesState.currentCurrency;
+      async (currentCurrency: string) => {
+        this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
       },
+      (currencyRateControllerState) =>
+        currencyRateControllerState.currentCurrency,
     );
 
     this.messagingSystem.subscribe(
@@ -344,6 +356,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   ): Promise<
     Record<string, UnifiedAssetConversion & { currency: CaipAssetType }>
   > {
+    // Do not attempt to retrieve rates from Snap if there are no assets
+    if (!assets.length) {
+      return {};
+    }
+
     // Build the conversions array
     const conversions = this.#buildConversions(assets);
 
