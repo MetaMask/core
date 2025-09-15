@@ -1592,7 +1592,7 @@ export class NetworkController extends BaseController<
    * `lookupNetwork` yourself.
    * @returns A promise that resolves when the network lookup completes.
    */
-  initializeProvider(options: { lookupNetwork?: true }): Promise<void>;
+  initializeProvider(options?: { lookupNetwork?: boolean }): Promise<void>;
 
   /**
    * Creates proxies for accessing the global network client and its block
