@@ -256,14 +256,34 @@ export class SubscriptionController extends BaseController<
   async cancelSubscription(request: { subscriptionId: string }) {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    await this.#subscriptionService.cancelSubscription({
-      subscriptionId: request.subscriptionId,
-    });
+    const cancelledSubscription =
+      await this.#subscriptionService.cancelSubscription({
+        subscriptionId: request.subscriptionId,
+      });
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, status: SUBSCRIPTION_STATUSES.canceled }
+          ? { ...subscription, ...cancelledSubscription }
+          : subscription,
+      );
+    });
+
+    this.triggerAccessTokenRefresh();
+  }
+
+  async unCancelSubscription(request: { subscriptionId: string }) {
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
+
+    const uncancelledSubscription =
+      await this.#subscriptionService.unCancelSubscription({
+        subscriptionId: request.subscriptionId,
+      });
+
+    this.update((state) => {
+      state.subscriptions = state.subscriptions.map((subscription) =>
+        subscription.id === request.subscriptionId
+          ? { ...subscription, ...uncancelledSubscription }
           : subscription,
       );
     });

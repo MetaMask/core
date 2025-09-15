@@ -209,6 +209,28 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('uncancelSubscription', () => {
+    it('should cancel subscription successfully', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        handleFetchMock.mockResolvedValue({});
+
+        await service.unCancelSubscription({ subscriptionId: 'sub_123456789' });
+
+        expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        handleFetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.unCancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
   describe('startSubscription', () => {
     it('should start subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service }) => {

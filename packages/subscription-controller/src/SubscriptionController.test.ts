@@ -162,6 +162,7 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
+  const mockUnCancelSubscription = jest.fn();
   const mockStartSubscriptionWithCard = jest.fn();
   const mockGetPricing = jest.fn();
   const mockStartSubscriptionWithCrypto = jest.fn();
@@ -172,6 +173,7 @@ function createMockSubscriptionService() {
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
+    unCancelSubscription: mockUnCancelSubscription,
     startSubscriptionWithCard: mockStartSubscriptionWithCard,
     getPricing: mockGetPricing,
     startSubscriptionWithCrypto: mockStartSubscriptionWithCrypto,
@@ -184,6 +186,7 @@ function createMockSubscriptionService() {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
+    mockUnCancelSubscription,
     mockStartSubscriptionWithCard,
     mockGetPricing,
     mockStartSubscriptionWithCrypto,
@@ -375,7 +378,10 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue(undefined);
+          mockService.cancelSubscription.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          });
           expect(
             await controller.cancelSubscription({
               subscriptionId: MOCK_SUBSCRIPTION.id,
@@ -457,6 +463,106 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('unCancelSubscription', () => {
+    it('should unCancel subscription successfully', async () => {
+      const mockSubscription2 = { ...MOCK_SUBSCRIPTION, id: 'sub_2' };
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION, mockSubscription2],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          expect(
+            await controller.unCancelSubscription({
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            }),
+          ).toBeUndefined();
+          expect(controller.state.subscriptions).toStrictEqual([
+            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.active },
+            mockSubscription2,
+          ]);
+          expect(mockService.unCancelSubscription).toHaveBeenCalledWith({
+            subscriptionId: MOCK_SUBSCRIPTION.id,
+          });
+          expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw error when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.unCancelSubscription({
+              subscriptionId: 'sub_123456789',
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          );
+        },
+      );
+    });
+
+    it('should not call subscription service when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.unCancelSubscription({
+              subscriptionId: 'sub_123456789',
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.unCancelSubscription).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors during cancellation', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const errorMessage = 'Failed to unCancel subscription';
+          mockService.unCancelSubscription.mockRejectedValue(
+            new SubscriptionServiceError(errorMessage),
+          );
+
+          await expect(
+            controller.unCancelSubscription({
+              subscriptionId: 'sub_123456789',
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(mockService.unCancelSubscription).toHaveBeenCalledWith({
+            subscriptionId: 'sub_123456789',
+          });
+          expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
         },
       );
     });

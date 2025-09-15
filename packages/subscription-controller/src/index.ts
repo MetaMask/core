@@ -40,6 +40,7 @@ export type {
   PricingPaymentMethod,
   PricingResponse,
   UpdatePaymentMethodOpts,
+  BillingPortalResponse,
 } from './types';
 export {
   SUBSCRIPTION_STATUSES,

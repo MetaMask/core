@@ -57,6 +57,7 @@ export type Subscription = {
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
+  /** is subscription scheduled for cancellation */
   cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
   interval: RecurringInterval;
@@ -64,6 +65,7 @@ export type Subscription = {
   trialPeriodDays?: number;
   trialStart?: string; // ISO 8601
   trialEnd?: string; // ISO 8601
+  /** is subscription ending soon */
   endDate?: string; // ISO 8601
   billingCycles?: number;
 };
@@ -193,7 +195,12 @@ export type GetCryptoApproveTransactionResponse = {
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
-  cancelSubscription(request: { subscriptionId: string }): Promise<void>;
+  cancelSubscription(request: {
+    subscriptionId: string;
+  }): Promise<Subscription>;
+  unCancelSubscription(request: {
+    subscriptionId: string;
+  }): Promise<Subscription>;
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
