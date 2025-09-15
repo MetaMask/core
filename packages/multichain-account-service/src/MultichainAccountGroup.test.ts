@@ -177,7 +177,7 @@ describe('MultichainAccount', () => {
         ],
       });
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
@@ -193,7 +193,7 @@ describe('MultichainAccount', () => {
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).not.toHaveBeenCalled();
@@ -211,7 +211,7 @@ describe('MultichainAccount', () => {
         new Error('Provider 2: Unable to create accounts'),
       );
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({

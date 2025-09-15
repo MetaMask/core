@@ -8,5 +8,8 @@ export function createMockBackend() {
     checkCoverage: jest.fn().mockResolvedValue({
       status: 'covered',
     }),
+    checkSignatureCoverage: jest.fn().mockResolvedValue({
+      status: 'covered',
+    }),
   };
 }

@@ -218,7 +218,7 @@ export class MultichainAccountGroup<
    *
    * This will create accounts for providers that don't have any accounts yet.
    */
-  async align(): Promise<void> {
+  async alignAccounts(): Promise<void> {
     const results = await Promise.allSettled(
       this.#providers.map((provider) => {
         const accounts = this.#providerToAccounts.get(provider);

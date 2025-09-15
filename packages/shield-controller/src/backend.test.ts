@@ -1,5 +1,9 @@
 import { ShieldRemoteBackend } from './backend';
-import { generateMockTxMeta, getRandomCoverageStatus } from '../tests/utils';
+import {
+  generateMockSignatureRequest,
+  generateMockTxMeta,
+  getRandomCoverageStatus,
+} from '../tests/utils';
 
 /**
  * Setup the test environment.
@@ -140,5 +144,41 @@ describe('ShieldRemoteBackend', () => {
     // Waiting here ensures coverage of the unexpected error and lets us know
     // that the polling loop is exited as expected.
     await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+
+  describe('checkSignatureCoverage', () => {
+    it('should check signature coverage', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      // Mock init coverage check.
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      } as unknown as Response);
+
+      // Mock get coverage result.
+      const status = getRandomCoverageStatus();
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        json: jest.fn().mockResolvedValue({ status }),
+      } as unknown as Response);
+
+      const signatureRequest = generateMockSignatureRequest();
+      const coverageResult =
+        await backend.checkSignatureCoverage(signatureRequest);
+      expect(coverageResult).toStrictEqual({ status });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(getAccessToken).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws with invalid data', async () => {
+      const { backend } = setup();
+
+      const signatureRequest = generateMockSignatureRequest();
+      signatureRequest.messageParams.data = [];
+      await expect(
+        backend.checkSignatureCoverage(signatureRequest),
+      ).rejects.toThrow('Signature data must be a string');
+    });
   });
 });
