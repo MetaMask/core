@@ -406,7 +406,9 @@ export class AccountTreeController extends BaseController<
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
       const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
-      const typedGroup = typedWallet.groups[group.id] as AccountGroupObject;
+      const typedGroup = typedWallet.groups[group.id] as AccountGroupObjectOf<
+        typeof group.type
+      >;
 
       // Calculate group index for default naming
       let groupIndex: number;
