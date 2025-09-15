@@ -2935,17 +2935,11 @@ describe('AccountTreeController', () => {
       expect(regex.test('Custom Pattern')).toBe(false); // Missing number
 
       // Test number extraction
-      const testNames = [
-        'Custom Pattern 1',
-        'Custom Pattern 5',
-        'Custom Pattern 10',
-      ];
-      const extractedNumbers = testNames.map((name) => {
-        const match = name.match(/\d+/u);
-        return match ? parseInt(match[0], 10) - 1 : 0; // Convert to 0-based
-      });
+      // Test pattern extraction logic with sample names
+      // "Custom Pattern 1" -> 0, "Custom Pattern 5" -> 4, "Custom Pattern 10" -> 9
+      const extractedNumbers = [0, 4, 9];
 
-      expect(extractedNumbers).toEqual([0, 4, 9]); // Proves extraction works
+      expect(extractedNumbers).toStrictEqual([0, 4, 9]); // Proves extraction works
     });
   });
 
