@@ -171,7 +171,7 @@ export class PhishingDetector {
           match: domainPartsToDomain(source), // TODO: revisit this. do we want to return the path?
           name,
           result: true,
-          type: PhishingDetectorResultType.Blocklist, // TODO: do we want to differentiate between path and hostname blocklists?
+          type: PhishingDetectorResultType.Blocklist,
           version: version === undefined ? version : String(version),
         };
       }
@@ -233,6 +233,26 @@ export class PhishingDetector {
 
     // matched nothing, PASS
     return { result: false, type: PhishingDetectorResultType.All };
+  }
+
+  /**
+   * Checks if a URL is blocked against the blocklistPaths.
+   *
+   * @param url - The URL to check.
+   * @returns true if the URL is blocked, false otherwise.
+   */
+  isPathBlocked(url: string): boolean {
+    for (const { blocklistPaths } of this.#configs) {
+      if (!blocklistPaths) {
+        continue;
+      }
+      const pathMatch = doesURLPathExist(url, blocklistPaths);
+      if (pathMatch) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

@@ -30,6 +30,7 @@ import {
   getHostnameFromUrl,
   roundToNearestMinute,
   getHostnameFromWebUrl,
+  doesURLPathExist,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -223,6 +224,12 @@ const metadata: StateMetadata<PhishingControllerState> = {
     anonymous: false,
     usedInUi: false,
   },
+  whitelistPaths: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
   hotlistLastFetched: {
     includeInStateLogs: true,
     persist: true,
@@ -257,6 +264,7 @@ const getDefaultState = (): PhishingControllerState => {
   return {
     phishingLists: [],
     whitelist: [],
+    whitelistPaths: [],
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
@@ -274,6 +282,7 @@ const getDefaultState = (): PhishingControllerState => {
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
   whitelist: string[];
+  whitelistPaths: string[];
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
@@ -589,6 +598,11 @@ export class PhishingController extends BaseController<
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
+
+    if (this.state.whitelistPaths.includes(origin)) {
+      return { result: false, type: PhishingDetectorResultType.All };
+    }
+
     if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
@@ -622,10 +636,24 @@ export class PhishingController extends BaseController<
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
-    const { whitelist } = this.state;
-    if (whitelist.includes(hostname || punycodeOrigin)) {
+    const { whitelist, whitelistPaths } = this.state;
+
+    if (
+      whitelist.includes(hostname || punycodeOrigin) ||
+      whitelistPaths.includes(origin)
+    ) {
       return;
     }
+
+    // If the origin was blocked by a path, then we only want to add it to the whitelistPaths since
+    // other paths with the same hostname may not be blocked.
+    if (this.#detector.isPathBlocked(origin)) {
+      this.update((draftState) => {
+        draftState.whitelistPaths.push(origin);
+      });
+      return;
+    }
+
     this.update((draftState) => {
       draftState.whitelist.push(hostname || punycodeOrigin);
     });
