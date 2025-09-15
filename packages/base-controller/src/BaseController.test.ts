@@ -1363,6 +1363,54 @@ describe('deriveStateFromMetadata', () => {
       );
     });
 
+    it('reports thrown non-error when deriving state, wrapping it in an error', () => {
+      const captureException = jest.fn();
+      const testException = 'Non-Error exception';
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        {
+          extraState: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: () => {
+              // Intentionally throwing non-error to test handling
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
+              throw testException;
+            },
+          },
+          privateKey: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            anonymous: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(new Error(testException));
+    });
+
     it('logs thrown error to console when deriving state if no captureException function is given', () => {
       const consoleError = jest.fn();
       jest.spyOn(console, 'error').mockImplementation(consoleError);

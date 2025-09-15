@@ -398,8 +398,9 @@ export function deriveStateFromMetadata<
       // Capture error without interrupting state-related operations
       // See [ADR core#0016](https://github.com/MetaMask/decisions/blob/main/decisions/core/0016-core-classes-error-reporting.md)
       if (captureException) {
-        // The only things that can be thrown in this block are errors
-        captureException(error as Error);
+        captureException(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       } else {
         console.error(error);
       }
