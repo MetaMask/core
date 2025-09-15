@@ -121,12 +121,12 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     provider: Provider,
     address: Hex,
   ): Promise<number> {
-    const countHex = await this.#WithRetry(() =>
+    const countHex = await this.#WithRetry<Hex>(() =>
       this.#withTimeout(
         provider.request({
           method: 'eth_getTransactionCount',
           params: [address, 'latest'],
-        }) as Promise<Hex>,
+        }),
       ),
     );
 
