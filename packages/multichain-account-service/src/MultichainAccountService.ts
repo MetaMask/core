@@ -335,11 +335,11 @@ export class MultichainAccountService {
       throw new Error('This Secret Recovery Phrase has already been imported.');
     }
 
-    const result = (await this.#messenger.call(
+    const result = await this.#messenger.call(
       'KeyringController:addNewKeyring',
       KeyringTypes.hd,
       { mnemonic },
-    )) as KeyringMetadata;
+    );
 
     const wallet = new MultichainAccountWallet({
       providers: this.#providers,
