@@ -50,7 +50,7 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
-  c2DomainBlocklist?: string[];
+  c2DomainBlocklist?: Set<string>;
   fuzzylist: string[][];
   tolerance: number;
 };
@@ -255,11 +255,11 @@ export class PhishingDetector {
     const domainsToCheck = generateParentDomains(sourceParts.reverse(), 5);
 
     for (const { c2DomainBlocklist, name, version } of this.#configs) {
-      if (!c2DomainBlocklist || c2DomainBlocklist.length === 0) {
+      if (!c2DomainBlocklist || c2DomainBlocklist.size === 0) {
         continue;
       }
 
-      if (c2DomainBlocklist.includes(hostnameHash)) {
+      if (c2DomainBlocklist.has(hostnameHash)) {
         return {
           name,
           result: true,
@@ -270,7 +270,7 @@ export class PhishingDetector {
 
       for (const domain of domainsToCheck) {
         const domainHash = sha256Hash(domain);
-        if (c2DomainBlocklist.includes(domainHash)) {
+        if (c2DomainBlocklist.has(domainHash)) {
           return {
             name,
             result: true,
