@@ -35,7 +35,10 @@ export class SolAccountProvider extends SnapAccountProvider {
     messenger: MultichainAccountServiceMessenger,
     config: SolAccountProviderConfig = {
       discovery: {
-        timeoutMs: 5000,
+        // Use a pretty high timeout (12s) for each Solana discovery for now.
+        // NOTE: This can be overriden at any time by the client using the
+        // config parameter.
+        timeoutMs: 12000,
       },
     },
   ) {
