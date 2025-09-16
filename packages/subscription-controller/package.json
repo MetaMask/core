@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Handle user subscription",
   "keywords": [
     "MetaMask",
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.3.0",
-    "@metamask/controller-utils": "^11.13.0",
+    "@metamask/controller-utils": "^11.14.0",
     "@metamask/utils": "^11.8.0"
   },
   "devDependencies": {

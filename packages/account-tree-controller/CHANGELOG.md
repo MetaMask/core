@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use `:getSelectedMultichainAccount` instead of `:getSelectedAccount` to compute currently selected account group ([#6608](https://github.com/MetaMask/core/pull/6608))
+  - Coming from the old account model, a non-EVM account could have been selected and the lastly selected EVM account might not be using the same group index.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ### Fixed
@@ -18,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Names are immediately persisted to ensure consistency across app restarts.
   - Entropy groups use their actual group index instead of alphabetical sorting.
   - Prevents issues like "Account 2, Account 2, Account 3..." and missing "Account 1".
+
+### Removed
+
+- Remove use of `:getSelectedAccount` action ([#6608](https://github.com/MetaMask/core/pull/6608))
 
 ## [0.15.1]
 

@@ -950,7 +950,11 @@ describe('SubscriptionController', () => {
             controller.metadata,
             'anonymous',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`
+          Object {
+            "trialedProducts": Array [],
+          }
+        `);
       });
     });
 
@@ -965,6 +969,7 @@ describe('SubscriptionController', () => {
         ).toMatchInlineSnapshot(`
         Object {
           "subscriptions": Array [],
+          "trialedProducts": Array [],
         }
       `);
       });
@@ -981,6 +986,7 @@ describe('SubscriptionController', () => {
         ).toMatchInlineSnapshot(`
         Object {
           "subscriptions": Array [],
+          "trialedProducts": Array [],
         }
       `);
       });
@@ -997,6 +1003,7 @@ describe('SubscriptionController', () => {
         ).toMatchInlineSnapshot(`
         Object {
           "subscriptions": Array [],
+          "trialedProducts": Array [],
         }
       `);
       });

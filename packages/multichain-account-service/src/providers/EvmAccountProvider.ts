@@ -121,7 +121,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     provider: Provider,
     address: Hex,
   ): Promise<number> {
-    const countHex = await this.#WithRetry<Hex>(() =>
+    const countHex = await this.#withRetry<Hex>(() =>
       this.#withTimeout(
         provider.request({
           method: 'eth_getTransactionCount',
@@ -200,7 +200,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * @throws An error if the transaction count cannot be retrieved.
    * @returns The result of the function.
    */
-  async #WithRetry<T>(
+  async #withRetry<T>(
     fnToExecute: () => Promise<T>,
     {
       maxAttempts = 3,

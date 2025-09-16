@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6478](https://github.com/MetaMask/core/pull/6478))
+  - An action handler was also registered for this method so that it can be called from the clients.
+- **BREAKING** Add additional allowed actions to the `MultichainAccountService` messenger
+  - `KeyringController:getKeyringsByType` and `KeyringController:addNewKeyring` actions were added.
+
 ### Changed
 
 - **BREAKING:** Rename `MultichainAccountWallet.alignGroup` to `alignAccountsOf` ([#6595](https://github.com/MetaMask/core/pull/6595))
 - **BREAKING:** Rename `MultichainAccountGroup.align` to `alignAccounts` ([#6595](https://github.com/MetaMask/core/pull/6595))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
-- Add timeout & retry mechanism to EVM discovery ([#6609](https://github.com/MetaMask/core/pull/6609))
+- Add timeout & retry mechanism to EVM discovery ([#6609](https://github.com/MetaMask/core/pull/6609)), ([#6621](https://github.com/MetaMask/core/pull/6621))
 
 ## [0.8.0]
 
