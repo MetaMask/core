@@ -1,4 +1,5 @@
 import type { SIWEMessage } from '@metamask/controller-utils';
+import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex, Json } from '@metamask/utils';
 
@@ -94,6 +95,13 @@ export type MessageParamsTypedData = {
   message: Json;
 };
 
+export type MessageParamsTypedDataWithMetadata = MessageParamsTypedData & {
+  metadata: {
+    origin: string;
+    justification: string;
+  };
+};
+
 /** Typed message parameters that were requested to be signed. */
 export type MessageParamsTyped = MessageParams & {
   /** Structured data to sign. */
@@ -166,6 +174,9 @@ type SignatureRequestBase = {
 
   /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
+
+  /** Decoded permission for the request. */
+  decodedPermission?: DecodedPermission;
 };
 
 /** Legacy messages stored in the state. */

@@ -17,6 +17,10 @@ import {
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
 import type {
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
+  DecodedPermission,
+} from '@metamask/gator-permissions-controller';
+import type {
   KeyringControllerSignMessageAction,
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTypedMessageAction,
@@ -48,6 +52,10 @@ import type {
   StateSIWEMessage,
 } from './types';
 import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
+import {
+  decodePermissionFromRequest,
+  isDelegationRequest,
+} from './utils/execution-permissions';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -149,7 +157,8 @@ type AllowedActions =
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | AddLog
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction;
 
 export type GetSignatureState = ControllerGetStateAction<
   typeof controllerName,
@@ -382,12 +391,48 @@ export class SignatureController extends BaseController<
     const chainId = this.#getChainId(request);
     const internalAccounts = this.#getInternalAccounts();
 
+    const isRequestDelegation = isDelegationRequest({
+      data: messageParams.data,
+    });
+
+    let decodedPermission: DecodedPermission | undefined;
+    // Only decode the permission for SignTypedDataVersion.V4, as all other versions will be rejected.
+    if (
+      isRequestDelegation &&
+      (version as SignTypedDataVersion) === SignTypedDataVersion.V4
+    ) {
+      try {
+        if (request.origin) {
+          // no point in trying to decode the permission if the origin is not set
+          decodedPermission = await decodePermissionFromRequest({
+            origin: request.origin,
+            messageParams,
+            messenger: this.messagingSystem,
+          });
+        }
+      } catch (error) {
+        // we ignore this error, because it simply means the request could not
+        // be decoded into a permission in which case we will throw below
+        log((error as Error).message);
+      }
+      if (!decodedPermission) {
+        // If the permission is not successfully decoded, it likely means that the
+        // request did not come from the Gator Permissions Snap. Therefore we
+        // throw an error targeting external requesters that are not allowed to
+        // request delegation signatures.
+        throw new Error(
+          'External signature requests cannot sign delegations for internal accounts.',
+        );
+      }
+    }
+
     validateTypedSignatureRequest({
       currentChainId: chainId,
       internalAccounts,
       messageData: messageParams,
       request,
       version: version as SignTypedDataVersion,
+      decodedPermission,
     });
 
     const normalizedMessageParams = normalizeTypedMessageParams(
@@ -403,6 +448,7 @@ export class SignatureController extends BaseController<
       traceContext: options.traceContext,
       type: SignatureRequestType.TypedSign,
       version: version as SignTypedDataVersion,
+      decodedPermission,
     });
   }
 
@@ -493,6 +539,7 @@ export class SignatureController extends BaseController<
     version,
     signingOptions,
     traceContext,
+    decodedPermission,
   }: {
     chainId?: Hex;
     messageParams: MessageParams;
@@ -502,6 +549,7 @@ export class SignatureController extends BaseController<
     version?: SignTypedDataVersion;
     signingOptions?: TypedSigningOptions;
     traceContext?: TraceContext;
+    decodedPermission?: DecodedPermission;
   }): Promise<string> {
     log('Processing signature request', {
       messageParams,
@@ -521,6 +569,7 @@ export class SignatureController extends BaseController<
       signingOptions,
       type,
       version,
+      decodedPermission,
     });
 
     let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -594,6 +643,7 @@ export class SignatureController extends BaseController<
     signingOptions,
     type,
     version,
+    decodedPermission,
   }: {
     chainId: Hex;
     messageParams: MessageParams;
@@ -601,6 +651,7 @@ export class SignatureController extends BaseController<
     signingOptions?: TypedSigningOptions;
     type: SignatureRequestType;
     version?: SignTypedDataVersion;
+    decodedPermission?: DecodedPermission;
   }): SignatureRequest {
     const id = random();
     const origin = request?.origin ?? messageParams.origin;
@@ -627,6 +678,7 @@ export class SignatureController extends BaseController<
       time: Date.now(),
       type,
       version,
+      decodedPermission,
     } as SignatureRequest;
 
     this.#updateState((state) => {

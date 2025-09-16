@@ -27,6 +27,9 @@
     },
     {
       "path": "../network-controller"
+    },
+    {
+      "path": "../gator-permissions-controller"
     }
   ],
   "include": ["../../types", "./src"]

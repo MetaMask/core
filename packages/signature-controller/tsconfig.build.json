@@ -29,6 +29,9 @@
     },
     {
       "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../gator-permissions-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
