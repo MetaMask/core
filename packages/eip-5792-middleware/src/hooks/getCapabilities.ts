@@ -118,9 +118,12 @@ export async function getCapabilities(
       status,
     };
 
-    acc[chainId as Hex].auxiliaryFunds = {
-      supported: isAuxiliaryFundsSupported(chainId),
-    };
+    // TODO: [ffmcgee] based of ongoing thread, either filter by wallet type as well or not (just use `isSupportedAccount`)
+    if (isAuxiliaryFundsSupported(chainId) && isSupportedAccount) {
+      acc[chainId as Hex].auxiliaryFunds = {
+        supported: true,
+      };
+    }
 
     return acc;
   }, alternateGasFeesAcc);
