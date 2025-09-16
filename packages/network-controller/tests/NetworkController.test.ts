@@ -1294,6 +1294,48 @@ describe('NetworkController', () => {
         }
       });
     });
+
+    it('initializes the provider synchronously if lookupNetwork is false', async () => {
+      await withController(
+        {
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              '0x1337': buildCustomNetworkConfiguration({
+                chainId: '0x1337',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async ({ controller }) => {
+          const fakeProvider = buildFakeProvider([
+            {
+              request: {
+                method: 'test_method',
+                params: [],
+              },
+              response: {
+                result: 'test response',
+              },
+            },
+          ]);
+
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+          const result = controller.initializeProvider({
+            lookupNetwork: false,
+          });
+
+          expect(result).toBeUndefined();
+        },
+      );
+    });
   });
 
   describe('getProviderAndBlockTracker', () => {
