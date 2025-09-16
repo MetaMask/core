@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In experimental `next` export, remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611))
 - Stop re-throwing state derivation errors in a `setTimeout` ([#6606](https://github.com/MetaMask/core/pull/6606))
   - Instead errors are captured with `captureException`, or logged to the console.
+- Bump `@metamask/messenger` from `^0.2.0` to `^0.3.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ## [8.3.0]
 
