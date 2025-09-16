@@ -100,6 +100,7 @@ function setup({
   providersConfigs?: MultichainAccountServiceOptions['providersConfigs'];
 } = {}): {
   service: MultichainAccountService;
+  serviceMessenger: MultichainAccountServiceMessenger;
   messenger: Messenger<
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
@@ -171,13 +172,14 @@ function setup({
     );
   }
 
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const service = new MultichainAccountService({
-    messenger: getMultichainAccountServiceMessenger(messenger),
+    messenger: serviceMessenger,
     providersConfigs,
   });
   service.init();
 
-  return { service, messenger, mocks };
+  return { service, serviceMessenger, messenger, mocks };
 }
 
 describe('MultichainAccountService', () => {
@@ -199,17 +201,17 @@ describe('MultichainAccountService', () => {
           },
         };
 
-      const { mocks, messenger } = setup({
+      const { mocks, serviceMessenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         providersConfigs,
       });
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
-        messenger,
+        serviceMessenger,
         providersConfigs[EvmAccountProvider.NAME],
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
-        messenger,
+        serviceMessenger,
         providersConfigs[SolAccountProvider.NAME],
       );
     });
