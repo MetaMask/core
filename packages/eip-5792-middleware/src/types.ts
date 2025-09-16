@@ -97,10 +97,18 @@ export const GetCapabilitiesStruct = tuple([
   optional(array(StrictHexStruct)),
 ]);
 
+const RequiredAssetStruct = type({
+  address: nonempty(HexChecksumAddressStruct),
+  amount: nonempty(StrictHexStruct),
+  standard: nonempty(string()),
+  tokenId: optional(StrictHexStruct),
+});
+
 export const CapabilitiesStruct = record(
   string(),
   type({
     optional: optional(boolean()),
+    requiredAssets: optional(array(RequiredAssetStruct)),
   }),
 );
 

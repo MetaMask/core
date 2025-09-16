@@ -127,6 +127,8 @@ describe('EIP-5792', () => {
 
     getDismissSmartAccountSuggestionEnabledMock.mockReturnValue(false);
 
+    isAuxiliaryFundsSupportedMock.mockReturnValue(true);
+
     isAtomicBatchSupportedMock.mockResolvedValue([
       {
         chainId: CHAIN_ID_MOCK,
@@ -434,6 +436,237 @@ describe('EIP-5792', () => {
       ).rejects.toThrow(
         `EIP-7702 upgrade not supported as account type is unknown`,
       );
+    });
+
+    it('validates auxiliary funds with unsupported account type', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            from: FROM_MOCK_HARDWARE,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: true,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x1',
+                    standard: 'erc20',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow('Unsupported account type');
+    });
+
+    it('validates auxiliary funds with unsupported chain', async () => {
+      isAuxiliaryFundsSupportedMock.mockReturnValue(false);
+
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: true,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x1',
+                    standard: 'erc20',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        `The wallet no longer supports auxiliary funds on the requested chain: ${CHAIN_ID_MOCK}`,
+      );
+    });
+
+    it('validates auxiliary funds with unsupported token standard', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: true,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x1',
+                    standard: 'erc777',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        /The requested asset 0x123 is not available through the wallet.*s auxiliary fund system: unsupported token standard erc777/u,
+      );
+    });
+
+    it('validates auxiliary funds with missing tokenId for ERC-721', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: true,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x1',
+                    standard: 'erc721',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        'The structure of the requiredAssets object is malformed: token standard erc721 requires a "tokenId" to be specified',
+      );
+    });
+
+    it('validates auxiliary funds with missing tokenId for ERC-1155', async () => {
+      await expect(
+        processSendCalls(
+          sendCallsHooks,
+          messenger,
+          {
+            ...SEND_CALLS_MOCK,
+            capabilities: {
+              auxiliaryFunds: {
+                optional: true,
+                requiredAssets: [
+                  {
+                    address: '0x123',
+                    amount: '0x1',
+                    standard: 'erc1155',
+                  },
+                ],
+              },
+            },
+          },
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(
+        'The structure of the requiredAssets object is malformed: token standard erc1155 requires a "tokenId" to be specified',
+      );
+    });
+
+    it('validates auxiliary funds with valid ERC-20 asset', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: true,
+              requiredAssets: [
+                {
+                  address: '0x123',
+                  amount: '0x1',
+                  standard: 'erc20',
+                },
+              ],
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('validates auxiliary funds with valid ERC-721 asset', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: true,
+              requiredAssets: [
+                {
+                  address: '0x123',
+                  amount: '0x1',
+                  standard: 'erc721',
+                  tokenId: '0x1',
+                },
+              ],
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('validates auxiliary funds with valid ERC-1155 asset', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: true,
+              requiredAssets: [
+                {
+                  address: '0x123',
+                  amount: '0x1',
+                  standard: 'erc1155',
+                  tokenId: '0x1',
+                },
+              ],
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('validates auxiliary funds with no requiredAssets', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: true,
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
     });
   });
 });
