@@ -3182,7 +3182,9 @@ describe('PhishingController', () => {
 
       expect(scope.isDone()).toBe(true);
       expect(response).toStrictEqual({});
-      expect(consoleWarnSpy).toHaveBeenCalledWith('500 Internal Server Error');
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Token bulk screening API error: 500 Internal Server Error',
+      );
 
       consoleSpy.mockRestore();
       consoleWarnSpy.mockRestore();
@@ -3858,6 +3860,7 @@ describe('URL Scan Cache', () => {
           "hotlistLastFetched": 0,
           "phishingLists": Array [],
           "stalelistLastFetched": 0,
+          "tokenScanCache": Object {},
           "urlScanCache": Object {},
           "whitelist": Array [],
         }
@@ -3875,6 +3878,7 @@ describe('URL Scan Cache', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "tokenScanCache": Object {},
           "urlScanCache": Object {},
         }
       `);

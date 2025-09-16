@@ -966,8 +966,8 @@ export class PhishingController extends BaseController<
       return {};
     }
 
-    // Look up chain name using hex chainId directly
-    const chain = this.#chainIdToName[chainId.toLowerCase()];
+    const normalizedChainId = chainId.toLowerCase();
+    const chain = this.#chainIdToName[normalizedChainId];
 
     if (!chain) {
       console.warn(`Unknown chain ID: ${chainId}`);
@@ -980,13 +980,13 @@ export class PhishingController extends BaseController<
     // Check cache for each token
     for (const tokenAddress of tokens) {
       const normalizedAddress = tokenAddress.toLowerCase();
-      const cacheKey = `${chainId}:${normalizedAddress}`;
+      const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
       const cachedResult = this.#tokenScanCache.get(cacheKey);
 
       if (cachedResult) {
         results[normalizedAddress] = {
           result_type: cachedResult.result_type,
-          chain: chainId,
+          chain: normalizedChainId,
           address: normalizedAddress,
         };
       } else {
@@ -1015,7 +1015,10 @@ export class PhishingController extends BaseController<
             );
 
             if (!res.ok) {
-              console.warn(`${res.status} ${res.statusText}`);
+              console.warn(
+                `Token bulk screening API error: ${res.status} ${res.statusText}`,
+              );
+              return null;
             }
 
             return await res.json();
@@ -1024,7 +1027,6 @@ export class PhishingController extends BaseController<
           8000, // 8 second timeout
         );
 
-        // Process bulk response results if we got them
         if (apiResponse?.results) {
           for (const tokenAddress of tokensToFetch) {
             const normalizedAddress = tokenAddress.toLowerCase();
@@ -1033,12 +1035,11 @@ export class PhishingController extends BaseController<
             if (tokenResult?.result_type) {
               const result: TokenScanResult = {
                 result_type: tokenResult.result_type,
-                chain: tokenResult.chain || chainId,
+                chain: tokenResult.chain || normalizedChainId,
                 address: tokenResult.address || normalizedAddress,
               };
 
-              // Add to cache
-              const cacheKey = `${chainId}:${normalizedAddress}`;
+              const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
               this.#tokenScanCache.set(cacheKey, {
                 result_type: tokenResult.result_type,
               });
