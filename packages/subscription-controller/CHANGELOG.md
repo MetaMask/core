@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: user customer id and trialed product state ([#6628](https://github.com/MetaMask/core/pull/6628))
+- Revert "Release 556.0.0 (#6625)" ([#6625](https://github.com/MetaMask/core/pull/6625))
+- Release 556.0.0 ([#6625](https://github.com/MetaMask/core/pull/6625))
+
 ### Added
 
 - Initial release of the subscription controller ([#6233](https://github.com/MetaMask/core/pull/6233))
