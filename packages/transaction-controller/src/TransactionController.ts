@@ -4572,8 +4572,8 @@ export class TransactionController extends BaseController<
       this.#skipSimulationTransactionIds.delete(transactionId);
     }
 
-    this.#bulkScanReceivedTokens(transactionMeta).catch((err) => {
-      log('Error while bulk scanning received tokens', err);
+    this.#bulkScanReceivedTokens(transactionMeta).catch(() => {
+      // Errors are already handled inside #bulkScanReceivedTokens
     });
 
     if (!updateTransaction) {
