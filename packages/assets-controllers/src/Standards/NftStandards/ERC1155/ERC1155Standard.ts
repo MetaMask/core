@@ -236,8 +236,12 @@ export class ERC1155Standard {
     ]);
 
     if (tokenURI) {
+      // https://docs.openzeppelin.com/contracts/5.x/api/token/erc1155#ERC1155-uri-uint256-
+      // replace the {id} with the token type ID
+      const slashIndex = tokenURI.lastIndexOf('/');
+      const tokenURIWithId = `${tokenURI.substring(0, slashIndex)}/${tokenId}`;
       try {
-        const response = await timeoutFetch(tokenURI);
+        const response = await timeoutFetch(tokenURIWithId);
         const object = await response.json();
         image = object?.image;
         if (image?.startsWith('ipfs://')) {
