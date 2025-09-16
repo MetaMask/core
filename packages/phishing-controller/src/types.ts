@@ -124,7 +124,7 @@ export enum RecommendedAction {
 }
 
 /**
- * Request for bulk token screening
+ * Request for bulk token scan
  */
 export type BulkTokenScanRequest = {
   chainId: string;
@@ -132,16 +132,26 @@ export type BulkTokenScanRequest = {
 };
 
 /**
- * Result of a token screening scan
+ * Result type of a token scan
+ */
+export enum TokenScanResultType {
+  Benign = 'Benign',
+  Warning = 'Warning',
+  Malicious = 'Malicious',
+  Spam = 'Spam',
+}
+
+/**
+ * Result of a token scan
  */
 export type TokenScanResult = {
-  result_type: 'Benign' | 'Warning' | 'Malicious' | 'Spam';
+  result_type: TokenScanResultType;
   chain: string;
   address: string;
 };
 
 /**
- * Response for bulk token screening requests
+ * Response for bulk token scan requests
  */
 export type BulkTokenScanResponse = Record<string, TokenScanResult>;
 

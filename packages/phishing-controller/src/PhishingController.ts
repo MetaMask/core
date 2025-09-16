@@ -47,7 +47,7 @@ export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
-export const TOKEN_BULK_SCREENING_ENDPOINT = '/token/scan-bulk';
+export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
 export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
@@ -966,8 +966,8 @@ export class PhishingController extends BaseController<
       return {};
     }
 
-    // Look up chain name using hex chainId directly
-    const chain = this.#chainIdToName[chainId.toLowerCase()];
+    const normalizedChainId = chainId.toLowerCase();
+    const chain = this.#chainIdToName[normalizedChainId];
 
     if (!chain) {
       console.warn(`Unknown chain ID: ${chainId}`);
@@ -980,13 +980,13 @@ export class PhishingController extends BaseController<
     // Check cache for each token
     for (const tokenAddress of tokens) {
       const normalizedAddress = tokenAddress.toLowerCase();
-      const cacheKey = `${chainId}:${normalizedAddress}`;
+      const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
       const cachedResult = this.#tokenScanCache.get(cacheKey);
 
       if (cachedResult) {
         results[normalizedAddress] = {
           result_type: cachedResult.result_type,
-          chain: chainId,
+          chain: normalizedChainId,
           address: normalizedAddress,
         };
       } else {
@@ -994,13 +994,13 @@ export class PhishingController extends BaseController<
       }
     }
 
-    // If there are tokens to fetch, call the API
+    // If there are tokens to fetch, call the bulk token scan API
     if (tokensToFetch.length > 0) {
       try {
         const apiResponse = await safelyExecuteWithTimeout(
           async () => {
             const res = await fetch(
-              `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCREENING_ENDPOINT}`,
+              `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
               {
                 method: 'POST',
                 headers: {
@@ -1015,7 +1015,10 @@ export class PhishingController extends BaseController<
             );
 
             if (!res.ok) {
-              console.warn(`${res.status} ${res.statusText}`);
+              console.warn(
+                `Token bulk screening API error: ${res.status} ${res.statusText}`,
+              );
+              return null;
             }
 
             return await res.json();
@@ -1032,13 +1035,11 @@ export class PhishingController extends BaseController<
             if (tokenResult?.result_type) {
               const result: TokenScanResult = {
                 result_type: tokenResult.result_type,
-                chain: tokenResult.chain || chainId,
+                chain: tokenResult.chain || normalizedChainId,
                 address: tokenResult.address || normalizedAddress,
               };
 
-              // Add to cache
-              const cacheKey = `${chainId}:${normalizedAddress}`;
-
+              const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
               this.#tokenScanCache.set(cacheKey, {
                 result_type: tokenResult.result_type,
               });
@@ -1049,7 +1050,6 @@ export class PhishingController extends BaseController<
         }
       } catch (error) {
         // On error, just return what we have from cache
-        // Consumers can detect missing tokens and retry if needed
         console.error('Error scanning tokens:', error);
       }
     }

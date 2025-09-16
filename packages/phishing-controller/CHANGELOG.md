@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add bulk token scanning functionality to detect malicious tokens ([#5912](https://github.com/MetaMask/core/pull/5912))
+- Add bulk token scanning functionality to detect malicious tokens ([#6483](https://github.com/MetaMask/core/pull/6483))
   - Add `bulkScanTokens` method to scan multiple tokens for malicious activity
   - Add `BulkTokenScanRequest` and `BulkTokenScanResponse` types
   - Add `tokenScanCache` to `PhishingControllerState`
