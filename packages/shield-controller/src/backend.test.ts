@@ -49,6 +49,7 @@ describe('ShieldRemoteBackend', () => {
     const { backend, fetchMock, getAccessToken } = setup();
 
     // Mock init coverage check.
+    const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
       json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
@@ -63,7 +64,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     const coverageResult = await backend.checkCoverage(txMeta);
-    expect(coverageResult).toStrictEqual({ status });
+    expect(coverageResult).toStrictEqual({ coverageId, status });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -74,9 +75,10 @@ describe('ShieldRemoteBackend', () => {
     });
 
     // Mock init coverage check.
+    const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: jest.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
     // Mock get coverage result: result unavailable.
@@ -94,7 +96,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     const coverageResult = await backend.checkCoverage(txMeta);
-    expect(coverageResult).toStrictEqual({ status });
+    expect(coverageResult).toStrictEqual({ coverageId, status });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -151,9 +153,10 @@ describe('ShieldRemoteBackend', () => {
       const { backend, fetchMock, getAccessToken } = setup();
 
       // Mock init coverage check.
+      const coverageId = 'coverageId';
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+        json: jest.fn().mockResolvedValue({ coverageId }),
       } as unknown as Response);
 
       // Mock get coverage result.
@@ -166,7 +169,7 @@ describe('ShieldRemoteBackend', () => {
       const signatureRequest = generateMockSignatureRequest();
       const coverageResult =
         await backend.checkSignatureCoverage(signatureRequest);
-      expect(coverageResult).toStrictEqual({ status });
+      expect(coverageResult).toStrictEqual({ coverageId, status });
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
     });

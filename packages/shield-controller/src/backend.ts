@@ -88,7 +88,8 @@ export class ShieldRemoteBackend implements ShieldBackend {
       reqBody,
     );
 
-    return this.#getCoverageResult(coverageId);
+    const coverageResult = await this.#getCoverageResult(coverageId);
+    return { coverageId, status: coverageResult.status };
   }
 
   async checkSignatureCoverage(
@@ -111,7 +112,8 @@ export class ShieldRemoteBackend implements ShieldBackend {
       reqBody,
     );
 
-    return this.#getCoverageResult(coverageId);
+    const coverageResult = await this.#getCoverageResult(coverageId);
+    return { coverageId, status: coverageResult.status };
   }
 
   async #initCoverageCheck(
