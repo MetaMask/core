@@ -44,6 +44,8 @@ describe('EIP-5792', () => {
     PreferencesControllerGetStateAction['handler']
   > = jest.fn();
 
+  const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
+
   let messenger: EIP5792Messenger;
 
   const getCapabilitiesHooks = {
@@ -53,6 +55,7 @@ describe('EIP-5792', () => {
     getIsSmartTransaction: getIsSmartTransactionMock,
     isRelaySupported: isRelaySupportedMock,
     getSendBundleSupportedChains: getSendBundleSupportedChainsMock,
+    isAuxiliaryFundsSupported: isAuxiliaryFundsSupportedMock,
   };
 
   beforeEach(() => {

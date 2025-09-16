@@ -19,6 +19,13 @@ export enum EIP5792ErrorCode {
   RejectedUpgrade = 5750,
 }
 
+// To be moved to @metamask/rpc-errors in future.
+export enum EIP7682ErrorCode {
+  UnsupportedAsset = 5771,
+  UnsupportedChain = 5772,
+  MalformedRequiredAssets = 5773,
+}
+
 // wallet_getCallStatus
 export enum GetCallsStatusCode {
   PENDING = 100,

@@ -109,23 +109,18 @@ export async function getCapabilities(
     }
 
     const status = isSupported ? 'supported' : 'ready';
+    const hexChainId = chainId as Hex;
 
-    if (acc[chainId as Hex] === undefined) {
-      acc[chainId as Hex] = {};
+    if (acc[hexChainId] === undefined) {
+      acc[hexChainId] = {};
     }
 
-    acc[chainId as Hex].atomic = {
+    acc[hexChainId].atomic = {
       status,
     };
 
-    // TODO: [ffmcgee] based of ongoing thread, either filter by wallet type as well or not (just use `isSupportedAccount`)
-    console.log('iterating: ', {
-      chainId,
-      isSupportedAccount,
-      isAuxFundSupported: isAuxiliaryFundsSupported(chainId),
-    });
     if (isAuxiliaryFundsSupported(chainId) && isSupportedAccount) {
-      acc[chainId as Hex].auxiliaryFunds = {
+      acc[hexChainId].auxiliaryFunds = {
         supported: true,
       };
     }

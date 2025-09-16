@@ -81,6 +81,8 @@ describe('EIP-5792', () => {
     AccountsControllerGetStateAction['handler']
   > = jest.fn();
 
+  const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
+
   let messenger: EIP5792Messenger;
 
   const sendCallsHooks = {
@@ -90,6 +92,7 @@ describe('EIP-5792', () => {
       getDismissSmartAccountSuggestionEnabledMock,
     isAtomicBatchSupported: isAtomicBatchSupportedMock,
     validateSecurity: validateSecurityMock,
+    isAuxiliaryFundsSupported: isAuxiliaryFundsSupportedMock,
   };
 
   beforeEach(() => {
