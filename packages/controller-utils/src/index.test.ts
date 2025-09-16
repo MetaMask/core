@@ -90,6 +90,7 @@ describe('@metamask/controller-utils', () => {
         "parseDomainParts",
         "isValidSIWEOrigin",
         "detectSIWE",
+        "NETWORKS_BYPASSING_VALIDATION",
       ]
     `);
   });
