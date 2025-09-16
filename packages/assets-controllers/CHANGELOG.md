@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
+- Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
 
 ### Changed
 
