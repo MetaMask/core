@@ -2823,9 +2823,9 @@ describe('AccountTreeController', () => {
       // Critical assertion: should have 2 unique names (no duplicates)
       expect(uniqueNames.size).toBe(2);
 
-      // Due to optimization, names start at wallet.length-1, so we get "Account 2" and "Account 3"
-      expect(allNames).toContain('Account 2');
+      // Due to optimization, names start at wallet.length, so we get "Account 3" and "Account 4"
       expect(allNames).toContain('Account 3');
+      expect(allNames).toContain('Account 4');
 
       // Verify they're actually different
       expect(group1.metadata.name).not.toBe(group2.metadata.name);
@@ -2926,27 +2926,35 @@ describe('AccountTreeController', () => {
         },
       };
 
-      // Simulate the optimization: start with Object.keys(wallet.groups).length - 1
-      const startingPoint = Object.keys(mockWallet.groups).length - 1; // = 1
-      expect(startingPoint).toBe(1);
+      // Simulate the optimization: start with Object.keys(wallet.groups).length
+      const startingPoint = Object.keys(mockWallet.groups).length; // = 2
+      expect(startingPoint).toBe(2);
 
-      // This means we'd start checking "Account 2" instead of "Account 1"
-      // Since "My Account" and "Account 3" exist, "Account 2" should be available
+      // This means we'd start checking "Account 3" instead of "Account 1"
+      // Since "My Account" and "Account 3" exist, we'll increment to "Account 4"
       const mockRule = {
         getDefaultAccountGroupName: (index: number) => `Account ${index + 1}`,
       };
 
       const proposedName = mockRule.getDefaultAccountGroupName(startingPoint);
-      expect(proposedName).toBe('Account 2');
+      expect(proposedName).toBe('Account 3');
 
-      // Verify this name doesn't conflict
+      // Verify this name conflicts (since "Account 3" already exists)
       const nameExists = Object.values(mockWallet.groups).some(
         (g) => g.metadata.name === proposedName,
       );
-      expect(nameExists).toBe(false); // Should be unique
+      expect(nameExists).toBe(true); // Should conflict
 
-      // This proves the optimization works: we avoid checking "Account 1" unnecessarily
-      // and directly find an available name at the optimized starting point
+      // The while loop would increment to find "Account 4" which would be unique
+      const nextProposedName = mockRule.getDefaultAccountGroupName(
+        startingPoint + 1,
+      );
+      expect(nextProposedName).toBe('Account 4');
+
+      const nextNameExists = Object.values(mockWallet.groups).some(
+        (g) => g.metadata.name === nextProposedName,
+      );
+      expect(nextNameExists).toBe(false); // Should be unique
     });
 
     it('thoroughly tests different naming patterns for wallet types', () => {

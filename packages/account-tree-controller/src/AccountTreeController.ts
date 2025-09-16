@@ -421,12 +421,15 @@ export class AccountTreeController extends BaseController<
         let groupIndex: number;
 
         // For entropy-based multichain groups, start with the actual groupIndex
-        if (group.type === AccountGroupType.MultichainAccount) {
+        if (
+          group.type === AccountGroupType.MultichainAccount &&
+          group.metadata.entropy
+        ) {
           groupIndex = group.metadata.entropy.groupIndex;
         } else {
           // For other wallet types, start with the number of existing groups
-          // This avoids unnecessary conflict checks in most cases
-          groupIndex = Object.keys(wallet.groups).length - 1;
+          // This gives us the next logical sequential number
+          groupIndex = Object.keys(wallet.groups).length;
         }
 
         // Find a unique name by checking for conflicts and incrementing if needed
