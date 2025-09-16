@@ -94,7 +94,7 @@ function getAccountTreeControllerMessenger(
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
-      'AccountsController:getSelectedAccount',
+      'AccountsController:getSelectedMultichainAccount',
       'AccountsController:setSelectedAccount',
       'KeyringController:getState',
       'SnapController:get',
