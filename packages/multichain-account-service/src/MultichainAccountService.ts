@@ -14,7 +14,11 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { NamedAccountProvider } from './providers';
+import type {
+  EvmAccountProviderConfig,
+  NamedAccountProvider,
+  SolAccountProviderConfig,
+} from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
@@ -31,6 +35,10 @@ export const serviceName = 'MultichainAccountService';
 type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: NamedAccountProvider[];
+  providersConfigs?: {
+    [EvmAccountProvider.NAME]: EvmAccountProviderConfig;
+    [SolAccountProvider.NAME]: SolAccountProviderConfig;
+  };
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -69,19 +77,30 @@ export class MultichainAccountService {
    * @param options.messenger - The messenger suited to this
    * MultichainAccountService.
    * @param options.providers - Optional list of account
+   * @param options.providersConfigs - Optional providers configs
    * providers.
    */
-  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
+  constructor({
+    messenger,
+    providers = [],
+    providersConfigs,
+  }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
-      new EvmAccountProvider(this.#messenger),
+      new EvmAccountProvider(
+        this.#messenger,
+        providersConfigs?.[EvmAccountProvider.NAME],
+      ),
       new AccountProviderWrapper(
         this.#messenger,
-        new SolAccountProvider(this.#messenger),
+        new SolAccountProvider(
+          this.#messenger,
+          providersConfigs?.[SolAccountProvider.NAME],
+        ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,

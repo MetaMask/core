@@ -10,6 +10,7 @@ import type {
 } from '@metamask/network-controller';
 
 import { EvmAccountProvider } from './EvmAccountProvider';
+import { TimeoutError } from './utils';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -373,7 +374,7 @@ describe('EvmAccountProvider', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
-    ).rejects.toThrow('RPC request timed out');
+    ).rejects.toThrow(TimeoutError);
   });
 
   it('returns an existing account if it already exists', async () => {

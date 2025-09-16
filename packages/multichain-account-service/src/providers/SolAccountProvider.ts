@@ -14,21 +14,40 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
+import { withTimeout } from './utils';
+
+export type SolAccountProviderConfig = {
+  discovery: {
+    timeoutMs: number;
+  };
+};
 
 export class SolAccountProvider extends SnapAccountProvider {
+  static NAME = 'Solana' as const;
+
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
   readonly #client: KeyringClient;
 
-  constructor(messenger: MultichainAccountServiceMessenger) {
+  readonly #config: SolAccountProviderConfig;
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    config: SolAccountProviderConfig = {
+      discovery: {
+        timeoutMs: 5000,
+      },
+    },
+  ) {
     super(SolAccountProvider.SOLANA_SNAP_ID, messenger);
     this.#client = this.#getKeyringClientFromSnapId(
       SolAccountProvider.SOLANA_SNAP_ID,
     );
+    this.#config = config;
   }
 
   getName(): string {
-    return 'Solana';
+    return SolAccountProvider.NAME;
   }
 
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {
@@ -102,10 +121,13 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const discoveredAccounts = await this.#client.discoverAccounts(
-      [SolScope.Mainnet],
-      entropySource,
-      groupIndex,
+    const discoveredAccounts = await withTimeout(
+      this.#client.discoverAccounts(
+        [SolScope.Mainnet],
+        entropySource,
+        groupIndex,
+      ),
+      this.#config.discovery.timeoutMs,
     );
 
     if (!discoveredAccounts.length) {
