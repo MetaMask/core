@@ -119,6 +119,11 @@ export async function getCapabilities(
     };
 
     // TODO: [ffmcgee] based of ongoing thread, either filter by wallet type as well or not (just use `isSupportedAccount`)
+    console.log('iterating: ', {
+      chainId,
+      isSupportedAccount,
+      isAuxFundSupported: isAuxiliaryFundsSupported(chainId),
+    });
     if (isAuxiliaryFundsSupported(chainId) && isSupportedAccount) {
       acc[chainId as Hex].auxiliaryFunds = {
         supported: true,
