@@ -709,6 +709,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
           'RemoteFeatureFlagController:getState',
+          'PhishingController:bulkScanTokens',
         ],
         allowedEvents: [],
       });
@@ -2379,6 +2380,424 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+      });
+
+      describe('bulk scanning received tokens', () => {
+        it('calls PhishingController:bulkScanTokens for received tokens', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          const receivedTokenAddress = '0x123';
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              tokenBalanceChanges: [
+                {
+                  address: receivedTokenAddress,
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+              ],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledTimes(1);
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledWith({
+            chainId: CHAIN_ID_MOCK,
+            tokens: [receivedTokenAddress],
+          });
+        });
+
+        it('filters out tokens that are decreasing (spent tokens)', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          const receivedTokenAddress = '0x123';
+          const spentTokenAddress = '0x456';
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              tokenBalanceChanges: [
+                {
+                  address: receivedTokenAddress,
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+                {
+                  address: spentTokenAddress,
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x1',
+                  newBalance: '0x0',
+                  difference: '0x1',
+                  isDecrease: true,
+                },
+              ],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledTimes(1);
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledWith({
+            chainId: CHAIN_ID_MOCK,
+            tokens: [receivedTokenAddress],
+          });
+        });
+
+        it('does not call PhishingController when there are no received tokens', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              tokenBalanceChanges: [
+                {
+                  address: '0x123',
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x1',
+                  newBalance: '0x0',
+                  difference: '0x1',
+                  isDecrease: true, // Only spent tokens
+                },
+              ],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).not.toHaveBeenCalled();
+        });
+
+        it('does not call PhishingController when tokenBalanceChanges is empty', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              tokenBalanceChanges: [],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).not.toHaveBeenCalled();
+        });
+
+        it('does not call PhishingController when simulationData is undefined', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: undefined as unknown as SimulationData,
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).not.toHaveBeenCalled();
+        });
+
+        it('does not call PhishingController when simulationData has an error', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              error: {
+                code: SimulationErrorCode.ChainNotSupported,
+                message: 'Chain not supported',
+              },
+              tokenBalanceChanges: [
+                {
+                  address: '0x123',
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+              ],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).not.toHaveBeenCalled();
+        });
+
+        it('handles PhishingController:bulkScanTokens rejection gracefully', async () => {
+          const phishingControllerBulkScanTokensMock = jest.fn();
+          const testError = new Error('PhishingController error');
+          phishingControllerBulkScanTokensMock.mockRejectedValueOnce(testError);
+
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              tokenBalanceChanges: [
+                {
+                  address: '0x123',
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+              ],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          // Should not throw, just log the error
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('handles multiple received tokens correctly', async () => {
+          const phishingControllerBulkScanTokensMock = jest
+            .fn()
+            .mockResolvedValue(undefined);
+          const { controller, messenger } = setupController({
+            options: {
+              hooks: {
+                afterSimulate: jest.fn().mockResolvedValue({}),
+              },
+            },
+          });
+
+          messenger.registerActionHandler(
+            'PhishingController:bulkScanTokens',
+            phishingControllerBulkScanTokensMock,
+          );
+
+          const receivedTokenAddress1 = '0x123';
+          const receivedTokenAddress2 = '0x456';
+          const receivedTokenAddress3 = '0x789';
+
+          getBalanceChangesMock.mockResolvedValueOnce({
+            simulationData: {
+              ...SIMULATION_DATA_RESULT_MOCK,
+              tokenBalanceChanges: [
+                {
+                  address: receivedTokenAddress1,
+                  standard: SimulationTokenStandard.erc20,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+                {
+                  address: receivedTokenAddress2,
+                  standard: SimulationTokenStandard.erc721,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+                {
+                  address: receivedTokenAddress3,
+                  standard: SimulationTokenStandard.erc1155,
+                  previousBalance: '0x0',
+                  newBalance: '0x1',
+                  difference: '0x1',
+                  isDecrease: false,
+                },
+              ],
+            },
+          });
+
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledTimes(1);
+          expect(phishingControllerBulkScanTokensMock).toHaveBeenCalledWith({
+            chainId: CHAIN_ID_MOCK,
+            tokens: [
+              receivedTokenAddress1,
+              receivedTokenAddress2,
+              receivedTokenAddress3,
+            ],
+          });
+        });
       });
     });
 
