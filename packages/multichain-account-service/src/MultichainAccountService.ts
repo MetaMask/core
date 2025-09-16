@@ -9,10 +9,7 @@ import type {
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import {
-  KeyringTypes,
-  type KeyringMetadata,
-} from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
