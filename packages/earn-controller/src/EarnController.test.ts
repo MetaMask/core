@@ -2587,13 +2587,35 @@ describe('EarnController', () => {
     it('includes expected state in state logs', async () => {
       const { controller } = await setupController();
 
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'includeInStateLogs',
-        ),
-      ).toMatchInlineSnapshot(`
+      const derivedState = deriveStateFromMetadata(
+        controller.state,
+        controller.metadata,
+        'includeInStateLogs',
+      );
+
+      // Compare `pooled_staking` separately to minimize size of snapshot
+      const {
+        pooled_staking: derivedPooledStaking,
+        ...derivedStateWithoutPooledStaking
+      } = derivedState;
+      expect(derivedPooledStaking).toStrictEqual({
+        '1': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        '560048': {
+          pooledStakes: mockPooledStakes,
+          exchangeRate: '1.5',
+          vaultMetadata: mockVaultMetadata,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
+        },
+        isEligible: true,
+      });
+      expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
         Object {
           "lastUpdated": 0,
           "lending": Object {
