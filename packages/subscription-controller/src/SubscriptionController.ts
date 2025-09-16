@@ -30,6 +30,8 @@ import {
 } from './types';
 
 export type SubscriptionControllerState = {
+  customerId?: string;
+  trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
 };
@@ -127,6 +129,7 @@ export type SubscriptionControllerOptions = {
 export function getDefaultSubscriptionControllerState(): SubscriptionControllerState {
   return {
     subscriptions: [],
+    trialedProducts: [],
   };
 }
 
@@ -143,6 +146,18 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
+    },
+    customerId: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: false,
+      usedInUi: true,
+    },
+    trialedProducts: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: true,
       usedInUi: true,
     },
     pricing: {
@@ -242,11 +257,13 @@ export class SubscriptionController extends BaseController<
   }
 
   async getSubscriptions() {
-    const { subscriptions } =
+    const { subscriptions, customerId, trialedProducts } =
       await this.#subscriptionService.getSubscriptions();
 
     this.update((state) => {
       state.subscriptions = subscriptions;
+      state.customerId = customerId;
+      state.trialedProducts = trialedProducts;
     });
 
     return subscriptions;
