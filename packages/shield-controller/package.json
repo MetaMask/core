@@ -47,7 +47,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.3.0",
+    "@metamask/base-controller": "^8.4.0",
     "@metamask/utils": "^11.8.0"
   },
   "devDependencies": {
