@@ -70,14 +70,26 @@ export type Subscription = {
   billingCycles?: number;
 };
 
-export type SubscriptionPaymentMethod = {
-  type: PaymentType;
-  crypto?: {
+export type SubscriptionCardPaymentMethod = {
+  type: Extract<PaymentType, 'card'>;
+  card: {
+    brand: string;
+    last4: string;
+  }
+};
+
+export type SubscriptionCryptoPaymentMethod = {
+  type: Extract<PaymentType, 'crypto'>;
+  crypto: {
     payerAddress: Hex;
     chainId: Hex;
     tokenSymbol: string;
   };
 };
+
+export type SubscriptionPaymentMethod =
+  | SubscriptionCardPaymentMethod
+  | SubscriptionCryptoPaymentMethod;
 
 export type GetSubscriptionsResponse = {
   customerId?: string;

@@ -47,6 +47,10 @@ const MOCK_SUBSCRIPTION: Subscription = {
   interval: RECURRING_INTERVALS.month,
   paymentMethod: {
     type: PAYMENT_TYPES.byCard,
+    card: {
+      brand: 'visa',
+      last4: '1234',
+    },
   },
 };
 
