@@ -3,6 +3,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import {
   query,
@@ -75,10 +76,12 @@ const ETH_QUERY_ERROR_MSG =
  */
 const controllerName = 'SmartTransactionsController';
 
-const controllerMetadata = {
+const controllerMetadata: StateMetadata<SmartTransactionsControllerState> = {
   smartTransactionsState: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: true,
+    usedInUi: true,
   },
 };
 

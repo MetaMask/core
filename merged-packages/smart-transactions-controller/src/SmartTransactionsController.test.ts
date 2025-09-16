@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 import {
   NetworkType,
   convertHexToDecimal,
@@ -2529,6 +2529,143 @@ describe('SmartTransactionsController', () => {
           });
         },
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'anonymous',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "smartTransactionsState": {
+              "fees": {
+                "approvalTxFees": null,
+                "tradeTxFees": null,
+              },
+              "feesByChainId": {
+                "0x1": {
+                  "approvalTxFees": null,
+                  "tradeTxFees": null,
+                },
+                "0xaa36a7": {
+                  "approvalTxFees": null,
+                  "tradeTxFees": null,
+                },
+              },
+              "liveness": true,
+              "livenessByChainId": {
+                "0x1": true,
+                "0xaa36a7": true,
+              },
+              "smartTransactions": {
+                "0x1": [],
+              },
+              "userOptIn": null,
+              "userOptInV2": null,
+            },
+          }
+        `);
+      });
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "smartTransactionsState": {
+              "fees": {
+                "approvalTxFees": null,
+                "tradeTxFees": null,
+              },
+              "feesByChainId": {
+                "0x1": {
+                  "approvalTxFees": null,
+                  "tradeTxFees": null,
+                },
+                "0xaa36a7": {
+                  "approvalTxFees": null,
+                  "tradeTxFees": null,
+                },
+              },
+              "liveness": true,
+              "livenessByChainId": {
+                "0x1": true,
+                "0xaa36a7": true,
+              },
+              "smartTransactions": {
+                "0x1": [],
+              },
+              "userOptIn": null,
+              "userOptInV2": null,
+            },
+          }
+        `);
+      });
+    });
+
+    it('persists expected state', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`{}`);
+      });
+    });
+
+    it('includes expected state in UI', async () => {
+      await withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "smartTransactionsState": {
+              "fees": {
+                "approvalTxFees": null,
+                "tradeTxFees": null,
+              },
+              "feesByChainId": {
+                "0x1": {
+                  "approvalTxFees": null,
+                  "tradeTxFees": null,
+                },
+                "0xaa36a7": {
+                  "approvalTxFees": null,
+                  "tradeTxFees": null,
+                },
+              },
+              "liveness": true,
+              "livenessByChainId": {
+                "0x1": true,
+                "0xaa36a7": true,
+              },
+              "smartTransactions": {
+                "0x1": [],
+              },
+              "userOptIn": null,
+              "userOptInV2": null,
+            },
+          }
+        `);
+      });
     });
   });
 });
