@@ -117,6 +117,22 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return accountsArray;
   }
 
+  async #getTransactionCount(
+    provider: Provider,
+    address: Hex,
+  ): Promise<number> {
+    const countHex = await this.#WithRetry<Hex>(() =>
+      this.#withTimeout(
+        provider.request({
+          method: 'eth_getTransactionCount',
+          params: [address, 'latest'],
+        }),
+      ),
+    );
+
+    return parseInt(countHex, 16);
+  }
+
   /**
    * Discover and create accounts for the EVM provider.
    *
@@ -140,11 +156,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     // We don't want to remove the account if it's the first one.
     const shouldCleanup = didCreate && groupIndex !== 0;
     try {
-      const countHex = (await provider.request({
-        method: 'eth_getTransactionCount',
-        params: [address, 'latest'],
-      })) as Hex;
-      const count = parseInt(countHex, 16);
+      const count = await this.#getTransactionCount(provider, address);
 
       if (count === 0 && shouldCleanup) {
         await this.withKeyring<EthKeyring>(
@@ -176,5 +188,69 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     assertInternalAccountExists(account);
     assertIsBip44Account(account);
     return [account];
+  }
+
+  /**
+   * Execute a function with exponential backoff on transient failures.
+   *
+   * @param fnToExecute - The function to execute.
+   * @param options - The options for the retry.
+   * @param options.maxAttempts - The maximum number of attempts.
+   * @param options.backOffMs - The backoff in milliseconds.
+   * @throws An error if the transaction count cannot be retrieved.
+   * @returns The result of the function.
+   */
+  async #WithRetry<T>(
+    fnToExecute: () => Promise<T>,
+    {
+      maxAttempts = 3,
+      backOffMs = 500,
+    }: { maxAttempts?: number; backOffMs?: number } = {},
+  ): Promise<T> {
+    let lastError;
+    let backOff = backOffMs;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fnToExecute();
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxAttempts) {
+          break;
+        }
+        const delay = backOff;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        backOff *= 2;
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Execute a promise with a timeout.
+   *
+   * @param promise - The promise to execute.
+   * @param timeoutMs - The timeout in milliseconds.
+   * @returns The result of the promise.
+   */
+  async #withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number = 500,
+  ): Promise<T> {
+    let timer;
+    try {
+      return await Promise.race<T>([
+        promise,
+        new Promise<T>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('RPC request timed out')),
+            timeoutMs,
+          );
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
   }
 }
