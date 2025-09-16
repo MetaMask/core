@@ -11,6 +11,7 @@ import {
   selectBridgeQuotes,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
+  selectDefaultSlippagePercentage,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -1111,6 +1112,156 @@ describe('Bridge Selectors', () => {
         chains: {},
         support: false,
       });
+    });
+  });
+
+  describe('selectDefaultSlippagePercentage', () => {
+    const mockValidBridgeConfig = {
+      minimumVersion: '0.0.0',
+      refreshRate: 3,
+      maxRefreshCount: 1,
+      support: true,
+      chains: {
+        '1': {
+          isActiveSrc: true,
+          isActiveDest: true,
+          stablecoins: ['0x123', '0x456'],
+        },
+        '10': {
+          isActiveSrc: true,
+          isActiveDest: false,
+        },
+        '1151111081099710': {
+          isActiveSrc: true,
+          isActiveDest: true,
+        },
+      },
+    };
+
+    it('should return swap default slippage when stablecoins list is not defined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          srcChainId: '10',
+          destChainId: '10',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
+
+    it('should return bridge default slippage when requesting an EVM bridge quote', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          srcChainId: '1',
+          destChainId: ChainId.SOLANA,
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return bridge default slippage when requesting a Solana bridge quote', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+          srcChainId: ChainId.SOLANA,
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return swap auto slippage when requesting a Solana swap quote', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: ChainId.SOLANA,
+          srcChainId: ChainId.SOLANA,
+        },
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return swap default slippage when dest token is not a stablecoin', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x789',
+          destChainId: '1',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
+
+    it('should return swap default slippage when src token is not a stablecoin', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x789',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
+
+    it('should return swap stablecoin slippage when both tokens are stablecoins', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(0.5);
     });
   });
 });
