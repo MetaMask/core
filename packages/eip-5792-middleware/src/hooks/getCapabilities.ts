@@ -25,6 +25,8 @@ export type GetCapabilitiesHooks = {
   getSendBundleSupportedChains: (
     chainIds: Hex[],
   ) => Promise<Record<string, boolean>>;
+  /** TODO [ffmcgee] */
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 };
 
 /**
@@ -48,6 +50,7 @@ export async function getCapabilities(
     isAtomicBatchSupported,
     isRelaySupported,
     getSendBundleSupportedChains,
+    isAuxiliaryFundsSupported,
   } = hooks;
 
   let chainIdsNormalized = chainIds?.map(
@@ -113,6 +116,10 @@ export async function getCapabilities(
 
     acc[chainId as Hex].atomic = {
       status,
+    };
+
+    acc[chainId as Hex].auxiliaryFunds = {
+      supported: isAuxiliaryFundsSupported(chainId),
     };
 
     return acc;
