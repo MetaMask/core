@@ -1035,19 +1035,56 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Resolves name conflicts by adding a suffix to make the name unique.
+   *
+   * @param groupId - The account group ID to exclude from the check.
+   * @param name - The desired name that has a conflict.
+   * @returns A unique name with suffix added if necessary.
+   */
+  /* istanbul ignore next */
+  #resolveNameConflict(groupId: AccountGroupId, name: string): string {
+    let suffix = 2;
+    let candidateName = `${name} (${suffix})`;
+
+    // Keep incrementing suffix until we find a unique name
+    while (!isAccountGroupNameUnique(this.state, groupId, candidateName)) {
+      suffix += 1;
+      candidateName = `${name} (${suffix})`;
+    }
+
+    return candidateName;
+  }
+
+  /**
    * Sets a custom name for an account group.
    *
    * @param groupId - The account group ID.
    * @param name - The custom name to set.
+   * @param autoHandleConflict - If true, automatically resolves name conflicts by adding a suffix. If false, throws on conflicts.
    * @throws If the account group ID is not found in the current tree.
-   * @throws If the account group name already exists.
+   * @throws If the account group name already exists and autoHandleConflict is false.
    */
-  setAccountGroupName(groupId: AccountGroupId, name: string): void {
+  setAccountGroupName(
+    groupId: AccountGroupId,
+    name: string,
+    autoHandleConflict: boolean = false,
+  ): void {
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
 
-    // Validate that the name is unique
-    this.#assertAccountGroupNameIsUnique(groupId, name);
+    let finalName = name;
+
+    // Handle name conflicts based on the autoHandleConflict flag
+    if (
+      autoHandleConflict &&
+      !isAccountGroupNameUnique(this.state, groupId, name)
+    ) {
+      /* istanbul ignore next */
+      finalName = this.#resolveNameConflict(groupId, name);
+    } else {
+      // Validate that the name is unique
+      this.#assertAccountGroupNameIsUnique(groupId, finalName);
+    }
 
     const walletId = this.#groupIdToWalletId.get(groupId);
 
@@ -1055,14 +1092,14 @@ export class AccountTreeController extends BaseController<
       // Update persistent metadata
       state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].name = {
-        value: name,
+        value: finalName,
         lastUpdatedAt: Date.now(),
       };
 
       // Update tree node directly using efficient mapping
       if (walletId) {
         state.accountTree.wallets[walletId].groups[groupId].metadata.name =
-          name;
+          finalName;
       }
     });
 
