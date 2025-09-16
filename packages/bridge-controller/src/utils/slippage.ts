@@ -54,7 +54,8 @@ export const getDefaultSlippagePercentage = (
     srcStablecoins
       ?.map((stablecoin) => stablecoin.toLowerCase())
       .includes(srcTokenAddress.toLowerCase()) &&
-    destStablecoins
+    // If destChainId is undefined, treat req as a swap and fallback to srcStablecoins
+    (destStablecoins ?? srcStablecoins)
       ?.map((stablecoin) => stablecoin.toLowerCase())
       .includes(destTokenAddress.toLowerCase())
   ) {

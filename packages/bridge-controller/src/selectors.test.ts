@@ -1263,5 +1263,56 @@ describe('Bridge Selectors', () => {
 
       expect(result).toBe(0.5);
     });
+
+    it('should return bridge default slippage when srcChainId is undefined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          destChainId: '1',
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return swap stablecoin slippage when destChainId is undefined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(0.5);
+    });
+
+    it('should return swap default slippage when destChainId is undefined', () => {
+      const result = selectDefaultSlippagePercentage(
+        {
+          remoteFeatureFlags: {
+            bridgeConfig: mockValidBridgeConfig,
+          },
+        } as never,
+        {
+          srcTokenAddress: '0x789',
+          destTokenAddress: '0x456',
+          srcChainId: '1',
+        },
+      );
+
+      expect(result).toBe(2);
+    });
   });
 });
