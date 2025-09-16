@@ -6,8 +6,11 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import type { HdKeyring } from '@metamask/eth-hd-keyring';
+import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -120,6 +123,11 @@ export class MultichainAccountService {
       'MultichainAccountService:alignWallet',
       (...args) => this.alignWallet(...args),
     );
+    this.#messenger.registerActionHandler(
+      'MultichainAccountService:createMultichainAccountWallet',
+      (...args) => this.createMultichainAccountWallet(...args),
+    );
+
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
       this.#handleOnAccountAdded(account),
     );
@@ -288,6 +296,57 @@ export class MultichainAccountService {
     Bip44Account<KeyringAccount>
   >[] {
     return Array.from(this.#wallets.values());
+  }
+
+  /**
+   * Creates a new multichain account wallet with the given mnemonic.
+   *
+   * NOTE: This method should only be called in client code where a mutex lock is acquired.
+   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
+   *
+   * @param options - Options.
+   * @param options.mnemonic - The mnemonic to use to create the new wallet.
+   * @throws If the mnemonic has already been imported.
+   * @returns The new multichain account wallet.
+   */
+  async createMultichainAccountWallet({
+    mnemonic,
+  }: {
+    mnemonic: string;
+  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    const existingKeyrings = this.#messenger.call(
+      'KeyringController:getKeyringsByType',
+      KeyringTypes.hd,
+    ) as HdKeyring[];
+
+    const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
+
+    const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
+      if (!keyring.mnemonic) {
+        return false;
+      }
+      return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
+    });
+
+    if (alreadyHasImportedSrp) {
+      throw new Error('This Secret Recovery Phrase has already been imported.');
+    }
+
+    const result = await this.#messenger.call(
+      'KeyringController:addNewKeyring',
+      KeyringTypes.hd,
+      { mnemonic },
+    );
+
+    const wallet = new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: result.id,
+      messenger: this.#messenger,
+    });
+
+    this.#wallets.set(wallet.id, wallet);
+
+    return wallet;
   }
 
   /**

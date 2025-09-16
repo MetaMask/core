@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [43.0.0]
+
+### Added
+
+- Add `totalFeeAmountUsd` to `quote` to support rewards estimation ([#6592](https://github.com/MetaMask/core/pull/6592))
+
+### Changed
+
 - **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^74.0.0` to `^75.0.0` ([#6570](https://github.com/MetaMask/core/pull/6570))
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 - Add optional `isGaslessSwapEnabled` LaunchDarkly config to feature flags schema ([#6573](https://github.com/MetaMask/core/pull/6573))
@@ -567,7 +578,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@42.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.0.0...HEAD
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@42.0.0...@metamask/bridge-controller@43.0.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...@metamask/bridge-controller@42.0.0
 [41.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.3.0...@metamask/bridge-controller@41.4.0
 [41.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...@metamask/bridge-controller@41.3.0

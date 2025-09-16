@@ -9,12 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
+
+  - Add `Monad Mainnet` balance scan contract address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
+  - Add `Monad Mainnet` in `SupportedTokenDetectionNetworks`
+  - Add `Monad Mainnet` in `SUPPORTED_CHAIN_IDS`
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.13.0` to `^11.14.0` ([#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [75.1.0]
+
+### Added
+
 - Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
 
 ### Changed
 
 - Add `queryAllAccounts` parameter support to `AccountTrackerController.refresh()`, `AccountTrackerController._executePoll()`, and `TokenBalancesController.updateBalances()` for flexible account selection during balance updates ([#6600](https://github.com/MetaMask/core/pull/6600))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.13.0` ([#6620](https://github.com/MetaMask/core/pull/6620))
 
 ## [75.0.0]
 
@@ -1981,7 +1997,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.1.0...HEAD
+[75.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.0.0...@metamask/assets-controllers@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.3...@metamask/assets-controllers@75.0.0
 [74.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.2...@metamask/assets-controllers@74.3.3
 [74.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.1...@metamask/assets-controllers@74.3.2
