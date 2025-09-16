@@ -184,4 +184,62 @@ describe('ShieldRemoteBackend', () => {
       ).rejects.toThrow('Signature data must be a string');
     });
   });
+
+  describe('logSignature', () => {
+    it('logs signature', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await backend.logSignature({
+        coverageId: 'coverageId',
+        signature: '0x00',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws on status 500', async () => {
+      const { backend, fetchMock } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 500 } as unknown as Response);
+
+      await expect(
+        backend.logSignature({
+          coverageId: 'coverageId',
+          signature: '0x00',
+        }),
+      ).rejects.toThrow('Failed to log signature: 500');
+    });
+  });
+
+  describe('logTransaction', () => {
+    it('logs transaction', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await backend.logTransaction({
+        coverageId: 'coverageId',
+        transactionHash: '0x00',
+        status: 'submitted',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws on status 500', async () => {
+      const { backend, fetchMock } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 500 } as unknown as Response);
+
+      await expect(
+        backend.logTransaction({
+          coverageId: 'coverageId',
+          transactionHash: '0x00',
+          status: 'submitted',
+        }),
+      ).rejects.toThrow('Failed to log transaction: 500');
+    });
+  });
 });
