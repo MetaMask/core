@@ -47,7 +47,7 @@ export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
-export const TOKEN_BULK_SCREENING_ENDPOINT = '/token/scan-bulk';
+export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
 export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
@@ -994,13 +994,13 @@ export class PhishingController extends BaseController<
       }
     }
 
-    // If there are tokens to fetch, call the API
+    // If there are tokens to fetch, call the bulk token scan API
     if (tokensToFetch.length > 0) {
       try {
         const apiResponse = await safelyExecuteWithTimeout(
           async () => {
             const res = await fetch(
-              `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCREENING_ENDPOINT}`,
+              `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
               {
                 method: 'POST',
                 headers: {
@@ -1050,7 +1050,6 @@ export class PhishingController extends BaseController<
         }
       } catch (error) {
         // On error, just return what we have from cache
-        // Consumers can detect missing tokens and retry if needed
         console.error('Error scanning tokens:', error);
       }
     }
