@@ -32,7 +32,7 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions = {
+export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: NamedAccountProvider[];
   providersConfigs?: {

@@ -6,6 +6,7 @@ import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
+import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
@@ -72,9 +73,10 @@ function mockAccountProvider<Provider>(
   accounts: KeyringAccount[],
   type: KeyringAccount['type'],
 ) {
-  jest
-    .mocked(providerClass)
-    .mockImplementation(() => mocks as unknown as Provider);
+  jest.mocked(providerClass).mockImplementation((...args) => {
+    mocks.constructor(...args);
+    return mocks as unknown as Provider;
+  });
 
   setupNamedAccountProvider({
     mocks,
@@ -87,6 +89,7 @@ function setup({
   messenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
+  providersConfigs,
 }: {
   messenger?: Messenger<
     MultichainAccountServiceActions | AllowedActions,
@@ -94,6 +97,7 @@ function setup({
   >;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
+  providersConfigs?: MultichainAccountServiceOptions['providersConfigs'];
 } = {}): {
   service: MultichainAccountService;
   messenger: Messenger<
@@ -116,8 +120,12 @@ function setup({
     SolAccountProvider: makeMockAccountProvider(),
   };
   // Default provider names can be overridden per test using mockImplementation
-  mocks.EvmAccountProvider.getName.mockImplementation(() => 'EVM');
-  mocks.SolAccountProvider.getName.mockImplementation(() => 'Solana');
+  mocks.EvmAccountProvider.getName.mockImplementation(
+    () => EvmAccountProvider.NAME,
+  );
+  mocks.SolAccountProvider.getName.mockImplementation(
+    () => SolAccountProvider.NAME,
+  );
 
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
@@ -165,6 +173,7 @@ function setup({
 
   const service = new MultichainAccountService({
     messenger: getMultichainAccountServiceMessenger(messenger),
+    providersConfigs,
   });
   service.init();
 
@@ -172,6 +181,40 @@ function setup({
 }
 
 describe('MultichainAccountService', () => {
+  describe('constructor', () => {
+    it('forwards conflicts to each providers', () => {
+      const providersConfigs: MultichainAccountServiceOptions['providersConfigs'] =
+        {
+          [EvmAccountProvider.NAME]: {
+            discovery: {
+              timeoutMs: 1000,
+              maxAttempts: 2,
+              backOffMs: 1000,
+            },
+          },
+          [SolAccountProvider.NAME]: {
+            discovery: {
+              timeoutMs: 1000,
+            },
+          },
+        };
+
+      const { mocks, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        providersConfigs,
+      });
+
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        providersConfigs[EvmAccountProvider.NAME],
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        providersConfigs[SolAccountProvider.NAME],
+      );
+    });
+  });
+
   describe('getMultichainAccountGroups', () => {
     it('gets multichain accounts', () => {
       const { service } = setup({
