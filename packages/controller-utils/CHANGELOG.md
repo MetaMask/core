@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [11.14.0]
-
 ### Added
 
 - Export `NETWORKS_BYPASSING_VALIDATION` constant globally . ([#6627](https://github.com/MetaMask/core/pull/6627))
