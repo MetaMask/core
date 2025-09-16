@@ -424,8 +424,9 @@ export class AccountTreeController extends BaseController<
         if (group.type === AccountGroupType.MultichainAccount) {
           groupIndex = group.metadata.entropy.groupIndex;
         } else {
-          // For other wallet types, start with sequential numbering
-          groupIndex = 0;
+          // For other wallet types, start with the number of existing groups
+          // This avoids unnecessary conflict checks in most cases
+          groupIndex = Object.keys(wallet.groups).length - 1;
         }
 
         // Find a unique name by checking for conflicts and incrementing if needed
@@ -434,9 +435,10 @@ export class AccountTreeController extends BaseController<
           proposedName = rule.getDefaultAccountGroupName(groupIndex);
 
           // Check if this name already exists in the wallet (excluding current group)
-          const currentProposedName = proposedName; // Capture for closure
-          nameExists = Object.values(wallet.groups).some(
-            (g) => g.id !== group.id && g.metadata.name === currentProposedName,
+          nameExists = !this.#isAccountGroupNameUniqueFromWallet(
+            wallet,
+            group.id,
+            proposedName,
           );
 
           if (nameExists) {
@@ -778,6 +780,30 @@ export class AccountTreeController extends BaseController<
     if (!exists) {
       throw new Error(`Account wallet with ID "${walletId}" not found in tree`);
     }
+  }
+
+  /**
+   * Checks if a group name is unique within a specific wallet.
+   *
+   * @param wallet - The wallet to check within.
+   * @param groupId - The account group ID to exclude from the check.
+   * @param name - The name to validate for uniqueness.
+   * @returns True if the name is unique within the wallet, false otherwise.
+   */
+  #isAccountGroupNameUniqueFromWallet(
+    wallet: AccountWalletObject,
+    groupId: AccountGroupId,
+    name: string,
+  ): boolean {
+    const trimmedName = name.trim();
+
+    // Check for duplicates within this wallet
+    for (const group of Object.values(wallet.groups)) {
+      if (group.id !== groupId && group.metadata.name.trim() === trimmedName) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
