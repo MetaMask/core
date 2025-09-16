@@ -1053,6 +1053,7 @@ export class PhishingController extends BaseController<
         console.error('Error scanning tokens:', error);
       }
     }
+
     return results;
   };
 

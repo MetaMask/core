@@ -4348,7 +4348,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Fire and forget bulk token screening via PhishingController for tokens received in simulation.
+   * Fire and forget bulk token screening via PhishingController on tokens received.
    *
    * @param transactionMeta - Transaction metadata containing simulation results.
    */
@@ -4369,21 +4369,20 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      // Fire and forget as the PhishingController will cache the token screening results for UI use
       this.messagingSystem
         .call('PhishingController:bulkScanTokens', {
           chainId,
           tokens: receivedTokens,
         })
         .catch((innerError) => {
-          log('Bulk token screening failed', {
+          log('Bulk token scanning failed', {
             innerError,
             chainId,
             receivedTokens,
           });
         });
     } catch (error) {
-      log('Error scheduling token screening', error);
+      log('Error scheduling token scanning', error);
     }
   }
 
