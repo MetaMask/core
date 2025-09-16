@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `captureException` parameter to `deriveStateFromMetadata`, `getPersistentState`, and `getAnonymizedState` ([#6606](https://github.com/MetaMask/core/pull/6606))
+  - This function will be used to capture any errors encountered during state derivation.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 - In experimental `next` export, rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593))
 - In experimental `next` export, make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593))
 - In experimental `next` export, remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611))
+- Stop re-throwing state derivation errors in a `setTimeout` ([#6606](https://github.com/MetaMask/core/pull/6606))
+  - Instead errors are captured with `captureException`, or logged to the console.
 
 ## [8.3.0]
 

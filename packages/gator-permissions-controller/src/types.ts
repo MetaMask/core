@@ -9,6 +9,7 @@ import type {
   Rule,
   MetaMaskBasePermissionData,
 } from '@metamask/7715-permission-types';
+import type { Delegation } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
 
 /**
@@ -19,6 +20,8 @@ export enum GatorPermissionsControllerErrorCode {
   GatorPermissionsNotEnabled = 'gator-permissions-not-enabled',
   GatorPermissionsProviderError = 'gator-permissions-provider-error',
   GatorPermissionsMapSerializationError = 'gator-permissions-map-serialization-error',
+  PermissionDecodingError = 'permission-decoding-error',
+  OriginNotAllowedError = 'origin-not-allowed-error',
 }
 
 /**
@@ -209,3 +212,11 @@ export type GatorPermissionsMapByPermissionType<
 export type GatorPermissionsListByPermissionTypeAndChainId<
   TPermissionType extends SupportedGatorPermissionType,
 > = GatorPermissionsMap[TPermissionType][Hex];
+
+/**
+ * Represents the details of a delegation, that are required to decode a permission.
+ */
+export type DelegationDetails = Pick<
+  Delegation<Hex>,
+  'caveats' | 'delegator' | 'delegate' | 'authority'
+>;
