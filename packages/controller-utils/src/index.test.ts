@@ -49,6 +49,7 @@ describe('@metamask/controller-utils', () => {
         "HOURS",
         "DAY",
         "DAYS",
+        "NETWORKS_BYPASSING_VALIDATION",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",
@@ -90,7 +91,6 @@ describe('@metamask/controller-utils', () => {
         "parseDomainParts",
         "isValidSIWEOrigin",
         "detectSIWE",
-        "NETWORKS_BYPASSING_VALIDATION",
       ]
     `);
   });
