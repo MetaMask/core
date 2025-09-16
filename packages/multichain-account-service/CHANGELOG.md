@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-
 ### Changed
 
 - **BREAKING:** Rename `MultichainAccountWallet.alignGroup` to `alignAccountsOf` ([#6595](https://github.com/MetaMask/core/pull/6595))
