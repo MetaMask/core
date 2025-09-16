@@ -75,7 +75,7 @@ export type SubscriptionCardPaymentMethod = {
   card: {
     brand: string;
     last4: string;
-  }
+  };
 };
 
 export type SubscriptionCryptoPaymentMethod = {
