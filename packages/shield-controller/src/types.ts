@@ -9,7 +9,20 @@ export type CoverageResult = {
 export const coverageStatuses = ['covered', 'malicious', 'unknown'] as const;
 export type CoverageStatus = (typeof coverageStatuses)[number];
 
+export type LogSignatureRequest = {
+  coverageId: string;
+  signature: string;
+};
+
+export type LogTransactionRequest = {
+  coverageId: string;
+  transactionHash: string;
+  status: string;
+};
+
 export type ShieldBackend = {
+  logSignature: (req: LogSignatureRequest) => Promise<void>;
+  logTransaction: (req: LogTransactionRequest) => Promise<void>;
   checkCoverage: (txMeta: TransactionMeta) => Promise<CoverageResult>;
   checkSignatureCoverage: (
     signatureRequest: SignatureRequest,
