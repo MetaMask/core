@@ -1,4 +1,4 @@
-import type { Eip1193Provider } from 'ethers';
+import type { Eip1193Provider } from 'ethers/providers';
 
 // We can isolate and create a metamask function/closure
 export type AnnounceProviderEventDetail = {
