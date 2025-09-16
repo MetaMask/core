@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [75.1.0]
 
-### Uncategorized
-
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-- Release/548.0.0 ([#6584](https://github.com/MetaMask/core/pull/6584))
-- Release/547.0.0 ([#6579](https://github.com/MetaMask/core/pull/6579))
-- Release/546.0.0 ([#6572](https://github.com/MetaMask/core/pull/6572))
-
 ### Added
 
 - Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
