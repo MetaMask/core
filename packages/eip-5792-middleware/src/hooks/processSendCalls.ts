@@ -464,7 +464,7 @@ function validateCapabilities(
   }
 
   if (capabilities?.auxiliaryFunds) {
-    validateRequiredAssets({
+    validateAuxFundsSupportAndRequiredAssets({
       auxiliaryFunds: capabilities.auxiliaryFunds,
       chainId,
       keyringType,
@@ -474,7 +474,7 @@ function validateCapabilities(
 }
 
 /**
- * Validates EIP-7682 optional `requiredAssets` parameter.
+ * Validates EIP-7682 optional `requiredAssets` to see if the account and chain are supported, and that param is well-formed.
  *
  * docs: {@link https://eips.ethereum.org/EIPS/eip-7682#extended-usage-requiredassets-parameter}
  *
@@ -487,7 +487,7 @@ function validateCapabilities(
  * @param param.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  * @throws JsonRpcError if auxiliary funds capability is not supported.
  */
-function validateRequiredAssets({
+function validateAuxFundsSupportAndRequiredAssets({
   auxiliaryFunds,
   chainId,
   keyringType,
