@@ -8,9 +8,16 @@ import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
+import type { NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
+import {
+  EVM_ACCOUNT_PROVIDER_NAME,
+  EvmAccountProvider,
+} from './providers/EvmAccountProvider';
+import {
+  SOL_ACCOUNT_PROVIDER_NAME,
+  SolAccountProvider,
+} from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
@@ -67,7 +74,7 @@ type Mocks = {
   SolAccountProvider: MockAccountProvider;
 };
 
-function mockAccountProvider<Provider>(
+function mockAccountProvider<Provider extends NamedAccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
@@ -120,13 +127,6 @@ function setup({
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
   };
-  // Default provider names can be overridden per test using mockImplementation
-  mocks.EvmAccountProvider.getName.mockImplementation(
-    () => EvmAccountProvider.NAME,
-  );
-  mocks.SolAccountProvider.getName.mockImplementation(
-    () => SolAccountProvider.NAME,
-  );
 
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
@@ -157,6 +157,11 @@ function setup({
       'AccountsController:listMultichainAccounts',
       mocks.AccountsController.listMultichainAccounts,
     );
+
+    // Because we mock the entire class, this static field gets set to undefined, so we
+    // force it here.
+    EvmAccountProvider.NAME = EVM_ACCOUNT_PROVIDER_NAME;
+    SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -211,6 +216,33 @@ describe('MultichainAccountService', () => {
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         serviceMessenger,
         providerConfigs[EvmAccountProvider.NAME],
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[SolAccountProvider.NAME],
+      );
+    });
+
+    it('allows optional configs for some providers', () => {
+      const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
+        {
+          [SOL_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+          },
+        };
+
+      const { mocks, serviceMessenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        providerConfigs,
+      });
+
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        undefined,
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         serviceMessenger,

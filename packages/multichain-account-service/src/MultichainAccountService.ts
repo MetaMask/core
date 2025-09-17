@@ -36,8 +36,8 @@ export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: NamedAccountProvider[];
   providerConfigs?: {
-    [EvmAccountProvider.NAME]: EvmAccountProviderConfig;
-    [SolAccountProvider.NAME]: SolAccountProviderConfig;
+    [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
+    [SolAccountProvider.NAME]?: SolAccountProviderConfig;
   };
 };
 

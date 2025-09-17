@@ -41,8 +41,10 @@ export type EvmAccountProviderConfig = {
   };
 };
 
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM' as const;
+
 export class EvmAccountProvider extends BaseBip44AccountProvider {
-  static NAME = 'EVM' as const;
+  static NAME = EVM_ACCOUNT_PROVIDER_NAME;
 
   readonly #config: EvmAccountProviderConfig;
 

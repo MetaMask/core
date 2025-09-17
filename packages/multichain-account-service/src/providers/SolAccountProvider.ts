@@ -24,8 +24,10 @@ export type SolAccountProviderConfig = {
   };
 };
 
+export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
+
 export class SolAccountProvider extends SnapAccountProvider {
-  static NAME = 'Solana' as const;
+  static NAME = SOL_ACCOUNT_PROVIDER_NAME;
 
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
