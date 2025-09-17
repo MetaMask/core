@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [75.2.0]
 
-### Uncategorized
-
-- refactor(assets): use account-utils for wallet parsing ([#6631](https://github.com/MetaMask/core/pull/6631))
-
 ### Added
 
 - Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
@@ -25,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.13.0` to `^11.14.0` ([#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+- refactor(assets): use account-utils for wallet parsing ([#6631](https://github.com/MetaMask/core/pull/6631))
 
 ### Fixed
 
