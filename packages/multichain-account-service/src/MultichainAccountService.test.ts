@@ -192,14 +192,16 @@ describe('MultichainAccountService', () => {
     it('forwards configs to each provider', () => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
-          [EvmAccountProvider.NAME]: {
+          // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
+          // be `undefined`.
+          [EVM_ACCOUNT_PROVIDER_NAME]: {
             discovery: {
               timeoutMs: 1000,
               maxAttempts: 2,
               backOffMs: 1000,
             },
           },
-          [SolAccountProvider.NAME]: {
+          [SOL_ACCOUNT_PROVIDER_NAME]: {
             discovery: {
               timeoutMs: 5000,
               maxAttempts: 4,
@@ -226,6 +228,8 @@ describe('MultichainAccountService', () => {
     it('allows optional configs for some providers', () => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
+          // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
+          // be `undefined`.
           [SOL_ACCOUNT_PROVIDER_NAME]: {
             discovery: {
               timeoutMs: 5000,
@@ -233,6 +237,7 @@ describe('MultichainAccountService', () => {
               backOffMs: 2000,
             },
           },
+          // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.
         };
 
       const { mocks, serviceMessenger } = setup({
