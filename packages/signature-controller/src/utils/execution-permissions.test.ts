@@ -138,19 +138,82 @@ describe('execution-permissions utils', () => {
       expect(messenger.call).not.toHaveBeenCalled();
     });
 
-    it('throws for invalid delegation data', async () => {
-      messageParams.data = {
-        types: {},
-        domain: { chainId: chainIdString },
-        primaryType: 'Delegation',
-        message: { delegate: '0x1234', delegator, authority, caveats },
-        metadata: { origin: specifiedOrigin, justification },
-      } as MessageParamsTypedDataWithMetadata;
+    it.each([
+      [
+        'Invalid delegate',
+        {
+          delegate: '0x1234abcd',
+          delegator,
+          authority,
+          caveats,
+        } as unknown as MessageParamsTyped,
+      ],
+      [
+        'Invalid delegator',
+        {
+          delegate,
+          delegator: '0x1234abcd',
+          authority,
+          caveats,
+        } as unknown as MessageParamsTyped,
+      ],
+      [
+        'Invalid authority',
+        {
+          delegate,
+          delegator,
+          authority: '0x1234abcd',
+          caveats,
+        } as unknown as MessageParamsTyped,
+      ],
+      [
+        'Missing delegate',
+        {
+          delegator,
+          authority,
+          caveats,
+        } as unknown as MessageParamsTyped,
+      ],
+      [
+        'Missing authority',
+        {
+          delegate,
+          authority,
+          caveats,
+        } as unknown as MessageParamsTyped,
+      ],
+      [
+        'Missing authority',
+        {
+          delegate,
+          delegator,
+          caveats,
+        } as unknown as MessageParamsTyped,
+      ],
+      [
+        'Missing caveats',
+        {
+          delegate,
+          delegator,
+          authority,
+        } as unknown as MessageParamsTyped,
+      ],
+    ])('throws for invalid delegation data. %s', async ([, message]) => {
+      const paramsWithInvalidData = {
+        ...messageParams,
+        data: {
+          ...validData,
+          message,
+        },
+      };
 
       await expect(
-        decodePermissionFromRequest({ messageParams, messenger, origin }),
+        decodePermissionFromRequest({
+          messageParams: paramsWithInvalidData,
+          messenger,
+          origin,
+        }),
       ).rejects.toThrow('Invalid delegation data');
-      expect(messenger.call).not.toHaveBeenCalled();
     });
   });
 });

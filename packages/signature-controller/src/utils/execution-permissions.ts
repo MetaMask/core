@@ -96,9 +96,10 @@ export async function decodePermissionFromRequest({
     !(
       // isHexAddress requires a lowercase hex string
       (
-        isHexAddress(delegate.toLowerCase()) &&
-        isHexAddress(delegator.toLowerCase()) &&
-        isStrictHexString(authority)
+        isHexAddress(delegate?.toLowerCase()) &&
+        isHexAddress(delegator?.toLowerCase()) &&
+        isStrictHexString(authority) &&
+        caveats
       )
     )
   ) {
