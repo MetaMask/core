@@ -1,12 +1,16 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountWalletType,
+  isBip44Account,
+  select,
+} from '@metamask/account-api';
+import { AccountGroupType } from '@metamask/account-api';
 import type {
+  MultichainAccountWalletStatus,
   AccountGroupId,
   AccountWalletId,
-  AccountGroupType,
   AccountSelector,
   MultichainAccountWalletId,
 } from '@metamask/account-api';
-import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -529,6 +533,12 @@ export class AccountTreeController extends BaseController<
    * @param account - New account.
    */
   #handleAccountAdded(account: InternalAccount) {
+    if (isBip44Account(account)) {
+      // We're skipping BIP-44 accounts since we rely on the `MultichainAccountService` to do
+      // the grouping of wallets/groups directly.
+      return;
+    }
+
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
 
@@ -565,50 +575,58 @@ export class AccountTreeController extends BaseController<
     if (context) {
       const { walletId, groupId } = context;
 
-      const previousSelectedAccountGroup =
-        this.state.accountTree.selectedAccountGroup;
-      let selectedAccountGroupChanged = false;
+      // If it's in the context, then `group` should be defined.
+      const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
 
-      this.update((state) => {
-        const accounts =
-          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+      // We're only considering non-BIP-44 accounts for single account events.
+      if (group.type !== AccountGroupType.MultichainAccount) {
+        const index = group.accounts.indexOf(accountId);
 
-        if (accounts) {
-          const index = accounts.indexOf(accountId);
-          if (index !== -1) {
+        if (index !== -1) {
+          let selectedAccountGroupChanged = false;
+          const previousSelectedAccountGroup =
+            this.state.accountTree.selectedAccountGroup;
+
+          this.update((state) => {
+            const accounts =
+              state.accountTree.wallets[walletId]?.groups[groupId].accounts;
+
+            // Effectively remove account from the group and state.
             accounts.splice(index, 1);
 
-            // Check if we need to update selectedAccountGroup after removal
-            if (
-              state.accountTree.selectedAccountGroup === groupId &&
-              accounts.length === 0
-            ) {
-              // The currently selected group is now empty, find a new group to select
-              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
-                state.accountTree.wallets,
-              );
-              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
-              selectedAccountGroupChanged =
-                newSelectedAccountGroup !== previousSelectedAccountGroup;
+            // If there's no more account, we have to prune the group and maybe select
+            // a new account group too.
+            if (accounts.length === 0) {
+              // Check if we need to update selectedAccountGroup after removal
+              if (state.accountTree.selectedAccountGroup === groupId) {
+                // The currently selected group is now empty, find a new group to select
+                const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
+                  state.accountTree.wallets,
+                );
+                state.accountTree.selectedAccountGroup =
+                  newSelectedAccountGroup;
+                selectedAccountGroupChanged =
+                  newSelectedAccountGroup !== previousSelectedAccountGroup;
+              }
+
+              this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
             }
-          }
-          if (accounts.length === 0) {
-            this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
+          });
+
+          this.messagingSystem.publish(
+            `${controllerName}:accountTreeChange`,
+            this.state.accountTree,
+          );
+
+          // Emit selectedAccountGroupChange event if the selected group changed
+          if (selectedAccountGroupChanged) {
+            this.messagingSystem.publish(
+              `${controllerName}:selectedAccountGroupChange`,
+              this.state.accountTree.selectedAccountGroup,
+              previousSelectedAccountGroup,
+            );
           }
         }
-      });
-      this.messagingSystem.publish(
-        `${controllerName}:accountTreeChange`,
-        this.state.accountTree,
-      );
-
-      // Emit selectedAccountGroupChange event if the selected group changed
-      if (selectedAccountGroupChanged) {
-        this.messagingSystem.publish(
-          `${controllerName}:selectedAccountGroupChange`,
-          this.state.accountTree.selectedAccountGroup,
-          previousSelectedAccountGroup,
-        );
       }
 
       // Clear reverse-mapping for that account.
