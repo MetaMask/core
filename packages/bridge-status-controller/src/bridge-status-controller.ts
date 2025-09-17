@@ -71,9 +71,9 @@ import {
   getUSDTAllowanceResetTx,
   handleLineaDelay,
   handleMobileHardwareWalletDelay,
-  handleSolanaTxResponse,
+  handleNonEvmTxResponse,
+  generateActionId,
 } from './utils/transaction';
-import { generateActionId } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -746,7 +746,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @returns The transaction meta
    */
   readonly #handleNonEvmTx = async (
-    quoteResponse: QuoteResponse<string> & QuoteMetadata,
+    quoteResponse: QuoteResponse<string | { unsignedPsbtBase64: string }> &
+      QuoteMetadata,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
     if (!selectedAccount.metadata?.snap?.id) {
@@ -765,7 +766,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | { result: Record<string, string> }
       | { signature: string };
 
-    const txMeta = handleSolanaTxResponse(
+    const txMeta = handleNonEvmTxResponse(
       requestResponse,
       quoteResponse,
       selectedAccount,
@@ -1043,10 +1044,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     // Submit non-EVM tx (Solana, BTC, Tron)
-    if (
+    // Bitcoin trades come as objects with unsignedPsbtBase64, others as strings
+    const isNonEvmTrade =
       isNonEvmChainId(quoteResponse.quote.srcChainId) &&
-      typeof quoteResponse.trade === 'string'
-    ) {
+      (typeof quoteResponse.trade === 'string' ||
+        (typeof quoteResponse.trade === 'object' &&
+          'unsignedPsbtBase64' in quoteResponse.trade));
+
+    if (isNonEvmTrade) {
       txMeta = await this.#trace(
         {
           name: isBridgeTx
@@ -1060,7 +1065,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         async () => {
           try {
             return await this.#handleNonEvmTx(
-              quoteResponse as QuoteResponse<string> & QuoteMetadata,
+              quoteResponse as QuoteResponse<
+                string | { unsignedPsbtBase64: string }
+              > &
+                QuoteMetadata,
               selectedAccount,
             );
           } catch (error) {

@@ -467,6 +467,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
   ) => {
     const walletAddress = this.#getMultichainSelectedAccount()?.address;
+
+    // Only check balance for EVM chains
+    if (isNonEvmChainId(quoteRequest.srcChainId)) {
+      return true;
+    }
+
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
     const provider = this.#getSelectedNetworkClient()?.provider;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(

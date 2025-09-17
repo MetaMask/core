@@ -163,22 +163,24 @@ const getExchangeRateByChainIdAndAddress = (
     return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
-  const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
-  const evmTokenExchangeRateForAddress = isStrictHexString(address)
-    ? evmTokenExchangeRates?.[address]
-    : null;
-  const nativeCurrencyRate = evmTokenExchangeRateForAddress
-    ? currencyRates[evmTokenExchangeRateForAddress?.currency]
-    : undefined;
-  if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
-    return {
-      exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-        .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
-        .toString(),
-      usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-        .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
-        .toString(),
-    };
+  if (!isNonEvmChainId(chainId)) {
+    const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const evmTokenExchangeRateForAddress = isStrictHexString(address)
+      ? evmTokenExchangeRates?.[address]
+      : null;
+    const nativeCurrencyRate = evmTokenExchangeRateForAddress
+      ? currencyRates[evmTokenExchangeRateForAddress?.currency]
+      : undefined;
+    if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
+      return {
+        exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+          .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
+          .toString(),
+        usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+          .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
+          .toString(),
+      };
+    }
   }
 
   return {};
