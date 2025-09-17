@@ -14,21 +14,46 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
+import { withRetry, withTimeout } from './utils';
+
+export type SolAccountProviderConfig = {
+  discovery: {
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+};
+
+export const SOL_ACCOUNT_PROVIDER_NAME = 'Solana' as const;
 
 export class SolAccountProvider extends SnapAccountProvider {
+  static NAME = SOL_ACCOUNT_PROVIDER_NAME;
+
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
   readonly #client: KeyringClient;
 
-  constructor(messenger: MultichainAccountServiceMessenger) {
+  readonly #config: SolAccountProviderConfig;
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    config: SolAccountProviderConfig = {
+      discovery: {
+        timeoutMs: 2000,
+        maxAttempts: 3,
+        backOffMs: 1000,
+      },
+    },
+  ) {
     super(SolAccountProvider.SOLANA_SNAP_ID, messenger);
     this.#client = this.#getKeyringClientFromSnapId(
       SolAccountProvider.SOLANA_SNAP_ID,
     );
+    this.#config = config;
   }
 
   getName(): string {
-    return 'Solana';
+    return SolAccountProvider.NAME;
   }
 
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {
@@ -102,10 +127,20 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const discoveredAccounts = await this.#client.discoverAccounts(
-      [SolScope.Mainnet],
-      entropySource,
-      groupIndex,
+    const discoveredAccounts = await withRetry(
+      () =>
+        withTimeout(
+          this.#client.discoverAccounts(
+            [SolScope.Mainnet],
+            entropySource,
+            groupIndex,
+          ),
+          this.#config.discovery.timeoutMs,
+        ),
+      {
+        maxAttempts: this.#config.discovery.maxAttempts,
+        backOffMs: this.#config.discovery.backOffMs,
+      },
     );
 
     if (!discoveredAccounts.length) {
