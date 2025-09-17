@@ -200,9 +200,6 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-// Export with old name for backward compatibility
-export const handleSolanaTxResponse = handleNonEvmTxResponse;
-
 export const handleLineaDelay = async (
   quoteResponse: QuoteResponse<TxData | string>,
 ) => {

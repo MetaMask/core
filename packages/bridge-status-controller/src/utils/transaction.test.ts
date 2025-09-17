@@ -15,7 +15,7 @@ import {
 import {
   getStatusRequestParams,
   getTxMetaFields,
-  handleSolanaTxResponse,
+  handleNonEvmTxResponse,
   handleLineaDelay,
   handleMobileHardwareWalletDelay,
   getClientRequest,
@@ -334,6 +334,87 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.approvalTxId).toBe(approvalTxId);
     });
+
+    it('should use fallback chain ID for non-EVM destination chains', () => {
+      const mockQuoteResponse = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: ChainId.ETH,
+          destChainId: 'bip122:000000000019d6689c085ae165831e93', // Bitcoin CAIP format
+          srcTokenAmount: '1000000000000000000',
+          destTokenAmount: '100000', // satoshis
+          srcAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'ETH',
+          },
+          destAsset: {
+            address: 'bc1qxxx',
+            decimals: 8,
+            symbol: 'BTC',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '100000000000000000',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 300,
+        trade: {
+          value: '0x0',
+          gasLimit: '21000',
+        },
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '1.0',
+          valueInCurrency: '3000',
+          usd: '3000',
+        },
+        toTokenAmount: {
+          amount: '0.001',
+          valueInCurrency: '3000',
+          usd: '3000',
+        },
+        minToTokenAmount: {
+          amount: '0.00095',
+          valueInCurrency: '2850',
+          usd: '2850',
+        },
+        swapRate: '0.001',
+        totalNetworkFee: {
+          amount: '0.01',
+          valueInCurrency: '30',
+          usd: '30',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.015',
+          valueInCurrency: '45',
+          usd: '45',
+        },
+        gasFee: {
+          amount: '0.01',
+          valueInCurrency: '30',
+          usd: '30',
+        },
+        adjustedReturn: {
+          valueInCurrency: '2970',
+          usd: '2970',
+        },
+        cost: {
+          valueInCurrency: '30',
+          usd: '30',
+        },
+      };
+
+      const result = getTxMetaFields(mockQuoteResponse as never);
+
+      // Should use fallback mainnet chain ID when CAIP format can't be converted to hex
+      expect(result.destinationChainId).toBe('0x1');
+      expect(result.destinationTokenSymbol).toBe('BTC');
+      expect(result.destinationTokenDecimals).toBe(8);
+    });
   });
 
   const snapId = 'snapId123';
@@ -347,7 +428,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     address: selectedAccountAddress,
   } as never;
 
-  describe('handleSolanaTxResponse', () => {
+  describe('handleNonEvmTxResponse', () => {
     it('should handle string response format', () => {
       const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
         quote: {
@@ -422,7 +503,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const signature = 'solanaSignature123';
 
-      const result = handleSolanaTxResponse(signature, mockQuoteResponse, {
+      const result = handleNonEvmTxResponse(signature, mockQuoteResponse, {
         metadata: {
           snap: { id: undefined },
         },
@@ -532,7 +613,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -617,7 +698,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         signature: 'solanaSignature123',
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -705,7 +786,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -792,7 +873,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -879,7 +960,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -962,7 +1043,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { transactionId: 'new-unified-tx-id-123' };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
@@ -1057,13 +1138,103 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { result: {} } as { result: Record<string, string> };
 
-      const result = handleSolanaTxResponse(
+      const result = handleNonEvmTxResponse(
         snapResponse,
         mockQuoteResponse,
         mockSolanaAccount,
       );
 
       expect(result.hash).toBeUndefined();
+    });
+
+    it('should handle Bitcoin transaction with PSBT and non-EVM chain ID', () => {
+      const mockBitcoinQuote = {
+        quote: {
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          srcChainId: 'bip122:000000000019d6689c085ae165831e93',
+          destChainId: ChainId.ETH,
+          srcTokenAmount: '100000',
+          destTokenAmount: '1000000000000000000',
+          minDestTokenAmount: '950000000000000000',
+          srcAsset: {
+            address: 'bc1qxxx',
+            decimals: 8,
+            symbol: 'BTC',
+          },
+          destAsset: {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            symbol: 'ETH',
+          },
+          steps: ['step1'],
+          feeData: {
+            [FeeType.METABRIDGE]: {
+              amount: '500',
+            },
+          },
+        },
+        estimatedProcessingTimeInSeconds: 600,
+        trade: {
+          unsignedPsbtBase64: 'cHNidP8BAH0CAAAAAe...',
+        },
+        // QuoteMetadata fields
+        sentAmount: {
+          amount: '0.001',
+          valueInCurrency: '60',
+          usd: '60',
+        },
+        toTokenAmount: {
+          amount: '1.0',
+          valueInCurrency: '3000',
+          usd: '3000',
+        },
+        minToTokenAmount: {
+          amount: '0.95',
+          valueInCurrency: '2850',
+          usd: '2850',
+        },
+        swapRate: '1000',
+        totalNetworkFee: {
+          amount: '0.00005',
+          valueInCurrency: '3',
+          usd: '3',
+        },
+        totalMaxNetworkFee: {
+          amount: '0.00007',
+          valueInCurrency: '4.2',
+          usd: '4.2',
+        },
+        gasFee: {
+          amount: '0.00005',
+          valueInCurrency: '3',
+          usd: '3',
+        },
+        adjustedReturn: {
+          valueInCurrency: '2997',
+          usd: '2997',
+        },
+        cost: {
+          valueInCurrency: '3',
+          usd: '3',
+        },
+      };
+
+      const snapResponse = { transactionId: 'btc_tx_123' };
+
+      const result = handleNonEvmTxResponse(
+        snapResponse,
+        mockBitcoinQuote as never,
+        mockSolanaAccount,
+      );
+
+      // Should use fallback chain ID (0x0) when Bitcoin CAIP format can't be converted
+      expect(result.chainId).toBe('0x0');
+      expect(result.hash).toBe('btc_tx_123');
+      expect(result.type).toBe(TransactionType.bridge);
+      expect(result.sourceTokenSymbol).toBe('BTC');
+      expect(result.destinationTokenSymbol).toBe('ETH');
+      expect(result.isBridgeTx).toBe(true);
     });
   });
 
