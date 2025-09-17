@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
+- Add permission decoding when new `signTypedData` request is received ([#6619](https://github.com/MetaMask/core/pull/6619))
+
 
 ### Changed
 
