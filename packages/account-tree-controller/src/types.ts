@@ -38,7 +38,12 @@ import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
-import type { MultichainAccountServiceMultichainAccountGroupCreatedEvent, MultichainAccountServiceMultichainAccountGroupUpdatedEvent, MultichainAccountServiceWalletStatusChangeEvent } from '../../multichain-account-service/src/types';
+import type {
+  MultichainAccountServiceGetMultichainAccountWalletsAction,
+  MultichainAccountServiceMultichainAccountGroupCreatedEvent,
+  MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
+  MultichainAccountServiceWalletStatusChangeEvent,
+} from '../../multichain-account-service/src/types';
 
 // Backward compatibility aliases using indexed access types
 /**
@@ -126,6 +131,7 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformSetStorage
   | UserStorageController.UserStorageControllerPerformBatchSetStorage
   | AuthenticationController.AuthenticationControllerGetSessionProfile
+  | MultichainAccountServiceGetMultichainAccountWalletsAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction;
 
 export type AccountTreeControllerActions =

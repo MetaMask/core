@@ -276,6 +276,7 @@ function getAccountTreeControllerMessenger(
       'UserStorageController:performBatchSetStorage',
       'AuthenticationController:getSessionProfile',
       'MultichainAccountService:createMultichainAccountGroup',
+      'MultichainAccountService:getMultichainAccountWallets',
       'KeyringController:getState',
       'SnapController:get',
     ],

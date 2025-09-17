@@ -260,6 +260,7 @@ export class AccountTreeController extends BaseController<
    * state with it.
    */
   init() {
+    // For now, we always re-compute all wallets, we do not re-use the existing state.
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // Clear mappings for fresh rebuild.
@@ -271,7 +272,18 @@ export class AccountTreeController extends BaseController<
     const previousSelectedAccountGroup =
       this.state.accountTree.selectedAccountGroup;
 
-    // For now, we always re-compute all wallets, we do not re-use the existing state.
+    // Insert all multichain account wallet/groups.
+    for (const wallet of this.#getMultichainAccountWallets()) {
+      for (const group of wallet.getMultichainAccountGroups()) {
+        this.#insertOrUpdateMultichainAccountWalletAndGroup(
+          wallets,
+          wallet,
+          group,
+        );
+      }
+    }
+
+    // Insert all other kind of accounts (private keys, HW, other Snap accounts, etc.).
     for (const account of this.#listAccounts()) {
       this.#insertAccount(wallets, account);
     }
@@ -849,6 +861,19 @@ export class AccountTreeController extends BaseController<
         });
       }
     }
+  }
+
+  /**
+   * List all multichain accounts.
+   *
+   * @returns The list of all internal accounts.
+   */
+  #getMultichainAccountWallets(): MultichainAccountWallet<
+    Bip44Account<KeyringAccount>
+  >[] {
+    return this.messagingSystem.call(
+      'MultichainAccountService:getMultichainAccountWallets',
+    );
   }
 
   /**
