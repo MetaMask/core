@@ -1435,14 +1435,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.0.0, @metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.4.2, @metamask/controller-utils@npm:^11.4.3":
-  version: 11.10.0
-  resolution: "@metamask/controller-utils@npm:11.10.0"
+"@metamask/controller-utils@npm:^11.0.0, @metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.4.2, @metamask/controller-utils@npm:^11.4.3":
+  version: 11.12.0
+  resolution: "@metamask/controller-utils@npm:11.12.0"
   dependencies:
-    "@ethereumjs/util": ^9.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
-    "@metamask/utils": ^11.2.0
+    "@metamask/utils": ^11.4.2
     "@spruceid/siwe-parser": 2.1.0
     "@types/bn.js": ^5.1.5
     bignumber.js: ^9.1.2
@@ -1450,9 +1449,10 @@ __metadata:
     cockatiel: ^3.1.2
     eth-ens-namehash: ^2.0.8
     fast-deep-equal: ^3.1.3
+    lodash: ^4.17.21
   peerDependencies:
     "@babel/runtime": ^7.0.0
-  checksum: b6b1b3ed6b963a21dcb6c0eb9779a4e4d66b6dab7459cee18fc75db7e66a8b717e6b3095a1a981f102321ff9ebcb7eb2e842af863ef546334bd6b602e61fd77e
+  checksum: a96dea30d56676c3070d118d4e130f6f97c2ddeac1161d49a99f114af7ca6e9b87f955ea5a6a17c72410243cf9eafed5748474144013b548955b9edc7e97b409
   languageName: node
   linkType: hard
 
@@ -1847,7 +1847,7 @@ __metadata:
     "@metamask/json-rpc-engine": ^10.0.1
     "@metamask/network-controller": ^24.0.0
     "@metamask/polling-controller": ^14.0.0
-    "@metamask/transaction-controller": ^58.1.0
+    "@metamask/transaction-controller": ^60.3.0
     "@ts-bridge/cli": ^0.6.3
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194
@@ -1876,11 +1876,17 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/network-controller": ^24.0.0
-    "@metamask/transaction-controller": ^58.0.0
+    "@metamask/transaction-controller": ^60.0.0
   peerDependenciesMeta:
     "@metamask/accounts-controller":
       optional: true
     "@metamask/approval-controller":
+      optional: true
+    "@metamask/eth-block-tracker":
+      optional: true
+    "@metamask/gas-fee-controller":
+      optional: true
+    "@metamask/remote-feature-flag-controller":
       optional: true
   languageName: unknown
   linkType: soft
@@ -1899,9 +1905,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^58.1.0":
-  version: 58.1.0
-  resolution: "@metamask/transaction-controller@npm:58.1.0"
+"@metamask/transaction-controller@npm:^60.3.0":
+  version: 60.3.0
+  resolution: "@metamask/transaction-controller@npm:60.3.0"
   dependencies:
     "@ethereumjs/common": ^4.4.0
     "@ethereumjs/tx": ^5.4.0
@@ -1910,13 +1916,13 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@ethersproject/wallet": ^5.7.0
-    "@metamask/base-controller": ^8.0.1
-    "@metamask/controller-utils": ^11.10.0
+    "@metamask/base-controller": ^8.3.0
+    "@metamask/controller-utils": ^11.12.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/nonce-tracker": ^6.0.0
     "@metamask/rpc-errors": ^7.0.2
-    "@metamask/utils": ^11.2.0
+    "@metamask/utils": ^11.4.2
     async-mutex: ^0.5.0
     bn.js: ^5.2.1
     eth-method-registry: ^4.0.0
@@ -1925,13 +1931,13 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@babel/runtime": ^7.0.0
-    "@metamask/accounts-controller": ^31.0.0
+    "@metamask/accounts-controller": ^33.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/remote-feature-flag-controller": ^1.5.0
-  checksum: 16d866283490ef146653429a32b9f147eb772e26baf990c6b559638843b2dc5c33975c68b743d02788b99b38ea2772b01ba44d3448e4a6af0e82e16bebd8aad2
+  checksum: 910475ae2a20279d1743a6331b178a22a5416ecabcf4b9391defb2c8753b6963e1e34e55f6fd50bc2740f468ebc636e864722d8d7607d18b750bb1c2edb844a2
   languageName: node
   linkType: hard
 
