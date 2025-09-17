@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
 ### Added
 
 - This package can now be used in ESM environments as well as CommonJS ([#469](https://github.com/MetaMask/smart-transactions-controller/pull/469))
@@ -51,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump peer dependency on `@metamask/network-controller` to `^24.0.0` ([#519](https://github.com/MetaMask/smart-transactions-controller/pull/519))
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/transaction-controller` to `^58.0.0` ([#519](https://github.com/MetaMask/smart-transactions-controller/pull/519))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/transaction-controller` to `^58.0.0` ([#520](https://github.com/MetaMask/smart-transactions-controller/pull/520))
   - The `confirmExternalTransaction` constructor option now expects to match `TransactionController` from this version
   - The `getNonceLock` constructor option now expects to match `TransactionController` from this version
   - The `getTransactions` constructor option now returns an object that matches `TransactionMeta` from this version
@@ -613,7 +615,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v18.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v18.1.0...v19.0.0
 [18.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v18.0.0...v18.1.0
 [18.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.5.0...v17.0.0
