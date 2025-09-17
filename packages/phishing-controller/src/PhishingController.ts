@@ -32,6 +32,7 @@ import {
   getHostnameFromWebUrl,
   getPathnameFromUrl,
 } from './utils';
+import { PathTrie } from './PathTrie';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -136,7 +137,7 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
-  blocklistPaths: Record<string, Record<string, Record<string, string[]>>>;
+  blocklistPaths: PathTrie;
   c2DomainBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;

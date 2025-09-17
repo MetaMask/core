@@ -14,8 +14,8 @@ import {
   matchPartsAgainstList,
   processConfigs,
   sha256Hash,
-  doesURLPathExist,
 } from './utils';
+import { isTerminalPath, PathTrie } from './PathTrie';
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
@@ -26,7 +26,7 @@ export type LegacyPhishingDetectorList = {
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
-  blocklistPaths?: Record<string, Record<string, Record<string, string[]>>>;
+  blocklistPaths?: PathTrie;
   c2DomainBlocklist?: string[];
   name?: string;
   version?: string | number;
@@ -52,7 +52,7 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
-  blocklistPaths?: Record<string, Record<string, Record<string, string[]>>>;
+  blocklistPaths?: PathTrie;
   c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
@@ -165,7 +165,7 @@ export class PhishingDetector {
       if (!blocklistPaths) {
         continue;
       }
-      const pathMatch = doesURLPathExist(url, blocklistPaths);
+      const pathMatch = isTerminalPath(url, blocklistPaths);
       if (pathMatch) {
         return {
           match: domainPartsToDomain(source), // TODO: revisit this. do we want to return the path?
@@ -246,7 +246,7 @@ export class PhishingDetector {
       if (!blocklistPaths) {
         continue;
       }
-      const pathMatch = doesURLPathExist(url, blocklistPaths);
+      const pathMatch = isTerminalPath(url, blocklistPaths);
       if (pathMatch) {
         return true;
       }
