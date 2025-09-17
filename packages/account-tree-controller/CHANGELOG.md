@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.16.0]
 
-### Uncategorized
-
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-
 ### Changed
 
 - **BREAKING:** Use `:getSelectedMultichainAccount` instead of `:getSelectedAccount` to compute currently selected account group ([#6608](https://github.com/MetaMask/core/pull/6608))

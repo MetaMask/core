@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0]
 
-### Uncategorized
-
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-
 ### Added
 
 - Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6478](https://github.com/MetaMask/core/pull/6478))
