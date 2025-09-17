@@ -5,11 +5,11 @@ import {
   decodePermissionFromRequest,
   isDelegationRequest,
   validateExecutionPermissionMetadata,
-} from './execution-permissions';
+} from './delegations';
 import type { SignatureControllerMessenger } from '../SignatureController';
 import type { MessageParamsTyped, MessageParamsTypedData } from '../types';
 
-describe('execution-permissions utils', () => {
+describe('delegations utils', () => {
   describe('isDelegationRequest', () => {
     it('returns true for object data with primaryType Delegation', () => {
       const result = isDelegationRequest({

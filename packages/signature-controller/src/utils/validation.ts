@@ -10,7 +10,7 @@ import type { Json } from '@metamask/utils';
 import { type Hex } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
-import { isDelegationRequest } from './execution-permissions';
+import { isDelegationRequest } from './delegations';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,

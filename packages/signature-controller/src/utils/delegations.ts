@@ -16,10 +16,9 @@ const DELEGATION_PRIMARY_TYPE = 'Delegation';
  * Accepts either a pre-parsed typed data object or a JSON string. If a string is
  * provided, it is parsed. Returns true when the `primaryType` is "Delegation".
  *
- * @param params - Wrapper object for parameters.
- * @param params.data - EIP-712 typed data object or its JSON string representation.
+ * @param data - EIP-712 typed data object or its JSON string representation.
+ *
  * @returns True if the typed message is a Delegation request; otherwise false.
- * @throws {Error} If the `data` argument is a string that cannot be parsed as valid JSON.
  */
 export function isDelegationRequest(data: MessageParamsTypedData): boolean {
   const { primaryType } = data;
@@ -35,9 +34,10 @@ export function isDelegationRequest(data: MessageParamsTypedData): boolean {
  * context to the permissions controller via the supplied messenger.
  *
  * @param params - Wrapper object for parameters.
- * @param params.messageParams - The typed message parameters to decode.
  * @param params.messenger - Messenger used to call the permissions controller.
  * @param params.origin - The origin of the request.
+ * @param params.data - The typed data to decode.
+ *
  * @returns A decoded permission, or `undefined` if no permission can be derived.
  * @throws {Error} If required metadata (origin or justification) is missing or invalid.
  */
@@ -70,7 +70,7 @@ export function decodePermissionFromRequest({
       )
     )
   ) {
-    return;
+    return undefined;
   }
 
   const decodedPermission = messenger.call(

@@ -57,7 +57,7 @@ import {
   decodePermissionFromRequest,
   isDelegationRequest,
   validateExecutionPermissionMetadata,
-} from './utils/execution-permissions';
+} from './utils/delegations';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
