@@ -47,7 +47,6 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
-import type { PollingTokenSetId } from '../../polling-controller/src/types';
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -446,7 +445,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    *
    * @param tokenSetId - The token set ID to stop polling for
    */
-  override _stopPollingByPollingTokenSetId(tokenSetId: PollingTokenSetId) {
+  override _stopPollingByPollingTokenSetId(tokenSetId: string) {
     let parsedTokenSetId;
     let chainsToStop: ChainIdHex[] = [];
 
