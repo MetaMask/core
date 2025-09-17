@@ -18,6 +18,7 @@ import {
   EIP7682ErrorCode,
   KEYRING_TYPES_SUPPORTING_7702,
   MessageType,
+  SupportedCapabilities,
   VERSION,
 } from '../constants';
 import type {
@@ -435,13 +436,15 @@ function validateCapabilities(
 
   const requiredTopLevelCapabilities = Object.keys(capabilities ?? {}).filter(
     (name) =>
-      name !== 'auxiliaryFunds' && capabilities?.[name].optional !== true,
+      // Non optional capabilities other than `auxiliaryFunds` are not supported by the wallet
+      name !== SupportedCapabilities.AuxiliaryFunds.toString() &&
+      capabilities?.[name].optional !== true,
   );
 
   const requiredCallCapabilities = calls.flatMap((call) =>
     Object.keys(call.capabilities ?? {}).filter(
       (name) =>
-        name !== 'auxiliaryFunds' &&
+        name !== SupportedCapabilities.AuxiliaryFunds.toString() &&
         call.capabilities?.[name].optional !== true,
     ),
   );
@@ -509,7 +512,7 @@ function validateRequiredAssets({
   if (!isSupportedAccount) {
     throw new JsonRpcError(
       EIP5792ErrorCode.UnsupportedNonOptionalCapability,
-      'Unsupported non-optional capabilities: auxiliaryFunds',
+      `Unsupported non-optional capabilities: ${SupportedCapabilities.AuxiliaryFunds}`,
     );
   }
 

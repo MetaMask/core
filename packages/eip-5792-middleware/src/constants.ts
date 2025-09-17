@@ -11,6 +11,10 @@ export enum MessageType {
   SendTransaction = 'eth_sendTransaction',
 }
 
+export enum SupportedCapabilities {
+  AuxiliaryFunds = 'auxiliaryFunds',
+}
+
 // To be moved to @metamask/rpc-errors in future.
 export enum EIP5792ErrorCode {
   UnsupportedNonOptionalCapability = 5700,
