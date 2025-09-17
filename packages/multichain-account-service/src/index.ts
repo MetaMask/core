@@ -17,6 +17,7 @@ export {
   AccountProviderWrapper,
   BaseBip44AccountProvider,
   SnapAccountProvider,
+  TimeoutError,
 } from './providers';
 export { MultichainAccountWallet } from './MultichainAccountWallet';
 export { MultichainAccountGroup } from './MultichainAccountGroup';
