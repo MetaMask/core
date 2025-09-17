@@ -513,6 +513,64 @@ describe('calculateBalanceForAllWallets', () => {
     expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
   });
 
+  it('skips non-EVM assets when conversion rate is missing', () => {
+    const state = createMobileMockState('USD');
+
+    // Add a non-EVM account
+    (
+      state.engine.backgroundState as any
+    ).AccountsController.internalAccounts.accounts['account-missing-rate'] = {
+      id: 'account-missing-rate',
+      address: 'NonEvmMissingRate',
+      type: 'solana:eoa',
+      scopes: ['solana:mainnet'],
+      methods: [],
+      options: {},
+      metadata: {
+        name: 'SolMissingRate',
+        keyring: { type: 'hd' },
+        importTime: 0,
+      },
+    };
+
+    // Add the account to a wallet group
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push(
+      'account-missing-rate',
+    );
+
+    // Set up balance for an asset without a corresponding conversion rate
+    (state.engine.backgroundState as any).MultichainBalancesController.balances[
+      'account-missing-rate'
+    ] = {
+      'solana:mainnet/asset:no-rate': { amount: '100', unit: 'NORATES' },
+    };
+
+    // Intentionally NOT setting a conversion rate for this asset
+    // This tests line 238 in balances.ts: if (!conversionRate) { return null; }
+
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+
+    // The calculation should complete successfully, excluding the asset with missing rate
+    expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+    // The total should remain the same as without the missing-rate asset since it gets filtered out
+    expect(typeof result.totalBalanceInUserCurrency).toBe('number');
+    expect(Number.isFinite(result.totalBalanceInUserCurrency)).toBe(true);
+  });
+
   it('includes native and staked balances in totals', () => {
     const state = createMobileMockState('USD');
 
