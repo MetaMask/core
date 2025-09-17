@@ -194,6 +194,7 @@ describe('ShieldRemoteBackend', () => {
       await backend.logSignature({
         coverageId: 'coverageId',
         signature: '0x00',
+        status: 'shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(getAccessToken).toHaveBeenCalledTimes(1);
@@ -208,6 +209,7 @@ describe('ShieldRemoteBackend', () => {
         backend.logSignature({
           coverageId: 'coverageId',
           signature: '0x00',
+          status: 'shown',
         }),
       ).rejects.toThrow('Failed to log signature: 500');
     });
@@ -222,7 +224,7 @@ describe('ShieldRemoteBackend', () => {
       await backend.logTransaction({
         coverageId: 'coverageId',
         transactionHash: '0x00',
-        status: 'submitted',
+        status: 'shown',
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(getAccessToken).toHaveBeenCalledTimes(1);
@@ -237,7 +239,7 @@ describe('ShieldRemoteBackend', () => {
         backend.logTransaction({
           coverageId: 'coverageId',
           transactionHash: '0x00',
-          status: 'submitted',
+          status: 'shown',
         }),
       ).rejects.toThrow('Failed to log transaction: 500');
     });

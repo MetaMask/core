@@ -12,6 +12,7 @@ export type CoverageStatus = (typeof coverageStatuses)[number];
 export type LogSignatureRequest = {
   coverageId: string;
   signature: string;
+  status: string;
 };
 
 export type LogTransactionRequest = {

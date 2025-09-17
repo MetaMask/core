@@ -385,6 +385,10 @@ export class ShieldController extends BaseController<
     await this.#backend.logSignature({
       coverageId,
       signature: sig,
+      // Status is 'shown' because the coverageId can only be retrieved after
+      // the result is in the state. If the result is in the state, we assume
+      // that it has been shown.
+      status: 'shown',
     });
   }
 
@@ -401,7 +405,10 @@ export class ShieldController extends BaseController<
     await this.#backend.logTransaction({
       coverageId,
       transactionHash: txHash,
-      status: txMeta.status,
+      // Status is 'shown' because the coverageId can only be retrieved after
+      // the result is in the state. If the result is in the state, we assume
+      // that it has been shown.
+      status: 'shown',
     });
   }
 

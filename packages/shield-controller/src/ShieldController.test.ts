@@ -283,6 +283,7 @@ describe('ShieldController', () => {
       expect(components.backend.logSignature).toHaveBeenCalledWith({
         coverageId: MOCK_COVERAGE_ID,
         signature: '0x00',
+        status: 'shown',
       });
     });
 
@@ -362,7 +363,7 @@ describe('ShieldController', () => {
       // Check that backend was called
       expect(components.backend.logTransaction).toHaveBeenCalledWith({
         coverageId: MOCK_COVERAGE_ID,
-        status: TransactionStatus.submitted,
+        status: 'shown',
         transactionHash: '0x00',
       });
     });
