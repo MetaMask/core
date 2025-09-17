@@ -162,20 +162,15 @@ export class BackupAndSyncService {
 
   /**
    * Enqueues a single wallet sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
    *
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (!this.isBackupAndSyncEnabled) {
+    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
       return;
     }
 
-    if (!this.hasSyncedAtLeastOnce) {
-      // Run big sync
-      // eslint-disable-next-line no-void
-      void this.performFullSync();
-      return;
-    }
     // eslint-disable-next-line no-void
     void this.#atomicSyncQueue.enqueue(() =>
       this.#performSingleWalletSyncInner(walletId),
@@ -184,18 +179,12 @@ export class BackupAndSyncService {
 
   /**
    * Enqueues a single group sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
    *
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
-    if (!this.isBackupAndSyncEnabled) {
-      return;
-    }
-
-    if (!this.hasSyncedAtLeastOnce) {
-      // Run big sync
-      // eslint-disable-next-line no-void
-      void this.performFullSync();
+    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
       return;
     }
 
