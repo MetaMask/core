@@ -166,17 +166,17 @@ describe('validators', () => {
           bip44DefaultPairs: {
             bip122: {
               destAsset: 'eip155:1/slip44:60',
-              sourceAsset: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+              srcAsset: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
             },
             eip155: {
               destAsset:
                 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-              sourceAsset: 'eip155:1/slip44:60',
+              srcAsset: 'eip155:1/slip44:60',
             },
             solana: {
               destAsset:
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-              sourceAsset: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+              srcAsset: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
             },
           },
           maxRefreshCount: 5,
