@@ -105,6 +105,11 @@ const GenericQuoteRequestSchema = type({
 
 const FeatureIdSchema = enums(Object.values(FeatureId));
 
+const Bip44DefaultPairSchema = type({
+  destAsset: string(),
+  sourceAsset: string(),
+});
+
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
@@ -118,6 +123,13 @@ export const PlatformConfigSchema = type({
   maxRefreshCount: number(),
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
+  bip44DefaultPairs: optional(
+    type({
+      bip122: optional(Bip44DefaultPairSchema),
+      eip155: optional(Bip44DefaultPairSchema),
+      solana: optional(Bip44DefaultPairSchema),
+    }),
+  ),
 });
 
 export const validateFeatureFlagsResponse = (
