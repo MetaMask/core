@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [75.2.0]
+
 ### Added
 
 - Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.13.0` to `^11.14.0` ([#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+### Fixed
+
+- Fix `TokenBalancesController` selective session stopping to prevent old polling sessions from interfering with new ones when chain configurations change ([#6635](https://github.com/MetaMask/core/pull/6635))
 
 ## [75.1.0]
 
@@ -1997,7 +2003,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.2.0...HEAD
+[75.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.1.0...@metamask/assets-controllers@75.2.0
 [75.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.0.0...@metamask/assets-controllers@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.3...@metamask/assets-controllers@75.0.0
 [74.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.2...@metamask/assets-controllers@74.3.3
