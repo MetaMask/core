@@ -316,7 +316,9 @@ export class SignatureController extends BaseController<
     const unapprovedSignatureRequests = Object.values(
       this.state.signatureRequests,
     ).filter(
-      (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
+      (metadata) =>
+        (metadata.status as SignatureRequestStatus) ===
+        SignatureRequestStatus.Unapproved,
     );
 
     for (const metadata of unapprovedSignatureRequests) {
@@ -331,7 +333,9 @@ export class SignatureController extends BaseController<
     this.#updateState((state) => {
       Object.values(state.signatureRequests)
         .filter(
-          (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
+          (metadata) =>
+            (metadata.status as SignatureRequestStatus) ===
+            SignatureRequestStatus.Unapproved,
         )
         .forEach((metadata) => delete state.signatureRequests[metadata.id]);
     });
@@ -463,7 +467,8 @@ export class SignatureController extends BaseController<
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.rawSig = signature;
-      draftMetadata.status = SignatureRequestStatus.Signed;
+      draftMetadata.status =
+        SignatureRequestStatus.Signed as SignatureRequestStatus;
     });
   }
 
