@@ -49,6 +49,7 @@ describe('ShieldRemoteBackend', () => {
     const { backend, fetchMock, getAccessToken } = setup();
 
     // Mock init coverage check.
+    const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
       json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
@@ -63,7 +64,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     const coverageResult = await backend.checkCoverage(txMeta);
-    expect(coverageResult).toStrictEqual({ status });
+    expect(coverageResult).toStrictEqual({ coverageId, status });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -74,9 +75,10 @@ describe('ShieldRemoteBackend', () => {
     });
 
     // Mock init coverage check.
+    const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: jest.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
     // Mock get coverage result: result unavailable.
@@ -94,7 +96,7 @@ describe('ShieldRemoteBackend', () => {
 
     const txMeta = generateMockTxMeta();
     const coverageResult = await backend.checkCoverage(txMeta);
-    expect(coverageResult).toStrictEqual({ status });
+    expect(coverageResult).toStrictEqual({ coverageId, status });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledTimes(2);
   });
@@ -151,9 +153,10 @@ describe('ShieldRemoteBackend', () => {
       const { backend, fetchMock, getAccessToken } = setup();
 
       // Mock init coverage check.
+      const coverageId = 'coverageId';
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+        json: jest.fn().mockResolvedValue({ coverageId }),
       } as unknown as Response);
 
       // Mock get coverage result.
@@ -166,7 +169,7 @@ describe('ShieldRemoteBackend', () => {
       const signatureRequest = generateMockSignatureRequest();
       const coverageResult =
         await backend.checkSignatureCoverage(signatureRequest);
-      expect(coverageResult).toStrictEqual({ status });
+      expect(coverageResult).toStrictEqual({ coverageId, status });
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(getAccessToken).toHaveBeenCalledTimes(2);
     });
@@ -179,6 +182,66 @@ describe('ShieldRemoteBackend', () => {
       await expect(
         backend.checkSignatureCoverage(signatureRequest),
       ).rejects.toThrow('Signature data must be a string');
+    });
+  });
+
+  describe('logSignature', () => {
+    it('logs signature', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await backend.logSignature({
+        coverageId: 'coverageId',
+        signature: '0x00',
+        status: 'shown',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws on status 500', async () => {
+      const { backend, fetchMock } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 500 } as unknown as Response);
+
+      await expect(
+        backend.logSignature({
+          coverageId: 'coverageId',
+          signature: '0x00',
+          status: 'shown',
+        }),
+      ).rejects.toThrow('Failed to log signature: 500');
+    });
+  });
+
+  describe('logTransaction', () => {
+    it('logs transaction', async () => {
+      const { backend, fetchMock, getAccessToken } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 200 } as unknown as Response);
+
+      await backend.logTransaction({
+        coverageId: 'coverageId',
+        transactionHash: '0x00',
+        status: 'shown',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws on status 500', async () => {
+      const { backend, fetchMock } = setup();
+
+      fetchMock.mockResolvedValueOnce({ status: 500 } as unknown as Response);
+
+      await expect(
+        backend.logTransaction({
+          coverageId: 'coverageId',
+          transactionHash: '0x00',
+          status: 'shown',
+        }),
+      ).rejects.toThrow('Failed to log transaction: 500');
     });
   });
 });
