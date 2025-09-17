@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add timeout and retry mechanism to Solana discovery ([#6624](https://github.com/MetaMask/core/pull/6624))
+- Add custom account provider configs ([#6624](https://github.com/MetaMask/core/pull/6624))
+  - This new config can be set by the clients to update discovery timeout/retry values.
+
 ## [0.9.0]
 
 ### Added

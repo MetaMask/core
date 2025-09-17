@@ -4,13 +4,15 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
+  SignatureRequestStatus,
   SignatureRequestType,
   type SignatureRequest,
   type SignatureStateChange,
 } from '@metamask/signature-controller';
-import type {
-  TransactionControllerStateChangeEvent,
-  TransactionMeta,
+import {
+  TransactionStatus,
+  type TransactionControllerStateChangeEvent,
+  type TransactionMeta,
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
@@ -230,6 +232,17 @@ export class ShieldController extends BaseController<
           (error) => log('Error checking coverage:', error),
         );
       }
+
+      // Log signature once the signature request has been fulfilled.
+      if (
+        signatureRequest.status === SignatureRequestStatus.Signed &&
+        signatureRequest.status !== previousSignatureRequest?.status
+      ) {
+        this.#logSignature(signatureRequest).catch(
+          // istanbul ignore next
+          (error) => log('Error logging signature:', error),
+        );
+      }
     }
   }
 
@@ -254,6 +267,17 @@ export class ShieldController extends BaseController<
         this.checkCoverage(transaction).catch(
           // istanbul ignore next
           (error) => log('Error checking coverage:', error),
+        );
+      }
+
+      // Log transaction once it has been submitted.
+      if (
+        transaction.status === TransactionStatus.submitted &&
+        transaction.status !== previousTransaction?.status
+      ) {
+        this.#logTransaction(transaction).catch(
+          // istanbul ignore next
+          (error) => log('Error logging transaction:', error),
         );
       }
     }
@@ -345,5 +369,50 @@ export class ShieldController extends BaseController<
         orderedTransactionHistory.unshift(txId);
       }
     });
+  }
+
+  async #logSignature(signatureRequest: SignatureRequest) {
+    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
+    if (!coverageId) {
+      throw new Error('Coverage ID not found');
+    }
+
+    const sig = signatureRequest.rawSig;
+    if (!sig) {
+      throw new Error('Signature not found');
+    }
+
+    await this.#backend.logSignature({
+      coverageId,
+      signature: sig,
+      // Status is 'shown' because the coverageId can only be retrieved after
+      // the result is in the state. If the result is in the state, we assume
+      // that it has been shown.
+      status: 'shown',
+    });
+  }
+
+  async #logTransaction(txMeta: TransactionMeta) {
+    const coverageId = this.#getLatestCoverageId(txMeta.id);
+    if (!coverageId) {
+      throw new Error('Coverage ID not found');
+    }
+
+    const txHash = txMeta.hash;
+    if (!txHash) {
+      throw new Error('Transaction hash not found');
+    }
+    await this.#backend.logTransaction({
+      coverageId,
+      transactionHash: txHash,
+      // Status is 'shown' because the coverageId can only be retrieved after
+      // the result is in the state. If the result is in the state, we assume
+      // that it has been shown.
+      status: 'shown',
+    });
+  }
+
+  #getLatestCoverageId(itemId: string) {
+    return this.state.coverageResults[itemId]?.results[0]?.coverageId;
   }
 }

@@ -1,7 +1,13 @@
 import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { CoverageResult, CoverageStatus, ShieldBackend } from './types';
+import type {
+  CoverageResult,
+  CoverageStatus,
+  LogSignatureRequest,
+  LogTransactionRequest,
+  ShieldBackend,
+} from './types';
 
 export type InitCoverageCheckRequest = {
   txParams: [
@@ -88,7 +94,8 @@ export class ShieldRemoteBackend implements ShieldBackend {
       reqBody,
     );
 
-    return this.#getCoverageResult(coverageId);
+    const coverageResult = await this.#getCoverageResult(coverageId);
+    return { coverageId, status: coverageResult.status };
   }
 
   async checkSignatureCoverage(
@@ -111,7 +118,36 @@ export class ShieldRemoteBackend implements ShieldBackend {
       reqBody,
     );
 
-    return this.#getCoverageResult(coverageId);
+    const coverageResult = await this.#getCoverageResult(coverageId);
+    return { coverageId, status: coverageResult.status };
+  }
+
+  async logSignature(req: LogSignatureRequest): Promise<void> {
+    const res = await this.#fetch(
+      `${this.#baseUrl}/v1/signature/coverage/log`,
+      {
+        method: 'POST',
+        headers: await this.#createHeaders(),
+        body: JSON.stringify(req),
+      },
+    );
+    if (res.status !== 200) {
+      throw new Error(`Failed to log signature: ${res.status}`);
+    }
+  }
+
+  async logTransaction(req: LogTransactionRequest): Promise<void> {
+    const res = await this.#fetch(
+      `${this.#baseUrl}/v1/transaction/coverage/log`,
+      {
+        method: 'POST',
+        headers: await this.#createHeaders(),
+        body: JSON.stringify(req),
+      },
+    );
+    if (res.status !== 200) {
+      throw new Error(`Failed to log transaction: ${res.status}`);
+    }
   }
 
   async #initCoverageCheck(
