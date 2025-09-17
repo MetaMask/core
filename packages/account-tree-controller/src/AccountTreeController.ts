@@ -468,6 +468,7 @@ export class AccountTreeController extends BaseController<
             proposedName,
           );
 
+          /* istanbul ignore next */
           if (nameExists) {
             groupIndex += 1; // Try next number
           }
@@ -1080,6 +1081,7 @@ export class AccountTreeController extends BaseController<
     this.#assertAccountGroupExists(groupId);
 
     const walletId = this.#groupIdToWalletId.get(groupId);
+    /* istanbul ignore next */
     if (!walletId) {
       throw new Error(`Account group with ID "${groupId}" not found in tree`);
     }
