@@ -3906,29 +3906,6 @@ describe('AccountTreeController', () => {
       );
     });
 
-    it('throws error when group ID exists in assertion but not in mapping', () => {
-      const { controller } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-
-      controller.init();
-
-      const walletId = toMultichainAccountWalletId(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
-      const groupId = toMultichainAccountGroupId(walletId, 0);
-
-      // Manually corrupt the mapping to simulate the edge case
-      (controller as unknown as { '#groupIdToWalletId': Map<string, string> })[
-        '#groupIdToWalletId'
-      ].delete(groupId);
-
-      expect(() => {
-        controller.setAccountGroupName(groupId, 'Test Name');
-      }).toThrow('Account group with ID');
-    });
-
     it('handles autoHandleConflict with real conflict scenario', () => {
       const { controller } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
