@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1]
+
 ### Added
 
 - Export user storage paths for account syncing ([#6643](https://github.com/MetaMask/core/pull/6643))
@@ -253,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.1...HEAD
+[0.16.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.0...@metamask/account-tree-controller@0.16.1
 [0.16.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.1...@metamask/account-tree-controller@0.16.0
 [0.15.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.0...@metamask/account-tree-controller@0.15.1
 [0.15.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.14.0...@metamask/account-tree-controller@0.15.0
