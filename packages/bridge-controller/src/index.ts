@@ -26,7 +26,7 @@ export {
 export type {
   ChainConfiguration,
   L1GasFees,
-  SolanaFees,
+  NonEvmFees,
   QuoteMetadata,
   GasMultiplierByChainId,
   FeatureFlagResponse,

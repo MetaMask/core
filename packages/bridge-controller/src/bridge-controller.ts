@@ -26,7 +26,6 @@ import type { QuoteRequest } from './types';
 import {
   type L1GasFees,
   type GenericQuoteRequest,
-  type SolanaFees,
   type NonEvmFees,
   type QuoteResponse,
   type TxData,
@@ -744,7 +743,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
-  ): Promise<(QuoteResponse & SolanaFees & NonEvmFees)[] | undefined> => {
+  ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
     if (
       quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
@@ -794,7 +793,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
           return {
             ...quoteResponse,
-            solanaFeesInLamports: feeInNative, // Keep for backward compatibility
             nonEvmFeesInNative: feeInNative,
           };
         }
@@ -803,7 +801,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
-      (QuoteResponse & SolanaFees & NonEvmFees)[]
+      (QuoteResponse & NonEvmFees)[]
     >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
         acc.push(result.value);
