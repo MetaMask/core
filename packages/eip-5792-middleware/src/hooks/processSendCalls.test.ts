@@ -569,5 +569,67 @@ describe('EIP-5792', () => {
 
       expect(result).toBeDefined();
     });
+
+    it('validates auxiliary funds with optional false and no requiredAssets', async () => {
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        {
+          ...SEND_CALLS_MOCK,
+          capabilities: {
+            auxiliaryFunds: {
+              optional: false,
+            },
+          },
+        },
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('deduplicates auxiliary funds requiredAssets by address and standard, summing amounts', async () => {
+      const payload: SendCallsPayload = {
+        ...SEND_CALLS_MOCK,
+        capabilities: {
+          auxiliaryFunds: {
+            optional: true,
+            requiredAssets: [
+              {
+                address: '0x123' as Hex,
+                amount: '0x2' as Hex,
+                standard: 'erc20',
+              },
+              {
+                address: '0x123' as Hex,
+                amount: '0x3' as Hex,
+                standard: 'erc20',
+              },
+            ],
+          },
+        },
+      };
+
+      const result = await processSendCalls(
+        sendCallsHooks,
+        messenger,
+        payload,
+        REQUEST_MOCK,
+      );
+
+      expect(result).toBeDefined();
+      expect(payload.capabilities?.auxiliaryFunds?.requiredAssets?.length).toBe(
+        1,
+      );
+      expect(
+        payload.capabilities?.auxiliaryFunds?.requiredAssets?.[0].amount,
+      ).toBe('0x5');
+      expect(
+        payload.capabilities?.auxiliaryFunds?.requiredAssets?.[0].address,
+      ).toBe('0x123');
+      expect(
+        payload.capabilities?.auxiliaryFunds?.requiredAssets?.[0].standard,
+      ).toBe('erc20');
+    });
   });
 });

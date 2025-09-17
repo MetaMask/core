@@ -288,15 +288,7 @@ async function processMultipleTransaction({
     isAuxiliaryFundsSupported,
   );
 
-  console.log(
-    { assets: sendCalls.capabilities?.auxiliaryFunds?.requiredAssets },
-    'before, multiple tx',
-  );
   dedupeAuxiliaryFundsRequiredAssets(sendCalls);
-  console.log(
-    { assets: sendCalls.capabilities?.auxiliaryFunds?.requiredAssets },
-    'after, multiple tx',
-  );
 
   const result = await addTransactionBatch({
     from,
