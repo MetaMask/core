@@ -14,11 +14,13 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
-import { withTimeout } from './utils';
+import { withRetry, withTimeout } from './utils';
 
 export type SolAccountProviderConfig = {
   discovery: {
+    maxAttempts: number;
     timeoutMs: number;
+    backOffMs: number;
   };
 };
 
@@ -35,10 +37,9 @@ export class SolAccountProvider extends SnapAccountProvider {
     messenger: MultichainAccountServiceMessenger,
     config: SolAccountProviderConfig = {
       discovery: {
-        // Use a pretty high timeout (12s) for each Solana discovery for now.
-        // NOTE: This can be overriden at any time by the client using the
-        // config parameter.
-        timeoutMs: 12000,
+        timeoutMs: 2000,
+        maxAttempts: 3,
+        backOffMs: 1000,
       },
     },
   ) {
@@ -124,13 +125,20 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const discoveredAccounts = await withTimeout(
-      this.#client.discoverAccounts(
-        [SolScope.Mainnet],
-        entropySource,
-        groupIndex,
-      ),
-      this.#config.discovery.timeoutMs,
+    const discoveredAccounts = await withRetry(
+      () =>
+        withTimeout(
+          this.#client.discoverAccounts(
+            [SolScope.Mainnet],
+            entropySource,
+            groupIndex,
+          ),
+          this.#config.discovery.timeoutMs,
+        ),
+      {
+        maxAttempts: this.#config.discovery.maxAttempts,
+        backOffMs: this.#config.discovery.backOffMs,
+      },
     );
 
     if (!discoveredAccounts.length) {

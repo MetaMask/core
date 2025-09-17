@@ -196,7 +196,9 @@ describe('MultichainAccountService', () => {
           },
           [SolAccountProvider.NAME]: {
             discovery: {
-              timeoutMs: 1000,
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
             },
           },
         };
