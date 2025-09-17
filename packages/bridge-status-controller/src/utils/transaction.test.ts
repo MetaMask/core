@@ -250,7 +250,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         destinationTokenAddress: '0x0000000000000000000000000000000000000000',
         approvalTxId: undefined,
         swapTokenValue: '1.0',
-        chainId: '0x1',
       });
     });
 

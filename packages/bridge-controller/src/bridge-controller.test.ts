@@ -690,7 +690,6 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '5000',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          solanaFeesInLamports: '14',
           nonEvmFeesInNative: '14',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
@@ -753,7 +752,6 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '5000',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          solanaFeesInLamports: '14',
           nonEvmFeesInNative: '14',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
@@ -790,7 +788,6 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '0',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          solanaFeesInLamports: '14',
           nonEvmFeesInNative: '14',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
@@ -1816,9 +1813,9 @@ describe('BridgeController', function () {
         }),
       );
 
-      // Verify Solana fees
+      // Verify non-EVM fees
       quotes.forEach((quote) => {
-        expect(quote.solanaFeesInLamports).toBe(
+        expect(quote.nonEvmFeesInNative).toBe(
           isSolanaChainId(quote.quote.srcChainId) ? expectedFees : undefined,
         );
       });
@@ -1956,8 +1953,8 @@ describe('BridgeController', function () {
 
     const { quotes } = bridgeController.state;
     expect(quotes).toHaveLength(2); // mockBridgeQuotesSolErc20 has 2 quotes
-    expect(quotes[0].solanaFeesInLamports).toBe('0.00005'); // BTC fee as-is
-    expect(quotes[1].solanaFeesInLamports).toBe('0.00005'); // BTC fee as-is
+    expect(quotes[0].nonEvmFeesInNative).toBe('0.00005'); // BTC fee as-is
+    expect(quotes[1].nonEvmFeesInNative).toBe('0.00005'); // BTC fee as-is
   });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
