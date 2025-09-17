@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [60.4.0]
+
+### Added
+
+- Expose `confirmExternalTransaction`, `getNonceLock`, `getTransactions`, and `updateTransaction` actions through the messenger ([#6615](https://github.com/MetaMask/core/pull/6615))
+  - Like other action methods, they are callable as `TransactionController:*`
+  - Also add associated types:
+    - `TransactionControllerConfirmExternalTransactionAction`
+    - `TransactionControllerGetNonceLockAction`
+    - `TransactionControllerGetTransactionsAction`
+    - `TransactionControllerUpdateTransactionAction`
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
 ## [60.3.0]
 
 ### Added
@@ -1800,7 +1818,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.4.0...HEAD
+[60.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.3.0...@metamask/transaction-controller@60.4.0
 [60.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.2.0...@metamask/transaction-controller@60.3.0
 [60.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.1.0...@metamask/transaction-controller@60.2.0
 [60.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@60.0.0...@metamask/transaction-controller@60.1.0

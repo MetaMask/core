@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 /* eslint-disable jest/no-restricted-matchers */
 import type { AccountsControllerActions } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   BridgeControllerActions,
   BridgeControllerEvents,
@@ -3648,6 +3648,68 @@ describe('BridgeStatusController', () => {
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "txHistory": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "txHistory": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "txHistory": Object {},
+        }
+      `);
     });
   });
 });

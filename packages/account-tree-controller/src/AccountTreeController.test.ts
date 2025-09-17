@@ -224,11 +224,12 @@ function getAccountTreeControllerMessenger(
       'AccountsController:accountRemoved',
       'AccountsController:selectedAccountChange',
       'UserStorageController:stateChange',
+      'MultichainAccountService:walletStatusChange',
     ],
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
-      'AccountsController:getSelectedAccount',
+      'AccountsController:getSelectedMultichainAccount',
       'AccountsController:setSelectedAccount',
       'UserStorageController:getState',
       'UserStorageController:performGetStorage',
@@ -304,7 +305,7 @@ function setup({
     AccountsController: {
       accounts: InternalAccount[];
       listMultichainAccounts: jest.Mock;
-      getSelectedAccount: jest.Mock;
+      getSelectedMultichainAccount: jest.Mock;
       getAccount: jest.Mock;
     };
     UserStorageController: {
@@ -328,7 +329,7 @@ function setup({
       accounts,
       listMultichainAccounts: jest.fn(),
       getAccount: jest.fn(),
-      getSelectedAccount: jest.fn(),
+      getSelectedMultichainAccount: jest.fn(),
     },
     UserStorageController: {
       getState: jest.fn(),
@@ -365,13 +366,13 @@ function setup({
       mocks.AccountsController.getAccount,
     );
 
-    // Mock AccountsController:getSelectedAccount to return the first account
-    mocks.AccountsController.getSelectedAccount.mockImplementation(
+    // Mock AccountsController:getSelectedMultichainAccount to return the first account
+    mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
       () => accounts[0] || MOCK_HD_ACCOUNT_1,
     );
     messenger.registerActionHandler(
-      'AccountsController:getSelectedAccount',
-      mocks.AccountsController.getSelectedAccount,
+      'AccountsController:getSelectedMultichainAccount',
+      mocks.AccountsController.getSelectedMultichainAccount,
     );
 
     // Mock AccountsController:setSelectedAccount
@@ -513,6 +514,7 @@ describe('AccountTreeController', () => {
             [expectedWalletId1]: {
               id: expectedWalletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [expectedWalletId1Group]: {
                   id: expectedWalletId1Group,
@@ -538,6 +540,7 @@ describe('AccountTreeController', () => {
             [expectedWalletId2]: {
               id: expectedWalletId2,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [expectedWalletId2Group1]: {
                   id: expectedWalletId2Group1,
@@ -577,6 +580,7 @@ describe('AccountTreeController', () => {
             [expectedSnapWalletId]: {
               id: expectedSnapWalletId,
               type: AccountWalletType.Snap,
+              status: 'ready',
               groups: {
                 [expectedSnapWalletIdGroup]: {
                   id: expectedSnapWalletIdGroup,
@@ -599,6 +603,7 @@ describe('AccountTreeController', () => {
             [expectedKeyringWalletId]: {
               id: expectedKeyringWalletId,
               type: AccountWalletType.Keyring,
+              status: 'ready',
               groups: {
                 [expectedKeyringWalletIdGroup]: {
                   id: expectedKeyringWalletIdGroup,
@@ -745,7 +750,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      mocks.AccountsController.getSelectedAccount.mockImplementation(
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
         () => MOCK_HD_ACCOUNT_1,
       );
 
@@ -762,7 +767,7 @@ describe('AccountTreeController', () => {
 
       mocks.AccountsController.accounts = [MOCK_HD_ACCOUNT_2];
       mocks.KeyringController.keyrings = [MOCK_HD_KEYRING_2];
-      mocks.AccountsController.getSelectedAccount.mockImplementation(
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
         () => MOCK_HD_ACCOUNT_2,
       );
 
@@ -935,6 +940,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId1Group]: {
                   id: walletId1Group,
@@ -1004,6 +1010,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 // First group gets removed as a result of pruning.
                 [walletId1Group2]: {
@@ -1113,6 +1120,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId1Group]: {
                   id: walletId1Group,
@@ -1201,6 +1209,7 @@ describe('AccountTreeController', () => {
             [walletId1]: {
               id: walletId1,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId1Group]: {
                   id: walletId1Group,
@@ -1227,6 +1236,7 @@ describe('AccountTreeController', () => {
               // New wallet automatically added.
               id: walletId2,
               type: AccountWalletType.Entropy,
+              status: 'ready',
               groups: {
                 [walletId2Group]: {
                   id: walletId2Group,
@@ -1257,6 +1267,42 @@ describe('AccountTreeController', () => {
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('on MultichainAccountService:walletStatusUpdate', () => {
+    it('updates the wallet status accordingly', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'ready',
+      );
+
+      messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        walletId,
+        'in-progress:alignment',
+      );
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'in-progress:alignment',
+      );
+
+      messenger.publish(
+        'MultichainAccountService:walletStatusChange',
+        walletId,
+        'ready',
+      );
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'ready',
+      );
     });
   });
 
@@ -1508,10 +1554,10 @@ describe('AccountTreeController', () => {
 
       // Unregister existing handler and register new one BEFORE init
       messenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
+        'AccountsController:getSelectedMultichainAccount',
       );
       messenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
+        'AccountsController:getSelectedMultichainAccount',
         () => EMPTY_ACCOUNT_MOCK,
       );
 
@@ -1535,17 +1581,17 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
       });
 
-      // Mock getSelectedAccount to return an account not in the tree BEFORE init
+      // Mock getSelectedMultichainAccount to return an account not in the tree BEFORE init
       const unknownAccount: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
         id: 'unknown-account-id',
       };
 
       messenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
+        'AccountsController:getSelectedMultichainAccount',
       );
       messenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
+        'AccountsController:getSelectedMultichainAccount',
         () => unknownAccount,
       );
 
@@ -1563,18 +1609,18 @@ describe('AccountTreeController', () => {
       expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId1);
     });
 
-    it('returns empty string when no wallets exist and getSelectedAccount returns EMPTY_ACCOUNT', () => {
+    it('returns empty string when no wallets exist and getSelectedMultichainAccount returns EMPTY_ACCOUNT', () => {
       const { controller, messenger } = setup({
         accounts: [],
         keyrings: [],
       });
 
-      // Mock getSelectedAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
+      // Mock getSelectedMultichainAccount to return EMPTY_ACCOUNT_MOCK (id is '') BEFORE init
       messenger.unregisterActionHandler(
-        'AccountsController:getSelectedAccount',
+        'AccountsController:getSelectedMultichainAccount',
       );
       messenger.registerActionHandler(
-        'AccountsController:getSelectedAccount',
+        'AccountsController:getSelectedMultichainAccount',
         () => EMPTY_ACCOUNT_MOCK,
       );
 
@@ -2767,7 +2813,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      mocks.AccountsController.getSelectedAccount.mockImplementation(
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
         () => MOCK_HD_ACCOUNT_1,
       );
 
@@ -2796,7 +2842,7 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      mocks.AccountsController.getSelectedAccount.mockImplementation(
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
         () => MOCK_HD_ACCOUNT_1,
       );
 
@@ -2819,7 +2865,7 @@ describe('AccountTreeController', () => {
 
       mocks.AccountsController.accounts = [MOCK_HD_ACCOUNT_2];
       mocks.KeyringController.keyrings = [MOCK_HD_KEYRING_2];
-      mocks.AccountsController.getSelectedAccount.mockImplementation(
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
         () => MOCK_HD_ACCOUNT_2,
       );
 

@@ -7,13 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
+- Add support for Bitcoin bridge transactions
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Support Bitcoin transaction submission through unified Snap interface
+
 ### Changed
 
 - Update transaction submission to use new unified Snap interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
   - Replace `signAndSendTransactionWithoutConfirmation` with `ClientRequest:signAndSendTransaction` method
   - Update response handling to support new `transactionId` format from unified interface
   - Maintain backward compatibility with legacy response formats
+- Rename `handleSolanaTxResponse` to `handleNonEvmTxResponse` for clarity
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [43.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency from `^42.0.0` to `^43.0.0` ([#6612](https://github.com/MetaMask/core/pull/6612))
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [42.0.0]
 
@@ -541,7 +558,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@42.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.0.0...HEAD
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@42.0.0...@metamask/bridge-status-controller@43.0.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@41.0.0...@metamask/bridge-status-controller@42.0.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.2.0...@metamask/bridge-status-controller@41.0.0
 [40.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...@metamask/bridge-status-controller@40.2.0

@@ -10,6 +10,7 @@ import type {
 } from '@metamask/network-controller';
 
 import { EvmAccountProvider } from './EvmAccountProvider';
+import { TimeoutError } from './utils';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -326,6 +327,54 @@ describe('EvmAccountProvider', () => {
     ).rejects.toThrow('RPC request failed');
 
     expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+  });
+
+  it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    mocks.mockProviderRequest
+      .mockImplementationOnce(() => {
+        throw new Error('RPC request failed 1');
+      })
+      .mockImplementationOnce(() => {
+        throw new Error('RPC request failed 2');
+      })
+      .mockImplementationOnce(() => {
+        throw new Error('RPC request failed 3');
+      })
+      .mockImplementationOnce(() => {
+        throw new Error('RPC request failed 4');
+      });
+
+    await expect(
+      provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      }),
+    ).rejects.toThrow('RPC request failed 3');
+  });
+
+  it('throws if the RPC request times out', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    mocks.mockProviderRequest.mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve('0x0');
+        }, 600);
+      });
+    });
+
+    await expect(
+      provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 1,
+      }),
+    ).rejects.toThrow(TimeoutError);
   });
 
   it('returns an existing account if it already exists', async () => {

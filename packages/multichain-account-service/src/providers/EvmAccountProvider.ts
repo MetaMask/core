@@ -8,12 +8,14 @@ import type {
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
+import { withRetry, withTimeout } from './utils';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -31,7 +33,35 @@ function assertInternalAccountExists(
   }
 }
 
+export type EvmAccountProviderConfig = {
+  discovery: {
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+};
+
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM' as const;
+
 export class EvmAccountProvider extends BaseBip44AccountProvider {
+  static NAME = EVM_ACCOUNT_PROVIDER_NAME;
+
+  readonly #config: EvmAccountProviderConfig;
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    config: EvmAccountProviderConfig = {
+      discovery: {
+        maxAttempts: 3,
+        timeoutMs: 500,
+        backOffMs: 500,
+      },
+    },
+  ) {
+    super(messenger);
+    this.#config = config;
+  }
+
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
@@ -40,7 +70,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   getName(): string {
-    return 'EVM';
+    return EvmAccountProvider.NAME;
   }
 
   /**
@@ -117,6 +147,28 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return accountsArray;
   }
 
+  async #getTransactionCount(
+    provider: Provider,
+    address: Hex,
+  ): Promise<number> {
+    const countHex = await withRetry<Hex>(
+      () =>
+        withTimeout(
+          provider.request({
+            method: 'eth_getTransactionCount',
+            params: [address, 'latest'],
+          }),
+          this.#config.discovery.timeoutMs,
+        ),
+      {
+        maxAttempts: this.#config.discovery.maxAttempts,
+        backOffMs: this.#config.discovery.backOffMs,
+      },
+    );
+
+    return parseInt(countHex, 16);
+  }
+
   /**
    * Discover and create accounts for the EVM provider.
    *
@@ -140,11 +192,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     // We don't want to remove the account if it's the first one.
     const shouldCleanup = didCreate && groupIndex !== 0;
     try {
-      const countHex = (await provider.request({
-        method: 'eth_getTransactionCount',
-        params: [address, 'latest'],
-      })) as Hex;
-      const count = parseInt(countHex, 16);
+      const count = await this.#getTransactionCount(provider, address);
 
       if (count === 0 && shouldCleanup) {
         await this.withKeyring<EthKeyring>(
