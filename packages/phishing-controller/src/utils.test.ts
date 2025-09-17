@@ -3,7 +3,6 @@ import * as sinon from 'sinon';
 import { ListKeys, ListNames } from './PhishingController';
 import {
   applyDiffs,
-  doesURLPathExist,
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
@@ -32,19 +31,22 @@ const exampleListState = {
   blocklist: exampleBlocklist,
   c2DomainBlocklist: examplec2DomainBlocklist,
   blocklistPaths: {
-    'url1.com/path1': {},
-    'url2.com/path': {
+    'url1.com': {},
+    'url2.com': {
       path2: {},
     },
-    'url3.com/path1': {
+    'url3.com': {
       path2: {
-        path3: [],
+        path3: {},
       },
     },
-    'url4.com/path1': {
+    'url4.com': {
       path21: {
-        path31: ['path41', 'path42'],
-        path32: [],
+        path31: {
+          path41: {},
+          path42: {},
+        },
+        path32: {},
       },
       path22: {},
     },
@@ -258,440 +260,224 @@ describe('applyDiffs', () => {
       timestamp: 1000000000,
     });
 
-    const newRemoveDiff = (url: string, timestampOffset = 1) => ({
+    const newRemoveDiff = (url: string) => ({
       targetList: 'eth_phishing_detect_config.blocklist' as const,
       url,
-      timestamp: 1000000000 + timestampOffset, // Higher timestamp to ensure it's processed after additions
+      timestamp: 1000000001,
       isRemoval: true,
     });
 
     describe('adding URLs to blocklistPaths', () => {
-      describe('when blocklistPaths is empty', () => {
-        const emptyListState = {
+      let listState: any;
+
+      beforeEach(() => {
+        listState = {
           ...exampleListState,
           blocklistPaths: {},
         };
-
-        it.each([
-          [
-            'adds a URL with 1 path component',
-            'example.com/path1',
-            {
-              'example.com/path1': {},
-            },
-          ],
-          [
-            'adds a URL with 2 path components',
-            'example.com/path1/path2',
-            {
-              'example.com/path1': {
-                path2: {},
-              },
-            },
-          ],
-          [
-            'adds a URL with 3 path components',
-            'example.com/path1/path2/path3',
-            {
-              'example.com/path1': {
-                path2: {
-                  path3: [],
-                },
-              },
-            },
-          ],
-          [
-            'adds a URL with 4 path components',
-            'example.com/path1/path2/path3/path4',
-            {
-              'example.com/path1': {
-                path2: {
-                  path3: ['path4'],
-                },
-              },
-            },
-          ],
-        ])('%s', (_name, url, expectedBlocklistPaths) => {
-          const result = applyDiffs(
-            emptyListState,
-            [newAddDiff(url)],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(expectedBlocklistPaths);
-        });
       });
 
-      describe('when blocklistPaths has a 1-level entry and the URL shares the hostname/path1', () => {
-        const listStateWithOneLevel = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': {},
-          },
-        };
-        it('does not add a URL with 2 path components', () => {
-          const result = applyDiffs(
-            listStateWithOneLevel,
-            [newAddDiff('example.com/path1/path2')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithOneLevel.blocklistPaths,
-          );
-        });
-
-        it('does not add a URL with 3 path components', () => {
-          const result = applyDiffs(
-            listStateWithOneLevel,
-            [newAddDiff('example.com/path1/path2/path3')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithOneLevel.blocklistPaths,
-          );
-        });
-      });
-
-      describe('when blocklistPaths has a 2-level entry and the URL shares the hostname/path1/path2', () => {
-        const listStateWithTwoLevels = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': {
-              path2: {},
-            },
-          },
-        };
-        it('does not add a URL with 3 path components', () => {
-          const result = applyDiffs(
-            listStateWithTwoLevels,
-            [newAddDiff('example.com/path1/path2/path3')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithTwoLevels.blocklistPaths,
-          );
-        });
-
-        it('does not duplicate the path2 entry', () => {
-          const result = applyDiffs(
-            listStateWithTwoLevels,
-            [newAddDiff('example.com/path1/path2')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithTwoLevels.blocklistPaths,
-          );
-        });
-      });
-
-      describe('when blocklistPaths has a 3-level entry and the URL shares the hostname/path1/path2/path3', () => {
-        const listStateWithThreeLevels = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': {
-              path2: {
-                path3: [],
-              },
-            },
-          },
-        };
-        it('does not add a URL with 3 path components when level 3 already blocks everything', () => {
-          const result = applyDiffs(
-            listStateWithThreeLevels,
-            [newAddDiff('example.com/path1/path2/path3')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithThreeLevels.blocklistPaths,
-          );
-        });
-
-        it('does not add a URL with 4 path components when level 3 already blocks everything', () => {
-          const result = applyDiffs(
-            listStateWithThreeLevels,
-            [newAddDiff('example.com/path1/path2/path3/path4')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithThreeLevels.blocklistPaths,
-          );
-        });
-      });
-
-      describe('when blocklistPaths has 4-level entries and the URL shares the hostname/path1/path2/path3', () => {
-        const listStateWithFourLevels = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': {
-              path2: {
-                path3: ['path41'],
-              },
-            },
-          },
-        };
-        it('adds a new remaining path to the hostname/path1/path2/path3 array', () => {
-          const result = applyDiffs(
-            listStateWithFourLevels,
-            [newAddDiff('example.com/path1/path2/path3/path42')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': {
-              path2: {
-                path3: ['path41', 'path42'],
-              },
-            },
-          });
-        });
-        it('does not add a remaining path if it already exists', () => {
-          const result = applyDiffs(
-            listStateWithFourLevels,
-            [newAddDiff('example.com/path1/path2/path3/path41')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithFourLevels.blocklistPaths,
-          );
-        });
-      });
-
-      it('properly handles URLs with 4+ path components by storing remaining segments', () => {
+      it('adds a URL to the path trie', () => {
         const result = applyDiffs(
-          exampleListState,
-          [newAddDiff('example.com/path1/path2/path3/path4/path5')],
+          listState,
+          [newAddDiff('example.com/path1/path2')],
           ListKeys.EthPhishingDetectConfig,
         );
         expect(result.blocklistPaths).toStrictEqual({
-          ...exampleListState.blocklistPaths,
-          'example.com/path1': {
-            path2: {
-              path3: ['path4/path5'],
+          'example.com': {
+            path1: {
+              path2: {},
             },
           },
         });
       });
 
-      it('does not add a URL with no path', () => {
+      it('adds sibling paths', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1')],
+          ListKeys.EthPhishingDetectConfig,
+        );
         const result = applyDiffs(
-          exampleListState,
+          listState,
+          [newAddDiff('example.com/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {},
+            path2: {},
+          },
+        });
+      });
+
+      it('is idempotent', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {
+              path2: {},
+            },
+          },
+        });
+      });
+
+      it('prunes descendants when adding ancestor', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2/path3')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {},
+          },
+        });
+      });
+
+      it('does not insert deeper path if ancestor exists', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {},
+          },
+        });
+      });
+
+      it('does not insert if no path is provided', () => {
+        const result = applyDiffs(
+          listState,
           [newAddDiff('example.com')],
           ListKeys.EthPhishingDetectConfig,
         );
-        expect(result.blocklistPaths).toStrictEqual(
-          exampleListState.blocklistPaths,
-        );
+        expect(result.blocklistPaths).toStrictEqual({});
       });
     });
+
     describe('removing URLs from blocklistPaths', () => {
-      it('removing a non-existent URL does nothing', () => {
+      let listState: any;
+
+      beforeEach(() => {
+        listState = {
+          ...exampleListState,
+          blocklistPaths: {
+            'example.com': {
+              path11: {
+                path2: {},
+              },
+              path12: {},
+            },
+          },
+        };
+      });
+
+      it('deletes a path', () => {
         const result = applyDiffs(
-          exampleListState,
-          [newRemoveDiff('nonexistenturl.com/path1')],
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
           ListKeys.EthPhishingDetectConfig,
         );
-        expect(result.blocklistPaths).toStrictEqual(
-          exampleListState.blocklistPaths,
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path12: {},
+          },
+        });
+      });
+
+      it('deletes all paths', () => {
+        applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
         );
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path12')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({});
       });
 
-      describe('when blocklistPaths has a level-1 entry', () => {
-        const listStateWithOneLevel = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': {},
+      it('deletes descendants if the path is not terminal', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path12: {},
           },
-        };
-
-        it('removes the level-1 entry completely', () => {
-          const result = applyDiffs(
-            listStateWithOneLevel,
-            [newRemoveDiff('example.com/path1')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({});
-        });
-
-        it('attempting to remove a level-2 path above a level-1 entry does nothing', () => {
-          const result = applyDiffs(
-            listStateWithOneLevel,
-            [newRemoveDiff('example.com/path1/path2')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithOneLevel.blocklistPaths,
-          );
         });
       });
 
-      describe('when blocklistPaths has a level-2 entry', () => {
-        const listStateWithTwoLevels = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': { path21: {}, path22: {} },
-            'url.com/path1': { path2: {} },
+      it('is idempotent', () => {
+        applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path12: {},
           },
-        };
-
-        it('removes a specific level-2 entry', () => {
-          const result = applyDiffs(
-            listStateWithTwoLevels,
-            [newRemoveDiff('example.com/path1/path21')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': { path22: {} },
-            'url.com/path1': { path2: {} },
-          });
-        });
-
-        it('removes the entire level-1 entry when removing the last level-2 entry', () => {
-          const result = applyDiffs(
-            listStateWithTwoLevels,
-            [newRemoveDiff('url.com/path1/path2')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': { path21: {}, path22: {} },
-          });
-        });
-
-        it('attempting to remove a level-3 path above a level-2 entry does nothing', () => {
-          const result = applyDiffs(
-            listStateWithTwoLevels,
-            [newRemoveDiff('example.com/path1/path21/path3')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithTwoLevels.blocklistPaths,
-          );
-        });
-
-        it('attempting to remove a level-1 path that has a level-2 entry does nothing', () => {
-          const result = applyDiffs(
-            listStateWithTwoLevels,
-            [newRemoveDiff('example.com/path1')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithTwoLevels.blocklistPaths,
-          );
         });
       });
 
-      describe('when blocklistPaths has a level-3 entry', () => {
-        const listStateWithThreeLevels = {
-          ...exampleListState,
-          blocklistPaths: {
-            'example.com/path1': {
-              path2: { path3: [] },
-              path5: { path6: [] },
-            },
-            'other.com/path1': {
-              path2: { path3: [] },
-            },
-          },
-        };
-
-        it('removes a specific level-3 entry', () => {
-          const result = applyDiffs(
-            listStateWithThreeLevels,
-            [newRemoveDiff('example.com/path1/path2/path3')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': {
-              path5: { path6: [] },
-            },
-            'other.com/path1': {
-              path2: { path3: [] },
-            },
-          });
-        });
-
-        it('removes the level-2 entry when removing the last level-3 entry', () => {
-          const result = applyDiffs(
-            listStateWithThreeLevels,
-            [newRemoveDiff('example.com/path1/path5/path6')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': {
-              path2: { path3: [] },
-            },
-            'other.com/path1': {
-              path2: { path3: [] },
-            },
-          });
-        });
-
-        it('removes the entire level-1 entry when removing all level-3 entries', () => {
-          const result = applyDiffs(
-            listStateWithThreeLevels,
-            [newRemoveDiff('other.com/path1/path2/path3')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': {
-              path2: { path3: [] },
-              path5: { path6: [] },
-            },
-          });
-        });
-
-        it('removing a non-existent level-3 entry does nothing', () => {
-          const result = applyDiffs(
-            listStateWithThreeLevels,
-            [newRemoveDiff('example.com/path1/path2/nonexistent')],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual(
-            listStateWithThreeLevels.blocklistPaths,
-          );
-        });
+      it('does nothing if path does not exist', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/nonexistent')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual(listState.blocklistPaths);
       });
 
-      it(
-        'if we add 2 URLs with the same hostname/path1/path2/path3 but different remaining paths, ' +
-          'they should be stored as separate entries and can be removed independently',
-        () => {
-          const emptyListState = {
-            ...exampleListState,
-            blocklistPaths: {},
-          };
-          const result = applyDiffs(
-            emptyListState,
-            [
-              newAddDiff('example.com/path1/path2/path3/path41'),
-              newAddDiff('example.com/path1/path2/path3/path42'),
-            ],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result.blocklistPaths).toStrictEqual({
-            'example.com/path1': {
-              path2: {
-                path3: ['path41', 'path42'],
-              },
-            },
-          });
-          const result2 = applyDiffs(
-            result,
-            [newRemoveDiff('example.com/path1/path2/path3/path41', 1)],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result2.blocklistPaths).toStrictEqual({
-            'example.com/path1': {
-              path2: {
-                path3: ['path42'],
-              },
-            },
-          });
-          const result3 = applyDiffs(
-            result2,
-            [newRemoveDiff('example.com/path1/path2/path3/path42', 2)],
-            ListKeys.EthPhishingDetectConfig,
-          );
-          expect(result3.blocklistPaths).toStrictEqual({});
-        },
-      );
+      it('does nothing if hostname does not exist', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('nonexistent.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual(listState.blocklistPaths);
+      });
+
+      it('does nothing if no path is provided', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual(listState.blocklistPaths);
+      });
     });
   });
 });
@@ -1256,151 +1042,5 @@ describe('generateParentDomains', () => {
     const filteredSourceParts = sourceParts.filter(Boolean);
     const expected = ['b.c', 'a.b.c'];
     expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
-  });
-});
-
-describe('doesURLPathExist', () => {
-  const blocklistPaths: Record<
-    string,
-    Record<string, Record<string, string[]>>
-  > = {
-    'blocklist.has4paths.com/path1': { path2: { path3: ['path4'] } }, // explicit fourth-level blocklist
-    'blocklist.has3paths.com/path1': { path2: { path3: [] } }, // blocks everything under /path1/path2/path3
-    'blocklist.has2paths.com/path1': { path2: {} }, // blocks everything under /path1/path2
-    'blocklist.has1path.com/path1': {}, // blocks everything under /path1
-  };
-
-  // each testcase is [name, input, expected]
-  describe('input has 3 path components', () => {
-    it.each([
-      [
-        'matches when the 3rd path component blocks everything (level 3 blocking)',
-        'https://blocklist.has3paths.com/path1/path2/path3',
-        true,
-      ],
-      [
-        'matches when the first path component has no children (level 1 blocking)',
-        'https://blocklist.has1path.com/path1/path2/path3',
-        true,
-      ],
-      [
-        'matches when the first two path components have no children (level 2 blocking)',
-        'https://blocklist.has2paths.com/path1/path2/path3',
-        true,
-      ],
-      [
-        'does not match when the 3rd path component is not in the blocklist',
-        'https://example.com/path1/path2/path3',
-        false,
-      ],
-    ])('should %s', (_name, input, expected) => {
-      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
-    });
-  });
-
-  describe('input has 2 path components', () => {
-    it.each([
-      [
-        'matches when the 2nd path component blocks everything (level 2 blocking)',
-        'https://blocklist.has2paths.com/path1/path2',
-        true,
-      ],
-      [
-        'matches when the 1st path component blocks everything (level 1 blocking)',
-        'https://blocklist.has1path.com/path1/path2',
-        true,
-      ],
-      [
-        'does not match when the 2nd path component is not in the list',
-        'https://blocklist.has2paths.com/path1/path3',
-        false,
-      ],
-      [
-        'does not match when the 1st path component is not in the list',
-        'https://blocklist.has2paths.com/path2/path2',
-        false,
-      ],
-      [
-        'does not match when the 2nd path component has specific level 3 children',
-        'https://blocklist.has3paths.com/path1/path2',
-        false,
-      ],
-    ])('should %s', (_name, input, expected) => {
-      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
-    });
-  });
-
-  describe('input has 1 path component', () => {
-    it.each([
-      [
-        'matches when the 1st path component has no children',
-        'https://blocklist.has1path.com/path1',
-        true,
-      ],
-      [
-        'does not match when the 1st path component is not in the list',
-        'https://blocklist.has1path.com/path2',
-        false,
-      ],
-      [
-        'does not match when the 1st path component has children',
-        'https://blocklist.has2paths.com/path1',
-        false,
-      ],
-    ])('should %s', (_name, input, expected) => {
-      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
-    });
-  });
-
-  describe('input has 4 path components', () => {
-    it.each([
-      [
-        'matches when the 4th path component is explicitly in the list',
-        'https://blocklist.has4paths.com/path1/path2/path3/path4',
-        true,
-      ],
-      [
-        'matches when the 3rd path component blocks everything (level 3 blocking)',
-        'https://blocklist.has3paths.com/path1/path2/path3/path4',
-        true,
-      ],
-      [
-        'matches when the 2nd path component blocks everything (level 2 blocking)',
-        'https://blocklist.has2paths.com/path1/path2/path3/path4',
-        true,
-      ],
-      [
-        'matches when the 1st path component blocks everything (level 1 blocking)',
-        'https://blocklist.has1path.com/path1/path2/path3/path4',
-        true,
-      ],
-      [
-        'does not match when the 4th path component is not in the list',
-        'https://blocklist.has4paths.com/path1/path2/path3/path5',
-        false,
-      ],
-      [
-        'does not match when the domain is not in the blocklist',
-        'https://example.com/path1/path2/path3/path4',
-        false,
-      ],
-    ])('should %s', (_name, input, expected) => {
-      expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
-    });
-  });
-
-  it.each([
-    [
-      'does not match when the input has no path',
-      'https://blocklist.has1path.com',
-      false,
-    ],
-    [
-      'matches with trailing slash',
-      'https://blocklist.has1path.com/path1/',
-      true,
-    ],
-  ])('should %s', (_name, input, expected) => {
-    expect(doesURLPathExist(input, blocklistPaths)).toBe(expected);
   });
 });
