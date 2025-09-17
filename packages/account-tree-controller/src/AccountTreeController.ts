@@ -711,7 +711,6 @@ export class AccountTreeController extends BaseController<
     account: InternalAccount,
   ) {
     const result =
-      this.#getEntropyRule().match(account) ??
       this.#getSnapRule().match(account) ??
       this.#getKeyringRule().match(account); // This one cannot fail.
 
