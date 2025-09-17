@@ -447,8 +447,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * @param tokenSetId - The token set ID to stop polling for
    */
   override _stopPollingByPollingTokenSetId(tokenSetId: PollingTokenSetId) {
-    const parsedTokenSetId = JSON.parse(tokenSetId);
-    const chainsToStop = parsedTokenSetId.chainIds || [];
+    let parsedTokenSetId;
+    let chainsToStop: ChainIdHex[] = [];
+
+    try {
+      parsedTokenSetId = JSON.parse(tokenSetId);
+      chainsToStop = parsedTokenSetId.chainIds || [];
+    } catch (error) {
+      console.warn('Failed to parse tokenSetId, stopping all polling:', error);
+      // Fallback: stop all polling if we can't parse the tokenSetId
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+      return;
+    }
 
     // Compare with current chains - only stop if it matches our current session
     const currentChainsSet = new Set(this.#requestedChainIds);
