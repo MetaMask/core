@@ -107,7 +107,7 @@ const FeatureIdSchema = enums(Object.values(FeatureId));
 
 const Bip44DefaultPairSchema = type({
   destAsset: string(),
-  sourceAsset: string(),
+  srcAsset: string(),
 });
 
 /**
@@ -124,11 +124,7 @@ export const PlatformConfigSchema = type({
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
   bip44DefaultPairs: optional(
-    type({
-      bip122: optional(Bip44DefaultPairSchema),
-      eip155: optional(Bip44DefaultPairSchema),
-      solana: optional(Bip44DefaultPairSchema),
-    }),
+    record(string(), optional(Bip44DefaultPairSchema)),
   ),
 });
 
