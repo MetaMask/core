@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [43.1.0]
 
-### Uncategorized
-
-- Release 561.0.0 ([#6641](https://github.com/MetaMask/core/pull/6641))
-
 ### Added
 
 - Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
