@@ -25,7 +25,10 @@ import {
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
 import type { AccountGroupObject, AccountGroupObjectOf } from './group';
-import { isAccountGroupNameUnique } from './group';
+import {
+  isAccountGroupNameUnique,
+  isAccountGroupNameUniqueFromWallet,
+} from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -420,6 +423,24 @@ export class AccountTreeController extends BaseController<
         let proposedName = '';
         let groupIndex: number;
 
+        // Parse the highest account index being used (similar to accounts-controller)
+        let highestAccountNameIndex = 0;
+        for (const existingGroup of Object.values(wallet.groups)) {
+          // Skip the current group being processed
+          if (existingGroup.id === group.id) {
+            continue;
+          }
+          // Parse the existing group name to extract the numeric index
+          const nameMatch =
+            existingGroup.metadata.name.match(/Account (\d+)$/u);
+          if (nameMatch) {
+            const nameIndex = parseInt(nameMatch[1], 10);
+            if (nameIndex > highestAccountNameIndex) {
+              highestAccountNameIndex = nameIndex;
+            }
+          }
+        }
+
         // For entropy-based multichain groups, start with the actual groupIndex
         if (
           group.type === AccountGroupType.MultichainAccount &&
@@ -432,13 +453,16 @@ export class AccountTreeController extends BaseController<
           groupIndex = Object.keys(wallet.groups).length;
         }
 
+        // Use the higher of the two: highest parsed index or computed index
+        groupIndex = Math.max(highestAccountNameIndex, groupIndex);
+
         // Find a unique name by checking for conflicts and incrementing if needed
-        let nameExists = true;
-        while (nameExists) {
+        let nameExists: boolean;
+        do {
           proposedName = rule.getDefaultAccountGroupName(groupIndex);
 
           // Check if this name already exists in the wallet (excluding current group)
-          nameExists = !this.#isAccountGroupNameUniqueFromWallet(
+          nameExists = !isAccountGroupNameUniqueFromWallet(
             wallet,
             group.id,
             proposedName,
@@ -447,7 +471,7 @@ export class AccountTreeController extends BaseController<
           if (nameExists) {
             groupIndex += 1; // Try next number
           }
-        }
+        } while (nameExists);
 
         group.metadata.name = proposedName;
       }
@@ -786,30 +810,6 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Checks if a group name is unique within a specific wallet.
-   *
-   * @param wallet - The wallet to check within.
-   * @param groupId - The account group ID to exclude from the check.
-   * @param name - The name to validate for uniqueness.
-   * @returns True if the name is unique within the wallet, false otherwise.
-   */
-  #isAccountGroupNameUniqueFromWallet(
-    wallet: AccountWalletObject,
-    groupId: AccountGroupId,
-    name: string,
-  ): boolean {
-    const trimmedName = name.trim();
-
-    // Check for duplicates within this wallet
-    for (const group of Object.values(wallet.groups)) {
-      if (group.id !== groupId && group.metadata.name.trim() === trimmedName) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
    * Asserts that an account group name is unique within the same wallet.
    *
    * @param groupId - The account group ID to exclude from the check.
@@ -1038,16 +1038,23 @@ export class AccountTreeController extends BaseController<
    * Resolves name conflicts by adding a suffix to make the name unique.
    *
    * @internal
+   * @param wallet - The wallet to check within.
    * @param groupId - The account group ID to exclude from the check.
    * @param name - The desired name that has a conflict.
    * @returns A unique name with suffix added if necessary.
    */
-  resolveNameConflict(groupId: AccountGroupId, name: string): string {
+  resolveNameConflict(
+    wallet: AccountWalletObject,
+    groupId: AccountGroupId,
+    name: string,
+  ): string {
     let suffix = 2;
     let candidateName = `${name} (${suffix})`;
 
     // Keep incrementing suffix until we find a unique name
-    while (!isAccountGroupNameUnique(this.state, groupId, candidateName)) {
+    while (
+      !isAccountGroupNameUniqueFromWallet(wallet, groupId, candidateName)
+    ) {
       suffix += 1;
       candidateName = `${name} (${suffix})`;
     }
@@ -1072,22 +1079,24 @@ export class AccountTreeController extends BaseController<
     // Validate that the group exists in the current tree
     this.#assertAccountGroupExists(groupId);
 
+    const walletId = this.#groupIdToWalletId.get(groupId);
+    if (!walletId) {
+      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+    }
+
+    const wallet = this.state.accountTree.wallets[walletId];
     let finalName = name;
 
     // Handle name conflicts based on the autoHandleConflict flag
-    /* istanbul ignore next */
     if (
       autoHandleConflict &&
-      !isAccountGroupNameUnique(this.state, groupId, name)
+      !isAccountGroupNameUniqueFromWallet(wallet, groupId, name)
     ) {
-      /* istanbul ignore next */
-      finalName = this.resolveNameConflict(groupId, name);
+      finalName = this.resolveNameConflict(wallet, groupId, name);
     } else {
       // Validate that the name is unique
       this.#assertAccountGroupNameIsUnique(groupId, finalName);
     }
-
-    const walletId = this.#groupIdToWalletId.get(groupId);
 
     this.update((state) => {
       // Update persistent metadata
@@ -1098,18 +1107,12 @@ export class AccountTreeController extends BaseController<
       };
 
       // Update tree node directly using efficient mapping
-      if (walletId) {
-        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
-          finalName;
-      }
+      state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+        finalName;
     });
 
     // Trigger atomic sync for group rename (only for groups from entropy wallets)
-    if (
-      walletId &&
-      this.state.accountTree.wallets[walletId].type ===
-        AccountWalletType.Entropy
-    ) {
+    if (wallet.type === AccountWalletType.Entropy) {
       this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
     }
   }

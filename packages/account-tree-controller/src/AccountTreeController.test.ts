@@ -3870,15 +3870,109 @@ describe('AccountTreeController', () => {
       });
 
       // Test suffix resolution directly using the public method
+      const wallet = controller.state.accountTree.wallets[walletId];
       const resolvedName = controller.resolveNameConflict(
+        wallet,
         groupId,
         'Suffix Test',
       );
       expect(resolvedName).toBe('Suffix Test (3)');
 
       // Test with no conflicts: should return "Unique Name (2)"
-      const uniqueName = controller.resolveNameConflict(groupId, 'Unique Name');
+      const uniqueName = controller.resolveNameConflict(
+        wallet,
+        groupId,
+        'Unique Name',
+      );
       expect(uniqueName).toBe('Unique Name (2)');
+    });
+
+    it('throws error when group ID not found in tree', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Try to set name for a non-existent group ID
+      expect(() => {
+        controller.setAccountGroupName(
+          'entropy:non-existent/group-id' as AccountGroupId,
+          'Test Name',
+        );
+      }).toThrow(
+        'Account group with ID "entropy:non-existent/group-id" not found in tree',
+      );
+    });
+
+    it('throws error when group ID exists in assertion but not in mapping', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      // Manually corrupt the mapping to simulate the edge case
+      (controller as unknown as { '#groupIdToWalletId': Map<string, string> })[
+        '#groupIdToWalletId'
+      ].delete(groupId);
+
+      expect(() => {
+        controller.setAccountGroupName(groupId, 'Test Name');
+      }).toThrow('Account group with ID');
+    });
+
+    it('handles autoHandleConflict with real conflict scenario', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      // Set initial name
+      controller.setAccountGroupName(groupId, 'Test Name');
+
+      // Create another group with conflicting name
+      (
+        controller as unknown as {
+          update: (fn: (state: AccountTreeControllerState) => void) => void;
+        }
+      ).update((state) => {
+        const wallet = state.accountTree.wallets[walletId];
+        (wallet.groups as Record<string, unknown>)['conflict-group'] = {
+          id: 'conflict-group',
+          type: AccountGroupType.MultichainAccount,
+          accounts: ['test-account'],
+          metadata: {
+            name: 'Conflict Name',
+            entropy: { groupIndex: 1 },
+            pinned: false,
+            hidden: false,
+          },
+        };
+      });
+
+      // Try to rename first group to conflicting name with autoHandleConflict = true
+      controller.setAccountGroupName(groupId, 'Conflict Name', true);
+
+      // Should have been renamed to "Conflict Name (2)"
+      expect(
+        controller.state.accountTree.wallets[walletId].groups[groupId].metadata
+          .name,
+      ).toBe('Conflict Name (2)');
     });
   });
 });
