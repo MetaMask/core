@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export user storage paths for account syncing ([#6643](https://github.com/MetaMask/core/pull/6643))
+
 ### Changed
 
 - Swallow group creation errors in backup and sync `createMultichainAccountGroup` ([#6642](https://github.com/MetaMask/core/pull/6642))
