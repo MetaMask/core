@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `selectDefaultSlippagePercentage` that returns the default slippage for a chain and token combination ([#6616](https://github.com/MetaMask/core/pull/6616))
+  - Return `0.5` if requesting a bridge quote
+  - Return `undefined` (auto) if requesting a Solana swap
+  - Return `0.5` if both tokens are stablecoins (based on dynamic `stablecoins` list from LD chain config)
+  - Return `2` for all other EVM swaps
 - Add new controller metadata properties to `BridgeController` ([#6589](https://github.com/MetaMask/core/pull/6589))
 
 ### Changed
