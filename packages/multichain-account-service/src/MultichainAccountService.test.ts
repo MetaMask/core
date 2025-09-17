@@ -1,6 +1,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type { Messenger } from '@metamask/base-controller';
+import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
@@ -14,6 +15,7 @@ import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
+  MOCK_MNEMONIC,
   MOCK_SNAP_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
@@ -54,6 +56,8 @@ type Mocks = {
   KeyringController: {
     keyrings: KeyringObject[];
     getState: jest.Mock;
+    getKeyringsByType: jest.Mock;
+    addNewKeyring: jest.Mock;
   };
   AccountsController: {
     listMultichainAccounts: jest.Mock;
@@ -102,6 +106,8 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      getKeyringsByType: jest.fn(),
+      addNewKeyring: jest.fn(),
     },
     AccountsController: {
       listMultichainAccounts: jest.fn(),
@@ -121,6 +127,16 @@ function setup({
   messenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:getKeyringsByType',
+    mocks.KeyringController.getKeyringsByType,
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:addNewKeyring',
+    mocks.KeyringController.addNewKeyring,
   );
 
   if (accounts) {
@@ -833,6 +849,27 @@ describe('MultichainAccountService', () => {
         ),
       ).toBeUndefined();
     });
+
+    it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
+      const { messenger, mocks } = setup({ accounts: [], keyrings: [] });
+
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
+        () => [],
+      );
+
+      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+        id: 'abc',
+        name: '',
+      }));
+
+      const wallet = await messenger.call(
+        'MultichainAccountService:createMultichainAccountWallet',
+        { mnemonic: MOCK_MNEMONIC },
+      );
+
+      expect(wallet).toBeDefined();
+      expect(wallet.entropySource).toBe('abc');
+    });
   });
 
   describe('setBasicFunctionality', () => {
@@ -953,6 +990,52 @@ describe('MultichainAccountService', () => {
       // Test with false return
       (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
+    });
+  });
+
+  describe('createMultichainAccountWallet', () => {
+    it('creates a new multichain account wallet with the given mnemonic', async () => {
+      const { mocks, service } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+        {},
+      ]);
+
+      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+        id: 'abc',
+        name: '',
+      }));
+
+      const wallet = await service.createMultichainAccountWallet({
+        mnemonic: MOCK_MNEMONIC,
+      });
+
+      expect(wallet).toBeDefined();
+      expect(wallet.entropySource).toBe('abc');
+    });
+
+    it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
+      const { service, mocks } = setup({ accounts: [], keyrings: [] });
+
+      const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
+
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+        {
+          mnemonic,
+        },
+      ]);
+
+      await expect(
+        service.createMultichainAccountWallet({ mnemonic: MOCK_MNEMONIC }),
+      ).rejects.toThrow(
+        'This Secret Recovery Phrase has already been imported.',
+      );
+
+      // Ensure we did not attempt to create a new keyring when duplicate is detected
+      expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
     });
   });
 });

@@ -828,7 +828,7 @@ export class AccountTreeController extends BaseController<
     [walletId: AccountWalletId]: AccountWalletObject;
   }): AccountGroupId | '' {
     const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
+      'AccountsController:getSelectedMultichainAccount',
     );
     if (selectedAccount && selectedAccount.id) {
       const accountMapping = this.#accountIdToContext.get(selectedAccount.id);

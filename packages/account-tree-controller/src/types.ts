@@ -3,7 +3,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
-  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerSelectedAccountChangeEvent,
   AccountsControllerSetSelectedAccountAction,
@@ -115,7 +115,7 @@ export type AccountTreeControllerSetAccountGroupPinnedAction = {
 
 export type AllowedActions =
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
