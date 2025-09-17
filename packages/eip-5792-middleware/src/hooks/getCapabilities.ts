@@ -25,7 +25,7 @@ export type GetCapabilitiesHooks = {
   getSendBundleSupportedChains: (
     chainIds: Hex[],
   ) => Promise<Record<string, boolean>>;
-  /** TODO [ffmcgee] */
+  /** Function to validate if auxiliary funds capability is supported. */
   isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 };
 
@@ -119,7 +119,7 @@ export async function getCapabilities(
       status,
     };
 
-    if (isAuxiliaryFundsSupported(chainId) && isSupportedAccount) {
+    if (isSupportedAccount && isAuxiliaryFundsSupported(chainId)) {
       acc[hexChainId].auxiliaryFunds = {
         supported: true,
       };

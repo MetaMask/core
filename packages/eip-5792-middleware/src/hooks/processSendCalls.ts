@@ -22,6 +22,7 @@ import {
 import type {
   EIP5792Messenger,
   SendCallsPayload,
+  SendCallsRequiredAssetsParam,
   SendCallsResult,
 } from '../types';
 import { getAccountKeyringType } from '../utils';
@@ -44,7 +45,7 @@ export type ProcessSendCallsHooks = {
     request: ValidateSecurityRequest,
     chainId: Hex,
   ) => Promise<void>;
-  /** TODO [ffmcgee] */
+  /** Function to validate if auxiliary funds capability is supported. */
   isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 };
 
@@ -148,7 +149,7 @@ export async function processSendCalls(
  * @param params.sendCalls - The original sendCalls request.
  * @param params.transactions - Array containing the single transaction.
  * @param params.validateSecurity - Function to validate security for the transaction.
- * @param params.isAuxiliaryFundsSupported - TODO [ffmcgee]
+ * @param params.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  * @returns Promise resolving to the generated batch ID for the transaction.
  */
 async function processSingleTransaction({
@@ -228,7 +229,7 @@ async function processSingleTransaction({
  * @param params.securityAlertId - The security alert ID for this batch.
  * @param params.transactions - Array of transactions to process.
  * @param params.validateSecurity - Function to validate security for the transactions.
- * @param params.isAuxiliaryFundsSupported - TODO [ffmcgee]
+ * @param params.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  * @returns Promise resolving to the generated batch ID for the transaction batch.
  */
 async function processMultipleTransaction({
@@ -312,7 +313,7 @@ function generateBatchId(): Hex {
  * @param sendCalls - The sendCalls request to validate.
  * @param dappChainId - The chain ID that the dApp is connected to.
  * @param keyringType - The type of keyring associated with the account.
- * @param isAuxiliaryFundsSupported - TODO [ffmcgee]
+ * @param isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  */
 function validateSingleSendCall(
   sendCalls: SendCallsPayload,
@@ -333,7 +334,7 @@ function validateSingleSendCall(
  * @param dismissSmartAccountSuggestionEnabled - Whether smart account suggestions are disabled.
  * @param chainBatchSupport - Information about atomic batch support for the chain.
  * @param keyringType - The type of keyring associated with the account.
- * @param isAuxiliaryFundsSupported - TODO [ffmcgee]
+ * @param isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  */
 function validateSendCalls(
   sendCalls: SendCallsPayload,
@@ -416,7 +417,7 @@ function validateSendCallsChainId(
  *
  * @param sendCalls - The sendCalls request to validate.
  * @param keyringType - The type of keyring associated with the account.
- * @param isAuxiliaryFundsSupported - TODO [ffmcgee]
+ * @param isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  *
  * @throws JsonRpcError if unsupported non-optional capabilities are requested.
  */
@@ -452,12 +453,12 @@ function validateCapabilities(
   }
 
   if (capabilities?.auxiliaryFunds) {
-    validateRequiredAssets(
-      capabilities.auxiliaryFunds,
+    validateRequiredAssets({
+      auxiliaryFunds: capabilities.auxiliaryFunds,
       chainId,
       keyringType,
       isAuxiliaryFundsSupported,
-    );
+    });
   }
 }
 
@@ -466,36 +467,41 @@ function validateCapabilities(
  *
  * docs: {@link https://eips.ethereum.org/EIPS/eip-7682#extended-usage-requiredassets-parameter}
  *
- * @param auxiliaryFunds - The auxiliaryFunds param to validate.
- * @param auxiliaryFunds.optional a
- * @param auxiliaryFunds.requiredAssets a
- * @param chainId - The chain ID of the incoming request.
- * @param keyringType - The type of keyring associated with the account.
- * @param isAuxiliaryFundsSupported - TODO [ffmcgee]
- * @throws JsonRpcError if the version is not supported.
+ * @param param - The parameter object.
+ * @param param.auxiliaryFunds - The auxiliaryFunds param to validate.
+ * @param param.auxiliaryFunds.optional - Metadata to signal for wallets that support this optional capability, while maintaining compatibility with wallets that do not.
+ * @param param.auxiliaryFunds.requiredAssets -Metadata that enables a wallets support for `auxiliaryFunds` capability.
+ * @param param.chainId - The chain ID of the incoming request.
+ * @param param.keyringType - The type of keyring associated with the account.
+ * @param param.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
+ * @throws JsonRpcError if auxiliary funds capability is not supported.
  */
-function validateRequiredAssets(
-  // TODO: [ffmcgee] object param instead of multiple params
+function validateRequiredAssets({
+  auxiliaryFunds,
+  chainId,
+  keyringType,
+  isAuxiliaryFundsSupported,
+}: {
   auxiliaryFunds: {
     optional?: boolean;
-    requiredAssets?: {
-      address: Hex;
-      amount: Hex; // Amount required, as a hex string representing the integer value in the asset's smallest unit
-      standard: string; // Token standard
-      tokenId?: Hex; // Token ID as a hex string (required for ERC-721 and ERC-1155)
-    }[];
-  },
-  chainId: Hex,
-  keyringType: KeyringTypes,
-  isAuxiliaryFundsSupported: (chainId: Hex) => boolean,
-) {
+    requiredAssets?: SendCallsRequiredAssetsParam[];
+  };
+  chainId: Hex;
+  keyringType: KeyringTypes;
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
+}) {
+  // If we can make use of that capability then we should, but otherwise we can process the request and ignore the capability
+  // so if the capability is signaled as optional, no validation is required, so we don't block the transaction from happening.
+  if (auxiliaryFunds.optional) {
+    return;
+  }
   const isSupportedAccount =
     KEYRING_TYPES_SUPPORTING_7702.includes(keyringType);
 
   if (!isSupportedAccount) {
     throw new JsonRpcError(
-      EIP7682ErrorCode.UnsupportedChain, // TODO [ffmcgee] update error code
-      'Unsupported account type',
+      EIP5792ErrorCode.UnsupportedNonOptionalCapability,
+      'Unsupported non-optional capabilities: auxiliaryFunds',
     );
   }
 
@@ -511,17 +517,10 @@ function validateRequiredAssets(
   }
 
   for (const asset of auxiliaryFunds.requiredAssets) {
-    if (!['erc20', 'erc721', 'erc1155'].includes(asset.standard)) {
+    if (asset.standard !== 'erc20') {
       throw new JsonRpcError(
         EIP7682ErrorCode.UnsupportedAsset,
         `The requested asset ${asset.address} is not available through the wallet’s auxiliary fund system: unsupported token standard ${asset.standard}`,
-      );
-    }
-
-    if (['erc721', 'erc1155'].includes(asset.standard) && !asset.tokenId) {
-      throw new JsonRpcError(
-        EIP7682ErrorCode.MalformedRequiredAssets,
-        `The structure of the requiredAssets object is malformed: token standard ${asset.standard} requires a "tokenId" to be specified`,
       );
     }
   }

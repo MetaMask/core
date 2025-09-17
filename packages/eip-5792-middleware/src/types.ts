@@ -77,6 +77,8 @@ export type GetCapabilitiesHook = (
 export type SendCallsParams = Infer<typeof SendCallsStruct>;
 export type SendCallsPayload = SendCallsParams[0];
 
+export type SendCallsRequiredAssetsParam = Infer<typeof RequiredAssetStruct>;
+
 export type SendCallsResult = {
   id: Hex;
   capabilities?: Record<string, Json>;
