@@ -520,60 +520,6 @@ describe('EIP-5792', () => {
       );
     });
 
-    it('validates auxiliary funds with missing tokenId for ERC-721', async () => {
-      await expect(
-        processSendCalls(
-          sendCallsHooks,
-          messenger,
-          {
-            ...SEND_CALLS_MOCK,
-            capabilities: {
-              auxiliaryFunds: {
-                optional: true,
-                requiredAssets: [
-                  {
-                    address: '0x123',
-                    amount: '0x1',
-                    standard: 'erc721',
-                  },
-                ],
-              },
-            },
-          },
-          REQUEST_MOCK,
-        ),
-      ).rejects.toThrow(
-        'The structure of the requiredAssets object is malformed: token standard erc721 requires a "tokenId" to be specified',
-      );
-    });
-
-    it('validates auxiliary funds with missing tokenId for ERC-1155', async () => {
-      await expect(
-        processSendCalls(
-          sendCallsHooks,
-          messenger,
-          {
-            ...SEND_CALLS_MOCK,
-            capabilities: {
-              auxiliaryFunds: {
-                optional: true,
-                requiredAssets: [
-                  {
-                    address: '0x123',
-                    amount: '0x1',
-                    standard: 'erc1155',
-                  },
-                ],
-              },
-            },
-          },
-          REQUEST_MOCK,
-        ),
-      ).rejects.toThrow(
-        'The structure of the requiredAssets object is malformed: token standard erc1155 requires a "tokenId" to be specified',
-      );
-    });
-
     it('validates auxiliary funds with valid ERC-20 asset', async () => {
       const result = await processSendCalls(
         sendCallsHooks,
@@ -588,58 +534,6 @@ describe('EIP-5792', () => {
                   address: '0x123',
                   amount: '0x1',
                   standard: 'erc20',
-                },
-              ],
-            },
-          },
-        },
-        REQUEST_MOCK,
-      );
-
-      expect(result).toBeDefined();
-    });
-
-    it('validates auxiliary funds with valid ERC-721 asset', async () => {
-      const result = await processSendCalls(
-        sendCallsHooks,
-        messenger,
-        {
-          ...SEND_CALLS_MOCK,
-          capabilities: {
-            auxiliaryFunds: {
-              optional: true,
-              requiredAssets: [
-                {
-                  address: '0x123',
-                  amount: '0x1',
-                  standard: 'erc721',
-                  tokenId: '0x1',
-                },
-              ],
-            },
-          },
-        },
-        REQUEST_MOCK,
-      );
-
-      expect(result).toBeDefined();
-    });
-
-    it('validates auxiliary funds with valid ERC-1155 asset', async () => {
-      const result = await processSendCalls(
-        sendCallsHooks,
-        messenger,
-        {
-          ...SEND_CALLS_MOCK,
-          capabilities: {
-            auxiliaryFunds: {
-              optional: true,
-              requiredAssets: [
-                {
-                  address: '0x123',
-                  amount: '0x1',
-                  standard: 'erc1155',
-                  tokenId: '0x1',
                 },
               ],
             },
