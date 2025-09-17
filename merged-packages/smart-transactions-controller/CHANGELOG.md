@@ -15,7 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Disallow subpath exports ([#469](https://github.com/MetaMask/smart-transactions-controller/pull/469))
-- **BREAKING:** Upgrade peer dependency `@metamask/transaction-controller` from `^58.0.0` to `^60.3.0`
+- **BREAKING:** Upgrade peer dependency `@metamask/transaction-controller` from `^58.0.0` to `^60.4.0` ([#532](https://github.com/MetaMask/smart-transactions-controller/pull/532), [#534](https://github.com/MetaMask/smart-transactions-controller/pull/534))
+- **BREAKING:** Remove `getNonceLock`, `confirmExternalTransaction`, `getTransactions`, and `updateTransaction` constructor option in favor of messenger actions ([#534](https://github.com/MetaMask/smart-transactions-controller/pull/534))
+  - The messenger is now used to access TransactionController; you must add these actions to the SmartTransactionController messenger allowlist:
+    - `TransactionController:getNonceLock`
+    - `TransactionController:confirmExternalTransaction`
+    - `TransactionController:getTransactions`
+    - `TransactionController:updateTransaction`
 - Upgrade `@metamask/base-controller` from `^7.0.1` to `^8.3.0` ([#529](https://github.com/MetaMask/smart-transactions-controller/pull/529))
 - Upgrade `@metamask/polling-controller` from `^12.0.0` to `^14.0.0` ([#529](https://github.com/MetaMask/smart-transactions-controller/pull/529))
 

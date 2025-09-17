@@ -28,15 +28,11 @@ describe('default export', () => {
     });
     const controller = new DefaultExport({
       messenger,
-      getNonceLock: jest.fn(),
-      confirmExternalTransaction: jest.fn(),
-      getTransactions: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),
       getMetaMetricsProps: jest.fn(async () => {
         return Promise.resolve({});
       }),
       getFeatureFlags: jest.fn(),
-      updateTransaction: jest.fn(),
       clientId: ClientId.Extension,
     });
     expect(controller).toBeInstanceOf(SmartTransactionsController);

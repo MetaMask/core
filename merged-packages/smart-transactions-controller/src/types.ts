@@ -1,5 +1,4 @@
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 
 /** API */
 export enum APIType {
@@ -128,13 +127,6 @@ export type SignedTransaction = any;
 export type SignedCanceledTransaction = any;
 
 export type Hex = `0x${string}`;
-
-export type GetTransactionsOptions = {
-  searchCriteria?: any;
-  initialList?: TransactionMeta[];
-  filterToCurrentNetwork?: boolean;
-  limit?: number;
-};
 
 export type MetaMetricsProps = {
   accountHardwareType?: string;

@@ -1,7 +1,11 @@
 import { arrayify, hexlify } from '@ethersproject/bytes';
 import { keccak256 } from '@ethersproject/keccak256';
 import { parse } from '@ethersproject/transactions';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerGetTransactionsAction,
+  TransactionControllerUpdateTransactionAction,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 import jsonDiffer from 'fast-json-patch';
@@ -325,8 +329,8 @@ export const markRegularTransactionAsFailed = ({
   updateTransaction,
 }: {
   smartTransaction: SmartTransaction;
-  getRegularTransactions: () => TransactionMeta[];
-  updateTransaction: (transaction: TransactionMeta, note: string) => void;
+  getRegularTransactions: TransactionControllerGetTransactionsAction['handler'];
+  updateTransaction: TransactionControllerUpdateTransactionAction['handler'];
 }) => {
   const { transactionId, status } = smartTransaction;
   const originalTransaction = getRegularTransactions().find(

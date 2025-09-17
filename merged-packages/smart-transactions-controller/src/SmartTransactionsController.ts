@@ -21,7 +21,10 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
-  TransactionController,
+  TransactionControllerConfirmExternalTransactionAction,
+  TransactionControllerGetNonceLockAction,
+  TransactionControllerGetTransactionsAction,
+  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -43,7 +46,6 @@ import type {
   SmartTransaction,
   SmartTransactionsStatus,
   UnsignedTransaction,
-  GetTransactionsOptions,
   MetaMetricsProps,
   FeatureFlags,
   ClientId,
@@ -150,7 +152,11 @@ export type SmartTransactionsControllerActions =
 
 type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetStateAction;
+  | NetworkControllerGetStateAction
+  | TransactionControllerGetNonceLockAction
+  | TransactionControllerConfirmExternalTransactionAction
+  | TransactionControllerGetTransactionsAction
+  | TransactionControllerUpdateTransactionAction;
 
 export type SmartTransactionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -194,8 +200,6 @@ type SmartTransactionsControllerOptions = {
   clientId: ClientId;
   chainId?: Hex;
   supportedChainIds?: Hex[];
-  getNonceLock: TransactionController['getNonceLock'];
-  confirmExternalTransaction: TransactionController['confirmExternalTransaction'];
   trackMetaMetricsEvent: (
     event: {
       event: MetaMetricsEventName;
@@ -209,10 +213,8 @@ type SmartTransactionsControllerOptions = {
   ) => void;
   state?: Partial<SmartTransactionsControllerState>;
   messenger: SmartTransactionsControllerMessenger;
-  getTransactions: (options?: GetTransactionsOptions) => TransactionMeta[];
   getMetaMetricsProps: () => Promise<MetaMetricsProps>;
   getFeatureFlags: () => FeatureFlags;
-  updateTransaction: (transaction: TransactionMeta, note: string) => void;
   trace?: TraceCallback;
 };
 
@@ -235,23 +237,13 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   timeoutHandle?: NodeJS.Timeout;
 
-  readonly #getNonceLock: SmartTransactionsControllerOptions['getNonceLock'];
-
   #ethQuery: EthQuery | undefined;
-
-  #confirmExternalTransaction: SmartTransactionsControllerOptions['confirmExternalTransaction'];
-
-  #getRegularTransactions: (
-    options?: GetTransactionsOptions,
-  ) => TransactionMeta[];
 
   readonly #trackMetaMetricsEvent: SmartTransactionsControllerOptions['trackMetaMetricsEvent'];
 
   readonly #getMetaMetricsProps: () => Promise<MetaMetricsProps>;
 
   #getFeatureFlags: SmartTransactionsControllerOptions['getFeatureFlags'];
-
-  #updateTransaction: SmartTransactionsControllerOptions['updateTransaction'];
 
   #trace: TraceCallback;
 
@@ -273,15 +265,11 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     clientId,
     chainId: InitialChainId = ChainId.mainnet,
     supportedChainIds = [ChainId.mainnet, ChainId.sepolia],
-    getNonceLock,
-    confirmExternalTransaction,
     trackMetaMetricsEvent,
     state = {},
     messenger,
-    getTransactions,
     getMetaMetricsProps,
     getFeatureFlags,
-    updateTransaction,
     trace,
   }: SmartTransactionsControllerOptions) {
     super({
@@ -298,14 +286,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.#chainId = InitialChainId;
     this.#supportedChainIds = supportedChainIds;
     this.setIntervalLength(interval);
-    this.#getNonceLock = getNonceLock;
     this.#ethQuery = undefined;
-    this.#confirmExternalTransaction = confirmExternalTransaction;
-    this.#getRegularTransactions = getTransactions;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.#getMetaMetricsProps = getMetaMetricsProps;
     this.#getFeatureFlags = getFeatureFlags;
-    this.#updateTransaction = updateTransaction;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.initializeSmartTransactionsForChainId();
@@ -595,8 +579,14 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     ) {
       markRegularTransactionAsFailed({
         smartTransaction: nextSmartTransaction,
-        getRegularTransactions: this.#getRegularTransactions,
-        updateTransaction: this.#updateTransaction,
+        getRegularTransactions: () =>
+          this.messagingSystem.call('TransactionController:getTransactions'),
+        updateTransaction: (transactionMeta: TransactionMeta, note: string) =>
+          this.messagingSystem.call(
+            'TransactionController:updateTransaction',
+            transactionMeta,
+            note,
+          ),
       });
     }
 
@@ -660,7 +650,9 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     if (!txHash) {
       return true;
     }
-    const transactions = this.#getRegularTransactions();
+    const transactions = this.messagingSystem.call(
+      'TransactionController:getTransactions',
+    );
     const foundTransaction = transactions?.find((tx) => {
       return tx.hash?.toLowerCase() === txHash.toLowerCase();
     });
@@ -741,7 +733,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
             : originalTxMeta;
 
         if (this.#doesTransactionNeedConfirmation(txHash)) {
-          this.#confirmExternalTransaction(
+          this.messagingSystem.call(
+            'TransactionController:confirmExternalTransaction',
             // TODO: Replace 'as' assertion with correct typing for `txMeta`
             txMeta as TransactionMeta,
             transactionReceipt,
@@ -836,7 +829,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     transaction: UnsignedTransaction,
     networkClientId: NetworkClientId,
   ): Promise<UnsignedTransaction> {
-    const nonceLock = await this.#getNonceLock(
+    const nonceLock = await this.messagingSystem.call(
+      'TransactionController:getNonceLock',
       transaction.from,
       networkClientId,
     );
@@ -991,7 +985,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     // This should only happen for Swaps. Non-swaps transactions should already have a nonce
     if (requiresNonce) {
       try {
-        nonceLock = await this.#getNonceLock(
+        nonceLock = await this.messagingSystem.call(
+          'TransactionController:getNonceLock',
           txParams.from,
           selectedNetworkClientId,
         );
