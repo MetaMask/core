@@ -35,7 +35,7 @@ export const serviceName = 'MultichainAccountService';
 export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: NamedAccountProvider[];
-  providersConfigs?: {
+  providerConfigs?: {
     [EvmAccountProvider.NAME]: EvmAccountProviderConfig;
     [SolAccountProvider.NAME]: SolAccountProviderConfig;
   };
@@ -77,13 +77,13 @@ export class MultichainAccountService {
    * @param options.messenger - The messenger suited to this
    * MultichainAccountService.
    * @param options.providers - Optional list of account
-   * @param options.providersConfigs - Optional providers configs
+   * @param options.providerConfigs - Optional provider configs
    * providers.
    */
   constructor({
     messenger,
     providers = [],
-    providersConfigs,
+    providerConfigs,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
@@ -93,13 +93,13 @@ export class MultichainAccountService {
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
-        providersConfigs?.[EvmAccountProvider.NAME],
+        providerConfigs?.[EvmAccountProvider.NAME],
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
-          providersConfigs?.[SolAccountProvider.NAME],
+          providerConfigs?.[SolAccountProvider.NAME],
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.

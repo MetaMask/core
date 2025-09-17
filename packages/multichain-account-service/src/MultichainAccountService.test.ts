@@ -89,7 +89,7 @@ function setup({
   messenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
-  providersConfigs,
+  providerConfigs,
 }: {
   messenger?: Messenger<
     MultichainAccountServiceActions | AllowedActions,
@@ -97,7 +97,7 @@ function setup({
   >;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
-  providersConfigs?: MultichainAccountServiceOptions['providersConfigs'];
+  providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
 } = {}): {
   service: MultichainAccountService;
   serviceMessenger: MultichainAccountServiceMessenger;
@@ -175,7 +175,7 @@ function setup({
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const service = new MultichainAccountService({
     messenger: serviceMessenger,
-    providersConfigs,
+    providerConfigs,
   });
   service.init();
 
@@ -185,7 +185,7 @@ function setup({
 describe('MultichainAccountService', () => {
   describe('constructor', () => {
     it('forwards conflicts to each providers', () => {
-      const providersConfigs: MultichainAccountServiceOptions['providersConfigs'] =
+      const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
           [EvmAccountProvider.NAME]: {
             discovery: {
@@ -203,16 +203,16 @@ describe('MultichainAccountService', () => {
 
       const { mocks, serviceMessenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
-        providersConfigs,
+        providerConfigs,
       });
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         serviceMessenger,
-        providersConfigs[EvmAccountProvider.NAME],
+        providerConfigs[EvmAccountProvider.NAME],
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         serviceMessenger,
-        providersConfigs[SolAccountProvider.NAME],
+        providerConfigs[SolAccountProvider.NAME],
       );
     });
   });
