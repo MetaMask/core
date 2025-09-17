@@ -184,7 +184,7 @@ function setup({
 
 describe('MultichainAccountService', () => {
   describe('constructor', () => {
-    it('forwards conflicts to each providers', () => {
+    it('forwards configs to each provider', () => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
         {
           [EvmAccountProvider.NAME]: {
