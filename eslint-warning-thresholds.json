@@ -107,10 +107,10 @@
     "jsdoc/tag-lines": 2
   },
   "packages/base-controller/src/BaseController.test.ts": {
-    "import-x/namespace": 18
+    "import-x/namespace": 15
   },
   "packages/base-controller/src/next/BaseController.test.ts": {
-    "import-x/namespace": 14
+    "import-x/namespace": 13
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
     "import-x/order": 1
@@ -334,8 +334,7 @@
   },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 2,
-    "prettier/prettier": 1
+    "jsdoc/check-tag-names": 2
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2

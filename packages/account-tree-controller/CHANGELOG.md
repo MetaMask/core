@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove full sync triggers when single sync operations are enqueued and `hasSyncedAtLeastOnce` is `false` ([#6634](https://github.com/MetaMask/core/pull/6634))
+
+## [0.16.0]
+
 ### Changed
 
 - **BREAKING:** Use `:getSelectedMultichainAccount` instead of `:getSelectedAccount` to compute currently selected account group ([#6608](https://github.com/MetaMask/core/pull/6608))
   - Coming from the old account model, a non-EVM account could have been selected and the lastly selected EVM account might not be using the same group index.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ### Removed
 
@@ -238,7 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.0...HEAD
+[0.16.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.1...@metamask/account-tree-controller@0.16.0
 [0.15.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.15.0...@metamask/account-tree-controller@0.15.1
 [0.15.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.14.0...@metamask/account-tree-controller@0.15.0
 [0.14.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.13.1...@metamask/account-tree-controller@0.14.0
