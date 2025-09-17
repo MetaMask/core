@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strip `srpSessionData.token.accessToken` from state logs ([#6553](https://github.com/MetaMask/core/pull/6553))
   - We haven't started using the `includeInStateLogs` metadata yet in clients, so this will have no functional impact. This change brings this metadata into alignment with the hard-coded state log generation performed by clients.today.
 - Add dependency on `@metamask/utils` ([#6553](https://github.com/MetaMask/core/pull/6553))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ## [25.0.0]
 

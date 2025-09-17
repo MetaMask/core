@@ -1,6 +1,7 @@
 /* eslint-disable jest/no-restricted-matchers */
 /* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   EthAccountType,
   EthScope,
@@ -2434,6 +2435,76 @@ describe('BridgeController', function () {
       `);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
+          "quoteFetchError": null,
+          "quoteRequest": Object {
+            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+          },
+          "quotes": Array [],
+          "quotesInitialLoadTime": null,
+          "quotesLastFetched": null,
+          "quotesLoadingStatus": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
+          "quoteFetchError": null,
+          "quoteRequest": Object {
+            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+          },
+          "quotes": Array [],
+          "quotesInitialLoadTime": null,
+          "quotesLastFetched": null,
+          "quotesLoadingStatus": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
     });
   });
 });

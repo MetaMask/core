@@ -21,8 +21,7 @@ import type {
   UpdatePaymentMethodOpts,
 } from './types';
 import {
-  PaymentType,
-  SubscriptionStatus,
+  PAYMENT_TYPES,
   type ISubscriptionService,
   type PricingResponse,
   type ProductType,
@@ -31,6 +30,8 @@ import {
 } from './types';
 
 export type SubscriptionControllerState = {
+  customerId?: string;
+  trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
 };
@@ -128,6 +129,7 @@ export type SubscriptionControllerOptions = {
 export function getDefaultSubscriptionControllerState(): SubscriptionControllerState {
   return {
     subscriptions: [],
+    trialedProducts: [],
   };
 }
 
@@ -144,6 +146,18 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: true,
+    },
+    customerId: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: false,
+      usedInUi: true,
+    },
+    trialedProducts: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: true,
       usedInUi: true,
     },
     pricing: {
@@ -243,11 +257,13 @@ export class SubscriptionController extends BaseController<
   }
 
   async getSubscriptions() {
-    const { subscriptions } =
+    const { subscriptions, customerId, trialedProducts } =
       await this.#subscriptionService.getSubscriptions();
 
     this.update((state) => {
       state.subscriptions = subscriptions;
+      state.customerId = customerId;
+      state.trialedProducts = trialedProducts;
     });
 
     return subscriptions;
@@ -256,14 +272,34 @@ export class SubscriptionController extends BaseController<
   async cancelSubscription(request: { subscriptionId: string }) {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
-    await this.#subscriptionService.cancelSubscription({
-      subscriptionId: request.subscriptionId,
-    });
+    const cancelledSubscription =
+      await this.#subscriptionService.cancelSubscription({
+        subscriptionId: request.subscriptionId,
+      });
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, status: SubscriptionStatus.canceled }
+          ? { ...subscription, ...cancelledSubscription }
+          : subscription,
+      );
+    });
+
+    this.triggerAccessTokenRefresh();
+  }
+
+  async unCancelSubscription(request: { subscriptionId: string }) {
+    this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
+
+    const uncancelledSubscription =
+      await this.#subscriptionService.unCancelSubscription({
+        subscriptionId: request.subscriptionId,
+      });
+
+    this.update((state) => {
+      state.subscriptions = state.subscriptions.map((subscription) =>
+        subscription.id === request.subscriptionId
+          ? { ...subscription, ...uncancelledSubscription }
           : subscription,
       );
     });
@@ -317,7 +353,7 @@ export class SubscriptionController extends BaseController<
     }
 
     const chainsPaymentInfo = pricing.paymentMethods.find(
-      (t) => t.type === PaymentType.byCrypto,
+      (t) => t.type === PAYMENT_TYPES.byCrypto,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
@@ -335,13 +371,13 @@ export class SubscriptionController extends BaseController<
       throw new Error('Invalid token address');
     }
 
-    const tokenApproveAmount = this.#getTokenApproveAmount(
+    const tokenApproveAmount = this.getTokenApproveAmount(
       price,
       tokenPaymentInfo,
     );
 
     return {
-      approveAmount: tokenApproveAmount.toString(),
+      approveAmount: tokenApproveAmount,
       paymentAddress: chainPaymentInfo.paymentAddress,
       paymentTokenAddress: request.paymentTokenAddress,
       chainId: request.chainId,
@@ -349,10 +385,10 @@ export class SubscriptionController extends BaseController<
   }
 
   async updatePaymentMethod(opts: UpdatePaymentMethodOpts) {
-    if (opts.paymentType === PaymentType.byCard) {
+    if (opts.paymentType === PAYMENT_TYPES.byCard) {
       const { paymentType, ...cardRequest } = opts;
       await this.#subscriptionService.updatePaymentMethodCard(cardRequest);
-    } else if (opts.paymentType === PaymentType.byCrypto) {
+    } else if (opts.paymentType === PAYMENT_TYPES.byCrypto) {
       const { paymentType, ...cryptoRequest } = opts;
       await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
     } else {
@@ -382,10 +418,10 @@ export class SubscriptionController extends BaseController<
    * @param tokenPaymentInfo - The token price info
    * @returns The token approve amount
    */
-  #getTokenApproveAmount(
+  getTokenApproveAmount(
     price: ProductPrice,
     tokenPaymentInfo: TokenPaymentInfo,
-  ) {
+  ): string {
     const conversionRate =
       tokenPaymentInfo.conversionRate[
         price.currency as keyof typeof tokenPaymentInfo.conversionRate
@@ -411,7 +447,7 @@ export class SubscriptionController extends BaseController<
 
     const tokenAmount =
       (priceAmountScaled * tokenDecimal) / conversionRateScaled;
-    return tokenAmount;
+    return tokenAmount.toString();
   }
 
   #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {

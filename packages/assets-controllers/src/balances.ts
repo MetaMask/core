@@ -1,4 +1,7 @@
-import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import {
+  parseAccountGroupId,
+  type AccountGroupId,
+} from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -78,16 +81,12 @@ const isChainEnabledByMap = (
   return Boolean(map[namespace]?.[id]);
 };
 
-const getWalletIdFromGroupId = (groupId: string): AccountWalletId => {
-  return groupId.split('/')[0] as AccountWalletId;
-};
-
 const getInternalAccountsForGroup = (
   accountTreeState: AccountTreeControllerState,
   accountsState: AccountsControllerState,
   groupId: string,
 ): InternalAccount[] => {
-  const walletId = getWalletIdFromGroupId(groupId);
+  const walletId = parseAccountGroupId(groupId).wallet.id;
   const wallet = accountTreeState.accountTree.wallets[walletId];
   if (!wallet) {
     return [];

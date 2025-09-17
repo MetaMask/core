@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0]
+
+### Added
+
+- **BREAKING** Add additional allowed actions to the `MultichainAccountService` messenger
+  - `KeyringController:getKeyringsByType` and `KeyringController:addNewKeyring` actions were added.
+- Add `createMultichainAccountWallet` method to create a new multichain account wallet from a mnemonic ([#6478](https://github.com/MetaMask/core/pull/6478))
+  - An action handler was also registered for this method so that it can be called from the clients.
+
 ### Changed
 
 - **BREAKING:** Rename `MultichainAccountWallet.alignGroup` to `alignAccountsOf` ([#6595](https://github.com/MetaMask/core/pull/6595))
 - **BREAKING:** Rename `MultichainAccountGroup.align` to `alignAccounts` ([#6595](https://github.com/MetaMask/core/pull/6595))
+- Add timeout and retry mechanism to EVM discovery ([#6609](https://github.com/MetaMask/core/pull/6609)), ([#6621](https://github.com/MetaMask/core/pull/6621))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ## [0.8.0]
 
@@ -138,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.9.0...HEAD
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.8.0...@metamask/multichain-account-service@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.7.0...@metamask/multichain-account-service@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.6.0...@metamask/multichain-account-service@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@0.5.0...@metamask/multichain-account-service@0.6.0
