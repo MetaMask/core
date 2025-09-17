@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Swallow group creation errors in backup and sync `createMultichainAccountGroup` ([#6642](https://github.com/MetaMask/core/pull/6642))
+
+### Removed
+
+- Remove full sync triggers when single sync operations are enqueued and `hasSyncedAtLeastOnce` is `false` ([#6634](https://github.com/MetaMask/core/pull/6634))
+
 ## [0.16.0]
 
 ### Changed
