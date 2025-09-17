@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove full sync triggers when single sync operations are enqueued and `hasSyncedAtLeastOnce` is `false` ([#6634](https://github.com/MetaMask/core/pull/6634))
+
 ## [0.16.0]
 
 ### Changed
@@ -18,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove full sync triggers when single sync operations are enqueued and `hasSyncedAtLeastOnce` is `false` ([#6634](https://github.com/MetaMask/core/pull/6634))
 - Remove use of `:getSelectedAccount` action ([#6608](https://github.com/MetaMask/core/pull/6608))
 
 ## [0.15.1]
