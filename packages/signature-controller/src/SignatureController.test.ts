@@ -168,7 +168,7 @@ function createMessengerMock() {
     },
   });
 
-  decodePermissionFromPermissionContextForOriginMock.mockResolvedValue({
+  decodePermissionFromPermissionContextForOriginMock.mockReturnValue({
     kind: 'decoded-permission',
   });
 
@@ -962,7 +962,7 @@ describe('SignatureController', () => {
       ).toBe(SignTypedDataVersion.V3);
     });
 
-    describe('execution permissions', () => {
+    describe('delegations', () => {
       it('invokes decodePermissionFromRequest to get execution permission', async () => {
         const {
           controller,
@@ -1070,55 +1070,90 @@ describe('SignatureController', () => {
         expect(decodedPermission).toBeUndefined();
       });
 
-      it('rejects the permission if decoding throws an error', async () => {
+      it('does not set decodedPermission if decoding throws an error', async () => {
         const {
           controller,
           decodePermissionFromPermissionContextForOriginMock,
         } = createController();
 
-        decodePermissionFromPermissionContextForOriginMock.mockRejectedValueOnce(
-          new Error('Decoding failed'),
+        decodePermissionFromPermissionContextForOriginMock.mockImplementation(
+          () => {
+            throw new Error('An error occurred');
+          },
         );
 
-        const result = controller.newUnsignedTypedMessage(
+        await controller.newUnsignedTypedMessage(
           DELEGATION_PARAMS_MOCK,
           DELEGATION_REQUEST_MOCK,
           SignTypedDataVersion.V4,
           { parseJsonData: false },
         );
 
-        // this is the error that is thrown if a sign delegation request is received that is signing for an internal account, and:
-        // - not from the Gator Permissions Snap (or)
-        // - or cannot be decoded into a delegation
-        await expect(result).rejects.toThrow(
-          'External signature requests cannot sign delegations for internal accounts.',
-        );
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
       });
 
-      it('rejects the permission if decoding returns undefined', async () => {
+      it('does not set decodedPermission if decoding returns undefined', async () => {
         const {
           controller,
           decodePermissionFromPermissionContextForOriginMock,
         } = createController();
 
-        decodePermissionFromPermissionContextForOriginMock.mockResolvedValueOnce(
+        decodePermissionFromPermissionContextForOriginMock.mockReturnValue(
           undefined,
         );
 
-        const result = controller.newUnsignedTypedMessage(
+        await controller.newUnsignedTypedMessage(
           DELEGATION_PARAMS_MOCK,
           DELEGATION_REQUEST_MOCK,
           SignTypedDataVersion.V4,
           { parseJsonData: false },
         );
 
-        // this is the error that is thrown if a sign delegation request is received that is signing for an internal account, and:
-        // - not from the Gator Permissions Snap (or)
-        // - or cannot be decoded into a delegation
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
 
-        await expect(result).rejects.toThrow(
-          'External signature requests cannot sign delegations for internal accounts.',
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if metadata is invalid', async () => {
+        const { controller } = createController();
+
+        const delegationParamsMock = {
+          ...DELEGATION_PARAMS_MOCK,
+          data: {
+            ...JSON.parse(DELEGATION_PARAMS_MOCK.data),
+            metadata: {},
+          },
+        };
+
+        const delegationRequestMock = {
+          method: 'eth_signTypedData_v4',
+          params: [
+            '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+            delegationParamsMock.data,
+          ],
+          jsonrpc: '2.0',
+          id: 1680528591,
+          origin: 'npm:@metamask/gator-permissions-snap',
+          networkClientId: 'mainnet',
+          tabId: 1048807182,
+          traceContext: null,
+        };
+
+        await controller.newUnsignedTypedMessage(
+          delegationParamsMock,
+          delegationRequestMock,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
         );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
       });
     });
 

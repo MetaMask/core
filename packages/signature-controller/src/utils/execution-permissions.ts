@@ -2,13 +2,13 @@ import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import { isHexAddress, isStrictHexString } from '@metamask/utils';
 
 import type { DelegationDetails } from '../../../gator-permissions-controller/src/types';
-import { projectLogger as log } from '../logger';
 import type { SignatureControllerMessenger } from '../SignatureController';
 import type {
-  MessageParamsTyped,
   MessageParamsTypedData,
   MessageParamsTypedDataWithMetadata,
 } from '../types';
+
+const DELEGATION_PRIMARY_TYPE = 'Delegation';
 
 /**
  * Determines whether the provided EIP-712 typed data represents a Delegation request.
@@ -21,27 +21,10 @@ import type {
  * @returns True if the typed message is a Delegation request; otherwise false.
  * @throws {Error} If the `data` argument is a string that cannot be parsed as valid JSON.
  */
-export function isDelegationRequest({
-  data: messageData,
-}: {
-  data: MessageParamsTyped['data'];
-}): boolean {
-  let data: MessageParamsTypedData;
-  if (typeof messageData === 'object') {
-    data = messageData as MessageParamsTypedData;
-  } else {
-    try {
-      data = JSON.parse(messageData) as MessageParamsTypedData;
-    } catch (error) {
-      log((error as Error).message);
-      // if the data is not valid JSON, then it's not a delegation request
-      return false;
-    }
-  }
-
+export function isDelegationRequest(data: MessageParamsTypedData): boolean {
   const { primaryType } = data;
 
-  return primaryType === 'Delegation';
+  return primaryType === DELEGATION_PRIMARY_TYPE;
 }
 
 /**
@@ -58,39 +41,23 @@ export function isDelegationRequest({
  * @returns A decoded permission, or `undefined` if no permission can be derived.
  * @throws {Error} If required metadata (origin or justification) is missing or invalid.
  */
-export async function decodePermissionFromRequest({
+export function decodePermissionFromRequest({
   origin,
-  messageParams,
+  data,
   messenger,
 }: {
   origin: string;
-  messageParams: MessageParamsTyped;
+  data: MessageParamsTypedDataWithMetadata;
   messenger: SignatureControllerMessenger;
-}): Promise<DecodedPermission | undefined> {
-  const messageParamsData =
-    typeof messageParams.data === 'string'
-      ? (JSON.parse(messageParams.data) as MessageParamsTypedData)
-      : (messageParams.data as MessageParamsTypedData);
+}): DecodedPermission | undefined {
+  const {
+    metadata: { origin: specifiedOrigin, justification },
+  } = data;
 
-  let specifiedOrigin: string | undefined;
-  let justification: string | undefined;
-
-  if ('metadata' in messageParamsData) {
-    const { metadata } =
-      messageParamsData as MessageParamsTypedDataWithMetadata;
-    if (metadata && 'origin' in metadata && 'justification' in metadata) {
-      specifiedOrigin = metadata.origin;
-      justification = metadata.justification;
-    }
-  }
-  if (!specifiedOrigin || !justification) {
-    throw new Error('Invalid metadata');
-  }
-
-  const chainId = parseInt(messageParamsData.domain.chainId as string, 10);
+  const chainId = parseInt(data.domain.chainId as string, 10);
 
   const { delegate, delegator, authority, caveats } =
-    messageParamsData.message as DelegationDetails;
+    data.message as DelegationDetails;
 
   if (
     !(
@@ -103,10 +70,10 @@ export async function decodePermissionFromRequest({
       )
     )
   ) {
-    throw new Error('Invalid delegation data');
+    return;
   }
 
-  const decodedPermission = await messenger.call(
+  const decodedPermission = messenger.call(
     'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
     {
       origin,
@@ -117,4 +84,27 @@ export async function decodePermissionFromRequest({
   );
 
   return decodedPermission;
+}
+
+/**
+ * Validates the provided MessageParamsTypedData contains valid EIP-7715
+ * execution permissions metadata.
+ *
+ * @param data - The typed data to validate.
+ * @throws {Error} If the metadata is invalid.
+ */
+export function validateExecutionPermissionMetadata(
+  data: MessageParamsTypedData,
+): asserts data is MessageParamsTypedDataWithMetadata {
+  if (!('metadata' in data)) {
+    throw new Error('Invalid metadata');
+  }
+  const { metadata } = data as MessageParamsTypedDataWithMetadata;
+  if (
+    !metadata ||
+    !(typeof metadata.origin === 'string') ||
+    !(typeof metadata.justification === 'string')
+  ) {
+    throw new Error('Invalid metadata');
+  }
 }

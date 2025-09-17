@@ -4,52 +4,30 @@ import type { Json } from '@metamask/utils';
 import {
   decodePermissionFromRequest,
   isDelegationRequest,
+  validateExecutionPermissionMetadata,
 } from './execution-permissions';
 import type { SignatureControllerMessenger } from '../SignatureController';
-import type {
-  MessageParamsTyped,
-  MessageParamsTypedDataWithMetadata,
-} from '../types';
+import type { MessageParamsTyped, MessageParamsTypedData } from '../types';
 
 describe('execution-permissions utils', () => {
   describe('isDelegationRequest', () => {
     it('returns true for object data with primaryType Delegation', () => {
       const result = isDelegationRequest({
-        data: {
-          types: {},
-          domain: {},
-          primaryType: 'Delegation',
-          message: {},
-        },
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
       });
       expect(result).toBe(true);
     });
 
     it('returns false for object data with non-delegation primaryType', () => {
       const result = isDelegationRequest({
-        data: {
-          types: {},
-          domain: {},
-          primaryType: 'Permit',
-          message: {},
-        },
-      });
-      expect(result).toBe(false);
-    });
-
-    it('returns true for stringified data with primaryType Delegation', () => {
-      const json = JSON.stringify({
         types: {},
         domain: {},
-        primaryType: 'Delegation',
+        primaryType: 'Permit',
         message: {},
       });
-      const result = isDelegationRequest({ data: json });
-      expect(result).toBe(true);
-    });
-
-    it('returns false for invalid JSON string', () => {
-      const result = isDelegationRequest({ data: 'invalid json' });
       expect(result).toBe(false);
     });
   });
@@ -79,21 +57,17 @@ describe('execution-permissions utils', () => {
       metadata: { origin: specifiedOrigin, justification },
     };
 
-    const messageParams: MessageParamsTyped = {
-      from: delegator,
-      data: validData,
-    };
     let messenger: SignatureControllerMessenger;
 
     beforeEach(() => {
       messenger = {
-        call: jest.fn().mockResolvedValue(decodedPermissionResult),
+        call: jest.fn().mockReturnValue(decodedPermissionResult),
       } as unknown as SignatureControllerMessenger;
     });
 
-    it('calls messenger and returns decoded permission for valid input (object data)', async () => {
-      const result = await decodePermissionFromRequest({
-        messageParams,
+    it('calls messenger and returns decoded permission for valid input (object data)', () => {
+      const result = decodePermissionFromRequest({
+        data: validData,
         messenger,
         origin,
       });
@@ -108,34 +82,6 @@ describe('execution-permissions utils', () => {
           metadata: { justification, origin: specifiedOrigin },
         },
       );
-    });
-
-    it('supports stringified data as input', async () => {
-      messageParams.data = JSON.stringify(validData);
-
-      const result = await decodePermissionFromRequest({
-        messageParams,
-        messenger,
-        origin,
-      });
-      expect(result).toBe(decodedPermissionResult);
-      expect(messenger.call).toHaveBeenCalledTimes(1);
-    });
-
-    it('throws for missing metadata', async () => {
-      messageParams.data = {
-        types: {},
-        domain: { chainId: chainIdString },
-        primaryType: 'Delegation',
-        message: { delegate, delegator, authority, caveats },
-        metadata:
-          undefined as unknown as MessageParamsTypedDataWithMetadata['metadata'],
-      } as MessageParamsTypedDataWithMetadata;
-
-      await expect(
-        decodePermissionFromRequest({ messageParams, messenger, origin }),
-      ).rejects.toThrow('Invalid metadata');
-      expect(messenger.call).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -198,22 +144,118 @@ describe('execution-permissions utils', () => {
           authority,
         } as unknown as MessageParamsTyped,
       ],
-    ])('throws for invalid delegation data. %s', async ([, message]) => {
-      const paramsWithInvalidData = {
-        ...messageParams,
-        data: {
-          ...validData,
-          message,
-        },
+    ])('returns undefined for invalid delegation data. %s', ([, message]) => {
+      const invalidData = {
+        ...validData,
+        message,
       };
 
-      await expect(
-        decodePermissionFromRequest({
-          messageParams: paramsWithInvalidData,
-          messenger,
-          origin,
-        }),
-      ).rejects.toThrow('Invalid delegation data');
+      const result = decodePermissionFromRequest({
+        data: invalidData,
+        messenger,
+        origin,
+      });
+
+      expect(result).toBeUndefined();
     });
+  });
+});
+
+describe('validateExecutionPermissionMetadata', () => {
+  it('throws if metadata is missing', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({} as MessageParamsTypedData),
+    ).toThrow('Invalid metadata');
+  });
+
+  it('does not throw for valid metadata', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - augmenting with metadata for runtime validation
+        metadata: { origin: 'https://dapp.example', justification: 'Needed' },
+      }),
+    ).not.toThrow();
+  });
+
+  it('throws if metadata is null', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - intentionally invalid to test runtime validation
+        metadata: null,
+      }),
+    ).toThrow('Invalid metadata');
+  });
+
+  it('throws if origin is missing', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - intentionally invalid to test runtime validation
+        metadata: { justification: 'why' },
+      }),
+    ).toThrow('Invalid metadata');
+  });
+
+  it('throws if justification is missing', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - intentionally invalid to test runtime validation
+        metadata: { origin: 'https://dapp.example' },
+      }),
+    ).toThrow('Invalid metadata');
+  });
+
+  it('throws if origin is not a string', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - intentionally invalid to test runtime validation
+        metadata: { origin: 123, justification: 'why' },
+      }),
+    ).toThrow('Invalid metadata');
+  });
+
+  it('throws if justification is not a string', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - intentionally invalid to test runtime validation
+        metadata: { origin: 'https://dapp.example', justification: {} },
+      }),
+    ).toThrow('Invalid metadata');
+  });
+
+  it('accepts empty strings for origin and justification', () => {
+    expect(() =>
+      validateExecutionPermissionMetadata({
+        types: {},
+        domain: {},
+        primaryType: 'Delegation',
+        message: {},
+        // @ts-expect-error - augmenting with metadata for runtime validation
+        metadata: { origin: '', justification: '' },
+      }),
+    ).not.toThrow();
   });
 });

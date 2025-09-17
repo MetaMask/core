@@ -552,13 +552,12 @@ describe('GatorPermissionsController', () => {
         caveats,
       };
 
-      const result =
-        await controller.decodePermissionFromPermissionContextForOrigin({
-          origin: controller.permissionsProviderSnapId,
-          chainId,
-          delegation,
-          metadata: buildMetadata('Test justification'),
-        });
+      const result = controller.decodePermissionFromPermissionContextForOrigin({
+        origin: controller.permissionsProviderSnapId,
+        chainId,
+        delegation,
+        metadata: buildMetadata('Test justification'),
+      });
 
       expect(result.chainId).toBe(numberToHex(chainId));
       expect(result.address).toBe(delegator);

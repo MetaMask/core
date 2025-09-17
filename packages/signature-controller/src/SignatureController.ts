@@ -50,11 +50,13 @@ import type {
   TypedSigningOptions,
   LegacyStateMessage,
   StateSIWEMessage,
+  MessageParamsTypedData,
 } from './types';
 import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
 import {
   decodePermissionFromRequest,
   isDelegationRequest,
+  validateExecutionPermissionMetadata,
 } from './utils/execution-permissions';
 import {
   normalizePersonalMessageParams,
@@ -153,12 +155,12 @@ export type SignatureControllerState = {
 type AllowedActions =
   | AccountsControllerGetStateAction
   | AddApprovalRequest
+  | AddLog
+  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
+  | NetworkControllerGetNetworkClientByIdAction
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
-  | KeyringControllerSignTypedMessageAction
-  | AddLog
-  | NetworkControllerGetNetworkClientByIdAction
-  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction;
+  | KeyringControllerSignTypedMessageAction;
 
 export type GetSignatureState = ControllerGetStateAction<
   typeof controllerName,
@@ -379,7 +381,7 @@ export class SignatureController extends BaseController<
    *
    * @param messageParams - The params of the message to sign and return to the dApp.
    * @param request - The original request, containing the origin.
-   * @param version - The version of the signTypedData request.
+   * @param versionString - The version of the signTypedData request.
    * @param signingOptions - Options for signing the typed message.
    * @param options - An options bag for the method.
    * @param options.traceContext - The parent context for any new traces.
@@ -388,54 +390,27 @@ export class SignatureController extends BaseController<
   async newUnsignedTypedMessage(
     messageParams: MessageParamsTyped,
     request: OriginalRequest,
-    version: string,
+    versionString: string,
     signingOptions?: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     const chainId = this.#getChainId(request);
     const internalAccounts = this.#getInternalAccounts();
 
-    const isRequestDelegation = isDelegationRequest({
-      data: messageParams.data,
-    });
+    const version = versionString as SignTypedDataVersion;
 
-    let decodedPermission: DecodedPermission | undefined;
-    // Only decode the permission for SignTypedDataVersion.V4, as all other versions will be rejected.
-    if (
-      isRequestDelegation &&
-      (version as SignTypedDataVersion) === SignTypedDataVersion.V4
-    ) {
-      try {
-        if (request.origin) {
-          // no point in trying to decode the permission if the origin is not set
-          decodedPermission = await decodePermissionFromRequest({
-            origin: request.origin,
-            messageParams,
-            messenger: this.messagingSystem,
-          });
-        }
-      } catch (error) {
-        // we ignore this error, because it simply means the request could not
-        // be decoded into a permission in which case we will throw below
-        log((error as Error).message);
-      }
-      if (!decodedPermission) {
-        // If the permission is not successfully decoded, it likely means that the
-        // request did not come from the Gator Permissions Snap. Therefore we
-        // throw an error targeting external requesters that are not allowed to
-        // request delegation signatures.
-        throw new Error(
-          'External signature requests cannot sign delegations for internal accounts.',
-        );
-      }
-    }
+    const decodedPermission = this.#tryGetDecodedPermissionIfDelegation({
+      messageParams,
+      version,
+      request,
+    });
 
     validateTypedSignatureRequest({
       currentChainId: chainId,
       internalAccounts,
       messageData: messageParams,
       request,
-      version: version as SignTypedDataVersion,
+      version,
       decodedPermission,
     });
 
@@ -451,9 +426,68 @@ export class SignatureController extends BaseController<
       signingOptions,
       traceContext: options.traceContext,
       type: SignatureRequestType.TypedSign,
-      version: version as SignTypedDataVersion,
+      version,
       decodedPermission,
     });
+  }
+
+  /**
+   * Attempts to decoded a permission if the request is a delegation request.
+   *
+   * @param args - The arguments for the method.
+   * @param args.messageParams - The message parameters.
+   * @param args.version - The version of the signTypedData request.
+   * @param args.request - The original request.
+   *
+   * @returns The decoded permission if the request is a delegation request.
+   */
+  #tryGetDecodedPermissionIfDelegation({
+    messageParams,
+    version,
+    request,
+  }: {
+    messageParams: MessageParamsTyped;
+    version: SignTypedDataVersion;
+    request: OriginalRequest;
+  }): DecodedPermission | undefined {
+    let data: MessageParamsTypedData;
+    try {
+      data = this.#parseTypedData(messageParams, version)
+        .data as MessageParamsTypedData;
+    } catch (error) {
+      log('Failed to parse typed data', error);
+      return undefined;
+    }
+
+    const isRequestDelegationRequest = isDelegationRequest(data);
+
+    if (
+      !isRequestDelegationRequest ||
+      !request.origin ||
+      version !== SignTypedDataVersion.V4
+    ) {
+      return undefined;
+    }
+
+    let decodedPermission: DecodedPermission | undefined;
+
+    try {
+      validateExecutionPermissionMetadata(data);
+
+      decodedPermission = decodePermissionFromRequest({
+        origin: request.origin,
+        data,
+        messenger: this.messagingSystem,
+      });
+    } catch (error) {
+      // we ignore this error, because it simply means the request could not be
+      // decoded into a permission in which case we will not set a
+      // decodedPermission on the metadata, and may fail validation if the
+      // request is invalid.
+      log('Failed to decode permission', (error as Error).message);
+    }
+
+    return decodedPermission;
   }
 
   /**
@@ -593,7 +627,7 @@ export class SignatureController extends BaseController<
 
       await this.#approveAndSignRequest(metadata, traceContext);
     } catch (error) {
-      log('Signature request failed', error);
+      log('Signature request failed', (error as Error).message);
       approveOrSignError = error;
     }
 

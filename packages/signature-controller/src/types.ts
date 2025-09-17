@@ -95,11 +95,15 @@ export type MessageParamsTypedData = {
   message: Json;
 };
 
+/** Metadata use in the signTypedData request when handling EIP-7715 execution permission requests */
+export type ExecutionPermissionMetadata = {
+  origin: string;
+  justification: string;
+};
+
+/** Typed data use in the signTypedData request when handling EIP-7715 execution permission requests */
 export type MessageParamsTypedDataWithMetadata = MessageParamsTypedData & {
-  metadata: {
-    origin: string;
-    justification: string;
-  };
+  metadata: ExecutionPermissionMetadata;
 };
 
 /** Typed message parameters that were requested to be signed. */
@@ -145,6 +149,9 @@ type SignatureRequestBase = {
   /** Whether decoding is in progress. */
   decodingLoading?: boolean;
 
+  /** Decoded permission for the request if the signature is for an EIP-7715 execution permission. */
+  decodedPermission?: DecodedPermission;
+
   /** Error message that occurred during the signing. */
   error?: string;
 
@@ -174,9 +181,6 @@ type SignatureRequestBase = {
 
   /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
-
-  /** Decoded permission for the request. */
-  decodedPermission?: DecodedPermission;
 };
 
 /** Legacy messages stored in the state. */

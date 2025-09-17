@@ -19,6 +19,9 @@
       "path": "../controller-utils/tsconfig.build.json"
     },
     {
+      "path": "../gator-permissions-controller/tsconfig.build.json"
+    },
+    {
       "path": "../message-manager/tsconfig.build.json"
     },
     {
@@ -29,9 +32,6 @@
     },
     {
       "path": "../network-controller/tsconfig.build.json"
-    },
-    {
-      "path": "../gator-permissions-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

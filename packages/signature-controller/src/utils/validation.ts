@@ -268,27 +268,27 @@ function validateDelegation({
   origin: string | undefined;
   decodedPermission?: DecodedPermission;
 }) {
-  const isDelegation = isDelegationRequest({ data });
+  if (!isDelegationRequest(data)) {
+    return;
+  }
 
-  if (isDelegation) {
-    const hasDecodedPermission = decodedPermission !== undefined;
-    if (!hasDecodedPermission) {
-      const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
+  const hasDecodedPermission = decodedPermission !== undefined;
+  if (!hasDecodedPermission) {
+    const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
 
-      const delegatorAddressLowercase = (
-        (data.message as Record<string, Json>)?.[DELEGATOR_FIELD] as Hex
-      ).toLowerCase();
+    const delegatorAddressLowercase = (
+      (data.message as Record<string, Json>)?.[DELEGATOR_FIELD] as Hex
+    ).toLowerCase();
 
-      const isSignerInternal = internalAccounts.some(
-        (internalAccount) =>
-          internalAccount.toLowerCase() === delegatorAddressLowercase,
+    const isSignerInternal = internalAccounts.some(
+      (internalAccount) =>
+        internalAccount.toLowerCase() === delegatorAddressLowercase,
+    );
+
+    if (isOriginExternal && isSignerInternal) {
+      throw new Error(
+        `External signature requests cannot sign delegations for internal accounts.`,
       );
-
-      if (isOriginExternal && isSignerInternal) {
-        throw new Error(
-          `External signature requests cannot sign delegations for internal accounts.`,
-        );
-      }
     }
   }
 }
