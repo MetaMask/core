@@ -21,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Entropy groups use their actual group index instead of alphabetical sorting.
   - Prevents issues like "Account 2, Account 2, Account 3..." and missing "Account 1".
 
-### Removed
-
-- Remove use of `:getSelectedAccount` action ([#6608](https://github.com/MetaMask/core/pull/6608))
-
 ## [0.15.1]
 
 ### Fixed

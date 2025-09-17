@@ -1037,12 +1037,12 @@ export class AccountTreeController extends BaseController<
   /**
    * Resolves name conflicts by adding a suffix to make the name unique.
    *
+   * @internal
    * @param groupId - The account group ID to exclude from the check.
    * @param name - The desired name that has a conflict.
    * @returns A unique name with suffix added if necessary.
    */
-  /* istanbul ignore next */
-  #resolveNameConflict(groupId: AccountGroupId, name: string): string {
+  resolveNameConflict(groupId: AccountGroupId, name: string): string {
     let suffix = 2;
     let candidateName = `${name} (${suffix})`;
 
@@ -1075,12 +1075,13 @@ export class AccountTreeController extends BaseController<
     let finalName = name;
 
     // Handle name conflicts based on the autoHandleConflict flag
+    /* istanbul ignore next */
     if (
       autoHandleConflict &&
       !isAccountGroupNameUnique(this.state, groupId, name)
     ) {
       /* istanbul ignore next */
-      finalName = this.#resolveNameConflict(groupId, name);
+      finalName = this.resolveNameConflict(groupId, name);
     } else {
       // Validate that the name is unique
       this.#assertAccountGroupNameIsUnique(groupId, finalName);

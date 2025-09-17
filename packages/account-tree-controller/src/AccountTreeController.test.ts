@@ -3823,22 +3823,62 @@ describe('AccountTreeController', () => {
       );
       const groupId = toMultichainAccountGroupId(walletId, 0);
 
-      // Test basic functionality: autoHandleConflict parameter exists and works
+      // Test autoHandleConflict = false (default behavior)
       controller.setAccountGroupName(groupId, 'Test Name', false);
       expect(
         controller.state.accountTree.wallets[walletId].groups[groupId].metadata
           .name,
       ).toBe('Test Name');
 
+      // Test autoHandleConflict = true (B&S integration ready)
       controller.setAccountGroupName(groupId, 'Different Name', true);
       expect(
         controller.state.accountTree.wallets[walletId].groups[groupId].metadata
           .name,
       ).toBe('Different Name');
 
-      // The autoHandleConflict parameter is implemented with suffix logic
-      // Full conflict testing will be done during B&S integration when
-      // real multi-group scenarios are more easily testable
+      // Test the suffix resolution logic directly using proper update method
+      (
+        controller as unknown as {
+          update: (fn: (state: AccountTreeControllerState) => void) => void;
+        }
+      ).update((state) => {
+        // Add conflicting groups to test suffix logic
+        const wallet = state.accountTree.wallets[walletId];
+        (wallet.groups as Record<string, unknown>)['conflict-1'] = {
+          id: 'conflict-1',
+          type: AccountGroupType.MultichainAccount,
+          accounts: ['test-account-1'],
+          metadata: {
+            name: 'Suffix Test',
+            entropy: { groupIndex: 1 },
+            pinned: false,
+            hidden: false,
+          },
+        };
+        (wallet.groups as Record<string, unknown>)['conflict-2'] = {
+          id: 'conflict-2',
+          type: AccountGroupType.MultichainAccount,
+          accounts: ['test-account-2'],
+          metadata: {
+            name: 'Suffix Test (2)',
+            entropy: { groupIndex: 2 },
+            pinned: false,
+            hidden: false,
+          },
+        };
+      });
+
+      // Test suffix resolution directly using the public method
+      const resolvedName = controller.resolveNameConflict(
+        groupId,
+        'Suffix Test',
+      );
+      expect(resolvedName).toBe('Suffix Test (3)');
+
+      // Test with no conflicts: should return "Unique Name (2)"
+      const uniqueName = controller.resolveNameConflict(groupId, 'Unique Name');
+      expect(uniqueName).toBe('Unique Name (2)');
     });
   });
 });
