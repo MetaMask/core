@@ -12,7 +12,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { JsonRpcRequest } from '@metamask/utils';
+import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
 import { processSendCalls } from './processSendCalls';
 import type {
@@ -448,11 +448,16 @@ describe('EIP-5792', () => {
             from: FROM_MOCK_HARDWARE,
             capabilities: {
               auxiliaryFunds: {
-                optional: true,
+                optional: false,
                 requiredAssets: [
                   {
                     address: '0x123',
-                    amount: '0x1',
+                    amount: '0x2',
+                    standard: 'erc20',
+                  },
+                  {
+                    address: '0x123',
+                    amount: '0x2',
                     standard: 'erc20',
                   },
                 ],
@@ -461,7 +466,9 @@ describe('EIP-5792', () => {
           },
           REQUEST_MOCK,
         ),
-      ).rejects.toThrow('Unsupported account type');
+      ).rejects.toThrow(
+        'Unsupported non-optional capabilities: auxiliaryFunds',
+      );
     });
 
     it('validates auxiliary funds with unsupported chain', async () => {
@@ -475,11 +482,11 @@ describe('EIP-5792', () => {
             ...SEND_CALLS_MOCK,
             capabilities: {
               auxiliaryFunds: {
-                optional: true,
+                optional: false,
                 requiredAssets: [
                   {
-                    address: '0x123',
-                    amount: '0x1',
+                    address: '0x123' as Hex,
+                    amount: '0x1' as Hex,
                     standard: 'erc20',
                   },
                 ],
@@ -502,7 +509,7 @@ describe('EIP-5792', () => {
             ...SEND_CALLS_MOCK,
             capabilities: {
               auxiliaryFunds: {
-                optional: true,
+                optional: false,
                 requiredAssets: [
                   {
                     address: '0x123',

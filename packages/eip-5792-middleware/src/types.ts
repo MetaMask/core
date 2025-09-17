@@ -103,7 +103,6 @@ const RequiredAssetStruct = type({
   address: nonempty(HexChecksumAddressStruct),
   amount: nonempty(StrictHexStruct),
   standard: nonempty(string()),
-  tokenId: optional(StrictHexStruct),
 });
 
 export const CapabilitiesStruct = record(

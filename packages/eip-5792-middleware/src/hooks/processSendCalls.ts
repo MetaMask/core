@@ -9,7 +9,8 @@ import type {
 } from '@metamask/transaction-controller';
 import { TransactionEnvelopeType } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
-import { bytesToHex } from '@metamask/utils';
+import { add0x, bytesToHex } from '@metamask/utils';
+import { groupBy } from 'lodash';
 import { parse, v4 as uuid } from 'uuid';
 
 import {
@@ -202,6 +203,8 @@ async function processSingleTransaction({
   };
   validateSecurity(securityRequest, chainId);
 
+  dedupeAuxiliaryFundsRequiredAssets(sendCalls);
+
   const batchId = generateBatchId();
 
   await addTransaction(txParams, {
@@ -283,6 +286,16 @@ async function processMultipleTransaction({
     chainBatchSupport,
     keyringType,
     isAuxiliaryFundsSupported,
+  );
+
+  console.log(
+    { assets: sendCalls.capabilities?.auxiliaryFunds?.requiredAssets },
+    'before, multiple tx',
+  );
+  dedupeAuxiliaryFundsRequiredAssets(sendCalls);
+  console.log(
+    { assets: sendCalls.capabilities?.auxiliaryFunds?.requiredAssets },
+    'after, multiple tx',
   );
 
   const result = await addTransactionBatch({
@@ -429,12 +442,15 @@ function validateCapabilities(
   const { calls, capabilities, chainId } = sendCalls;
 
   const requiredTopLevelCapabilities = Object.keys(capabilities ?? {}).filter(
-    (name) => capabilities?.[name].optional !== true,
+    (name) =>
+      name !== 'auxiliaryFunds' && capabilities?.[name].optional !== true,
   );
 
   const requiredCallCapabilities = calls.flatMap((call) =>
     Object.keys(call.capabilities ?? {}).filter(
-      (name) => call.capabilities?.[name].optional !== true,
+      (name) =>
+        name !== 'auxiliaryFunds' &&
+        call.capabilities?.[name].optional !== true,
     ),
   );
 
@@ -470,7 +486,7 @@ function validateCapabilities(
  * @param param - The parameter object.
  * @param param.auxiliaryFunds - The auxiliaryFunds param to validate.
  * @param param.auxiliaryFunds.optional - Metadata to signal for wallets that support this optional capability, while maintaining compatibility with wallets that do not.
- * @param param.auxiliaryFunds.requiredAssets -Metadata that enables a wallets support for `auxiliaryFunds` capability.
+ * @param param.auxiliaryFunds.requiredAssets - Metadata that enables a wallets support for `auxiliaryFunds` capability.
  * @param param.chainId - The chain ID of the incoming request.
  * @param param.keyringType - The type of keyring associated with the account.
  * @param param.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
@@ -555,5 +571,40 @@ function validateUpgrade(
       EIP5792ErrorCode.RejectedUpgrade,
       'EIP-7702 upgrade not supported on account',
     );
+  }
+}
+
+/**
+ * Function to possibly deduplicate `auxiliaryFunds` capability `requiredAssets`.
+ * Does nothing if no `requiredAssets` exists in `auxiliaryFunds` capability.
+ *
+ * @param sendCalls - The original sendCalls request.
+ */
+function dedupeAuxiliaryFundsRequiredAssets(sendCalls: SendCallsPayload): void {
+  if (sendCalls.capabilities?.auxiliaryFunds?.requiredAssets) {
+    const { requiredAssets } = sendCalls.capabilities.auxiliaryFunds;
+    // Group assets by their address (lowercased) and standard
+    const grouped = groupBy(
+      requiredAssets,
+      (asset) => `${asset.address.toLowerCase()}-${asset.standard}`,
+    );
+
+    // For each group, sum the amounts and return a single asset
+    const deduplicatedAssets = Object.values(grouped).map((group) => {
+      if (group.length === 1) {
+        return group[0];
+      }
+
+      const totalAmount = group.reduce((sum, asset) => {
+        return sum + BigInt(asset.amount);
+      }, 0n);
+
+      return {
+        ...group[0],
+        amount: add0x(totalAmount.toString(16)) as Hex,
+      };
+    });
+
+    sendCalls.capabilities.auxiliaryFunds.requiredAssets = deduplicatedAssets;
   }
 }
