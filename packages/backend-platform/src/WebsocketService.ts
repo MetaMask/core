@@ -1310,34 +1310,9 @@ export class WebSocketService {
    * @returns True if reconnection should be attempted
    */
   #shouldReconnectOnClose(code: number): boolean {
-    console.log(
-      `Evaluating if reconnection should be attempted for close code: ${code} - ${this.#getCloseReason(code)}`,
-    );
-
     // Don't reconnect only on normal closure (manual disconnect)
     if (code === 1000) {
       console.log(`Not reconnecting - normal closure (manual disconnect)`);
-      return false;
-    }
-
-    // For "Going Away" (1001), check the reason to distinguish between client vs server initiated
-    if (code === 1001) {
-      // If it's a server shutdown, we should retry
-      console.log(
-        `"Going Away" detected - will reconnect as this may be a temporary server shutdown`,
-      );
-      return true;
-    }
-
-    // Don't reconnect on client-side errors (4000-4999)
-    if (code >= 4000 && code <= 4999) {
-      console.log(`Not reconnecting - client-side error (${code})`);
-      return false;
-    }
-
-    // Don't reconnect on certain protocol errors
-    if (code === 1002 || code === 1003 || code === 1007 || code === 1008) {
-      console.log(`Not reconnecting - protocol error (${code})`);
       return false;
     }
 
