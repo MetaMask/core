@@ -222,7 +222,7 @@ export type SmartTransactionsControllerPollingInput = {
   chainIds: Hex[];
 };
 
-export default class SmartTransactionsController extends StaticIntervalPollingController<SmartTransactionsControllerPollingInput>()<
+export class SmartTransactionsController extends StaticIntervalPollingController<SmartTransactionsControllerPollingInput>()<
   typeof controllerName,
   SmartTransactionsControllerState,
   SmartTransactionsControllerMessenger

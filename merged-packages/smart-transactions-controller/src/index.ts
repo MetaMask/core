@@ -1,4 +1,4 @@
-export { default } from './SmartTransactionsController';
+export { SmartTransactionsController } from './SmartTransactionsController';
 export type {
   SmartTransactionsControllerMessenger,
   SmartTransactionsControllerState,

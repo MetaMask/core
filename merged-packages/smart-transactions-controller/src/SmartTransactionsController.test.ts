@@ -33,8 +33,9 @@ import {
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
 } from './constants';
-import SmartTransactionsController, {
+import {
   DEFAULT_INTERVAL,
+  SmartTransactionsController,
   getDefaultSmartTransactionsControllerState,
 } from './SmartTransactionsController';
 import type {
