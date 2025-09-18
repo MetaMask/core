@@ -74,23 +74,6 @@ const splitStringByPeriod = <Start extends string, End extends string>(
   ];
 };
 
-const newURL = (url: string): URL | null => {
-  try {
-    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-    return new URL(urlWithProtocol);
-  } catch {
-    return null;
-  }
-};
-
-const hasPath = (url: string): boolean => {
-  const urlObj = newURL(url);
-  if (!urlObj) {
-    return false;
-  }
-  return urlObj.pathname.split('/').filter(Boolean).length > 0;
-};
-
 /**
  * Determines which diffs are applicable to the listState, then applies those diffs.
  *
@@ -135,7 +118,10 @@ export const applyDiffs = (
       latestDiffTimestamp = timestamp;
     }
 
-    if (targetListType === 'blocklist' && hasPath(url)) {
+    if (
+      targetListType === 'blocklist' &&
+      getHostnameAndPathComponents(url).pathComponents.length > 0
+    ) {
       if (isRemoval) {
         deleteFromTrie(url, listState.blocklistPaths);
       } else {
@@ -278,10 +264,22 @@ export const processConfigs = (
         return false;
       }
     })
-    .map((config) => ({
-      ...config,
-      ...getDefaultPhishingDetectorConfig(config),
-    }));
+    .map((config) => {
+      // If config already has blocklistPaths, use it as-is
+      // Otherwise, process the blocklist to separate hostname-only from hostname+path entries
+      if (config.blocklistPaths !== undefined) {
+        return {
+          ...getDefaultPhishingDetectorConfig({}),
+          ...config,
+        };
+      }
+      
+      const processedConfig = getDefaultPhishingDetectorConfig(config);
+      return {
+        ...config,
+        ...processedConfig,
+      };
+    });
 };
 
 /**
@@ -378,11 +376,12 @@ export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
 };
 
 export const getPathnameFromUrl = (url: string): string => {
-  const urlObj = newURL(url);
-  if (!urlObj) {
+  try {
+    const { pathname } = new URL(url);
+    return pathname;
+  } catch {
     return '';
   }
-  return urlObj.pathname;
 };
 
 export const getHostnameAndPathComponents = (
