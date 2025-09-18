@@ -167,11 +167,7 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (
-      !this.isBackupAndSyncEnabled ||
-      !this.hasSyncedAtLeastOnce ||
-      this.isInProgress
-    ) {
+    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
       return;
     }
 
@@ -191,6 +187,11 @@ export class BackupAndSyncService {
     if (
       !this.isBackupAndSyncEnabled ||
       !this.hasSyncedAtLeastOnce ||
+      // This prevents rate limiting scenarios where full syncs trigger group creations
+      // that in turn enqueue the same single group syncs that the full sync just did.
+      // This can very rarely lead to inconsistencies, but will be fixed on the next full sync.
+      // TODO: let's improve this in the future by tracking the updates done in the full sync and
+      // comparing against that.
       this.isInProgress
     ) {
       return;

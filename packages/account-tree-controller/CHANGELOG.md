@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Single sync events will not get enqueued anymore if a full sync is in progress ([#6651](https://github.com/MetaMask/core/pull/6651))
+- Single group sync events will not get enqueued anymore if a full sync is in progress ([#6651](https://github.com/MetaMask/core/pull/6651))
 
 ## [0.16.1]
 
