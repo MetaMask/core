@@ -238,12 +238,18 @@ export const getDefaultPhishingDetectorConfig = ({
   c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
-}): PhishingDetectorConfiguration => ({
-  allowlist: processDomainList(allowlist),
-  blocklist: processDomainList(blocklist),
-  fuzzylist: processDomainList(fuzzylist),
-  tolerance,
-});
+}): PhishingDetectorConfiguration => {
+  const { blocklist: separatedBlocklist, blocklistPaths } =
+    separateBlocklistEntries(blocklist);
+
+  return {
+    allowlist: processDomainList(allowlist),
+    blocklist: processDomainList(separatedBlocklist),
+    blocklistPaths,
+    fuzzylist: processDomainList(fuzzylist),
+    tolerance,
+  };
+};
 
 /**
  * Processes the configurations for the phishing detector, filtering out any invalid configs.
