@@ -3951,6 +3951,5 @@ describe('AccountTreeController', () => {
           .name,
       ).toBe('Conflict Name (2)');
     });
-
   });
 });

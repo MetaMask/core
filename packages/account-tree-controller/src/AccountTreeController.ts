@@ -15,8 +15,8 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import { assert } from '@metamask/utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { assert } from '@metamask/utils';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
 import {
