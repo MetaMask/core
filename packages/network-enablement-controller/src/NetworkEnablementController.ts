@@ -224,6 +224,51 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Enables a network for the user within a specific namespace.
+   *
+   * This method accepts either a Hex chain ID (for EVM networks) or a CAIP-2 chain ID
+   * (for any blockchain network) and enables it within the specified namespace.
+   * The method validates that the chainId belongs to the specified namespace for safety.
+   *
+   * Before enabling the target network, this method disables all other networks
+   * in the same namespace to ensure exclusive behavior within the namespace.
+   *
+   * @param chainId - The chain ID of the network to enable. Can be either:
+   * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
+   * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
+   * @param namespace - The CAIP namespace where the network should be enabled
+   * @throws Error if the chainId's derived namespace doesn't match the provided namespace
+   */
+  enableNetworkInNamespace(
+    chainId: Hex | CaipChainId,
+    namespace: CaipNamespace,
+  ): void {
+    const { namespace: derivedNamespace, storageKey } = deriveKeys(chainId);
+
+    // Validate that the derived namespace matches the provided namespace
+    if (derivedNamespace !== namespace) {
+      throw new Error(
+        `Chain ID ${chainId} belongs to namespace ${derivedNamespace}, but namespace ${namespace} was specified`,
+      );
+    }
+
+    this.update((s) => {
+      // Ensure the namespace bucket exists
+      this.#ensureNamespaceBucket(s, namespace);
+
+      // Disable all networks in the specified namespace first
+      if (s.enabledNetworkMap[namespace]) {
+        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+        });
+      }
+
+      // Enable the target network in the specified namespace
+      s.enabledNetworkMap[namespace][storageKey] = true;
+    });
+  }
+
+  /**
    * Enables all popular networks and Solana mainnet.
    *
    * This method first disables all networks across all namespaces, then enables

@@ -442,12 +442,41 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   /**
    * Override to handle our custom polling approach
+   *
+   * @param tokenSetId - The token set ID to stop polling for
    */
-  override _stopPollingByPollingTokenSetId() {
-    this.#isControllerPollingActive = false;
-    this.#requestedChainIds = []; // Clear original intent when stopping
-    this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
-    this.#intervalPollingTimers.clear();
+  override _stopPollingByPollingTokenSetId(tokenSetId: string) {
+    let parsedTokenSetId;
+    let chainsToStop: ChainIdHex[] = [];
+
+    try {
+      parsedTokenSetId = JSON.parse(tokenSetId);
+      chainsToStop = parsedTokenSetId.chainIds || [];
+    } catch (error) {
+      console.warn('Failed to parse tokenSetId, stopping all polling:', error);
+      // Fallback: stop all polling if we can't parse the tokenSetId
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+      return;
+    }
+
+    // Compare with current chains - only stop if it matches our current session
+    const currentChainsSet = new Set(this.#requestedChainIds);
+    const stopChainsSet = new Set(chainsToStop);
+
+    // Check if this stop request is for our current session
+    const isCurrentSession =
+      currentChainsSet.size === stopChainsSet.size &&
+      [...currentChainsSet].every((chain) => stopChainsSet.has(chain));
+
+    if (isCurrentSession) {
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+    }
   }
 
   /**
@@ -464,9 +493,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  override async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
+  override async _executePoll({
+    chainIds,
+    queryAllAccounts = false,
+  }: {
+    chainIds: ChainIdHex[];
+    queryAllAccounts?: boolean;
+  }) {
     // This won't be called with our custom implementation, but keep for compatibility
-    await this.updateBalances({ chainIds });
+    await this.updateBalances({ chainIds, queryAllAccounts });
   }
 
   /**
@@ -492,7 +527,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({ chainIds }: { chainIds?: ChainIdHex[] } = {}) {
+  async updateBalances({
+    chainIds,
+    queryAllAccounts = false,
+  }: { chainIds?: ChainIdHex[]; queryAllAccounts?: boolean } = {}) {
     const targetChains = chainIds ?? this.#chainIdsWithTokens();
     if (!targetChains.length) {
       return;
@@ -520,7 +558,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       try {
         const balances = await fetcher.fetch({
           chainIds: supportedChains,
-          queryAllAccounts: this.#queryAllAccounts,
+          queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
         });

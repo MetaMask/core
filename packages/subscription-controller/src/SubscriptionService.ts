@@ -8,6 +8,7 @@ import {
 import { SubscriptionServiceError } from './errors';
 import type {
   AuthUtils,
+  BillingPortalResponse,
   GetSubscriptionsResponse,
   ISubscriptionService,
   PricingResponse,
@@ -15,6 +16,7 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,
+  Subscription,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCryptoRequest,
 } from './types';
@@ -42,9 +44,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path);
   }
 
-  async cancelSubscription(params: { subscriptionId: string }): Promise<void> {
-    const path = `subscriptions/${params.subscriptionId}`;
-    return await this.#makeRequest(path, 'DELETE');
+  async cancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/cancel`;
+    return await this.#makeRequest(path, 'POST', {});
+  }
+
+  async unCancelSubscription(params: {
+    subscriptionId: string;
+  }): Promise<Subscription> {
+    const path = `subscriptions/${params.subscriptionId}/uncancel`;
+    return await this.#makeRequest(path, 'POST', {});
   }
 
   async startSubscriptionWithCard(
@@ -119,5 +130,10 @@ export class SubscriptionService implements ISubscriptionService {
   async getPricing(): Promise<PricingResponse> {
     const path = 'pricing';
     return await this.#makeRequest<PricingResponse>(path);
+  }
+
+  async getBillingPortalUrl(): Promise<BillingPortalResponse> {
+    const path = 'billing-portal';
+    return await this.#makeRequest<BillingPortalResponse>(path);
   }
 }

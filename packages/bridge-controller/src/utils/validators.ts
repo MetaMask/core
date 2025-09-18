@@ -85,6 +85,7 @@ export const ChainConfigurationSchema = type({
   isActiveDest: boolean(),
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
+  stablecoins: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
@@ -203,6 +204,7 @@ export const QuoteSchema = type({
       totalFromAmountUsd: optional(string()),
       totalToAmountUsd: optional(string()),
       priceImpact: optional(string()),
+      totalFeeAmountUsd: optional(string()),
     }),
   ),
 });

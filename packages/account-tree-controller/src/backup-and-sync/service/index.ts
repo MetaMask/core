@@ -162,20 +162,15 @@ export class BackupAndSyncService {
 
   /**
    * Enqueues a single wallet sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
    *
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (!this.isBackupAndSyncEnabled) {
+    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
       return;
     }
 
-    if (!this.hasSyncedAtLeastOnce) {
-      // Run big sync
-      // eslint-disable-next-line no-void
-      void this.performFullSync();
-      return;
-    }
     // eslint-disable-next-line no-void
     void this.#atomicSyncQueue.enqueue(() =>
       this.#performSingleWalletSyncInner(walletId),
@@ -184,18 +179,21 @@ export class BackupAndSyncService {
 
   /**
    * Enqueues a single group sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
    *
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
-    if (!this.isBackupAndSyncEnabled) {
-      return;
-    }
-
-    if (!this.hasSyncedAtLeastOnce) {
-      // Run big sync
-      // eslint-disable-next-line no-void
-      void this.performFullSync();
+    if (
+      !this.isBackupAndSyncEnabled ||
+      !this.hasSyncedAtLeastOnce ||
+      // This prevents rate limiting scenarios where full syncs trigger group creations
+      // that in turn enqueue the same single group syncs that the full sync just did.
+      // This can very rarely lead to inconsistencies, but will be fixed on the next full sync.
+      // TODO: let's improve this in the future by tracking the updates done in the full sync and
+      // comparing against that.
+      this.isInProgress
+    ) {
       return;
     }
 

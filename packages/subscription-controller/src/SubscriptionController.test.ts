@@ -24,10 +24,10 @@ import type {
   UpdatePaymentMethodOpts,
 } from './types';
 import {
-  PaymentType,
-  ProductType,
-  RecurringInterval,
-  SubscriptionStatus,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  SUBSCRIPTION_STATUSES,
 } from './types';
 
 // Mock data
@@ -35,26 +35,30 @@ const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
   products: [
     {
-      name: ProductType.SHIELD,
-      id: 'prod_shield_basic',
+      name: PRODUCT_TYPES.SHIELD,
       currency: 'usd',
-      amount: 900,
+      unitAmount: 900,
+      unitDecimals: 2,
     },
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: SubscriptionStatus.active,
-  interval: RecurringInterval.month,
+  status: SUBSCRIPTION_STATUSES.active,
+  interval: RECURRING_INTERVALS.month,
   paymentMethod: {
-    type: PaymentType.byCard,
+    type: PAYMENT_TYPES.byCard,
+    card: {
+      brand: 'visa',
+      last4: '1234',
+    },
   },
 };
 
 const MOCK_PRODUCT_PRICE: ProductPricing = {
-  name: ProductType.SHIELD,
+  name: PRODUCT_TYPES.SHIELD,
   prices: [
     {
-      interval: RecurringInterval.month,
+      interval: RECURRING_INTERVALS.month,
       currency: 'usd',
       unitAmount: 900,
       unitDecimals: 2,
@@ -65,7 +69,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
 };
 
 const MOCK_PRICING_PAYMENT_METHOD: PricingPaymentMethod = {
-  type: PaymentType.byCrypto,
+  type: PAYMENT_TYPES.byCrypto,
   chains: [
     {
       chainId: '0x1',
@@ -162,26 +166,31 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
 function createMockSubscriptionService() {
   const mockGetSubscriptions = jest.fn().mockImplementation();
   const mockCancelSubscription = jest.fn();
+  const mockUnCancelSubscription = jest.fn();
   const mockStartSubscriptionWithCard = jest.fn();
   const mockGetPricing = jest.fn();
   const mockStartSubscriptionWithCrypto = jest.fn();
   const mockUpdatePaymentMethodCard = jest.fn();
   const mockUpdatePaymentMethodCrypto = jest.fn();
+  const mockGetBillingPortalUrl = jest.fn();
 
   const mockService = {
     getSubscriptions: mockGetSubscriptions,
     cancelSubscription: mockCancelSubscription,
+    unCancelSubscription: mockUnCancelSubscription,
     startSubscriptionWithCard: mockStartSubscriptionWithCard,
     getPricing: mockGetPricing,
     startSubscriptionWithCrypto: mockStartSubscriptionWithCrypto,
     updatePaymentMethodCard: mockUpdatePaymentMethodCard,
     updatePaymentMethodCrypto: mockUpdatePaymentMethodCrypto,
+    getBillingPortalUrl: mockGetBillingPortalUrl,
   };
 
   return {
     mockService,
     mockGetSubscriptions,
     mockCancelSubscription,
+    mockUnCancelSubscription,
     mockStartSubscriptionWithCard,
     mockGetPricing,
     mockStartSubscriptionWithCrypto,
@@ -373,14 +382,17 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue(undefined);
+          mockService.cancelSubscription.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          });
           expect(
             await controller.cancelSubscription({
               subscriptionId: MOCK_SUBSCRIPTION.id,
             }),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: SubscriptionStatus.canceled },
+            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.canceled },
             mockSubscription2,
           ]);
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
@@ -460,6 +472,106 @@ describe('SubscriptionController', () => {
     });
   });
 
+  describe('unCancelSubscription', () => {
+    it('should unCancel subscription successfully', async () => {
+      const mockSubscription2 = { ...MOCK_SUBSCRIPTION, id: 'sub_2' };
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION, mockSubscription2],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          expect(
+            await controller.unCancelSubscription({
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            }),
+          ).toBeUndefined();
+          expect(controller.state.subscriptions).toStrictEqual([
+            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.active },
+            mockSubscription2,
+          ]);
+          expect(mockService.unCancelSubscription).toHaveBeenCalledWith({
+            subscriptionId: MOCK_SUBSCRIPTION.id,
+          });
+          expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw error when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.unCancelSubscription({
+              subscriptionId: 'sub_123456789',
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          );
+        },
+      );
+    });
+
+    it('should not call subscription service when user is not subscribed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, mockService }) => {
+          await expect(
+            controller.unCancelSubscription({
+              subscriptionId: 'sub_123456789',
+            }),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          );
+
+          // Verify the subscription service was not called
+          expect(mockService.unCancelSubscription).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should handle subscription service errors during cancellation', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          const errorMessage = 'Failed to unCancel subscription';
+          mockService.unCancelSubscription.mockRejectedValue(
+            new SubscriptionServiceError(errorMessage),
+          );
+
+          await expect(
+            controller.unCancelSubscription({
+              subscriptionId: 'sub_123456789',
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(mockService.unCancelSubscription).toHaveBeenCalledWith({
+            subscriptionId: 'sub_123456789',
+          });
+          expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
   describe('startShieldSubscriptionWithCard', () => {
     const MOCK_START_SUBSCRIPTION_RESPONSE = {
       checkoutSessionUrl: 'https://checkout.example.com/session/123',
@@ -478,16 +590,16 @@ describe('SubscriptionController', () => {
           );
 
           const result = await controller.startShieldSubscriptionWithCard({
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
           });
 
           expect(result).toStrictEqual(MOCK_START_SUBSCRIPTION_RESPONSE);
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
           });
         },
       );
@@ -503,9 +615,9 @@ describe('SubscriptionController', () => {
         async ({ controller, mockService }) => {
           await expect(
             controller.startShieldSubscriptionWithCard({
-              products: [ProductType.SHIELD],
+              products: [PRODUCT_TYPES.SHIELD],
               isTrialRequested: true,
-              recurringInterval: RecurringInterval.month,
+              recurringInterval: RECURRING_INTERVALS.month,
             }),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.UserAlreadySubscribed,
@@ -532,16 +644,16 @@ describe('SubscriptionController', () => {
 
           await expect(
             controller.startShieldSubscriptionWithCard({
-              products: [ProductType.SHIELD],
+              products: [PRODUCT_TYPES.SHIELD],
               isTrialRequested: true,
-              recurringInterval: RecurringInterval.month,
+              recurringInterval: RECURRING_INTERVALS.month,
             }),
           ).rejects.toThrow(SubscriptionServiceError);
 
           expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
           });
         },
       );
@@ -558,9 +670,9 @@ describe('SubscriptionController', () => {
         },
         async ({ controller, mockService }) => {
           const request: StartCryptoSubscriptionRequest = {
-            products: [ProductType.SHIELD],
+            products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: false,
-            recurringInterval: RecurringInterval.month,
+            recurringInterval: RECURRING_INTERVALS.month,
             billingCycles: 3,
             chainId: '0x1',
             payerAddress: '0x0000000000000000000000000000000000000001',
@@ -570,7 +682,7 @@ describe('SubscriptionController', () => {
 
           const response: StartCryptoSubscriptionResponse = {
             subscriptionId: 'sub_crypto_123',
-            status: SubscriptionStatus.active,
+            status: SUBSCRIPTION_STATUSES.active,
           };
 
           mockService.startSubscriptionWithCrypto.mockResolvedValue(response);
@@ -653,8 +765,8 @@ describe('SubscriptionController', () => {
         const result = await controller.getCryptoApproveTransactionParams({
           chainId: '0x1',
           paymentTokenAddress: '0xtoken',
-          productType: ProductType.SHIELD,
-          interval: RecurringInterval.month,
+          productType: PRODUCT_TYPES.SHIELD,
+          interval: RECURRING_INTERVALS.month,
         });
 
         expect(result).toStrictEqual({
@@ -677,8 +789,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Product price not found');
       });
@@ -689,10 +801,10 @@ describe('SubscriptionController', () => {
         mockService.getPricing.mockResolvedValue({
           products: [
             {
-              name: ProductType.SHIELD,
+              name: PRODUCT_TYPES.SHIELD,
               prices: [
                 {
-                  interval: RecurringInterval.year,
+                  interval: RECURRING_INTERVALS.year,
                   currency: 'usd',
                   unitAmount: 10,
                   unitDecimals: 18,
@@ -709,8 +821,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Price not found');
       });
@@ -722,7 +834,7 @@ describe('SubscriptionController', () => {
           ...MOCK_PRICE_INFO_RESPONSE,
           paymentMethods: [
             {
-              type: PaymentType.byCard,
+              type: PAYMENT_TYPES.byCard,
             },
           ],
         });
@@ -731,8 +843,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Chains payment info not found');
       });
@@ -744,7 +856,7 @@ describe('SubscriptionController', () => {
           ...MOCK_PRICE_INFO_RESPONSE,
           paymentMethods: [
             {
-              type: PaymentType.byCrypto,
+              type: PAYMENT_TYPES.byCrypto,
               chains: [
                 {
                   chainId: '0x2',
@@ -760,8 +872,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Invalid chain id');
       });
@@ -775,8 +887,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken-invalid',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Invalid token address');
       });
@@ -789,7 +901,7 @@ describe('SubscriptionController', () => {
           ...MOCK_PRICE_INFO_RESPONSE,
           paymentMethods: [
             {
-              type: PaymentType.byCrypto,
+              type: PAYMENT_TYPES.byCrypto,
               chains: [
                 {
                   chainId: '0x1',
@@ -811,8 +923,8 @@ describe('SubscriptionController', () => {
           controller.getCryptoApproveTransactionParams({
             chainId: '0x1',
             paymentTokenAddress: '0xtoken',
-            productType: ProductType.SHIELD,
-            interval: RecurringInterval.month,
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
           }),
         ).rejects.toThrow('Conversion rate not found');
       });
@@ -838,7 +950,11 @@ describe('SubscriptionController', () => {
             controller.metadata,
             'anonymous',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`
+          Object {
+            "trialedProducts": Array [],
+          }
+        `);
       });
     });
 
@@ -853,6 +969,7 @@ describe('SubscriptionController', () => {
         ).toMatchInlineSnapshot(`
         Object {
           "subscriptions": Array [],
+          "trialedProducts": Array [],
         }
       `);
       });
@@ -869,6 +986,7 @@ describe('SubscriptionController', () => {
         ).toMatchInlineSnapshot(`
         Object {
           "subscriptions": Array [],
+          "trialedProducts": Array [],
         }
       `);
       });
@@ -885,6 +1003,7 @@ describe('SubscriptionController', () => {
         ).toMatchInlineSnapshot(`
         Object {
           "subscriptions": Array [],
+          "trialedProducts": Array [],
         }
       `);
       });
@@ -901,13 +1020,13 @@ describe('SubscriptionController', () => {
 
         await controller.updatePaymentMethod({
           subscriptionId: 'sub_123456789',
-          paymentType: PaymentType.byCard,
-          recurringInterval: RecurringInterval.month,
+          paymentType: PAYMENT_TYPES.byCard,
+          recurringInterval: RECURRING_INTERVALS.month,
         });
 
         expect(mockService.updatePaymentMethodCard).toHaveBeenCalledWith({
           subscriptionId: 'sub_123456789',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
         });
 
         expect(controller.state.subscriptions).toStrictEqual([
@@ -924,13 +1043,13 @@ describe('SubscriptionController', () => {
         );
 
         const opts: UpdatePaymentMethodOpts = {
-          paymentType: PaymentType.byCrypto,
+          paymentType: PAYMENT_TYPES.byCrypto,
           subscriptionId: 'sub_123456789',
           chainId: '0x1',
           payerAddress: '0x0000000000000000000000000000000000000001',
           tokenSymbol: 'USDC',
           rawTransaction: '0xdeadbeef',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
           billingCycles: 3,
         };
 
@@ -953,12 +1072,25 @@ describe('SubscriptionController', () => {
         const opts = {
           subscriptionId: 'sub_123456789',
           paymentType: 'invalid',
-          recurringInterval: RecurringInterval.month,
+          recurringInterval: RECURRING_INTERVALS.month,
         };
         // @ts-expect-error Intentionally testing with invalid payment type.
         await expect(controller.updatePaymentMethod(opts)).rejects.toThrow(
           'Invalid payment type',
         );
+      });
+    });
+  });
+
+  describe('getBillingPortalUrl', () => {
+    it('should get the billing portal URL', async () => {
+      await withController(async ({ controller, mockService }) => {
+        mockService.getBillingPortalUrl.mockResolvedValue({
+          url: 'https://billing-portal.com',
+        });
+
+        const result = await controller.getBillingPortalUrl();
+        expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
       });
     });
   });

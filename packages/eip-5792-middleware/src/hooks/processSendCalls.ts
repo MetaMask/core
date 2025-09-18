@@ -9,18 +9,22 @@ import type {
 } from '@metamask/transaction-controller';
 import { TransactionEnvelopeType } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
-import { bytesToHex } from '@metamask/utils';
+import { add0x, bytesToHex } from '@metamask/utils';
+import { groupBy } from 'lodash';
 import { parse, v4 as uuid } from 'uuid';
 
 import {
   EIP5792ErrorCode,
+  EIP7682ErrorCode,
   KEYRING_TYPES_SUPPORTING_7702,
   MessageType,
+  SupportedCapabilities,
   VERSION,
 } from '../constants';
 import type {
   EIP5792Messenger,
   SendCallsPayload,
+  SendCallsRequiredAssetsParam,
   SendCallsResult,
 } from '../types';
 import { getAccountKeyringType } from '../utils';
@@ -43,6 +47,8 @@ export type ProcessSendCallsHooks = {
     request: ValidateSecurityRequest,
     chainId: Hex,
   ) => Promise<void>;
+  /** Function to validate if auxiliary funds capability is supported. */
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 };
 
 /**
@@ -76,6 +82,7 @@ export async function processSendCalls(
     getDismissSmartAccountSuggestionEnabled,
     isAtomicBatchSupported,
     validateSecurity: validateSecurityHook,
+    isAuxiliaryFundsSupported,
   } = hooks;
 
   const { calls, from: paramFrom } = params;
@@ -100,12 +107,14 @@ export async function processSendCalls(
       addTransaction,
       chainId,
       from,
+      messenger,
       networkClientId,
       origin,
       securityAlertId,
       sendCalls: params,
       transactions,
       validateSecurity,
+      isAuxiliaryFundsSupported,
     });
   } else {
     batchId = await processMultipleTransaction({
@@ -121,6 +130,7 @@ export async function processSendCalls(
       securityAlertId,
       transactions,
       validateSecurity,
+      isAuxiliaryFundsSupported,
     });
   }
 
@@ -134,28 +144,33 @@ export async function processSendCalls(
  * @param params.addTransaction - Function to add a single transaction.
  * @param params.chainId - The chain ID for the transaction.
  * @param params.from - The sender address.
+ * @param params.messenger - Messenger instance for controller communication.
  * @param params.networkClientId - The network client ID.
  * @param params.origin - The origin of the request (optional).
  * @param params.securityAlertId - The security alert ID for this transaction.
  * @param params.sendCalls - The original sendCalls request.
  * @param params.transactions - Array containing the single transaction.
  * @param params.validateSecurity - Function to validate security for the transaction.
+ * @param params.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  * @returns Promise resolving to the generated batch ID for the transaction.
  */
 async function processSingleTransaction({
   addTransaction,
   chainId,
   from,
+  messenger,
   networkClientId,
   origin,
   securityAlertId,
   sendCalls,
   transactions,
   validateSecurity,
+  isAuxiliaryFundsSupported,
 }: {
   addTransaction: TransactionController['addTransaction'];
   chainId: Hex;
   from: Hex;
+  messenger: EIP5792Messenger;
   networkClientId: string;
   origin?: string;
   securityAlertId: string;
@@ -165,8 +180,16 @@ async function processSingleTransaction({
     securityRequest: ValidateSecurityRequest,
     chainId: Hex,
   ) => void;
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 }) {
-  validateSingleSendCall(sendCalls, chainId);
+  const keyringType = getAccountKeyringType(from, messenger);
+
+  validateSingleSendCall(
+    sendCalls,
+    chainId,
+    keyringType,
+    isAuxiliaryFundsSupported,
+  );
 
   const txParams = {
     from,
@@ -180,6 +203,8 @@ async function processSingleTransaction({
     origin,
   };
   validateSecurity(securityRequest, chainId);
+
+  dedupeAuxiliaryFundsRequiredAssets(sendCalls);
 
   const batchId = generateBatchId();
 
@@ -208,6 +233,7 @@ async function processSingleTransaction({
  * @param params.securityAlertId - The security alert ID for this batch.
  * @param params.transactions - Array of transactions to process.
  * @param params.validateSecurity - Function to validate security for the transactions.
+ * @param params.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  * @returns Promise resolving to the generated batch ID for the transaction batch.
  */
 async function processMultipleTransaction({
@@ -223,6 +249,7 @@ async function processMultipleTransaction({
   securityAlertId,
   transactions,
   validateSecurity,
+  isAuxiliaryFundsSupported,
 }: {
   addTransactionBatch: TransactionController['addTransactionBatch'];
   isAtomicBatchSupported: TransactionController['isAtomicBatchSupported'];
@@ -239,6 +266,7 @@ async function processMultipleTransaction({
     securityRequest: ValidateSecurityRequest,
     chainId: Hex,
   ) => Promise<void>;
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
 }) {
   const batchSupport = await isAtomicBatchSupported({
     address: from,
@@ -258,7 +286,10 @@ async function processMultipleTransaction({
     dismissSmartAccountSuggestionEnabled,
     chainBatchSupport,
     keyringType,
+    isAuxiliaryFundsSupported,
   );
+
+  dedupeAuxiliaryFundsRequiredAssets(sendCalls);
 
   const result = await addTransactionBatch({
     from,
@@ -287,10 +318,17 @@ function generateBatchId(): Hex {
  *
  * @param sendCalls - The sendCalls request to validate.
  * @param dappChainId - The chain ID that the dApp is connected to.
+ * @param keyringType - The type of keyring associated with the account.
+ * @param isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  */
-function validateSingleSendCall(sendCalls: SendCallsPayload, dappChainId: Hex) {
+function validateSingleSendCall(
+  sendCalls: SendCallsPayload,
+  dappChainId: Hex,
+  keyringType: KeyringTypes,
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean,
+) {
   validateSendCallsVersion(sendCalls);
-  validateCapabilities(sendCalls);
+  validateCapabilities(sendCalls, keyringType, isAuxiliaryFundsSupported);
   validateDappChainId(sendCalls, dappChainId);
 }
 
@@ -302,6 +340,7 @@ function validateSingleSendCall(sendCalls: SendCallsPayload, dappChainId: Hex) {
  * @param dismissSmartAccountSuggestionEnabled - Whether smart account suggestions are disabled.
  * @param chainBatchSupport - Information about atomic batch support for the chain.
  * @param keyringType - The type of keyring associated with the account.
+ * @param isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
  */
 function validateSendCalls(
   sendCalls: SendCallsPayload,
@@ -309,10 +348,11 @@ function validateSendCalls(
   dismissSmartAccountSuggestionEnabled: boolean,
   chainBatchSupport: IsAtomicBatchSupportedResultEntry | undefined,
   keyringType: KeyringTypes,
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean,
 ) {
   validateSendCallsVersion(sendCalls);
   validateSendCallsChainId(sendCalls, dappChainId, chainBatchSupport);
-  validateCapabilities(sendCalls);
+  validateCapabilities(sendCalls, keyringType, isAuxiliaryFundsSupported);
   validateUpgrade(
     dismissSmartAccountSuggestionEnabled,
     chainBatchSupport,
@@ -382,18 +422,30 @@ function validateSendCallsChainId(
  * Validates that all required capabilities in the sendCalls request are supported.
  *
  * @param sendCalls - The sendCalls request to validate.
+ * @param keyringType - The type of keyring associated with the account.
+ * @param isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
+ *
  * @throws JsonRpcError if unsupported non-optional capabilities are requested.
  */
-function validateCapabilities(sendCalls: SendCallsPayload) {
-  const { calls, capabilities } = sendCalls;
+function validateCapabilities(
+  sendCalls: SendCallsPayload,
+  keyringType: KeyringTypes,
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean,
+) {
+  const { calls, capabilities, chainId } = sendCalls;
 
   const requiredTopLevelCapabilities = Object.keys(capabilities ?? {}).filter(
-    (name) => capabilities?.[name].optional !== true,
+    (name) =>
+      // Non optional capabilities other than `auxiliaryFunds` are not supported by the wallet
+      name !== SupportedCapabilities.AuxiliaryFunds.toString() &&
+      capabilities?.[name].optional !== true,
   );
 
   const requiredCallCapabilities = calls.flatMap((call) =>
     Object.keys(call.capabilities ?? {}).filter(
-      (name) => call.capabilities?.[name].optional !== true,
+      (name) =>
+        name !== SupportedCapabilities.AuxiliaryFunds.toString() &&
+        call.capabilities?.[name].optional !== true,
     ),
   );
 
@@ -409,6 +461,79 @@ function validateCapabilities(sendCalls: SendCallsPayload) {
         ', ',
       )}`,
     );
+  }
+
+  if (capabilities?.auxiliaryFunds) {
+    validateAuxFundsSupportAndRequiredAssets({
+      auxiliaryFunds: capabilities.auxiliaryFunds,
+      chainId,
+      keyringType,
+      isAuxiliaryFundsSupported,
+    });
+  }
+}
+
+/**
+ * Validates EIP-7682 optional `requiredAssets` to see if the account and chain are supported, and that param is well-formed.
+ *
+ * docs: {@link https://eips.ethereum.org/EIPS/eip-7682#extended-usage-requiredassets-parameter}
+ *
+ * @param param - The parameter object.
+ * @param param.auxiliaryFunds - The auxiliaryFunds param to validate.
+ * @param param.auxiliaryFunds.optional - Metadata to signal for wallets that support this optional capability, while maintaining compatibility with wallets that do not.
+ * @param param.auxiliaryFunds.requiredAssets - Metadata that enables a wallets support for `auxiliaryFunds` capability.
+ * @param param.chainId - The chain ID of the incoming request.
+ * @param param.keyringType - The type of keyring associated with the account.
+ * @param param.isAuxiliaryFundsSupported - Function to validate if auxiliary funds capability is supported.
+ * @throws JsonRpcError if auxiliary funds capability is not supported.
+ */
+function validateAuxFundsSupportAndRequiredAssets({
+  auxiliaryFunds,
+  chainId,
+  keyringType,
+  isAuxiliaryFundsSupported,
+}: {
+  auxiliaryFunds: {
+    optional?: boolean;
+    requiredAssets?: SendCallsRequiredAssetsParam[];
+  };
+  chainId: Hex;
+  keyringType: KeyringTypes;
+  isAuxiliaryFundsSupported: (chainId: Hex) => boolean;
+}) {
+  // If we can make use of that capability then we should, but otherwise we can process the request and ignore the capability
+  // so if the capability is signaled as optional, no validation is required, so we don't block the transaction from happening.
+  if (auxiliaryFunds.optional) {
+    return;
+  }
+  const isSupportedAccount =
+    KEYRING_TYPES_SUPPORTING_7702.includes(keyringType);
+
+  if (!isSupportedAccount) {
+    throw new JsonRpcError(
+      EIP5792ErrorCode.UnsupportedNonOptionalCapability,
+      `Unsupported non-optional capability: ${SupportedCapabilities.AuxiliaryFunds}`,
+    );
+  }
+
+  if (!isAuxiliaryFundsSupported(chainId)) {
+    throw new JsonRpcError(
+      EIP7682ErrorCode.UnsupportedChain,
+      `The wallet no longer supports auxiliary funds on the requested chain: ${chainId}`,
+    );
+  }
+
+  if (!auxiliaryFunds?.requiredAssets) {
+    return;
+  }
+
+  for (const asset of auxiliaryFunds.requiredAssets) {
+    if (asset.standard !== 'erc20') {
+      throw new JsonRpcError(
+        EIP7682ErrorCode.UnsupportedAsset,
+        `The requested asset ${asset.address} is not available through the wallet’s auxiliary fund system: unsupported token standard ${asset.standard}`,
+      );
+    }
   }
 }
 
@@ -441,5 +566,40 @@ function validateUpgrade(
       EIP5792ErrorCode.RejectedUpgrade,
       'EIP-7702 upgrade not supported on account',
     );
+  }
+}
+
+/**
+ * Function to possibly deduplicate `auxiliaryFunds` capability `requiredAssets`.
+ * Does nothing if no `requiredAssets` exists in `auxiliaryFunds` capability.
+ *
+ * @param sendCalls - The original sendCalls request.
+ */
+function dedupeAuxiliaryFundsRequiredAssets(sendCalls: SendCallsPayload): void {
+  if (sendCalls.capabilities?.auxiliaryFunds?.requiredAssets) {
+    const { requiredAssets } = sendCalls.capabilities.auxiliaryFunds;
+    // Group assets by their address (lowercased) and standard
+    const grouped = groupBy(
+      requiredAssets,
+      (asset) => `${asset.address.toLowerCase()}-${asset.standard}`,
+    );
+
+    // For each group, sum the amounts and return a single asset
+    const deduplicatedAssets = Object.values(grouped).map((group) => {
+      if (group.length === 1) {
+        return group[0];
+      }
+
+      const totalAmount = group.reduce((sum, asset) => {
+        return sum + BigInt(asset.amount);
+      }, 0n);
+
+      return {
+        ...group[0],
+        amount: add0x(totalAmount.toString(16)),
+      };
+    });
+
+    sendCalls.capabilities.auxiliaryFunds.requiredAssets = deduplicatedAssets;
   }
 }
