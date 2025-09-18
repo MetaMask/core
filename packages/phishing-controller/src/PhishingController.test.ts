@@ -2464,7 +2464,9 @@ describe('PhishingController', () => {
               blocklist: [],
               c2DomainBlocklist: [],
               blocklistPaths: {
-                'example.com/path': {},
+                'example.com': {
+                  path: {},
+                },
               },
               fuzzylist: [],
               tolerance: 0,
