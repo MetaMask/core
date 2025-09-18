@@ -58,12 +58,18 @@ export const createMultichainAccountGroup = async (
       });
     }
   } catch (error) {
+    // This can happen if the Snap Keyring is not ready yet when invoking
+    // `MultichainAccountService:createMultichainAccountGroup`.
+    // Since `MultichainAccountService:createMultichainAccountGroup` will at
+    // least create the EVM account and the account group before throwing, we can safely
+    // ignore this error and swallow it.
+    // Any missing Snap accounts will be added later with alignment.
+
     backupAndSyncLogger(
       `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
       // istanbul ignore next
       error instanceof Error ? error.message : String(error),
     );
-    throw error;
   }
 };
 
@@ -85,30 +91,20 @@ export async function createLocalGroupsFromUserStorage(
     ...groupsFromUserStorage.map((g) => g.groupIndex),
   );
 
+  // Creating multichain account group is idempotent, so we can safely
+  // re-create every groups starting from 0.
   for (
     let groupIndex = 0;
     groupIndex <= numberOfAccountGroupsToCreate;
     groupIndex++
   ) {
-    try {
-      // Creating multichain account group is idempotent, so we can safely
-      // re-create every groups starting from 0.
-      await createMultichainAccountGroup(
-        context,
-        entropySourceId,
-        groupIndex,
-        profileId,
-        BackupAndSyncAnalyticsEvent.GroupAdded,
-      );
-    } catch {
-      // This can happen if the Snap Keyring is not ready yet when invoking
-      // `MultichainAccountService:createMultichainAccountGroup`.
-      // Since `MultichainAccountService:createMultichainAccountGroup` will at
-      // least create the EVM account and the account group before throwing, we can safely
-      // ignore this error and continue.
-      // Any missing Snap accounts will be added later with alignment.
-      continue;
-    }
+    await createMultichainAccountGroup(
+      context,
+      entropySourceId,
+      groupIndex,
+      profileId,
+      BackupAndSyncAnalyticsEvent.GroupAdded,
+    );
   }
 }
 
