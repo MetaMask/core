@@ -191,6 +191,8 @@ function setup({
     },
   );
 
+  jest.mocked(publicToAddress).mockReturnValue(createBytes('0x123'));
+
   const provider = new EvmAccountProvider(
     getMultichainAccountServiceMessenger(messenger),
   );
@@ -373,8 +375,6 @@ describe('EvmAccountProvider', () => {
         throw new Error('RPC request failed 4');
       });
 
-    mockNextDiscoveryAddressOnce('0x123');
-
     await expect(
       provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -395,8 +395,6 @@ describe('EvmAccountProvider', () => {
         }, 600);
       });
     });
-
-    mockNextDiscoveryAddressOnce('0x123');
 
     await expect(
       provider.discoverAccounts({
