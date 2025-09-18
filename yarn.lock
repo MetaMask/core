@@ -2435,7 +2435,7 @@ __metadata:
     "@metamask/account-api": ^0.12.0
     "@metamask/accounts-controller": ^33.0.0
     "@metamask/keyring-controller": ^23.0.0
-    "@metamask/multichain-account-service": ^0.8.0
+    "@metamask/multichain-account-service": ^0.9.0
     "@metamask/profile-sync-controller": ^25.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
@@ -2639,7 +2639,7 @@ __metadata:
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/account-tree-controller": ^0.7.0
+    "@metamask/account-tree-controller": ^0.16.0
     "@metamask/accounts-controller": ^33.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/keyring-controller": ^23.0.0
@@ -3068,7 +3068,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/account-tree-controller": ^0.12.1
+    "@metamask/account-tree-controller": ^0.16.0
     "@metamask/network-controller": ^24.0.0
   languageName: unknown
   linkType: soft
@@ -4056,7 +4056,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/multichain-network-controller": ^0.11.0
+    "@metamask/multichain-network-controller": ^0.12.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/transaction-controller": ^60.0.0
   languageName: unknown
