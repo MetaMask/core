@@ -89,6 +89,11 @@ export class MultichainAccountWallet<
     this.#status = 'uninitialized';
   }
 
+  /**
+   * Initialize the wallet and construct the internal representation of multichain account groups.
+   *
+   * @param walletState - The wallet state.
+   */
   init(walletState: WalletState) {
     for (const groupIndex of Object.keys(walletState)) {
       // Have to convert to number because the state keys become strings when we construct the state object in the service
