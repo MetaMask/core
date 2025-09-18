@@ -1151,6 +1151,10 @@ describe('getHostnameAndPathComponents', () => {
       { hostname: 'example.com', pathComponents: ['Path1', 'PATH2'] },
     ],
     ['', { hostname: '', pathComponents: [] }],
+    [
+      'example.sub.com/path1/path2',
+      { hostname: 'example.sub.com', pathComponents: ['path1', 'path2'] },
+    ],
   ])('parses %s correctly', (input, expected) => {
     const result = getHostnameAndPathComponents(input);
     expect(result).toStrictEqual(expected);
