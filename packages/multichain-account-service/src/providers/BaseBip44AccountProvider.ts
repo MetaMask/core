@@ -46,44 +46,40 @@ export type NamedAccountProvider<
 export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
+  accounts: Bip44Account<KeyringAccount>['id'][] = [];
+
   constructor(messenger: MultichainAccountServiceMessenger) {
     this.messenger = messenger;
   }
 
   abstract getName(): string;
 
-  #getAccounts(
-    filter: (account: KeyringAccount) => boolean = () => true,
-  ): Bip44Account<KeyringAccount>[] {
-    const accounts: Bip44Account<KeyringAccount>[] = [];
+  addAccounts(accounts: Bip44Account<KeyringAccount>['id'][]): void {
+    this.accounts.push(...accounts);
+  }
 
-    for (const account of this.messenger.call(
-      // NOTE: Even though the name is misleading, this only fetches all internal
-      // accounts, including EVM and non-EVM. We might wanna change this action
-      // name once we fully support multichain accounts.
-      'AccountsController:listMultichainAccounts',
-    )) {
-      if (
-        isBip44Account(account) &&
-        this.isAccountCompatible(account) &&
-        filter(account)
-      ) {
-        accounts.push(account);
-      }
-    }
-
-    return accounts;
+  #getAccountsList(): Bip44Account<KeyringAccount>['id'][] {
+    return this.accounts;
   }
 
   getAccounts(): Bip44Account<KeyringAccount>[] {
-    return this.#getAccounts();
+    const accountsList = this.#getAccountsList();
+    const internalAccounts = this.messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+    return accountsList.map(
+      (id) =>
+        internalAccounts.find(
+          (account) => account.id === id,
+        ) as Bip44Account<KeyringAccount>,
+    );
   }
 
   getAccount(
     id: Bip44Account<KeyringAccount>['id'],
   ): Bip44Account<KeyringAccount> {
     // TODO: Maybe just use a proper find for faster lookup?
-    const [found] = this.#getAccounts((account) => account.id === id);
+    const [found] = this.getAccounts.find((account) => account.id === id);
 
     if (!found) {
       throw new Error(`Unable to find account: ${id}`);

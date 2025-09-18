@@ -10,15 +10,12 @@ import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type {
-  EvmAccountProviderConfig,
-  NamedAccountProvider,
-  SolAccountProviderConfig,
-} from './providers';
+import type { BaseBip44AccountProvider } from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
@@ -32,13 +29,9 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-export type MultichainAccountServiceOptions = {
+type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: NamedAccountProvider[];
-  providerConfigs?: {
-    [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
-    [SolAccountProvider.NAME]?: SolAccountProviderConfig;
-  };
+  providers?: BaseBip44AccountProvider[];
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -47,13 +40,29 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
   group: MultichainAccountGroup<Account>;
 };
 
+export type StateKeys = {
+  entropySource: EntropySourceId;
+  groupIndex: number;
+  providerName: string;
+};
+
+export type ServiceState = {
+  [entropySource: StateKeys['entropySource']]: {
+    [groupIndex: string]: {
+      [
+        providerName: StateKeys['providerName']
+      ]: Bip44Account<KeyringAccount>['id'][];
+    };
+  };
+};
+
 /**
  * Service to expose multichain accounts capabilities.
  */
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: NamedAccountProvider[];
+  readonly #providers: BaseBip44AccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -77,30 +86,19 @@ export class MultichainAccountService {
    * @param options.messenger - The messenger suited to this
    * MultichainAccountService.
    * @param options.providers - Optional list of account
-   * @param options.providerConfigs - Optional provider configs
    * providers.
    */
-  constructor({
-    messenger,
-    providers = [],
-    providerConfigs,
-  }: MultichainAccountServiceOptions) {
+  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
-      new EvmAccountProvider(
-        this.#messenger,
-        providerConfigs?.[EvmAccountProvider.NAME],
-      ),
+      new EvmAccountProvider(this.#messenger),
       new AccountProviderWrapper(
         this.#messenger,
-        new SolAccountProvider(
-          this.#messenger,
-          providerConfigs?.[SolAccountProvider.NAME],
-        ),
+        new SolAccountProvider(this.#messenger),
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
@@ -155,6 +153,49 @@ export class MultichainAccountService {
     );
   }
 
+  #getStateKeys(account: InternalAccount): StateKeys | null {
+    for (const provider of this.#providers) {
+      if (isBip44Account(account) && provider.isAccountCompatible(account)) {
+        return {
+          entropySource: account.options.entropy.id,
+          groupIndex: account.options.entropy.groupIndex,
+          providerName: provider.getName(),
+        };
+      }
+    }
+    return null;
+  }
+
+  #constructServiceState() {
+    const accounts = this.#messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+
+    const serviceState: ServiceState = {};
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
+
+    // We set up the wallet level keys for this constructed state object
+    for (const keyring of keyrings) {
+      if (keyring.type === (KeyringTypes.hd as string)) {
+        serviceState[keyring.metadata.id] = {};
+      }
+    }
+
+    for (const account of accounts) {
+      const keys = this.#getStateKeys(account);
+      if (keys) {
+        serviceState[keys.entropySource][keys.groupIndex][keys.providerName] ??=
+          [];
+        // ok to cast here because at this point we know that the account is BIP-44 compatible
+        serviceState[keys.entropySource][keys.groupIndex][
+          keys.providerName
+        ].push(account.id);
+      }
+    }
+
+    return serviceState;
+  }
+
   /**
    * Initialize the service and constructs the internal reprensentation of
    * multichain accounts and wallets.
@@ -163,30 +204,22 @@ export class MultichainAccountService {
     this.#wallets.clear();
     this.#accountIdToContext.clear();
 
-    // Create initial wallets.
-    const { keyrings } = this.#messenger.call('KeyringController:getState');
-    for (const keyring of keyrings) {
-      if (keyring.type === (KeyringTypes.hd as string)) {
-        // Only HD keyrings have an entropy source/SRP.
-        const entropySource = keyring.metadata.id;
+    const serviceState = this.#constructServiceState();
+    for (const entropySource of Object.keys(serviceState)) {
+      const wallet = new MultichainAccountWallet({
+        entropySource,
+        providers: this.#providers,
+        messenger: this.#messenger,
+      });
+      wallet.init(serviceState[entropySource]);
+      this.#wallets.set(wallet.id, wallet);
 
-        // This will automatically "associate" all multichain accounts for that wallet
-        // (based on the accounts owned by each account providers).
-        const wallet = new MultichainAccountWallet({
-          entropySource,
-          providers: this.#providers,
-          messenger: this.#messenger,
-        });
-        this.#wallets.set(wallet.id, wallet);
-
-        // Reverse mapping between account ID and their multichain wallet/account:
-        for (const group of wallet.getMultichainAccountGroups()) {
-          for (const account of group.getAccounts()) {
-            this.#accountIdToContext.set(account.id, {
-              wallet,
-              group,
-            });
-          }
+      for (const group of wallet.getMultichainAccountGroups()) {
+        for (const accountId of group.getAccountIds()) {
+          this.#accountIdToContext.set(accountId, {
+            wallet,
+            group,
+          });
         }
       }
     }

@@ -8,9 +8,13 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
+import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { NamedAccountProvider } from './providers';
+import type { BaseBip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+
+export type GroupState =
+  ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
 
 /**
  * A multichain account group that holds multiple accounts.
@@ -25,17 +29,11 @@ export class MultichainAccountGroup<
 
   readonly #groupIndex: number;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: BaseBip44AccountProvider[];
 
-  readonly #providerToAccounts: Map<
-    NamedAccountProvider<Account>,
-    Account['id'][]
-  >;
+  readonly #providerToAccounts: Map<BaseBip44AccountProvider, Account['id'][]>;
 
-  readonly #accountToProvider: Map<
-    Account['id'],
-    NamedAccountProvider<Account>
-  >;
+  readonly #accountToProvider: Map<Account['id'], BaseBip44AccountProvider>;
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
@@ -50,7 +48,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: NamedAccountProvider<Account>[];
+    providers: BaseBip44AccountProvider[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
@@ -64,6 +62,30 @@ export class MultichainAccountGroup<
     this.sync();
     this.#initialized = true;
   }
+
+  init(groupState: GroupState) {
+    for (const provider of this.#providers) {
+      const accountIds = groupState[provider.getName()];
+
+      if (accountIds) {
+        for (const accountId of accountIds) {
+          this.#accountToProvider.set(accountId, provider);
+        }
+        const providerAccounts = this.#providerToAccounts.get(provider);
+        if (!providerAccounts) {
+          this.#providerToAccounts.set(provider, accountIds);
+        } else {
+          providerAccounts.push(...accountIds);
+        }
+        // Add the accounts to the provider's internal list of account IDs
+        provider.addAccounts(accountIds);
+      }
+    }
+  }
+
+  /**
+   * Add a method to update a group and emit the multichainAccountGroupUpdated event
+   */
 
   /**
    * Force multichain account synchronization.
@@ -175,6 +197,10 @@ export class MultichainAccountGroup<
     return allAccounts;
   }
 
+  getAccountIds(): Account['id'][] {
+    return [...this.#providerToAccounts.values()].flat();
+  }
+
   /**
    * Gets the account for a given account ID.
    *
@@ -228,13 +254,43 @@ export class MultichainAccountGroup<
             groupIndex: this.groupIndex,
           });
         }
-        return Promise.resolve();
+        return Promise.reject(new Error('Already aligned'));
       }),
     );
 
+    // Fetching the account list once from the AccountsController to avoid multiple calls
+    const accountsList = this.#messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+
+    const groupState: GroupState = {};
+
+    const addressBuckets = results.map((result, idx) => {
+      const addressSet = new Set<string>();
+      if (result.status === 'fulfilled') {
+        groupState[this.#providers[idx].getName()] = [];
+        result.value.forEach((account) => {
+          addressSet.add(account.address);
+        });
+      }
+      return addressSet;
+    });
+
+    accountsList.forEach((account) => {
+      const { address } = account;
+      addressBuckets.forEach((addressSet, idx) => {
+        if (addressSet.has(address)) {
+          groupState[this.#providers[idx].getName()].push(account.id);
+        }
+      });
+    });
+
+    this.init(groupState);
+
     if (results.some((result) => result.status === 'rejected')) {
       const rejectedResults = results.filter(
-        (result) => result.status === 'rejected',
+        (result) =>
+          result.status === 'rejected' && result.reason !== 'Already aligned',
       ) as PromiseRejectedResult[];
       const errors = rejectedResults
         .map((result) => `- ${result.reason}`)
