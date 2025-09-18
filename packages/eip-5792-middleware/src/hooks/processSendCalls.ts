@@ -512,7 +512,7 @@ function validateAuxFundsSupportAndRequiredAssets({
   if (!isSupportedAccount) {
     throw new JsonRpcError(
       EIP5792ErrorCode.UnsupportedNonOptionalCapability,
-      `Unsupported non-optional capabilities: ${SupportedCapabilities.AuxiliaryFunds}`,
+      `Unsupported non-optional capability: ${SupportedCapabilities.AuxiliaryFunds}`,
     );
   }
 
@@ -596,7 +596,7 @@ function dedupeAuxiliaryFundsRequiredAssets(sendCalls: SendCallsPayload): void {
 
       return {
         ...group[0],
-        amount: add0x(totalAmount.toString(16)) as Hex,
+        amount: add0x(totalAmount.toString(16)),
       };
     });
 
