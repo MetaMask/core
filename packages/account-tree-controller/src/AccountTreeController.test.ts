@@ -631,7 +631,7 @@ describe('AccountTreeController', () => {
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
         isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {
-          [expectedWalletId2Group]: {
+          [expectedWalletId2Group2]: {
             name: {
               value: 'Account 4',
               lastUpdatedAt: expect.any(Number),
@@ -2414,9 +2414,9 @@ describe('AccountTreeController', () => {
       const group1 = wallet?.groups[expectedGroupId1];
       const group2 = wallet?.groups[expectedGroupId2];
 
-      // Verify fallback naming: "Account 2", "Account 3" within the same wallet (due to +1 logic)
+      // Verify fallback naming: "Account 2", "Account 4" within the same wallet (due to +1 logic)
       expect(group1?.metadata.name).toBe('Account 2');
-      expect(group2?.metadata.name).toBe('Account 3');
+      expect(group2?.metadata.name).toBe('Account 4');
     });
 
     it('handles adding new accounts to existing groups correctly', () => {
@@ -2637,10 +2637,10 @@ describe('AccountTreeController', () => {
 
       expect(wallet1Groups).toHaveLength(5);
       expect(wallet1Groups[0].metadata.name).toBe('Account 2');
-      expect(wallet1Groups[1].metadata.name).toBe('Account 3');
-      expect(wallet1Groups[2].metadata.name).toBe('Account 4');
-      expect(wallet1Groups[3].metadata.name).toBe('Account 5');
-      expect(wallet1Groups[4].metadata.name).toBe('Account 6');
+      expect(wallet1Groups[1].metadata.name).toBe('Account 4');
+      expect(wallet1Groups[2].metadata.name).toBe('Account 6');
+      expect(wallet1Groups[3].metadata.name).toBe('Account 7');
+      expect(wallet1Groups[4].metadata.name).toBe('Account 8');
 
       // Verify second SRP ALSO starts from Account 2 (independent numbering per wallet)
       const wallet2Id = toMultichainAccountWalletId('srp2-id');
@@ -2657,8 +2657,8 @@ describe('AccountTreeController', () => {
 
       expect(wallet2Groups).toHaveLength(3);
       expect(wallet2Groups[0].metadata.name).toBe('Account 2');
-      expect(wallet2Groups[1].metadata.name).toBe('Account 3');
-      expect(wallet2Groups[2].metadata.name).toBe('Account 4');
+      expect(wallet2Groups[1].metadata.name).toBe('Account 4');
+      expect(wallet2Groups[2].metadata.name).toBe('Account 6');
 
       // Verify second SRP starts from Account 2 independently
       expect(wallet1Groups[0].metadata.name).toBe('Account 2');
@@ -2721,7 +2721,7 @@ describe('AccountTreeController', () => {
       const state1 = controller.state;
       const wallet1 = state1.accountTree.wallets[walletId];
       expect(wallet1.groups[group1Id].metadata.name).toBe('Account 2'); // groupIndex 0 → Account 2 (due to +1)
-      expect(wallet1.groups[group2Id].metadata.name).toBe('Account 3'); // groupIndex 1 → Account 3 (due to +1)
+      expect(wallet1.groups[group2Id].metadata.name).toBe('Account 4'); // groupIndex 1 → Account 4 (due to +1)
 
       // Simulate app restart by re-initializing
       controller.init();
@@ -2730,7 +2730,7 @@ describe('AccountTreeController', () => {
       const state2 = controller.state;
       const wallet2 = state2.accountTree.wallets[walletId];
       expect(wallet2.groups[group1Id].metadata.name).toBe('Account 2');
-      expect(wallet2.groups[group2Id].metadata.name).toBe('Account 3');
+      expect(wallet2.groups[group2Id].metadata.name).toBe('Account 4');
 
       // Add a new account after restart
       const newAccount: Bip44Account<InternalAccount> = {
@@ -2758,7 +2758,7 @@ describe('AccountTreeController', () => {
       const group3Id = toMultichainAccountGroupId(walletId, 2);
       const state3 = controller.state;
       const wallet3 = state3.accountTree.wallets[walletId];
-      expect(wallet3.groups[group3Id].metadata.name).toBe('Account 3');
+      expect(wallet3.groups[group3Id].metadata.name).toBe('Account 6');
 
       // All names should be different
       const allNames = [
@@ -2897,7 +2897,7 @@ describe('AccountTreeController', () => {
       ).toBe('Account 2');
       expect(
         state1.accountTree.wallets[walletId].groups[group2Id].metadata.name,
-      ).toBe('Account 3');
+      ).toBe('Account 4');
 
       // Step 2: User renames first group to "Custom Name" (to avoid initial conflict)
       controller.setAccountGroupName(group1Id, 'Custom Name');
@@ -2912,8 +2912,8 @@ describe('AccountTreeController', () => {
       // First group should keep user's custom name
       expect(wallet.groups[group1Id].metadata.name).toBe('Custom Name');
 
-      // Second group should get its natural "Account 3" since no conflict
-      expect(wallet.groups[group2Id].metadata.name).toBe('Account 3');
+      // Second group should get its natural "Account 4" since no conflict
+      expect(wallet.groups[group2Id].metadata.name).toBe('Account 4');
 
       // Verify no duplicates
       expect(wallet.groups[group1Id].metadata.name).not.toBe(
