@@ -636,19 +636,12 @@ export class AccountTreeController extends BaseController<
    * Handles multichain account group created/updated event from
    * the MultichainAccountService.
    *
-   * @param multichainAccountGroup - Multichain account group being that got created or updated.
+   * @param group - Multichain account group being that got created or updated.
    */
   #handleMultichainAccountGroupCreatedOrUpdated(
-    multichainAccountGroup: MultichainAccountGroup<
-      Bip44Account<KeyringAccount>
-    >,
+    group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
   ): void {
-    // Trigger atomic sync for wallet and group (wallet will be synced only if it does
-    // not exist yet)
-    this.#backupAndSyncService.enqueueSingleWalletAndGroupSync(
-      multichainAccountGroup.wallet.id,
-      multichainAccountGroup.id,
-    );
+    this.#backupAndSyncService.enqueueSingleGroupSync(group.id);
   }
 
   /**
@@ -714,6 +707,11 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
+
+      // Trigger atomic sync for new wallet (only for entropy wallets)
+      if (wallet.type === AccountWalletType.Entropy) {
+        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
+      }
     }
 
     const groupId = result.group.id;
