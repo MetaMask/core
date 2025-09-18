@@ -302,7 +302,7 @@ export class WebSocketService {
       return;
     }
 
-    console.log(`🔄 Starting connection attempt to ${this.#options.url}`);
+    console.log(`[${SERVICE_NAME}] 🔄 Starting connection attempt to ${this.#options.url}`);
     this.#setState(WebSocketState.CONNECTING);
     this.#lastError = null;
 
@@ -311,10 +311,10 @@ export class WebSocketService {
 
     try {
       await this.#connectionPromise;
-      console.log(`✅ Connection attempt succeeded`);
+      console.log(`[${SERVICE_NAME}] ✅ Connection attempt succeeded`);
     } catch (error) {
       const errorMessage = this.#getErrorMessage(error);
-      console.error(`❌ Connection attempt failed: ${errorMessage}`);
+      console.error(`[${SERVICE_NAME}] ❌ Connection attempt failed: ${errorMessage}`);
       this.#lastError = errorMessage;
       this.#setState(WebSocketState.ERROR);
 
@@ -335,11 +335,11 @@ export class WebSocketService {
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
     ) {
-      console.log(`Disconnect called but already in state: ${this.#state}`);
+      console.log(`[${SERVICE_NAME}] Disconnect called but already in state: ${this.#state}`);
       return;
     }
 
-    console.log(`Manual disconnect initiated - closing WebSocket connection`);
+    console.log(`[${SERVICE_NAME}] Manual disconnect initiated - closing WebSocket connection`);
 
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
@@ -353,7 +353,7 @@ export class WebSocketService {
     }
 
     this.#setState(WebSocketState.DISCONNECTED);
-    console.log(`WebSocket manually disconnected`);
+    console.log(`[${SERVICE_NAME}] WebSocket manually disconnected`);
   }
 
   /**
@@ -408,7 +408,7 @@ export class WebSocketService {
       const timeout = setTimeout(() => {
         this.#pendingRequests.delete(requestId);
         console.warn(
-          `🔴 Request timeout after ${this.#options.requestTimeout}ms - triggering reconnection`,
+          `[${SERVICE_NAME}] 🔴 Request timeout after ${this.#options.requestTimeout}ms - triggering reconnection`,
         );
 
         // Trigger reconnection on request timeout as it may indicate stale connection
@@ -493,12 +493,11 @@ export class WebSocketService {
    * @param options - Channel callback configuration
    * @param options.channelName - Channel name to match exactly
    * @param options.callback - Function to call when channel matches
-   * @returns Channel name (used as callback ID)
    *
    * @example
    * ```typescript
    * // Listen to specific account activity channel
-   * const channelName = webSocketService.addChannelCallback({
+   * webSocketService.addChannelCallback({
    *   channelName: 'account-activity.v1.eip155:0:0x1234...',
    *   callback: (notification) => {
    *     console.log('Account activity:', notification.data);
@@ -506,7 +505,7 @@ export class WebSocketService {
    * });
    *
    * // Listen to system notifications channel
-   * const systemChannelName = webSocketService.addChannelCallback({
+   * webSocketService.addChannelCallback({
    *   channelName: 'system-notifications.v1',
    *   callback: (notification) => {
    *     console.log('System notification:', notification.data);
@@ -517,15 +516,19 @@ export class WebSocketService {
   addChannelCallback(options: {
     channelName: string;
     callback: (notification: ServerNotificationMessage) => void;
-  }): string {
+  }): void {
+    // Check if callback already exists for this channel
+    if (this.#channelCallbacks.has(options.channelName)) {
+      console.log(`[${SERVICE_NAME}] Channel callback already exists for '${options.channelName}', skipping`);
+      return;
+    }
+
     const channelCallback: ChannelCallback = {
       channelName: options.channelName,
       callback: options.callback,
     };
 
     this.#channelCallbacks.set(options.channelName, channelCallback);
-    
-    return options.channelName;
   }
 
 
@@ -538,7 +541,7 @@ export class WebSocketService {
   removeChannelCallback(channelName: string): boolean {
     const removed = this.#channelCallbacks.delete(channelName);
     if (removed) {
-      console.log(`Removed channel callback for '${channelName}'`);
+      console.log(`[${SERVICE_NAME}] Removed channel callback for '${channelName}'`);
     }
     return removed;
   }
@@ -644,7 +647,7 @@ export class WebSocketService {
         // Clean up subscription mapping
         this.#subscriptions.delete(subscriptionId);
       } catch (error) {
-        console.error('Failed to unsubscribe:', error);
+        console.error(`[${SERVICE_NAME}] Failed to unsubscribe:`, error);
         throw error;
       }
     };
@@ -675,7 +678,7 @@ export class WebSocketService {
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
         console.log(
-          `🔴 WebSocket connection timeout after ${this.#options.timeout}ms - forcing close`,
+          `[${SERVICE_NAME}] 🔴 WebSocket connection timeout after ${this.#options.timeout}ms - forcing close`,
         );
         ws.close();
         reject(
@@ -684,7 +687,7 @@ export class WebSocketService {
       }, this.#options.timeout);
 
       ws.onopen = () => {
-        console.log(`✅ WebSocket connection opened successfully`);
+        console.log(`[${SERVICE_NAME}] ✅ WebSocket connection opened successfully`);
         clearTimeout(connectTimeout);
         this.#ws = ws;
         this.#setState(WebSocketState.CONNECTED);
@@ -700,7 +703,7 @@ export class WebSocketService {
 
       ws.onerror = (event: Event) => {
         clearTimeout(connectTimeout);
-        console.error(`❌ WebSocket error during connection attempt:`, {
+        console.error(`[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`, {
           type: event.type,
           target: event.target,
           url: wsUrl,
@@ -721,11 +724,11 @@ export class WebSocketService {
       ws.onclose = (event: CloseEvent) => {
         clearTimeout(connectTimeout);
         console.log(
-          `WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
+          `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
         );
         if (this.#state === WebSocketState.CONNECTING) {
           console.log(
-            `Connection attempt failed due to close event during CONNECTING state`,
+            `[${SERVICE_NAME}] Connection attempt failed due to close event during CONNECTING state`,
           );
           reject(
             new Error(
@@ -734,7 +737,7 @@ export class WebSocketService {
           );
         } else {
           // If we're not connecting, handle it as a normal close event
-          console.log(`Handling close event as normal disconnection`);
+          console.log(`[${SERVICE_NAME}] Handling close event as normal disconnection`);
           this.#handleClose(event);
         }
       };
@@ -745,7 +748,7 @@ export class WebSocketService {
    * Sets up WebSocket event handlers
    */
   #setupEventHandlers(): void {
-    console.log('Setting up WebSocket event handlers for operational phase');
+    console.log(`[${SERVICE_NAME}] Setting up WebSocket event handlers for operational phase`);
 
     if (!this.#ws) {
       throw new Error('WebSocket not initialized for event handler setup');
@@ -762,13 +765,13 @@ export class WebSocketService {
 
     this.#ws.onclose = (event: CloseEvent) => {
       console.log(
-        `WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
+        `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
       );
       this.#handleClose(event);
     };
 
     this.#ws.onerror = (event: Event) => {
-      console.log(`WebSocket onerror event triggered:`, event);
+      console.log(`[${SERVICE_NAME}] WebSocket onerror event triggered:`, event);
       this.#handleError(new Error(`WebSocket error: ${event.type}`));
     };
   }
@@ -897,7 +900,7 @@ export class WebSocketService {
           callback(message);
         } catch (error) {
           console.error(
-            `Error in subscription callback for ${subscriptionId}:`,
+            `[${SERVICE_NAME}] Error in subscription callback for ${subscriptionId}:`,
             error,
           );
         }
@@ -907,7 +910,7 @@ export class WebSocketService {
       }
     } else if (process.env.NODE_ENV === 'development') {
       console.warn(
-        `No subscription found for subscriptionId: ${subscriptionId}`,
+        `[${SERVICE_NAME}] No subscription found for subscriptionId: ${subscriptionId}`,
       );
     }
   }
@@ -932,7 +935,7 @@ export class WebSocketService {
       try {
         channelCallback.callback(notification);
       } catch (error) {
-        console.error(`Error in channel callback for '${channelCallback.channelName}':`, error);
+        console.error(`[${SERVICE_NAME}] Error in channel callback for '${channelCallback.channelName}':`, error);
       }
     }
   }
@@ -972,7 +975,7 @@ export class WebSocketService {
     // Log close reason for debugging
     const closeReason = this.#getCloseReason(event.code);
     console.log(
-      `WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`,
+      `[${SERVICE_NAME}] WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`,
     );
 
     if (this.#state === WebSocketState.DISCONNECTING) {
@@ -988,12 +991,12 @@ export class WebSocketService {
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
 
     if (shouldReconnect) {
-      console.log(`Connection lost unexpectedly, will attempt reconnection`);
+      console.log(`[${SERVICE_NAME}] Connection lost unexpectedly, will attempt reconnection`);
       this.#scheduleReconnect();
     } else {
       // Non-recoverable error - set error state
       console.log(
-        `Non-recoverable error - close code: ${event.code} - ${closeReason}`,
+        `[${SERVICE_NAME}] Non-recoverable error - close code: ${event.code} - ${closeReason}`,
       );
       this.#setState(WebSocketState.ERROR);
       this.#lastError = `Non-recoverable close code: ${event.code} - ${closeReason}`;
@@ -1014,7 +1017,7 @@ export class WebSocketService {
    * Request timeouts often indicate a stale or broken connection
    */
   #handleRequestTimeout(): void {
-    console.log('🔄 Request timeout detected - forcing WebSocket reconnection');
+    console.log(`[${SERVICE_NAME}] 🔄 Request timeout detected - forcing WebSocket reconnection`);
 
     // Only trigger reconnection if we're currently connected
     if (this.#state === WebSocketState.CONNECTED && this.#ws) {
@@ -1022,7 +1025,7 @@ export class WebSocketService {
       this.#ws.close(1001, 'Request timeout - forcing reconnect');
     } else {
       console.log(
-        `⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`,
+        `[${SERVICE_NAME}] ⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`,
       );
     }
   }

@@ -210,7 +210,6 @@ export class AccountActivityService {
     this.#registerActionHandlers();
     this.#setupAccountEventHandlers();
     this.#setupWebSocketEventHandlers();
-    this.#setupSystemNotificationHandlers();
   }
 
   // =============================================================================
@@ -236,6 +235,22 @@ export class AccountActivityService {
         return;
       }
 
+      // Set up system notifications callback for chain status updates
+      const systemChannelName = `system-notifications.v1.${this.#options.subscriptionNamespace}`;
+      console.log(`[${SERVICE_NAME}] Adding channel callback for '${systemChannelName}'`);
+      this.#webSocketService.addChannelCallback({
+        channelName: systemChannelName,
+        callback: (notification) => {
+          try {
+            // Parse the notification data as a system notification
+            const systemData = notification.data as SystemNotificationData;
+            this.#handleSystemNotification(systemData);
+          } catch (error) {
+            console.error(`[${SERVICE_NAME}] Error processing system notification:`, error);
+          }
+        }
+      });
+
       // Create subscription with optimized callback routing
       await this.#webSocketService.subscribe({
         channels: [channel],
@@ -250,7 +265,7 @@ export class AccountActivityService {
       // Track the subscribed address
       this.currentSubscribedAddress = subscription.address;
     } catch (error) {
-      console.warn(`Subscription failed, forcing reconnection:`, error);
+      console.warn(`[${SERVICE_NAME}] Subscription failed, forcing reconnection:`, error);
       await this.#forceReconnection();
     }
   }
@@ -270,7 +285,7 @@ export class AccountActivityService {
         this.#webSocketService.getSubscriptionByChannel(channel);
 
       if (!subscriptionInfo) {
-        console.log(`No subscription found for address: ${address}`);
+        console.log(`[${SERVICE_NAME}] No subscription found for address: ${address}`);
         return;
       }
 
@@ -284,7 +299,7 @@ export class AccountActivityService {
 
       // Subscription cleanup is handled centrally in WebSocketService
     } catch (error) {
-      console.warn(`Unsubscription failed, forcing reconnection:`, error);
+      console.warn(`[${SERVICE_NAME}] Unsubscription failed, forcing reconnection:`, error);
       await this.#forceReconnection();
     }
   }
@@ -348,25 +363,25 @@ export class AccountActivityService {
       const { address, tx, updates } = payload;
 
       console.log(
-        `AccountActivityService: Handling account activity update for ${address} with ${updates.length} balance updates`,
+        `[${SERVICE_NAME}] Handling account activity update for ${address} with ${updates.length} balance updates`,
       );
 
       // Process transaction update
       this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
 
       // Publish comprehensive balance updates with transfer details
-      console.log('AccountActivityService: Publishing balance update event...');
+      console.log(`[${SERVICE_NAME}] Publishing balance update event...`);
       this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
         address,
         chain: tx.chain,
         updates,
       });
       console.log(
-        'AccountActivityService: Balance update event published successfully',
+        `[${SERVICE_NAME}] Balance update event published successfully`,
       );
     } catch (error) {
-      console.error('Error handling account activity update:', error);
-      console.error('Payload that caused error:', payload);
+      console.error(`[${SERVICE_NAME}] Error handling account activity update:`, error);
+      console.error(`[${SERVICE_NAME}] Payload that caused error:`, payload);
     }
   }
 
@@ -384,7 +399,7 @@ export class AccountActivityService {
     } catch (error) {
       // AccountsController events might not be available in all environments
       console.log(
-        'AccountsController events not available for account management:',
+        `[${SERVICE_NAME}] AccountsController events not available for account management:`,
         error,
       );
     }
@@ -400,7 +415,7 @@ export class AccountActivityService {
         (connectionInfo: WebSocketConnectionInfo) => this.#handleWebSocketStateChange(connectionInfo),
       );
     } catch (error) {
-      console.log('WebSocketService connection events not available:', error);
+      console.log(`[${SERVICE_NAME}] WebSocketService connection events not available:`, error);
     }
   }
 
@@ -412,7 +427,7 @@ export class AccountActivityService {
   async #handleSelectedAccountChange(
     newAccount: InternalAccount,
   ): Promise<void> {
-    console.log(`Selected account changed to: ${newAccount.address}`);
+    console.log(`[${SERVICE_NAME}] Selected account changed to: ${newAccount.address}`);
 
     try {
       // Convert new account to CAIP-10 format
@@ -420,26 +435,26 @@ export class AccountActivityService {
 
       // If already subscribed to this account, no need to change
       if (this.currentSubscribedAddress === newAddress) {
-        console.log(`Already subscribed to account: ${newAddress}`);
+        console.log(`[${SERVICE_NAME}] Already subscribed to account: ${newAddress}`);
         return;
       }
 
       // First, subscribe to the new selected account to minimize data gaps
       await this.subscribeAccounts({ address: newAddress });
-      console.log(`Subscribed to new selected account: ${newAddress}`);
+      console.log(`[${SERVICE_NAME}] Subscribed to new selected account: ${newAddress}`);
 
       // Then, unsubscribe from the previously subscribed account if any
       if (this.currentSubscribedAddress && this.currentSubscribedAddress !== newAddress) {
         console.log(
-          `Unsubscribing from previous account: ${this.currentSubscribedAddress}`,
+          `[${SERVICE_NAME}] Unsubscribing from previous account: ${this.currentSubscribedAddress}`,
         );
         await this.unsubscribeAccounts({
           address: this.currentSubscribedAddress,
         });
-        console.log(`Successfully unsubscribed from previous account: ${this.currentSubscribedAddress}`);
+        console.log(`[${SERVICE_NAME}] Successfully unsubscribed from previous account: ${this.currentSubscribedAddress}`);
       }
     } catch (error) {
-      console.warn(`Account change failed, forcing reconnection:`, error);
+      console.warn(`[${SERVICE_NAME}] Account change failed, forcing reconnection:`, error);
       await this.#forceReconnection();
     }
   }
@@ -449,7 +464,7 @@ export class AccountActivityService {
    */
   async #forceReconnection(): Promise<void> {
     try {
-      console.log('Forcing WebSocket reconnection to clean up subscription state');
+      console.log(`[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`);
       
       // Clear local subscription tracking since backend will clean up all subscriptions
       this.currentSubscribedAddress = null;
@@ -457,7 +472,7 @@ export class AccountActivityService {
       await this.#webSocketService.disconnect();
       await this.#webSocketService.connect();
     } catch (error) {
-      console.error('Failed to force WebSocket reconnection:', error);
+      console.error(`[${SERVICE_NAME}] Failed to force WebSocket reconnection:`, error);
     }
   }
 
@@ -468,13 +483,13 @@ export class AccountActivityService {
    */
   #handleWebSocketStateChange(connectionInfo: WebSocketConnectionInfo): void {
     const { state } = connectionInfo;
-    console.log(`AccountActivityService: WebSocket state changed to ${state}`);
+    console.log(`[${SERVICE_NAME}] WebSocket state changed to ${state}`);
 
     if (state === WebSocketState.CONNECTED) {
       // WebSocket connected - resubscribe and set all chains as up
       try {
         this.#subscribeSelectedAccount().catch((error) => {
-          console.error('Failed to resubscribe to selected account:', error);
+          console.error(`[${SERVICE_NAME}] Failed to resubscribe to selected account:`, error);
         });
         
         // Publish initial status - all supported chains are up when WebSocket connects
@@ -484,10 +499,10 @@ export class AccountActivityService {
         });
         
         console.log(
-          `AccountActivityService: WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`
+          `[${SERVICE_NAME}] WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`
         );
       } catch (error) {
-        console.error('Failed to handle WebSocket connected state:', error);
+        console.error(`[${SERVICE_NAME}] Failed to handle WebSocket connected state:`, error);
       }
     } else if (
       state === WebSocketState.DISCONNECTED ||
@@ -502,7 +517,7 @@ export class AccountActivityService {
    * Subscribe to the currently selected account only
    */
   async #subscribeSelectedAccount(): Promise<void> {
-    console.log('📋 Subscribing to selected account');
+    console.log(`[${SERVICE_NAME}] 📋 Subscribing to selected account`);
 
     try {
       // Get the currently selected account
@@ -511,12 +526,12 @@ export class AccountActivityService {
       );
 
       if (!selectedAccount || !selectedAccount.address) {
-        console.log('No selected account found to subscribe');
+        console.log(`[${SERVICE_NAME}] No selected account found to subscribe`);
         return;
       }
 
       console.log(
-        `Subscribing to selected account: ${selectedAccount.address}`,
+        `[${SERVICE_NAME}] Subscribing to selected account: ${selectedAccount.address}`,
       );
 
       // Convert to CAIP-10 format and subscribe
@@ -525,40 +540,15 @@ export class AccountActivityService {
       // Only subscribe if we're not already subscribed to this account
       if (this.currentSubscribedAddress !== address) {
         await this.subscribeAccounts({ address });
-        console.log(`Successfully subscribed to selected account: ${address}`);
+        console.log(`[${SERVICE_NAME}] Successfully subscribed to selected account: ${address}`);
       } else {
-        console.log(`Already subscribed to selected account: ${address}`);
+        console.log(`[${SERVICE_NAME}] Already subscribed to selected account: ${address}`);
       }
     } catch (error) {
-      console.error('Failed to subscribe to selected account:', error);
+      console.error(`[${SERVICE_NAME}] Failed to subscribe to selected account:`, error);
     }
   }
 
-  /**
-   * Set up system notification handlers for chain status updates
-   * 
-   * Maintains minimal chain status state (only down chains) for polling optimization.
-   * System sends delta updates - no notifications = healthy system.
-   */
-  #setupSystemNotificationHandlers(): void {
-    try {
-      // Subscribe to system notifications for chain status updates
-      this.#webSocketService.addChannelCallback({
-        channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
-        callback: (notification) => {
-          try {
-            // Parse the notification data as a system notification
-            const systemData = notification.data as SystemNotificationData;
-            this.#handleSystemNotification(systemData);
-          } catch (error) {
-            console.error('Error processing system notification:', error);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to set up system notification handlers:', error);
-    }
-  }
 
   /**
    * Handle system notification for chain status changes
@@ -568,7 +558,7 @@ export class AccountActivityService {
    */
   #handleSystemNotification(data: SystemNotificationData): void {
     console.log(
-      `AccountActivityService: Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`
+      `[${SERVICE_NAME}] Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`
     );
 
     // Publish status change directly (delta update)
@@ -579,10 +569,10 @@ export class AccountActivityService {
       });
 
       console.log(
-        `AccountActivityService: Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`
+        `[${SERVICE_NAME}] Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`
       );
     } catch (error) {
-      console.error('Failed to publish status change event:', error);
+      console.error(`[${SERVICE_NAME}] Failed to publish status change event:`, error);
     }
   }
 
@@ -623,7 +613,7 @@ export class AccountActivityService {
         'AccountActivityService:statusChanged',
       );
     } catch (error) {
-      console.error('AccountActivityService: Error during cleanup:', error);
+      console.error(`[${SERVICE_NAME}] Error during cleanup:`, error);
       // Continue cleanup even if some parts fail
     }
   }
