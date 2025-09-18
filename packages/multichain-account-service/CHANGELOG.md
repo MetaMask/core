@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - No longer create temporary EVM account during discovery ([#6650](https://github.com/MetaMask/core/pull/6650))
-  - We used to create the EVM account and remove it if there we nore activity for that account, now we're just deriving the next address directly, which avoid state mutation.
+  - We used to create the EVM account and remove it if there was no activity for that account. Now we're just deriving the next address directly, which avoids state mutation.
   - This prevents `:accountAdded` event from being published, which also prevents account-tree and multichain-account service updates.
-  - Backup & sync will no longer synchronize this temporary account group, which was causing a bug of persisting it on the user profile and to leave forever.
+  - Backup & sync will no longer synchronize this temporary account group, which was causing a bug that persisted it on the user profile and left it permanently.
 
 ## [0.9.0]
 
