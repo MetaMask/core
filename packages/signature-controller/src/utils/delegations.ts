@@ -1,7 +1,9 @@
-import type { DecodedPermission } from '@metamask/gator-permissions-controller';
+import type {
+  DecodedPermission,
+  DelegationDetails,
+} from '@metamask/gator-permissions-controller';
 import { isHexAddress, isStrictHexString } from '@metamask/utils';
 
-import type { DelegationDetails } from '../../../gator-permissions-controller/src/types';
 import type { SignatureControllerMessenger } from '../SignatureController';
 import type {
   MessageParamsTypedData,
