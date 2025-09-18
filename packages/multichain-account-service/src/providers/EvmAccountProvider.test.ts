@@ -34,7 +34,7 @@ jest.mock('@ethereumjs/util', () => ({
   publicToAddress: jest.fn(),
 }));
 
-function mockNextDiscoveryAddress(address: string) {
+function mockNextDiscoveryAddressOnce(address: string) {
   jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
 }
 
@@ -318,7 +318,7 @@ describe('EvmAccountProvider', () => {
       id: expect.any(String),
     };
 
-    mockNextDiscoveryAddress(account.address);
+    mockNextDiscoveryAddressOnce(account.address);
 
     expect(
       await provider.discoverAccounts({
@@ -342,7 +342,7 @@ describe('EvmAccountProvider', () => {
       .withAddressSuffix('0')
       .get();
 
-    mockNextDiscoveryAddress(account.address);
+    mockNextDiscoveryAddressOnce(account.address);
 
     expect(
       await provider.discoverAccounts({
@@ -373,7 +373,7 @@ describe('EvmAccountProvider', () => {
         throw new Error('RPC request failed 4');
       });
 
-    mockNextDiscoveryAddress('0x123');
+    mockNextDiscoveryAddressOnce('0x123');
 
     await expect(
       provider.discoverAccounts({
@@ -396,7 +396,7 @@ describe('EvmAccountProvider', () => {
       });
     });
 
-    mockNextDiscoveryAddress('0x123');
+    mockNextDiscoveryAddressOnce('0x123');
 
     await expect(
       provider.discoverAccounts({
