@@ -78,12 +78,14 @@ describe('AccountActivityService', () => {
     // Mock messenger
     mockMessenger = {
       registerActionHandler: jest.fn(),
+      registerMethodActionHandlers: jest.fn(),
       unregisterActionHandler: jest.fn(),
       registerInitialEventPayload: jest.fn(),
       publish: jest.fn(),
       call: jest.fn(),
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
+      clearEventSubscriptions: jest.fn(),
     } as any;
 
     // Mock selected account

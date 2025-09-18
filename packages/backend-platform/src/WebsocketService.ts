@@ -5,7 +5,6 @@ import type { WebSocketServiceMethodActions } from './WebsocketService-method-ac
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 
 const MESSENGER_EXPOSED_METHODS = [
-  'init',
   'connect',
   'disconnect', 
   'sendMessage',
@@ -284,27 +283,6 @@ export class WebSocketService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-
-    this.init().catch((error) => {
-      console.error('WebSocket service initialization failed:', error);
-    });
-  }
-
-  /**
-   * Initializes and connects the WebSocket service
-   *
-   * @returns Promise that resolves when initialization is complete
-   */
-  async init(): Promise<void> {
-    try {
-      await this.connect();
-    } catch (error) {
-      const errorMessage = this.#getErrorMessage(error);
-
-      throw new Error(
-        `WebSocket service initialization failed: ${errorMessage}`,
-      );
-    }
   }
 
   /**
@@ -417,7 +395,7 @@ export class WebSocketService {
       throw new Error(`Cannot send request: WebSocket is ${this.#state}`);
     }
 
-    const requestId = this.#generateMessageId();
+    const requestId = uuidV4();
     const requestMessage: ClientRequestMessage = {
       event: message.event,
       data: {
@@ -547,8 +525,6 @@ export class WebSocketService {
 
     this.#channelCallbacks.set(options.channelName, channelCallback);
     
-    console.log(`Added channel callback for '${options.channelName}'`);
-    
     return options.channelName;
   }
 
@@ -582,9 +558,6 @@ export class WebSocketService {
   destroy(): void {
     this.#clearTimers();
     this.#clearSubscriptions();
-
-    // Clear channel callbacks
-    this.#channelCallbacks.clear();
 
     // Clear any pending connection promise
     this.#connectionPromise = null;
@@ -1154,15 +1127,6 @@ export class WebSocketService {
         );
       }
     }
-  }
-
-  /**
-   * Generates a unique message ID using UUID v4
-   *
-   * @returns Unique message identifier (UUID v4)
-   */
-  #generateMessageId(): string {
-    return uuidV4();
   }
 
   /**

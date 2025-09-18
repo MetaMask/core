@@ -555,8 +555,6 @@ export class AccountActivityService {
           }
         }
       });
-
-      console.log('AccountActivityService: System notification handlers set up successfully');
     } catch (error) {
       console.error('Failed to set up system notification handlers:', error);
     }

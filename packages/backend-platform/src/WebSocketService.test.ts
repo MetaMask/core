@@ -224,6 +224,7 @@ const setupWebSocketService = ({
   // Create mock messenger with all required methods
   const mockMessenger = {
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: jest.fn(),
@@ -232,7 +233,7 @@ const setupWebSocketService = ({
   } as any as jest.Mocked<WebSocketServiceMessenger>;
 
   // Default test options (shorter timeouts for faster tests)
-  const defaultOptions: WebSocketServiceOptions = {
+  const defaultOptions = {
     url: TEST_CONSTANTS.WS_URL,
     timeout: TEST_CONSTANTS.TIMEOUT_MS,
     reconnectDelay: TEST_CONSTANTS.RECONNECT_DELAY,
@@ -368,14 +369,28 @@ describe('WebSocketService', () => {
         mockWebSocketOptions: { autoConnect: false }, // This prevents any connection
       });
 
-      // Wait for the automatic init() from constructor to complete and fail
+      // Service should start in disconnected state since we removed auto-init
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
+      
+      // Use expect.assertions to ensure error handling is tested
+      expect.assertions(4);
+      
+      // Start connection and then advance timers to trigger timeout
+      const connectPromise = service.connect();
+      
+      // Handle the promise rejection properly
+      connectPromise.catch(() => {
+        // Expected rejection - do nothing to avoid unhandled promise warning
+      });
+      
       await completeAsyncOperations(TEST_CONSTANTS.TIMEOUT_MS + 50);
       
-      // Verify we're in error state from the failed init()
+      // Now check that the connection failed as expected
+      await expect(connectPromise).rejects.toThrow(`Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
+      
+      // Verify we're in error state from the failed connection attempt
       expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
       
-      // The timeout behavior is already tested by the constructor's init() call
-      // We can verify that the error was due to timeout by checking the last error
       const info = service.getConnectionInfo();
       expect(info.lastError).toContain(`Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
       
@@ -467,12 +482,12 @@ describe('WebSocketService', () => {
     }, 10000);
 
     it('should throw error when not connected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
+      const { service, cleanup } = setupWebSocketService({
         mockWebSocketOptions: { autoConnect: false },
       });
       
-      // Wait for automatic init() to fail and transition to error state
-      await completeAsyncOperations(150);
+      // Service starts in disconnected state since we removed auto-init
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
       
       const mockCallback = jest.fn();
 
@@ -481,7 +496,7 @@ describe('WebSocketService', () => {
           channels: ['test-channel'],
           callback: mockCallback,
         })
-      ).rejects.toThrow('Cannot create subscription(s) test-channel: WebSocket is error');
+      ).rejects.toThrow('Cannot create subscription(s) test-channel: WebSocket is disconnected');
       
       cleanup();
     });
@@ -803,8 +818,8 @@ describe('WebSocketService', () => {
         },
       } satisfies ClientRequestMessage;
 
-      // Should throw when not connected (service starts in connecting state)
-      await expect(service.sendMessage(testMessage)).rejects.toThrow('Cannot send message: WebSocket is connecting');
+      // Should throw when not connected (service starts in disconnected state)
+      await expect(service.sendMessage(testMessage)).rejects.toThrow('Cannot send message: WebSocket is disconnected');
       
       cleanup();
     });
@@ -998,8 +1013,24 @@ describe('WebSocketService', () => {
         mockWebSocketOptions: { autoConnect: false },
       });
 
-      // Wait for automatic init() to fail
+      // Service should start in disconnected state
+      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
+
+      // Use expect.assertions to ensure error handling is tested
+      expect.assertions(5);
+
+      // Start connection and then advance timers to trigger timeout
+      const connectPromise = service.connect();
+      
+      // Handle the promise rejection properly
+      connectPromise.catch(() => {
+        // Expected rejection - do nothing to avoid unhandled promise warning
+      });
+      
       await completeAsyncOperations(TEST_CONSTANTS.TIMEOUT_MS + 50);
+      
+      // Wait for connection to fail
+      await expect(connectPromise).rejects.toThrow(`Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
 
       const info = service.getConnectionInfo();
       expect(info.state).toBe(WebSocketState.ERROR);
