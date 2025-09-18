@@ -1,7 +1,21 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { WebSocketServiceMethodActions } from './WebsocketService-method-action-types';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SERVICE_NAME = 'BackendWebSocketService' as const;
+
+const MESSENGER_EXPOSED_METHODS = [
+  'init',
+  'connect',
+  'disconnect', 
+  'sendMessage',
+  'sendRequest',
+  'getConnectionInfo',
+  'getSubscriptionByChannel',
+  'isChannelSubscribed',
+  'addChannelCallback',
+  'removeChannelCallback',
+  'getChannelCallbacks',
+] as const;
 
 /**
  * WebSocket connection states
@@ -32,6 +46,9 @@ export enum WebSocketEventType {
 export type WebSocketServiceOptions = {
   /** The WebSocket URL to connect to */
   url: string;
+
+  /** The messenger for inter-service communication */
+  messenger: WebSocketServiceMessenger;
 
   /** Connection timeout in milliseconds (default: 10000) */
   timeout?: number;
@@ -151,74 +168,8 @@ export type WebSocketConnectionInfo = {
   connectedAt?: number;
 };
 
-// Action types for the messaging system
-export type WebSocketServiceInitAction = {
-  type: `BackendWebSocketService:init`;
-  handler: WebSocketService['init'];
-};
-
-export type WebSocketServiceConnectAction = {
-  type: `BackendWebSocketService:connect`;
-  handler: WebSocketService['connect'];
-};
-
-export type WebSocketServiceDisconnectAction = {
-  type: `BackendWebSocketService:disconnect`;
-  handler: WebSocketService['disconnect'];
-};
-
-export type WebSocketServiceSendMessageAction = {
-  type: `BackendWebSocketService:sendMessage`;
-  handler: WebSocketService['sendMessage'];
-};
-
-export type WebSocketServiceSendRequestAction = {
-  type: `BackendWebSocketService:sendRequest`;
-  handler: WebSocketService['sendRequest'];
-};
-
-export type WebSocketServiceGetConnectionInfoAction = {
-  type: `BackendWebSocketService:getConnectionInfo`;
-  handler: WebSocketService['getConnectionInfo'];
-};
-
-export type WebSocketServiceGetSubscriptionByChannelAction = {
-  type: `BackendWebSocketService:getSubscriptionByChannel`;
-  handler: WebSocketService['getSubscriptionByChannel'];
-};
-
-export type WebSocketServiceIsChannelSubscribedAction = {
-  type: `BackendWebSocketService:isChannelSubscribed`;
-  handler: WebSocketService['isChannelSubscribed'];
-};
-
-export type WebSocketServiceAddChannelCallbackAction = {
-  type: `BackendWebSocketService:addChannelCallback`;
-  handler: WebSocketService['addChannelCallback'];
-};
-
-export type WebSocketServiceRemoveChannelCallbackAction = {
-  type: `BackendWebSocketService:removeChannelCallback`;
-  handler: WebSocketService['removeChannelCallback'];
-};
-
-export type WebSocketServiceGetChannelCallbacksAction = {
-  type: `BackendWebSocketService:getChannelCallbacks`;
-  handler: WebSocketService['getChannelCallbacks'];
-};
-
-export type WebSocketServiceActions =
-  | WebSocketServiceInitAction
-  | WebSocketServiceConnectAction
-  | WebSocketServiceDisconnectAction
-  | WebSocketServiceSendMessageAction
-  | WebSocketServiceSendRequestAction
-  | WebSocketServiceGetConnectionInfoAction
-  | WebSocketServiceGetSubscriptionByChannelAction
-  | WebSocketServiceIsChannelSubscribedAction
-  | WebSocketServiceAddChannelCallbackAction
-  | WebSocketServiceRemoveChannelCallbackAction
-  | WebSocketServiceGetChannelCallbacksAction;
+// Action types for the messaging system - using generated method actions
+export type WebSocketServiceActions = WebSocketServiceMethodActions;
 
 export type WebSocketServiceAllowedActions = never;
 
@@ -258,9 +209,14 @@ export type WebSocketServiceMessenger = RestrictedMessenger<
  * 3. Calling destroy() on app termination
  */
 export class WebSocketService {
+  /**
+   * The name of the service.
+   */
+  readonly name = SERVICE_NAME;
+
   readonly #messenger: WebSocketServiceMessenger;
 
-  readonly #options: Required<WebSocketServiceOptions>;
+  readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger'>>;
 
   #ws!: WebSocket;
 
@@ -299,11 +255,9 @@ export class WebSocketService {
   /**
    * Creates a new WebSocket service instance
    *
-   * @param options - Configuration options including messenger
+   * @param options - Configuration options for the WebSocket service
    */
-  constructor(
-    options: WebSocketServiceOptions & { messenger: WebSocketServiceMessenger },
-  ) {
+  constructor(options: WebSocketServiceOptions) {
     this.#messenger = options.messenger;
 
     this.#options = {
@@ -314,60 +268,10 @@ export class WebSocketService {
       requestTimeout: options.requestTimeout ?? 30000,
     };
 
-    // Register action handlers
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:init`,
-      this.init.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:connect`,
-      this.connect.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:disconnect`,
-      this.disconnect.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:sendMessage`,
-      this.sendMessage.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:sendRequest`,
-      this.sendRequest.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:getConnectionInfo`,
-      this.getConnectionInfo.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:getSubscriptionByChannel`,
-      this.getSubscriptionByChannel.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:isChannelSubscribed`,
-      this.isChannelSubscribed.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:addChannelCallback`,
-      this.addChannelCallback.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:removeChannelCallback`,
-      this.removeChannelCallback.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `BackendWebSocketService:getChannelCallbacks`,
-      this.getChannelCallbacks.bind(this),
+    // Register action handlers using the method actions pattern
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
     this.init().catch((error) => {
