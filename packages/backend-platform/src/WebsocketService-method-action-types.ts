@@ -6,16 +6,6 @@
 import type { WebSocketService } from './WebsocketService';
 
 /**
- * Initializes and connects the WebSocket service
- *
- * @returns Promise that resolves when initialization is complete
- */
-export type WebSocketServiceInitAction = {
-  type: `WebSocketService:init`;
-  handler: WebSocketService['init'];
-};
-
-/**
  * Establishes WebSocket connection
  *
  * @returns Promise that resolves when connection is established
@@ -144,7 +134,6 @@ export type WebSocketServiceGetChannelCallbacksAction = {
  * Union of all WebSocketService action types.
  */
 export type WebSocketServiceMethodActions =
-  | WebSocketServiceInitAction
   | WebSocketServiceConnectAction
   | WebSocketServiceDisconnectAction
   | WebSocketServiceSendMessageAction
