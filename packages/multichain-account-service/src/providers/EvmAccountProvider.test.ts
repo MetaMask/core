@@ -1,3 +1,5 @@
+/* eslint-disable jsdoc/require-jsdoc */
+import { publicToAddress } from '@ethereumjs/util';
 import type { Messenger } from '@metamask/base-controller';
 import { type KeyringMetadata } from '@metamask/keyring-controller';
 import type {
@@ -8,6 +10,8 @@ import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { createBytes } from '@metamask/utils';
 
 import { EvmAccountProvider } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
@@ -26,6 +30,32 @@ import type {
   MultichainAccountServiceEvents,
 } from '../types';
 
+jest.mock('@ethereumjs/util', () => ({
+  publicToAddress: jest.fn(),
+}));
+
+function mockNextDiscoveryAddress(address: string) {
+  jest.mocked(publicToAddress).mockReturnValue(createBytes(address as Hex));
+}
+
+function mockNextDiscoveryAddressOnce(address: string) {
+  jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
+}
+
+type MockHdKey = {
+  deriveChild: jest.Mock;
+};
+
+function mockHdKey(): MockHdKey {
+  return {
+    deriveChild: jest.fn().mockImplementation(() => {
+      return {
+        publicKey: new Uint8Array(65),
+      };
+    }),
+  };
+}
+
 class MockEthKeyring implements EthKeyring {
   readonly type = 'MockEthKeyring';
 
@@ -36,8 +66,11 @@ class MockEthKeyring implements EthKeyring {
 
   readonly accounts: InternalAccount[];
 
+  readonly root: MockHdKey;
+
   constructor(accounts: InternalAccount[]) {
     this.accounts = accounts;
+    this.root = mockHdKey();
   }
 
   async serialize() {
@@ -85,17 +118,23 @@ class MockEthKeyring implements EthKeyring {
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - List of accounts to use.
+ * @param options.discovery - Discovery options.
+ * @param options.discovery.transactionCount - Transaction count (use '0x0' to stop the discovery).
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
+  discovery,
 }: {
   messenger?: Messenger<
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
   >;
   accounts?: InternalAccount[];
+  discovery?: {
+    transactionCount: string;
+  };
 } = {}): {
   provider: EvmAccountProvider;
   messenger: Messenger<
@@ -123,7 +162,7 @@ function setup({
 
   const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
     if (method === 'eth_getTransactionCount') {
-      return '0x2';
+      return discovery?.transactionCount ?? '0x2';
     }
     throw new Error(`Unknown method: ${method}`);
   });
@@ -155,6 +194,8 @@ function setup({
       } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
     },
   );
+
+  mockNextDiscoveryAddress('0x123');
 
   const provider = new EvmAccountProvider(
     getMultichainAccountServiceMessenger(messenger),
@@ -274,12 +315,16 @@ describe('EvmAccountProvider', () => {
       accounts: [],
     });
 
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withAddressSuffix('0')
+      .get();
+
     const expectedAccount = {
-      ...MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withAddressSuffix('0')
-        .get(),
+      ...account,
       id: expect.any(String),
     };
+
+    mockNextDiscoveryAddressOnce(account.address);
 
     expect(
       await provider.discoverAccounts({
@@ -291,42 +336,28 @@ describe('EvmAccountProvider', () => {
     expect(provider.getAccounts()).toStrictEqual([expectedAccount]);
   });
 
-  it('removes discovered account if no transaction history is found', async () => {
-    const { provider, mocks } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1],
+  it('stops discovery if there is no transaction activity', async () => {
+    const { provider } = setup({
+      accounts: [],
+      discovery: {
+        transactionCount: '0x0',
+      },
     });
 
-    mocks.mockProviderRequest.mockReturnValue('0x0');
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withAddressSuffix('0')
+      .get();
+
+    mockNextDiscoveryAddressOnce(account.address);
 
     expect(
       await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 1,
+        groupIndex: 0,
       }),
     ).toStrictEqual([]);
 
-    await Promise.resolve();
-
-    expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
-  });
-
-  it('removes discovered account if RPC request fails', async () => {
-    const { provider, mocks } = setup({
-      accounts: [MOCK_HD_ACCOUNT_1],
-    });
-
-    mocks.mockProviderRequest.mockImplementation(() => {
-      throw new Error('RPC request failed');
-    });
-
-    await expect(
-      provider.discoverAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 1,
-      }),
-    ).rejects.toThrow('RPC request failed');
-
-    expect(provider.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+    expect(provider.getAccounts()).toStrictEqual([]);
   });
 
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
