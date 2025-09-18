@@ -11,17 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `autoHandleConflict` parameter to `setAccountGroupName` method for automatic conflict resolution with suffix generation ([#6601](https://github.com/MetaMask/core/pull/6601))
 
-### Fixed
-
-- Fix critical multi-wallet account group naming inconsistencies and duplicates ([#6601](https://github.com/MetaMask/core/pull/6601))
-  - Implement proper per-wallet sequential numbering with highest account index parsing.
-  - Add name persistence during group initialization to ensure consistency across app restarts.
-
 ### Changed
 
 - Single group sync events will not get enqueued anymore if a full sync is in progress ([#6651](https://github.com/MetaMask/core/pull/6651))
   - This prevents too many unnecessary storage fetches (which would prevent being rate limited).
   - This could rarely lead to inconsistencies until the next single updates or next full sync.
+
+### Fixed
+
+- Fix critical multi-wallet account group naming inconsistencies and duplicates ([#6601](https://github.com/MetaMask/core/pull/6601))
+  - Implement proper per-wallet sequential numbering with highest account index parsing.
+  - Add name persistence during group initialization to ensure consistency across app restarts.
 
 ## [0.16.1]
 
