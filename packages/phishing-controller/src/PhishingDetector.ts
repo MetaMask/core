@@ -162,7 +162,7 @@ export class PhishingDetector {
     const source = domainToParts(fqdn);
 
     for (const { blocklistPaths, name, version } of this.#configs) {
-      if (!blocklistPaths) {
+      if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
         continue;
       }
       const pathMatch = isTerminalPath(url, blocklistPaths);
@@ -243,7 +243,7 @@ export class PhishingDetector {
    */
   isPathBlocked(url: string): boolean {
     for (const { blocklistPaths } of this.#configs) {
-      if (!blocklistPaths) {
+      if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
         continue;
       }
       const pathMatch = isTerminalPath(url, blocklistPaths);
