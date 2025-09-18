@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Single group sync events will not get enqueued anymore if a full sync is in progress ([#6651](https://github.com/MetaMask/core/pull/6651))
+  - This prevents too many unnecessary storage fetches (which would prevent being rate limited).
+  - This could rarely lead to inconsistencies until the next single updates or next full sync.
+
 ## [0.16.1]
 
 ### Added
