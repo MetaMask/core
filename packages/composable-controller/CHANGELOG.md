@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Inline `isBaseController` in `ComposableController` ([#6342](https://github.com/MetaMask/core/pull/6342))
-- chore: Rename `BaseControllerV2` module to `BaseController` ([#6128](https://github.com/MetaMask/core/pull/6128))
-
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
