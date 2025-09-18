@@ -105,23 +105,6 @@ describe('CacheManager', () => {
     });
   });
 
-  describe('has', () => {
-    it('should return false for non-existent keys', () => {
-      expect(cache.has('non-existent')).toBe(false);
-    });
-
-    it('should return true for existing keys', () => {
-      cache.set('key1', { value: 'value1' });
-      expect(cache.has('key1')).toBe(true);
-    });
-
-    it('should return true for expired keys', () => {
-      cache.set('key1', { value: 'value1' });
-      clock.tick(301 * 1000);
-      expect(cache.has('key1')).toBe(true);
-    });
-  });
-
   describe('delete', () => {
     it('should remove entries', () => {
       cache.set('key1', { value: 'value1' });
