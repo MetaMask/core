@@ -67,7 +67,7 @@
     "reselect": "^5.1.1"
   },
   "peerDependencies": {
-    "@metamask/multichain-network-controller": "^0.11.0",
+    "@metamask/multichain-network-controller": "^0.12.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/transaction-controller": "^60.0.0"
   },
