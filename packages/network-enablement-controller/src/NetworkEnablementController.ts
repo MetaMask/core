@@ -252,6 +252,17 @@ export class NetworkEnablementController extends BaseController<
       );
     }
 
+    // Prevent prototype pollution via dangerous property names
+    if (
+      namespace === '__proto__' ||
+      namespace === 'constructor' ||
+      namespace === 'prototype'
+    ) {
+      throw new Error(
+        `Invalid namespace: "${namespace}" is not allowed.`,
+      );
+    }
+
     this.update((s) => {
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(s, namespace);

@@ -467,14 +467,14 @@ export class NameController extends BaseController<
     }
 
     this.update((state) => {
-      const typeEntries = state.names[type] || {};
+      const typeEntries = state.names[type] || Object.create(null);
       state.names[type] = typeEntries;
 
-      const variationEntries = typeEntries[normalizedValue] || {};
+      const variationEntries = typeEntries[normalizedValue] || Object.create(null);
       typeEntries[normalizedValue] = variationEntries;
 
       const entry = variationEntries[normalizedVariation] ?? {
-        proposedNames: {},
+        proposedNames: Object.create(null),
         name: null,
         sourceId: null,
         origin: null,

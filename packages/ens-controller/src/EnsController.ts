@@ -196,11 +196,14 @@ export class EnsController extends BaseController<
    */
   delete(chainId: Hex, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
+    // Defense-in-depth: block prototype-polluting property names.
+    const unsafeKeys = ['__proto__', 'prototype', 'constructor'];
     if (
       !isSafeDynamicKey(chainId) ||
       !normalizedEnsName ||
       !this.state.ensEntries[chainId] ||
-      !this.state.ensEntries[chainId][normalizedEnsName]
+      !this.state.ensEntries[chainId][normalizedEnsName] ||
+      unsafeKeys.includes(chainId)
     ) {
       return false;
     }

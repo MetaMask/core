@@ -211,6 +211,14 @@ export class SamplePetnamesController extends BaseController<
     if (!isSafeDynamicKey(chainId)) {
       throw new Error('Invalid chain ID');
     }
+    // Explicitly forbid keys that may cause prototype pollution.
+    if (
+      chainId === '__proto__' ||
+      chainId === 'constructor' ||
+      chainId === 'prototype'
+    ) {
+      throw new Error('Unsafe chain ID');
+    }
 
     const normalizedAddress = address.toLowerCase() as Hex;
 
