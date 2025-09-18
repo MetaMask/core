@@ -7,7 +7,7 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import { deleteFromTrie, insertToTrie } from './PathTrie';
+import { deleteFromTrie, insertToTrie, type PathTrie } from './PathTrie';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -17,6 +17,36 @@ const DEFAULT_TOLERANCE = 3;
  * @returns the Date.now() time in seconds instead of miliseconds. backend files rely on timestamps in seconds since epoch.
  */
 export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
+
+/**
+ * Separates blocklist entries into hostname-only entries and hostname+path entries.
+ *
+ * @param blocklist - Array of blocklist entries (hostnames and hostname/path combinations)
+ * @returns Object containing separated blocklist and blocklistPaths
+ */
+export const separateBlocklistEntries = (
+  blocklist: string[],
+): { blocklist: string[]; blocklistPaths: PathTrie } => {
+  const hostnameOnlyList: string[] = [];
+  const pathTrie: PathTrie = {};
+
+  for (const entry of blocklist) {
+    const { hostname, pathComponents } = getHostnameAndPathComponents(entry);
+    if (!hostname) {
+      continue;
+    }
+    if (pathComponents.length === 0) {
+      hostnameOnlyList.push(hostname.toLowerCase());
+    } else {
+      insertToTrie(entry, pathTrie);
+    }
+  }
+
+  return {
+    blocklist: hostnameOnlyList,
+    blocklistPaths: pathTrie,
+  };
+};
 
 /**
  * Rounds a Unix timestamp down to the nearest minute.

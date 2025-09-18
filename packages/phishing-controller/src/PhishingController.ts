@@ -31,6 +31,7 @@ import {
   roundToNearestMinute,
   getHostnameFromWebUrl,
   getPathnameFromUrl,
+  separateBlocklistEntries,
 } from './utils';
 import { PathTrie } from './PathTrie';
 
@@ -1009,13 +1010,18 @@ export class PhishingController extends BaseController<
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
+    const { blocklist, blocklistPaths } = separateBlocklistEntries(
+      eth_phishing_detect_config.blocklist,
+    );
+
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
+      blocklist,
+      blocklistPaths,
       c2DomainBlocklist: c2DomainBlocklistResponse
         ? c2DomainBlocklistResponse.recentlyAdded
         : [],
-      blocklistPaths: {},
       name: phishingListKeyNameMap.eth_phishing_detect_config,
     };
 
