@@ -85,12 +85,11 @@ export type WebSocketServiceIsChannelSubscribedAction = {
  * @param options - Channel callback configuration
  * @param options.channelName - Channel name to match exactly
  * @param options.callback - Function to call when channel matches
- * @returns Channel name (used as callback ID)
  *
  * @example
  * ```typescript
  * // Listen to specific account activity channel
- * const channelName = webSocketService.addChannelCallback({
+ * webSocketService.addChannelCallback({
  * channelName: 'account-activity.v1.eip155:0:0x1234...',
  * callback: (notification) => {
  * console.log('Account activity:', notification.data);
@@ -98,7 +97,7 @@ export type WebSocketServiceIsChannelSubscribedAction = {
  * });
  *
  * // Listen to system notifications channel
- * const systemChannelName = webSocketService.addChannelCallback({
+ * webSocketService.addChannelCallback({
  * channelName: 'system-notifications.v1',
  * callback: (notification) => {
  * console.log('System notification:', notification.data);
@@ -114,7 +113,7 @@ export type WebSocketServiceAddChannelCallbackAction = {
 /**
  * Remove a channel callback
  *
- * @param channelName - The channel name returned from addChannelCallback
+ * @param channelName - The channel name to remove callback for
  * @returns True if callback was found and removed, false otherwise
  */
 export type WebSocketServiceRemoveChannelCallbackAction = {
