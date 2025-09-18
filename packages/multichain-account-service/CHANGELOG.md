@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add custom account provider configs ([#6624](https://github.com/MetaMask/core/pull/6624))
   - This new config can be set by the clients to update discovery timeout/retry values.
 
+### Fixed
+
+- No longer create temporary EVM account during discovery ([#6650](https://github.com/MetaMask/core/pull/6650))
+  - We used to create the EVM account and remove it if there we nore activity for that account, now we're just deriving the next address directly, which avoid state mutation.
+  - This prevents `:accountAdded` event from being published, which also prevents account-tree and multichain-account service updates.
+  - Backup & sync will no longer synchronize this temporary account group, which was causing a bug of persisting it on the user profile and to leave forever.
+
 ## [0.9.0]
 
 ### Added
