@@ -6,6 +6,7 @@ import {
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
+  getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
   matchPartsAgainstList,
@@ -1131,5 +1132,27 @@ describe('separateBlocklistEntries', () => {
         phishing: {},
       },
     });
+  });
+});
+
+describe('getHostnameAndPathComponents', () => {
+  it.each([
+    [
+      'https://example.com/path1/path2',
+      { hostname: 'example.com', pathComponents: ['path1', 'path2'] },
+    ],
+    [
+      'example.com/path1/path2',
+      { hostname: 'example.com', pathComponents: ['path1', 'path2'] },
+    ],
+    ['example.com', { hostname: 'example.com', pathComponents: [] }],
+    [
+      'EXAMPLE.COM/Path1/PATH2',
+      { hostname: 'example.com', pathComponents: ['Path1', 'PATH2'] },
+    ],
+    ['', { hostname: '', pathComponents: [] }],
+  ])('parses %s correctly', (input, expected) => {
+    const result = getHostnameAndPathComponents(input);
+    expect(result).toStrictEqual(expected);
   });
 });
