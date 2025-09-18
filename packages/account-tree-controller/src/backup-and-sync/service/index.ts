@@ -195,6 +195,34 @@ export class BackupAndSyncService {
   }
 
   /**
+   * Enqueues a single group sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
+   *
+   * @param walletId - The wallet ID to sync.
+   * @param groupId - The group ID to sync.
+   */
+  enqueueSingleWalletAndGroupSync(
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
+  ): void {
+    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
+      return;
+    }
+
+    // eslint-disable-next-line no-void
+    void this.#atomicSyncQueue.enqueue(async () => {
+      const hasSyncedWalletAtLeastOnce =
+        await this.hasSyncedWalletAtLeastOnce(walletId);
+
+      if (!hasSyncedWalletAtLeastOnce) {
+        await this.#performSingleWalletSyncInner(walletId);
+      }
+
+      await this.#performSingleGroupSyncInner(groupId);
+    });
+  }
+
+  /**
    * Performs a full synchronization of the local account tree with user storage, ensuring consistency
    * between local state and cloud-stored account data.
    * If a full sync is already in progress, it will return the ongoing promise.
@@ -446,6 +474,37 @@ export class BackupAndSyncService {
           state.isAccountTreeSyncingInProgress = false;
         },
       );
+    }
+  }
+
+  /**
+   * Performs a single wallet's bidirectional metadata sync with user storage.
+   *
+   * @param walletId - The wallet ID to sync.
+   * @returns True if this wallet has been synced already, false otherwise.
+   */
+  async hasSyncedWalletAtLeastOnce(
+    walletId: AccountWalletId,
+  ): Promise<boolean> {
+    try {
+      const wallet = this.#getEntropyWallet(walletId);
+      if (!wallet) {
+        return false; // Only sync entropy wallets
+      }
+
+      const entropySourceId = wallet.metadata.entropy.id;
+      const walletFromUserStorage = await getWalletFromUserStorage(
+        this.#context,
+        entropySourceId,
+      );
+
+      return walletFromUserStorage !== null;
+    } catch (error) {
+      backupAndSyncLogger(
+        `Error in single wallet sync for ${walletId} (hasSyncWalletAtLeastOnce):`,
+        error,
+      );
+      return false;
     }
   }
 

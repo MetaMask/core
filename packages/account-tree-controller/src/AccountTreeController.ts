@@ -5,13 +5,15 @@ import type {
   AccountGroupType,
   AccountSelector,
   MultichainAccountWalletId,
+  MultichainAccountGroup,
+  Bip44Account,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { isEvmAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
@@ -220,6 +222,20 @@ export class AccountTreeController extends BaseController<
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      (group) => {
+        this.#handleMultichainAccountGroupCreatedOrUpdated(group);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAccountService:multichainAccountGroupUpdated',
+      (group) => {
+        this.#handleMultichainAccountGroupCreatedOrUpdated(group);
       },
     );
 
@@ -617,6 +633,25 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Handles multichain account group created/updated event from
+   * the MultichainAccountService.
+   *
+   * @param multichainAccountGroup - Multichain account group being that got created or updated.
+   */
+  #handleMultichainAccountGroupCreatedOrUpdated(
+    multichainAccountGroup: MultichainAccountGroup<
+      Bip44Account<KeyringAccount>
+    >,
+  ): void {
+    // Trigger atomic sync for wallet and group (wallet will be synced only if it does
+    // not exist yet)
+    this.#backupAndSyncService.enqueueSingleWalletAndGroupSync(
+      multichainAccountGroup.wallet.id,
+      multichainAccountGroup.id,
+    );
+  }
+
+  /**
    * Helper method to prune a group if it holds no accounts and additionally
    * prune the wallet if it holds no groups. This action should take place
    * after a singular account removal.
@@ -679,11 +714,6 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
-
-      // Trigger atomic sync for new wallet (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
-      }
     }
 
     const groupId = result.group.id;
@@ -705,11 +735,6 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
-
-      // Trigger atomic sync for new group (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
-      }
     } else {
       group.accounts.push(account.id);
     }
