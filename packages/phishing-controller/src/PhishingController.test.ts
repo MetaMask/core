@@ -1413,7 +1413,7 @@ describe('PhishingController', () => {
       expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: [],
-          blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
+          blocklist: ['example-blocked-website.com', exampleBlockedUrlOne],
           c2DomainBlocklist: [exampleRequestBlockedHash],
           blocklistPaths: {},
           fuzzylist: [],
