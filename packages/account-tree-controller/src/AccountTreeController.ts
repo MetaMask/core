@@ -263,8 +263,6 @@ export class AccountTreeController extends BaseController<
       this.#applyAccountWalletMetadata(wallet);
 
       for (const group of Object.values(wallet.groups)) {
-        this.#applyAccountGroupMetadata(wallet, group);
-
         if (group.id === previousSelectedAccountGroup) {
           previousSelectedAccountGroupStillExists = true;
         }
@@ -273,6 +271,13 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       state.accountTree.wallets = wallets;
+
+      // Apply group metadata within the state update to avoid nested updates
+      for (const wallet of Object.values(wallets)) {
+        for (const group of Object.values(wallet.groups)) {
+          this.#applyAccountGroupMetadata(state, wallet, group);
+        }
+      }
 
       if (
         !previousSelectedAccountGroupStillExists ||
@@ -394,10 +399,12 @@ export class AccountTreeController extends BaseController<
    * on the wallet's
    * type).
    *
+   * @param state Controller state to update for persistence.
    * @param wallet Account wallet object of the account group to update.
    * @param group Account group object to update.
    */
   #applyAccountGroupMetadata(
+    state: AccountTreeControllerState,
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ) {
@@ -432,6 +439,9 @@ export class AccountTreeController extends BaseController<
             continue;
           }
           // Parse the existing group name to extract the numeric index
+          // TODO: This regex only matches "Account N" pattern. Hardware wallets (Trezor, Ledger, etc.)
+          // use different patterns like "Trezor N", "Ledger N" per keyringTypeToName().
+          // We'll enhance this to handle all keyring types in a future iteration.
           const nameMatch =
             existingGroup.metadata.name.match(/Account (\d+)$/u);
           if (nameMatch) {
@@ -454,13 +464,10 @@ export class AccountTreeController extends BaseController<
           proposedNameIndex = Object.keys(wallet.groups).length;
         }
 
-        // Use the higher of the two: highest parsed index + 1 or computed index
-        // Only add +1 if there are actually existing accounts with parsed names
-        const nextAvailableIndex =
-          highestAccountNameIndex > 0
-            ? highestAccountNameIndex + 1
-            : highestAccountNameIndex;
-        proposedNameIndex = Math.max(nextAvailableIndex, proposedNameIndex);
+        // Use the higher of the two: highest parsed index or computed index
+        // Always add +1 to get the next available index for the new group
+        proposedNameIndex =
+          Math.max(highestAccountNameIndex, proposedNameIndex) + 1;
 
         // Find a unique name by checking for conflicts and incrementing if needed
         let nameExists: boolean;
@@ -483,13 +490,11 @@ export class AccountTreeController extends BaseController<
         group.metadata.name = proposedName;
 
         // Persist the generated name to ensure consistency
-        this.update((state) => {
-          state.accountGroupsMetadata[group.id] ??= {};
-          state.accountGroupsMetadata[group.id].name = {
-            value: proposedName,
-            lastUpdatedAt: Date.now(),
-          };
-        });
+        state.accountGroupsMetadata[group.id] ??= {};
+        state.accountGroupsMetadata[group.id].name = {
+          value: proposedName,
+          lastUpdatedAt: Date.now(),
+        };
       }
     }
 
@@ -609,7 +614,7 @@ export class AccountTreeController extends BaseController<
 
           const group = wallet.groups[groupId];
           if (group) {
-            this.#applyAccountGroupMetadata(wallet, group);
+            this.#applyAccountGroupMetadata(state, wallet, group);
           }
         }
       }
