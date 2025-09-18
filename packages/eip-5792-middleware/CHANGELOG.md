@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `auxiliaryFunds` + `requiredAssets` support defined under [ERC-7682](https://eips.ethereum.org/EIPS/eip-7682) ([#6623](https://github.com/MetaMask/core/pull/6623))
-- Bump `@metamask/transaction-controller` from `^60.2.0` to `^60.3.0` ([#6561](https://github.com/MetaMask/core/pull/6561))
+- Bump `@metamask/transaction-controller` from `^60.2.0` to `^60.4.0` ([#6561](https://github.com/MetaMask/core/pull/6561), [#6641](https://github.com/MetaMask/core/pull/6641))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [1.1.0]
