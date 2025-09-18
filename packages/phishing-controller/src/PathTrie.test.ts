@@ -2,12 +2,12 @@ import {
   deleteFromTrie,
   isTerminalPath,
   insertToTrie,
-  PathTrie,
+  type PathTrie,
 } from './PathTrie';
 
 const emptyPathTrie: PathTrie = {};
 
-describe.only('PathTrie', () => {
+describe('PathTrie', () => {
   describe('insertToTrie', () => {
     let pathTrie: PathTrie;
 

@@ -11,6 +11,7 @@ import {
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/punycode.js';
 
+import { type PathTrie } from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -33,7 +34,6 @@ import {
   getPathnameFromUrl,
   separateBlocklistEntries,
 } from './utils';
-import { PathTrie } from './PathTrie';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';

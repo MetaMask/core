@@ -1,12 +1,15 @@
 import * as sinon from 'sinon';
 
-import { ListKeys, ListNames } from './PhishingController';
+import {
+  ListKeys,
+  ListNames,
+  type PhishingListState,
+} from './PhishingController';
 import {
   applyDiffs,
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
-  getDefaultPhishingDetectorConfig,
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
@@ -271,7 +274,7 @@ describe('applyDiffs', () => {
     });
 
     describe('adding URLs to blocklistPaths', () => {
-      let listState: any;
+      let listState: PhishingListState;
 
       beforeEach(() => {
         listState = {
@@ -381,7 +384,7 @@ describe('applyDiffs', () => {
     });
 
     describe('removing URLs from blocklistPaths', () => {
-      let listState: any;
+      let listState: PhishingListState;
 
       beforeEach(() => {
         listState = {

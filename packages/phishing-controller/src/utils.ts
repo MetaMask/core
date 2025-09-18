@@ -1,13 +1,13 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
+import { deleteFromTrie, insertToTrie, type PathTrie } from './PathTrie';
 import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import { deleteFromTrie, insertToTrie, type PathTrie } from './PathTrie';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -17,36 +17,6 @@ const DEFAULT_TOLERANCE = 3;
  * @returns the Date.now() time in seconds instead of miliseconds. backend files rely on timestamps in seconds since epoch.
  */
 export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
-
-/**
- * Separates blocklist entries into hostname-only entries and hostname+path entries.
- *
- * @param blocklist - Array of blocklist entries (hostnames and hostname/path combinations)
- * @returns Object containing separated blocklist and blocklistPaths
- */
-export const separateBlocklistEntries = (
-  blocklist: string[],
-): { blocklist: string[]; blocklistPaths: PathTrie } => {
-  const hostnameOnlyList: string[] = [];
-  const pathTrie: PathTrie = {};
-
-  for (const entry of blocklist) {
-    const { hostname, pathComponents } = getHostnameAndPathComponents(entry);
-    if (!hostname) {
-      continue;
-    }
-    if (pathComponents.length === 0) {
-      hostnameOnlyList.push(hostname.toLowerCase());
-    } else {
-      insertToTrie(entry, pathTrie);
-    }
-  }
-
-  return {
-    blocklist: hostnameOnlyList,
-    blocklistPaths: pathTrie,
-  };
-};
 
 /**
  * Rounds a Unix timestamp down to the nearest minute.
@@ -72,6 +42,24 @@ const splitStringByPeriod = <Start extends string, End extends string>(
     stringToSplit.slice(0, periodIndex) as Start,
     stringToSplit.slice(periodIndex + 1) as End,
   ];
+};
+
+export const getHostnameAndPathComponents = (
+  url: string,
+): { hostname: string; pathComponents: string[] } => {
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  try {
+    const { hostname, pathname } = new URL(urlWithProtocol);
+    return {
+      hostname: hostname.toLowerCase(),
+      pathComponents: pathname.split('/').filter(Boolean),
+    };
+  } catch {
+    return {
+      hostname: '',
+      pathComponents: [],
+    };
+  }
 };
 
 /**
@@ -201,7 +189,7 @@ export function validateConfig(
 export const domainToParts = (domain: string) => {
   try {
     return domain.split('.').reverse();
-  } catch (e) {
+  } catch {
     throw new Error(JSON.stringify(domain));
   }
 };
@@ -222,7 +210,6 @@ export const processDomainList = (list: string[]) => {
  * @param override - the optional override for the configuration.
  * @param override.allowlist - the optional allowlist to override.
  * @param override.blocklist - the optional blocklist to override.
- * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
@@ -375,22 +362,34 @@ export const getPathnameFromUrl = (url: string): string => {
   }
 };
 
-export const getHostnameAndPathComponents = (
-  url: string,
-): { hostname: string; pathComponents: string[] } => {
-  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-  try {
-    const { hostname, pathname } = new URL(urlWithProtocol);
-    return {
-      hostname: hostname.toLowerCase(),
-      pathComponents: pathname.split('/').filter(Boolean),
-    };
-  } catch {
-    return {
-      hostname: '',
-      pathComponents: [],
-    };
+/**
+ * Separates blocklist entries into hostname-only entries and hostname+path entries.
+ *
+ * @param blocklist - Array of blocklist entries (hostnames and hostname/path combinations)
+ * @returns Object containing separated blocklist and blocklistPaths
+ */
+export const separateBlocklistEntries = (
+  blocklist: string[],
+): { blocklist: string[]; blocklistPaths: PathTrie } => {
+  const hostnameOnlyList: string[] = [];
+  const pathTrie: PathTrie = {};
+
+  for (const entry of blocklist) {
+    const { hostname, pathComponents } = getHostnameAndPathComponents(entry);
+    if (!hostname) {
+      continue;
+    }
+    if (pathComponents.length === 0) {
+      hostnameOnlyList.push(hostname.toLowerCase());
+    } else {
+      insertToTrie(entry, pathTrie);
+    }
   }
+
+  return {
+    blocklist: hostnameOnlyList,
+    blocklistPaths: pathTrie,
+  };
 };
 
 /**

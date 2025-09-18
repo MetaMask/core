@@ -1278,7 +1278,7 @@ describe('PhishingDetector', () => {
             expect(result).toBe(true);
             expect(type).toBe(PhishingDetectorResultType.Blocklist);
             expect(name).toBe('test-config');
-            expect(version).toBe(undefined);
+            expect(version).toBeUndefined();
           },
         );
       });
