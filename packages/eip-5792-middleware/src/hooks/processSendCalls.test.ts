@@ -15,6 +15,7 @@ import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
 import { processSendCalls } from './processSendCalls';
+import { SupportedCapabilities } from '../constants';
 import type {
   SendCallsPayload,
   SendCallsParams,
@@ -467,7 +468,7 @@ describe('EIP-5792', () => {
           REQUEST_MOCK,
         ),
       ).rejects.toThrow(
-        'Unsupported non-optional capabilities: auxiliaryFunds',
+        `Unsupported non-optional capability: ${SupportedCapabilities.AuxiliaryFunds}`,
       );
     });
 
