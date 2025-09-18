@@ -77,6 +77,8 @@ export type GetCapabilitiesHook = (
 export type SendCallsParams = Infer<typeof SendCallsStruct>;
 export type SendCallsPayload = SendCallsParams[0];
 
+export type SendCallsRequiredAssetsParam = Infer<typeof RequiredAssetStruct>;
+
 export type SendCallsResult = {
   id: Hex;
   capabilities?: Record<string, Json>;
@@ -97,10 +99,17 @@ export const GetCapabilitiesStruct = tuple([
   optional(array(StrictHexStruct)),
 ]);
 
+const RequiredAssetStruct = type({
+  address: nonempty(HexChecksumAddressStruct),
+  amount: nonempty(StrictHexStruct),
+  standard: nonempty(string()),
+});
+
 export const CapabilitiesStruct = record(
   string(),
   type({
     optional: optional(boolean()),
+    requiredAssets: optional(array(RequiredAssetStruct)),
   }),
 );
 
