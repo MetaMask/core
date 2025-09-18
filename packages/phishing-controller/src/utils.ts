@@ -355,6 +355,24 @@ export const getPathnameFromUrl = (url: string): string => {
   return urlObj.pathname;
 };
 
+export const getHostnameAndPathComponents = (
+  url: string,
+): { hostname: string; pathComponents: string[] } => {
+  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+  try {
+    const { hostname, pathname } = new URL(urlWithProtocol);
+    return {
+      hostname: hostname.toLowerCase(),
+      pathComponents: pathname.split('/').filter(Boolean),
+    };
+  } catch {
+    return {
+      hostname: '',
+      pathComponents: [],
+    };
+  }
+};
+
 /**
  * Generates all possible parent domains up to a specified limit.
  *

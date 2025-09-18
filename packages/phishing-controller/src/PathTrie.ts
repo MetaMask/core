@@ -1,12 +1,10 @@
+import { getHostnameAndPathComponents } from './utils';
+
 export type PathNode = {
   [key: string]: PathNode;
 };
 
 export type PathTrie = Record<string, PathNode>;
-
-const isTerminal = (node: PathNode): boolean => {
-  return Object.keys(node).length === 0;
-};
 
 /**
  * Insert a URL into the trie, mutating `pathTrie` in place.
@@ -15,11 +13,9 @@ const isTerminal = (node: PathNode): boolean => {
  * - If no path segments exist (bare host or "/"), do nothing.
  */
 export const insertToTrie = (url: string, pathTrie: PathTrie) => {
-  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-  var { hostname, pathname } = new URL(urlWithProtocol);
-  const pathComponents = pathname.split('/').filter(Boolean);
+  var { hostname, pathComponents } = getHostnameAndPathComponents(url);
 
-  if (pathComponents.length === 0) {
+  if (pathComponents.length === 0 || !hostname) {
     return;
   }
 
@@ -61,9 +57,7 @@ export const insertToTrie = (url: string, pathTrie: PathTrie) => {
 };
 
 export const deleteFromTrie = (url: string, pathTrie: PathTrie) => {
-  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-  const { hostname, pathname } = new URL(urlWithProtocol);
-  const pathComponents = pathname.split('/').filter(Boolean);
+  var { hostname, pathComponents } = getHostnameAndPathComponents(url);
 
   if (pathComponents.length === 0 || !pathTrie[hostname]) {
     return;
@@ -97,11 +91,10 @@ export const deleteFromTrie = (url: string, pathTrie: PathTrie) => {
 };
 
 export const isTerminalPath = (url: string, pathTrie: PathTrie): boolean => {
-  const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-  const { hostname, pathname } = new URL(urlWithProtocol);
-  const pathComponents = pathname.split('/').filter(Boolean);
+  var { hostname, pathComponents } = getHostnameAndPathComponents(url);
 
-  if (pathComponents.length === 0 || !pathTrie[hostname]) {
+  hostname = hostname.toLowerCase();
+  if (pathComponents.length === 0 || !hostname || !pathTrie[hostname]) {
     return false;
   }
 
@@ -114,4 +107,8 @@ export const isTerminalPath = (url: string, pathTrie: PathTrie): boolean => {
     curr = curr[pathComponent];
   }
   return isTerminal(curr);
+};
+
+const isTerminal = (node: PathNode): boolean => {
+  return Object.keys(node).length === 0;
 };
