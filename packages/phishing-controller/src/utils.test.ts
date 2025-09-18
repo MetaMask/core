@@ -6,6 +6,7 @@ import {
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
+  getDefaultPhishingDetectorConfig,
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
@@ -554,6 +555,11 @@ describe('processConfigs', () => {
       {
         allowlist: ['example.com'],
         blocklist: ['sub.example.com'],
+        blocklistPaths: {
+          'malicious.com': {
+            path: {},
+          },
+        },
         fuzzylist: ['fuzzy.example.com'],
         tolerance: 2,
         version: 1,
@@ -564,6 +570,14 @@ describe('processConfigs', () => {
     const result = processConfigs(configs);
 
     expect(result).toHaveLength(1);
+    expect(result[0].blocklist).toStrictEqual(
+      Array.of(['com', 'example', 'sub']),
+    );
+    expect(result[0].blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        path: {},
+      },
+    });
     expect(result[0].name).toBe('MetaMask');
 
     expect(console.error).not.toHaveBeenCalled();
