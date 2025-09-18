@@ -1,4 +1,5 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import { v4 as uuidV4 } from 'uuid';
 import type { WebSocketServiceMethodActions } from './WebsocketService-method-action-types';
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
@@ -218,7 +219,7 @@ export class WebSocketService {
 
   readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger'>>;
 
-  #ws!: WebSocket;
+  #ws: WebSocket | undefined;
 
   #state: WebSocketState = WebSocketState.DISCONNECTED;
 
@@ -251,6 +252,16 @@ export class WebSocketService {
   // Key: channel name (serves as unique identifier)
   // Value: ChannelCallback configuration
   readonly #channelCallbacks = new Map<string, ChannelCallback>();
+
+  /**
+   * Extracts error message from unknown error type
+   *
+   * @param error - Error of unknown type
+   * @returns Error message string
+   */
+  #getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
 
   /**
    * Creates a new WebSocket service instance
@@ -288,8 +299,7 @@ export class WebSocketService {
     try {
       await this.connect();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown initialization error';
+      const errorMessage = this.#getErrorMessage(error);
 
       throw new Error(
         `WebSocket service initialization failed: ${errorMessage}`,
@@ -319,14 +329,13 @@ export class WebSocketService {
     this.#lastError = null;
 
     // Create and store the connection promise
-    this.#connectionPromise = this.#doConnect();
+    this.#connectionPromise = this.#establishConnection();
 
     try {
       await this.#connectionPromise;
       console.log(`✅ Connection attempt succeeded`);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown connection error';
+      const errorMessage = this.#getErrorMessage(error);
       console.error(`❌ Connection attempt failed: ${errorMessage}`);
       this.#lastError = errorMessage;
       this.#setState(WebSocketState.ERROR);
@@ -336,15 +345,6 @@ export class WebSocketService {
       // Clear the connection promise when done (success or failure)
       this.#connectionPromise = null;
     }
-  }
-
-  /**
-   * Internal method to perform the actual connection
-   *
-   * @returns Promise that resolves when connection is established
-   */
-  async #doConnect(): Promise<void> {
-    await this.#establishConnection();
   }
 
   /**
@@ -370,7 +370,9 @@ export class WebSocketService {
     // Clear any pending connection promise
     this.#connectionPromise = null;
 
-    this.#ws.close(1000, 'Normal closure');
+    if (this.#ws) {
+      this.#ws.close(1000, 'Normal closure');
+    }
 
     this.#setState(WebSocketState.DISCONNECTED);
     console.log(`WebSocket manually disconnected`);
@@ -387,11 +389,14 @@ export class WebSocketService {
       throw new Error(`Cannot send message: WebSocket is ${this.#state}`);
     }
 
+    if (!this.#ws) {
+      throw new Error('WebSocket not initialized');
+    }
+
     try {
       this.#ws.send(JSON.stringify(message));
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to send message';
+      const errorMessage = this.#getErrorMessage(error);
       this.#handleError(new Error(errorMessage));
       throw error;
     }
@@ -448,7 +453,7 @@ export class WebSocketService {
         this.#pendingRequests.delete(requestId);
         clearTimeout(timeout);
         reject(
-          new Error(error instanceof Error ? error.message : 'Unknown error'),
+          new Error(this.#getErrorMessage(error)),
         );
       });
     });
@@ -769,6 +774,10 @@ export class WebSocketService {
   #setupEventHandlers(): void {
     console.log('Setting up WebSocket event handlers for operational phase');
 
+    if (!this.#ws) {
+      throw new Error('WebSocket not initialized for event handler setup');
+    }
+
     this.#ws.onmessage = (event: MessageEvent) => {
       // Fast path: Optimized parsing for mobile real-time performance
       const message = this.#parseMessage(event.data);
@@ -1035,7 +1044,7 @@ export class WebSocketService {
     console.log('🔄 Request timeout detected - forcing WebSocket reconnection');
 
     // Only trigger reconnection if we're currently connected
-    if (this.#state === WebSocketState.CONNECTED) {
+    if (this.#state === WebSocketState.CONNECTED && this.#ws) {
       // Force close the current connection to trigger reconnection logic
       this.#ws.close(1001, 'Request timeout - forcing reconnect');
     } else {
@@ -1148,12 +1157,12 @@ export class WebSocketService {
   }
 
   /**
-   * Generates a unique message ID
+   * Generates a unique message ID using UUID v4
    *
-   * @returns Unique message identifier
+   * @returns Unique message identifier (UUID v4)
    */
   #generateMessageId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return uuidV4();
   }
 
   /**

@@ -740,14 +740,14 @@ describe('AccountActivityService', () => {
     });
   });
 
-  describe('getCurrentSubscribedAccount', () => {
+  describe('currentSubscribedAddress', () => {
     it('should return null when no account is subscribed', () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
         webSocketService: mockWebSocketService,
       });
 
-      const currentAccount = service.getCurrentSubscribedAccount();
+      const currentAccount = service.currentSubscribedAddress;
       expect(currentAccount).toBeNull();
     });
 
@@ -774,7 +774,7 @@ describe('AccountActivityService', () => {
       await service.subscribeAccounts(subscription);
 
       // Should return the subscribed account address
-      const currentAccount = service.getCurrentSubscribedAccount();
+      const currentAccount = service.currentSubscribedAddress;
       expect(currentAccount).toBe(testAccount.address.toLowerCase());
     });
 
@@ -800,14 +800,14 @@ describe('AccountActivityService', () => {
         address: testAccount1.address,
       });
 
-      expect(service.getCurrentSubscribedAccount()).toBe(testAccount1.address.toLowerCase());
+      expect(service.currentSubscribedAddress).toBe(testAccount1.address.toLowerCase());
 
       // Subscribe to second account (should become current)
       await service.subscribeAccounts({
         address: testAccount2.address,
       });
 
-      expect(service.getCurrentSubscribedAccount()).toBe(testAccount2.address.toLowerCase());
+      expect(service.currentSubscribedAddress).toBe(testAccount2.address.toLowerCase());
     });
 
     it('should return null after unsubscribing all accounts', async () => {
@@ -841,13 +841,13 @@ describe('AccountActivityService', () => {
       };
       
       await service.subscribeAccounts(subscription);
-      expect(service.getCurrentSubscribedAccount()).toBe(testAccount.address.toLowerCase());
+      expect(service.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
 
       // Unsubscribe from the account
       await service.unsubscribeAccounts(subscription);
       
       // Should return null after unsubscribing
-      expect(service.getCurrentSubscribedAccount()).toBeNull();
+      expect(service.currentSubscribedAddress).toBeNull();
     });
   });
 
@@ -873,7 +873,7 @@ describe('AccountActivityService', () => {
       };
       
       await service.subscribeAccounts(subscription);
-      expect(service.getCurrentSubscribedAccount()).toBe(testAccount.address.toLowerCase());
+      expect(service.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
 
       // Verify service has active subscriptions
       expect(mockWebSocketService.subscribe).toHaveBeenCalled();
@@ -882,7 +882,7 @@ describe('AccountActivityService', () => {
       service.destroy();
 
       // Verify cleanup occurred
-      expect(service.getCurrentSubscribedAccount()).toBeNull();
+      expect(service.currentSubscribedAddress).toBeNull();
     });
 
     it('should handle destroy gracefully when no subscriptions exist', () => {
@@ -963,7 +963,7 @@ describe('AccountActivityService', () => {
       service.destroy();
 
       // Verify the service was cleaned up (current implementation just clears state)
-      expect(service.getCurrentSubscribedAccount()).toBeNull();
+      expect(service.currentSubscribedAddress).toBeNull();
     });
   });
 
@@ -1199,7 +1199,7 @@ describe('AccountActivityService', () => {
         address: testAccount1.address,
       });
 
-      expect(accountActivityService.getCurrentSubscribedAccount()).toBe(testAccount1.address.toLowerCase());
+      expect(accountActivityService.currentSubscribedAddress).toBe(testAccount1.address.toLowerCase());
       expect(mockWebSocketService.subscribe).toHaveBeenCalledTimes(1);
 
       // Simulate account change via messenger event
@@ -1216,7 +1216,7 @@ describe('AccountActivityService', () => {
 
       // Should have subscribed to new account (via #handleSelectedAccountChange with CAIP-10 conversion)
       expect(mockWebSocketService.subscribe).toHaveBeenCalledTimes(2);
-      expect(accountActivityService.getCurrentSubscribedAccount()).toBe(`eip155:0:${testAccount2.address.toLowerCase()}`);
+      expect(accountActivityService.currentSubscribedAddress).toBe(`eip155:0:${testAccount2.address.toLowerCase()}`);
       
       // Note: Due to implementation logic, unsubscribe from old account doesn't happen
       // because #currentSubscribedAddress gets updated before the unsubscribe check
@@ -1381,11 +1381,11 @@ describe('AccountActivityService', () => {
         address: testAccount.address,
       });
 
-      expect(service.getCurrentSubscribedAccount()).toBe(testAccount.address.toLowerCase());
+      expect(service.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
 
       // Destroy service (simulating app restart)
       service.destroy();
-      expect(service.getCurrentSubscribedAccount()).toBeNull();
+      expect(service.currentSubscribedAddress).toBeNull();
 
       // Create new service instance (simulating restart)
       const newService = new AccountActivityService({
@@ -1394,7 +1394,7 @@ describe('AccountActivityService', () => {
       });
 
       // Initially no subscriptions
-      expect(newService.getCurrentSubscribedAccount()).toBeNull();
+      expect(newService.currentSubscribedAddress).toBeNull();
 
       // Re-subscribe after restart
       const newMockSubscription = {
@@ -1407,7 +1407,7 @@ describe('AccountActivityService', () => {
         address: testAccount.address,
       });
 
-      expect(newService.getCurrentSubscribedAccount()).toBe(testAccount.address.toLowerCase());
+      expect(newService.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
     });
 
     it('should handle malformed activity messages gracefully', async () => {
@@ -1529,7 +1529,7 @@ describe('AccountActivityService', () => {
       expect(mockWebSocketService.connect).toHaveBeenCalled();
 
       // Should still be unsubscribed after failure
-      expect(service.getCurrentSubscribedAccount()).toBeNull();
+      expect(service.currentSubscribedAddress).toBeNull();
     });
   });
 });
