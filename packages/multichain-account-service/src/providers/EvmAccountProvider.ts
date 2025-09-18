@@ -8,12 +8,14 @@ import type {
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
+import { withRetry, withTimeout } from './utils';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -31,7 +33,35 @@ function assertInternalAccountExists(
   }
 }
 
+export type EvmAccountProviderConfig = {
+  discovery: {
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+};
+
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM' as const;
+
 export class EvmAccountProvider extends BaseBip44AccountProvider {
+  static NAME = EVM_ACCOUNT_PROVIDER_NAME;
+
+  readonly #config: EvmAccountProviderConfig;
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    config: EvmAccountProviderConfig = {
+      discovery: {
+        maxAttempts: 3,
+        timeoutMs: 500,
+        backOffMs: 500,
+      },
+    },
+  ) {
+    super(messenger);
+    this.#config = config;
+  }
+
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
@@ -40,7 +70,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   getName(): string {
-    return 'EVM';
+    return EvmAccountProvider.NAME;
   }
 
   /**
@@ -121,13 +151,19 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     provider: Provider,
     address: Hex,
   ): Promise<number> {
-    const countHex = await this.#withRetry<Hex>(() =>
-      this.#withTimeout(
-        provider.request({
-          method: 'eth_getTransactionCount',
-          params: [address, 'latest'],
-        }),
-      ),
+    const countHex = await withRetry<Hex>(
+      () =>
+        withTimeout(
+          provider.request({
+            method: 'eth_getTransactionCount',
+            params: [address, 'latest'],
+          }),
+          this.#config.discovery.timeoutMs,
+        ),
+      {
+        maxAttempts: this.#config.discovery.maxAttempts,
+        backOffMs: this.#config.discovery.backOffMs,
+      },
     );
 
     return parseInt(countHex, 16);
@@ -188,69 +224,5 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     assertInternalAccountExists(account);
     assertIsBip44Account(account);
     return [account];
-  }
-
-  /**
-   * Execute a function with exponential backoff on transient failures.
-   *
-   * @param fnToExecute - The function to execute.
-   * @param options - The options for the retry.
-   * @param options.maxAttempts - The maximum number of attempts.
-   * @param options.backOffMs - The backoff in milliseconds.
-   * @throws An error if the transaction count cannot be retrieved.
-   * @returns The result of the function.
-   */
-  async #withRetry<T>(
-    fnToExecute: () => Promise<T>,
-    {
-      maxAttempts = 3,
-      backOffMs = 500,
-    }: { maxAttempts?: number; backOffMs?: number } = {},
-  ): Promise<T> {
-    let lastError;
-    let backOff = backOffMs;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        return await fnToExecute();
-      } catch (error) {
-        lastError = error;
-        if (attempt >= maxAttempts) {
-          break;
-        }
-        const delay = backOff;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        backOff *= 2;
-      }
-    }
-    throw lastError;
-  }
-
-  /**
-   * Execute a promise with a timeout.
-   *
-   * @param promise - The promise to execute.
-   * @param timeoutMs - The timeout in milliseconds.
-   * @returns The result of the promise.
-   */
-  async #withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number = 500,
-  ): Promise<T> {
-    let timer;
-    try {
-      return await Promise.race<T>([
-        promise,
-        new Promise<T>((_resolve, reject) => {
-          timer = setTimeout(
-            () => reject(new Error('RPC request timed out')),
-            timeoutMs,
-          );
-        }),
-      ]);
-    } finally {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    }
   }
 }

@@ -85,6 +85,7 @@ export const ChainConfigurationSchema = type({
   isActiveDest: boolean(),
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
+  stablecoins: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),

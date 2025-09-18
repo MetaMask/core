@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/base-controller": "^8.3.0",
+    "@metamask/base-controller": "^8.4.0",
     "@metamask/eth-snap-keyring": "^17.0.0",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/keyring-internal-api": "^9.0.0",

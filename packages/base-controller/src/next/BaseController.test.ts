@@ -990,8 +990,146 @@ describe('deriveStateFromMetadata', () => {
       });
     }
 
-    it('should suppress errors thrown when deriving state', () => {
-      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    it('reports thrown error when deriving state', () => {
+      const captureException = jest.fn();
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('reports thrown non-error when deriving state, wrapping it in an error', () => {
+      const captureException = jest.fn();
+      const testException = 'Non-Error exception';
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        {
+          extraState: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: () => {
+              // Intentionally throwing non-error to test handling
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
+              throw testException;
+            },
+          },
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(new Error(testException));
+    });
+
+    it('logs thrown error and captureException error to console if captureException throws', () => {
+      const consoleError = jest.fn();
+      const testError = new Error('Test error');
+      const captureException = jest.fn().mockImplementation(() => {
+        throw testError;
+      });
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenNthCalledWith(
+        1,
+        new Error(`Error thrown when calling 'captureException'`),
+        testError,
+      );
+      expect(consoleError).toHaveBeenNthCalledWith(
+        2,
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('logs thrown error to console when deriving state if no captureException function is given', () => {
+      const consoleError = jest.fn();
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
       const derivedState = deriveStateFromMetadata(
         {
           extraState: 'extraState',
@@ -1022,9 +1160,10 @@ describe('deriveStateFromMetadata', () => {
         privateKey: '123',
       });
 
-      expect(setTimeoutStub.callCount).toBe(1);
-      const onTimeout = setTimeoutStub.firstCall.args[0];
-      expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
     });
   });
 });

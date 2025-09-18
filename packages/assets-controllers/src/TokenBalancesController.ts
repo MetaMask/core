@@ -442,12 +442,41 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   /**
    * Override to handle our custom polling approach
+   *
+   * @param tokenSetId - The token set ID to stop polling for
    */
-  override _stopPollingByPollingTokenSetId() {
-    this.#isControllerPollingActive = false;
-    this.#requestedChainIds = []; // Clear original intent when stopping
-    this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
-    this.#intervalPollingTimers.clear();
+  override _stopPollingByPollingTokenSetId(tokenSetId: string) {
+    let parsedTokenSetId;
+    let chainsToStop: ChainIdHex[] = [];
+
+    try {
+      parsedTokenSetId = JSON.parse(tokenSetId);
+      chainsToStop = parsedTokenSetId.chainIds || [];
+    } catch (error) {
+      console.warn('Failed to parse tokenSetId, stopping all polling:', error);
+      // Fallback: stop all polling if we can't parse the tokenSetId
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+      return;
+    }
+
+    // Compare with current chains - only stop if it matches our current session
+    const currentChainsSet = new Set(this.#requestedChainIds);
+    const stopChainsSet = new Set(chainsToStop);
+
+    // Check if this stop request is for our current session
+    const isCurrentSession =
+      currentChainsSet.size === stopChainsSet.size &&
+      [...currentChainsSet].every((chain) => stopChainsSet.has(chain));
+
+    if (isCurrentSession) {
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+    }
   }
 
   /**
