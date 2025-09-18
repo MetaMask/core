@@ -795,70 +795,73 @@ export class AccountTreeController extends BaseController<
     const walletId = multichainAccountWallet.id;
     const groupId = multichainAccountGroup.id;
 
+    let wallet: AccountWalletEntropyObject | null = null;
+    let group: AccountGroupMultichainAccountObject | null = null;
+
     // Check type, mainly to infer proper wallet object type.
     const walletObject = wallets[walletId];
-    if (walletObject.type === AccountWalletType.Entropy) {
-      let wallet: AccountWalletEntropyObject = walletObject;
-      let group: AccountGroupMultichainAccountObject = wallet.groups[groupId];
+    if (walletObject && walletObject.type === AccountWalletType.Entropy) {
+      wallet = walletObject;
+      group = wallet.groups[groupId];
+    }
 
-      // Create the group object first, to inject it in the wallet in case this wallet is
-      // not part of the tree yet.
-      if (!group) {
-        group = {
-          id: multichainAccountGroup.id,
-          type: multichainAccountGroup.type,
-          // For now, we need this type-cast because `getAccounts` do not have the same type-constraint
-          // (uses string[] instead of [string; ...string])
-          accounts: multichainAccountGroup
-            .getAccounts()
-            .map((account) => account.id) as AccountGroupObject['accounts'],
-          metadata: {
-            entropy: {
-              groupIndex: multichainAccountGroup.groupIndex,
-            },
-            name: '',
-            pinned: false,
-            hidden: false,
+    // Create the group object first, to inject it in the wallet in case this wallet is
+    // not part of the tree yet.
+    if (!group) {
+      group = {
+        id: multichainAccountGroup.id,
+        type: multichainAccountGroup.type,
+        accounts: multichainAccountGroup
+          .getAccounts()
+          // For now, we need this type-cast because `getAccounts` do not have the same
+          // type-constraint (uses string[] instead of [string; ...string])
+          .map((account) => account.id) as AccountGroupObject['accounts'],
+        metadata: {
+          entropy: {
+            groupIndex: multichainAccountGroup.groupIndex,
           },
-        };
-      }
+          name: '',
+          pinned: false,
+          hidden: false,
+        },
+      };
+    }
 
-      if (!wallet) {
-        wallet = {
-          id: multichainAccountWallet.id,
-          type: multichainAccountWallet.type,
-          status: multichainAccountWallet.status,
-          groups: {
-            [group.id]: group,
+    if (!wallet) {
+      wallet = {
+        id: multichainAccountWallet.id,
+        type: multichainAccountWallet.type,
+        status: multichainAccountWallet.status,
+        groups: {
+          [group.id]: group,
+        },
+        metadata: {
+          entropy: {
+            id: multichainAccountWallet.entropySource,
           },
-          metadata: {
-            entropy: {
-              id: multichainAccountWallet.entropySource,
-            },
-            name: '', // Will get updated later.
-          },
-        };
-        wallets[walletId] = wallet;
+          name: '', // Will get updated later.
+        },
+      };
+      wallets[walletId] = wallet;
 
-        // Trigger atomic sync for new wallet.
-        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
-      } else {
-        wallet.groups[group.id] = group;
+      // Trigger atomic sync for new wallet.
+      this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
+    } else {
+      wallet.groups[group.id] = group;
 
-        // Trigger atomic sync for new group.
-        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
-      }
+      // Trigger atomic sync for new group.
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
+    }
 
-      // Map group ID to its containing wallet ID for efficient direct access
-      this.#groupIdToWalletId.set(groupId, walletId);
+    // Map group ID to its containing wallet ID for efficient direct access
+    this.#groupIdToWalletId.set(groupId, walletId);
 
-      // Update the reverse mapping for all accounts account.
-      for (const accountId of group.accounts) {
-        this.#accountIdToContext.set(accountId, {
-          walletId: wallet.id,
-          groupId: group.id,
-        });
-      }
+    // Update the reverse mapping for all accounts account.
+    for (const accountId of group.accounts) {
+      this.#accountIdToContext.set(accountId, {
+        walletId: wallet.id,
+        groupId: group.id,
+      });
     }
   }
 
