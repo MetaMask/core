@@ -1223,6 +1223,68 @@ describe('PhishingDetector', () => {
         );
       });
     });
+
+    describe('path-based blocking', () => {
+      it('blocks a domain with path when version is defined', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              blocklistPaths: {
+                'example.com': {
+                  path: {},
+                },
+              },
+              name: 'test-config',
+              version: 1,
+              tolerance: 0,
+            },
+          ],
+          async ({ detector }) => {
+            const { result, type, name, version } = detector.check(
+              'https://example.com/path',
+            );
+            expect(result).toBe(true);
+            expect(type).toBe(PhishingDetectorResultType.Blocklist);
+            expect(name).toBe('test-config');
+            expect(version).toBe('1');
+          },
+        );
+      });
+
+      it('blocks a domain with path when version is undefined', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              blocklistPaths: {
+                'malicious.com': {
+                  phishing: {},
+                },
+              },
+              name: 'test-config',
+              // version is undefined
+              tolerance: 0,
+            },
+          ],
+          async ({ detector }) => {
+            const { result, type, name, version } = detector.check(
+              'https://malicious.com/phishing',
+            );
+            expect(result).toBe(true);
+            expect(type).toBe(PhishingDetectorResultType.Blocklist);
+            expect(name).toBe('test-config');
+            expect(version).toBe(undefined);
+          },
+        );
+      });
+    });
+  });
+
   });
 
   describe('isMaliciousC2Domain', () => {
