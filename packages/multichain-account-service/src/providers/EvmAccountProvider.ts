@@ -175,8 +175,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     entropySource,
     groupIndex,
   }: {
-    entropySource: EntropySourceId,
-    groupIndex: number,
+    entropySource: EntropySourceId;
+    groupIndex: number;
   }): Promise<Hex> {
     // NOTE: To avoid exposing this function at keyring level, we just re-use its internal state
     // and compute the derivation here.
