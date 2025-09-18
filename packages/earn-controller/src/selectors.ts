@@ -23,11 +23,13 @@ export const selectLendingMarketsByProtocolAndId = createSelector(
   (markets) => {
     return markets.reduce(
       (acc, market) => {
-        acc[market.protocol] = acc[market.protocol] || {};
-        acc[market.protocol][market.id] = market;
+        if (!acc.has(market.protocol)) {
+          acc.set(market.protocol, new Map());
+        }
+        acc.get(market.protocol)!.set(market.id, market);
         return acc;
       },
-      {} as Record<string, Record<string, LendingMarket>>,
+      new Map<string, Map<string, LendingMarket>>(),
     );
   },
 );
@@ -38,7 +40,9 @@ export const selectLendingMarketForProtocolAndId = (
 ) =>
   createSelector(
     selectLendingMarketsByProtocolAndId,
-    (marketsByProtocolAndId) => marketsByProtocolAndId?.[protocol]?.[id],
+    (marketsByProtocolAndId) => {
+      return marketsByProtocolAndId?.get(protocol)?.get(id);
+    },
   );
 
 export const selectLendingMarketsByChainId = createSelector(
@@ -63,7 +67,7 @@ export const selectLendingPositionsWithMarket = createSelector(
       return {
         ...position,
         market:
-          marketsByProtocolAndId?.[position.protocol]?.[position.marketId],
+          marketsByProtocolAndId?.get(position.protocol)?.get(position.marketId),
       };
     });
   },
