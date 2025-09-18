@@ -270,22 +270,10 @@ export const processConfigs = (
         return false;
       }
     })
-    .map((config) => {
-      // If config already has blocklistPaths, use it as-is
-      // Otherwise, process the blocklist to separate hostname-only from hostname+path entries
-      if (config.blocklistPaths !== undefined) {
-        return {
-          ...getDefaultPhishingDetectorConfig({}),
-          ...config,
-        };
-      }
-      
-      const processedConfig = getDefaultPhishingDetectorConfig(config);
-      return {
-        ...config,
-        ...processedConfig,
-      };
-    });
+    .map((config) => ({
+      ...config,
+      ...getDefaultPhishingDetectorConfig(config),
+    }));
 };
 
 /**
