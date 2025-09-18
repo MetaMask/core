@@ -31,7 +31,6 @@ export type SystemNotificationData = {
   status: 'down' | 'up';
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SERVICE_NAME = 'AccountActivityService' as const;
 
 const MESSENGER_EXPOSED_METHODS = ['subscribeAccounts', 'unsubscribeAccounts'] as const;
