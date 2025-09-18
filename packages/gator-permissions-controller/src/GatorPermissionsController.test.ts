@@ -488,8 +488,8 @@ describe('GatorPermissionsController', () => {
       });
     });
 
-    it('throws if contracts are not found', async () => {
-      await expect(
+    it('throws if contracts are not found', () => {
+      expect(() =>
         controller.decodePermissionFromPermissionContextForOrigin({
           origin: controller.permissionsProviderSnapId,
           chainId: 999999,
@@ -501,10 +501,10 @@ describe('GatorPermissionsController', () => {
           },
           metadata: buildMetadata(''),
         }),
-      ).rejects.toThrow('Contracts not found for chainId: 999999');
+      ).toThrow('Contracts not found for chainId: 999999');
     });
 
-    it('decodes a native-token-stream permission successfully', async () => {
+    it('decodes a native-token-stream permission successfully', () => {
       const {
         TimestampEnforcer,
         NativeTokenStreamingEnforcer,
@@ -580,8 +580,8 @@ describe('GatorPermissionsController', () => {
       expect(result.permission.justification).toBe('Test justification');
     });
 
-    it('throws when origin does not match permissions provider', async () => {
-      await expect(
+    it('throws when origin does not match permissions provider', () => {
+      expect(() =>
         controller.decodePermissionFromPermissionContextForOrigin({
           origin: 'not-the-provider',
           chainId: 1,
@@ -593,10 +593,10 @@ describe('GatorPermissionsController', () => {
           },
           metadata: buildMetadata(''),
         }),
-      ).rejects.toThrow('Origin not-the-provider not allowed');
+      ).toThrow('Origin not-the-provider not allowed');
     });
 
-    it('throws when enforcers do not identify a supported permission', async () => {
+    it('throws when enforcers do not identify a supported permission', () => {
       const { TimestampEnforcer, ValueLteEnforcer } = contracts;
 
       const expiryTerms = createTimestampTerms(
@@ -614,7 +614,7 @@ describe('GatorPermissionsController', () => {
         { enforcer: ValueLteEnforcer, terms: '0x', args: '0x' } as const,
       ];
 
-      await expect(
+      expect(() =>
         controller.decodePermissionFromPermissionContextForOrigin({
           origin: controller.permissionsProviderSnapId,
           chainId,
@@ -626,10 +626,10 @@ describe('GatorPermissionsController', () => {
           },
           metadata: buildMetadata(''),
         }),
-      ).rejects.toThrow('Failed to decode permission');
+      ).toThrow('Failed to decode permission');
     });
 
-    it('throws when authority is not ROOT_AUTHORITY', async () => {
+    it('throws when authority is not ROOT_AUTHORITY', () => {
       const {
         TimestampEnforcer,
         NativeTokenStreamingEnforcer,
@@ -673,7 +673,7 @@ describe('GatorPermissionsController', () => {
       const invalidAuthority =
         '0x0000000000000000000000000000000000000000' as Hex;
 
-      await expect(
+      expect(() =>
         controller.decodePermissionFromPermissionContextForOrigin({
           origin: controller.permissionsProviderSnapId,
           chainId,
@@ -685,7 +685,7 @@ describe('GatorPermissionsController', () => {
           },
           metadata: buildMetadata(''),
         }),
-      ).rejects.toThrow('Failed to decode permission');
+      ).toThrow('Failed to decode permission');
     });
   });
 });
