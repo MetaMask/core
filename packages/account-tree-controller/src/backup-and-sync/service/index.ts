@@ -167,7 +167,11 @@ export class BackupAndSyncService {
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
+    if (
+      !this.isBackupAndSyncEnabled ||
+      !this.hasSyncedAtLeastOnce ||
+      this.isInProgress
+    ) {
       return;
     }
 
@@ -184,7 +188,11 @@ export class BackupAndSyncService {
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
-    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
+    if (
+      !this.isBackupAndSyncEnabled ||
+      !this.hasSyncedAtLeastOnce ||
+      this.isInProgress
+    ) {
       return;
     }
 

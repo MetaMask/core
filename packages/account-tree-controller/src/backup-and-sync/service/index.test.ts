@@ -108,6 +108,27 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       );
     });
 
+    it('returns early when a full sync is already in progress', () => {
+      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+    });
+
+    it('returns early when a full sync has not completed at least once', () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
+        false;
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+    });
+
     it('enqueues single wallet sync when enabled and synced at least once', async () => {
       mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
         true;
@@ -166,6 +187,31 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
 
       // Should only have checked the sync state
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+    });
+
+    it('returns early when a full sync is already in progress', () => {
+      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+    });
+
+    it('returns early when a full sync has not completed at least once', () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
+        false;
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      // Should not have called any messenger functions beyond the state check
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
