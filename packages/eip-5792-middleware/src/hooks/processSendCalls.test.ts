@@ -619,18 +619,14 @@ describe('EIP-5792', () => {
       );
 
       expect(result).toBeDefined();
-      expect(payload.capabilities?.auxiliaryFunds?.requiredAssets?.length).toBe(
-        1,
-      );
-      expect(
-        payload.capabilities?.auxiliaryFunds?.requiredAssets?.[0].amount,
-      ).toBe('0x5');
-      expect(
-        payload.capabilities?.auxiliaryFunds?.requiredAssets?.[0].address,
-      ).toBe('0x123');
-      expect(
-        payload.capabilities?.auxiliaryFunds?.requiredAssets?.[0].standard,
-      ).toBe('erc20');
+      const requiredAssets =
+        payload.capabilities?.auxiliaryFunds?.requiredAssets;
+      expect(requiredAssets).toHaveLength(1);
+      expect(requiredAssets?.[0]).toMatchObject({
+        amount: '0x5',
+        address: '0x123',
+        standard: 'erc20',
+      });
     });
   });
 });
