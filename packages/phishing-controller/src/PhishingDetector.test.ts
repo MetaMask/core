@@ -1285,6 +1285,91 @@ describe('PhishingDetector', () => {
     });
   });
 
+  describe('isPathBlocked', () => {
+    it('returns false if blocklistPaths is empty', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: {},
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isPathBlocked('https://example.com');
+          expect(result).toBe(false);
+        },
+      );
+    });
+
+    it('returns false if blocklistPaths is not defined', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isPathBlocked('https://example.com');
+          expect(result).toBe(false);
+        },
+      );
+    });
+
+    it('returns true if URL matches a blocked path with version defined', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isPathBlocked('https://example.com/path');
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('returns true if URL matches a blocked path with version undefined', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            blocklistPaths: {
+              'malicious.com': {
+                phishing: {},
+              },
+            },
+            name: 'test-config',
+            // version is undefined
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isPathBlocked(
+            'https://malicious.com/phishing',
+          );
+          expect(result).toBe(true);
+        },
+      );
+    });
   });
 
   describe('isMaliciousC2Domain', () => {
