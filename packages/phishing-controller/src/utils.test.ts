@@ -12,6 +12,7 @@ import {
   processConfigs,
   processDomainList,
   roundToNearestMinute,
+  separateBlocklistEntries,
   sha256Hash,
   validateConfig,
 } from './utils';
@@ -1042,5 +1043,93 @@ describe('generateParentDomains', () => {
     const filteredSourceParts = sourceParts.filter(Boolean);
     const expected = ['b.c', 'a.b.c'];
     expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+});
+
+describe('separateBlocklistEntries', () => {
+  it('separates hostname-only and hostname+path entries', () => {
+    const blocklist = [
+      'example.com',
+      'malicious.com/phishing',
+      'bad.com/scam/page',
+      'another-bad.com',
+      'evil.com/path1/path2/path3',
+    ];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com', 'another-bad.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+      'bad.com': {
+        scam: {
+          page: {},
+        },
+      },
+      'evil.com': {
+        path1: {
+          path2: {
+            path3: {},
+          },
+        },
+      },
+    });
+  });
+
+  it('handles URLs with protocols', () => {
+    const blocklist = [
+      'https://example.com',
+      'http://malicious.com/phishing',
+      'https://bad.com/scam/page',
+    ];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+      'bad.com': {
+        scam: {
+          page: {},
+        },
+      },
+    });
+  });
+
+  it('handles invalid URLs gracefully', () => {
+    const blocklist = ['example.com', '', 'malicious.com/phishing'];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+    });
+  });
+
+  it('handles empty blocklist', () => {
+    const result = separateBlocklistEntries([]);
+
+    expect(result.blocklist).toStrictEqual([]);
+    expect(result.blocklistPaths).toStrictEqual({});
+  });
+
+  it('handles trailing slashes correctly', () => {
+    const blocklist = ['example.com/', 'malicious.com/phishing/'];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+    });
   });
 });
