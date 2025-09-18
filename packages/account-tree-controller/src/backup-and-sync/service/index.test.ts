@@ -94,6 +94,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
       );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
     });
 
     it('returns early when account syncing is disabled', () => {
@@ -106,15 +109,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
       );
-    });
-
-    it('returns early when a full sync is already in progress', () => {
-      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
-      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
-      // Should not have called any messenger functions beyond the state check
-      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
-      expect(mockContext.messenger.call).toHaveBeenCalledWith(
-        'UserStorageController:getState',
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
       );
     });
 
@@ -126,6 +122,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
       );
     });
 
@@ -179,6 +178,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
       );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
     });
 
     it('returns early when account syncing is disabled', () => {
@@ -190,6 +192,24 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
+    });
+
+    it('returns early when a full sync is already in progress', () => {
+      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
       );
     });
 
@@ -203,6 +223,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
       );
     });
 
