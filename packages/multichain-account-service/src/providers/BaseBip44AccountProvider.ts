@@ -54,32 +54,50 @@ export abstract class BaseBip44AccountProvider implements NamedAccountProvider {
 
   abstract getName(): string;
 
+  /**
+   * Add accounts to the provider.
+   *
+   * @param accounts - The accounts to add.
+   */
   addAccounts(accounts: Bip44Account<KeyringAccount>['id'][]): void {
     this.accounts.push(...accounts);
   }
 
+  /**
+   * Get the accounts list for the provider.
+   *
+   * @returns The accounts list.
+   */
   #getAccountsList(): Bip44Account<KeyringAccount>['id'][] {
     return this.accounts;
   }
 
+  /**
+   * Get the accounts list for the provider from the AccountsController.
+   *
+   * @returns The accounts list.
+   */
   getAccounts(): Bip44Account<KeyringAccount>[] {
     const accountsList = this.#getAccountsList();
     const internalAccounts = this.messenger.call(
-      'AccountsController:listMultichainAccounts',
+      'AccountsController:getAccounts',
+      accountsList,
     );
-    return accountsList.map(
-      (id) =>
-        internalAccounts.find(
-          (account) => account.id === id,
-        ) as Bip44Account<KeyringAccount>,
-    );
+    // we cast here because we know that the accounts are BIP-44 compatible
+    return internalAccounts as Bip44Account<KeyringAccount>[];
   }
 
+  /**
+   * Get the account for the provider.
+   *
+   * @param id - The account ID.
+   * @returns The account.
+   * @throws If the account is not found.
+   */
   getAccount(
     id: Bip44Account<KeyringAccount>['id'],
   ): Bip44Account<KeyringAccount> {
-    // TODO: Maybe just use a proper find for faster lookup?
-    const [found] = this.getAccounts.find((account) => account.id === id);
+    const found = this.getAccounts().find((account) => account.id === id);
 
     if (!found) {
       throw new Error(`Unable to find account: ${id}`);

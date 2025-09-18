@@ -37,7 +37,6 @@ export class MultichainAccountGroup<
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
   constructor({
@@ -58,11 +57,15 @@ export class MultichainAccountGroup<
     this.#messenger = messenger;
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
-
-    this.sync();
-    this.#initialized = true;
   }
 
+  /**
+   * Initialize the multichain account group and construct the internal representation of accounts.
+   *
+   * Note: This method can be called multiple times to update the group state.
+   *
+   * @param groupState - The group state.
+   */
   init(groupState: GroupState) {
     for (const provider of this.#providers) {
       const accountIds = groupState[provider.getName()];
@@ -81,45 +84,10 @@ export class MultichainAccountGroup<
         provider.addAccounts(accountIds);
       }
     }
-  }
 
-  /**
-   * Add a method to update a group and emit the multichainAccountGroupUpdated event
-   */
-
-  /**
-   * Force multichain account synchronization.
-   *
-   * This can be used if account providers got new accounts that the multichain
-   * account doesn't know about.
-   */
-  sync(): void {
-    // Clear reverse mapping and re-construct it entirely based on the refreshed
-    // list of accounts from each providers.
-    this.#accountToProvider.clear();
-
-    for (const provider of this.#providers) {
-      // Filter account only for that index.
-      const accounts = [];
-      for (const account of provider.getAccounts()) {
-        if (
-          account.options.entropy.id === this.wallet.entropySource &&
-          account.options.entropy.groupIndex === this.groupIndex
-        ) {
-          // We only use IDs to always fetch the latest version of accounts.
-          accounts.push(account.id);
-        }
-      }
-      this.#providerToAccounts.set(provider, accounts);
-
-      // Reverse-mapping for fast indexing.
-      for (const id of accounts) {
-        this.#accountToProvider.set(id, provider);
-      }
-    }
-
-    // Emit update event when group is synced (only if initialized)
-    if (this.#initialized) {
+    if (!this.#initialized) {
+      this.#initialized = true;
+    } else {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
         this,
@@ -189,7 +157,8 @@ export class MultichainAccountGroup<
           // If for some reason we cannot get this account from the provider, it
           // might means it has been deleted or something, so we just filter it
           // out.
-          allAccounts.push(account);
+          // We cast here because TS cannot infer the type of the account from the provider
+          allAccounts.push(account as Account);
         }
       }
     }
@@ -197,6 +166,11 @@ export class MultichainAccountGroup<
     return allAccounts;
   }
 
+  /**
+   * Gets the account IDs for this multichain account.
+   *
+   * @returns The account IDs.
+   */
   getAccountIds(): Account['id'][] {
     return [...this.#providerToAccounts.values()].flat();
   }
@@ -215,7 +189,9 @@ export class MultichainAccountGroup<
     if (!provider) {
       return undefined;
     }
-    return provider.getAccount(id);
+
+    // We cast here because TS cannot infer the type of the account from the provider
+    return provider.getAccount(id) as Account;
   }
 
   /**
@@ -258,33 +234,16 @@ export class MultichainAccountGroup<
       }),
     );
 
-    // Fetching the account list once from the AccountsController to avoid multiple calls
-    const accountsList = this.#messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-
-    const groupState: GroupState = {};
-
-    const addressBuckets = results.map((result, idx) => {
-      const addressSet = new Set<string>();
+    const groupState = results.reduce<GroupState>((state, result, idx) => {
       if (result.status === 'fulfilled') {
-        groupState[this.#providers[idx].getName()] = [];
-        result.value.forEach((account) => {
-          addressSet.add(account.address);
-        });
+        state[this.#providers[idx].getName()] = result.value.map(
+          (account) => account.id,
+        );
       }
-      return addressSet;
-    });
+      return state;
+    }, {});
 
-    accountsList.forEach((account) => {
-      const { address } = account;
-      addressBuckets.forEach((addressSet, idx) => {
-        if (addressSet.has(address)) {
-          groupState[this.#providers[idx].getName()].push(account.id);
-        }
-      });
-    });
-
+    // Update group state
     this.init(groupState);
 
     if (results.some((result) => result.status === 'rejected')) {

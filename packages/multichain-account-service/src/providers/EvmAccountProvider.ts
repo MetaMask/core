@@ -91,10 +91,28 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return provider;
   }
 
+  /**
+   * Get the account ID for an EVM account.
+   *
+   * Note: Since the account ID is deterministic at the AccountsController level,
+   * we can use this method to get the account ID from the address.
+   *
+   * @param address - The address of the account.
+   * @returns The account ID.
+   */
   #getAccountId(address: Hex): string {
     return getUUIDFromAddressOfNormalAccount(address);
   }
 
+  /**
+   * Create an EVM account.
+   *
+   * @param opts - The options for the creation of the account.
+   * @param opts.entropySource - The entropy source to use for the creation of the account.
+   * @param opts.groupIndex - The index of the group to create the account for.
+   * @param opts.throwOnGap - Whether to throw an error if the account index is not contiguous.
+   * @returns The account ID and a boolean indicating if the account was created.
+   */
   async #createAccount({
     entropySource,
     groupIndex,
@@ -125,6 +143,14 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return result;
   }
 
+  /**
+   * Create accounts for the EVM provider.
+   *
+   * @param opts - The options for the creation of the accounts.
+   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
+   * @param opts.groupIndex - The index of the group to create the accounts for.
+   * @returns The accounts for the EVM provider.
+   */
   async createAccounts({
     entropySource,
     groupIndex,
@@ -154,6 +180,14 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return accountsArray;
   }
 
+  /**
+   * Get the transaction count for an EVM account.
+   * This method uses a retry and timeout mechanism to handle transient failures.
+   *
+   * @param provider - The provider to use for the transaction count.
+   * @param address - The address of the account.
+   * @returns The transaction count.
+   */
   async #getTransactionCount(
     provider: Provider,
     address: Hex,
