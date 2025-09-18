@@ -239,13 +239,11 @@ export const getDefaultPhishingDetectorConfig = ({
   fuzzylist?: string[];
   tolerance?: number;
 }): PhishingDetectorConfiguration => {
-  const { blocklist: separatedBlocklist, blocklistPaths } =
-    separateBlocklistEntries(blocklist);
-
   return {
     allowlist: processDomainList(allowlist),
-    blocklist: processDomainList(separatedBlocklist),
-    blocklistPaths,
+    // We can assume that blocklist is already separated into hostname-only entries
+    // and hostname+path entries so we do not need to separate it again.
+    blocklist: processDomainList(blocklist),
     fuzzylist: processDomainList(fuzzylist),
     tolerance,
   };
