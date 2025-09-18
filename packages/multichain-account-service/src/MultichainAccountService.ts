@@ -15,7 +15,11 @@ import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { BaseBip44AccountProvider } from './providers';
+import type {
+  BaseBip44AccountProvider,
+  EvmAccountProviderConfig,
+  SolAccountProviderConfig,
+} from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
@@ -29,9 +33,13 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions = {
+export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
   providers?: BaseBip44AccountProvider[];
+  providerConfigs?: {
+    [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
+    [SolAccountProvider.NAME]?: SolAccountProviderConfig;
+  };
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -86,19 +94,30 @@ export class MultichainAccountService {
    * @param options.messenger - The messenger suited to this
    * MultichainAccountService.
    * @param options.providers - Optional list of account
+   * @param options.providerConfigs - Optional provider configs
    * providers.
    */
-  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
+  constructor({
+    messenger,
+    providers = [],
+    providerConfigs,
+  }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
-      new EvmAccountProvider(this.#messenger),
+      new EvmAccountProvider(
+        this.#messenger,
+        providerConfigs?.[EvmAccountProvider.NAME],
+      ),
       new AccountProviderWrapper(
         this.#messenger,
-        new SolAccountProvider(this.#messenger),
+        new SolAccountProvider(
+          this.#messenger,
+          providerConfigs?.[SolAccountProvider.NAME],
+        ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
