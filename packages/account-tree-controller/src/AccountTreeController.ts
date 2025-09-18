@@ -421,7 +421,7 @@ export class AccountTreeController extends BaseController<
       } else {
         // Generate default name and ensure it's unique within the wallet
         let proposedName = '';
-        let groupIndex: number;
+        let proposedNameIndex: number;
 
         // Parse the highest account index being used (similar to accounts-controller)
         let highestAccountNameIndex = 0;
@@ -446,20 +446,20 @@ export class AccountTreeController extends BaseController<
           group.type === AccountGroupType.MultichainAccount &&
           group.metadata.entropy
         ) {
-          groupIndex = group.metadata.entropy.groupIndex;
+          proposedNameIndex = group.metadata.entropy.groupIndex;
         } else {
           // For other wallet types, start with the number of existing groups
           // This gives us the next logical sequential number
-          groupIndex = Object.keys(wallet.groups).length;
+          proposedNameIndex = Object.keys(wallet.groups).length;
         }
 
         // Use the higher of the two: highest parsed index or computed index
-        groupIndex = Math.max(highestAccountNameIndex, groupIndex);
+        proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex);
 
         // Find a unique name by checking for conflicts and incrementing if needed
         let nameExists: boolean;
         do {
-          proposedName = rule.getDefaultAccountGroupName(groupIndex);
+          proposedName = rule.getDefaultAccountGroupName(proposedNameIndex);
 
           // Check if this name already exists in the wallet (excluding current group)
           nameExists = !isAccountGroupNameUniqueFromWallet(
@@ -470,11 +470,20 @@ export class AccountTreeController extends BaseController<
 
           /* istanbul ignore next */
           if (nameExists) {
-            groupIndex += 1; // Try next number
+            proposedNameIndex += 1; // Try next number
           }
         } while (nameExists);
 
         group.metadata.name = proposedName;
+
+        // Persist the generated name to ensure consistency
+        this.update((state) => {
+          state.accountGroupsMetadata[group.id] ??= {};
+          state.accountGroupsMetadata[group.id].name = {
+            value: proposedName,
+            lastUpdatedAt: Date.now(),
+          };
+        });
       }
     }
 
@@ -1081,7 +1090,6 @@ export class AccountTreeController extends BaseController<
     this.#assertAccountGroupExists(groupId);
 
     const walletId = this.#groupIdToWalletId.get(groupId);
-    /* istanbul ignore next */
     if (!walletId) {
       throw new Error(`Account group with ID "${groupId}" not found in tree`);
     }
