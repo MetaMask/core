@@ -84,7 +84,6 @@ export class PhishingDetector {
         getDefaultPhishingDetectorConfig({
           allowlist: opts.whitelist,
           blocklist: opts.blacklist,
-          c2DomainBlocklist: opts.c2DomainBlocklist,
           fuzzylist: opts.fuzzylist,
           tolerance: opts.tolerance,
         }),
