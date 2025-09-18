@@ -272,7 +272,7 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
-      // Apply group metadata within the state update to avoid nested updates
+      // Apply group metadata within the state update
       for (const wallet of Object.values(wallets)) {
         for (const group of Object.values(wallet.groups)) {
           this.#applyAccountGroupMetadata(state, wallet, group);
