@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `autoHandleConflict` parameter to `setAccountGroupName` method for automatic conflict resolution with suffix generation ([#6601](https://github.com/MetaMask/core/pull/6601))
+
+### Fixed
+
+- Fix critical multi-wallet account group naming inconsistencies and duplicates ([#6601](https://github.com/MetaMask/core/pull/6601))
+  - Implement proper per-wallet sequential numbering with highest account index parsing.
+  - Add name persistence during group initialization to ensure consistency across app restarts.
+
 ## [0.16.1]
 
 ### Added
@@ -29,14 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Coming from the old account model, a non-EVM account could have been selected and the lastly selected EVM account might not be using the same group index.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
-
-### Fixed
-
-- Fix multi-wallet account naming bug causing duplicate and inconsistent names across wallets ([#6601](https://github.com/MetaMask/core/pull/6601))
-  - Each wallet now has independent sequential numbering (Account 1, Account 2, etc.).
-  - Names are immediately persisted to ensure consistency across app restarts.
-  - Entropy groups use their actual group index instead of alphabetical sorting.
-  - Prevents issues like "Account 2, Account 2, Account 3..." and missing "Account 1".
 
 ## [0.15.1]
 
