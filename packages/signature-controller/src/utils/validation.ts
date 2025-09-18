@@ -278,7 +278,7 @@ function validateDelegation({
 
     const delegatorAddressLowercase = (
       (data.message as Record<string, Json>)?.[DELEGATOR_FIELD] as Hex
-    ).toLowerCase();
+    )?.toLowerCase();
 
     const isSignerInternal = internalAccounts.some(
       (internalAccount) =>
