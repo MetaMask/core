@@ -3837,6 +3837,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
+    "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/account-api": "npm:^0.12.0"
     "@metamask/accounts-controller": "npm:^33.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
