@@ -710,6 +710,12 @@ export class AccountTreeController extends BaseController<
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
   ) {
+    if (isBip44Account(account)) {
+      // We're skipping BIP-44 accounts since we rely on the `MultichainAccountService` to do
+      // the grouping of wallets/groups directly.
+      return;
+    }
+
     const result =
       this.#getSnapRule().match(account) ??
       this.#getKeyringRule().match(account); // This one cannot fail.
@@ -730,11 +736,6 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
-
-      // Trigger atomic sync for new wallet (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
-      }
     }
 
     const groupId = result.group.id;
@@ -756,11 +757,6 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
-
-      // Trigger atomic sync for new group (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
-      }
     } else {
       group.accounts.push(account.id);
     }
