@@ -2705,12 +2705,13 @@ __metadata:
 
 "@metamask/backend-platform@file:../backend-platform::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
   version: 0.0.0
-  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=8517cc&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=ce9a5a&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/01cc0ab967750f721dcc0886bab798334ed382c87deedf72679b9c364ae5e03db937b87dcfb331f8100dc103eaaf5cc4e0331bbaf7baf1492405bee74909b550
+    uuid: "npm:^8.3.2"
+  checksum: 10/3ba2470b3b9697f35514cbebbcb10b52f0608408ef89a2086420777cce67aaa1f60d0a0d2642bc9f9e5d6adc77d87a599b7f1e23662bab3e7d4a4216fe466e1d
   languageName: node
   linkType: hard
 
@@ -2731,6 +2732,7 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 

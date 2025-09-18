@@ -137,8 +137,6 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
 >;
 
 /**
- * Account Activity Service
- *
  * High-performance service for real-time account activity monitoring using optimized
  * WebSocket subscriptions with direct callback routing. Automatically subscribes to
  * the currently selected account and switches subscriptions when the selected account changes.
@@ -186,7 +184,7 @@ export class AccountActivityService {
   readonly #options: Required<AccountActivityServiceOptions>;
 
   // Track the currently subscribed account address (in CAIP-10 format)
-  #currentSubscribedAddress: string | null = null;
+  currentSubscribedAddress: string | null = null;
 
   // Note: Subscription tracking is now centralized in WebSocketService
 
@@ -220,14 +218,6 @@ export class AccountActivityService {
   // Account Subscription Methods
   // =============================================================================
 
-  /**
-   * Get the currently subscribed account address
-   *
-   * @returns The CAIP-10 formatted address of the currently subscribed account, or null if none
-   */
-  getCurrentSubscribedAccount(): string | null {
-    return this.#currentSubscribedAddress;
-  }
 
   /**
    * Subscribe to account activity (transactions and balance updates)
@@ -259,7 +249,7 @@ export class AccountActivityService {
       });
 
       // Track the subscribed address
-      this.#currentSubscribedAddress = subscription.address;
+      this.currentSubscribedAddress = subscription.address;
     } catch (error) {
       console.warn(`Subscription failed, forcing reconnection:`, error);
       await this.#forceReconnection();
@@ -289,8 +279,8 @@ export class AccountActivityService {
       await subscriptionInfo.unsubscribe();
 
       // Clear the tracked address if this was the subscribed account
-      if (this.#currentSubscribedAddress === address) {
-        this.#currentSubscribedAddress = null;
+      if (this.currentSubscribedAddress === address) {
+        this.currentSubscribedAddress = null;
       }
 
       // Subscription cleanup is handled centrally in WebSocketService
@@ -430,7 +420,7 @@ export class AccountActivityService {
       const newAddress = this.#convertToCaip10Address(newAccount);
 
       // If already subscribed to this account, no need to change
-      if (this.#currentSubscribedAddress === newAddress) {
+      if (this.currentSubscribedAddress === newAddress) {
         console.log(`Already subscribed to account: ${newAddress}`);
         return;
       }
@@ -440,14 +430,14 @@ export class AccountActivityService {
       console.log(`Subscribed to new selected account: ${newAddress}`);
 
       // Then, unsubscribe from the previously subscribed account if any
-      if (this.#currentSubscribedAddress && this.#currentSubscribedAddress !== newAddress) {
+      if (this.currentSubscribedAddress && this.currentSubscribedAddress !== newAddress) {
         console.log(
-          `Unsubscribing from previous account: ${this.#currentSubscribedAddress}`,
+          `Unsubscribing from previous account: ${this.currentSubscribedAddress}`,
         );
         await this.unsubscribeAccounts({
-          address: this.#currentSubscribedAddress,
+          address: this.currentSubscribedAddress,
         });
-        console.log(`Successfully unsubscribed from previous account: ${this.#currentSubscribedAddress}`);
+        console.log(`Successfully unsubscribed from previous account: ${this.currentSubscribedAddress}`);
       }
     } catch (error) {
       console.warn(`Account change failed, forcing reconnection:`, error);
@@ -463,7 +453,7 @@ export class AccountActivityService {
       console.log('Forcing WebSocket reconnection to clean up subscription state');
       
       // Clear local subscription tracking since backend will clean up all subscriptions
-      this.#currentSubscribedAddress = null;
+      this.currentSubscribedAddress = null;
       
       await this.#webSocketService.disconnect();
       await this.#webSocketService.connect();
@@ -505,7 +495,7 @@ export class AccountActivityService {
       state === WebSocketState.ERROR
     ) {
       // WebSocket disconnected - clear subscription
-      this.#currentSubscribedAddress = null;
+      this.currentSubscribedAddress = null;
     }
   }
 
@@ -534,7 +524,7 @@ export class AccountActivityService {
       const address = this.#convertToCaip10Address(selectedAccount);
 
       // Only subscribe if we're not already subscribed to this account
-      if (this.#currentSubscribedAddress !== address) {
+      if (this.currentSubscribedAddress !== address) {
         await this.subscribeAccounts({ address });
         console.log(`Successfully subscribed to selected account: ${address}`);
       } else {
@@ -607,7 +597,7 @@ export class AccountActivityService {
   destroy(): void {
     try {
       // Clear tracked subscription
-      this.#currentSubscribedAddress = null;
+      this.currentSubscribedAddress = null;
 
       // Clean up system notification callback
       this.#webSocketService.removeChannelCallback(`system-notifications.v1.${this.#options.subscriptionNamespace}`);
