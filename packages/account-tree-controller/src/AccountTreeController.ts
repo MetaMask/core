@@ -15,6 +15,7 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
+import { assert } from '@metamask/utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
@@ -1095,10 +1096,7 @@ export class AccountTreeController extends BaseController<
     this.#assertAccountGroupExists(groupId);
 
     const walletId = this.#groupIdToWalletId.get(groupId);
-    /* istanbul ignore next */
-    if (!walletId) {
-      throw new Error(`Account group with ID "${groupId}" not found in tree`);
-    }
+    assert(walletId, `Account group with ID "${groupId}" not found in tree`);
 
     const wallet = this.state.accountTree.wallets[walletId];
     let finalName = name;
