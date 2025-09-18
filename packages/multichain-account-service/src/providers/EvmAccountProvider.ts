@@ -1,4 +1,5 @@
 import type { Bip44Account } from '@metamask/account-api';
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -90,6 +91,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return provider;
   }
 
+  #getAccountId(address: Hex): string {
+    return getUUIDFromAddressOfNormalAccount(address);
+  }
+
   async #createAccount({
     entropySource,
     groupIndex,
@@ -133,9 +138,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       throwOnGap: true,
     });
 
+    const accountId = this.#getAccountId(address);
+
     const account = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      address,
+      'AccountsController:getAccount',
+      accountId,
     );
 
     // We MUST have the associated internal account.
@@ -217,9 +224,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       throw error;
     }
 
+    const accountId = this.#getAccountId(address);
+
     const account = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      address,
+      'AccountsController:getAccount',
+      accountId,
     );
     assertInternalAccountExists(account);
     assertIsBip44Account(account);
