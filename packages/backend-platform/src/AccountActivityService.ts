@@ -13,6 +13,7 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
+import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
   WebSocketService,
   WebSocketConnectionInfo,
@@ -32,6 +33,8 @@ export type SystemNotificationData = {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SERVICE_NAME = 'AccountActivityService' as const;
+
+const MESSENGER_EXPOSED_METHODS = ['subscribeAccounts', 'unsubscribeAccounts'] as const;
 
 // Temporary list of supported chains for fallback polling - this hardcoded list will be replaced with a dynamic logic
 const SUPPORTED_CHAINS = [
@@ -62,20 +65,8 @@ export type AccountActivityServiceOptions = {
   subscriptionNamespace?: string;
 };
 
-// Action types for the messaging system
-export type AccountActivityServiceSubscribeAccountsAction = {
-  type: `AccountActivityService:subscribeAccounts`;
-  handler: AccountActivityService['subscribeAccounts'];
-};
-
-export type AccountActivityServiceUnsubscribeAccountsAction = {
-  type: `AccountActivityService:unsubscribeAccounts`;
-  handler: AccountActivityService['unsubscribeAccounts'];
-};
-
-export type AccountActivityServiceActions =
-  | AccountActivityServiceSubscribeAccountsAction
-  | AccountActivityServiceUnsubscribeAccountsAction;
+// Action types for the messaging system - using generated method actions
+export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
@@ -183,6 +174,11 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
  * ```
  */
 export class AccountActivityService {
+  /**
+   * The name of the service.
+   */
+  readonly name = SERVICE_NAME;
+
   readonly #messenger: AccountActivityServiceMessenger;
 
   readonly #webSocketService: WebSocketService;
@@ -332,17 +328,12 @@ export class AccountActivityService {
   }
 
   /**
-   * Register all action handlers
+   * Register all action handlers using the new method actions pattern
    */
   #registerActionHandlers(): void {
-    this.#messenger.registerActionHandler(
-      `AccountActivityService:subscribeAccounts`,
-      this.subscribeAccounts.bind(this),
-    );
-
-    this.#messenger.registerActionHandler(
-      `AccountActivityService:unsubscribeAccounts`,
-      this.unsubscribeAccounts.bind(this),
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -417,7 +408,7 @@ export class AccountActivityService {
     try {
       this.#messenger.subscribe(
         'BackendWebSocketService:connectionStateChanged',
-        (connectionInfo) => this.#handleWebSocketStateChange(connectionInfo),
+        (connectionInfo: WebSocketConnectionInfo) => this.#handleWebSocketStateChange(connectionInfo),
       );
     } catch (error) {
       console.log('WebSocketService connection events not available:', error);
