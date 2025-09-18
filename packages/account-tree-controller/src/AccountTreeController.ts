@@ -453,8 +453,13 @@ export class AccountTreeController extends BaseController<
           proposedNameIndex = Object.keys(wallet.groups).length;
         }
 
-        // Use the higher of the two: highest parsed index or computed index
-        proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex);
+        // Use the higher of the two: highest parsed index + 1 or computed index
+        // Only add +1 if there are actually existing accounts with parsed names
+        const nextAvailableIndex =
+          highestAccountNameIndex > 0
+            ? highestAccountNameIndex + 1
+            : highestAccountNameIndex;
+        proposedNameIndex = Math.max(nextAvailableIndex, proposedNameIndex);
 
         // Find a unique name by checking for conflicts and incrementing if needed
         let nameExists: boolean;
@@ -1090,6 +1095,7 @@ export class AccountTreeController extends BaseController<
     this.#assertAccountGroupExists(groupId);
 
     const walletId = this.#groupIdToWalletId.get(groupId);
+    /* istanbul ignore next */
     if (!walletId) {
       throw new Error(`Account group with ID "${groupId}" not found in tree`);
     }
