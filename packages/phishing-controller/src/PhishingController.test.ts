@@ -1373,7 +1373,27 @@ describe('PhishingController', () => {
   });
 
   it('returns negative result if the hostname+pathname is in the whitelistPaths', async () => {
-    const controller = getPhishingController();
+    const controller = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
     controller.bypass('https://example.com/path');
     expect(controller.test('https://example.com/path')).toMatchObject({
       result: false,
