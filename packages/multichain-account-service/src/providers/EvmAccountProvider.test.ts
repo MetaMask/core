@@ -34,6 +34,10 @@ jest.mock('@ethereumjs/util', () => ({
   publicToAddress: jest.fn(),
 }));
 
+function mockNextDiscoveryAddress(address: string) {
+  jest.mocked(publicToAddress).mockReturnValue(createBytes(address as Hex));
+}
+
 function mockNextDiscoveryAddressOnce(address: string) {
   jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
 }
@@ -191,7 +195,7 @@ function setup({
     },
   );
 
-  jest.mocked(publicToAddress).mockReturnValue(createBytes('0x123'));
+  mockNextDiscoveryAddress('0x123');
 
   const provider = new EvmAccountProvider(
     getMultichainAccountServiceMessenger(messenger),
