@@ -1495,6 +1495,61 @@ describe('PhishingController', () => {
       ]);
     });
 
+    it('should correctly process blocklist entries with paths into blocklistPaths', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            eth_phishing_detect_config: {
+              allowlist: [],
+              blocklist: ['example.com', 'malicious.com/phishing'],
+              fuzzylist: [],
+            },
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            phishfort_hotlist: {
+              blocklist: [],
+            },
+            tolerance: 0,
+            allowlist: [],
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: ['example.com'],
+          c2DomainBlocklist: [],
+          blocklistPaths: {
+            'malicious.com': {
+              phishing: {},
+            },
+          },
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+          name: ListNames.MetaMask,
+        },
+      ]);
+    });
+
     it('should not update phishing lists if fetch returns 304', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
