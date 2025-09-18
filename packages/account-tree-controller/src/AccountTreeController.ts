@@ -408,7 +408,7 @@ export class AccountTreeController extends BaseController<
     wallet: AccountWalletObject,
     group: AccountGroupObject,
   ) {
-    const persistedGroupMetadata = this.state.accountGroupsMetadata[group.id];
+    const persistedGroupMetadata = state.accountGroupsMetadata[group.id];
 
     // Apply persisted name if available (including empty strings)
     if (persistedGroupMetadata?.name !== undefined) {
