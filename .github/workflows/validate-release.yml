@@ -10,9 +10,12 @@ on:
 jobs:
   validate-release:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     outputs:
       RELEASE_VALIDATION_RESULT: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_RESULT }}
       RELEASE_VALIDATION_MESSAGE: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}
+      EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v1
@@ -25,10 +28,11 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         id: check-bot-comments
         run: |
-          if gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.author.login == "metamaskbot") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->"))' | grep -q "body"; then
-            echo "BOT_ALREADY_COMMENTED=true" >> "$GITHUB_OUTPUT"
+          EXISTING_COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.author.login == "metamaskbot") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->")) | .id' | head -1)
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            echo "EXISTING_COMMENT_ID=$EXISTING_COMMENT_ID" >> "$GITHUB_OUTPUT"
           else
-            echo "BOT_ALREADY_COMMENTED=false" >> "$GITHUB_OUTPUT"
+            echo "EXISTING_COMMENT_ID=" >> "$GITHUB_OUTPUT"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,7 +44,7 @@ jobs:
               exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE"
               ;;
             pull_request)
-              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PULL_REQUEST_BASE_SHA" "$GITHUB_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$BOT_ALREADY_COMMENTED"
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PULL_REQUEST_BASE_SHA" "$GITHUB_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$EXISTING_COMMENT_ID"
               ;;
             *)
               echo "Unknown GitHub event name: $GITHUB_EVENT_NAME"
@@ -53,10 +57,17 @@ jobs:
           GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GITHUB_EVENT_PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
-          BOT_ALREADY_COMMENTED: ${{ steps.check-bot-comments.outputs.BOT_ALREADY_COMMENTED }}
-      - name: Post PR comment
+          EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
+      - name: Post or update PR comment
         if: ${{ github.event_name == 'pull_request' && steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE != '' }}
         run: |
-          echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            echo "Updating existing comment $EXISTING_COMMENT_ID"
+            echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" | gh api -X PATCH "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --input -
+          else
+            echo "Creating new comment"
+            echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}

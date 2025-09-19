@@ -59,14 +59,17 @@ export async function main(): Promise<void> {
     baseRef,
     headRef,
     possibleReleaseTitle,
-    botAlreadyCommented,
+    existingCommentId,
   } = parseCommandLineArguments();
+
+  const botAlreadyCommented = existingCommentId !== '';
 
   console.log(`- GitHub event name: ${githubEventName}`);
   console.log(`- Base ref: ${baseRef}`);
   console.log(`- Head ref: ${headRef}`);
   console.log(`- Possible release title: ${possibleReleaseTitle}`);
   console.log(`- Bot already commented: ${botAlreadyCommented}`);
+  console.log(`- Existing comment ID: ${existingCommentId || 'none'}`);
   console.log('');
 
   console.log('Running validations');
@@ -168,41 +171,55 @@ export async function main(): Promise<void> {
   core.setOutput('RELEASE_VALIDATION_RESULT', releaseValidationResult.status);
 
   if (githubEventName === 'pull_request') {
-    let firstSentence = '';
     let commentMessage = '';
 
-    const greeting = botAlreadyCommented
-      ? 'Hello, me again.'
-      : "Hello, it's your friendly neighborhood MetaMask bot 👋";
+    const isReleasePR =
+      releaseValidationResult.status !== ReleaseValidationStatus.NotARelease;
 
-    switch (releaseValidationResult.status) {
-      case ReleaseValidationStatus.InvalidRelease:
-        firstSentence = botAlreadyCommented
-          ? `${greeting} Some things still don't look right about your release PR:`
-          : `${greeting} It looks like you're trying to make a release PR, but some things don't look right:`;
-        commentMessage = `${firstSentence}
+    if (isReleasePR) {
+      const greeting = "Hello, it's your friendly neighborhood MetaMask bot 👋";
+      const marker = '<!-- METAMASKBOT-RELEASE-VALIDATION -->';
+
+      switch (releaseValidationResult.status) {
+        case ReleaseValidationStatus.InvalidRelease:
+          commentMessage = `${greeting}
+          
+It looks like you're trying to make a release PR, but some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
 **You'll need to get all of the checks above passing before you can merge this PR.**
 
-<!-- METAMASKBOT-RELEASE-VALIDATION -->`;
-        break;
-      case ReleaseValidationStatus.IncompleteRelease:
-        firstSentence = botAlreadyCommented
-          ? `${greeting} I'm still not sure if you're trying to make a release PR, but if so, some things don't look right:`
-          : `${greeting} Are you trying to make a release PR? If so, some things don't look right:`;
-        commentMessage = `${firstSentence} 
+${marker}`;
+          break;
+        case ReleaseValidationStatus.IncompleteRelease:
+          commentMessage = `${greeting}
+
+Are you trying to make a release PR? If so, some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
-**You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of the checks above passing.**
+**You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of the checks above passing first.**
+
+${marker}`;
+          break;
+        case ReleaseValidationStatus.ValidRelease:
+          // If we previously commented but now it's valid, show success message
+          if (botAlreadyCommented) {
+            commentMessage = `This PR previously contained issues with this release, but they have since been fixed. Good job! 🎉
+
+${marker}`;
+          }
+          // If it was always valid, no comment needed
+          break;
+        default:
+          break;
+      }
+    } else if (botAlreadyCommented) {
+      // If we previously thought it was a release PR but now it's not, update the comment
+      commentMessage = `This PR was previously recognized as a possible release PR, but changes have been made since, and it is no longer one.
 
 <!-- METAMASKBOT-RELEASE-VALIDATION -->`;
-        break;
-      default:
-        // No comment needed for valid releases or non-releases
-        break;
     }
 
     if (commentMessage) {
@@ -275,7 +292,7 @@ validates it by ensuring that the title of the PR or commit is formatted
 correctly and the root package version is bumped alongside packages in the
 monorepo.
 
-USAGE: scripts/validate-release.ts <github-event-name> <base-ref> <head-ref> <possible-release-title> [bot-already-commented]
+USAGE: scripts/validate-release.ts <github-event-name> <base-ref> <head-ref> <possible-release-title> [existing-comment-id]
 
 ARGUMENTS:
 
@@ -291,9 +308,9 @@ ARGUMENTS:
 <possible-release-title>
   If GITHUB_EVENT_NAME is "pull_request", the title of the pull request; if
   "push", then the subject of the head commit pushed.
-[bot-already-commented]
-  Required if GITHUB_EVENT_NAME is "pull_request", ignored otherwise. Whether
-  the PR already has a comment from the MetaMask bot. Either "true" or "false".
+[existing-comment-id]
+  Required if GITHUB_EVENT_NAME is "pull_request", ignored otherwise. The ID
+  of an existing comment from the MetaMask bot, or empty string if none exists.
 `.trimStart(),
   );
 }
@@ -330,11 +347,11 @@ function parseCommandLineArguments() {
 
   if (githubEventName === 'pull_request' && args.length < 5) {
     failWithInvalidUsage(
-      'Expected a 5th argument (bot-already-commented) when GitHub event name is "pull_request".',
+      'Expected a 5th argument (existing-comment-id) when GitHub event name is "pull_request".',
     );
   }
 
-  const botAlreadyCommented = args[4] === 'true';
+  const existingCommentId = args[4] || '';
 
   if (
     !(VALID_GITHUB_EVENT_NAMES as readonly string[]).includes(githubEventName)
@@ -349,7 +366,7 @@ function parseCommandLineArguments() {
     baseRef,
     headRef,
     possibleReleaseTitle,
-    botAlreadyCommented,
+    existingCommentId,
   };
 }
 
