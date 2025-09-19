@@ -1,4 +1,6 @@
+import { publicToAddress } from '@ethereumjs/util';
 import type { Bip44Account } from '@metamask/account-api';
+import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -7,13 +9,15 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import type { Provider } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import { add0x, assert, bytesToHex, type Hex } from '@metamask/utils';
+import type { MultichainAccountServiceMessenger } from 'src/types';
 
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
+import { withRetry, withTimeout } from './utils';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -31,7 +35,35 @@ function assertInternalAccountExists(
   }
 }
 
+export type EvmAccountProviderConfig = {
+  discovery: {
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+};
+
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM' as const;
+
 export class EvmAccountProvider extends BaseBip44AccountProvider {
+  static NAME = EVM_ACCOUNT_PROVIDER_NAME;
+
+  readonly #config: EvmAccountProviderConfig;
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    config: EvmAccountProviderConfig = {
+      discovery: {
+        maxAttempts: 3,
+        timeoutMs: 500,
+        backOffMs: 500,
+      },
+    },
+  ) {
+    super(messenger);
+    this.#config = config;
+  }
+
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
@@ -40,7 +72,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   getName(): string {
-    return 'EVM';
+    return EvmAccountProvider.NAME;
   }
 
   /**
@@ -117,6 +149,58 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return accountsArray;
   }
 
+  async #getTransactionCount(
+    provider: Provider,
+    address: Hex,
+  ): Promise<number> {
+    const countHex = await withRetry<Hex>(
+      () =>
+        withTimeout(
+          provider.request({
+            method: 'eth_getTransactionCount',
+            params: [address, 'latest'],
+          }),
+          this.#config.discovery.timeoutMs,
+        ),
+      {
+        maxAttempts: this.#config.discovery.maxAttempts,
+        backOffMs: this.#config.discovery.backOffMs,
+      },
+    );
+
+    return parseInt(countHex, 16);
+  }
+
+  async #getAddressFromGroupIndex({
+    entropySource,
+    groupIndex,
+  }: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Hex> {
+    // NOTE: To avoid exposing this function at keyring level, we just re-use its internal state
+    // and compute the derivation here.
+    return await this.withKeyring<HdKeyring, Hex>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        // If the account already exist, do not re-derive and just re-use that account.
+        const existing = await keyring.getAccounts();
+        if (groupIndex < existing.length) {
+          return existing[groupIndex];
+        }
+
+        // If not, then we just "peek" the next address to avoid creating the account.
+        assert(keyring.root, 'Expected HD keyring.root to be set');
+        const hdKey = keyring.root.deriveChild(groupIndex);
+        assert(hdKey.publicKey, 'Expected public key to be set');
+
+        return add0x(
+          bytesToHex(publicToAddress(hdKey.publicKey, true)).toLowerCase(),
+        );
+      },
+    );
+  }
+
   /**
    * Discover and create accounts for the EVM provider.
    *
@@ -132,42 +216,28 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const provider = this.getEvmProvider();
     const { entropySource, groupIndex } = opts;
 
-    const [address, didCreate] = await this.#createAccount({
+    const addressFromGroupIndex = await this.#getAddressFromGroupIndex({
       entropySource,
       groupIndex,
     });
 
-    // We don't want to remove the account if it's the first one.
-    const shouldCleanup = didCreate && groupIndex !== 0;
-    try {
-      const countHex = (await provider.request({
-        method: 'eth_getTransactionCount',
-        params: [address, 'latest'],
-      })) as Hex;
-      const count = parseInt(countHex, 16);
-
-      if (count === 0 && shouldCleanup) {
-        await this.withKeyring<EthKeyring>(
-          { id: entropySource },
-          async ({ keyring }) => {
-            keyring.removeAccount?.(address);
-          },
-        );
-        return [];
-      }
-    } catch (error) {
-      // If the RPC request fails and we just created this account for discovery,
-      // remove it to avoid leaving a dangling account.
-      if (shouldCleanup) {
-        await this.withKeyring<EthKeyring>(
-          { id: entropySource },
-          async ({ keyring }) => {
-            keyring.removeAccount?.(address);
-          },
-        );
-      }
-      throw error;
+    const count = await this.#getTransactionCount(
+      provider,
+      addressFromGroupIndex,
+    );
+    if (count === 0) {
+      return [];
     }
+
+    // We have some activity on this address, we try to create the account.
+    const [address] = await this.#createAccount({
+      entropySource,
+      groupIndex,
+    });
+    assert(
+      addressFromGroupIndex === address,
+      'Created account does not match address from group index.',
+    );
 
     const account = this.messenger.call(
       'AccountsController:getAccountByAddress',

@@ -1,19 +1,29 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type { Messenger } from '@metamask/base-controller';
+import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
 import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
 
+import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
+import type { NamedAccountProvider } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
+import {
+  EVM_ACCOUNT_PROVIDER_NAME,
+  EvmAccountProvider,
+} from './providers/EvmAccountProvider';
+import {
+  SOL_ACCOUNT_PROVIDER_NAME,
+  SolAccountProvider,
+} from './providers/SolAccountProvider';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
+  MOCK_MNEMONIC,
   MOCK_SNAP_ACCOUNT_1,
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
@@ -26,7 +36,7 @@ import {
   getRootMessenger,
   makeMockAccountProvider,
   mockAsInternalAccount,
-  setupAccountProvider,
+  setupNamedAccountProvider,
 } from './tests';
 import type {
   AllowedActions,
@@ -54,6 +64,8 @@ type Mocks = {
   KeyringController: {
     keyrings: KeyringObject[];
     getState: jest.Mock;
+    getKeyringsByType: jest.Mock;
+    addNewKeyring: jest.Mock;
   };
   AccountsController: {
     listMultichainAccounts: jest.Mock;
@@ -62,17 +74,18 @@ type Mocks = {
   SolAccountProvider: MockAccountProvider;
 };
 
-function mockAccountProvider<Provider>(
+function mockAccountProvider<Provider extends NamedAccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
   type: KeyringAccount['type'],
 ) {
-  jest
-    .mocked(providerClass)
-    .mockImplementation(() => mocks as unknown as Provider);
+  jest.mocked(providerClass).mockImplementation((...args) => {
+    mocks.constructor(...args);
+    return mocks as unknown as Provider;
+  });
 
-  setupAccountProvider({
+  setupNamedAccountProvider({
     mocks,
     accounts,
     filter: (account) => account.type === type,
@@ -83,6 +96,7 @@ function setup({
   messenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
+  providerConfigs,
 }: {
   messenger?: Messenger<
     MultichainAccountServiceActions | AllowedActions,
@@ -90,8 +104,10 @@ function setup({
   >;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
+  providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
 } = {}): {
   service: MultichainAccountService;
+  serviceMessenger: MultichainAccountServiceMessenger;
   messenger: Messenger<
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
@@ -102,6 +118,8 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      getKeyringsByType: jest.fn(),
+      addNewKeyring: jest.fn(),
     },
     AccountsController: {
       listMultichainAccounts: jest.fn(),
@@ -109,9 +127,6 @@ function setup({
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
   };
-  // Default provider names can be overridden per test using mockImplementation
-  mocks.EvmAccountProvider.getName.mockImplementation(() => 'EVM');
-  mocks.SolAccountProvider.getName.mockImplementation(() => 'Solana');
 
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
@@ -123,6 +138,16 @@ function setup({
     mocks.KeyringController.getState,
   );
 
+  messenger.registerActionHandler(
+    'KeyringController:getKeyringsByType',
+    mocks.KeyringController.getKeyringsByType,
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:addNewKeyring',
+    mocks.KeyringController.addNewKeyring,
+  );
+
   if (accounts) {
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
       () => accounts,
@@ -132,6 +157,11 @@ function setup({
       'AccountsController:listMultichainAccounts',
       mocks.AccountsController.listMultichainAccounts,
     );
+
+    // Because we mock the entire class, this static field gets set to undefined, so we
+    // force it here.
+    EvmAccountProvider.NAME = EVM_ACCOUNT_PROVIDER_NAME;
+    SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -147,15 +177,85 @@ function setup({
     );
   }
 
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const service = new MultichainAccountService({
-    messenger: getMultichainAccountServiceMessenger(messenger),
+    messenger: serviceMessenger,
+    providerConfigs,
   });
   service.init();
 
-  return { service, messenger, mocks };
+  return { service, serviceMessenger, messenger, mocks };
 }
 
 describe('MultichainAccountService', () => {
+  describe('constructor', () => {
+    it('forwards configs to each provider', () => {
+      const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
+        {
+          // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
+          // be `undefined`.
+          [EVM_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 1000,
+              maxAttempts: 2,
+              backOffMs: 1000,
+            },
+          },
+          [SOL_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+          },
+        };
+
+      const { mocks, serviceMessenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        providerConfigs,
+      });
+
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[EvmAccountProvider.NAME],
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[SolAccountProvider.NAME],
+      );
+    });
+
+    it('allows optional configs for some providers', () => {
+      const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
+        {
+          // NOTE: We use constants here, since `*AccountProvider` are mocked, thus, their `.NAME` will
+          // be `undefined`.
+          [SOL_ACCOUNT_PROVIDER_NAME]: {
+            discovery: {
+              timeoutMs: 5000,
+              maxAttempts: 4,
+              backOffMs: 2000,
+            },
+          },
+          // No `EVM_ACCOUNT_PROVIDER_NAME`, cause it's optional in this test.
+        };
+
+      const { mocks, serviceMessenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        providerConfigs,
+      });
+
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        undefined,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        serviceMessenger,
+        providerConfigs[SolAccountProvider.NAME],
+      );
+    });
+  });
+
   describe('getMultichainAccountGroups', () => {
     it('gets multichain accounts', () => {
       const { service } = setup({
@@ -692,58 +792,6 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('getIsAlignmentInProgress', () => {
-    it('returns false initially', () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignWallets and false after completion', async () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const alignmentPromise = service.alignWallets();
-      expect(service.getIsAlignmentInProgress()).toBe(true);
-
-      await alignmentPromise;
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns true during alignWallet and false after completion', async () => {
-      const { service } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      const alignmentPromise = service.alignWallet(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
-      expect(service.getIsAlignmentInProgress()).toBe(true);
-
-      await alignmentPromise;
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-
-    it('returns false after alignment completes even with provider errors', async () => {
-      const { service, mocks } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
-
-      // Mock a provider error during alignment
-      mocks.EvmAccountProvider.createAccounts.mockRejectedValueOnce(
-        new Error('Test error'),
-      );
-
-      // Alignment should complete gracefully without throwing
-      await service.alignWallets();
-
-      // Flag should be reset even after provider errors
-      expect(service.getIsAlignmentInProgress()).toBe(false);
-    });
-  });
-
   describe('actions', () => {
     it('gets a multichain account with MultichainAccountService:getMultichainAccount', () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
@@ -886,16 +934,25 @@ describe('MultichainAccountService', () => {
       ).toBeUndefined();
     });
 
-    it('gets alignment progress with MultichainAccountService:getIsAlignmentInProgress', () => {
-      const { messenger } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-      });
+    it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
+      const { messenger, mocks } = setup({ accounts: [], keyrings: [] });
 
-      const isInProgress = messenger.call(
-        'MultichainAccountService:getIsAlignmentInProgress',
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
+        () => [],
       );
 
-      expect(isInProgress).toBe(false);
+      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+        id: 'abc',
+        name: '',
+      }));
+
+      const wallet = await messenger.call(
+        'MultichainAccountService:createMultichainAccountWallet',
+        { mnemonic: MOCK_MNEMONIC },
+      );
+
+      expect(wallet).toBeDefined();
+      expect(wallet.entropySource).toBe('abc');
     });
   });
 
@@ -1017,6 +1074,52 @@ describe('MultichainAccountService', () => {
       // Test with false return
       (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
+    });
+  });
+
+  describe('createMultichainAccountWallet', () => {
+    it('creates a new multichain account wallet with the given mnemonic', async () => {
+      const { mocks, service } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+        {},
+      ]);
+
+      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+        id: 'abc',
+        name: '',
+      }));
+
+      const wallet = await service.createMultichainAccountWallet({
+        mnemonic: MOCK_MNEMONIC,
+      });
+
+      expect(wallet).toBeDefined();
+      expect(wallet.entropySource).toBe('abc');
+    });
+
+    it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
+      const { service, mocks } = setup({ accounts: [], keyrings: [] });
+
+      const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
+
+      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+        {
+          mnemonic,
+        },
+      ]);
+
+      await expect(
+        service.createMultichainAccountWallet({ mnemonic: MOCK_MNEMONIC }),
+      ).rejects.toThrow(
+        'This Secret Recovery Phrase has already been imported.',
+      );
+
+      // Ensure we did not attempt to create a new keyring when duplicate is detected
+      expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
     });
   });
 });

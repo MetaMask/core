@@ -102,45 +102,65 @@ export type NotificationServicesControllerState = {
 
 const metadata: StateMetadata<NotificationServicesControllerState> = {
   subscriptionAccountsSeen: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
 
   isMetamaskNotificationsFeatureSeen: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isNotificationServicesEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isFeatureAnnouncementsEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   metamaskNotificationsList: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   metamaskNotificationsReadList: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
   isUpdatingMetamaskNotifications: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isFetchingMetamaskNotifications: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isUpdatingMetamaskNotificationsAccount: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   isCheckingAccountsPresence: {
+    includeInStateLogs: false,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
 };
 export const defaultState: NotificationServicesControllerState = {
@@ -454,7 +474,7 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         async (totalAccounts, prevTotalAccounts) => {
           const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
           if (

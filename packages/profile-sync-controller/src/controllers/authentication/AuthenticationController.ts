@@ -11,6 +11,7 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Json } from '@metamask/utils';
 
 import {
   createSnapPublicKeyRequest,
@@ -49,7 +50,29 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   srpSessionData: {
-    includeInStateLogs: true,
+    // Remove access token from state logs
+    includeInStateLogs: (srpSessionData) => {
+      // Unreachable branch, included just to fix a type error for the case where this property is
+      // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
+      // set here, because we don't yet use `exactOptionalPropertyTypes`.
+      // TODO: Remove branch after enabling `exactOptionalPropertyTypes`
+      // ref: https://github.com/MetaMask/core/issues/6565
+      if (srpSessionData === null || srpSessionData === undefined) {
+        return null;
+      }
+      return Object.entries(srpSessionData).reduce<Record<string, Json>>(
+        (sanitizedSrpSessionData, [key, value]) => {
+          const { accessToken: _unused, ...tokenWithoutAccessToken } =
+            value.token;
+          sanitizedSrpSessionData[key] = {
+            ...value,
+            token: tokenWithoutAccessToken,
+          };
+          return sanitizedSrpSessionData;
+        },
+        {},
+      );
+    },
     persist: true,
     anonymous: false,
     usedInUi: true,
