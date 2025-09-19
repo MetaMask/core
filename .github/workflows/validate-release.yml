@@ -40,7 +40,7 @@ jobs:
               exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE"
               ;;
             pull_request)
-              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "origin/$GITHUB_BASE_REF" "$GITHUB_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$BOT_ALREADY_COMMENTED"
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PULL_REQUEST_BASE_SHA" "$GITHUB_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$BOT_ALREADY_COMMENTED"
               ;;
             *)
               echo "Unknown GitHub event name: $GITHUB_EVENT_NAME"
@@ -51,6 +51,7 @@ jobs:
         env:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GITHUB_EVENT_PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
           BOT_ALREADY_COMMENTED: ${{ steps.check-bot-comments.outputs.BOT_ALREADY_COMMENTED }}
       - name: Post PR comment
