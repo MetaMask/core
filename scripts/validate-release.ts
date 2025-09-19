@@ -183,7 +183,7 @@ export async function main(): Promise<void> {
       switch (releaseValidationResult.status) {
         case ReleaseValidationStatus.InvalidRelease:
           commentMessage = `${greeting}
-          
+
 It looks like you're trying to make a release PR, but some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
@@ -422,7 +422,14 @@ function validateReleaseTitle({
   return {
     isSuccess: false,
     message: `The ${source} "${possibleReleaseTitle}" does not match a valid release title format`,
-    errorMessage: `Your ${source} must match one of the following formats: ${niceValidReleaseTitlePatterns.map((pattern) => `"${pattern.replace(/`/gu, '\\`')}"`).join(', ')}`,
+    errorMessage: `Your ${source} must match one of the following formats: ${niceValidReleaseTitlePatterns
+      .map((pattern) => {
+        if (pattern.includes('`')) {
+          return `\`\` ${pattern} \`\``;
+        }
+        return `\`${pattern}\``;
+      })
+      .join(', ')}`,
   };
 }
 
