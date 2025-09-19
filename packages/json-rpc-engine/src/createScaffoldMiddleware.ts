@@ -13,6 +13,7 @@ type ScaffoldMiddlewareHandler<
  * object is requested, this middleware will pass it to the corresponding
  * handler and return the result.
  *
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
  * @param handlers - The RPC method handler functions.
  * @returns The scaffold middleware function.
  */
