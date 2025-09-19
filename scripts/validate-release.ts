@@ -424,6 +424,13 @@ async function validateRootVersionBumped(
   const { previousVersion, currentVersion } =
     await getPreviousAndCurrentPackageVersions(baseRef, headRef, './');
 
+  console.log(
+    'Previous version:',
+    previousVersion,
+    'Current version:',
+    currentVersion,
+  );
+
   if (currentVersion !== previousVersion) {
     return {
       isSuccess: true,
