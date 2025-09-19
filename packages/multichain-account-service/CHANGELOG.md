@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add missing exports for providers (`{EVM,SOL}_ACCOUNT_PROVIDER_NAME` + `${Evm,Sol}AccountProvider}`) ([#6660](https://github.com/MetaMask/core/pull/6660))
+  - These are required when setting the new account providers when constructing the service.
+
 ## [0.10.0]
 
 ### Added
