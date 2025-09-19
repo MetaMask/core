@@ -422,7 +422,7 @@ function validateReleaseTitle({
   return {
     isSuccess: false,
     message: `The ${source} "${possibleReleaseTitle}" does not match a valid release title format`,
-    errorMessage: `Your ${source} must match one of the following formats: ${niceValidReleaseTitlePatterns.map((pattern) => `"${pattern}"`).join(', ')}`,
+    errorMessage: `Your ${source} must match one of the following formats: ${niceValidReleaseTitlePatterns.map((pattern) => `"${pattern.replace(/`/gu, '\\`')}"`).join(', ')}`,
   };
 }
 
