@@ -79,9 +79,9 @@ jobs:
               echo "Found existing comment, but content is unchanged. Not updating."
             else
               echo "Updating existing PR comment."
-              #jq -n --rawfile body comment-message.txt '{body: $body}' > update-comment.json
-              #gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input update-comment.json
-              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
+              jq -n --rawfile body comment-message.txt '{body: $body}' > update-comment.json
+              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input update-comment.json
+              #gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
             fi
           else
             echo "Creating new PR comment."
