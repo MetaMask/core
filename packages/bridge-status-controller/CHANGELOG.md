@@ -14,8 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support Bitcoin transaction submission through unified Snap interface
   - Add Bitcoin-specific transaction handling in `#handleNonEvmTx` method
   - Support extraction of `unsignedPsbtBase64` from trade data for Bitcoin transactions
-- Add support for Tron blockchain transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Support Tron transaction submission through unified Snap interface
 - Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
 
 ### Changed

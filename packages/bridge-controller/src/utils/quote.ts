@@ -108,7 +108,7 @@ export const calcNonEvmTotalNetworkFee = (
     const decimals = 9;
     feeInNative = calcTokenAmount(nonEvmFeesInNative ?? '0', decimals);
   } else {
-    // Bitcoin and Tron fees are already in native units (BTC/TRX)
+    // Bitcoin fees are already in native units (BTC)
     // No conversion needed
     feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
   }

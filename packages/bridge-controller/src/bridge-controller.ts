@@ -804,7 +804,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               const lamports = solAmount.multipliedBy(1e9);
               feeInNative = lamports.toFixed(0);
             } else {
-              // For other chains (BTC, Tron), use the fee as-is
+              // For other chains (BTC), use the fee as-is
               feeInNative = baseFee.asset.amount;
             }
           }

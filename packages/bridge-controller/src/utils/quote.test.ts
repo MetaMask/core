@@ -300,27 +300,6 @@ describe('Quote Metadata Utils', () => {
       expect(result.usd).toBe('3'); // 0.00005 * 60000 = 3
     });
 
-    it('should calculate Tron fees correctly with exchange rates', () => {
-      const tronQuote: QuoteResponse & NonEvmFees = {
-        nonEvmFeesInNative: '1', // TRX fee in native units
-        quote: {} as Quote,
-        trade: {},
-      } as QuoteResponse & NonEvmFees;
-
-      const result = calcNonEvmTotalNetworkFee(
-        tronQuote,
-        {
-          exchangeRate: '0.1',
-          usdExchangeRate: '0.1',
-        },
-        ChainId.TRON,
-      );
-
-      expect(result.amount).toBe('1');
-      expect(result.valueInCurrency).toBe('0.1'); // 1 * 0.1 = 0.1
-      expect(result.usd).toBe('0.1'); // 1 * 0.1 = 0.1
-    });
-
     it('should handle missing exchange rates', () => {
       const result = calcNonEvmTotalNetworkFee(
         mockBridgeQuote,
