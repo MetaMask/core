@@ -28,7 +28,8 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         id: check-bot-comments
         run: |
-          EXISTING_COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.author.login == "metamaskbot") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->")) | .id' | head -1)
+          # Bot comments don't have an author association
+          EXISTING_COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.authorAssociation == "NONE") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->")) | .id' | head -1)
           if [ -n "$EXISTING_COMMENT_ID" ]; then
             echo "EXISTING_COMMENT_ID=$EXISTING_COMMENT_ID" >> "$GITHUB_OUTPUT"
           else
