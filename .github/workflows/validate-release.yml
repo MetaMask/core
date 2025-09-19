@@ -72,7 +72,7 @@ jobs:
 
           if [ -n "$EXISTING_COMMENT_ID" ]; then
             echo "Updating existing comment $EXISTING_COMMENT_ID"
-            gh api -X PATCH "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --input comment-message.txt
+            gh api -X PATCH "/repos/${{ github.repository }}/pulls/comments/$EXISTING_COMMENT_ID" --input comment-message.txt
           else
             echo "Creating new comment"
             gh pr comment ${{ github.event.pull_request.number }} --body-file comment-message.txt
