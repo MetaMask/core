@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "17.0.1",
+  "version": "17.0.2",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
