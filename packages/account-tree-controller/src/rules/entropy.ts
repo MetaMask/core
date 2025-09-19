@@ -1,13 +1,6 @@
-import {
-  AccountGroupType,
-  AccountWalletType,
-  isBip44Account,
-  toMultichainAccountGroupId,
-  toMultichainAccountWalletId,
-} from '@metamask/account-api';
+import { AccountGroupType, AccountWalletType } from '@metamask/account-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
@@ -29,53 +22,10 @@ export class EntropyRule
       .findIndex((keyring) => keyring.metadata.id === entropySource);
   }
 
-  match(
-    account: InternalAccount,
-  ):
+  match():
     | RuleResult<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
     | undefined {
-    if (!isBip44Account(account)) {
-      return undefined;
-    }
-
-    const entropySource = account.options.entropy.id;
-    const entropySourceIndex = this.getEntropySourceIndex(entropySource);
-    if (entropySourceIndex === -1) {
-      console.warn(
-        `! Found an unknown entropy ID: "${entropySource}", account "${account.id}" won't be grouped by entropy.`,
-      );
-      return undefined;
-    }
-
-    const walletId = toMultichainAccountWalletId(entropySource);
-    const groupId = toMultichainAccountGroupId(
-      walletId,
-      account.options.entropy.groupIndex,
-    );
-
-    return {
-      wallet: {
-        type: this.walletType,
-        id: walletId,
-        metadata: {
-          entropy: {
-            id: entropySource,
-          },
-        },
-      },
-
-      group: {
-        type: this.groupType,
-        id: groupId,
-        metadata: {
-          entropy: {
-            groupIndex: account.options.entropy.groupIndex,
-          },
-          pinned: false,
-          hidden: false,
-        },
-      },
-    };
+    throw new Error('Entropy rule is no longer supported');
   }
 
   getDefaultAccountWalletName(

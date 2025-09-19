@@ -1,16 +1,24 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountWalletType,
+  isBip44Account,
+  select,
+} from '@metamask/account-api';
+import { AccountGroupType } from '@metamask/account-api';
 import type {
+  MultichainAccountWalletStatus,
   AccountGroupId,
   AccountWalletId,
-  AccountGroupType,
   AccountSelector,
   MultichainAccountWalletId,
+  Bip44Account,
+  MultichainAccountWallet,
+  MultichainAccountGroup,
 } from '@metamask/account-api';
-import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -21,7 +29,10 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject } from './group';
+import type {
+  AccountGroupMultichainAccountObject,
+  AccountGroupObject,
+} from './group';
 import { isAccountGroupNameUnique } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
@@ -33,6 +44,7 @@ import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
 } from './types';
+import type { AccountWalletEntropyObject } from './wallet';
 import { type AccountWalletObject, type AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
@@ -217,6 +229,20 @@ export class AccountTreeController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      (group) => {
+        this.#handleMultichainAccountGroupCreatedOrUpdated(group);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAccountService:multichainAccountGroupUpdated',
+      (group) => {
+        this.#handleMultichainAccountGroupCreatedOrUpdated(group);
+      },
+    );
+
+    this.messagingSystem.subscribe(
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
@@ -234,6 +260,7 @@ export class AccountTreeController extends BaseController<
    * state with it.
    */
   init() {
+    // For now, we always re-compute all wallets, we do not re-use the existing state.
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // Clear mappings for fresh rebuild.
@@ -245,9 +272,20 @@ export class AccountTreeController extends BaseController<
     const previousSelectedAccountGroup =
       this.state.accountTree.selectedAccountGroup;
 
-    // For now, we always re-compute all wallets, we do not re-use the existing state.
+    // Insert all multichain account wallet/groups.
+    for (const wallet of this.#getMultichainAccountWallets()) {
+      for (const group of wallet.getMultichainAccountGroups()) {
+        this.#insertOrUpdateMultichainAccountWalletAndGroup(
+          wallets,
+          wallet,
+          group,
+        );
+      }
+    }
+
+    // Insert all other kind of accounts (private keys, HW, other Snap accounts, etc.).
     for (const account of this.#listAccounts()) {
-      this.#insert(wallets, account);
+      this.#insertAccount(wallets, account);
     }
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
@@ -529,8 +567,14 @@ export class AccountTreeController extends BaseController<
    * @param account - New account.
    */
   #handleAccountAdded(account: InternalAccount) {
+    if (isBip44Account(account)) {
+      // We're skipping BIP-44 accounts since we rely on the `MultichainAccountService` to do
+      // the grouping of wallets/groups directly.
+      return;
+    }
+
     this.update((state) => {
-      this.#insert(state.accountTree.wallets, account);
+      this.#insertAccount(state.accountTree.wallets, account);
 
       const context = this.#accountIdToContext.get(account.id);
       if (context) {
@@ -565,50 +609,58 @@ export class AccountTreeController extends BaseController<
     if (context) {
       const { walletId, groupId } = context;
 
-      const previousSelectedAccountGroup =
-        this.state.accountTree.selectedAccountGroup;
-      let selectedAccountGroupChanged = false;
+      // If it's in the context, then `group` should be defined.
+      const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
 
-      this.update((state) => {
-        const accounts =
-          state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
+      // We're only considering non-BIP-44 accounts for single account events.
+      if (group.type !== AccountGroupType.MultichainAccount) {
+        const index = group.accounts.indexOf(accountId);
 
-        if (accounts) {
-          const index = accounts.indexOf(accountId);
-          if (index !== -1) {
+        if (index !== -1) {
+          let selectedAccountGroupChanged = false;
+          const previousSelectedAccountGroup =
+            this.state.accountTree.selectedAccountGroup;
+
+          this.update((state) => {
+            const accounts =
+              state.accountTree.wallets[walletId]?.groups[groupId].accounts;
+
+            // Effectively remove account from the group and state.
             accounts.splice(index, 1);
 
-            // Check if we need to update selectedAccountGroup after removal
-            if (
-              state.accountTree.selectedAccountGroup === groupId &&
-              accounts.length === 0
-            ) {
-              // The currently selected group is now empty, find a new group to select
-              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
-                state.accountTree.wallets,
-              );
-              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
-              selectedAccountGroupChanged =
-                newSelectedAccountGroup !== previousSelectedAccountGroup;
+            // If there's no more account, we have to prune the group and maybe select
+            // a new account group too.
+            if (accounts.length === 0) {
+              // Check if we need to update selectedAccountGroup after removal
+              if (state.accountTree.selectedAccountGroup === groupId) {
+                // The currently selected group is now empty, find a new group to select
+                const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
+                  state.accountTree.wallets,
+                );
+                state.accountTree.selectedAccountGroup =
+                  newSelectedAccountGroup;
+                selectedAccountGroupChanged =
+                  newSelectedAccountGroup !== previousSelectedAccountGroup;
+              }
+
+              this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
             }
-          }
-          if (accounts.length === 0) {
-            this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
+          });
+
+          this.messagingSystem.publish(
+            `${controllerName}:accountTreeChange`,
+            this.state.accountTree,
+          );
+
+          // Emit selectedAccountGroupChange event if the selected group changed
+          if (selectedAccountGroupChanged) {
+            this.messagingSystem.publish(
+              `${controllerName}:selectedAccountGroupChange`,
+              this.state.accountTree.selectedAccountGroup,
+              previousSelectedAccountGroup,
+            );
           }
         }
-      });
-      this.messagingSystem.publish(
-        `${controllerName}:accountTreeChange`,
-        this.state.accountTree,
-      );
-
-      // Emit selectedAccountGroupChange event if the selected group changed
-      if (selectedAccountGroupChanged) {
-        this.messagingSystem.publish(
-          `${controllerName}:selectedAccountGroupChange`,
-          this.state.accountTree.selectedAccountGroup,
-          previousSelectedAccountGroup,
-        );
       }
 
       // Clear reverse-mapping for that account.
@@ -654,12 +706,17 @@ export class AccountTreeController extends BaseController<
    * @param wallets - Account tree.
    * @param account - The account to be inserted.
    */
-  #insert(
+  #insertAccount(
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
   ) {
+    if (isBip44Account(account)) {
+      // We're skipping BIP-44 accounts since we rely on the `MultichainAccountService` to do
+      // the grouping of wallets/groups directly.
+      return;
+    }
+
     const result =
-      this.#getEntropyRule().match(account) ??
       this.#getSnapRule().match(account) ??
       this.#getKeyringRule().match(account); // This one cannot fail.
 
@@ -679,11 +736,6 @@ export class AccountTreeController extends BaseController<
         // the union tag `result.wallet.type`.
       } as AccountWalletObject;
       wallet = wallets[walletId];
-
-      // Trigger atomic sync for new wallet (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
-      }
     }
 
     const groupId = result.group.id;
@@ -705,11 +757,6 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
-
-      // Trigger atomic sync for new group (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
-      }
     } else {
       group.accounts.push(account.id);
     }
@@ -719,6 +766,112 @@ export class AccountTreeController extends BaseController<
       walletId: wallet.id,
       groupId: group.id,
     });
+  }
+
+  /**
+   * Insert an account group inside an account tree.
+   *
+   * We go over multiple rules to try to "match" the account following
+   * specific criterias. If a rule "matches" an account, then this
+   * account get added into its proper account wallet and account group.
+   *
+   * @param wallets - Account tree.
+   * @param multichainAccountWallet - The multichain account wallet to be inserted or updated.
+   * @param multichainAccountGroup - The multichain account group to be inserted or updated.
+   */
+  #insertOrUpdateMultichainAccountWalletAndGroup(
+    wallets: AccountTreeControllerState['accountTree']['wallets'],
+    multichainAccountWallet: MultichainAccountWallet<
+      Bip44Account<KeyringAccount>
+    >,
+    multichainAccountGroup: MultichainAccountGroup<
+      Bip44Account<KeyringAccount>
+    >,
+  ) {
+    const walletId = multichainAccountWallet.id;
+    const groupId = multichainAccountGroup.id;
+
+    let wallet: AccountWalletEntropyObject | null = null;
+    let group: AccountGroupMultichainAccountObject | null = null;
+
+    // Check type, mainly to infer proper wallet object type.
+    const walletObject = wallets[walletId];
+    if (walletObject && walletObject.type === AccountWalletType.Entropy) {
+      wallet = walletObject;
+      group = wallet.groups[groupId];
+    }
+
+    // Create the group object first, to inject it in the wallet in case this wallet is
+    // not part of the tree yet.
+    if (!group) {
+      group = {
+        id: multichainAccountGroup.id,
+        type: multichainAccountGroup.type,
+        accounts: multichainAccountGroup
+          .getAccounts()
+          // For now, we need this type-cast because `getAccounts` do not have the same
+          // type-constraint (uses string[] instead of [string; ...string])
+          .map((account) => account.id) as AccountGroupObject['accounts'],
+        metadata: {
+          entropy: {
+            groupIndex: multichainAccountGroup.groupIndex,
+          },
+          name: '',
+          pinned: false,
+          hidden: false,
+        },
+      };
+    }
+
+    if (!wallet) {
+      wallet = {
+        id: multichainAccountWallet.id,
+        type: multichainAccountWallet.type,
+        status: multichainAccountWallet.status,
+        groups: {
+          [group.id]: group,
+        },
+        metadata: {
+          entropy: {
+            id: multichainAccountWallet.entropySource,
+          },
+          name: '', // Will get updated later.
+        },
+      };
+      wallets[walletId] = wallet;
+
+      // Trigger atomic sync for new wallet.
+      this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
+    } else {
+      wallet.groups[group.id] = group;
+
+      // Trigger atomic sync for new group.
+      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
+    }
+
+    // Map group ID to its containing wallet ID for efficient direct access
+    this.#groupIdToWalletId.set(groupId, walletId);
+
+    // Update the reverse mapping for all accounts account.
+    for (const accountId of group.accounts) {
+      this.#accountIdToContext.set(accountId, {
+        walletId: wallet.id,
+        groupId: group.id,
+      });
+    }
+  }
+
+  /**
+   * List all multichain accounts.
+   *
+   * @returns The list of all internal accounts.
+   */
+  #getMultichainAccountWallets(): MultichainAccountWallet<
+    Bip44Account<KeyringAccount>
+  >[] {
+    return this.messagingSystem.call(
+      'MultichainAccountService:getMultichainAccountWallets',
+    );
   }
 
   /**
@@ -873,6 +1026,41 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
       previousSelectedAccountGroup,
+    );
+  }
+
+  /**
+   * Handles multichain account group created/updated event from
+   * the MultichainAccountService.
+   *
+   * @param multichainAccountGroup - Multichain account group being that got created or updated.
+   */
+  #handleMultichainAccountGroupCreatedOrUpdated(
+    multichainAccountGroup: MultichainAccountGroup<
+      Bip44Account<KeyringAccount>
+    >,
+  ): void {
+    this.update((state) => {
+      this.#insertOrUpdateMultichainAccountWalletAndGroup(
+        state.accountTree.wallets,
+        multichainAccountGroup.wallet,
+        multichainAccountGroup,
+      );
+
+      const wallet =
+        state.accountTree.wallets[multichainAccountGroup.wallet.id];
+      if (wallet) {
+        this.#applyAccountWalletMetadata(wallet);
+
+        const group = wallet.groups[multichainAccountGroup.id];
+        if (group) {
+          this.#applyAccountGroupMetadata(wallet, group);
+        }
+      }
+    });
+    this.messagingSystem.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
     );
   }
 
