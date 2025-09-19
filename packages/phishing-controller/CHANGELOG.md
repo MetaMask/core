@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add bulk token scanning functionality to detect malicious tokens ([#6483](https://github.com/MetaMask/core/pull/6483))
+  - Add `bulkScanTokens` method to scan multiple tokens for malicious activity
+  - Add `BulkTokenScanRequest` and `BulkTokenScanResponse` types
+  - Add `tokenScanCache` to `PhishingControllerState`
+  - Add proper action registration for `bulkScanTokens` method as `PhishingControllerBulkScanTokensAction`
+  - Support for multiple chains including Ethereum, Polygon, BSC, Arbitrum, Avalanche, Base, Optimism, ect...
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6587](https://github.com/MetaMask/core/pull/6587))
 
 ### Changed

@@ -7,6 +7,11 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
+import type {
+  TokenScanResultType,
+  TokenScanResult,
+  TokenScanCacheData,
+} from './types';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -363,4 +368,178 @@ export const generateParentDomains = (
   }
 
   return domains;
+};
+
+/**
+ * Process token scan API results and prepare cache updates.
+ * This is a pure function that returns both processed results and cache updates.
+ *
+ * @param params - The parameters for processing results.
+ * @param params.apiResults - The API response results object.
+ * @param params.tokensToFetch - Array of tokens that were fetched.
+ * @param params.chainId - The normalized chain ID.
+ * @returns Processed results and cache updates to be applied by the caller.
+ */
+export const processTokenScanResults = (params: {
+  apiResults: Record<
+    string,
+    { result_type: TokenScanResultType; chain?: string; address?: string }
+  >;
+  tokensToFetch: string[];
+  chainId: string;
+}): {
+  results: Record<string, TokenScanResult>;
+  cacheUpdates: {
+    key: string;
+    value: TokenScanCacheData;
+  }[];
+} => {
+  const { apiResults, tokensToFetch, chainId } = params;
+  const results: Record<string, TokenScanResult> = {};
+  const cacheUpdates: {
+    key: string;
+    value: TokenScanCacheData;
+  }[] = [];
+
+  for (const tokenAddress of tokensToFetch) {
+    const normalizedAddress = tokenAddress.toLowerCase();
+    const tokenResult = apiResults[normalizedAddress];
+
+    if (tokenResult?.result_type) {
+      const result = {
+        result_type: tokenResult.result_type,
+        chain: tokenResult.chain || chainId,
+        address: tokenResult.address || normalizedAddress,
+      };
+
+      // Prepare cache update
+      const cacheKey = `${chainId}:${normalizedAddress}`;
+      cacheUpdates.push({
+        key: cacheKey,
+        value: { result_type: tokenResult.result_type },
+      });
+
+      results[normalizedAddress] = result;
+    }
+  }
+
+  return { results, cacheUpdates };
+};
+
+/**
+ * Transform cache storage format to Map for pure function usage.
+ * This is a pure function that creates a Map from cache-like interface.
+ *
+ * @param cache - Cache-like interface with get method.
+ * @param cache.get - Method to retrieve cached data by key.
+ * @param keys - Array of cache keys to extract.
+ * @returns Map of cache data.
+ */
+export const extractCacheData = (
+  cache: {
+    get: (key: string) => TokenScanCacheData | undefined;
+  },
+  keys: string[],
+): Map<string, TokenScanCacheData> => {
+  const cacheData = new Map<string, TokenScanCacheData>();
+
+  for (const key of keys) {
+    const value = cache.get(key);
+    if (value) {
+      cacheData.set(key, value);
+    }
+  }
+
+  return cacheData;
+};
+
+/**
+ * Generate cache keys for token addresses.
+ * This is a pure function that creates cache keys from tokens and chain ID.
+ *
+ * @param tokens - Array of token addresses.
+ * @param chainId - The chain ID.
+ * @returns Array of cache keys.
+ */
+export const generateTokenCacheKeys = (
+  tokens: string[],
+  chainId: string,
+): string[] => {
+  const normalizedChainId = chainId.toLowerCase();
+  // Chain ID + token address
+  return tokens.map((token) => `${normalizedChainId}:${token.toLowerCase()}`);
+};
+
+/**
+ * Check cached token scan data for multiple tokens.
+ * This is a pure function that accepts cache data as a parameter.
+ *
+ * @param params - The parameters for checking cached data.
+ * @param params.tokens - Array of token addresses to check.
+ * @param params.chainId - The chain ID in hex format (e.g., '0x1').
+ * @param params.cacheData - Map of cache keys to cached token scan results.
+ * @returns An object containing cached results and tokens that need to be fetched.
+ */
+export const checkTokenScanCache = (params: {
+  tokens: string[];
+  chainId: string;
+  cacheData: Map<string, TokenScanCacheData>;
+}): {
+  cachedResults: Record<string, TokenScanResult>;
+  tokensToFetch: string[];
+} => {
+  const { tokens, chainId, cacheData } = params;
+  const normalizedChainId = chainId.toLowerCase();
+  const cachedResults: Record<string, TokenScanResult> = {};
+  const tokensToFetch: string[] = [];
+
+  for (const tokenAddress of tokens) {
+    const normalizedAddress = tokenAddress.toLowerCase();
+    const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
+    const cachedResult = cacheData.get(cacheKey);
+
+    if (cachedResult) {
+      cachedResults[normalizedAddress] = {
+        result_type: cachedResult.result_type,
+        chain: normalizedChainId,
+        address: normalizedAddress,
+      };
+    } else {
+      tokensToFetch.push(tokenAddress);
+    }
+  }
+
+  return { cachedResults, tokensToFetch };
+};
+
+/**
+ * Parse and validate bulk token scan API response.
+ * This is a pure function that validates the response structure.
+ *
+ * @param response - The raw API response.
+ * @returns Validated response or null if invalid.
+ */
+export const parseBulkTokenScanResponse = (
+  response: unknown,
+): {
+  results: Record<
+    string,
+    { result_type: TokenScanResultType; chain?: string; address?: string }
+  >;
+} | null => {
+  if (
+    response &&
+    typeof response === 'object' &&
+    'results' in response &&
+    response.results &&
+    typeof response.results === 'object'
+  ) {
+    return response as {
+      results: Record<
+        string,
+        { result_type: TokenScanResultType; chain?: string; address?: string }
+      >;
+    };
+  }
+  return null;
 };
