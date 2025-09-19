@@ -62,12 +62,14 @@ jobs:
       - name: Post or update PR comment
         if: ${{ github.event_name == 'pull_request' && steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE != '' }}
         run: |
+          echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" > comment-message.txt
+
           if [ -n "$EXISTING_COMMENT_ID" ]; then
             echo "Updating existing comment $EXISTING_COMMENT_ID"
-            echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" | gh api -X PATCH "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --input -
+            gh api -X PATCH "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --input comment-message.txt
           else
             echo "Creating new comment"
-            echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+            gh pr comment ${{ github.event.pull_request.number }} --body-file comment-message.txt
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
