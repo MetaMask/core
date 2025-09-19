@@ -77,5 +77,5 @@ jobs:
             gh pr comment ${{ github.event.pull_request.number }} --body-file comment-message.txt
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
