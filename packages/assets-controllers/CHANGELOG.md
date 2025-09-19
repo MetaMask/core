@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.7.0` to `^0.18.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
+
 ## [75.2.0]
 
 ### Added

@@ -663,10 +663,16 @@ function expectUpToDateWorkspacePeerDependencies(Yarn, workspace) {
           dependency.range,
         )
       ) {
-        // We allow "non-stable" peer dependency to be set to any range
-        // until they are being "stable" (^1.0.0).
+        // Ensure peer dependency includes latest breaking changes.
+        //
+        // Technically pre-1.0 versions can make breaking changes in patch releases, but
+        // conventionally we always bump the most significant digit for breaking changes.
         if (dependencyWorkspaceVersion.major > 0) {
           dependency.update(`^${dependencyWorkspaceVersion.major}.0.0`);
+        } else if (dependencyWorkspaceVersion.minor > 0) {
+          dependency.update(`^0.${dependencyWorkspaceVersion.minor}.0`);
+        } else {
+          dependency.update(`^0.0.${dependencyWorkspaceVersion.patch}`);
         }
       }
     }
