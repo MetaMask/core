@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Trigger bulk token screening of received tokens after simulation via `PhishingController:bulkScanTokens`. ([#6617](https://github.com/MetaMask/core/pull/6617))
-- Added the `PhishingController:bulkScanTokens` as an allowed action in the `TransactionController` messengers ([#6617](https://github.com/MetaMask/core/pull/6617))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))

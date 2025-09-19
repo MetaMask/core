@@ -484,6 +484,7 @@ export type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
+
 /**
  * The external events available to the {@link TransactionController}.
  */
