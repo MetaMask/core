@@ -25,7 +25,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         id: check-bot-comments
         run: |
-          if gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.author.login == "metamaskbot") | select(.body | contains("<!-- METAMASK-RELEASE-BOT -->"))' | grep -q "body"; then
+          if gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.author.login == "metamaskbot") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->"))' | grep -q "body"; then
             echo "BOT_ALREADY_COMMENTED=true" >> "$GITHUB_OUTPUT"
           else
             echo "BOT_ALREADY_COMMENTED=false" >> "$GITHUB_OUTPUT"

@@ -186,7 +186,7 @@ ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
 **You'll need to get all of the checks above passing before you can merge this PR.**
 
-<!-- METAMASK-RELEASE-BOT -->`;
+<!-- METAMASKBOT-RELEASE-VALIDATION -->`;
         break;
       case ReleaseValidationStatus.IncompleteRelease:
         firstSentence = botAlreadyCommented
@@ -198,7 +198,7 @@ ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
 **You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of the checks above passing.**
 
-<!-- METAMASK-RELEASE-BOT -->`;
+<!-- METAMASKBOT-RELEASE-VALIDATION -->`;
         break;
       default:
         // No comment needed for valid releases or non-releases
