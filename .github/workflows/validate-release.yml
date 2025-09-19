@@ -29,7 +29,6 @@ jobs:
         id: check-bot-comments
         run: |
           set -euo pipefail
-          # Find the most recent bot comment by sorting by createdAt
           EXISTING_COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '[.comments[] | select(.author.login == "github-actions") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->"))] | sort_by(.createdAt) | .[-1].id' | head -1)
           if [[ -n "$EXISTING_COMMENT_ID" && "$EXISTING_COMMENT_ID" != "null" ]]; then
             echo "EXISTING_COMMENT_ID=$EXISTING_COMMENT_ID" >> "$GITHUB_OUTPUT"
