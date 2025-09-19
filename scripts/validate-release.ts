@@ -206,7 +206,7 @@ ${marker}`;
         case ReleaseValidationStatus.ValidRelease:
           // If we previously commented but now it's valid, show success message
           if (botAlreadyCommented) {
-            commentMessage = `This PR previously contained issues with this release, but they have since been fixed. Good job! 🎉
+            commentMessage = `This release PR previously had issues, but it looks like they have been fixed. Good job! 🎉
 
 ${marker}`;
           }
