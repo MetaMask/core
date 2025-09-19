@@ -4,11 +4,13 @@ import {
   TYPED_MESSAGE_SCHEMA,
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
+import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 import { type Hex } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
+import { isDelegationRequest } from './delegations';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,
@@ -45,6 +47,7 @@ export function validatePersonalSignatureRequest(
  * @param options.messageData - The message data to validate.
  * @param options.request - The original request.
  * @param options.version - The version of the typed signature request.
+ * @param options.decodedPermission - The decoded permission.
  */
 export function validateTypedSignatureRequest({
   currentChainId,
@@ -52,12 +55,14 @@ export function validateTypedSignatureRequest({
   messageData,
   request,
   version,
+  decodedPermission,
 }: {
   currentChainId: Hex | undefined;
   internalAccounts: Hex[];
   messageData: MessageParamsTyped;
   request: OriginalRequest;
   version: SignTypedDataVersion;
+  decodedPermission?: DecodedPermission;
 }) {
   validateAddress(messageData.from, 'from');
 
@@ -69,6 +74,7 @@ export function validateTypedSignatureRequest({
       internalAccounts,
       messageData,
       request,
+      decodedPermission,
     });
   }
 }
@@ -105,17 +111,20 @@ function validateTypedSignatureRequestV1(messageData: MessageParamsTyped) {
  * @param options.internalAccounts - The addresses of all internal accounts.
  * @param options.messageData - The message data to validate.
  * @param options.request - The original request.
+ * @param options.decodedPermission - The decoded permission.
  */
 function validateTypedSignatureRequestV3V4({
   currentChainId,
   internalAccounts,
   messageData,
   request,
+  decodedPermission,
 }: {
   currentChainId: Hex | undefined;
   internalAccounts: Hex[];
   messageData: MessageParamsTyped;
   request: OriginalRequest;
+  decodedPermission?: DecodedPermission;
 }) {
   if (
     !messageData.data ||
@@ -186,6 +195,7 @@ function validateTypedSignatureRequestV3V4({
     data,
     internalAccounts,
     origin,
+    decodedPermission,
   });
 }
 
@@ -245,36 +255,40 @@ function validateVerifyingContract({
  * @param options.data - The typed data to validate.
  * @param options.internalAccounts - The internal accounts.
  * @param options.origin - The origin of the request.
+ * @param options.decodedPermission - The decoded permission.
  */
 function validateDelegation({
   data,
   internalAccounts,
   origin,
+  decodedPermission,
 }: {
   data: MessageParamsTypedData;
   internalAccounts: Hex[];
   origin: string | undefined;
+  decodedPermission?: DecodedPermission;
 }) {
-  const { primaryType } = data;
-
-  if (primaryType !== PRIMARY_TYPE_DELEGATION) {
+  if (!isDelegationRequest(data)) {
     return;
   }
 
-  const isExternal = origin && origin !== ORIGIN_METAMASK;
-  const delegator = (data.message as Record<string, Json>)?.[
-    DELEGATOR_FIELD
-  ] as Hex;
+  const hasDecodedPermission = decodedPermission !== undefined;
+  if (!hasDecodedPermission) {
+    const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
 
-  if (
-    isExternal &&
-    internalAccounts.some(
+    const delegatorAddressLowercase = (
+      (data.message as Record<string, Json>)?.[DELEGATOR_FIELD] as Hex
+    )?.toLowerCase();
+
+    const isSignerInternal = internalAccounts.some(
       (internalAccount) =>
-        internalAccount.toLowerCase() === delegator?.toLowerCase(),
-    )
-  ) {
-    throw new Error(
-      `External signature requests cannot sign delegations for internal accounts.`,
+        internalAccount.toLowerCase() === delegatorAddressLowercase,
     );
+
+    if (isOriginExternal && isSignerInternal) {
+      throw new Error(
+        `External signature requests cannot sign delegations for internal accounts.`,
+      );
+    }
   }
 }

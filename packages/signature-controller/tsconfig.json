@@ -17,6 +17,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../gator-permissions-controller"
+    },
+    {
       "path": "../message-manager"
     },
     {
