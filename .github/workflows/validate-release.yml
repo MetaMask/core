@@ -74,13 +74,14 @@ jobs:
           EOF
 
           if [[ -n "$EXISTING_COMMENT_ID" ]]; then
-            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq -r '.body' > existing-comment.txt
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq '.body' > existing-comment.txt
             if cmp -s existing-comment.txt comment-message.txt; then
               echo "Found existing comment, but content is unchanged. Not updating."
             else
               echo "Updating existing PR comment."
-              jq -n --rawfile body comment-message.txt '{body: $body}' > update-comment.json
-              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input update-comment.json
+              #jq -n --rawfile body comment-message.txt '{body: $body}' > update-comment.json
+              #gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input update-comment.json
+              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
             fi
           else
             echo "Creating new PR comment."
