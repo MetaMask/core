@@ -343,9 +343,9 @@ export class NetworkEnablementController extends BaseController<
    * Initializes the network enablement state from network controller configurations.
    *
    * This method reads the current network configurations from both NetworkController
-   * and MultichainNetworkController and initializes the enabled network map accordingly.
-   * It ensures proper namespace buckets exist for all configured networks and enables
-   * popular networks by default.
+   * and MultichainNetworkController and syncs the enabled network map accordingly.
+   * It ensures proper namespace buckets exist for all configured networks and only
+   * adds missing networks with a default value of false, preserving existing user settings.
    *
    * This method should be called after the NetworkController and MultichainNetworkController
    * have been initialized and their configurations are available.
@@ -366,79 +366,27 @@ export class NetworkEnablementController extends BaseController<
       Object.keys(
         networkControllerState.networkConfigurationsByChainId,
       ).forEach((chainId) => {
-        const { namespace } = deriveKeys(chainId as Hex);
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
         this.#ensureNamespaceBucket(s, namespace);
+
+        // Only add network if it doesn't already exist in state (preserves user settings)
+        if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
+          s.enabledNetworkMap[namespace][storageKey] = false;
+        }
       });
 
       // Initialize namespace buckets for all networks from MultichainNetworkController
       Object.keys(
         multichainState.multichainNetworkConfigurationsByChainId,
       ).forEach((chainId) => {
-        const { namespace } = deriveKeys(chainId as CaipChainId);
+        const { namespace, storageKey } = deriveKeys(chainId as CaipChainId);
         this.#ensureNamespaceBucket(s, namespace);
-      });
 
-      // Enable popular networks that exist in the configurations
-      POPULAR_NETWORKS.forEach((chainId) => {
-        const { namespace, storageKey } = deriveKeys(chainId as Hex);
-
-        // Check if network exists in NetworkController configurations
-        if (
-          s.enabledNetworkMap[namespace] &&
-          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
-        ) {
-          s.enabledNetworkMap[namespace][storageKey] = true;
+        // Only add network if it doesn't already exist in state (preserves user settings)
+        if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
+          s.enabledNetworkMap[namespace][storageKey] = false;
         }
       });
-
-      // Enable Solana mainnet if it exists in configurations
-      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
-      if (
-        s.enabledNetworkMap[solanaKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          SolScope.Mainnet
-        ]
-      ) {
-        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
-      }
-
-      // Enable Bitcoin mainnet if it exists in configurations
-      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
-      if (
-        s.enabledNetworkMap[bitcoinKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Mainnet
-        ]
-      ) {
-        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
-          true;
-      }
-
-      // Enable Bitcoin testnet if it exists in configurations
-      const bitcoinTestnetKeys = deriveKeys(BtcScope.Testnet as CaipChainId);
-      if (
-        s.enabledNetworkMap[bitcoinTestnetKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Testnet
-        ]
-      ) {
-        s.enabledNetworkMap[bitcoinTestnetKeys.namespace][
-          bitcoinTestnetKeys.storageKey
-        ] = false;
-      }
-
-      // Enable Bitcoin signet testnet if it exists in configurations
-      const bitcoinSignetKeys = deriveKeys(BtcScope.Signet as CaipChainId);
-      if (
-        s.enabledNetworkMap[bitcoinSignetKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Signet
-        ]
-      ) {
-        s.enabledNetworkMap[bitcoinSignetKeys.namespace][
-          bitcoinSignetKeys.storageKey
-        ] = false;
-      }
     });
   }
 
