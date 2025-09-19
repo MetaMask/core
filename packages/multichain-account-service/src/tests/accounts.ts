@@ -145,6 +145,12 @@ export const MOCK_SOL_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
   derivationPath: `m/44'/501'/0'/0'`,
 };
 
+export const MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [BtcScope.Mainnet],
+  derivationPath: `m/44'/0'/0'/0'`,
+};
+
 export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
   type: BtcAccountType.P2wpkh,
