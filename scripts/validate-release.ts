@@ -51,6 +51,9 @@ main().catch((error) => {
  * The main function of the script.
  */
 export async function main(): Promise<void> {
+  console.log('Parsing arguments');
+  console.log('-----------------\n');
+
   const {
     githubEventName,
     baseRef,
@@ -58,6 +61,13 @@ export async function main(): Promise<void> {
     possibleReleaseTitle,
     botAlreadyCommented,
   } = parseCommandLineArguments();
+
+  console.log(`- GitHub event name: ${githubEventName}`);
+  console.log(`- Base ref: ${baseRef}`);
+  console.log(`- Head ref: ${headRef}`);
+  console.log(`- Possible release title: ${possibleReleaseTitle}`);
+  console.log(`- Bot already commented: ${botAlreadyCommented}`);
+  console.log('');
 
   console.log('Running validations');
   console.log('-------------------\n');
