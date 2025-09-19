@@ -1112,8 +1112,12 @@ export class AccountTreeController extends BaseController<
     }
 
     this.update((state) => {
+      /* istanbul ignore next */
+      if (!state.accountGroupsMetadata[groupId]) {
+        state.accountGroupsMetadata[groupId] = {};
+      }
+
       // Update persistent metadata
-      /* istanbul ignore next */ state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].name = {
         value: finalName,
         lastUpdatedAt: Date.now(),
@@ -1176,8 +1180,12 @@ export class AccountTreeController extends BaseController<
     const walletId = this.#groupIdToWalletId.get(groupId);
 
     this.update((state) => {
+      /* istanbul ignore next */
+      if (!state.accountGroupsMetadata[groupId]) {
+        state.accountGroupsMetadata[groupId] = {};
+      }
+
       // Update persistent metadata
-      /* istanbul ignore next */ state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].pinned = {
         value: pinned,
         lastUpdatedAt: Date.now(),
@@ -1214,8 +1222,12 @@ export class AccountTreeController extends BaseController<
     const walletId = this.#groupIdToWalletId.get(groupId);
 
     this.update((state) => {
+      /* istanbul ignore next */
+      if (!state.accountGroupsMetadata[groupId]) {
+        state.accountGroupsMetadata[groupId] = {};
+      }
+
       // Update persistent metadata
-      /* istanbul ignore next */ state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].hidden = {
         value: hidden,
         lastUpdatedAt: Date.now(),
