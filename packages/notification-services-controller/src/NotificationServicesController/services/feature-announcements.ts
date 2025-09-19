@@ -1,5 +1,6 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset, EntryCollection } from 'contentful';
+import { gte } from 'semver';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
@@ -27,7 +28,8 @@ export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_toke
 type Env = {
   spaceId: string;
   accessToken: string;
-  platform: string;
+  platform: 'extension' | 'mobile';
+  platformVersion?: string;
 };
 
 /**
@@ -148,7 +150,26 @@ const fetchFeatureAnnouncementNotifications = async (
       return notification;
     });
 
-  return rawNotifications;
+  const versionKey = {
+    extension: 'extensionMinimumVersionNumber',
+    mobile: 'mobileMinimumVersionNumber',
+  } as const;
+
+  const filteredRawNotifications = rawNotifications.filter((n) => {
+    const notificationVersion = n.data?.[versionKey[env.platform]];
+    if (!env.platformVersion || !notificationVersion) {
+      return true;
+    }
+
+    try {
+      return gte(env.platformVersion, notificationVersion);
+    } catch {
+      // something went wrong filtering, do not show notif
+      return false;
+    }
+  });
+
+  return filteredRawNotifications;
 };
 
 /**
