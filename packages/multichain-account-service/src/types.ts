@@ -9,6 +9,7 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
@@ -127,6 +128,7 @@ export type MultichainAccountServiceEvents =
  */
 export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | SnapControllerHandleSnapRequestAction
