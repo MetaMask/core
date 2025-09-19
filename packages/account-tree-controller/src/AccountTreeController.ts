@@ -420,7 +420,8 @@ export class AccountTreeController extends BaseController<
 
     // Apply persisted name if available (including empty strings)
     if (persistedGroupMetadata?.name !== undefined) {
-      group.metadata.name = persistedGroupMetadata.name.value;
+      state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+        persistedGroupMetadata.name.value;
     } else if (!group.metadata.name) {
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
@@ -433,7 +434,8 @@ export class AccountTreeController extends BaseController<
       const computedName = rule.getComputedAccountGroupName(typedGroup);
 
       if (computedName) {
-        group.metadata.name = computedName;
+        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+          computedName;
       } else {
         // Generate default name and ensure it's unique within the wallet
         let proposedName = '';
@@ -498,7 +500,8 @@ export class AccountTreeController extends BaseController<
           }
         } while (nameExists);
 
-        group.metadata.name = proposedName;
+        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+          proposedName;
 
         // Persist the generated name to ensure consistency
         state.accountGroupsMetadata[group.id] ??= {};
