@@ -541,7 +541,7 @@ export default class GatorPermissionsController extends BaseController<
    * @throws If the origin is not allowed, the context cannot be decoded into exactly one delegation,
    * or the enforcers/terms do not match a supported permission type.
    */
-  public async decodePermissionFromPermissionContextForOrigin({
+  public decodePermissionFromPermissionContextForOrigin({
     origin,
     chainId,
     delegation: { caveats, delegator, delegate, authority },
@@ -554,7 +554,7 @@ export default class GatorPermissionsController extends BaseController<
       origin: string;
     };
     delegation: DelegationDetails;
-  }): Promise<DecodedPermission> {
+  }): DecodedPermission {
     if (origin !== this.permissionsProviderSnapId) {
       throw new OriginNotAllowedError({ origin });
     }
