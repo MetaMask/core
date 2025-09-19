@@ -28,6 +28,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         id: check-bot-comments
         run: |
+          set -euo pipefail
           # Bot comments don't have an author association
           EXISTING_COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.author.login == "github-actions") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->")) | .id' | head -1)
           if [ -n "$EXISTING_COMMENT_ID" ]; then
@@ -40,6 +41,7 @@ jobs:
       - name: Validate release
         id: validate-release
         run: |
+          set -euo pipefail
           case "$GITHUB_EVENT_NAME" in
             push)
               exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE"
@@ -62,7 +64,11 @@ jobs:
       - name: Post or update PR comment
         if: ${{ github.event_name == 'pull_request' && steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE != '' }}
         run: |
-          echo "${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}" > comment-message.txt
+          set -euo pipefail
+          # Write the comment message to a file, properly escaping backticks
+          cat > comment-message.txt << 'EOF'
+          ${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}
+          EOF
 
           if [ -n "$EXISTING_COMMENT_ID" ]; then
             echo "Updating existing comment $EXISTING_COMMENT_ID"
