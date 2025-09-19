@@ -19,7 +19,6 @@ import {
   type PhishingDetectionScanResult,
   RecommendedAction,
   type TokenScanCacheData,
-  type TokenScanResult,
   type BulkTokenScanResponse,
   type BulkTokenScanRequest,
   type TokenScanResultType,
