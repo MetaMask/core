@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.8.0` to `^0.9.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
 - Computed names (inherited from previous existing accounts) is disabled temporarily ([#6601](https://github.com/MetaMask/core/pull/6601))
   - They do interfere with the naming mechanism, so we disable them temporarily in favor of the new per-wallet sequential naming.
 
@@ -35,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.8.0` to `^0.9.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
 - Single group sync events will not get enqueued anymore if a full sync is in progress ([#6651](https://github.com/MetaMask/core/pull/6651))
   - This prevents too many unnecessary storage fetches (which would prevent being rate limited).
   - This could rarely lead to inconsistencies until the next single updates or next full sync.
