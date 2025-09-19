@@ -167,13 +167,13 @@ export const handleNonEvmTxResponse = (
     quoteResponse.quote.destChainId,
   );
 
-  // For non-EVM chains, try to convert to hex if possible, otherwise use a placeholder
   let hexChainId;
   try {
     hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
   } catch {
-    // If it's a CAIP format that can't be converted, use a placeholder
-    hexChainId = '0x0' as `0x${string}`;
+    // TODO: Fix chain ID activity list handling for Bitcoin
+    // Fallback to Ethereum mainnet for now
+    hexChainId = '0x1' as `0x${string}`;
   }
 
   // Extract the transaction data for storage
