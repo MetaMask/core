@@ -83,11 +83,6 @@ export class MultichainAccountService {
     MultichainAccountWallet<Bip44Account<KeyringAccount>>
   >;
 
-  readonly #accountIdToContext: Map<
-    Bip44Account<KeyringAccount>['id'],
-    AccountContext<Bip44Account<KeyringAccount>>
-  >;
-
   /**
    * The name of the service.
    */
@@ -110,7 +105,6 @@ export class MultichainAccountService {
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
-    this.#accountIdToContext = new Map();
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
@@ -232,7 +226,6 @@ export class MultichainAccountService {
    */
   init(): void {
     this.#wallets.clear();
-    this.#accountIdToContext.clear();
 
     const serviceState = this.#constructServiceState();
     for (const entropySource of Object.keys(serviceState)) {
@@ -243,15 +236,6 @@ export class MultichainAccountService {
       });
       wallet.init(serviceState[entropySource]);
       this.#wallets.set(wallet.id, wallet);
-
-      for (const group of wallet.getMultichainAccountGroups()) {
-        for (const accountId of group.getAccountIds()) {
-          this.#accountIdToContext.set(accountId, {
-            wallet,
-            group,
-          });
-        }
-      }
     }
   }
 
@@ -274,19 +258,6 @@ export class MultichainAccountService {
     }
 
     return wallet;
-  }
-
-  /**
-   * Gets the account's context which contains its multichain wallet and
-   * multichain account group references.
-   *
-   * @param id - Account ID.
-   * @returns The account context if any, undefined otherwise.
-   */
-  getAccountContext(
-    id: KeyringAccount['id'],
-  ): AccountContext<Bip44Account<KeyringAccount>> | undefined {
-    return this.#accountIdToContext.get(id);
   }
 
   /**
