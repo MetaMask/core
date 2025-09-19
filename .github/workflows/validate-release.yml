@@ -29,7 +29,7 @@ jobs:
         id: check-bot-comments
         run: |
           set -euo pipefail
-          EXISTING_COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '[.comments[] | select(.author.login == "github-actions") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->"))] | sort_by(.createdAt) | .[-1].id' | head -1)
+          EXISTING_COMMENT_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${GITHUB_EVENT_PULL_REQUEST_NUMBER}/comments" --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- METAMASKBOT-RELEASE-VALIDATION -->"))] | sort_by(.created_at) | .[-1].id' | head -1)
           if [[ -n "$EXISTING_COMMENT_ID" && "$EXISTING_COMMENT_ID" != "null" ]]; then
             echo "EXISTING_COMMENT_ID=$EXISTING_COMMENT_ID" >> "$GITHUB_OUTPUT"
           else
@@ -37,6 +37,8 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
       - name: Validate release
         id: validate-release
         run: |
@@ -71,18 +73,20 @@ jobs:
           EOF
 
           if [[ -n "$EXISTING_COMMENT_ID" ]]; then
-            EXISTING_CONTENT="$(gh api "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --jq '.body')"
+            EXISTING_CONTENT="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq '.body')"
             NEW_CONTENT="$(cat comment-message.txt)"
             if [[ "$EXISTING_CONTENT" == "$NEW_CONTENT" ]]; then
               echo "Not updating PR comment because content is unchanged"
             else
               echo "Updating existing PR comment $EXISTING_COMMENT_ID"
-              gh api -X PATCH "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --input comment-message.txt
+              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
             fi
           else
             echo "Creating new PR comment"
-            gh pr comment ${{ github.event.pull_request.number }} --body-file comment-message.txt
+            gh pr comment "${GITHUB_EVENT_PULL_REQUEST_NUMBER}" --body-file comment-message.txt
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
