@@ -2591,6 +2591,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^33.1.0"
     "@metamask/approval-controller": "npm:^7.1.3"
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/backend-platform": "file:../backend-platform"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
@@ -2701,6 +2702,39 @@ __metadata:
   checksum: 10/4968d316411e5f4820092391f79078839f49e0e26ecd0c48266b5a1e0e32614b75dad5f36b76e632a7a22a2f2eeeb762a693ae390b0373bff29081ff2a7eefda
   languageName: node
   linkType: hard
+
+"@metamask/backend-platform@file:../backend-platform::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
+  version: 0.0.0
+  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=95755c&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.3.0"
+    "@metamask/controller-utils": "npm:^11.12.0"
+    "@metamask/utils": "npm:^11.4.2"
+    uuid: "npm:^8.3.2"
+  checksum: 10/dc21aafa1b8af547ea2b282e62eca799d0a8cde50968bfaa7ca1cd8d4c770a6f0cdd85175c332fd45226a57aba52997cd029aa85acfb4e0444fa7631b7429fc9
+  languageName: node
+  linkType: hard
+
+"@metamask/backend-platform@workspace:packages/backend-platform":
+  version: 0.0.0-use.local
+  resolution: "@metamask/backend-platform@workspace:packages/backend-platform"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.3.0"
+    "@metamask/controller-utils": "npm:^11.12.0"
+    "@metamask/utils": "npm:^11.4.2"
+    "@ts-bridge/cli": "npm:^0.6.1"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    sinon: "npm:^9.2.4"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
+  languageName: unknown
+  linkType: soft
 
 "@metamask/base-controller@npm:^8.0.1, @metamask/base-controller@npm:^8.3.0, @metamask/base-controller@npm:^8.4.0, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
@@ -2886,7 +2920,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -4840,7 +4874,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.8.0":
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.0":
   version: 11.8.0
   resolution: "@metamask/utils@npm:11.8.0"
   dependencies:
