@@ -76,13 +76,13 @@ jobs:
             EXISTING_CONTENT="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq '.body')"
             NEW_CONTENT="$(cat comment-message.txt)"
             if [[ "$EXISTING_CONTENT" == "$NEW_CONTENT" ]]; then
-              echo "Not updating PR comment because content is unchanged"
+              echo "Found existing comment, but content is unchanged. Not updating."
             else
-              echo "Updating existing PR comment $EXISTING_COMMENT_ID"
+              echo "Updating existing PR comment."
               gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
             fi
           else
-            echo "Creating new PR comment"
+            echo "Creating new PR comment."
             gh pr comment "${GITHUB_EVENT_PULL_REQUEST_NUMBER}" --body-file comment-message.txt
           fi
         env:
