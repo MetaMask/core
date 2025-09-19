@@ -208,14 +208,12 @@ function generateReleaseValidationMessage(
     releaseValidationResult.status !== ReleaseValidationStatus.NotARelease;
 
   if (isReleasePR) {
-    const greeting = "Hello, it's your friendly neighborhood MetaMask bot 👋";
+    const greeting = 'Hello 👋';
     const marker = '<!-- METAMASKBOT-RELEASE-VALIDATION -->';
 
     switch (releaseValidationResult.status) {
       case ReleaseValidationStatus.InvalidRelease:
-        commentMessage = `${greeting}
-
-It looks like you're trying to make a release PR, but some things don't look right:
+        commentMessage = `${greeting} It looks like you're trying to make a release PR, but some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
@@ -224,9 +222,7 @@ ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 ${marker}`;
         break;
       case ReleaseValidationStatus.IncompleteRelease:
-        commentMessage = `${greeting}
-
-Are you trying to make a release PR? If so, some things don't look right:
+        commentMessage = `${greeting} Are you trying to make a release PR? If so, some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
