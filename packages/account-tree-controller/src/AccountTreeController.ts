@@ -25,7 +25,7 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject, AccountGroupObjectOf } from './group';
+import type { AccountGroupObject } from './group';
 import {
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
@@ -1110,7 +1110,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId] = {};
       state.accountGroupsMetadata[groupId].name = {
         value: finalName,
         lastUpdatedAt: Date.now(),
@@ -1174,7 +1174,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId] = {};
       state.accountGroupsMetadata[groupId].pinned = {
         value: pinned,
         lastUpdatedAt: Date.now(),
@@ -1212,7 +1212,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId] = {};
       state.accountGroupsMetadata[groupId].hidden = {
         value: hidden,
         lastUpdatedAt: Date.now(),
