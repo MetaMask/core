@@ -1,18 +1,23 @@
 import * as sinon from 'sinon';
 
-import { ListKeys, ListNames } from './PhishingController';
+import {
+  ListKeys,
+  ListNames,
+  type PhishingListState,
+} from './PhishingController';
 import {
   applyDiffs,
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
+  getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
   matchPartsAgainstList,
   processConfigs,
-  // processConfigs,
   processDomainList,
   roundToNearestMinute,
+  separateBlocklistEntries,
   sha256Hash,
   validateConfig,
 } from './utils';
@@ -24,7 +29,6 @@ const examplec2DomainBlocklistHashOne =
   '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 const exampleBlocklist = [exampleBlockedUrl, exampleBlockedUrlOne];
 const examplec2DomainBlocklist = [examplec2DomainBlocklistHashOne];
-
 const exampleAllowUrl = 'https://example-allowlist-item.com';
 const exampleFuzzyUrl = 'https://example-fuzzylist-item.com';
 const exampleAllowlist = [exampleAllowUrl];
@@ -32,6 +36,27 @@ const exampleFuzzylist = [exampleFuzzyUrl];
 const exampleListState = {
   blocklist: exampleBlocklist,
   c2DomainBlocklist: examplec2DomainBlocklist,
+  blocklistPaths: {
+    'url1.com': {},
+    'url2.com': {
+      path2: {},
+    },
+    'url3.com': {
+      path2: {
+        path3: {},
+      },
+    },
+    'url4.com': {
+      path21: {
+        path31: {
+          path41: {},
+          path42: {},
+        },
+        path32: {},
+      },
+      path22: {},
+    },
+  },
   fuzzylist: exampleFuzzylist,
   tolerance: 2,
   allowlist: exampleAllowlist,
@@ -233,6 +258,234 @@ describe('applyDiffs', () => {
     );
     expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2']);
   });
+
+  describe('blocklistPaths handling', () => {
+    const newAddDiff = (url: string) => ({
+      targetList: 'eth_phishing_detect_config.blocklist' as const,
+      url,
+      timestamp: 1000000000,
+    });
+
+    const newRemoveDiff = (url: string) => ({
+      targetList: 'eth_phishing_detect_config.blocklist' as const,
+      url,
+      timestamp: 1000000001,
+      isRemoval: true,
+    });
+
+    describe('adding URLs to blocklistPaths', () => {
+      let listState: PhishingListState;
+
+      beforeEach(() => {
+        listState = {
+          ...exampleListState,
+          blocklistPaths: {},
+        };
+      });
+
+      it('adds a URL to the path trie', () => {
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {
+              path2: {},
+            },
+          },
+        });
+      });
+
+      it('adds sibling paths', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {},
+            path2: {},
+          },
+        });
+      });
+
+      it('is idempotent', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {
+              path2: {},
+            },
+          },
+        });
+      });
+
+      it('prunes descendants when adding ancestor', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2/path3')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {},
+          },
+        });
+      });
+
+      it('does not insert deeper path if ancestor exists', () => {
+        applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com/path1/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path1: {},
+          },
+        });
+      });
+
+      it('does not insert if no path is provided', () => {
+        const result = applyDiffs(
+          listState,
+          [newAddDiff('example.com')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({});
+      });
+    });
+
+    describe('removing URLs from blocklistPaths', () => {
+      let listState: PhishingListState;
+
+      beforeEach(() => {
+        listState = {
+          ...exampleListState,
+          blocklistPaths: {
+            'example.com': {
+              path11: {
+                path2: {},
+              },
+              path12: {},
+            },
+          },
+        };
+      });
+
+      it('deletes a path', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path12: {},
+          },
+        });
+      });
+
+      it('deletes all paths', () => {
+        applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path12')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({});
+      });
+
+      it('deletes descendants if the path is not terminal', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path12: {},
+          },
+        });
+      });
+
+      it('is idempotent', () => {
+        applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual({
+          'example.com': {
+            path12: {},
+          },
+        });
+      });
+
+      it('does nothing if path does not exist', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com/nonexistent')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual(listState.blocklistPaths);
+      });
+
+      it('does nothing if hostname does not exist', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('nonexistent.com/path11/path2')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual(listState.blocklistPaths);
+      });
+
+      it('does nothing if no path is provided', () => {
+        const result = applyDiffs(
+          listState,
+          [newRemoveDiff('example.com')],
+          ListKeys.EthPhishingDetectConfig,
+        );
+        expect(result.blocklistPaths).toStrictEqual(listState.blocklistPaths);
+      });
+    });
+  });
 });
 
 describe('validateConfig', () => {
@@ -305,6 +558,11 @@ describe('processConfigs', () => {
       {
         allowlist: ['example.com'],
         blocklist: ['sub.example.com'],
+        blocklistPaths: {
+          'malicious.com': {
+            path: {},
+          },
+        },
         fuzzylist: ['fuzzy.example.com'],
         tolerance: 2,
         version: 1,
@@ -315,6 +573,14 @@ describe('processConfigs', () => {
     const result = processConfigs(configs);
 
     expect(result).toHaveLength(1);
+    expect(result[0].blocklist).toStrictEqual(
+      Array.of(['com', 'example', 'sub']),
+    );
+    expect(result[0].blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        path: {},
+      },
+    });
     expect(result[0].name).toBe('MetaMask');
 
     expect(console.error).not.toHaveBeenCalled();
@@ -795,5 +1061,119 @@ describe('generateParentDomains', () => {
     const filteredSourceParts = sourceParts.filter(Boolean);
     const expected = ['b.c', 'a.b.c'];
     expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+});
+
+describe('separateBlocklistEntries', () => {
+  it('separates hostname-only and hostname+path entries', () => {
+    const blocklist = [
+      'example.com',
+      'malicious.com/phishing',
+      'bad.com/scam/page',
+      'another-bad.com',
+      'evil.com/path1/path2/path3',
+    ];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com', 'another-bad.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+      'bad.com': {
+        scam: {
+          page: {},
+        },
+      },
+      'evil.com': {
+        path1: {
+          path2: {
+            path3: {},
+          },
+        },
+      },
+    });
+  });
+
+  it('handles URLs with protocols', () => {
+    const blocklist = [
+      'https://example.com',
+      'http://malicious.com/phishing',
+      'https://bad.com/scam/page',
+    ];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+      'bad.com': {
+        scam: {
+          page: {},
+        },
+      },
+    });
+  });
+
+  it('handles invalid URLs gracefully', () => {
+    const blocklist = ['example.com', '', 'malicious.com/phishing'];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+    });
+  });
+
+  it('handles empty blocklist', () => {
+    const result = separateBlocklistEntries([]);
+
+    expect(result.blocklist).toStrictEqual([]);
+    expect(result.blocklistPaths).toStrictEqual({});
+  });
+
+  it('handles trailing slashes correctly', () => {
+    const blocklist = ['example.com/', 'malicious.com/phishing/'];
+
+    const result = separateBlocklistEntries(blocklist);
+
+    expect(result.blocklist).toStrictEqual(['example.com']);
+    expect(result.blocklistPaths).toStrictEqual({
+      'malicious.com': {
+        phishing: {},
+      },
+    });
+  });
+});
+
+describe('getHostnameAndPathComponents', () => {
+  it.each([
+    [
+      'https://example.com/path1/path2',
+      { hostname: 'example.com', pathComponents: ['path1', 'path2'] },
+    ],
+    [
+      'example.com/path1/path2',
+      { hostname: 'example.com', pathComponents: ['path1', 'path2'] },
+    ],
+    ['example.com', { hostname: 'example.com', pathComponents: [] }],
+    [
+      'EXAMPLE.COM/Path1/PATH2',
+      { hostname: 'example.com', pathComponents: ['Path1', 'PATH2'] },
+    ],
+    ['', { hostname: '', pathComponents: [] }],
+    [
+      'example.sub.com/path1/path2',
+      { hostname: 'example.sub.com', pathComponents: ['path1', 'path2'] },
+    ],
+  ])('parses %s correctly', (input, expected) => {
+    const result = getHostnameAndPathComponents(input);
+    expect(result).toStrictEqual(expected);
   });
 });

@@ -11,6 +11,7 @@ import {
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/punycode.js';
 
+import { type PathTrie } from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -30,6 +31,8 @@ import {
   getHostnameFromUrl,
   roundToNearestMinute,
   getHostnameFromWebUrl,
+  getPathnameFromUrl,
+  separateBlocklistEntries,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -122,6 +125,9 @@ export type PhishingStalelist = {
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property blocklistPaths - List of unapproved origins with paths (hostname + path, no query params).
+ * The first key is hostname+first path segment. The second key is the second path segment.
+ * The value of the second key is an array of blocked third path segments. We only store up to three path segments deep.
  * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
@@ -132,6 +138,7 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
+  blocklistPaths: PathTrie;
   c2DomainBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;
@@ -219,6 +226,12 @@ const metadata: StateMetadata<PhishingControllerState> = {
     anonymous: false,
     usedInUi: false,
   },
+  whitelistPaths: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
   hotlistLastFetched: {
     includeInStateLogs: true,
     persist: true,
@@ -253,6 +266,7 @@ const getDefaultState = (): PhishingControllerState => {
   return {
     phishingLists: [],
     whitelist: [],
+    whitelistPaths: [],
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
@@ -270,6 +284,7 @@ const getDefaultState = (): PhishingControllerState => {
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
   whitelist: string[];
+  whitelistPaths: string[];
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
@@ -585,6 +600,12 @@ export class PhishingController extends BaseController<
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
+
+    if (this.state.whitelistPaths.includes(hostnameWithPaths)) {
+      return { result: false, type: PhishingDetectorResultType.All };
+    }
+
     if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
@@ -618,10 +639,25 @@ export class PhishingController extends BaseController<
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
-    const { whitelist } = this.state;
-    if (whitelist.includes(hostname || punycodeOrigin)) {
+    const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
+    const { whitelist, whitelistPaths } = this.state;
+
+    if (
+      whitelist.includes(hostname || punycodeOrigin) ||
+      whitelistPaths.includes(hostnameWithPaths)
+    ) {
       return;
     }
+
+    // If the origin was blocked by a path, then we only want to add it to the whitelistPaths since
+    // other paths with the same hostname may not be blocked.
+    if (this.#detector.isPathBlocked(origin)) {
+      this.update((draftState) => {
+        draftState.whitelistPaths.push(hostnameWithPaths);
+      });
+      return;
+    }
+
     this.update((draftState) => {
       draftState.whitelist.push(hostname || punycodeOrigin);
     });
@@ -974,9 +1010,15 @@ export class PhishingController extends BaseController<
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
+    const { blocklist, blocklistPaths } = separateBlocklistEntries(
+      eth_phishing_detect_config.blocklist,
+    );
+
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
+      blocklist,
+      blocklistPaths,
       c2DomainBlocklist: c2DomainBlocklistResponse
         ? c2DomainBlocklistResponse.recentlyAdded
         : [],

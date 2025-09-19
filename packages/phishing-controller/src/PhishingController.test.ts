@@ -92,6 +92,18 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.All,
     });
   });
+
+  it('returns false if the URL is in the whitelistPaths', async () => {
+    const whitelistedURL = 'https://example.com/path';
+
+    const controller = getPhishingController();
+    controller.bypass(whitelistedURL);
+    const result = controller.test(whitelistedURL);
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
   it('should return false if the URL is in the allowlist', async () => {
     const allowlistedHostname = 'example.com';
 
@@ -193,6 +205,7 @@ describe('PhishingController', () => {
             allowlist: [],
             blocklist: [],
             c2DomainBlocklist: [],
+            blocklistPaths: {},
             fuzzylist: [],
             tolerance: 0,
             lastUpdated: 1,
@@ -518,6 +531,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 0,
               lastUpdated: 1,
@@ -1316,6 +1330,77 @@ describe('PhishingController', () => {
     });
   });
 
+  it('returns positive result for unsafe hostname+pathname from MetaMask config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_STALELIST_FILE)
+      .reply(200, {
+        data: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          eth_phishing_detect_config: {
+            allowlist: [],
+            blocklist: ['example.com/path'],
+            fuzzylist: [],
+          },
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          phishfort_hotlist: {
+            blocklist: [],
+          },
+          tolerance: 0,
+          allowlist: [],
+          version: 0,
+          lastUpdated: 1,
+        },
+      })
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const controller = getPhishingController();
+    await controller.updateStalelist();
+    expect(controller.test('https://example.com/path')).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
+    });
+  });
+
+  it('returns negative result if the hostname+pathname is in the whitelistPaths', async () => {
+    const controller = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
+    controller.bypass('https://example.com/path');
+    expect(controller.test('https://example.com/path')).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
@@ -1371,8 +1456,9 @@ describe('PhishingController', () => {
       expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: [],
-          blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
+          blocklist: ['example-blocked-website.com', exampleBlockedUrlOne],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
@@ -1442,10 +1528,66 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 2,
+          name: ListNames.MetaMask,
+        },
+      ]);
+    });
+
+    it('should correctly process blocklist entries with paths into blocklistPaths', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            eth_phishing_detect_config: {
+              allowlist: [],
+              blocklist: ['example.com', 'malicious.com/phishing'],
+              fuzzylist: [],
+            },
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            phishfort_hotlist: {
+              blocklist: [],
+            },
+            tolerance: 0,
+            allowlist: [],
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: ['example.com'],
+          c2DomainBlocklist: [],
+          blocklistPaths: {
+            'malicious.com': {
+              phishing: {},
+            },
+          },
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
           name: ListNames.MetaMask,
         },
       ]);
@@ -1465,6 +1607,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1481,6 +1624,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1508,6 +1652,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1524,6 +1669,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1655,6 +1801,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1671,6 +1818,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [testBlockedDomain],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1692,6 +1840,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1755,6 +1904,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1772,6 +1922,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1804,6 +1955,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [exampleRequestBlockedHash],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1822,6 +1974,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1853,6 +2006,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1871,6 +2025,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1902,6 +2057,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1920,6 +2076,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1942,6 +2099,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1960,6 +2118,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1992,6 +2151,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [exampleRequestBlockedHashTwo],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2010,6 +2170,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -2038,6 +2199,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2060,6 +2222,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -2086,6 +2249,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2104,6 +2268,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -2126,6 +2291,7 @@ describe('PhishingController', () => {
               allowlist: [],
               blocklist: [],
               c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -2144,6 +2310,7 @@ describe('PhishingController', () => {
           allowlist: [],
           blocklist: [],
           c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -2383,47 +2550,93 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.Allowlist,
     });
   });
-  describe('PhishingController - bypass', () => {
+  describe('bypass', () => {
     let controller: PhishingController;
 
     beforeEach(() => {
-      controller = getPhishingController();
+      controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {
+                'example.com': {
+                  path: {},
+                },
+              },
+              fuzzylist: [],
+              tolerance: 0,
+              version: 0,
+              lastUpdated: 0,
+              name: ListNames.MetaMask,
+            },
+          ],
+        },
+      });
     });
 
-    it('should do nothing if the origin is already in the whitelist', () => {
-      const origin = 'https://example.com';
-      const hostname = getHostnameFromUrl(origin);
+    describe('whitelist', () => {
+      it('should do nothing if the origin is already in the whitelist', () => {
+        const origin = 'https://example.com';
+        const hostname = getHostnameFromUrl(origin);
 
-      // Call the bypass function
-      controller.bypass(origin);
-      controller.bypass(origin);
+        // Call the bypass function
+        controller.bypass(origin);
+        controller.bypass(origin);
 
-      // Verify that the whitelist has not changed
-      expect(controller.state.whitelist).toContain(hostname);
-      expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        // Verify that the whitelist has not changed
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        expect(controller.state.whitelistPaths).toHaveLength(0);
+      });
+
+      it('should add the origin to the whitelist if not already present', () => {
+        const origin = 'https://newsite.com';
+        const hostname = getHostnameFromUrl(origin);
+
+        // Call the bypass function
+        controller.bypass(origin);
+
+        // Verify that the whitelist now includes the new origin
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toHaveLength(0);
+      });
+
+      it('should add punycode origins to the whitelist if not already present', () => {
+        const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
+
+        // Call the bypass function
+        controller.bypass(punycodeOrigin);
+
+        // Verify that the whitelist now includes the punycode origin
+        expect(controller.state.whitelist).toContain(punycodeOrigin);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toHaveLength(0);
+      });
     });
 
-    it('should add the origin to the whitelist if not already present', () => {
-      const origin = 'https://newsite.com';
-      const hostname = getHostnameFromUrl(origin);
+    describe('whitelistPaths', () => {
+      it('adds the hostname + paths to the whitelistPaths if not already present', () => {
+        const origin = 'https://example.com/path';
+        controller.bypass(origin);
 
-      // Call the bypass function
-      controller.bypass(origin);
+        expect(controller.state.whitelistPaths).toContain('example.com/path');
+        expect(controller.state.whitelistPaths).toHaveLength(1);
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
 
-      // Verify that the whitelist now includes the new origin
-      expect(controller.state.whitelist).toContain(hostname);
-      expect(controller.state.whitelist).toHaveLength(1);
-    });
+      it('does not add the hostname + paths to the whitelistPaths if already present', () => {
+        const origin = 'https://example.com/path';
+        controller.bypass(origin);
+        controller.bypass(origin);
 
-    it('should add punycode origins to the whitelist if not already present', () => {
-      const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
-
-      // Call the bypass function
-      controller.bypass(punycodeOrigin);
-
-      // Verify that the whitelist now includes the punycode origin
-      expect(controller.state.whitelist).toContain(punycodeOrigin);
-      expect(controller.state.whitelist).toHaveLength(1);
+        expect(controller.state.whitelistPaths).toContain('example.com/path');
+        expect(controller.state.whitelistPaths).toHaveLength(1);
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
     });
   });
 
@@ -3394,6 +3607,7 @@ describe('URL Scan Cache', () => {
           "stalelistLastFetched": 0,
           "urlScanCache": Object {},
           "whitelist": Array [],
+          "whitelistPaths": Array [],
         }
       `);
     });
