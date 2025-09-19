@@ -701,6 +701,9 @@ export class AccountTreeController extends BaseController<
     delete wallets[walletId].groups[groupId];
     this.#groupIdToWalletId.delete(groupId);
 
+    // Clean up metadata for the pruned group
+    delete state.accountGroupsMetadata[groupId];
+
     if (Object.keys(wallets[walletId].groups).length === 0) {
       delete wallets[walletId];
     }
@@ -1110,7 +1113,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] = {};
+      /* istanbul ignore next */ state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].name = {
         value: finalName,
         lastUpdatedAt: Date.now(),
@@ -1174,7 +1177,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] = {};
+      /* istanbul ignore next */ state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].pinned = {
         value: pinned,
         lastUpdatedAt: Date.now(),
@@ -1212,7 +1215,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       // Update persistent metadata
-      state.accountGroupsMetadata[groupId] = {};
+      /* istanbul ignore next */ state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].hidden = {
         value: hidden,
         lastUpdatedAt: Date.now(),

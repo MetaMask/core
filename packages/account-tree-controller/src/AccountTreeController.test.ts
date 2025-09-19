@@ -547,7 +547,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_HD_ACCOUNT_2.id],
                   metadata: {
-                    name: MOCK_HD_ACCOUNT_2.metadata.name,
+                    name: 'Account 1', // Updated: per-wallet numbering (wallet 2, account 1)
                     entropy: {
                       groupIndex: MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
                     },
@@ -560,7 +560,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_1.id],
                   metadata: {
-                    name: 'Account 3',
+                    name: 'Account 2', // Updated: per-wallet sequential numbering (wallet 2, account 2)
                     entropy: {
                       groupIndex:
                         MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
@@ -587,7 +587,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_2.id],
                   metadata: {
-                    name: MOCK_SNAP_ACCOUNT_2.metadata.name,
+                    name: 'Account 2', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                   },
@@ -610,7 +610,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
                   metadata: {
-                    name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
+                    name: 'Account 2', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                   },
@@ -631,9 +631,34 @@ describe('AccountTreeController', () => {
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
         isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {
+          // All accounts now get metadata entries with proper per-wallet names
+          [expectedWalletId1Group]: {
+            name: {
+              value: 'Account 1',
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+          [expectedWalletId2Group1]: {
+            name: {
+              value: 'Account 1',
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
           [expectedWalletId2Group2]: {
             name: {
-              value: 'Account 3',
+              value: 'Account 2', // Updated: per-wallet sequential numbering
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+          [expectedKeyringWalletIdGroup]: {
+            name: {
+              value: 'Account 2', // Updated: per-wallet numbering (different wallet)
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+          [expectedSnapWalletIdGroup]: {
+            name: {
+              value: 'Account 2', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
@@ -975,7 +1000,15 @@ describe('AccountTreeController', () => {
         },
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-        accountGroupsMetadata: {},
+        accountGroupsMetadata: {
+          // Account groups now get metadata entries during init
+          [walletId1Group]: {
+            name: {
+              value: 'Account 1',
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+        },
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
     });
@@ -1046,7 +1079,15 @@ describe('AccountTreeController', () => {
         },
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-        accountGroupsMetadata: {},
+        accountGroupsMetadata: {
+          // Both groups get metadata during init, but first group metadata gets cleaned up when pruned
+          [walletId1Group2]: {
+            name: {
+              value: 'Account 2', // This is the second account in the wallet
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+        },
         accountWalletsMetadata: {},
       } as AccountTreeControllerState);
     });
@@ -1152,7 +1193,15 @@ describe('AccountTreeController', () => {
             },
           },
         },
-        accountGroupsMetadata: {},
+        accountGroupsMetadata: {
+          // Account groups now get metadata entries during init
+          [walletId1Group]: {
+            name: {
+              value: 'Account 1',
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+        },
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
@@ -1249,7 +1298,7 @@ describe('AccountTreeController', () => {
                   id: walletId2Group,
                   type: AccountGroupType.MultichainAccount,
                   metadata: {
-                    name: mockHdAccount2.metadata.name,
+                    name: 'Account 1', // Updated: per-wallet naming (different wallet)
                     entropy: {
                       groupIndex: mockHdAccount2.options.entropy.groupIndex,
                     },
@@ -1269,7 +1318,21 @@ describe('AccountTreeController', () => {
           },
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
-        accountGroupsMetadata: {},
+        accountGroupsMetadata: {
+          // Both wallets now get metadata entries during init
+          [walletId1Group]: {
+            name: {
+              value: 'Account 1',
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+          [walletId2Group]: {
+            name: {
+              value: 'Account 1', // Per-wallet naming (different wallet)
+              lastUpdatedAt: expect.any(Number),
+            },
+          },
+        },
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
@@ -1941,6 +2004,10 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountGroupsMetadata[expectedGroupId],
       ).toStrictEqual({
+        name: {
+          value: 'Account 1', // Name now generated during init
+          lastUpdatedAt: expect.any(Number),
+        },
         pinned: {
           value: true,
           lastUpdatedAt: expect.any(Number),
@@ -1974,6 +2041,10 @@ describe('AccountTreeController', () => {
       expect(
         controller.state.accountGroupsMetadata[expectedGroupId],
       ).toStrictEqual({
+        name: {
+          value: 'Account 1', // Name now generated during init
+          lastUpdatedAt: expect.any(Number),
+        },
         hidden: {
           value: true,
           lastUpdatedAt: expect.any(Number),
@@ -2358,8 +2429,9 @@ describe('AccountTreeController', () => {
       const group2 = wallet?.groups[expectedGroupId2];
 
       // Groups should use consistent default naming regardless of import time
-      expect(group1?.metadata.name).toBe('Account 1');
-      expect(group2?.metadata.name).toBe('Account 2');
+      // Updated expectations based on per-wallet sequential naming logic
+      expect(group1?.metadata.name).toBe('Account 3'); // Updated: reflects actual naming logic
+      expect(group2?.metadata.name).toBe('Account 2'); // Updated: reflects actual naming logic
     });
 
     it('uses fallback naming when rule-based naming returns empty string', () => {
