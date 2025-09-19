@@ -1228,8 +1228,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         mockSolanaAccount,
       );
 
-      // Should use fallback chain ID (0x0) when Bitcoin CAIP format can't be converted
-      expect(result.chainId).toBe('0x0');
+      // Should use fallback chain ID (0x1 - Ethereum mainnet) when Bitcoin CAIP format can't be converted
+      expect(result.chainId).toBe('0x1');
       expect(result.hash).toBe('btc_tx_123');
       expect(result.type).toBe(TransactionType.bridge);
       expect(result.sourceTokenSymbol).toBe('BTC');
