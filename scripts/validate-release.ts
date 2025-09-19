@@ -42,6 +42,11 @@ type RootVersionBumpedValidationResult = ValidationResult & {
 type ReleaseTitleValidationResult = ValidationResult;
 type AnyWorkspacePackageVersionBumpedValidationResult = ValidationResult;
 
+type ReleaseValidationResult = {
+  status: ReleaseValidationStatus;
+  errorMessages: string[];
+};
+
 // Run the script.
 main().catch((error) => {
   core.setFailed(error.message);
@@ -53,7 +58,6 @@ main().catch((error) => {
 export async function main(): Promise<void> {
   console.log('Parsing arguments');
   console.log('-----------------\n');
-
   const {
     githubEventName,
     baseRef,
@@ -61,9 +65,7 @@ export async function main(): Promise<void> {
     possibleReleaseTitle,
     existingCommentId,
   } = parseCommandLineArguments();
-
   const botAlreadyCommented = existingCommentId !== '';
-
   console.log(`- GitHub event name: ${githubEventName}`);
   console.log(`- Base ref: ${baseRef}`);
   console.log(`- Head ref: ${headRef}`);
@@ -74,14 +76,12 @@ export async function main(): Promise<void> {
 
   console.log('Running validations');
   console.log('-------------------\n');
-
   console.log('- Checking whether root version has been bumped...');
   const rootVersionBumpedResult = await validateRootVersionBumped(
     baseRef,
     headRef,
   );
   console.log(`  - ${rootVersionBumpedResult.message}`);
-
   console.log('- Checking format of release title...');
   const releaseTitleResult = validateReleaseTitle({
     githubEventName,
@@ -91,21 +91,43 @@ export async function main(): Promise<void> {
       : null,
   });
   console.log(`  - ${releaseTitleResult.message}`);
-
   console.log('- Checking whether any workspace packages have been bumped...');
   const anyWorkspacePackageVersionBumpedResult =
     await validateAnyPublicWorkspacePackageBumped(baseRef, headRef);
   console.log(`  - ${anyWorkspacePackageVersionBumpedResult.message}`);
 
+  console.log('\nSummarizing results');
+  console.log('-------------------\n');
   const releaseValidationResult = getReleaseValidationResult(
     rootVersionBumpedResult,
     releaseTitleResult,
     anyWorkspacePackageVersionBumpedResult,
   );
+  summarizeResults(releaseValidationResult, githubEventName);
+  core.setOutput('RELEASE_VALIDATION_RESULT', releaseValidationResult.status);
 
-  console.log('\nSummarizing results');
-  console.log('-------------------\n');
+  if (githubEventName === 'pull_request') {
+    const commentMessage = generateReleaseValidationMessage(
+      releaseValidationResult,
+      botAlreadyCommented,
+    );
 
+    if (commentMessage) {
+      core.setOutput('RELEASE_VALIDATION_MESSAGE', commentMessage);
+    }
+  }
+}
+
+/**
+ * Summarizes the release validation results by logging appropriate messages.
+ *
+ * @param releaseValidationResult - The result of the release validation.
+ * @param githubEventName - The GitHub event name (push or pull_request).
+ */
+function summarizeResults(
+  releaseValidationResult: ReleaseValidationResult,
+  githubEventName: GitHubEventName,
+): void {
   switch (releaseValidationResult.status) {
     case ReleaseValidationStatus.ValidRelease:
       if (githubEventName === 'push') {
@@ -167,22 +189,31 @@ export async function main(): Promise<void> {
       }
       break;
   }
+}
 
-  core.setOutput('RELEASE_VALIDATION_RESULT', releaseValidationResult.status);
+/**
+ * Generates the release validation message for PR comments.
+ *
+ * @param releaseValidationResult - The result of the release validation.
+ * @param botAlreadyCommented - Whether the bot has already commented on the PR.
+ * @returns The comment message, or empty string if no comment is needed.
+ */
+function generateReleaseValidationMessage(
+  releaseValidationResult: ReleaseValidationResult,
+  botAlreadyCommented: boolean,
+): string {
+  let commentMessage = '';
 
-  if (githubEventName === 'pull_request') {
-    let commentMessage = '';
+  const isReleasePR =
+    releaseValidationResult.status !== ReleaseValidationStatus.NotARelease;
 
-    const isReleasePR =
-      releaseValidationResult.status !== ReleaseValidationStatus.NotARelease;
+  if (isReleasePR) {
+    const greeting = "Hello, it's your friendly neighborhood MetaMask bot 👋";
+    const marker = '<!-- METAMASKBOT-RELEASE-VALIDATION -->';
 
-    if (isReleasePR) {
-      const greeting = "Hello, it's your friendly neighborhood MetaMask bot 👋";
-      const marker = '<!-- METAMASKBOT-RELEASE-VALIDATION -->';
-
-      switch (releaseValidationResult.status) {
-        case ReleaseValidationStatus.InvalidRelease:
-          commentMessage = `${greeting}
+    switch (releaseValidationResult.status) {
+      case ReleaseValidationStatus.InvalidRelease:
+        commentMessage = `${greeting}
 
 It looks like you're trying to make a release PR, but some things don't look right:
 
@@ -191,9 +222,9 @@ ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 **You'll need to get all of these checks passing before you can merge this PR.**
 
 ${marker}`;
-          break;
-        case ReleaseValidationStatus.IncompleteRelease:
-          commentMessage = `${greeting}
+        break;
+      case ReleaseValidationStatus.IncompleteRelease:
+        commentMessage = `${greeting}
 
 Are you trying to make a release PR? If so, some things don't look right:
 
@@ -202,30 +233,27 @@ ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of these checks passing first. (Otherwise, you can ignore this comment.)
 
 ${marker}`;
-          break;
-        case ReleaseValidationStatus.ValidRelease:
-          // If we previously commented but now it's valid, show success message
-          if (botAlreadyCommented) {
-            commentMessage = `This release PR previously had issues, but it looks like they have been fixed. Good job! 🎉
+        break;
+      case ReleaseValidationStatus.ValidRelease:
+        // If we previously commented but now it's valid, show success message
+        if (botAlreadyCommented) {
+          commentMessage = `This release PR previously had issues, but it looks like they have been fixed. Good job! 🎉
 
 ${marker}`;
-          }
-          // If it was always valid, no comment needed
-          break;
-        default:
-          break;
-      }
-    } else if (botAlreadyCommented) {
-      // If we previously thought it was a release PR but now it's not, update the comment
-      commentMessage = `_(This PR was previously recognized as a potential release PR, but it has since been downgraded to a regular PR. You can ignore this comment.)_
+        }
+        // If it was always valid, no comment needed
+        break;
+      default:
+        break;
+    }
+  } else if (botAlreadyCommented) {
+    // If we previously thought it was a release PR but now it's not, update the comment
+    commentMessage = `_(This PR was previously recognized as a potential release PR, but it has since been downgraded to a regular PR. You can ignore this comment.)_
 
 <!-- METAMASKBOT-RELEASE-VALIDATION -->`;
-    }
-
-    if (commentMessage) {
-      core.setOutput('RELEASE_VALIDATION_MESSAGE', commentMessage);
-    }
   }
+
+  return commentMessage;
 }
 
 /**
