@@ -22,6 +22,7 @@ import {
   type TokenScanResult,
   type BulkTokenScanResponse,
   type BulkTokenScanRequest,
+  type TokenScanResultType,
 } from './types';
 import {
   applyDiffs,
@@ -29,6 +30,11 @@ import {
   getHostnameFromUrl,
   roundToNearestMinute,
   getHostnameFromWebUrl,
+  checkTokenScanCache,
+  processTokenScanResults,
+  generateTokenCacheKeys,
+  extractCacheData,
+  parseBulkTokenScanResponse,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -941,6 +947,65 @@ export class PhishingController extends BaseController<
   };
 
   /**
+   * Fetch bulk token scan results from the security alerts API.
+   *
+   * @param tokens - Array of token addresses to scan.
+   * @param chain - The chain name (e.g., 'ethereum', 'polygon').
+   * @returns The API response or null if there was an error.
+   */
+  readonly #fetchTokenScanBulkResults = async (
+    tokens: string[],
+    chain: string,
+  ): Promise<{
+    results: Record<
+      string,
+      { result_type: TokenScanResultType; chain?: string; address?: string }
+    >;
+  } | null> => {
+    const timeout = 8000;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(
+        `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chain,
+            tokens,
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.warn(
+          `Token bulk screening API error: ${response.status} ${response.statusText}`,
+        );
+        return null;
+      }
+
+      const data = await response.json();
+      return parseBulkTokenScanResponse(data);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Token bulk screening API timeout');
+      } else {
+        console.error('Error scanning tokens:', error);
+      }
+      return null;
+    }
+  };
+
+  /**
    * Scan multiple tokens for malicious activity in bulk.
    *
    * @param request - The bulk scan request containing chainId and tokens.
@@ -957,7 +1022,6 @@ export class PhishingController extends BaseController<
       return {};
     }
 
-    // Limit to 100 tokens per request
     const MAX_TOKENS_PER_REQUEST = 100;
     if (tokens.length > MAX_TOKENS_PER_REQUEST) {
       console.warn(
@@ -974,79 +1038,40 @@ export class PhishingController extends BaseController<
       return {};
     }
 
-    const results: Record<string, TokenScanResult> = {};
-    const tokensToFetch: string[] = [];
+    const cacheKeys = generateTokenCacheKeys(tokens, normalizedChainId);
+    const cacheData = extractCacheData(this.#tokenScanCache, cacheKeys);
 
-    // Check cache for each token
-    for (const tokenAddress of tokens) {
-      const normalizedAddress = tokenAddress.toLowerCase();
-      const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
-      const cachedResult = this.#tokenScanCache.get(cacheKey);
+    // Check cache using pure function
+    const { cachedResults, tokensToFetch } = checkTokenScanCache({
+      tokens,
+      chainId: normalizedChainId,
+      cacheData,
+    });
 
-      if (cachedResult) {
-        results[normalizedAddress] = {
-          result_type: cachedResult.result_type,
-          chain: normalizedChainId,
-          address: normalizedAddress,
-        };
-      } else {
-        tokensToFetch.push(tokenAddress);
-      }
-    }
+    const results: BulkTokenScanResponse = { ...cachedResults };
 
     // If there are tokens to fetch, call the bulk token scan API
     if (tokensToFetch.length > 0) {
       try {
-        const apiResponse = await safelyExecuteWithTimeout(
-          async () => {
-            const res = await fetch(
-              `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
-              {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  chain,
-                  tokens: tokensToFetch,
-                }),
-              },
-            );
-
-            if (!res.ok) {
-              console.warn(
-                `Token bulk screening API error: ${res.status} ${res.statusText}`,
-              );
-              return null;
-            }
-
-            return await res.json();
-          },
-          true,
-          8000, // 8 second timeout
+        const apiResponse = await this.#fetchTokenScanBulkResults(
+          tokensToFetch,
+          chain,
         );
 
         if (apiResponse?.results) {
-          for (const tokenAddress of tokensToFetch) {
-            const normalizedAddress = tokenAddress.toLowerCase();
-            const tokenResult = apiResponse.results[normalizedAddress];
+          // Process results using pure function
+          const { results: processedResults, cacheUpdates } =
+            processTokenScanResults({
+              apiResults: apiResponse.results,
+              tokensToFetch,
+              chainId: normalizedChainId,
+            });
 
-            if (tokenResult?.result_type) {
-              const result: TokenScanResult = {
-                result_type: tokenResult.result_type,
-                chain: tokenResult.chain || normalizedChainId,
-                address: tokenResult.address || normalizedAddress,
-              };
-
-              const cacheKey = `${normalizedChainId}:${normalizedAddress}`;
-              this.#tokenScanCache.set(cacheKey, {
-                result_type: tokenResult.result_type,
-              });
-
-              results[normalizedAddress] = result;
-            }
+          for (const update of cacheUpdates) {
+            this.#tokenScanCache.set(update.key, update.value);
           }
+
+          Object.assign(results, processedResults);
         }
       } catch (error) {
         // On error, just return what we have from cache
