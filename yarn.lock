@@ -2705,13 +2705,13 @@ __metadata:
 
 "@metamask/backend-platform@file:../backend-platform::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
   version: 0.0.0
-  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=ce9a5a&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=95755c&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/utils": "npm:^11.4.2"
     uuid: "npm:^8.3.2"
-  checksum: 10/3ba2470b3b9697f35514cbebbcb10b52f0608408ef89a2086420777cce67aaa1f60d0a0d2642bc9f9e5d6adc77d87a599b7f1e23662bab3e7d4a4216fe466e1d
+  checksum: 10/dc21aafa1b8af547ea2b282e62eca799d0a8cde50968bfaa7ca1cd8d4c770a6f0cdd85175c332fd45226a57aba52997cd029aa85acfb4e0444fa7631b7429fc9
   languageName: node
   linkType: hard
 
@@ -2736,7 +2736,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/base-controller@npm:^8.0.1, @metamask/base-controller@npm:^8.3.0, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@npm:^8.0.1, @metamask/base-controller@npm:^8.3.0, @metamask/base-controller@npm:^8.4.0, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -2920,7 +2920,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:

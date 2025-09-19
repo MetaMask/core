@@ -61,6 +61,9 @@ export type WebSocketServiceOptions = {
 
   /** Request timeout in milliseconds (default: 30000) */
   requestTimeout?: number;
+
+  /** Optional callback to determine if connection should be enabled (default: always enabled) */
+  enabledCallback?: () => boolean;
 };
 
 /**
@@ -216,7 +219,9 @@ export class WebSocketService {
 
   readonly #messenger: WebSocketServiceMessenger;
 
-  readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger'>>;
+  readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger' | 'enabledCallback'>>;
+
+  readonly #enabledCallback: (() => boolean) | undefined;
 
   #ws: WebSocket | undefined;
 
@@ -269,6 +274,7 @@ export class WebSocketService {
    */
   constructor(options: WebSocketServiceOptions) {
     this.#messenger = options.messenger;
+    this.#enabledCallback = options.enabledCallback;
 
     this.#options = {
       url: options.url,
@@ -291,6 +297,12 @@ export class WebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
+    // Check if connection is enabled via callback
+    if (this.#enabledCallback && !this.#enabledCallback()) {
+      console.log(`[${SERVICE_NAME}] Connection disabled by enabledCallback - skipping connect`);
+      return;
+    }
+
     // If already connected, return immediately
     if (this.#state === WebSocketState.CONNECTED) {
       return;
@@ -1045,6 +1057,12 @@ export class WebSocketService {
     );
 
     this.#reconnectTimer = setTimeout(() => {
+      // Check if connection is still enabled before reconnecting
+      if (this.#enabledCallback && !this.#enabledCallback()) {
+        console.log(`[${SERVICE_NAME}] Reconnection disabled by enabledCallback - skipping attempt #${this.#reconnectAttempts}`);
+        return;
+      }
+
       console.log(
         `🔄 ${delay}ms delay elapsed - starting reconnection attempt #${this.#reconnectAttempts}...`,
       );
