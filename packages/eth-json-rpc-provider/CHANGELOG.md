@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `'data'` event ([#6328](https://github.com/MetaMask/core/pull/6328))
   - This event was forwarding the `'notification'` event from the underlying `JsonRpcEngine`. It was rarely used in practice, and is now removed.
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [4.1.8]
 

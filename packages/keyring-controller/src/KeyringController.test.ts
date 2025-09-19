@@ -1,7 +1,7 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
@@ -16,7 +16,7 @@ import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import { KeyringControllerError } from './constants';
 import type {
@@ -117,8 +117,6 @@ describe('KeyringController', () => {
     });
 
     it('allows overwriting the built-in HD keyring builder', async () => {
-      // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
-      // @ts-expect-error keyring types are mismatched
       const mockHdKeyringBuilder = buildKeyringBuilderWithSpy(HdKeyring);
       await withController(
         { keyringBuilders: [mockHdKeyringBuilder] },
@@ -342,7 +340,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
           {
-            getAccounts: () => [undefined, undefined],
+            getAccounts: async () => [undefined, undefined],
           },
         ]);
 
@@ -353,23 +351,23 @@ describe('KeyringController', () => {
     });
 
     it('should throw error if the account is duplicated', async () => {
-      const mockAddress = '0x123';
+      const mockAddress: Hex = '0x123';
       const addAccountsSpy = jest.spyOn(HdKeyring.prototype, 'addAccounts');
       const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
       const serializeSpy = jest.spyOn(HdKeyring.prototype, 'serialize');
 
       addAccountsSpy.mockResolvedValue([mockAddress]);
-      getAccountsSpy.mockReturnValue([mockAddress]);
+      getAccountsSpy.mockResolvedValue([mockAddress]);
       await withController(async ({ controller }) => {
-        getAccountsSpy.mockReturnValue([mockAddress, mockAddress]);
+        getAccountsSpy.mockResolvedValue([mockAddress, mockAddress]);
         serializeSpy
           .mockResolvedValueOnce({
-            mnemonic: '',
+            mnemonic: [],
             numberOfAccounts: 1,
             hdPath: "m/44'/60'/0'/0",
           })
           .mockResolvedValueOnce({
-            mnemonic: '',
+            mnemonic: [],
             numberOfAccounts: 2,
             hdPath: "m/44'/60'/0'/0",
           });
@@ -718,7 +716,9 @@ describe('KeyringController', () => {
           });
 
           it('should throw error if the first account is not found on the keyring', async () => {
-            jest.spyOn(HdKeyring.prototype, 'getAccounts').mockReturnValue([]);
+            jest
+              .spyOn(HdKeyring.prototype, 'getAccounts')
+              .mockResolvedValue([]);
             await withController(
               { cacheEncryptionKey, skipVaultCreation: true },
               async ({ controller }) => {
@@ -1171,7 +1171,7 @@ describe('KeyringController', () => {
             normalizedInitialAccounts[0]!,
           )) as EthKeyring;
           expect(keyring.type).toBe('HD Key Tree');
-          expect(keyring.getAccounts()).toStrictEqual(
+          expect(await keyring.getAccounts()).toStrictEqual(
             normalizedInitialAccounts,
           );
         });
@@ -1244,7 +1244,7 @@ describe('KeyringController', () => {
           ) as EthKeyring[];
           expect(keyrings).toHaveLength(1);
           expect(keyrings[0].type).toBe(KeyringTypes.hd);
-          expect(keyrings[0].getAccounts()).toStrictEqual(
+          expect(await keyrings[0].getAccounts()).toStrictEqual(
             controller.state.keyrings[0].accounts.map(normalize),
           );
         });
@@ -2747,7 +2747,6 @@ describe('KeyringController', () => {
         });
 
         it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
           stubKeyringClassWithAccount(HdKeyring, '0x123');
           await withController(
             {
@@ -2907,7 +2906,6 @@ describe('KeyringController', () => {
 
         it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
           stubKeyringClassWithAccount(MockKeyring, '0x123');
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
           stubKeyringClassWithAccount(HdKeyring, '0x123');
           await withController(
             {
@@ -2967,7 +2965,6 @@ describe('KeyringController', () => {
 
         it('should unlock the wallet discarding existing duplicate accounts', async () => {
           stubKeyringClassWithAccount(MockKeyring, '0x123');
-          // @ts-expect-error HdKeyring is not yet compatible with Keyring type.
           stubKeyringClassWithAccount(HdKeyring, '0x123');
           await withController(
             {
@@ -4262,6 +4259,90 @@ describe('KeyringController', () => {
           },
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'anonymous',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "isUnlocked": false,
+            }
+          `);
+        },
+      );
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInStateLogs',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "isUnlocked": false,
+              "keyrings": Array [],
+            }
+          `);
+        },
+      );
+    });
+
+    it('persists expected state', async () => {
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "vault": "{\\"data\\":\\"{\\\\\\"tag\\\\\\":{\\\\\\"key\\\\\\":{\\\\\\"password\\\\\\":\\\\\\"password123\\\\\\",\\\\\\"salt\\\\\\":\\\\\\"salt\\\\\\"},\\\\\\"iv\\\\\\":\\\\\\"iv\\\\\\"},\\\\\\"value\\\\\\":[{\\\\\\"type\\\\\\":\\\\\\"HD Key Tree\\\\\\",\\\\\\"data\\\\\\":{\\\\\\"mnemonic\\\\\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\\\\\"numberOfAccounts\\\\\\":1,\\\\\\"hdPath\\\\\\":\\\\\\"m/44'/60'/0'/0\\\\\\"},\\\\\\"metadata\\\\\\":{\\\\\\"id\\\\\\":\\\\\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\\\\\",\\\\\\"name\\\\\\":\\\\\\"\\\\\\"}}]}\\",\\"iv\\":\\"iv\\",\\"salt\\":\\"salt\\"}",
+            }
+          `);
+        },
+      );
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(
+        // Skip vault creation and use static vault to get deterministic state snapshot
+        { skipVaultCreation: true, state: { vault: freshVault } },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'usedInUi',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "isUnlocked": false,
+              "keyrings": Array [],
+            }
+          `);
+        },
+      );
     });
   });
 });

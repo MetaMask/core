@@ -2,6 +2,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -205,13 +206,43 @@ export const phishingListKeyNameMap = {
 
 const controllerName = 'PhishingController';
 
-const metadata = {
-  phishingLists: { persist: true, anonymous: false },
-  whitelist: { persist: true, anonymous: false },
-  hotlistLastFetched: { persist: true, anonymous: false },
-  stalelistLastFetched: { persist: true, anonymous: false },
-  c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
-  urlScanCache: { persist: true, anonymous: false },
+const metadata: StateMetadata<PhishingControllerState> = {
+  phishingLists: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
+  whitelist: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
+  hotlistLastFetched: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
+  stalelistLastFetched: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
+  c2DomainBlocklistLastFetched: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
+  urlScanCache: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 /**

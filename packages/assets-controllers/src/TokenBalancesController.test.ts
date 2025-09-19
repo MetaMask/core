@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
@@ -79,11 +79,23 @@ const setupController = ({
       networkConfigurationsByChainId: {
         '0x1': {
           defaultRpcEndpointIndex: 0,
-          rpcEndpoints: [{}],
+          rpcEndpoints: [{ networkClientId: 'mainnet' }],
         },
         '0x89': {
           defaultRpcEndpointIndex: 0,
-          rpcEndpoints: [{}],
+          rpcEndpoints: [{ networkClientId: 'polygon' }],
+        },
+        '0xa4b1': {
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{ networkClientId: 'arbitrum' }],
+        },
+        '0x38': {
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{ networkClientId: 'bsc' }],
+        },
+        '0x2': {
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{ networkClientId: 'test-chain' }],
         },
       },
     })),
@@ -117,15 +129,23 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    jest.fn().mockImplementation(() => ({
-      address: '0x0000000000000000000000000000000000000000',
-    })),
+    jest.fn().mockImplementation(() => {
+      // Use first account from listAccounts if available, otherwise default to zero address
+      if (listAccounts.length > 0) {
+        return listAccounts[0];
+      }
+      return { address: '0x0000000000000000000000000000000000000000' };
+    }),
   );
 
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     jest.fn().mockReturnValue({
-      provider: jest.fn(),
+      provider: {
+        request: jest.fn().mockResolvedValue('0x0'),
+        sendAsync: jest.fn(),
+        send: jest.fn(),
+      },
       blockTracker: {
         checkForLatestBlock: jest.fn().mockResolvedValue(undefined),
       },
@@ -223,7 +243,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [accountAddress]: {
@@ -266,7 +289,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller._executePoll({ chainIds: [chainId] });
+      await controller._executePoll({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
@@ -289,7 +315,10 @@ describe('TokenBalancesController', () => {
     const tokenAddress = '0x0000000000000000000000000000000000000001';
 
     // No tokens initially
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
     expect(controller.state.tokenBalances).toStrictEqual({});
 
     const balance = 123456;
@@ -353,7 +382,7 @@ describe('TokenBalancesController', () => {
 
     const { controller, messenger, updateSpy } = setupController({
       tokens: initialTokens,
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
     });
 
     // Set initial balance
@@ -368,7 +397,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Verify initial balance is set
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -435,7 +467,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Verify initial balance is set
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -506,7 +541,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Verify initial balance is set
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -567,7 +605,13 @@ describe('TokenBalancesController', () => {
       },
     };
 
-    const { controller, messenger } = setupController({ tokens });
+    const { controller, messenger } = setupController({
+      tokens,
+      listAccounts: [
+        createMockInternalAccount({ address: account1 }),
+        createMockInternalAccount({ address: account2 }),
+      ],
+    });
 
     // Enable multi account balances
     messenger.publish(
@@ -586,10 +630,21 @@ describe('TokenBalancesController', () => {
             [account1]: new BN(balance1),
             [account2]: new BN(balance2),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [account1]: new BN(0),
+            [account2]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [account1]: new BN(0),
+          [account2]: new BN(0),
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [account1]: {
@@ -647,7 +702,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [account1]: {
@@ -666,7 +724,10 @@ describe('TokenBalancesController', () => {
       },
     });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Should only update once since the values haven't changed
     expect(updateSpy).toHaveBeenCalledTimes(1);
@@ -674,7 +735,7 @@ describe('TokenBalancesController', () => {
 
   it('does not update balances when multi-account balances is enabled and multi-account contract failed', async () => {
     const chainId = '0x1';
-    const account1 = '0x0000000000000000000000000000000000000001';
+    const account1 = '0x0000000000000000000000000000000000000000';
     const tokenAddress = '0x0000000000000000000000000000000000000003';
 
     const tokens = {
@@ -686,7 +747,10 @@ describe('TokenBalancesController', () => {
       },
     };
 
-    const { controller, messenger, updateSpy } = setupController({ tokens });
+    const { controller, messenger, updateSpy } = setupController({
+      tokens,
+      listAccounts: [createMockInternalAccount({ address: account1 })],
+    });
 
     // Enable multi account balances
     messenger.publish(
@@ -700,18 +764,25 @@ describe('TokenBalancesController', () => {
       .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
       .mockResolvedValue({ tokenBalances: {} });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [account1]: {
         [chainId]: {
           [NATIVE_TOKEN_ADDRESS]: '0x0',
+          [tokenAddress]: '0x0',
           [STAKING_CONTRACT_ADDRESS]: '0x0',
         },
       },
     });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(updateSpy).toHaveBeenCalledTimes(1); // Called once because native/staking balances are added
   });
@@ -755,7 +826,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [account1]: {
@@ -786,7 +860,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [account1]: {
@@ -810,7 +887,7 @@ describe('TokenBalancesController', () => {
 
   it('only updates selected account balance when multi-account balances is disabled', async () => {
     const chainId = '0x1';
-    const selectedAccount = '0x0000000000000000000000000000000000000000';
+    const selectedAccount = '0x0000000000000000000000000000000000000002';
     const otherAccount = '0x0000000000000000000000000000000000000001';
     const tokenAddress = '0x0000000000000000000000000000000000000002';
 
@@ -826,14 +903,14 @@ describe('TokenBalancesController', () => {
       },
     };
 
-    const { controller, messenger } = setupController({ tokens });
-
-    // Disable multi-account balances
-    messenger.publish(
-      'PreferencesController:stateChange',
-      { isMultiAccountBalancesEnabled: false } as PreferencesState,
-      [],
-    );
+    const { controller } = setupController({
+      config: { queryMultipleAccounts: false },
+      tokens,
+      listAccounts: [
+        createMockInternalAccount({ address: selectedAccount }),
+        createMockInternalAccount({ address: otherAccount }),
+      ],
+    });
 
     const balance = 100;
     jest
@@ -846,7 +923,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller._executePoll({ chainIds: [chainId] });
+    await controller._executePoll({
+      chainIds: [chainId],
+      queryAllAccounts: false,
+    });
 
     // Should only contain balance for selected account
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -854,12 +934,6 @@ describe('TokenBalancesController', () => {
         [chainId]: {
           [NATIVE_TOKEN_ADDRESS]: '0x0',
           [tokenAddress]: toHex(balance),
-          [STAKING_CONTRACT_ADDRESS]: '0x0',
-        },
-      },
-      [otherAccount]: {
-        [chainId]: {
-          [NATIVE_TOKEN_ADDRESS]: '0x0',
           [STAKING_CONTRACT_ADDRESS]: '0x0',
         },
       },
@@ -974,7 +1048,7 @@ describe('TokenBalancesController', () => {
       };
 
       const { controller, messenger } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens,
         listAccounts: [account, account2],
       });
@@ -1001,7 +1075,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller._executePoll({ chainIds: [chainId] });
+      await controller._executePoll({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
@@ -1050,7 +1127,7 @@ describe('TokenBalancesController', () => {
         });
 
       const { controller } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             '0x1': {
@@ -1072,10 +1149,64 @@ describe('TokenBalancesController', () => {
         ],
       });
 
-      await controller.updateBalances({ chainIds: ['0x1'] });
+      await controller.updateBalances({
+        chainIds: ['0x1'],
+        queryAllAccounts: true,
+      });
 
       // Verify the new multicall function was called
       expect(mockGetTokenBalances).toHaveBeenCalled();
+    });
+
+    it('should use queryAllAccounts when provided', async () => {
+      const accountAddress = '0x1234567890123456789012345678901234567890';
+      const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+
+      // Mock the RPC balance fetcher's fetch method to verify the parameter
+      const mockRpcFetch = jest.spyOn(RpcBalanceFetcher.prototype, 'fetch');
+      mockRpcFetch.mockResolvedValueOnce([]);
+
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: [], // Use RPC fetcher
+          allowExternalServices: () => true,
+          queryMultipleAccounts: false, // Default is false
+        },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              [accountAddress]: [
+                {
+                  address: tokenAddress,
+                  symbol: 'DAI',
+                  decimals: 18,
+                },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+        },
+        listAccounts: [
+          createMockInternalAccount({
+            address: accountAddress,
+          }),
+        ],
+      });
+
+      await controller.updateBalances({
+        chainIds: ['0x1'],
+        queryAllAccounts: true,
+      });
+
+      // Verify RPC fetcher was called with queryAllAccounts: true
+      expect(mockRpcFetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainIds: ['0x1'],
+          queryAllAccounts: true,
+        }),
+      );
+
+      mockRpcFetch.mockRestore();
     });
   });
 
@@ -1084,7 +1215,7 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x1111111111111111111111111111111111111111';
 
       const { controller } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             '0x1': {
@@ -1107,7 +1238,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: ['0x1'] });
+      await controller.updateBalances({
+        chainIds: ['0x1'],
+        queryAllAccounts: true,
+      });
 
       // Verify the controller is properly configured
       expect(controller).toBeDefined();
@@ -1121,7 +1255,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           interval: customInterval,
-          useAccountsAPI: false,
+          accountsApiChainIds: [],
           allowExternalServices: () => true,
         },
       });
@@ -1138,7 +1272,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
 
       const { controller, messenger } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             [chainId]: {
@@ -1166,7 +1300,10 @@ describe('TokenBalancesController', () => {
           stakedBalances: {}, // Empty staked balances
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // Verify that staked balances are included in the state change event (even if zero)
       expect(publishSpy).toHaveBeenCalledWith(
@@ -1193,7 +1330,7 @@ describe('TokenBalancesController', () => {
       const chainId = '0x1';
 
       const { controller } = setupController({
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
             [chainId]: {
@@ -1220,7 +1357,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // Only successful token should be in state
       expect(
@@ -1265,7 +1405,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // Verify both tokens are in state
       expect(
@@ -1309,7 +1452,7 @@ describe('TokenBalancesController', () => {
     });
 
     // This should not throw and should return early
-    await controller.updateBalances();
+    await controller.updateBalances({ queryAllAccounts: true });
 
     // Verify no balances were fetched
     expect(controller.state.tokenBalances).toStrictEqual({});
@@ -1330,7 +1473,10 @@ describe('TokenBalancesController', () => {
       writable: true,
     });
 
-    await controller.updateBalances({ chainIds: ['0x1'] });
+    await controller.updateBalances({
+      chainIds: ['0x1'],
+      queryAllAccounts: true,
+    });
 
     // Verify no state update occurred
     expect(controller.state.tokenBalances).toStrictEqual({});
@@ -1345,7 +1491,10 @@ describe('TokenBalancesController', () => {
       writable: true,
     });
 
-    await controller.updateBalances({ chainIds: ['0x2'] });
+    await controller.updateBalances({
+      chainIds: ['0x2'],
+      queryAllAccounts: true,
+    });
 
     // Verify no balances were fetched
     expect(controller.state.tokenBalances).toStrictEqual({});
@@ -1357,7 +1506,7 @@ describe('TokenBalancesController', () => {
     const tokenAddress = '0x0000000000000000000000000000000000000000';
 
     const { controller } = setupController({
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
       tokens: {
         allTokens: {
           [chainId]: {
@@ -1386,7 +1535,10 @@ describe('TokenBalancesController', () => {
       writable: true,
     });
 
-    await controller.updateBalances({ chainIds: ['0x1'] });
+    await controller.updateBalances({
+      chainIds: ['0x1'],
+      queryAllAccounts: true,
+    });
 
     // Verify no balances were fetched
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -1428,7 +1580,7 @@ describe('TokenBalancesController', () => {
 
     const { controller } = setupController({
       tokens,
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
       listAccounts: [createMockInternalAccount({ address: accountAddress })],
     });
 
@@ -1444,7 +1596,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller.updateBalances({ chainIds: [chainId] });
+    await controller.updateBalances({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Verify that:
     // - tokenAddress1 has its actual fetched balance
@@ -1483,7 +1638,7 @@ describe('TokenBalancesController', () => {
 
     const { controller } = setupController({
       tokens,
-      config: { useAccountsAPI: false, allowExternalServices: () => true },
+      config: { accountsApiChainIds: [], allowExternalServices: () => true },
       listAccounts: [createMockInternalAccount({ address: accountAddress })],
     });
 
@@ -1494,7 +1649,10 @@ describe('TokenBalancesController', () => {
         tokenBalances: {}, // No balances returned at all
       });
 
-    await controller.updateBalances({ chainIds: [chainId] });
+    await controller.updateBalances({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Verify all tokens have zero balance
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -1530,7 +1688,7 @@ describe('TokenBalancesController', () => {
       tokens,
       config: {
         queryMultipleAccounts: true,
-        useAccountsAPI: false,
+        accountsApiChainIds: [],
         allowExternalServices: () => true,
       },
       listAccounts: [
@@ -1551,7 +1709,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-    await controller.updateBalances({ chainIds: [chainId] });
+    await controller.updateBalances({
+      chainIds: [chainId],
+      queryAllAccounts: true,
+    });
 
     // Verify both accounts have their respective tokens with appropriate balances
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -1605,7 +1766,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
@@ -1662,7 +1826,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [account1]: {
@@ -1713,7 +1880,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
@@ -1755,7 +1925,10 @@ describe('TokenBalancesController', () => {
           // No stakedBalances property
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
@@ -1786,7 +1959,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       jest
@@ -1799,7 +1972,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
@@ -1854,7 +2030,10 @@ describe('TokenBalancesController', () => {
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockRejectedValue(mockError);
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // With safelyExecuteWithTimeout, errors are logged as console.error
       // and the operation continues gracefully
@@ -1962,6 +2141,7 @@ describe('TokenBalancesController', () => {
         // Start the balance update - should complete gracefully despite timeout
         await controller.updateBalances({
           chainIds: [chainId],
+          queryAllAccounts: true,
         });
 
         // With safelyExecuteWithTimeout, timeouts are handled gracefully
@@ -2007,7 +2187,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Mock balance fetcher to return balance with lowercase address
@@ -2021,7 +2201,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // Should only have one entry with proper checksum address
       expect(controller.state.tokenBalances).toStrictEqual({
@@ -2076,7 +2259,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Mock balances returned with lowercase addresses
@@ -2093,7 +2276,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // All addresses should be normalized to proper checksum format
       expect(controller.state.tokenBalances).toStrictEqual({
@@ -2128,7 +2314,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Mock fetcher to return balance with different mixed case address
@@ -2142,7 +2328,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // Should only have one normalized entry with proper checksum
       expect(controller.state.tokenBalances).toStrictEqual({
@@ -2183,7 +2372,7 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({
         tokens,
-        config: { useAccountsAPI: false, allowExternalServices: () => true },
+        config: { accountsApiChainIds: [], allowExternalServices: () => true },
       });
 
       // Simulate the scenario that caused duplicates - different case in fetch results
@@ -2197,7 +2386,10 @@ describe('TokenBalancesController', () => {
           },
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
 
       // Should have balances set for the account and chain
       expect(controller.state.tokenBalances[accountAddress]).toBeDefined();
@@ -2257,7 +2449,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           queryMultipleAccounts: false,
-          useAccountsAPI: false,
+          accountsApiChainIds: [],
           allowExternalServices: () => true,
         },
         tokens,
@@ -2276,7 +2468,10 @@ describe('TokenBalancesController', () => {
           stakedBalances: {},
         });
 
-      await controller.updateBalances({ chainIds: [chainId] });
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: false,
+      });
 
       // Verify that getTokenBalancesForMultipleAddresses was called with only the selected account
       expect(mockGetTokenBalances).toHaveBeenCalledWith(
@@ -3373,6 +3568,42 @@ describe('TokenBalancesController', () => {
       consoleSpy.mockRestore();
     });
 
+    it('should handle malformed JSON in _stopPollingByPollingTokenSetId gracefully', async () => {
+      const { controller } = setupController();
+
+      // Start polling to create an active session
+      controller.startPolling({ chainIds: ['0x1', '0x2'] });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Call with malformed JSON - this should trigger the fallback behavior
+      const malformedTokenSetId = '{invalid json}';
+      controller._stopPollingByPollingTokenSetId(malformedTokenSetId);
+
+      // Should log the error
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse tokenSetId, stopping all polling:',
+        expect.any(SyntaxError),
+      );
+
+      // Verify that controller can recover by starting new polling session successfully
+      // This demonstrates that the fallback stop-all-polling behavior worked
+      const updateBalancesSpy = jest
+        .spyOn(controller, 'updateBalances')
+        .mockResolvedValue();
+
+      // Start new polling session - should work normally after error recovery
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      // Wait for any immediate polling to complete
+      await advanceTime({ clock, duration: 1 });
+
+      // Clean up
+      controller.stopAllPolling();
+      consoleSpy.mockRestore();
+      updateBalancesSpy.mockRestore();
+    });
+
     it('should properly destroy controller and cleanup resources', () => {
       const { controller, messenger } = setupController();
 
@@ -3423,7 +3654,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
-        config: { useAccountsAPI: false }, // Force use of RpcBalanceFetcher
+        config: { accountsApiChainIds: [] }, // Force use of RpcBalanceFetcher
       });
 
       // Mock safelyExecuteWithTimeout to simulate timeout by returning undefined
@@ -3434,6 +3665,7 @@ describe('TokenBalancesController', () => {
       // Start the balance update - should complete gracefully despite timeout
       await controller.updateBalances({
         chainIds: [chainId],
+        queryAllAccounts: true,
       });
 
       // With safelyExecuteWithTimeout timeout simulation, the system should continue operating
@@ -3483,7 +3715,7 @@ describe('TokenBalancesController', () => {
             },
           },
           queryMultipleAccounts: false,
-          useAccountsAPI: true,
+          accountsApiChainIds: ['0x1'],
           allowExternalServices: () => false,
         },
       });
@@ -3523,7 +3755,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         config: {
           allowExternalServices: () => false,
-          useAccountsAPI: true, // This should be ignored when allowExternalServices is false
+          accountsApiChainIds: ['0x1'], // This should be ignored when allowExternalServices is false
         },
       });
 
@@ -3536,7 +3768,7 @@ describe('TokenBalancesController', () => {
       // Test line 197: default allowExternalServices = () => true
       const { controller } = setupController({
         config: {
-          useAccountsAPI: true,
+          accountsApiChainIds: ['0x1'],
           // allowExternalServices not provided - should use default
         },
       });
@@ -3718,7 +3950,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({
         tokens,
         listAccounts: [account],
-        config: { useAccountsAPI: false },
+        config: { accountsApiChainIds: [] },
       });
 
       // Mock the RpcBalanceFetcher to not support this specific chain
@@ -3772,6 +4004,142 @@ describe('TokenBalancesController', () => {
       expect(controller.state.tokenBalances).toStrictEqual({});
 
       controller.stopAllPolling();
+    });
+
+    it('should test AccountsApiFetcher supports method logic', async () => {
+      jest.setTimeout(10000);
+
+      const chainId1 = '0x1'; // Will be in accountsApiChainIds
+      const chainId2 = '0x89'; // Will be in accountsApiChainIds
+      const chainId3 = '0xa'; // NOT in accountsApiChainIds
+      const accountAddress = '0x1234567890123456789012345678901234567890';
+
+      // Create mock account for testing
+      const account = createMockInternalAccount({ address: accountAddress });
+
+      // Mock AccountsApiBalanceFetcher to track when line 320 logic is executed
+      const mockSupports = jest.fn().mockReturnValue(true);
+      const mockApiFetch = jest.fn().mockResolvedValue([]);
+
+      const apiBalanceFetcher = jest.requireActual(
+        './multi-chain-accounts-service/api-balance-fetcher',
+      );
+
+      const supportsSpy = jest
+        .spyOn(
+          apiBalanceFetcher.AccountsApiBalanceFetcher.prototype,
+          'supports',
+        )
+        .mockImplementation(mockSupports);
+
+      const fetchSpy = jest
+        .spyOn(apiBalanceFetcher.AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockImplementation(mockApiFetch);
+
+      // Mock safelyExecuteWithTimeout to prevent network timeouts
+      mockedSafelyExecuteWithTimeout.mockImplementation(async (_fn) => {
+        return []; // Return empty array to simulate no balances found
+      });
+
+      // Mock fetch globally to prevent any network calls
+      const mockGlobalFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+      global.fetch = mockGlobalFetch;
+
+      // Create controller with accountsApiChainIds to enable AccountsApi fetcher
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: [chainId1, chainId2], // This enables AccountsApi for these chains
+          allowExternalServices: () => true,
+        },
+        listAccounts: [account],
+      });
+
+      // Reset mocks after controller creation
+      mockSupports.mockClear();
+      mockApiFetch.mockClear();
+
+      // Test Case 1: Execute line 517 -> line 320 with chainId in accountsApiChainIds
+      mockSupports.mockReturnValue(true);
+      await controller.updateBalances({ chainIds: [chainId1] }); // This triggers line 517 -> line 320
+
+      // Verify line 320 logic was executed (originalFetcher.supports was called)
+      expect(mockSupports).toHaveBeenCalledWith(chainId1);
+
+      // Test Case 2: Execute line 517 -> line 320 with chainId NOT in accountsApiChainIds
+      mockSupports.mockClear();
+      await controller.updateBalances({ chainIds: [chainId3] }); // This triggers line 517 -> line 320
+
+      // Should NOT have called originalFetcher.supports because chainId3 is not in accountsApiChainIds
+      // This tests the short-circuit evaluation on line 322: this.#accountsApiChainIds.includes(chainId)
+      expect(mockSupports).not.toHaveBeenCalledWith(chainId3);
+
+      // Clean up
+      supportsSpy.mockRestore();
+      fetchSpy.mockRestore();
+      mockedSafelyExecuteWithTimeout.mockRestore();
+      // @ts-expect-error - deleting global fetch for test cleanup
+      delete global.fetch;
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "tokenBalances": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "tokenBalances": Object {},
+        }
+      `);
     });
   });
 });
