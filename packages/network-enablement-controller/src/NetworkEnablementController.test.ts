@@ -453,12 +453,12 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            '0x1': true, // Ethereum Mainnet (exists in config)
-            '0xe708': true, // Linea Mainnet (exists in config)
+            '0x1': false, // Ethereum Mainnet (exists in config)
+            '0xe708': false, // Linea Mainnet (exists in config)
             // Other popular networks not enabled because they don't exist in config
           },
           [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: true, // Solana Mainnet (exists in config)
+            [SolScope.Mainnet]: false, // Solana Mainnet (exists in config)
           },
         },
       });
