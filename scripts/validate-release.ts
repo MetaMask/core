@@ -244,7 +244,7 @@ ${marker}`;
     }
   } else if (botAlreadyCommented) {
     // If we previously thought it was a release PR but now it's not, update the comment
-    commentMessage = `_(This PR was previously recognized as a potential release PR, and this comment reflected that, but it has since been downgraded to a regular PR, so there is nothing to see here.)_
+    commentMessage = `_(This PR was previously recognized as a potential release candidate, and this comment reflected that. But now this is a regular PR, so there is nothing to see here.)_
 
 <!-- METAMASKBOT-RELEASE-VALIDATION -->`;
   }
