@@ -188,7 +188,7 @@ It looks like you're trying to make a release PR, but some things don't look rig
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
-**You'll need to get all of the checks above passing before you can merge this PR.**
+**You'll need to get all of these checks passing before you can merge this PR.**
 
 ${marker}`;
           break;
@@ -199,7 +199,7 @@ Are you trying to make a release PR? If so, some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
-**You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of the checks above passing first.**
+You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of these checks passing first. (Otherwise you can ignore this comment.)
 
 ${marker}`;
           break;
