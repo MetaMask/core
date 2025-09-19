@@ -273,9 +273,15 @@ export class AccountTreeController extends BaseController<
       state.accountTree.wallets = wallets;
 
       // Apply group metadata within the state update
-      for (const wallet of Object.values(state.accountTree.wallets)) {
-        for (const group of Object.values(wallet.groups)) {
-          this.#applyAccountGroupMetadata(state, wallet, group);
+      for (const [walletId, wallet] of Object.entries(
+        state.accountTree.wallets,
+      )) {
+        for (const groupId of Object.keys(wallet.groups)) {
+          this.#applyAccountGroupMetadata(
+            state,
+            walletId as AccountWalletId,
+            groupId as AccountGroupId,
+          );
         }
       }
 
@@ -400,14 +406,16 @@ export class AccountTreeController extends BaseController<
    * type).
    *
    * @param state Controller state to update for persistence.
-   * @param wallet Account wallet object of the account group to update.
-   * @param group Account group object to update.
+   * @param walletId The wallet ID containing the group.
+   * @param groupId The account group ID to update.
    */
   #applyAccountGroupMetadata(
     state: AccountTreeControllerState,
-    wallet: AccountWalletObject,
-    group: AccountGroupObject,
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
   ) {
+    const wallet = state.accountTree.wallets[walletId];
+    const group = wallet.groups[groupId];
     const persistedGroupMetadata = state.accountGroupsMetadata[group.id];
 
     // Apply persisted name if available (including empty strings)
@@ -433,7 +441,9 @@ export class AccountTreeController extends BaseController<
 
         // Parse the highest account index being used (similar to accounts-controller)
         let highestAccountNameIndex = 0;
-        for (const existingGroup of Object.values(wallet.groups)) {
+        for (const existingGroup of Object.values(
+          wallet.groups,
+        ) as AccountGroupObject[]) {
           // Skip the current group being processed
           if (existingGroup.id === group.id) {
             continue;
@@ -612,11 +622,7 @@ export class AccountTreeController extends BaseController<
         const wallet = state.accountTree.wallets[walletId];
         if (wallet) {
           this.#applyAccountWalletMetadata(wallet);
-
-          const group = wallet.groups[groupId];
-          if (group) {
-            this.#applyAccountGroupMetadata(state, wallet, group);
-          }
+          this.#applyAccountGroupMetadata(state, walletId, groupId);
         }
       }
     });
