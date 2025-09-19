@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `autoHandleConflict` parameter to `setAccountGroupName` method for automatic conflict resolution with suffix generation ([#6601](https://github.com/MetaMask/core/pull/6601))
+
+### Changed
+
+- Computed names (inherited from previous existing accounts) is disabled temporarily ([#6601](https://github.com/MetaMask/core/pull/6601))
+  - They do interfere with the naming mechanism, so we disable them temporarily in favor of the new per-wallet sequential naming.
+
+### Fixed
+
+- Fix multi-wallet account group naming inconsistencies and duplicates ([#6601](https://github.com/MetaMask/core/pull/6601))
+  - Implement proper per-wallet sequential numbering with highest account index parsing.
+  - Add name persistence during group initialization to ensure consistency across app restarts.
+
 ## [0.17.0]
 
 ### Changed
@@ -37,10 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Coming from the old account model, a non-EVM account could have been selected and the lastly selected EVM account might not be using the same group index.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
-
-### Removed
-
-- Remove use of `:getSelectedAccount` action ([#6608](https://github.com/MetaMask/core/pull/6608))
 
 ## [0.15.1]
 
