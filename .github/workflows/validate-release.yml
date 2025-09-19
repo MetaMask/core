@@ -10,8 +10,6 @@ on:
 jobs:
   validate-release:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     outputs:
       RELEASE_VALIDATION_RESULT: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_RESULT }}
       RELEASE_VALIDATION_MESSAGE: ${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}

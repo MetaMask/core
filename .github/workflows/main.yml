@@ -48,6 +48,8 @@ jobs:
   validate-release:
     name: Identify and validate release
     uses: ./.github/workflows/validate-release.yml
+    permissions:
+      pull-requests: write
 
   all-jobs-complete:
     name: All jobs complete
