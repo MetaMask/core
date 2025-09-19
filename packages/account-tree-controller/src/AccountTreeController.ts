@@ -273,15 +273,9 @@ export class AccountTreeController extends BaseController<
       state.accountTree.wallets = wallets;
 
       // Apply group metadata within the state update
-      for (const [walletId, wallet] of Object.entries(
-        state.accountTree.wallets,
-      )) {
-        for (const groupId of Object.keys(wallet.groups)) {
-          this.#applyAccountGroupMetadata(
-            state,
-            walletId as AccountWalletId,
-            groupId as AccountGroupId,
-          );
+      for (const wallet of Object.values(state.accountTree.wallets)) {
+        for (const group of Object.values(wallet.groups)) {
+          this.#applyAccountGroupMetadata(state, wallet.id, group.id);
         }
       }
 
@@ -425,91 +419,78 @@ export class AccountTreeController extends BaseController<
     } else if (!group.metadata.name) {
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
-      const typedWallet = wallet as AccountWalletObjectOf<typeof wallet.type>;
-      const typedGroup = typedWallet.groups[group.id] as AccountGroupObjectOf<
-        typeof group.type
-      >;
 
-      // Use computed name first, then fallback to default naming if empty
-      const computedName = rule.getComputedAccountGroupName(typedGroup);
+      // Skip computed names for now - use default naming with per-wallet logic
+      // TODO: Implement computed names in a future iteration
 
-      if (computedName) {
-        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
-          computedName;
+      // Generate default name and ensure it's unique within the wallet
+      let proposedName = '';
+      let proposedNameIndex: number;
+
+      // Parse the highest account index being used (similar to accounts-controller)
+      let highestAccountNameIndex = 0;
+      for (const existingGroup of Object.values(
+        wallet.groups,
+      ) as AccountGroupObject[]) {
+        // Skip the current group being processed
+        if (existingGroup.id === group.id) {
+          continue;
+        }
+        // Parse the existing group name to extract the numeric index
+        // TODO: This regex only matches "Account N" pattern. Hardware wallets (Trezor, Ledger, etc.)
+        // use different patterns like "Trezor N", "Ledger N" per keyringTypeToName().
+        // We'll enhance this to handle all keyring types in a future iteration.
+        const nameMatch = existingGroup.metadata.name.match(/Account (\d+)$/u);
+        if (nameMatch) {
+          const nameIndex = parseInt(nameMatch[1], 10);
+          if (nameIndex > highestAccountNameIndex) {
+            highestAccountNameIndex = nameIndex;
+          }
+        }
+      }
+
+      // For entropy-based multichain groups, start with the actual groupIndex
+      if (
+        group.type === AccountGroupType.MultichainAccount &&
+        group.metadata.entropy
+      ) {
+        proposedNameIndex = group.metadata.entropy.groupIndex;
       } else {
-        // Generate default name and ensure it's unique within the wallet
-        let proposedName = '';
-        let proposedNameIndex: number;
+        // For other wallet types, start with the number of existing groups
+        // This gives us the next logical sequential number
+        proposedNameIndex = Object.keys(wallet.groups).length;
+      }
 
-        // Parse the highest account index being used (similar to accounts-controller)
-        let highestAccountNameIndex = 0;
-        for (const existingGroup of Object.values(
-          wallet.groups,
-        ) as AccountGroupObject[]) {
-          // Skip the current group being processed
-          if (existingGroup.id === group.id) {
-            continue;
-          }
-          // Parse the existing group name to extract the numeric index
-          // TODO: This regex only matches "Account N" pattern. Hardware wallets (Trezor, Ledger, etc.)
-          // use different patterns like "Trezor N", "Ledger N" per keyringTypeToName().
-          // We'll enhance this to handle all keyring types in a future iteration.
-          const nameMatch =
-            existingGroup.metadata.name.match(/Account (\d+)$/u);
-          if (nameMatch) {
-            const nameIndex = parseInt(nameMatch[1], 10);
-            if (nameIndex > highestAccountNameIndex) {
-              highestAccountNameIndex = nameIndex;
-            }
-          }
-        }
+      // Use the higher of the two: highest parsed index or computed index
+      proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex);
 
-        // For entropy-based multichain groups, start with the actual groupIndex
-        if (
-          group.type === AccountGroupType.MultichainAccount &&
-          group.metadata.entropy
-        ) {
-          proposedNameIndex = group.metadata.entropy.groupIndex;
-        } else {
-          // For other wallet types, start with the number of existing groups
-          // This gives us the next logical sequential number
-          proposedNameIndex = Object.keys(wallet.groups).length;
-        }
+      // Find a unique name by checking for conflicts and incrementing if needed
+      let nameExists: boolean;
+      do {
+        proposedName = rule.getDefaultAccountGroupName(proposedNameIndex);
 
-        // Use the higher of the two: highest parsed index or computed index
-        proposedNameIndex = Math.max(
-          highestAccountNameIndex,
-          proposedNameIndex,
+        // Check if this name already exists in the wallet (excluding current group)
+        nameExists = !isAccountGroupNameUniqueFromWallet(
+          wallet,
+          group.id,
+          proposedName,
         );
 
-        // Find a unique name by checking for conflicts and incrementing if needed
-        let nameExists: boolean;
-        do {
-          proposedName = rule.getDefaultAccountGroupName(proposedNameIndex);
+        /* istanbul ignore next */
+        if (nameExists) {
+          proposedNameIndex += 1; // Try next number
+        }
+      } while (nameExists);
 
-          // Check if this name already exists in the wallet (excluding current group)
-          nameExists = !isAccountGroupNameUniqueFromWallet(
-            wallet,
-            group.id,
-            proposedName,
-          );
+      state.accountTree.wallets[walletId].groups[groupId].metadata.name =
+        proposedName;
 
-          /* istanbul ignore next */
-          if (nameExists) {
-            proposedNameIndex += 1; // Try next number
-          }
-        } while (nameExists);
-
-        state.accountTree.wallets[walletId].groups[groupId].metadata.name =
-          proposedName;
-
-        // Persist the generated name to ensure consistency
-        state.accountGroupsMetadata[group.id] ??= {};
-        state.accountGroupsMetadata[group.id].name = {
-          value: proposedName,
-          lastUpdatedAt: Date.now(),
-        };
-      }
+      // Persist the generated name to ensure consistency
+      state.accountGroupsMetadata[group.id] ??= {};
+      state.accountGroupsMetadata[group.id].name = {
+        value: proposedName,
+        lastUpdatedAt: Date.now(),
+      };
     }
 
     // Apply persisted UI states
