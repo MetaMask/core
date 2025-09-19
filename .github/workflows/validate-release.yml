@@ -64,16 +64,23 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE != '' }}
         run: |
           set -euo pipefail
-          # Write the comment message to a file, properly escaping backticks
+
+          # Write the comment message to a file, skirting around issues with backticks
           cat > comment-message.txt << 'EOF'
           ${{ steps.validate-release.outputs.RELEASE_VALIDATION_MESSAGE }}
           EOF
 
-          if [ -n "$EXISTING_COMMENT_ID" ]; then
-            echo "Updating existing comment $EXISTING_COMMENT_ID"
-            gh api -X PATCH "/repos/${{ github.repository }}/pulls/comments/$EXISTING_COMMENT_ID" --input comment-message.txt
+          if [[ -n "$EXISTING_COMMENT_ID" ]]; then
+            EXISTING_CONTENT="$(gh api "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --jq '.body')"
+            NEW_CONTENT="$(cat comment-message.txt)"
+            if [[ "$EXISTING_CONTENT" == "$NEW_CONTENT" ]]; then
+              echo "Not updating PR comment because content is unchanged"
+            else
+              echo "Updating existing PR comment $EXISTING_COMMENT_ID"
+              gh api -X PATCH "/repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" --input comment-message.txt
+            fi
           else
-            echo "Creating new comment"
+            echo "Creating new PR comment"
             gh pr comment ${{ github.event.pull_request.number }} --body-file comment-message.txt
           fi
         env:
