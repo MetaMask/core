@@ -51,8 +51,13 @@ main().catch((error) => {
  * The main function of the script.
  */
 export async function main(): Promise<void> {
-  const { githubEventName, baseRef, headRef, possibleReleaseTitle } =
-    parseCommandLineArguments();
+  const {
+    githubEventName,
+    baseRef,
+    headRef,
+    possibleReleaseTitle,
+    botAlreadyCommented,
+  } = parseCommandLineArguments();
 
   console.log('Running validations');
   console.log('-------------------\n');
@@ -125,7 +130,6 @@ export async function main(): Promise<void> {
           'This does not appear to be a release commit. Release workflow will be skipped.',
         );
       } else {
-        core.warning('This may be an incomplete release PR.\n');
         console.log('⚠️ This may be an incomplete release PR.');
         console.log(
           'It appears that you have attempted to create a release PR, but the following checks failed:\n',
@@ -151,84 +155,50 @@ export async function main(): Promise<void> {
       break;
   }
 
-  core.setOutput('RELEASE_VALIDATION_RELEASE', releaseValidationResult.status);
-}
+  core.setOutput('RELEASE_VALIDATION_RESULT', releaseValidationResult.status);
 
-/**
- * Prints the usage for this script.
- */
-function printUsage() {
-  console.error(
-    `
-Identifies whether the given PR or commit is a release commit, and if so,
-validates it by ensuring that the title of the PR or commit is formatted
-correctly and the root package version is bumped alongside packages in the
-monorepo.
+  if (githubEventName === 'pull_request') {
+    let firstSentence = '';
+    let commentMessage = '';
 
-USAGE: scripts/validate-release.ts <github-event-name> <base-ref> <head-ref> <possible-release-title>
+    const greeting = botAlreadyCommented
+      ? 'Hello, me again.'
+      : "Hello, it's your friendly neighborhood MetaMask bot 👋";
 
-ARGUMENTS:
+    switch (releaseValidationResult.status) {
+      case ReleaseValidationStatus.InvalidRelease:
+        firstSentence = botAlreadyCommented
+          ? `${greeting} Some things still don't look right about your release PR:`
+          : `${greeting} It looks like you're trying to make a release PR, but some things don't look right:`;
+        commentMessage = `${firstSentence}
 
-<github-event-name>
-  The name of the event that spawned this GitHub workflow. Either "push" or
-  "pull_request".
-<base-ref>
-  If GITHUB_EVENT_NAME is "pull_request", a ref to the base branch commit; if
-  "push" then a ref to the commit before the push.
-<head-ref>
-  If GITHUB_EVENT_NAME is "pull_request", a ref to the head branch commit; if
-  "push", then a ref to the head commit after the push.
-<possible-release-title>
-  If GITHUB_EVENT_NAME is "pull_request", the title of the pull request; if
-  "push", then the subject of the head commit pushed.
-`.trimStart(),
-  );
-}
+${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
-/**
- * Prints an error and the program usage, then exits.
- *
- * @param message - The message to print.
- */
-function failWithInvalidUsage(message: string) {
-  console.error(`ERROR: ${message}\n`);
-  printUsage();
-  // This is okay, we want to exit early.
-  // eslint-disable-next-line n/no-process-exit
-  process.exit(1);
-}
+**You'll need to get all of the checks above passing before you can merge this PR.**
 
-/**
- * Parses the arguments given to the script.
- *
- * @returns The previous commit ID and release title prefix.
- */
-function parseCommandLineArguments() {
-  const args = process.argv.slice(2);
+<!-- METAMASK-RELEASE-BOT -->`;
+        break;
+      case ReleaseValidationStatus.IncompleteRelease:
+        firstSentence = botAlreadyCommented
+          ? `${greeting} I'm still not sure if you're trying to make a release PR, but if so, some things don't look right:`
+          : `${greeting} Are you trying to make a release PR? If so, some things don't look right:`;
+        commentMessage = `${firstSentence} 
 
-  if (args.length < 4) {
-    failWithInvalidUsage('Expected at least 4 arguments.');
+${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
+
+**You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of the checks above passing.**
+
+<!-- METAMASK-RELEASE-BOT -->`;
+        break;
+      default:
+        // No comment needed for valid releases or non-releases
+        break;
+    }
+
+    if (commentMessage) {
+      core.setOutput('RELEASE_VALIDATION_MESSAGE', commentMessage);
+    }
   }
-
-  const githubEventName = args[0];
-  const baseRef = args[1];
-  const headRef = args[2];
-  const possibleReleaseTitle = args[3];
-
-  if (
-    !(VALID_GITHUB_EVENT_NAMES as readonly string[]).includes(githubEventName)
-  ) {
-    failWithInvalidUsage(
-      'Expected GitHub event name to be one of "push" or "pull_request".',
-    );
-  }
-
-  return {
-    githubEventName: githubEventName as GitHubEventName,
-    baseRef,
-    headRef,
-    possibleReleaseTitle,
-  };
 }
 
 /**
@@ -281,6 +251,95 @@ async function getPreviousAndCurrentPackageVersions(
   return {
     previousVersion: previousManifest.version,
     currentVersion: currentManifest.version,
+  };
+}
+
+/**
+ * Prints the usage for this script.
+ */
+function printUsage() {
+  console.error(
+    `
+Identifies whether the given PR or commit is a release commit, and if so,
+validates it by ensuring that the title of the PR or commit is formatted
+correctly and the root package version is bumped alongside packages in the
+monorepo.
+
+USAGE: scripts/validate-release.ts <github-event-name> <base-ref> <head-ref> <possible-release-title> [bot-already-commented]
+
+ARGUMENTS:
+
+<github-event-name>
+  The name of the event that spawned this GitHub workflow. Either "push" or
+  "pull_request".
+<base-ref>
+  If GITHUB_EVENT_NAME is "pull_request", a ref to the base branch commit; if
+  "push" then a ref to the commit before the push.
+<head-ref>
+  If GITHUB_EVENT_NAME is "pull_request", a ref to the head branch commit; if
+  "push", then a ref to the head commit after the push.
+<possible-release-title>
+  If GITHUB_EVENT_NAME is "pull_request", the title of the pull request; if
+  "push", then the subject of the head commit pushed.
+[bot-already-commented]
+  Required if GITHUB_EVENT_NAME is "pull_request", ignored otherwise. Whether
+  the PR already has a comment from the MetaMask bot. Either "true" or "false".
+`.trimStart(),
+  );
+}
+
+/**
+ * Prints an error and the program usage, then exits.
+ *
+ * @param message - The message to print.
+ */
+function failWithInvalidUsage(message: string) {
+  console.error(`ERROR: ${message}\n`);
+  printUsage();
+  // This is okay, we want to exit early.
+  // eslint-disable-next-line n/no-process-exit
+  process.exit(1);
+}
+
+/**
+ * Parses the arguments given to the script.
+ *
+ * @returns The previous commit ID and release title prefix.
+ */
+function parseCommandLineArguments() {
+  const args = process.argv.slice(2);
+
+  if (args.length < 4) {
+    failWithInvalidUsage('Expected at least 4 arguments.');
+  }
+
+  const githubEventName = args[0];
+  const baseRef = args[1];
+  const headRef = args[2];
+  const possibleReleaseTitle = args[3];
+
+  if (githubEventName === 'pull_request' && args.length < 5) {
+    failWithInvalidUsage(
+      'Expected a 5th argument (bot-already-commented) when GitHub event name is "pull_request".',
+    );
+  }
+
+  const botAlreadyCommented = args[4] === 'true';
+
+  if (
+    !(VALID_GITHUB_EVENT_NAMES as readonly string[]).includes(githubEventName)
+  ) {
+    failWithInvalidUsage(
+      'Expected GitHub event name to be one of "push" or "pull_request".',
+    );
+  }
+
+  return {
+    githubEventName: githubEventName as GitHubEventName,
+    baseRef,
+    headRef,
+    possibleReleaseTitle,
+    botAlreadyCommented,
   };
 }
 
