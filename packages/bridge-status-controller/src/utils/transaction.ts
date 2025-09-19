@@ -25,7 +25,7 @@ import { BigNumber } from 'bignumber.js';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
-import { signAndSendTransactionRequest } from './snaps';
+import { createClientTransactionRequest } from './snaps';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { LINEA_DELAY_MS } from '../constants';
 import type {
@@ -258,7 +258,7 @@ export const getClientRequest = (
       : quoteResponse.trade.unsignedPsbtBase64;
 
   // Use the new unified interface
-  return signAndSendTransactionRequest(
+  return createClientTransactionRequest(
     selectedAccount.metadata.snap?.id as string,
     transactionData,
     scope,

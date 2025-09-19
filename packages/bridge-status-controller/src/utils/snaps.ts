@@ -2,7 +2,7 @@ import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 /**
- * Creates a request to sign and send a transaction using the new unified interface
+ * Creates a client request object for signing and sending a transaction
  * Works for Solana, BTC, Tron, and other non-EVM networks
  *
  * @param snapId - The snap ID to send the request to
@@ -12,7 +12,7 @@ import { v4 as uuid } from 'uuid';
  * @param options - Optional network-specific options
  * @returns The snap request object
  */
-export const signAndSendTransactionRequest = (
+export const createClientTransactionRequest = (
   snapId: string,
   transaction: string,
   scope: CaipChainId,

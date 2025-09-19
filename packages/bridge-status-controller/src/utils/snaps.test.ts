@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 
-import { signAndSendTransactionRequest } from './snaps';
+import { createClientTransactionRequest } from './snaps';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),
@@ -12,14 +12,14 @@ describe('Snaps Utils', () => {
     (uuid as jest.Mock).mockReturnValue('test-uuid-1234');
   });
 
-  describe('signAndSendTransactionRequest', () => {
+  describe('createClientTransactionRequest', () => {
     it('should create a proper request without options', () => {
       const snapId = 'test-snap-id';
       const transaction = 'base64-encoded-transaction';
       const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const;
       const accountId = 'test-account-id';
 
-      const result = signAndSendTransactionRequest(
+      const result = createClientTransactionRequest(
         snapId,
         transaction,
         scope,
@@ -48,7 +48,7 @@ describe('Snaps Utils', () => {
         maxRetries: 3,
       };
 
-      const result = signAndSendTransactionRequest(
+      const result = createClientTransactionRequest(
         snapId,
         transaction,
         scope,
@@ -74,7 +74,7 @@ describe('Snaps Utils', () => {
       const tronScope = 'tron:0x2b6653dc' as const;
       const accountId = 'test-account-id';
 
-      const result = signAndSendTransactionRequest(
+      const result = createClientTransactionRequest(
         snapId,
         transaction,
         tronScope,
@@ -90,7 +90,7 @@ describe('Snaps Utils', () => {
       const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const;
       const accountId = 'test-account-id';
 
-      const result = signAndSendTransactionRequest(
+      const result = createClientTransactionRequest(
         snapId,
         transaction,
         scope,
@@ -107,7 +107,7 @@ describe('Snaps Utils', () => {
       const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const;
       const accountId = 'test-account-id';
 
-      const result = signAndSendTransactionRequest(
+      const result = createClientTransactionRequest(
         snapId,
         transaction,
         scope,
@@ -124,7 +124,7 @@ describe('Snaps Utils', () => {
       const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const;
       const accountId = 'test-account-id';
 
-      const result = signAndSendTransactionRequest(
+      const result = createClientTransactionRequest(
         snapId,
         transaction,
         scope,
