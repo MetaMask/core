@@ -199,7 +199,7 @@ Are you trying to make a release PR? If so, some things don't look right:
 
 ${releaseValidationResult.errorMessages.map((msg) => `- ${msg}`).join('\n')}
 
-You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of these checks passing first. (Otherwise you can ignore this comment.)
+You may merge this PR, but if you meant for this to be a release PR, you'll need to get all of these checks passing first. (Otherwise, you can ignore this comment.)
 
 ${marker}`;
           break;
@@ -217,7 +217,7 @@ ${marker}`;
       }
     } else if (botAlreadyCommented) {
       // If we previously thought it was a release PR but now it's not, update the comment
-      commentMessage = `This PR was previously recognized as a possible release PR, but changes have been made since, and it is no longer one.
+      commentMessage = `_(This PR was previously recognized as a potential release PR, but it has since been downgraded to a regular PR. You can ignore this comment.)_
 
 <!-- METAMASKBOT-RELEASE-VALIDATION -->`;
     }
