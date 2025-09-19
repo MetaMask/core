@@ -30,6 +30,7 @@ export type {
   SupportedGatorPermissionType,
   GatorPermissionsMapByPermissionType,
   GatorPermissionsListByPermissionTypeAndChainId,
+  DelegationDetails,
 } from './types';
 
 export type {
