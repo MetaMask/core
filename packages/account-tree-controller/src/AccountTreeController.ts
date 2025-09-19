@@ -8,13 +8,15 @@ import type {
   AccountWalletId,
   AccountSelector,
   MultichainAccountWalletId,
+  MultichainAccountGroup,
+  Bip44Account,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { isEvmAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { assert } from '@metamask/utils';
 
@@ -227,6 +229,20 @@ export class AccountTreeController extends BaseController<
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAccountService:multichainAccountGroupCreated',
+      (group) => {
+        this.#handleMultichainAccountGroupCreatedOrUpdated(group);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAccountService:multichainAccountGroupUpdated',
+      (group) => {
+        this.#handleMultichainAccountGroupCreatedOrUpdated(group);
       },
     );
 
@@ -680,6 +696,18 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Handles multichain account group created/updated event from
+   * the MultichainAccountService.
+   *
+   * @param group - Multichain account group being that got created or updated.
+   */
+  #handleMultichainAccountGroupCreatedOrUpdated(
+    group: MultichainAccountGroup<Bip44Account<KeyringAccount>>,
+  ): void {
+    this.#backupAndSyncService.enqueueSingleGroupSync(group.id);
+  }
+
+  /**
    * Helper method to prune a group if it holds no accounts and additionally
    * prune the wallet if it holds no groups. This action should take place
    * after a singular account removal.
@@ -771,11 +799,6 @@ export class AccountTreeController extends BaseController<
 
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
-
-      // Trigger atomic sync for new group (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
-      }
     } else {
       group.accounts.push(account.id);
     }
