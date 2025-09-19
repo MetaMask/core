@@ -48,7 +48,7 @@ jobs:
               exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA" "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE"
               ;;
             pull_request)
-              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PULL_REQUEST_BASE_SHA" "$GITHUB_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$EXISTING_COMMENT_ID"
+              exec yarn ts-node scripts/validate-release.ts "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PULL_REQUEST_BASE_SHA" "$GITHUB_EVENT_PULL_REQUEST_HEAD_SHA" "$GITHUB_EVENT_PULL_REQUEST_TITLE" "$EXISTING_COMMENT_ID"
               ;;
             *)
               echo "Unknown GitHub event name: $GITHUB_EVENT_NAME"
@@ -60,6 +60,7 @@ jobs:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_EVENT_PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
           EXISTING_COMMENT_ID: ${{ steps.check-bot-comments.outputs.EXISTING_COMMENT_ID }}
       - name: Post or update PR comment
@@ -73,13 +74,13 @@ jobs:
           EOF
 
           if [[ -n "$EXISTING_COMMENT_ID" ]]; then
-            EXISTING_CONTENT="$(gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq '.body')"
-            NEW_CONTENT="$(cat comment-message.txt)"
-            if [[ "$EXISTING_CONTENT" == "$NEW_CONTENT" ]]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --jq -r '.body' > existing-comment.txt
+            if cmp -s existing-comment.txt comment-message.txt; then
               echo "Found existing comment, but content is unchanged. Not updating."
             else
               echo "Updating existing PR comment."
-              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input comment-message.txt
+              jq -n --rawfile body comment-message.txt '{body: $body}' > update-comment.json
+              gh api -X PATCH "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_COMMENT_ID}" --input update-comment.json
             fi
           else
             echo "Creating new PR comment."
