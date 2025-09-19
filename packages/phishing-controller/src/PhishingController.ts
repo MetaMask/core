@@ -9,6 +9,10 @@ import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import type {
+  TransactionControllerStateChangeEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import { toASCII } from 'punycode/punycode.js';
 
 import { CacheManager, type CacheEntry } from './CacheManager';
@@ -46,7 +50,7 @@ export const PHISHING_DETECTION_SCAN_ENDPOINT = 'v2/scan';
 export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
 export const SECURITY_ALERTS_BASE_URL =
-  'https://security-alerts.api.cx.metamask.io';
+  'http://localhost:3000';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
@@ -356,12 +360,22 @@ export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 
+/**
+ * The external actions available to the PhishingController.
+ */
+type AllowedActions = never;
+
+/**
+ * The external events available to the PhishingController.
+ */
+export type AllowedEvents = TransactionControllerStateChangeEvent;
+
 export type PhishingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  PhishingControllerActions,
-  PhishingControllerEvents,
-  never,
-  never
+  PhishingControllerActions | AllowedActions,
+  PhishingControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -405,6 +419,11 @@ export class PhishingController extends BaseController<
 
   #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
+  readonly #transactionControllerStateChangeHandler: (
+    transactions: TransactionMeta[],
+    previousTransactions: TransactionMeta[] | undefined,
+  ) => void;
+
   /**
    * Construct a Phishing Controller.
    *
@@ -443,6 +462,20 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#transactionControllerStateChangeHandler = (
+      transactions: TransactionMeta[],
+      previousTransactions: TransactionMeta[] | undefined,
+    ) => {
+      this.#onTransactionControllerStateChange(
+        transactions,
+        previousTransactions,
+      ).catch((error) =>
+        console.error(
+          'Error in transaction controller state change handler:',
+          error,
+        ),
+      );
+    };
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -465,6 +498,7 @@ export class PhishingController extends BaseController<
     });
 
     this.#registerMessageHandlers();
+    this.#subscribeToTransactionController();
 
     this.updatePhishingDetector();
   }
@@ -493,6 +527,123 @@ export class PhishingController extends BaseController<
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );
+  }
+
+  /**
+   * Subscribe to transaction controller state changes to automatically scan tokens
+   * when simulation data changes.
+   */
+  #subscribeToTransactionController(): void {
+    try {
+      this.messagingSystem.subscribe(
+        'TransactionController:stateChange',
+        this.#transactionControllerStateChangeHandler,
+        (state) => state.transactions,
+      );
+    } catch (error) {
+      console.error(
+        'Error subscribing to transaction controller state change:',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Handle transaction controller state changes and scan tokens when simulation data changes
+   *
+   * @param transactions - The current transactions array
+   * @param previousTransactions - The previous transactions array
+   */
+  async #onTransactionControllerStateChange(
+    transactions: TransactionMeta[],
+    previousTransactions: TransactionMeta[] | undefined,
+  ): Promise<void> {
+    try {
+      console.log('Processing transaction controller state change');
+      // Guard against undefined or invalid transaction arrays
+      if (!Array.isArray(transactions)) {
+        return;
+      }
+
+      console.log(
+        'Processing transaction controller state change',
+        transactions,
+      );
+
+      const previousTransactionsById = new Map<string, TransactionMeta>(
+        previousTransactions?.map((tx) => [tx.id, tx]) ?? [],
+      );
+
+      for (const transaction of transactions) {
+        const previousTransaction = previousTransactionsById.get(
+          transaction.id,
+        );
+
+        // Guard against invalid transaction objects
+        if (!transaction || !transaction.id) {
+          continue;
+        }
+
+        // Scan tokens if the transaction is new or if the simulation data has changed
+        if (
+          !previousTransaction ||
+          // Reference equality is sufficient because simulationData object is replaced when changed
+          previousTransaction.simulationData !== transaction.simulationData
+        ) {
+          if (
+            transaction.simulationData?.tokenBalanceChanges &&
+            Array.isArray(transaction.simulationData.tokenBalanceChanges) &&
+            transaction.simulationData.tokenBalanceChanges.length > 0
+          ) {
+            await this.#scanTokensFromSimulation(transaction);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error processing transaction state change:', error);
+    }
+  }
+
+  /**
+   * Extract tokens from simulation data and scan them for malicious activity
+   *
+   * @param transaction - The transaction with simulation data
+   */
+  async #scanTokensFromSimulation(transaction: TransactionMeta): Promise<void> {
+    try {
+      console.log('Scanning tokens from simulation', transaction);
+      const { chainId, simulationData } = transaction;
+      const { tokenBalanceChanges = [] } = simulationData || {};
+
+      if (
+        !chainId ||
+        !Array.isArray(tokenBalanceChanges) ||
+        tokenBalanceChanges.length === 0
+      ) {
+        return;
+      }
+
+      // Extract unique token addresses from simulation data
+      const tokenAddresses = new Set<string>();
+
+      for (const tokenChange of tokenBalanceChanges) {
+        if (tokenChange?.address && typeof tokenChange.address === 'string') {
+          tokenAddresses.add(tokenChange.address.toLowerCase());
+        }
+      }
+
+      const tokens = Array.from(tokenAddresses);
+
+      if (tokens.length > 0) {
+        // Call the bulk scan method - results are automatically cached
+        await this.bulkScanTokens({
+          chainId,
+          tokens,
+        });
+      }
+    } catch (error) {
+      console.error('Error scanning tokens from simulation:', error);
+    }
   }
 
   /**

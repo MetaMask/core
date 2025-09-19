@@ -43,7 +43,6 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
-import type { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import {
   errorCodes,
@@ -484,9 +483,7 @@ export type AllowedActions =
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction
-  | PhishingControllerBulkScanTokensAction;
-
+  | RemoteFeatureFlagControllerGetStateAction;
 /**
  * The external events available to the {@link TransactionController}.
  */
@@ -4347,45 +4344,6 @@ export class TransactionController extends BaseController<
     });
   }
 
-  /**
-   * Fire and forget bulk token screening via PhishingController on tokens received.
-   *
-   * @param transactionMeta - Transaction metadata containing simulation results.
-   */
-  async #bulkScanReceivedTokens(transactionMeta: TransactionMeta) {
-    try {
-      const { simulationData, chainId } = transactionMeta;
-
-      if (!simulationData || simulationData.error || !chainId) {
-        return;
-      }
-
-      const receivedTokens = (simulationData.tokenBalanceChanges || [])
-        .filter((change) => !change.isDecrease)
-        .map(({ address }) => address)
-        .filter((address): address is Hex => Boolean(address));
-
-      if (receivedTokens.length === 0) {
-        return;
-      }
-
-      this.messagingSystem
-        .call('PhishingController:bulkScanTokens', {
-          chainId,
-          tokens: receivedTokens,
-        })
-        .catch((innerError) => {
-          log('Bulk token scanning failed', {
-            innerError,
-            chainId,
-            receivedTokens,
-          });
-        });
-    } catch (error) {
-      log('Error scheduling token scanning', error);
-    }
-  }
-
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
@@ -4571,10 +4529,6 @@ export class TransactionController extends BaseController<
     } else if (skipSimulation === false) {
       this.#skipSimulationTransactionIds.delete(transactionId);
     }
-
-    this.#bulkScanReceivedTokens(transactionMeta).catch(() => {
-      // Errors are already handled inside #bulkScanReceivedTokens
-    });
 
     if (!updateTransaction) {
       return;
