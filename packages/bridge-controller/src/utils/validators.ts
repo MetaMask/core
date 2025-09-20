@@ -156,6 +156,39 @@ export const StepSchema = type({
 
 const RefuelDataSchema = StepSchema;
 
+// Allow digit strings for amounts/validTo for flexibility across providers
+const DigitStringOrNumberSchema = union([TruthyDigitStringSchema, number()]);
+
+// Intent support (e.g., CoW Swap EIP-712 order signing)
+const IntentProtocolSchema = enums(['cowswap']);
+
+export const CowSwapOrderSchema = type({
+  // EIP-712 Order fields (subset required for signing/submission)
+  sellToken: HexAddressSchema,
+  buyToken: HexAddressSchema,
+  receiver: optional(HexAddressSchema),
+  validTo: DigitStringOrNumberSchema,
+  appData: string(),
+  appDataHash: HexStringSchema,
+  feeAmount: TruthyDigitStringSchema,
+  kind: enums(['sell', 'buy']),
+  partiallyFillable: boolean(),
+  // One of these is required by CoW depending on kind; we keep both optional here and rely on backend validation
+  sellAmount: optional(TruthyDigitStringSchema),
+  buyAmount: optional(TruthyDigitStringSchema),
+  // Optional owner/from for convenience when building domain/message
+  from: optional(HexAddressSchema),
+});
+
+export const IntentSchema = type({
+  protocol: IntentProtocolSchema,
+  order: CowSwapOrderSchema,
+  // Optional metadata to aid submission/routing
+  settlementContract: optional(HexAddressSchema),
+  relayer: optional(HexAddressSchema),
+  quoteId: optional(nullable(string())),
+});
+
 export const QuoteSchema = type({
   requestId: string(),
   srcChainId: ChainIdSchema,
@@ -208,6 +241,7 @@ export const QuoteSchema = type({
       totalFeeAmountUsd: optional(string()),
     }),
   ),
+  intent: optional(IntentSchema),
 });
 
 export const TxDataSchema = type({

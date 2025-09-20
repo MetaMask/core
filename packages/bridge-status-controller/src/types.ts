@@ -47,8 +47,7 @@ export enum BridgeClientId {
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
+) => Promise<unknown>;
 
 /**
  * These fields are specific to Solana transactions and can likely be infered from TransactionMeta
@@ -105,9 +104,17 @@ export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
   txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
+  /**
+   * For intent-based orders (e.g., CoW) that can be partially filled across
+   * multiple on-chain settlements, we keep all discovered source tx hashes here.
+   * The canonical status.srcChain.txHash continues to hold the latest known hash
+   * for backward compatibility with consumers expecting a single hash.
+   */
+  srcTxHashes?: string[];
   startTime?: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
@@ -146,6 +153,7 @@ export enum BridgeStatusAction {
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
   SUBMIT_TX = 'submitTx',
+  SUBMIT_INTENT = 'submitIntent',
   RESTART_POLLING_FOR_FAILED_ATTEMPTS = 'restartPollingForFailedAttempts',
   GET_BRIDGE_HISTORY_ITEM_BY_TX_META_ID = 'getBridgeHistoryItemByTxMetaId',
 }
@@ -244,6 +252,9 @@ export type BridgeStatusControllerResetStateAction =
 export type BridgeStatusControllerSubmitTxAction =
   BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
 
+export type BridgeStatusControllerSubmitIntentAction =
+  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_INTENT>;
+
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESTART_POLLING_FOR_FAILED_ATTEMPTS>;
 
@@ -256,6 +267,7 @@ export type BridgeStatusControllerActions =
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
   | BridgeStatusControllerSubmitTxAction
+  | BridgeStatusControllerSubmitIntentAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction
   | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
 
