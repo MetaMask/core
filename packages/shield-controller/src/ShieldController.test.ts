@@ -154,6 +154,21 @@ describe('ShieldController', () => {
       expect(await coverageResultReceived).toBeUndefined();
       expect(backend.checkCoverage).toHaveBeenCalledWith(txMeta);
     });
+
+    it('throws an error when the coverage ID has changed', async () => {
+      const { controller, backend } = setup();
+      backend.checkCoverage.mockResolvedValueOnce({
+        coverageId: '0x00',
+      });
+      backend.checkCoverage.mockResolvedValueOnce({
+        coverageId: '0x01',
+      });
+      const txMeta = generateMockTxMeta();
+      await controller.checkCoverage(txMeta);
+      await expect(controller.checkCoverage(txMeta)).rejects.toThrow(
+        'Coverage ID has changed',
+      );
+    });
   });
 
   describe('checkSignatureCoverage', () => {
