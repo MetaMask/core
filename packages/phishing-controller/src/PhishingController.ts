@@ -461,20 +461,8 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
-    this.#transactionControllerStateChangeHandler = (
-      transactions: TransactionMeta[],
-      previousTransactions: TransactionMeta[] | undefined,
-    ) => {
-      this.#onTransactionControllerStateChange(
-        transactions,
-        previousTransactions,
-      ).catch((error) =>
-        console.error(
-          'Error in transaction controller state change handler:',
-          error,
-        ),
-      );
-    };
+    this.#transactionControllerStateChangeHandler =
+      this.#onTransactionControllerStateChange.bind(this);
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -548,10 +536,10 @@ export class PhishingController extends BaseController<
    * @param transactions - The current transactions array
    * @param previousTransactions - The previous transactions array
    */
-  async #onTransactionControllerStateChange(
+  #onTransactionControllerStateChange(
     transactions: TransactionMeta[],
     previousTransactions: TransactionMeta[] | undefined,
-  ): Promise<void> {
+  ) {
     try {
       console.log('Processing transaction controller state change');
       // Guard against undefined or invalid transaction arrays
@@ -589,7 +577,9 @@ export class PhishingController extends BaseController<
             Array.isArray(transaction.simulationData.tokenBalanceChanges) &&
             transaction.simulationData.tokenBalanceChanges.length > 0
           ) {
-            await this.#scanTokensFromSimulation(transaction);
+            this.#scanTokensFromSimulation(transaction).catch((error) =>
+              console.error('Error scanning tokens from simulation:', error),
+            );
           }
         }
       }
@@ -603,7 +593,7 @@ export class PhishingController extends BaseController<
    *
    * @param transaction - The transaction with simulation data
    */
-  async #scanTokensFromSimulation(transaction: TransactionMeta): Promise<void> {
+  async #scanTokensFromSimulation(transaction: TransactionMeta) {
     try {
       console.log('Scanning tokens from simulation', transaction);
       const { chainId, simulationData } = transaction;
@@ -630,10 +620,10 @@ export class PhishingController extends BaseController<
 
       if (tokens.length > 0) {
         // Call the bulk scan method - results are automatically cached
-        await this.bulkScanTokens({
+        this.bulkScanTokens({
           chainId,
           tokens,
-        });
+        }).catch((error) => console.error('Error in bulk scan tokens:', error));
       }
     } catch (error) {
       console.error('Error scanning tokens from simulation:', error);
