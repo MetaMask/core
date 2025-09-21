@@ -497,9 +497,23 @@ export class PhishingController extends BaseController<
     });
 
     this.#registerMessageHandlers();
-    this.#subscribeToTransactionController();
 
     this.updatePhishingDetector();
+  }
+
+  start() {
+    this.messagingSystem.subscribe(
+      'TransactionController:stateChange',
+      this.#transactionControllerStateChangeHandler,
+      (state) => state.transactions,
+    );
+  }
+
+  stop() {
+    this.messagingSystem.unsubscribe(
+      'TransactionController:stateChange',
+      this.#transactionControllerStateChangeHandler,
+    );
   }
 
   /**
@@ -526,25 +540,6 @@ export class PhishingController extends BaseController<
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );
-  }
-
-  /**
-   * Subscribe to transaction controller state changes to automatically scan tokens
-   * when simulation data changes.
-   */
-  #subscribeToTransactionController(): void {
-    try {
-      this.messagingSystem.subscribe(
-        'TransactionController:stateChange',
-        this.#transactionControllerStateChangeHandler,
-        (state) => state.transactions,
-      );
-    } catch (error) {
-      console.error(
-        'Error subscribing to transaction controller state change:',
-        error,
-      );
-    }
   }
 
   /**
