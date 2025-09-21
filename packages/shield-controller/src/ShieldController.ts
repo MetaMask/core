@@ -331,6 +331,12 @@ export class ShieldController extends BaseController<
   }
 
   #addCoverageResult(txId: string, coverageResult: CoverageResult) {
+    // Assert the coverageId hasn't changed.
+    const latestCoverageId = this.#getLatestCoverageId(txId);
+    if (latestCoverageId && coverageResult.coverageId !== latestCoverageId) {
+      throw new Error('Coverage ID has changed');
+    }
+
     this.update((draft) => {
       // Fetch coverage result entry.
       let newEntry = false;
