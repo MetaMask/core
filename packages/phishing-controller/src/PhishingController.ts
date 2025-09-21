@@ -49,7 +49,8 @@ export const PHISHING_DETECTION_BASE_URL =
 export const PHISHING_DETECTION_SCAN_ENDPOINT = 'v2/scan';
 export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
-export const SECURITY_ALERTS_BASE_URL = 'http://localhost:3000';
+export const SECURITY_ALERTS_BASE_URL =
+  'https://security-alerts.api.cx.metamask.io';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
