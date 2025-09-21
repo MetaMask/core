@@ -541,30 +541,13 @@ export class PhishingController extends BaseController<
     previousTransactions: TransactionMeta[] | undefined,
   ) {
     try {
-      console.log('Processing transaction controller state change');
-      // Guard against undefined or invalid transaction arrays
-      if (!Array.isArray(transactions)) {
-        return;
-      }
-
-      console.log(
-        'Processing transaction controller state change',
-        transactions,
-      );
-
       const previousTransactionsById = new Map<string, TransactionMeta>(
         previousTransactions?.map((tx) => [tx.id, tx]) ?? [],
       );
-
       for (const transaction of transactions) {
         const previousTransaction = previousTransactionsById.get(
           transaction.id,
         );
-
-        // Guard against invalid transaction objects
-        if (!transaction || !transaction.id) {
-          continue;
-        }
 
         // Scan tokens if the transaction is new or if the simulation data has changed
         if (
@@ -595,7 +578,6 @@ export class PhishingController extends BaseController<
    */
   async #scanTokensFromSimulation(transaction: TransactionMeta) {
     try {
-      console.log('Scanning tokens from simulation', transaction);
       const { chainId, simulationData } = transaction;
       const { tokenBalanceChanges = [] } = simulationData || {};
 
@@ -607,7 +589,6 @@ export class PhishingController extends BaseController<
         return;
       }
 
-      // Extract unique token addresses from simulation data
       const tokenAddresses = new Set<string>();
 
       for (const tokenChange of tokenBalanceChanges) {
@@ -619,7 +600,6 @@ export class PhishingController extends BaseController<
       const tokens = Array.from(tokenAddresses);
 
       if (tokens.length > 0) {
-        // Call the bulk scan method - results are automatically cached
         this.bulkScanTokens({
           chainId,
           tokens,
