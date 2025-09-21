@@ -16,6 +16,10 @@ import {
 } from '@metamask/transaction-controller';
 
 import { controllerName } from './constants';
+import {
+  calculateSignatureCoverageId,
+  calculateTransactionCoverageId,
+} from './coverageId';
 import { projectLogger, createModuleLogger } from './logger';
 import type { CoverageResult, ShieldBackend } from './types';
 
@@ -378,44 +382,52 @@ export class ShieldController extends BaseController<
   }
 
   async #logSignature(signatureRequest: SignatureRequest) {
-    const coverageId = this.#getLatestCoverageId(signatureRequest.id);
-    if (!coverageId) {
-      throw new Error('Coverage ID not found');
-    }
-
-    const sig = signatureRequest.rawSig;
-    if (!sig) {
+    const signature = signatureRequest.rawSig;
+    if (!signature) {
       throw new Error('Signature not found');
     }
 
+    const { coverageId, status } = this.#getCoverageIdAndStatus(
+      signatureRequest.id,
+      () => calculateSignatureCoverageId(signatureRequest),
+    );
+
     await this.#backend.logSignature({
       coverageId,
-      signature: sig,
-      // Status is 'shown' because the coverageId can only be retrieved after
-      // the result is in the state. If the result is in the state, we assume
-      // that it has been shown.
-      status: 'shown',
+      signature,
+      status,
     });
   }
 
   async #logTransaction(txMeta: TransactionMeta) {
-    const coverageId = this.#getLatestCoverageId(txMeta.id);
-    if (!coverageId) {
-      throw new Error('Coverage ID not found');
-    }
-
-    const txHash = txMeta.hash;
-    if (!txHash) {
+    const transactionHash = txMeta.hash;
+    if (!transactionHash) {
       throw new Error('Transaction hash not found');
     }
+
+    const { coverageId, status } = this.#getCoverageIdAndStatus(txMeta.id, () =>
+      calculateTransactionCoverageId(txMeta),
+    );
+
     await this.#backend.logTransaction({
       coverageId,
-      transactionHash: txHash,
-      // Status is 'shown' because the coverageId can only be retrieved after
-      // the result is in the state. If the result is in the state, we assume
-      // that it has been shown.
-      status: 'shown',
+      transactionHash,
+      status,
     });
+  }
+
+  #getCoverageIdAndStatus(itemId: string, calculateCoverageId: () => string) {
+    // The status is assigned as follows:
+    // - 'shown' if we have a result
+    // - 'not_shown' if we don't have a result
+    let coverageId = this.#getLatestCoverageId(itemId);
+    let status = 'shown';
+    if (!coverageId) {
+      log('Coverage ID not found for', itemId);
+      coverageId = calculateCoverageId();
+      status = 'not_shown';
+    }
+    return { coverageId, status };
   }
 
   #getLatestCoverageId(itemId: string) {
