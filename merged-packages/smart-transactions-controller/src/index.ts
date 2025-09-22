@@ -20,3 +20,8 @@ export type {
   SmartTransactionStatuses,
   ClientId,
 } from './types';
+export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants';
+export {
+  getSmartTransactionMetricsProperties,
+  getSmartTransactionMetricsSensitiveProperties,
+} from './utils';

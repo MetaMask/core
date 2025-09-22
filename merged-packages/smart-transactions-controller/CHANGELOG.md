@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add missing constants and helpers exports ([#538](https://github.com/MetaMask/smart-transactions-controller/pull/538))
+  - `MetaMetricsEventCategory`
+  - `MetaMetricsEventName`
+  - `getSmartTransactionMetricsProperties`
+  - `getSmartTransactionMetricsSensitiveProperties`
+
 ## [19.1.0]
 
 ### Added
