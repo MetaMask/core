@@ -7,7 +7,10 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
-import { stringifyBalanceWithDecimals } from './stringify-balance';
+import {
+  parseBalanceWithDecimals,
+  stringifyBalanceWithDecimals,
+} from './stringify-balance';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -56,6 +59,7 @@ export type Asset = (
   symbol: string;
   decimals: number;
   isNative: boolean;
+  rawBalance: Hex;
   balance: string;
   fiat:
     | {
@@ -163,6 +167,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
 
+        // If a native balance is missing, we still want to show it as 0
         const rawBalance = accountBalance.balance || '0x0';
 
         const nativeCurrency =
@@ -196,6 +201,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           symbol: nativeToken.symbol,
           accountId,
           decimals: nativeToken.decimals,
+          rawBalance,
           balance: stringifyBalanceWithDecimals(
             hexToBigInt(rawBalance),
             nativeToken.decimals,
@@ -289,6 +295,7 @@ const selectAllEvmAssets = createAssetListSelector(
             symbol: token.symbol,
             accountId,
             decimals: token.decimals,
+            rawBalance,
             balance: stringifyBalanceWithDecimals(
               hexToBigInt(rawBalance),
               token.decimals,
@@ -361,7 +368,19 @@ const selectAllMultichainAssets = createAssetListSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
-        if (!balance) {
+        const decimals = assetMetadata.units.find(
+          (unit) =>
+            unit.name === assetMetadata.name &&
+            unit.symbol === assetMetadata.symbol,
+        )?.decimals;
+
+        if (!balance || decimals === undefined) {
+          continue;
+        }
+
+        const rawBalance = parseBalanceWithDecimals(balance.amount, decimals);
+
+        if (!rawBalance) {
           continue;
         }
 
@@ -380,12 +399,8 @@ const selectAllMultichainAssets = createAssetListSelector(
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
           accountId,
-          decimals:
-            assetMetadata.units.find(
-              (unit) =>
-                unit.name === assetMetadata.name &&
-                unit.symbol === assetMetadata.symbol,
-            )?.decimals ?? 0,
+          decimals,
+          rawBalance,
           balance: balance.amount,
           fiat: fiatData
             ? {

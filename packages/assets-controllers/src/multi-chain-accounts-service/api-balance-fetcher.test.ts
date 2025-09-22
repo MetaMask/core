@@ -147,6 +147,7 @@ const MOCK_INTERNAL_ACCOUNTS: InternalAccount[] = [
 // Mock the imports
 jest.mock('@metamask/controller-utils', () => ({
   safelyExecute: jest.fn(),
+  safelyExecuteWithTimeout: jest.fn(),
   toHex: jest.fn(),
   toChecksumHexAddress: jest.fn(),
 }));
@@ -185,6 +186,9 @@ jest.mock('@ethersproject/providers', () => ({
 const mockSafelyExecute = jest.requireMock(
   '@metamask/controller-utils',
 ).safelyExecute;
+const mockSafelyExecuteWithTimeout = jest.requireMock(
+  '@metamask/controller-utils',
+).safelyExecuteWithTimeout;
 const mockToHex = jest.requireMock('@metamask/controller-utils').toHex;
 const mockToChecksumHexAddress = jest.requireMock(
   '@metamask/controller-utils',
@@ -220,6 +224,17 @@ describe('AccountsApiBalanceFetcher', () => {
 
     mockSafelyExecute.mockImplementation(
       async (fn: () => Promise<void>) => await fn(),
+    );
+
+    // Mock safelyExecuteWithTimeout to just execute the function
+    mockSafelyExecuteWithTimeout.mockImplementation(
+      async (operation: () => Promise<unknown>) => {
+        try {
+          return await operation();
+        } catch {
+          return undefined;
+        }
+      },
     );
   });
 
@@ -1521,12 +1536,17 @@ describe('AccountsApiBalanceFetcher', () => {
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         });
 
-        // Should have mixed results: failed API entries + successful staked balance
+        // With safelyExecuteWithTimeout, API failures are handled gracefully
+        // We should have successful staked balance + native token guarantee (no explicit error entries)
         const successfulEntries = result.filter((r) => r.success);
-        const errorEntries = result.filter((r) => !r.success);
+        const stakedEntries = result.filter(
+          (r) => r.token === STAKING_CONTRACT_ADDRESS,
+        );
+        const nativeEntries = result.filter((r) => r.token === ZERO_ADDRESS);
 
-        expect(successfulEntries.length).toBeGreaterThan(0); // Staked balance succeeded
-        expect(errorEntries.length).toBeGreaterThan(0); // API entries failed
+        expect(successfulEntries.length).toBeGreaterThan(0); // Staked balance + native token succeeded
+        expect(stakedEntries).toHaveLength(1); // Should have staked balance entry
+        expect(nativeEntries).toHaveLength(1); // Should have native token guarantee
 
         // Should not throw since we have some successful results
         expect(result.length).toBeGreaterThan(0);
@@ -1866,6 +1886,30 @@ describe('AccountsApiBalanceFetcher', () => {
 
       // And verify that the old method would produce different (less precise) results
       expect(oldMethodCalculation.toString()).toContain('e+'); // Should be in scientific notation
+    });
+
+    it('should throw error when API fails and no successful results exist (line 400)', async () => {
+      const mockApiError = new Error('Complete API failure');
+
+      // Mock safelyExecuteWithTimeout to throw (this will trigger the catch block and set apiError = true)
+      mockSafelyExecuteWithTimeout.mockImplementation(async () => {
+        throw mockApiError;
+      });
+
+      // Create a balance fetcher WITHOUT staking provider to avoid successful staked balances
+      const balanceFetcherNoStaking = new AccountsApiBalanceFetcher(
+        'extension',
+      );
+
+      // This should trigger the error throw on line 400
+      await expect(
+        balanceFetcherNoStaking.fetch({
+          chainIds: [MOCK_CHAIN_ID],
+          queryAllAccounts: false,
+          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          allAccounts: MOCK_INTERNAL_ACCOUNTS,
+        }),
+      ).rejects.toThrow('Failed to fetch any balance data due to API error');
     });
   });
 });

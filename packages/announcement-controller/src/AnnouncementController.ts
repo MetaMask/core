@@ -1,7 +1,8 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+  StateMetadata,
+} from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
 import type { Messenger } from '@metamask/messenger';
 
@@ -59,10 +60,12 @@ const defaultState = {
   announcements: {},
 };
 
-const metadata = {
+const metadata: StateMetadata<AnnouncementControllerState> = {
   announcements: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
   },
 };
 

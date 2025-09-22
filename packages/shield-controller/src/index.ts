@@ -1,4 +1,8 @@
-export type { CoverageStatus } from './types';
+export type {
+  CoverageStatus,
+  LogSignatureRequest,
+  LogTransactionRequest,
+} from './types';
 export type {
   ShieldControllerActions,
   ShieldControllerEvents,
@@ -12,3 +16,4 @@ export {
   ShieldController,
   getDefaultShieldControllerState,
 } from './ShieldController';
+export { ShieldRemoteBackend } from './backend';

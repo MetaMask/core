@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
 
 import type {
@@ -167,6 +168,128 @@ describe('announcement controller', () => {
       expect(controller.state.announcements[1].isShown).toBe(false);
       expect(controller.state.announcements[2].isShown).toBe(true);
       expect(controller.state.announcements[3].isShown).toBe(true);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new AnnouncementController({
+        messenger: getRestrictedMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "announcements": Object {
+            "1": Object {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": Object {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new AnnouncementController({
+        messenger: getRestrictedMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "announcements": Object {
+            "1": Object {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": Object {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new AnnouncementController({
+        messenger: getRestrictedMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "announcements": Object {
+            "1": Object {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": Object {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new AnnouncementController({
+        messenger: getRestrictedMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "announcements": Object {
+            "1": Object {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": Object {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
     });
   });
 });

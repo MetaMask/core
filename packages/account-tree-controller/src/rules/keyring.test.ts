@@ -98,7 +98,7 @@ describe('keyring', () => {
         allowedActions: [
           'AccountsController:listMultichainAccounts',
           'AccountsController:getAccount',
-          'AccountsController:getSelectedAccount',
+          'AccountsController:getSelectedMultichainAccount',
           'AccountsController:setSelectedAccount',
           'KeyringController:getState',
           'SnapController:get',
@@ -248,6 +248,7 @@ describe('keyring', () => {
         const hdWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.hd),
           type: AccountWalletType.Keyring,
+          status: 'ready',
           groups: {},
           metadata: {
             name: '',
@@ -258,6 +259,7 @@ describe('keyring', () => {
         const ledgerWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.ledger),
           type: AccountWalletType.Keyring,
+          status: 'ready',
           groups: {},
           metadata: {
             name: '',
@@ -268,6 +270,7 @@ describe('keyring', () => {
         const trezorWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.trezor),
           type: AccountWalletType.Keyring,
+          status: 'ready',
           groups: {},
           metadata: {
             name: '',

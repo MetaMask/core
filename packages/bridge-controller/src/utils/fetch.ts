@@ -2,11 +2,16 @@ import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
+import { isBitcoinChainId } from './bridge';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
+import {
+  validateQuoteResponse,
+  validateBitcoinQuoteResponse,
+  validateSwapsTokenObject,
+} from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
@@ -74,7 +79,10 @@ export async function fetchBridgeQuotes(
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
-): Promise<QuoteResponse[]> {
+): Promise<{
+  quotes: QuoteResponse[];
+  validationFailures: string[];
+}> {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
@@ -88,7 +96,7 @@ export async function fetchBridgeQuotes(
     insufficientBal: Boolean(request.insufficientBal),
     resetApproval: Boolean(request.resetApproval),
     gasIncluded: Boolean(request.gasIncluded),
-    gasless7702: Boolean(request.gasless7702),
+    gasIncluded7702: Boolean(request.gasIncluded7702),
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
@@ -115,31 +123,43 @@ export async function fetchBridgeQuotes(
     functionName: 'fetchBridgeQuotes',
   });
 
-  const validationFailuresByAggregator: {
-    [aggregator: string]: Set<string>;
-  } = {};
-  const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
-    try {
-      return validateQuoteResponse(quoteResponse);
-    } catch (error) {
-      if (error instanceof StructError) {
-        error.failures().forEach(({ branch, path }) => {
-          const aggregatorId = branch?.[0]?.quote?.bridgeId;
-          if (!validationFailuresByAggregator[aggregatorId]) {
-            validationFailuresByAggregator[aggregatorId] = new Set([]);
-          }
-          const pathString = path?.join('.') || 'unknown';
-          validationFailuresByAggregator[aggregatorId].add(pathString);
-        });
-      }
-      return false;
-    }
-  });
+  const uniqueValidationFailures: Set<string> = new Set<string>([]);
+  const filteredQuotes = quotes.filter(
+    (quoteResponse: unknown): quoteResponse is QuoteResponse => {
+      try {
+        const isBitcoinQuote = isBitcoinChainId(request.srcChainId);
 
-  if (Object.keys(validationFailuresByAggregator).length > 0) {
-    console.error('Quote validation failed', validationFailuresByAggregator);
+        if (isBitcoinQuote) {
+          return validateBitcoinQuoteResponse(quoteResponse);
+        }
+        return validateQuoteResponse(quoteResponse);
+      } catch (error) {
+        if (error instanceof StructError) {
+          error.failures().forEach(({ branch, path }) => {
+            const aggregatorId =
+              branch?.[0]?.quote?.bridgeId ||
+              branch?.[0]?.quote?.bridges?.[0] ||
+              (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+              'unknown';
+            const pathString = path?.join('.') || 'unknown';
+            uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
+          });
+        }
+        return false;
+      }
+    },
+  );
+
+  const validationFailures = Array.from(uniqueValidationFailures);
+  if (uniqueValidationFailures.size > 0) {
+    console.warn('Quote validation failed', validationFailures);
   }
-  return filteredQuotes as QuoteResponse[];
+
+  return {
+    quotes: filteredQuotes,
+    validationFailures,
+  };
 }
 
 const fetchAssetPricesForCurrency = async (request: {
