@@ -221,7 +221,7 @@ const accountsControllerMetadata = {
   internalAccounts: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };

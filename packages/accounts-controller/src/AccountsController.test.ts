@@ -3922,19 +3922,19 @@ describe('AccountsController', () => {
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
-      const { accountsController: controller } = setupAccountsController();
+      const { accountsController: controller } = setupAccountsController({});
 
       expect(
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
 
     it('includes expected state in state logs', () => {
-      const { accountsController: controller } = setupAccountsController();
+      const { accountsController: controller } = setupAccountsController({});
 
       expect(
         deriveStateFromMetadata(
@@ -3953,7 +3953,7 @@ describe('AccountsController', () => {
     });
 
     it('persists expected state', () => {
-      const { accountsController: controller } = setupAccountsController();
+      const { accountsController: controller } = setupAccountsController({});
 
       expect(
         deriveStateFromMetadata(
@@ -3972,7 +3972,7 @@ describe('AccountsController', () => {
     });
 
     it('exposes expected state to UI', () => {
-      const { accountsController: controller } = setupAccountsController();
+      const { accountsController: controller } = setupAccountsController({});
 
       expect(
         deriveStateFromMetadata(
