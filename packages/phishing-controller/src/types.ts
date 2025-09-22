@@ -160,3 +160,44 @@ export type BulkTokenScanResponse = Record<string, TokenScanResult>;
  * For now, we only cache the result type, but we could add more data if needed in the future
  */
 export type TokenScanCacheData = Omit<TokenScanResult, 'chain' | 'address'>;
+
+/**
+ * API response from the bulk token scanning endpoint
+ */
+export type TokenScanApiResponse = {
+  results: Record<
+    string,
+    {
+      result_type: TokenScanResultType;
+      chain?: string;
+      address?: string;
+    }
+  >;
+};
+
+export const DEFAULT_CHAIN_ID_TO_NAME = {
+  '0x1': 'ethereum',
+  '0x89': 'polygon',
+  '0x38': 'bsc',
+  '0xa4b1': 'arbitrum',
+  '0xa86a': 'avalanche',
+  '0x2105': 'base',
+  '0xa': 'optimism',
+  '0x76adf1': 'zora',
+  '0xe708': 'linea',
+  '0x27bc86aa': 'degen',
+  '0x144': 'zksync',
+  '0x82750': 'scroll',
+  '0x13e31': 'blast',
+  '0x74c': 'soneium',
+  '0x79a': 'soneium-minato',
+  '0x14a34': 'base-sepolia',
+  '0xab5': 'abstract',
+  '0x849ea': 'zero-network',
+  '0x138de': 'berachain',
+  '0x82': 'unichain',
+  '0x7e4': 'ronin',
+  '0x127': 'hedera',
+} as const;
+
+export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;

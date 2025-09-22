@@ -149,16 +149,6 @@ export class CacheManager<T> {
   }
 
   /**
-   * Check if a key exists in the cache (regardless of expiration)
-   *
-   * @param key - The cache key
-   * @returns True if the key exists
-   */
-  has(key: string): boolean {
-    return this.#cache.has(key);
-  }
-
-  /**
    * Delete a specific entry from the cache
    *
    * @param key - The cache key
