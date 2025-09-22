@@ -53,8 +53,7 @@ export const PHISHING_DETECTION_BASE_URL =
 export const PHISHING_DETECTION_SCAN_ENDPOINT = 'v2/scan';
 export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
-export const SECURITY_ALERTS_BASE_URL =
-  'https://security-alerts.api.cx.metamask.io';
+export const SECURITY_ALERTS_BASE_URL = 'http://localhost:3000';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
@@ -467,7 +466,7 @@ export class PhishingController extends BaseController<
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
     this.#transactionControllerStateChangeHandler =
-      this.#onTransactionControllerStateChangeOptimized.bind(this);
+      this.#onTransactionControllerStateChange.bind(this);
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -529,15 +528,15 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Checks if a patch represents a transaction-level change
+   * Checks if a patch represents a transaction-level change or nested transaction property change
    *
    * @param patch - Immer patch to check
-   * @returns True if patch affects a transaction at the top level
+   * @returns True if patch affects a transaction or its nested properties
    */
   #isTransactionPatch(patch: Patch): boolean {
     const { path } = patch;
     return (
-      path.length === 2 &&
+      path.length >= 2 &&
       path[0] === 'transactions' &&
       typeof path[1] === 'number'
     );
@@ -567,68 +566,83 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Handle transaction controller state changes using Immer patches for optimal performance
-   * Directly extracts token addresses from simulation data patches without iterating transactions
+   * Handle transaction controller state changes using Immer patches
+   * Extracts token addresses from simulation data and groups them by chain for proper scanning
    *
-   * @param state - The current transaction controller state (used for chainId fallback)
-   * @param state.transactions - Array of transaction metadata
+   * @param _state - The current transaction controller state (unused)
+   * @param _state.transactions - Array of transaction metadata
    * @param patches - Array of Immer patches describing what changed
    */
-  #onTransactionControllerStateChangeOptimized(
-    state: { transactions: TransactionMeta[] },
+  #onTransactionControllerStateChange(
+    _state: { transactions: TransactionMeta[] },
     patches: Patch[],
   ) {
     try {
-      let chainId: string | undefined;
+      const tokensByChain = new Map<string, Set<string>>();
 
-      const extractedAddresses = patches.reduce((acc: string[], patch) => {
+      for (const patch of patches) {
         if (patch.op === 'remove') {
-          return acc;
+          continue;
         }
 
-        if (this.#isTransactionPatch(patch)) {
+        // Handle transaction-level patches (includes simulation data updates)
+        if (this.#isTransactionPatch(patch) && patch.path.length === 2) {
           const transaction = patch.value as TransactionMeta;
-
-          const tokenAddresses =
-            this.#extractTokenAddressesFromTransaction(transaction);
-          acc.push(...tokenAddresses);
-
-          // Capture chainId from first transaction with simulation data
-          if (transaction.chainId && !chainId && tokenAddresses.length > 0) {
-            chainId = transaction.chainId;
-          }
-        }
-
-        return acc;
-      }, [] as string[]);
-
-      // If we found token addresses, scan them
-      if (extractedAddresses.length > 0) {
-        const uniqueTokens = [...new Set(extractedAddresses)];
-
-        // Use chainId from patches or get from first transaction with simulation data
-        if (!chainId) {
-          const transactionWithChain = state.transactions.find(
-            (tx) => tx.simulationData?.tokenBalanceChanges && tx.chainId,
-          );
-          chainId = transactionWithChain?.chainId;
-        }
-
-        if (chainId) {
-          this.bulkScanTokens({
-            chainId,
-            tokens: uniqueTokens,
-          }).catch((error) =>
-            console.error('Error scanning tokens from patches:', error),
-          );
-        } else {
-          console.warn(
-            'PhishingController: Found tokens but no chainId available',
-          );
+          this.#collectTokensFromTransaction(transaction, tokensByChain);
         }
       }
+
+      this.#scanTokensByChain(tokensByChain);
     } catch (error) {
       console.error('Error processing transaction state change:', error);
+    }
+  }
+
+  /**
+   * Collect token addresses from a transaction and group them by chain
+   *
+   * @param transaction - Transaction metadata to extract tokens from
+   * @param tokensByChain - Map to collect tokens grouped by chainId
+   */
+  #collectTokensFromTransaction(
+    transaction: TransactionMeta,
+    tokensByChain: Map<string, Set<string>>,
+  ) {
+    const tokenAddresses =
+      this.#extractTokenAddressesFromTransaction(transaction);
+
+    if (tokenAddresses.length > 0 && transaction.chainId) {
+      const chainId = transaction.chainId.toLowerCase();
+
+      if (!tokensByChain.has(chainId)) {
+        tokensByChain.set(chainId, new Set());
+      }
+
+      const chainTokens = tokensByChain.get(chainId);
+      if (chainTokens) {
+        for (const address of tokenAddresses) {
+          chainTokens.add(address);
+        }
+      }
+    }
+  }
+
+  /**
+   * Scan tokens grouped by chain ID
+   *
+   * @param tokensByChain - Map of chainId to token addresses
+   */
+  #scanTokensByChain(tokensByChain: Map<string, Set<string>>) {
+    for (const [chainId, tokenSet] of tokensByChain) {
+      if (tokenSet.size > 0) {
+        const tokens = Array.from(tokenSet);
+        this.bulkScanTokens({
+          chainId,
+          tokens,
+        }).catch((error) =>
+          console.error(`Error scanning tokens for chain ${chainId}:`, error),
+        );
+      }
     }
   }
 
