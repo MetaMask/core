@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [45.0.0]
 
+### Uncategorized
+
+- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
+
 ### Added
 
 - Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
@@ -36,10 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove deprecated `SolanaFees` type - use `NonEvmFees` type instead ([#6454](https://github.com/MetaMask/core/pull/6454))
 - **BREAKING:** Remove `solanaFeesInLamports` field from quotes - use `nonEvmFeesInNative` field instead ([#6454](https://github.com/MetaMask/core/pull/6454))
-
-### Uncategorized
-
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
 
 ## [44.0.0]
 
