@@ -578,36 +578,32 @@ export class PhishingController extends BaseController<
    * @param transaction - The transaction with simulation data
    */
   async #scanTokensFromSimulation(transaction: TransactionMeta) {
-    try {
-      const { chainId, simulationData } = transaction;
-      const { tokenBalanceChanges = [] } = simulationData || {};
+    const { chainId, simulationData } = transaction;
+    const { tokenBalanceChanges = [] } = simulationData || {};
 
-      if (
-        !chainId ||
-        !Array.isArray(tokenBalanceChanges) ||
-        tokenBalanceChanges.length === 0
-      ) {
-        return;
+    if (
+      !chainId ||
+      !Array.isArray(tokenBalanceChanges) ||
+      tokenBalanceChanges.length === 0
+    ) {
+      return;
+    }
+
+    const tokenAddresses = new Set<string>();
+
+    for (const tokenChange of tokenBalanceChanges) {
+      if (tokenChange?.address && typeof tokenChange.address === 'string') {
+        tokenAddresses.add(tokenChange.address.toLowerCase());
       }
+    }
 
-      const tokenAddresses = new Set<string>();
+    const tokens = Array.from(tokenAddresses);
 
-      for (const tokenChange of tokenBalanceChanges) {
-        if (tokenChange?.address && typeof tokenChange.address === 'string') {
-          tokenAddresses.add(tokenChange.address.toLowerCase());
-        }
-      }
-
-      const tokens = Array.from(tokenAddresses);
-
-      if (tokens.length > 0) {
-        this.bulkScanTokens({
-          chainId,
-          tokens,
-        }).catch((error) => console.error('Error in bulk scan tokens:', error));
-      }
-    } catch (error) {
-      console.error('Error scanning tokens from simulation:', error);
+    if (tokens.length > 0) {
+      await this.bulkScanTokens({
+        chainId,
+        tokens,
+      });
     }
   }
 

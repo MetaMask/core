@@ -268,7 +268,7 @@ describe('PhishingController', () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error in bulk scan tokens:',
+      'Error scanning tokens from simulation:',
       expect.any(Error),
     );
 
@@ -359,7 +359,7 @@ describe('PhishingController', () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error in bulk scan tokens:',
+      'Error scanning tokens from simulation:',
       expect.any(Error),
     );
 
