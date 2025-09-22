@@ -13,6 +13,7 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
 import { CacheManager, type CacheEntry } from './CacheManager';
@@ -52,8 +53,7 @@ export const PHISHING_DETECTION_BASE_URL =
 export const PHISHING_DETECTION_SCAN_ENDPOINT = 'v2/scan';
 export const PHISHING_DETECTION_BULK_SCAN_ENDPOINT = 'bulk-scan';
 
-export const SECURITY_ALERTS_BASE_URL =
-  'https://security-alerts.api.cx.metamask.io';
+export const SECURITY_ALERTS_BASE_URL = 'http://localhost:3000';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 
 // Cache configuration defaults
@@ -423,8 +423,8 @@ export class PhishingController extends BaseController<
   #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
   readonly #transactionControllerStateChangeHandler: (
-    transactions: TransactionMeta[],
-    previousTransactions: TransactionMeta[] | undefined,
+    state: { transactions: TransactionMeta[] },
+    patches: Patch[],
   ) => void;
 
   /**
@@ -466,7 +466,7 @@ export class PhishingController extends BaseController<
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
     this.#transactionControllerStateChangeHandler =
-      this.#onTransactionControllerStateChange.bind(this);
+      this.#onTransactionControllerStateChangeOptimized.bind(this);
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -491,18 +491,13 @@ export class PhishingController extends BaseController<
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
+    this.#subscribeToTransactionControllerStateChange();
+
+    // Initial scan will happen when the first state change event fires
   }
 
-  start() {
+  #subscribeToTransactionControllerStateChange() {
     this.messagingSystem.subscribe(
-      'TransactionController:stateChange',
-      this.#transactionControllerStateChangeHandler,
-      (state) => state.transactions,
-    );
-  }
-
-  stop() {
-    this.messagingSystem.unsubscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -535,78 +530,112 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Handle transaction controller state changes and scan tokens when simulation data changes
+   * Checks if a patch represents a transaction-level change
    *
-   * @param transactions - The current transactions array
-   * @param previousTransactions - The previous transactions array
+   * @param patch - Immer patch to check
+   * @returns True if patch affects a transaction at the top level
    */
-  #onTransactionControllerStateChange(
-    transactions: TransactionMeta[],
-    previousTransactions: TransactionMeta[] | undefined,
+  #isTransactionPatch(patch: Patch): boolean {
+    const { path } = patch;
+    return (
+      path.length === 2 &&
+      path[0] === 'transactions' &&
+      typeof path[1] === 'number'
+    );
+  }
+
+  /**
+   * Extracts token addresses from a transaction's simulation data
+   *
+   * @param transaction - Transaction metadata to extract tokens from
+   * @returns Array of lowercase token addresses
+   */
+  #extractTokenAddressesFromTransaction(
+    transaction: TransactionMeta,
+  ): string[] {
+    const addresses: string[] = [];
+
+    if (transaction.simulationData?.tokenBalanceChanges) {
+      for (const tokenChange of transaction.simulationData
+        .tokenBalanceChanges) {
+        if (tokenChange?.address && typeof tokenChange.address === 'string') {
+          addresses.push(tokenChange.address.toLowerCase());
+        }
+      }
+    }
+
+    return addresses;
+  }
+
+  /**
+   * Handle transaction controller state changes using Immer patches for optimal performance
+   * Directly extracts token addresses from simulation data patches without iterating transactions
+   *
+   * @param state - The current transaction controller state (used for chainId fallback)
+   * @param state.transactions - Array of transaction metadata
+   * @param patches - Array of Immer patches describing what changed
+   */
+  #onTransactionControllerStateChangeOptimized(
+    state: { transactions: TransactionMeta[] },
+    patches: Patch[],
   ) {
     try {
-      const previousTransactionsById = new Map<string, TransactionMeta>(
-        previousTransactions?.map((tx) => [tx.id, tx]) ?? [],
-      );
-      for (const transaction of transactions) {
-        const previousTransaction = previousTransactionsById.get(
-          transaction.id,
-        );
+      let chainId: string | undefined;
 
-        // Scan tokens if the transaction is new or if the simulation data has changed
-        if (
-          !previousTransaction ||
-          // Reference equality is sufficient because simulationData object is replaced when changed
-          previousTransaction.simulationData !== transaction.simulationData
-        ) {
-          if (
-            transaction.simulationData?.tokenBalanceChanges &&
-            Array.isArray(transaction.simulationData.tokenBalanceChanges) &&
-            transaction.simulationData.tokenBalanceChanges.length > 0
-          ) {
-            this.#scanTokensFromSimulation(transaction).catch((error) =>
-              console.error('Error scanning tokens from simulation:', error),
-            );
+      const extractedAddresses = patches.reduce((acc: string[], patch) => {
+        if (patch.op === 'remove') {
+          return acc;
+        }
+
+        if (this.#isTransactionPatch(patch)) {
+          const transaction = patch.value as TransactionMeta;
+
+          const tokenAddresses =
+            this.#extractTokenAddressesFromTransaction(transaction);
+          acc.push(...tokenAddresses);
+
+          // Capture chainId from first transaction with simulation data
+          if (transaction.chainId && !chainId && tokenAddresses.length > 0) {
+            chainId = transaction.chainId;
           }
+        }
+
+        return acc;
+      }, [] as string[]);
+
+      // If we found token addresses, scan them
+      if (extractedAddresses.length > 0) {
+        // Deduplicate addresses
+        const uniqueTokens = [...new Set(extractedAddresses)];
+
+        // Use chainId from patches or get from first transaction with simulation data
+        if (!chainId) {
+          const transactionWithChain = state.transactions.find(
+            (tx) => tx.simulationData?.tokenBalanceChanges && tx.chainId,
+          );
+          chainId = transactionWithChain?.chainId;
+        }
+
+        if (chainId) {
+          console.log(
+            `PhishingController: Scanning ${uniqueTokens.length} tokens from simulation patches`,
+            { chainId, tokens: uniqueTokens },
+          );
+
+          this.bulkScanTokens({
+            chainId,
+            tokens: uniqueTokens,
+          }).catch((error) =>
+            console.error('Error scanning tokens from patches:', error),
+          );
+        } else {
+          console.warn(
+            'PhishingController: Found tokens but no chainId available',
+          );
         }
       }
     } catch (error) {
       console.error('Error processing transaction state change:', error);
-    }
-  }
-
-  /**
-   * Extract tokens from simulation data and scan them for malicious activity
-   *
-   * @param transaction - The transaction with simulation data
-   */
-  async #scanTokensFromSimulation(transaction: TransactionMeta) {
-    const { chainId, simulationData } = transaction;
-    const { tokenBalanceChanges = [] } = simulationData || {};
-
-    if (
-      !chainId ||
-      !Array.isArray(tokenBalanceChanges) ||
-      tokenBalanceChanges.length === 0
-    ) {
-      return;
-    }
-
-    const tokenAddresses = new Set<string>();
-
-    for (const tokenChange of tokenBalanceChanges) {
-      if (tokenChange?.address && typeof tokenChange.address === 'string') {
-        tokenAddresses.add(tokenChange.address.toLowerCase());
-      }
-    }
-
-    const tokens = Array.from(tokenAddresses);
-
-    if (tokens.length > 0) {
-      await this.bulkScanTokens({
-        chainId,
-        tokens,
-      });
     }
   }
 
