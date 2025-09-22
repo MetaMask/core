@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
 import {
   normalizeEnsName,
@@ -150,7 +150,7 @@ const addressBookControllerMetadata = {
   addressBook: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
