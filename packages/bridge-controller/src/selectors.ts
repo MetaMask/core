@@ -294,7 +294,6 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,
           nativeExchangeRate,
-          quote.quote.srcChainId,
         );
         gasFee = {
           effective: totalEstimatedNetworkFee,

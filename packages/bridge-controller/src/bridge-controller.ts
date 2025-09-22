@@ -9,7 +9,6 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
-import { BigNumber as BN } from 'bignumber.js';
 
 import {
   type BridgeClientId,
@@ -795,19 +794,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           }[];
 
           const baseFee = response?.find((fee) => fee.type === 'base');
-          let feeInNative = '0';
-
-          if (baseFee?.asset?.amount) {
-            if (isSolanaChainId(quote.srcChainId)) {
-              // Convert SOL to Lamports (1 SOL = 10^9 Lamports)
-              const solAmount = new BN(baseFee.asset.amount);
-              const lamports = solAmount.multipliedBy(1e9);
-              feeInNative = lamports.toFixed(0);
-            } else {
-              // For other chains (BTC), use the fee as-is
-              feeInNative = baseFee.asset.amount;
-            }
-          }
+          // Store fees in native units as returned by the snap (e.g., SOL, BTC)
+          const feeInNative = baseFee?.asset?.amount || '0';
 
           return {
             ...quoteResponse,

@@ -5,7 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isNonEvmChainId, isSolanaChainId } from './bridge';
+import { isNativeAddress, isNonEvmChainId } from './bridge';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -97,21 +97,10 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
 export const calcNonEvmTotalNetworkFee = (
   bridgeQuote: QuoteResponse & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
-  chainId: string | number,
 ) => {
   const { nonEvmFeesInNative } = bridgeQuote;
-
-  let feeInNative: BigNumber;
-
-  if (isSolanaChainId(chainId)) {
-    // Solana fees are stored in lamports (smallest units), need to convert to SOL
-    const decimals = 9;
-    feeInNative = calcTokenAmount(nonEvmFeesInNative ?? '0', decimals);
-  } else {
-    // Bitcoin fees are already in native units (BTC)
-    // No conversion needed
-    feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
-  }
+  // Fees are now stored directly in native units (SOL, BTC) without conversion
+  const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
 
   return {
     amount: feeInNative.toString(),

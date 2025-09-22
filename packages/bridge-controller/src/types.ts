@@ -78,7 +78,7 @@ export type L1GasFees = {
 };
 
 export type NonEvmFees = {
-  nonEvmFeesInNative?: string; // Non-EVM chain fees in smallest units (lamports for Solana, satoshis for BTC)
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
 /**

@@ -690,7 +690,7 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '5000',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          nonEvmFeesInNative: '14',
+          nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
         quoteRequest: quoteParams,
@@ -752,7 +752,7 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '5000',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          nonEvmFeesInNative: '14',
+          nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
         quoteRequest: quoteParams,
@@ -788,7 +788,7 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '0',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          nonEvmFeesInNative: '14',
+          nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
         quoteRequest: { ...quoteParams, srcTokenAmount: '11111' },
@@ -1601,7 +1601,7 @@ describe('BridgeController', function () {
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
       [],
       2,
-      '5000',
+      '0.000005000', // SOL amount (5000 lamports)
       '300',
     ],
     [
@@ -1731,9 +1731,7 @@ describe('BridgeController', function () {
                       asset: {
                         unit: 'SOL',
                         type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
-                        amount: expectedFees
-                          ? `0.${expectedFees.padStart(9, '0')}`
-                          : '0', // Convert lamports to SOL
+                        amount: expectedFees || '0',
                         fungible: true,
                       },
                     },

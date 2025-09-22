@@ -26,7 +26,6 @@ import type {
   L1GasFees,
   TxData,
 } from '../types';
-import { ChainId } from '../types';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {
@@ -259,20 +258,16 @@ describe('Quote Metadata Utils', () => {
 
   describe('calcNonEvmTotalNetworkFee', () => {
     const mockBridgeQuote: QuoteResponse & NonEvmFees = {
-      nonEvmFeesInNative: '1000000000',
+      nonEvmFeesInNative: '1',
       quote: {} as Quote,
       trade: {},
     } as QuoteResponse & NonEvmFees;
 
     it('should calculate Solana fees correctly with exchange rates', () => {
-      const result = calcNonEvmTotalNetworkFee(
-        mockBridgeQuote,
-        {
-          exchangeRate: '2',
-          usdExchangeRate: '1.5',
-        },
-        ChainId.SOLANA,
-      );
+      const result = calcNonEvmTotalNetworkFee(mockBridgeQuote, {
+        exchangeRate: '2',
+        usdExchangeRate: '1.5',
+      });
 
       expect(result.amount).toBe('1');
       expect(result.valueInCurrency).toBe('2');
@@ -286,14 +281,10 @@ describe('Quote Metadata Utils', () => {
         trade: {},
       } as QuoteResponse & NonEvmFees;
 
-      const result = calcNonEvmTotalNetworkFee(
-        btcQuote,
-        {
-          exchangeRate: '60000',
-          usdExchangeRate: '60000',
-        },
-        ChainId.BTC,
-      );
+      const result = calcNonEvmTotalNetworkFee(btcQuote, {
+        exchangeRate: '60000',
+        usdExchangeRate: '60000',
+      });
 
       expect(result.amount).toBe('0.00005');
       expect(result.valueInCurrency).toBe('3'); // 0.00005 * 60000 = 3
@@ -301,11 +292,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle missing exchange rates', () => {
-      const result = calcNonEvmTotalNetworkFee(
-        mockBridgeQuote,
-        {},
-        ChainId.SOLANA,
-      );
+      const result = calcNonEvmTotalNetworkFee(mockBridgeQuote, {});
 
       expect(result.amount).toBe('1');
       expect(result.valueInCurrency).toBeNull();
@@ -316,7 +303,6 @@ describe('Quote Metadata Utils', () => {
       const result = calcNonEvmTotalNetworkFee(
         { ...mockBridgeQuote, nonEvmFeesInNative: '0' },
         { exchangeRate: '2', usdExchangeRate: '1.5' },
-        ChainId.SOLANA,
       );
 
       expect(result.amount).toBe('0');
