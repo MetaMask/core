@@ -232,9 +232,9 @@ function setExpectedLastSelectedAsAny(
 }
 
 /**
- * Builds a new instance of the Root Messenger.
+ * Builds a new instance of the root messenger.
  *
- * @returns A new instance of the Root Messenger.
+ * @returns A new instance of the root messenger.
  */
 function buildMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
