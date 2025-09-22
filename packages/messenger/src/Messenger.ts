@@ -177,6 +177,7 @@ type DelegatedMessenger = Pick<
   | '_internalRegisterDelegatedActionHandler'
   | '_internalRegisterDelegatedInitialEventPayload'
   | '_internalUnregisterDelegatedActionHandler'
+  | 'captureException'
 >;
 
 type StripNamespace<Namespaced extends NamespacedName> =
@@ -255,19 +256,29 @@ export class Messenger<
   >();
 
   /**
+   * Reports an error to an error monitoring service.
+   *
+   * @param error - The error to report.
+   */
+  readonly captureException?: (error: Error) => void;
+
+  /**
    * Construct a messenger.
    *
    * If a parent messenger is given, all actions and events under this messenger's namespace will
    * be delegated to the parent automatically.
    *
    * @param args - Constructor arguments
+   * @param args.captureException - Reports an error to an error monitoring service.
    * @param args.namespace - The messenger namespace.
    * @param args.parent - The parent messenger.
    */
   constructor({
+    captureException,
     namespace,
     parent,
   }: {
+    captureException?: (error: Error) => void;
     namespace: Namespace;
     parent?: Action['type'] extends MessengerActions<Parent>['type']
       ? Event['type'] extends MessengerEvents<Parent>['type']
@@ -277,6 +288,7 @@ export class Messenger<
   }) {
     this.#namespace = namespace;
     this.#parent = parent;
+    this.captureException = captureException ?? this.#parent?.captureException;
   }
 
   /**
@@ -529,11 +541,14 @@ export class Messenger<
             (handler as GenericEventHandler)(...payload);
           }
         } catch (error) {
-          // Throw error after timeout so that it is capured as a console error
-          // (and by Sentry) without interrupting the event publishing.
-          setTimeout(() => {
-            throw error;
-          });
+          // Capture error without interrupting the event publishing.
+          if (this.captureException) {
+            this.captureException(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          } else {
+            console.error(error);
+          }
         }
       }
     }

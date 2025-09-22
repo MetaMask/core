@@ -78,40 +78,58 @@ import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotes: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesInitialLoadTime: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLastFetched: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLoadingStatus: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quoteFetchError: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesRefreshCount: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   assetExchangeRates: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   minimumBalanceForRentExemptionInLamports: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -128,8 +146,8 @@ type BridgePollingInput = {
   updatedQuoteRequest: GenericQuoteRequest;
   context: Pick<
     RequiredEventContextFromClient,
-    UnifiedSwapBridgeEventName.QuoteError
-  >[UnifiedSwapBridgeEventName.QuoteError] &
+    UnifiedSwapBridgeEventName.QuotesError
+  >[UnifiedSwapBridgeEventName.QuotesError] &
     Pick<
       RequiredEventContextFromClient,
       UnifiedSwapBridgeEventName.QuotesRequested
@@ -603,7 +621,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuoteError,
+        UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
@@ -874,7 +892,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.QuoteError:
+      case UnifiedSwapBridgeEventName.QuotesError:
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),

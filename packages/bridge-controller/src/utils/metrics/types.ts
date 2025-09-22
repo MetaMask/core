@@ -42,6 +42,7 @@ export type QuoteFetchData = {
 export type TradeData = {
   usd_quoted_gas: number;
   gas_included: boolean;
+  gas_included_7702: boolean;
   quoted_time_minutes: number;
   usd_quoted_return: number;
   provider: `${string}_${string}`;
@@ -87,7 +88,7 @@ export type RequiredEventContextFromClient = {
       | 'slippage';
     input_value: InputValues[keyof InputValues];
   };
-  [UnifiedSwapBridgeEventName.InputSourceDestinationFlipped]: {
+  [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_address_source: RequestParams['token_address_source'];
@@ -108,7 +109,7 @@ export type RequiredEventContextFromClient = {
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];
   };
-  [UnifiedSwapBridgeEventName.QuoteError]: Pick<
+  [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
     'stx_enabled'
   > & {
@@ -214,7 +215,7 @@ export type EventPropertiesFromControllerState = {
     input: InputKeys;
     input_value: string;
   };
-  [UnifiedSwapBridgeEventName.InputSourceDestinationFlipped]: RequestParams;
+  [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: RequestParams;
   [UnifiedSwapBridgeEventName.QuotesRequested]: RequestParams &
     RequestMetadata & {
       has_sufficient_funds: boolean;
@@ -225,7 +226,7 @@ export type EventPropertiesFromControllerState = {
     TradeData & {
       refresh_count: number; // starts from 0
     };
-  [UnifiedSwapBridgeEventName.QuoteError]: RequestParams &
+  [UnifiedSwapBridgeEventName.QuotesError]: RequestParams &
     RequestMetadata & {
       has_sufficient_funds: boolean;
       error_message: string;
