@@ -40,13 +40,13 @@ describe('delegations utils', () => {
     const authority = '0x1234abcd';
     const caveats: Json[] = [];
     const justification = 'Need to perform actions on behalf of user';
-    const chainIdString = '1';
+    const chainId = 1;
     const decodedPermissionResult: DecodedPermission = {
       kind: 'decoded-permission',
     } as unknown as DecodedPermission;
     const validData = {
       types: {},
-      domain: { chainId: chainIdString },
+      domain: { chainId },
       primaryType: 'Delegation',
       message: {
         delegate,
@@ -77,11 +77,21 @@ describe('delegations utils', () => {
         'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
         {
           origin,
-          chainId: 1,
+          chainId,
           delegation: { delegate, delegator, caveats, authority },
           metadata: { justification, origin: specifiedOrigin },
         },
       );
+    });
+
+    it('throws an error if chainId is not a number', () => {
+      expect(() =>
+        decodePermissionFromRequest({
+          data: { ...validData, domain: { chainId: '1' } },
+          messenger,
+          origin,
+        }),
+      ).toThrow('Invalid chainId');
     });
 
     it.each([

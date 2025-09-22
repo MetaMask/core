@@ -56,7 +56,11 @@ export function decodePermissionFromRequest({
     metadata: { origin: specifiedOrigin, justification },
   } = data;
 
-  const chainId = parseInt(data.domain.chainId as string, 10);
+  if (typeof data.domain.chainId !== 'number') {
+    throw new Error('Invalid chainId');
+  }
+
+  const { chainId } = data.domain;
 
   const { delegate, delegator, authority, caveats } =
     data.message as DelegationDetails;
