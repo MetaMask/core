@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.5` to `^5.0.0` ([#297](https://github.com/MetaMask/eth-block-tracker/pull/297))
+
 ## [12.0.1]
 
 ### Fixed
