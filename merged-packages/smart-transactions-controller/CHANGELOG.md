@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.2.0]
+
 ### Added
 
 - Add missing constants and helpers exports ([#538](https://github.com/MetaMask/smart-transactions-controller/pull/538))
@@ -638,7 +640,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.2.0...HEAD
+[19.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.1.0...v19.2.0
 [19.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v19.0.0...v19.1.0
 [19.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v18.1.0...v19.0.0
 [18.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v18.0.0...v18.1.0
