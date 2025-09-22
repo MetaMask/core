@@ -1,8 +1,7 @@
 import * as sinon from 'sinon';
 
 import { ListKeys, ListNames } from './PhishingController';
-import type { ChainIdToNameMap } from './types';
-import { DEFAULT_CHAIN_ID_TO_NAME, type TokenScanResultType } from './types';
+import { type TokenScanResultType } from './types';
 import {
   applyDiffs,
   buildCacheKey,
