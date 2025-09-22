@@ -1,5 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller/next';
-import { Messenger } from '@metamask/messenger';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import type {
   AnnouncementControllerState,
@@ -19,10 +23,10 @@ const name = 'AnnouncementController';
  */
 function getMessenger() {
   const messenger = new Messenger<
-    'Root',
+    MockAnyNamespace,
     AnnouncementControllerActions,
     AnnouncementControllerEvents
-  >({ namespace: 'Root' });
+  >({ namespace: MOCK_ANY_NAMESPACE });
   return new Messenger<
     typeof name,
     AnnouncementControllerActions,
