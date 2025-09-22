@@ -27,7 +27,7 @@ import { v4 as uuid } from 'uuid';
 import { calculateGasFees } from './gas';
 import { createClientTransactionRequest } from './snaps';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
-import { LINEA_DELAY_MS } from '../constants';
+import { APPROVAL_DELAY_MS } from '../constants';
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
@@ -200,16 +200,16 @@ export const handleNonEvmTxResponse = (
   };
 };
 
-export const handleLineaDelay = async (
+export const handleApprovalDelay = async (
   quoteResponse: QuoteResponse<TxData | string>,
 ) => {
-  if (ChainId.LINEA === quoteResponse.quote.srcChainId) {
+  if ([ChainId.LINEA, ChainId.BASE].includes(quoteResponse.quote.srcChainId)) {
     const debugLog = createProjectLogger('bridge');
     debugLog(
-      'Delaying submitting bridge tx to make Linea confirmation more likely',
+      'Delaying submitting bridge tx to make Linea and Base confirmation more likely',
     );
     const waitPromise = new Promise((resolve) =>
-      setTimeout(resolve, LINEA_DELAY_MS),
+      setTimeout(resolve, APPROVAL_DELAY_MS),
     );
     await waitPromise;
   }
