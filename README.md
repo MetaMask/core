@@ -152,6 +152,7 @@ linkStyle default opacity:0.5
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
   app_metadata_controller --> base_controller;
+  app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
