@@ -305,7 +305,7 @@ export class MultichainAccountService {
     mnemonic,
     password,
   }: {
-    mnemonic?: string;
+    mnemonic?: Uint8Array;
     password: string;
   }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
     if (!password) {
@@ -320,13 +320,11 @@ export class MultichainAccountService {
         KeyringTypes.hd,
       ) as HdKeyring[];
 
-      const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
-
       const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
         if (!keyring.mnemonic) {
           return false;
         }
-        return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
+        return areUint8ArraysEqual(keyring.mnemonic, mnemonic);
       });
 
       if (alreadyHasImportedSrp) {
