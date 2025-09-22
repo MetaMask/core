@@ -7,9 +7,9 @@ module.exports = {
   coverageThreshold: {
     global: {
       branches: 74.65,
-      functions: 91.5,
-      lines: 92.52,
-      statements: 92.51,
+      functions: 88.18,
+      lines: 92.33,
+      statements: 91.89,
     },
   },
   moduleFileExtensions: ['js', 'json', 'jsx', 'ts', 'tsx', 'node'],

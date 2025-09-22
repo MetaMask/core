@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Export `SmartTransactionMinedTx`, `SmartTransactionCancellationReason`, `SmartTransactionStatuses`, and `ClientId` enums values instead of types only ([#541](https://github.com/MetaMask/smart-transactions-controller/pull/541))
+
 ## [19.2.0]
 
 ### Added
