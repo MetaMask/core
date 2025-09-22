@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.2.0]
+
 ### Uncategorized
 
 - Fix network-controller build ([#6452](https://github.com/MetaMask/core/pull/6452))
@@ -944,7 +946,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...HEAD
+[24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
