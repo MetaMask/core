@@ -288,50 +288,86 @@ export class MultichainAccountService {
   }
 
   /**
-   * Creates a new multichain account wallet with the given mnemonic.
+   * Creates a new multichain account wallet by first creating a new vault and keyring.
+   * If just a password is provided, then a new vault and keyring are created with a randomly generated mnemonic.
+   * If a mnemonic and password are provided, then a new vault and keyring are created with the given mnemonic.
    *
    * NOTE: This method should only be called in client code where a mutex lock is acquired.
    * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
    *
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
+   * @param options.password - The password to encrypt the vault with.
    * @throws If the mnemonic has already been imported.
    * @returns The new multichain account wallet.
    */
   async createMultichainAccountWallet({
     mnemonic,
+    password,
   }: {
-    mnemonic: string;
+    mnemonic?: string;
+    password: string;
   }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
-    const existingKeyrings = this.#messenger.call(
-      'KeyringController:getKeyringsByType',
-      KeyringTypes.hd,
-    ) as HdKeyring[];
-
-    const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
-
-    const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
-      if (!keyring.mnemonic) {
-        return false;
-      }
-      return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
-    });
-
-    if (alreadyHasImportedSrp) {
-      throw new Error('This Secret Recovery Phrase has already been imported.');
+    if (!password) {
+      throw new Error('A password must be provided for this method.');
     }
 
-    const result = await this.#messenger.call(
-      'KeyringController:addNewKeyring',
-      KeyringTypes.hd,
-      { mnemonic },
-    );
+    let wallet: MultichainAccountWallet<Bip44Account<KeyringAccount>>;
 
-    const wallet = new MultichainAccountWallet({
-      providers: this.#providers,
-      entropySource: result.id,
-      messenger: this.#messenger,
-    });
+    if (mnemonic) {
+      const existingKeyrings = this.#messenger.call(
+        'KeyringController:getKeyringsByType',
+        KeyringTypes.hd,
+      ) as HdKeyring[];
+
+      const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
+
+      const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
+        if (!keyring.mnemonic) {
+          return false;
+        }
+        return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
+      });
+
+      if (alreadyHasImportedSrp) {
+        throw new Error(
+          'This Secret Recovery Phrase has already been imported.',
+        );
+      }
+
+      const result = await this.#messenger.call(
+        'KeyringController:addNewKeyring',
+        KeyringTypes.hd,
+        { mnemonic },
+      );
+    } else {
+      try {
+        await this.#messenger.call(
+          'KeyringController:createNewVaultAndKeychain',
+          password,
+        );
+
+        // we're sure to get the correct keyring as it's the only one at this point
+        const entropySourceId = (await this.#messenger.call(
+          'KeyringController:withKeyring',
+          { type: KeyringTypes.hd },
+          async ({ metadata }) => {
+            return metadata.id;
+          },
+        )) as string;
+
+        // createNewVaultAndKeychain creates an account on the newly created keyring
+        // we don't need to worry about not having this account in the service state yet
+        // because the discovery process will store it in state through the alignment in the end.
+        wallet = new MultichainAccountWallet({
+          providers: this.#providers,
+          entropySource: entropySourceId,
+          messenger: this.#messenger,
+        });
+      } catch {
+        throw new Error('Failed to create a new vault and keychain.');
+      }
+    }
 
     this.#wallets.set(wallet.id, wallet);
 
