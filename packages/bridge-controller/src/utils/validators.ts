@@ -104,8 +104,8 @@ const GenericQuoteRequestSchema = type({
 const FeatureIdSchema = enums(Object.values(FeatureId));
 
 const Bip44DefaultPairSchema = type({
-  destAsset: string(),
-  srcAsset: string(),
+  standard: record(string(), string()),
+  other: record(string(), string()),
 });
 
 /**
@@ -121,6 +121,10 @@ export const PlatformConfigSchema = type({
   maxRefreshCount: number(),
   support: boolean(),
   chains: record(string(), ChainConfigurationSchema),
+  /**
+   * The bip44 default pairs for the chains
+   * Key is the CAIP chainId namespace
+   */
   bip44DefaultPairs: optional(
     record(string(), optional(Bip44DefaultPairSchema)),
   ),
