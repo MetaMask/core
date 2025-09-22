@@ -1,5 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller/next';
-import { Messenger } from '@metamask/messenger';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 
 import {
   AppMetadataController,
@@ -223,10 +227,10 @@ function withController<ReturnValue>(
   const [options = {}, fn] = args.length === 2 ? args : [{}, args[0]];
 
   const rootMessenger = new Messenger<
-    'Root',
+    MockAnyNamespace,
     AppMetadataControllerActions,
     AppMetadataControllerEvents
-  >({ namespace: 'Root' });
+  >({ namespace: MOCK_ANY_NAMESPACE });
 
   const appMetadataControllerMessenger = new Messenger<
     'AppMetadataController',
