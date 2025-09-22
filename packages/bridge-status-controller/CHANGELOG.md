@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [45.0.0]
 
+### Uncategorized
+
+- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
+
 ### Added
 
 - Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
@@ -38,18 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `formatChainIdToCaip` to get proper scope for each chain
   - Extract transaction data from either string or PSBT object format
 - Remove dependency on `@metamask/keyring-api` ([#6454](https://github.com/MetaMask/core/pull/6454))
+- Refactor `handleLineaDelay` to `handleApprovalDelay` for improved abstraction and add support for Base chain by using an array and `includes` for chain ID checks ([#6674](https://github.com/MetaMask/core/pull/6674))
 
 ### Removed
 
 - Remove direct dependency on `@metamask/keyring-api` - no longer needed with unified Snap interface ([#6454](https://github.com/MetaMask/core/pull/6454))
-
-### Uncategorized
-
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-
-### Changed
-
-- Refactor `handleLineaDelay` to `handleApprovalDelay` for improved abstraction and add support for Base chain by using an array and `includes` for chain ID checks ([#6674](https://github.com/MetaMask/core/pull/6674))
 
 ## [44.0.0]
 
