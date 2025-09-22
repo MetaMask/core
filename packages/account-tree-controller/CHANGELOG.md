@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.8.0` to `^0.11.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
@@ -287,7 +289,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.1...@metamask/account-tree-controller@1.0.0
 [0.18.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.0...@metamask/account-tree-controller@0.18.1
 [0.18.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.17.0...@metamask/account-tree-controller@0.18.0
 [0.17.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.1...@metamask/account-tree-controller@0.17.0
