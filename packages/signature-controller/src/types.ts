@@ -205,3 +205,17 @@ export enum SignatureRequestType {
   PersonalSign = 'personal_sign',
   TypedSign = 'eth_signTypedData',
 }
+
+export type Caveat = {
+  enforcer: Hex;
+  terms: Hex;
+  args: Hex;
+};
+
+export type Delegation = {
+  delegate: Hex;
+  delegator: Hex;
+  authority: Hex;
+  caveats: Caveat[];
+  salt: number;
+};
