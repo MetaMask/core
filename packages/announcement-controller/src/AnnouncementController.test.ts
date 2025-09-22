@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { Messenger } from '@metamask/messenger';
 
 import type {
@@ -174,7 +174,7 @@ describe('announcement controller', () => {
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 
@@ -182,7 +182,7 @@ describe('announcement controller', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {
@@ -204,7 +204,7 @@ describe('announcement controller', () => {
 
     it('includes expected state in state logs', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 
@@ -234,7 +234,7 @@ describe('announcement controller', () => {
 
     it('persists expected state', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 
@@ -264,7 +264,7 @@ describe('announcement controller', () => {
 
     it('exposes expected state to UI', () => {
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
         allAnnouncements,
       });
 

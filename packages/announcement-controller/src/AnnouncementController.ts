@@ -64,7 +64,7 @@ const metadata: StateMetadata<AnnouncementControllerState> = {
   announcements: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
