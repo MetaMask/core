@@ -52,6 +52,30 @@ function getCachedNumberFormat(
 }
 
 /**
+ * Format a number with optional Intl overrides.
+ *
+ * @param config - Configuration object with locale.
+ * @param config.locale - Locale string.
+ * @param value - Numeric value to format.
+ * @param options - Optional Intl.NumberFormat overrides.
+ * @returns Formatted number string.
+ */
+function formatNumber(
+  config: { locale: string },
+  value: number | bigint | `${number}`,
+  options: Intl.NumberFormatOptions = {},
+) {
+  if (!Number.isFinite(Number(value))) {
+    return '';
+  }
+
+  const numberFormat = getCachedNumberFormat(config.locale, options);
+
+  // @ts-expect-error Remove this comment once TypeScript is updated to 5.5+
+  return numberFormat.format(value);
+}
+
+/**
  * Format a value as a currency string.
  *
  * @param config - Configuration object with locale.
@@ -260,6 +284,13 @@ function formatTokenQuantity(
  */
 export function createFormatters({ locale = FALLBACK_LOCALE }) {
   return {
+    /**
+     * Format a number with optional Intl overrides.
+     *
+     * @param value - Numeric value to format.
+     * @param options - Optional Intl.NumberFormat overrides.
+     */
+    formatNumber: formatNumber.bind(null, { locale }),
     /**
      * Format a value as a currency string.
      *
