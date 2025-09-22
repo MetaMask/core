@@ -9,22 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [45.0.0]
 
-### Uncategorized
-
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-
-### Changed
-
-- Refactor `handleLineaDelay` to `handleApprovalDelay` for improved abstraction and add support for Base chain by using an array and `includes` for chain ID checks ([#6674](https://github.com/MetaMask/core/pull/6674))
-
-## [44.0.0]
-
-### Changed
-
-- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^43.0.0` to `^44.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
-
-## [43.1.0]
-
 ### Added
 
 - Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
@@ -32,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support Bitcoin transaction submission through unified Snap interface
   - Add Bitcoin-specific transaction handling in `#handleNonEvmTx` method
   - Support extraction of `unsignedPsbtBase64` from trade data for Bitcoin transactions
-- Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
 
 ### Changed
 
@@ -55,12 +38,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `formatChainIdToCaip` to get proper scope for each chain
   - Extract transaction data from either string or PSBT object format
 - Remove dependency on `@metamask/keyring-api` ([#6454](https://github.com/MetaMask/core/pull/6454))
-- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
-- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ### Removed
 
 - Remove direct dependency on `@metamask/keyring-api` - no longer needed with unified Snap interface ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+### Uncategorized
+
+- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
+
+### Changed
+
+- Refactor `handleLineaDelay` to `handleApprovalDelay` for improved abstraction and add support for Base chain by using an array and `includes` for chain ID checks ([#6674](https://github.com/MetaMask/core/pull/6674))
+
+## [44.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^43.0.0` to `^44.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [43.1.0]
+
+### Added
+
+- Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
 ## [43.0.0]
 
