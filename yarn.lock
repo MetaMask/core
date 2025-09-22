@@ -2456,7 +2456,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^23.1.0"
     "@metamask/keyring-internal-api": "npm:^9.0.0"
     "@metamask/keyring-utils": "npm:^3.1.0"
-    "@metamask/messenger": "npm:^0.1.0"
+    "@metamask/messenger": "npm:^0.2.0"
     "@metamask/network-controller": "npm:^24.1.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -3809,6 +3809,13 @@ __metadata:
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
+
+"@metamask/messenger@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/messenger@npm:0.2.0"
+  checksum: 10/48f682d9cde1208fbda0936022dea37acc3828cc221203b5f917df25c131d9a250dc5e86e9263f5dba8ee7c05adc6752a68dfb57da7d297f95f38b052f4fe5c1
+  languageName: node
+  linkType: hard
 
 "@metamask/messenger@npm:^0.3.0, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
