@@ -34,7 +34,10 @@ import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
  * @returns Nothing.
  */
 async function walletRevokeSessionHandler(
-  request: JsonRpcRequest & { origin: string },
+  request: JsonRpcRequest & {
+    origin: string;
+    params: { sessionScopes?: string[] };
+  },
   response: JsonRpcSuccess,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
@@ -52,38 +55,32 @@ async function walletRevokeSessionHandler(
   },
 ) {
   const {
-    // @ts-expect-error TODO: [ffmcgee] type error
     params: { sessionScopes },
   } = request;
 
-  console.log({ sessionScopes });
   try {
-    if (sessionScopes) {
-      // get the permission
-      const caveat = hooks.getCaveatForOrigin(
+    if (sessionScopes?.length) {
+      const existingCaveat = hooks.getCaveatForOrigin(
         Caip25EndowmentPermissionName,
         Caip25CaveatType,
       );
-      console.log({ caveat });
 
-      // remove the scopes from permission
       let updatedCaveatValue;
       for (const scopeString of sessionScopes) {
-        updatedCaveatValue = Caip25CaveatMutators[Caip25CaveatType].removeScope(
-          caveat.value,
-          scopeString,
-        ).value;
-
-        console.log({ scopeString, updatedCaveatValue });
+        updatedCaveatValue =
+          Caip25CaveatMutators[Caip25CaveatType].removeScope(
+            existingCaveat.value,
+            scopeString,
+          )?.value ?? updatedCaveatValue;
       }
 
-      // updateCaveat with new permissions
-      hooks.updateCaveat(
-        Caip25EndowmentPermissionName,
-        Caip25CaveatType,
-        // @ts-expect-error TODO: [ffmcgee] type error
-        updatedCaveatValue,
-      );
+      if (updatedCaveatValue) {
+        hooks.updateCaveat(
+          Caip25EndowmentPermissionName,
+          Caip25CaveatType,
+          updatedCaveatValue,
+        );
+      }
     } else {
       hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
     }
@@ -95,8 +92,6 @@ async function walletRevokeSessionHandler(
       console.error(err);
       return end(rpcErrors.internal());
     }
-
-    console.log({ err });
   }
 
   response.result = true;
