@@ -463,12 +463,13 @@ export class AccountTreeController extends BaseController<
       }
 
       // Use the higher of the two: highest parsed index or computed index
-      proposedNameIndex = Math.min(highestAccountNameIndex, proposedNameIndex);
+      proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex) + 1;
 
       // Find a unique name by checking for conflicts and incrementing if needed
+      const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
       let nameExists: boolean;
       do {
-        proposedName = rule.getDefaultAccountGroupName(proposedNameIndex);
+        proposedName = `${namePrefix} ${proposedNameIndex}`;
 
         // Check if this name already exists in the wallet (excluding current group)
         nameExists = !isAccountGroupNameUniqueFromWallet(

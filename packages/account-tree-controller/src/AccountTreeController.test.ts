@@ -587,7 +587,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_2.id],
                   metadata: {
-                    name: 'Account 1', // Updated: per-wallet numbering (different wallet)
+                    name: 'Snap Account 2', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                   },
@@ -610,7 +610,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
                   metadata: {
-                    name: 'Account 1', // Updated: per-wallet numbering (different wallet)
+                    name: 'Ledger Account 2', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                   },
@@ -652,13 +652,13 @@ describe('AccountTreeController', () => {
           },
           [expectedKeyringWalletIdGroup]: {
             name: {
-              value: 'Account 1', // Updated: per-wallet numbering (different wallet)
+              value: 'Ledger Account 2', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
           [expectedSnapWalletIdGroup]: {
             name: {
-              value: 'Account 1', // Updated: per-wallet numbering (different wallet)
+              value: 'Snap Account 2', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
@@ -2902,9 +2902,9 @@ describe('AccountTreeController', () => {
       // Critical assertion: should have 2 unique names (no duplicates)
       expect(uniqueNames.size).toBe(2);
 
-      // Due to optimization, names start at wallet.length, so we get "Account 1" and "Account 2"
-      expect(allNames).toContain('Account 1');
-      expect(allNames).toContain('Account 2');
+      // Due to optimization, names start at wallet.length, so we get "Account 3" and "Account 4"
+      expect(allNames).toContain('Ledger Account 3');
+      expect(allNames).toContain('Ledger Account 4');
 
       // Verify they're actually different
       expect(group1.metadata.name).not.toBe(group2.metadata.name);

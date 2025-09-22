@@ -1,13 +1,14 @@
 import { AccountGroupType, AccountWalletType } from '@metamask/account-api';
 import { toAccountWalletId, toAccountGroupId } from '@metamask/account-api';
+import { keyringTypeToName } from '@metamask/accounts-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
+import { getAccountGroupPrefixFromKeyringType } from './keyring';
 
 /**
  * Snap account type.
@@ -94,13 +95,9 @@ export class SnapRule
     return snapName;
   }
 
-  getComputedAccountGroupName(
-    group: AccountGroupObjectOf<AccountGroupType.SingleAccount>,
+  getDefaultAccountGroupPrefix(
+    _wallet: AccountWalletObjectOf<AccountWalletType.Snap>,
   ): string {
-    return super.getComputedAccountGroupName(group);
-  }
-
-  getDefaultAccountGroupName(index?: number): string {
-    return super.getDefaultAccountGroupName(index);
+    return getAccountGroupPrefixFromKeyringType(KeyringTypes.snap);
   }
 }
