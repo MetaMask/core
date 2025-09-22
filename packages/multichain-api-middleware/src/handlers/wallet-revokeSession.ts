@@ -69,7 +69,7 @@ async function walletRevokeSessionHandler(
       for (const scopeString of sessionScopes) {
         updatedCaveatValue =
           Caip25CaveatMutators[Caip25CaveatType].removeScope(
-            existingCaveat.value,
+            updatedCaveatValue ?? existingCaveat.value,
             scopeString,
           )?.value ?? updatedCaveatValue;
       }
