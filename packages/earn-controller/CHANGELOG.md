@@ -9,28 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 
-### Uncategorized
-
-- Release/570.0.0 ([#6673](https://github.com/MetaMask/core/pull/6673))
-- Release/568.0.0 ([#6663](https://github.com/MetaMask/core/pull/6663))
-- Release/564.0.0 ([#6653](https://github.com/MetaMask/core/pull/6653))
-- Release/562.0.0 ([#6644](https://github.com/MetaMask/core/pull/6644))
-- Release 561.0.0 ([#6641](https://github.com/MetaMask/core/pull/6641))
-- Release/560.0.0 ([#6639](https://github.com/MetaMask/core/pull/6639))
-- Release/548.0.0 ([#6584](https://github.com/MetaMask/core/pull/6584))
-- Release/547.0.0 ([#6579](https://github.com/MetaMask/core/pull/6579))
-- Release 543.0.0 ([#6561](https://github.com/MetaMask/core/pull/6561))
-- Release/542.0.0 ([#6558](https://github.com/MetaMask/core/pull/6558))
-- Release/539.0.0 ([#6522](https://github.com/MetaMask/core/pull/6522))
-- Release/538.0.0 ([#6498](https://github.com/MetaMask/core/pull/6498))
-
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6555](https://github.com/MetaMask/core/pull/6555))
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.12.1` to `^0.18.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
+- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.12.1` to `^1.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.4.0` ([#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
