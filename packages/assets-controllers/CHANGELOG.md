@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/570.0.0 ([#6673](https://github.com/MetaMask/core/pull/6673))
+- feat: add generic number format ([#6664](https://github.com/MetaMask/core/pull/6664))
+- Release/568.0.0 ([#6663](https://github.com/MetaMask/core/pull/6663))
+- Release/564.0.0 ([#6653](https://github.com/MetaMask/core/pull/6653))
+- Release/562.0.0 ([#6644](https://github.com/MetaMask/core/pull/6644))
+- Release 561.0.0 ([#6641](https://github.com/MetaMask/core/pull/6641))
+- Release/560.0.0 ([#6639](https://github.com/MetaMask/core/pull/6639))
+
 ## [75.2.0]
 
 ### Added
