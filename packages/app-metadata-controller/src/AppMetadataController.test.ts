@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { Messenger } from '@metamask/messenger';
 
 import {
@@ -120,6 +121,77 @@ describe('AppMetadataController', () => {
           });
         },
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInDebugSnapshot',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "currentAppVersion": "",
+            "currentMigrationVersion": 0,
+            "previousAppVersion": "",
+            "previousMigrationVersion": 0,
+          }
+        `);
+      });
+    });
+
+    it('includes expected state in state logs', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "currentAppVersion": "",
+            "currentMigrationVersion": 0,
+            "previousAppVersion": "",
+            "previousMigrationVersion": 0,
+          }
+        `);
+      });
+    });
+
+    it('persists expected state', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`
+          Object {
+            "currentAppVersion": "",
+            "currentMigrationVersion": 0,
+            "previousAppVersion": "",
+            "previousMigrationVersion": 0,
+          }
+        `);
+      });
+    });
+
+    it('exposes expected state to UI', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`Object {}`);
+      });
     });
   });
 });

@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -269,7 +269,7 @@ function setupAccountsController({
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
-}): {
+} = {}): {
   accountsController: AccountsController;
   messenger: Messenger<
     AccountsControllerActions | AllowedActions,
@@ -1634,6 +1634,62 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('fires :accountAdded before :selectedAccountChange', async () => {
+      const messenger = buildMessenger();
+
+      mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        messenger,
+      });
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [mockAccount.address],
+            metadata: {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          },
+        ],
+      };
+
+      const mockEventsOrder = jest.fn();
+
+      messenger.subscribe('AccountsController:accountAdded', () => {
+        mockEventsOrder('AccountsController:accountAdded');
+      });
+      messenger.subscribe('AccountsController:selectedAccountChange', () => {
+        mockEventsOrder('AccountsController:selectedAccountChange');
+      });
+
+      expect(accountsController.getSelectedAccount()).toBe(EMPTY_ACCOUNT);
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        1,
+        'AccountsController:accountAdded',
+      );
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        2,
+        'AccountsController:selectedAccountChange',
+      );
+    });
   });
 
   describe('onSnapKeyringEvents', () => {
@@ -3837,6 +3893,77 @@ describe('AccountsController', () => {
           expect(accountName).toBe('Account 4');
         });
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { accountsController: controller } = setupAccountsController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "internalAccounts": Object {
+            "accounts": Object {},
+            "selectedAccount": "",
+          },
+        }
+      `);
     });
   });
 });

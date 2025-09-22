@@ -125,8 +125,10 @@ export type MultichainBalancesControllerMessenger = RestrictedMessenger<
  */
 const balancesControllerMetadata = {
   balances: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 

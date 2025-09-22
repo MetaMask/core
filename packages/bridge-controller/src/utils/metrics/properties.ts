@@ -98,6 +98,12 @@ export const isHardwareWallet = (
   return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
 };
 
+/**
+ * @param slippage - The slippage percentage
+ * @returns Whether the default slippage was overridden by the user
+ *
+ * @deprecated This function should not be used. Use {@link selectDefaultSlippagePercentage} instead.
+ */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
   return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
 };

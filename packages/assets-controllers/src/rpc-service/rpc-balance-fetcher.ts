@@ -1,5 +1,8 @@
 import type { Web3Provider } from '@ethersproject/providers';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
+import {
+  toChecksumHexAddress,
+  safelyExecuteWithTimeout,
+} from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClient } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -8,6 +11,8 @@ import BN from 'bn.js';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
 import { getTokenBalancesForMultipleAddresses } from '../multicall';
 import type { TokensControllerState } from '../TokensController';
+
+const RPC_TIMEOUT_MS = 30000;
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -75,9 +80,8 @@ export class RpcBalanceFetcher implements BalanceFetcher {
     selectedAccount,
     allAccounts,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<ProcessedBalance[]> {
-    const results: ProcessedBalance[] = [];
-
-    for (const chainId of chainIds) {
+    // Process all chains in parallel for better performance
+    const chainProcessingPromises = chainIds.map(async (chainId) => {
       const tokensState = this.#getTokensState();
       const accountTokenGroups = buildAccountTokenGroupsStatic(
         chainId,
@@ -88,20 +92,33 @@ export class RpcBalanceFetcher implements BalanceFetcher {
         tokensState.allDetectedTokens,
       );
       if (!accountTokenGroups.length) {
-        continue;
+        return [];
       }
 
       const provider = this.#getProvider(chainId);
       await this.#ensureFreshBlockData(chainId);
 
-      const { tokenBalances, stakedBalances } =
-        await getTokenBalancesForMultipleAddresses(
-          accountTokenGroups,
-          chainId,
-          provider,
-          true, // include native
-          true, // include staked
-        );
+      const balanceResult = await safelyExecuteWithTimeout(
+        async () => {
+          return await getTokenBalancesForMultipleAddresses(
+            accountTokenGroups,
+            chainId,
+            provider,
+            true, // include native
+            true, // include staked
+          );
+        },
+        true,
+        RPC_TIMEOUT_MS,
+      );
+
+      // If timeout or error occurred, return empty array for this chain
+      if (!balanceResult) {
+        return [];
+      }
+
+      const { tokenBalances, stakedBalances } = balanceResult;
+      const chainResults: ProcessedBalance[] = [];
 
       // Add native token entries for all addresses being processed
       const allAddressesForNative = new Set<string>();
@@ -112,7 +129,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       // Ensure native token entries exist for all addresses
       allAddressesForNative.forEach((address) => {
         const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
-        results.push({
+        chainResults.push({
           success: true,
           value: nativeBalance ? (nativeBalance as BN) : new BN('0'),
           account: address as ChecksumAddress,
@@ -128,7 +145,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
           return;
         }
         Object.entries(balances).forEach(([acct, bn]) => {
-          results.push({
+          chainResults.push({
             success: bn !== null,
             value: bn as BN,
             account: acct as ChecksumAddress,
@@ -151,7 +168,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
         const checksummedStakingAddress = checksum(stakingContractAddress);
         allAddresses.forEach((address) => {
           const stakedBalance = stakedBalances?.[address] || null;
-          results.push({
+          chainResults.push({
             success: true,
             value: stakedBalance ? (stakedBalance as BN) : new BN('0'),
             account: address as ChecksumAddress,
@@ -160,7 +177,22 @@ export class RpcBalanceFetcher implements BalanceFetcher {
           });
         });
       }
-    }
+
+      return chainResults;
+    });
+
+    // Wait for all chains to complete (or fail) and collect results
+    const chainResultsArray = await Promise.allSettled(chainProcessingPromises);
+    const results: ProcessedBalance[] = [];
+
+    chainResultsArray.forEach((chainResult) => {
+      if (chainResult.status === 'fulfilled') {
+        results.push(...chainResult.value);
+      } else {
+        // Log error but continue with other chains
+        console.warn('Chain processing failed:', chainResult.reason);
+      }
+    });
 
     return results;
   }

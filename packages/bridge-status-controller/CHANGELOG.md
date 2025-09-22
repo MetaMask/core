@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [44.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^43.0.0` to `^44.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [43.1.0]
+
+### Added
+
+- Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Support Bitcoin transaction submission through unified Snap interface
+  - Add Bitcoin-specific transaction handling in `#handleNonEvmTx` method
+  - Support extraction of `unsignedPsbtBase64` from trade data for Bitcoin transactions
+- Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
+
+### Changed
+
+- Update transaction submission to use new unified Snap interface for all non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Replace `signAndSendTransactionWithoutConfirmation` with `ClientRequest:signAndSendTransaction` method
+  - Update response handling to support new `transactionId` format from unified interface
+  - Support multiple response formats: string, `{ transactionId }`, `{ result: { signature } }`, and `{ signature }`
+  - Maintain backward compatibility with legacy response formats
+- Rename transaction handling functions for clarity ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Rename `handleSolanaTxResponse` to `handleNonEvmTxResponse` to reflect support for all non-EVM chains
+  - Rename `#handleSolanaTx` to `#handleNonEvmTx` in BridgeStatusController
+  - Export `handleSolanaTxResponse` as an alias for backward compatibility (deprecated)
+- Update transaction detection logic to identify non-EVM transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Check for Bitcoin PSBT format (`unsignedPsbtBase64` in trade object) alongside string trade data
+  - Use `isNonEvmChainId` for determining non-EVM transaction handling
+- Update chain ID handling for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Add fallback chain ID (`0x0`) when CAIP format can't be converted to hex for source chains
+  - Add fallback chain ID (`0x1`) for non-EVM destination chains
+- Update `getClientRequest` to create proper requests for all non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Use `formatChainIdToCaip` to get proper scope for each chain
+  - Extract transaction data from either string or PSBT object format
+- Remove dependency on `@metamask/keyring-api` ([#6454](https://github.com/MetaMask/core/pull/6454))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+### Removed
+
+- Remove direct dependency on `@metamask/keyring-api` - no longer needed with unified Snap interface ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+## [43.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency from `^42.0.0` to `^43.0.0` ([#6612](https://github.com/MetaMask/core/pull/6612))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
+## [42.0.0]
+
+### Added
+
+- Add `getBridgeHistoryItemByTxMetaId` method available via messaging system for external access to bridge history items ([#6363](https://github.com/MetaMask/core/pull/6363))
+- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency from `^41.0.0` to `^42.0.0` ([#6476](https://github.com/MetaMask/core/pull/6476))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+- Pass the `isGasFeeIncluded` parameter through transaction utilities ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+## [41.0.0]
+
+### Fixed
+
+- Set the Solana tx signature as the `txHistory` key to support lookups by hash ([#6424](https://github.com/MetaMask/core/pull/6424))
+- Read Completed swap properties from `txHistory` for consistency with bridge transactions ([#6424](https://github.com/MetaMask/core/pull/6424))
+
+## [40.2.0]
+
+### Added
+
+- Publish `StatusValidationFailed` event for invalid getTxStatus responses ([#6362](https://github.com/MetaMask/core/pull/6362))
+
 ## [40.1.0]
 
 ### Changed
@@ -507,7 +586,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.0.0...HEAD
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.1.0...@metamask/bridge-status-controller@44.0.0
+[43.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.0.0...@metamask/bridge-status-controller@43.1.0
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@42.0.0...@metamask/bridge-status-controller@43.0.0
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@41.0.0...@metamask/bridge-status-controller@42.0.0
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.2.0...@metamask/bridge-status-controller@41.0.0
+[40.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...@metamask/bridge-status-controller@40.2.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.0.0...@metamask/bridge-status-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@39.0.0...@metamask/bridge-status-controller@40.0.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@38.1.0...@metamask/bridge-status-controller@39.0.0
