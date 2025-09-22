@@ -7,9 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6583](https://github.com/MetaMask/core/pull/6583))
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [18.1.0]
+
+### Added
+
+- Add `extensionMinimumVersionNumber` and `mobileMinimumVersionNumber` properties to feature annoucements ([#6554](https://github.com/MetaMask/core/pull/6554))
+
+## [18.0.0]
+
+### Added
+
+- Add `sendPerpPlaceOrderNotification` method to `NotificationServicesController` ([#6464](https://github.com/MetaMask/core/pull/6464))
+- Add `createPerpOrderNotification` function to invoke perp notification service ([#6464](https://github.com/MetaMask/core/pull/6464))
+- Add `perps/schema.ts` file from perp notification OpenAPI types ([#6464](https://github.com/MetaMask/core/pull/6464))
+- Add exported `OrderInput` type ([#6464](https://github.com/MetaMask/core/pull/6464))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` from `^24.0.0` to `^25.0.0` ([#6558](https://github.com/MetaMask/core/pull/6558))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
 
 ## [17.0.0]
 
@@ -532,7 +558,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.0.0...@metamask/notification-services-controller@18.1.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...@metamask/notification-services-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@16.0.0...@metamask/notification-services-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@15.0.0...@metamask/notification-services-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@14.0.0...@metamask/notification-services-controller@15.0.0

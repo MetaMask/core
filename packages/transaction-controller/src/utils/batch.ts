@@ -2,7 +2,11 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  ORIGIN_METAMASK,
+  toHex,
+} from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -91,6 +95,9 @@ type AddTransactionBatchRequest = {
   ) => Promise<Hex>;
   publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
+  signTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<string | undefined>;
   update: UpdateStateCallback;
   updateTransaction: (
     options: { transactionId: string },
@@ -389,6 +396,7 @@ async function addTransactionBatchWith7702(
 
   const { result } = await addTransaction(txParams, {
     batchId,
+    isGasFeeIncluded: userRequest.isGasFeeIncluded,
     nestedTransactions,
     networkClientId,
     origin,
@@ -471,12 +479,15 @@ async function addTransactionBatchWithHook(
 
   let txBatchMeta: TransactionBatchMeta | undefined;
   const batchId = generateBatchId();
+
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
     origin,
   }));
+
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
+
   try {
     if (requireApproval) {
       txBatchMeta = await prepareApprovalData({
@@ -492,6 +503,8 @@ async function addTransactionBatchWithHook(
     const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
       [];
 
+    let index = 0;
+
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
         batchId,
@@ -499,16 +512,18 @@ async function addTransactionBatchWithHook(
         publishHook,
         request,
         txBatchMeta,
+        index,
       );
 
       hookTransactions.push(hookTransaction);
+      index += 1;
     }
 
     const { signedTransactions } = await collectHook.ready();
 
-    const transactions = hookTransactions.map((transaction, index) => ({
+    const transactions = hookTransactions.map((transaction, i) => ({
       ...transaction,
-      signedTx: signedTransactions[index],
+      signedTx: signedTransactions[i],
     }));
 
     const hookParams = { from, networkClientId, transactions };
@@ -562,6 +577,7 @@ async function addTransactionBatchWithHook(
  * @param publishHook - The publish hook to use for each transaction.
  * @param request - The request object including the user request and necessary callbacks.
  * @param txBatchMeta - Metadata for the transaction batch.
+ * @param index - The index of the transaction in the batch.
  * @returns The single transaction request to be processed by the publish batch hook.
  */
 async function processTransactionWithHook(
@@ -569,7 +585,8 @@ async function processTransactionWithHook(
   nestedTransaction: TransactionBatchSingleRequest,
   publishHook: PublishHook,
   request: AddTransactionBatchRequest,
-  txBatchMeta?: TransactionBatchMeta,
+  txBatchMeta: TransactionBatchMeta | undefined,
+  index: number,
 ) {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
@@ -578,18 +595,56 @@ async function processTransactionWithHook(
     addTransaction,
     getTransaction,
     request: userRequest,
+    signTransaction,
     updateTransaction,
   } = request;
 
   const { from, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
-    const { id, onPublish, signedTransaction } = existingTransaction;
-    const transactionMeta = getTransaction(id);
+    const { id, onPublish } = existingTransaction;
+    let transactionMeta = getTransaction(id);
+    const currentNonceHex = transactionMeta.txParams.nonce;
+    let { signedTransaction } = existingTransaction;
+
+    const currentNonceNum = currentNonceHex
+      ? parseInt(currentNonceHex, 16)
+      : undefined;
+
+    const newNonce =
+      index > 0 && currentNonceNum !== undefined
+        ? currentNonceNum + index
+        : undefined;
 
     updateTransaction({ transactionId: id }, (_transactionMeta) => {
       _transactionMeta.batchId = batchId;
+
+      if (newNonce) {
+        _transactionMeta.txParams.nonce = toHex(newNonce);
+      }
     });
+
+    if (newNonce) {
+      log('Re-signing existing transaction', {
+        currentNonce: currentNonceNum,
+        newNonce,
+      });
+
+      const metadataToSign = getTransaction(id);
+
+      const newSignature = (await signTransaction(metadataToSign)) as
+        | Hex
+        | undefined;
+
+      if (!newSignature) {
+        throw new Error('Failed to resign transaction');
+      }
+
+      signedTransaction = newSignature;
+      transactionMeta = getTransaction(id);
+
+      log('New signature', signedTransaction);
+    }
 
     publishHook(transactionMeta, signedTransaction)
       .then(onPublish)
