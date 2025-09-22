@@ -421,6 +421,9 @@ export class AccountTreeController extends BaseController<
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
 
+      // Get the prefix for groups of this wallet
+      const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
+
       // Skip computed names for now - use default naming with per-wallet logic
       // TODO: Implement computed names in a future iteration
 
@@ -463,10 +466,10 @@ export class AccountTreeController extends BaseController<
       }
 
       // Use the higher of the two: highest parsed index or computed index
-      proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex) + 1;
+      proposedNameIndex =
+        Math.max(highestAccountNameIndex, proposedNameIndex) + 1;
 
       // Find a unique name by checking for conflicts and incrementing if needed
-      const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
       let nameExists: boolean;
       do {
         proposedName = `${namePrefix} ${proposedNameIndex}`;

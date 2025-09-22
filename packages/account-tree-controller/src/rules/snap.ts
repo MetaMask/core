@@ -1,14 +1,13 @@
 import { AccountGroupType, AccountWalletType } from '@metamask/account-api';
 import { toAccountWalletId, toAccountGroupId } from '@metamask/account-api';
-import { keyringTypeToName } from '@metamask/accounts-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
+import { getAccountGroupPrefixFromKeyringType } from './keyring';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
-import { getAccountGroupPrefixFromKeyringType } from './keyring';
 
 /**
  * Snap account type.
