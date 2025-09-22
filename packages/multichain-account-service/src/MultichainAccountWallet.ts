@@ -401,7 +401,7 @@ export class MultichainAccountWallet<
    */
   async #alignAccounts(): Promise<void> {
     const groups = this.getMultichainAccountGroups();
-    await Promise.all(groups.map((group) => group.align()));
+    await Promise.all(groups.map((group) => group.alignAccounts()));
   }
 
   /**
@@ -422,11 +422,11 @@ export class MultichainAccountWallet<
    *
    * @param groupIndex - The group index to align.
    */
-  async alignGroup(groupIndex: number): Promise<void> {
+  async alignAccountsOf(groupIndex: number): Promise<void> {
     await this.#withLock('in-progress:alignment', async () => {
       const group = this.getMultichainAccountGroup(groupIndex);
       if (group) {
-        await group.align();
+        await group.alignAccounts();
       }
     });
   }

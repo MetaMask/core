@@ -7,6 +7,7 @@ import type { AccountId } from '@metamask/accounts-controller';
 
 import type { UpdatableField, ExtractFieldValues } from './type-utils';
 import type { AccountTreeControllerState } from './types';
+import type { AccountWalletObject } from './wallet';
 
 /**
  * Persisted metadata for account groups (stored in controller state for persistence/sync).
@@ -87,6 +88,30 @@ export type AccountGroupObjectOf<GroupType extends AccountGroupType> = Extract<
 >['object'];
 
 /**
+ * Checks if a group name is unique within a specific wallet.
+ *
+ * @param wallet - The wallet to check within.
+ * @param groupId - The account group ID to exclude from the check.
+ * @param name - The name to validate for uniqueness.
+ * @returns True if the name is unique within the wallet, false otherwise.
+ */
+export function isAccountGroupNameUniqueFromWallet(
+  wallet: AccountWalletObject,
+  groupId: AccountGroupId,
+  name: string,
+): boolean {
+  const trimmedName = name.trim();
+
+  // Check for duplicates within this wallet
+  for (const group of Object.values(wallet.groups)) {
+    if (group.id !== groupId && group.metadata.name.trim() === trimmedName) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Checks if an account group name is unique within the same wallet.
  *
  * @param state - The account tree controller state.
@@ -100,21 +125,11 @@ export function isAccountGroupNameUnique(
   groupId: AccountGroupId,
   name: string,
 ): boolean {
-  const trimmedName = name.trim();
-
   // Find the wallet that contains the group being validated
   for (const wallet of Object.values(state.accountTree.wallets)) {
     if (wallet.groups[groupId]) {
-      // Check for duplicates only within this wallet
-      for (const group of Object.values(wallet.groups)) {
-        if (
-          group.id !== groupId &&
-          group.metadata.name.trim() === trimmedName
-        ) {
-          return false;
-        }
-      }
-      return true;
+      // Use the wallet-specific function for consistency
+      return isAccountGroupNameUniqueFromWallet(wallet, groupId, name);
     }
   }
 

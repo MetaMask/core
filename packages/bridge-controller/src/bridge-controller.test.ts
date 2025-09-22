@@ -1,7 +1,9 @@
 /* eslint-disable jest/no-restricted-matchers */
 /* eslint-disable jest/no-conditional-in-test */
 import { Contract } from '@ethersproject/contracts';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
+  BtcScope,
   EthAccountType,
   EthScope,
   SolAccountType,
@@ -588,6 +590,26 @@ describe('BridgeController', function () {
                   resolve('5000');
                 }, 200);
               }
+              if (
+                (params as { handler: string })?.handler ===
+                  'onClientRequest' &&
+                (params as { request?: { method: string } })?.request
+                  ?.method === 'computeFee'
+              ) {
+                return setTimeout(() => {
+                  resolve([
+                    {
+                      type: 'base',
+                      asset: {
+                        unit: 'SOL',
+                        type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
+                        amount: '0.000000014', // 14 lamports in SOL
+                        fungible: true,
+                      },
+                    },
+                  ]);
+                }, 100);
+              }
               return setTimeout(() => {
                 resolve({ value: '14' });
               }, 100);
@@ -668,9 +690,15 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '5000',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          solanaFeesInLamports: '14',
+          nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: quoteParams,
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: 1,
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
       }),
     );
     expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -724,9 +752,15 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '5000',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          solanaFeesInLamports: '14',
+          nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: quoteParams,
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: expect.any(Number),
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
       }),
     );
     expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -754,9 +788,15 @@ describe('BridgeController', function () {
         minimumBalanceForRentExemptionInLamports: '0',
         quotes: mockBridgeQuotesSolErc20.map((quote) => ({
           ...quote,
-          solanaFeesInLamports: '14',
+          nonEvmFeesInNative: '0.000000014',
         })),
         quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteRequest: { ...quoteParams, srcTokenAmount: '11111' },
+        quoteFetchError: null,
+        assetExchangeRates: {},
+        quotesRefreshCount: expect.any(Number),
+        quotesInitialLoadTime: expect.any(Number),
+        quotesLastFetched: expect.any(Number),
       }),
     );
 
@@ -1561,7 +1601,7 @@ describe('BridgeController', function () {
       mockBridgeQuotesSolErc20 as unknown as QuoteResponse[],
       [],
       2,
-      '5000',
+      '0.000005000', // SOL amount (5000 lamports)
       '300',
     ],
     [
@@ -1678,6 +1718,26 @@ describe('BridgeController', function () {
                   resolve(expectedMinBalance);
                 }, 200);
               }
+              if (
+                (params as { handler: string })?.handler ===
+                  'onClientRequest' &&
+                (params as { request?: { method: string } })?.request
+                  ?.method === 'computeFee'
+              ) {
+                return setTimeout(() => {
+                  resolve([
+                    {
+                      type: 'base',
+                      asset: {
+                        unit: 'SOL',
+                        type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
+                        amount: expectedFees || '0',
+                        fungible: true,
+                      },
+                    },
+                  ]);
+                }, 100);
+              }
               return setTimeout(() => {
                 resolve({ value: expectedFees });
               }, 100);
@@ -1751,9 +1811,9 @@ describe('BridgeController', function () {
         }),
       );
 
-      // Verify Solana fees
+      // Verify non-EVM fees
       quotes.forEach((quote) => {
-        expect(quote.solanaFeesInLamports).toBe(
+        expect(quote.nonEvmFeesInNative).toBe(
           isSolanaChainId(quote.quote.srcChainId) ? expectedFees : undefined,
         );
       });
@@ -1779,6 +1839,121 @@ describe('BridgeController', function () {
       ).toMatchSnapshot();
     },
   );
+
+  it('should handle BTC chain fees correctly', async () => {
+    jest.useFakeTimers();
+    // Use the actual Solana mock which already has string trade type
+    const btcQuoteResponse = mockBridgeQuotesSolErc20.map((quote) => ({
+      ...quote,
+      quote: {
+        ...quote.quote,
+        srcChainId: ChainId.BTC,
+      },
+    })) as unknown as QuoteResponse[];
+
+    messengerMock.call.mockImplementation(
+      (
+        ...args: Parameters<BridgeControllerMessenger['call']>
+      ): ReturnType<BridgeControllerMessenger['call']> => {
+        const [actionType, params] = args;
+
+        if (actionType === 'AccountsController:getSelectedMultichainAccount') {
+          return {
+            type: 'btc:p2wpkh',
+            id: 'btc-account-1',
+            scopes: [BtcScope.Mainnet],
+            methods: [],
+            address: 'bc1q...',
+            metadata: {
+              name: 'BTC Account 1',
+              importTime: 1717334400,
+              keyring: {
+                type: 'Snap Keyring',
+              },
+              snap: {
+                id: 'btc-snap-id',
+                name: 'BTC Snap',
+              },
+            },
+          } as never;
+        }
+
+        if (actionType === 'SnapController:handleRequest') {
+          return new Promise((resolve) => {
+            if (
+              (params as { handler: string })?.handler === 'onClientRequest' &&
+              (params as { request?: { method: string } })?.request?.method ===
+                'computeFee'
+            ) {
+              return setTimeout(() => {
+                resolve([
+                  {
+                    type: 'base',
+                    asset: {
+                      unit: 'BTC',
+                      type: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                      amount: '0.00005', // BTC fee
+                      fungible: true,
+                    },
+                  },
+                ]);
+              }, 100);
+            }
+            return setTimeout(() => {
+              resolve('5000');
+            }, 200);
+          });
+        }
+
+        return {
+          provider: jest.fn() as never,
+          selectedNetworkClientId: 'selectedNetworkClientId',
+        } as never;
+      },
+    );
+
+    jest.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
+      quotes: btcQuoteResponse,
+      validationFailures: [],
+    });
+
+    const quoteParams = {
+      srcChainId: ChainId.BTC.toString(),
+      destChainId: '1',
+      srcTokenAddress: 'NATIVE',
+      destTokenAddress: '0x0000000000000000000000000000000000000000',
+      srcTokenAmount: '100000', // satoshis
+      walletAddress: 'bc1q...',
+      destWalletAddress: '0x5342',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    // Wait for polling to start
+    jest.advanceTimersByTime(201);
+    await flushPromises();
+
+    // Wait for fetch to trigger
+    jest.advanceTimersByTime(295);
+    await flushPromises();
+
+    // Wait for fetch to complete
+    jest.advanceTimersByTime(2601);
+    await flushPromises();
+
+    // Final wait for fee calculation
+    jest.advanceTimersByTime(100);
+    await flushPromises();
+
+    const { quotes } = bridgeController.state;
+    expect(quotes).toHaveLength(2); // mockBridgeQuotesSolErc20 has 2 quotes
+    expect(quotes[0].nonEvmFeesInNative).toBe('0.00005'); // BTC fee as-is
+    expect(quotes[1].nonEvmFeesInNative).toBe('0.00005'); // BTC fee as-is
+  });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(() => {
@@ -2434,6 +2609,76 @@ describe('BridgeController', function () {
       `);
       expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
       expect(bridgeController.state).toStrictEqual(expectedControllerState);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
+          "quoteFetchError": null,
+          "quoteRequest": Object {
+            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+          },
+          "quotes": Array [],
+          "quotesInitialLoadTime": null,
+          "quotesLastFetched": null,
+          "quotesLoadingStatus": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          bridgeController.state,
+          bridgeController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "assetExchangeRates": Object {},
+          "minimumBalanceForRentExemptionInLamports": "0",
+          "quoteFetchError": null,
+          "quoteRequest": Object {
+            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+          },
+          "quotes": Array [],
+          "quotesInitialLoadTime": null,
+          "quotesLastFetched": null,
+          "quotesLoadingStatus": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
     });
   });
 });

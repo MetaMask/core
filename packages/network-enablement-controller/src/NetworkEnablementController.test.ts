@@ -7,6 +7,7 @@ import {
 } from '@metamask/transaction-controller';
 import {
   type CaipChainId,
+  type CaipNamespace,
   type Hex,
   KnownCaipNamespace,
 } from '@metamask/utils';
@@ -452,12 +453,12 @@ describe('NetworkEnablementController', () => {
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
           [KnownCaipNamespace.Eip155]: {
-            '0x1': true, // Ethereum Mainnet (exists in config)
-            '0xe708': true, // Linea Mainnet (exists in config)
+            '0x1': false, // Ethereum Mainnet (exists in config)
+            '0xe708': false, // Linea Mainnet (exists in config)
             // Other popular networks not enabled because they don't exist in config
           },
           [KnownCaipNamespace.Solana]: {
-            [SolScope.Mainnet]: true, // Solana Mainnet (exists in config)
+            [SolScope.Mainnet]: false, // Solana Mainnet (exists in config)
           },
         },
       });
@@ -1786,6 +1787,206 @@ describe('NetworkEnablementController', () => {
       expect(
         controller.isNetworkEnabled('bip122:00000008819873e925422c1ff0f99f7c'),
       ).toBe(false); // Signet (disabled by default)
+    });
+  });
+
+  describe('enableNetworkInNamespace', () => {
+    it('enables a network in the specified namespace and disables others in same namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Initially multiple EVM networks are enabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+
+      // Enable only Ethereum mainnet in EIP-155 namespace
+      controller.enableNetworkInNamespace('0x1', KnownCaipNamespace.Eip155);
+
+      // Only Ethereum mainnet should be enabled in EIP-155 namespace
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      // Other namespaces should remain unchanged
+      expect(controller.isNetworkEnabled(SolScope.Mainnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+    });
+
+    it('enables a network using CAIP chain ID in the specified namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Enable Ethereum mainnet using CAIP format
+      controller.enableNetworkInNamespace(
+        'eip155:1',
+        KnownCaipNamespace.Eip155,
+      );
+
+      // Only Ethereum mainnet should be enabled in EIP-155 namespace
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+    });
+
+    it('enables a Solana network in the Solana namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Enable Solana testnet in the Solana namespace
+      controller.enableNetworkInNamespace(
+        SolScope.Testnet,
+        KnownCaipNamespace.Solana,
+      );
+
+      // Only Solana testnet should be enabled in Solana namespace
+      expect(controller.isNetworkEnabled(SolScope.Testnet)).toBe(true);
+      expect(controller.isNetworkEnabled(SolScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(SolScope.Devnet)).toBe(false);
+
+      // Other namespaces should remain unchanged
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(true);
+    });
+
+    it('enables a Bitcoin network in the Bitcoin namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Enable Bitcoin testnet in the Bitcoin namespace
+      controller.enableNetworkInNamespace(
+        BtcScope.Testnet,
+        KnownCaipNamespace.Bip122,
+      );
+
+      // Only Bitcoin testnet should be enabled in Bitcoin namespace
+      expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
+      expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
+      expect(controller.isNetworkEnabled(BtcScope.Signet)).toBe(false);
+
+      // Other namespaces should remain unchanged
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+      expect(controller.isNetworkEnabled(SolScope.Mainnet)).toBe(true);
+    });
+
+    it('throws error when chainId namespace does not match provided namespace', () => {
+      const { controller } = setupInitializedController();
+
+      // Try to enable Ethereum network in Solana namespace
+      expect(() => {
+        controller.enableNetworkInNamespace('0x1', KnownCaipNamespace.Solana);
+      }).toThrow(
+        'Chain ID 0x1 belongs to namespace eip155, but namespace solana was specified',
+      );
+
+      // Try to enable Solana network in EIP-155 namespace
+      expect(() => {
+        controller.enableNetworkInNamespace(
+          SolScope.Mainnet,
+          KnownCaipNamespace.Eip155,
+        );
+      }).toThrow(
+        `Chain ID ${SolScope.Mainnet} belongs to namespace solana, but namespace eip155 was specified`,
+      );
+
+      // Try to enable Bitcoin network in Solana namespace
+      expect(() => {
+        controller.enableNetworkInNamespace(
+          BtcScope.Mainnet,
+          KnownCaipNamespace.Solana,
+        );
+      }).toThrow(
+        `Chain ID ${BtcScope.Mainnet} belongs to namespace bip122, but namespace solana was specified`,
+      );
+    });
+
+    it('throws error with CAIP chain ID when namespace does not match', () => {
+      const { controller } = setupInitializedController();
+
+      // Try to enable Ethereum network using CAIP format in Solana namespace
+      expect(() => {
+        controller.enableNetworkInNamespace(
+          'eip155:1',
+          KnownCaipNamespace.Solana,
+        );
+      }).toThrow(
+        'Chain ID eip155:1 belongs to namespace eip155, but namespace solana was specified',
+      );
+    });
+    it('handles enabling an already enabled network', () => {
+      const { controller } = setupInitializedController();
+
+      // Ethereum mainnet is already enabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      const initialState = { ...controller.state };
+
+      // Enable it again - should disable other networks in the namespace
+      controller.enableNetworkInNamespace('0x1', KnownCaipNamespace.Eip155);
+
+      // Only Ethereum mainnet should be enabled in EIP-155 namespace
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      // Should be different from initial state due to disabling other networks
+      expect(controller.state).not.toStrictEqual(initialState);
+    });
+
+    it('enables network that does not exist in current state', () => {
+      const { controller } = setupController();
+
+      // Try to enable a network that doesn't exist in the state yet
+      controller.enableNetworkInNamespace('0x89', KnownCaipNamespace.Eip155);
+
+      // Network should be enabled (namespace bucket should be created)
+      expect(controller.isNetworkEnabled('0x89')).toBe(true);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155]['0x89'],
+      ).toBe(true);
+    });
+
+    it('maintains consistency between hex and CAIP formats', () => {
+      const { controller } = setupInitializedController();
+
+      // Enable using hex format
+      controller.enableNetworkInNamespace('0x1', KnownCaipNamespace.Eip155);
+
+      // Both formats should show the same result
+      expect(controller.isNetworkEnabled('0x1')).toBe(
+        controller.isNetworkEnabled('eip155:1'),
+      );
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      // Enable using CAIP format
+      controller.enableNetworkInNamespace(
+        'eip155:59144',
+        KnownCaipNamespace.Eip155,
+      );
+
+      // Both formats should show the same result
+      expect(controller.isNetworkEnabled('0xe708')).toBe(
+        controller.isNetworkEnabled('eip155:59144'),
+      );
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false); // Should be disabled
+    });
+
+    it('handles custom namespace creation for new blockchain', () => {
+      const { controller } = setupController();
+
+      // Try to enable a network in a custom namespace that doesn't exist yet
+      const customChainId = 'cosmos:cosmoshub-4' as CaipChainId;
+      const customNamespace = 'cosmos' as CaipNamespace;
+
+      controller.enableNetworkInNamespace(customChainId, customNamespace);
+
+      // Custom namespace should be created and network enabled
+      expect(controller.state.enabledNetworkMap[customNamespace]).toBeDefined();
+      expect(
+        controller.state.enabledNetworkMap[customNamespace][customChainId],
+      ).toBe(true);
+      expect(controller.isNetworkEnabled(customChainId)).toBe(true);
     });
   });
 

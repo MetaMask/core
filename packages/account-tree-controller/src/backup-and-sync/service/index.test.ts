@@ -94,6 +94,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
       );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
     });
 
     it('returns early when account syncing is disabled', () => {
@@ -105,6 +108,23 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
+    });
+
+    it('returns early when a full sync has not completed at least once', () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
+        false;
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
       );
     });
 
@@ -145,33 +165,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         'test-entropy-id',
       );
     });
-
-    it('triggers full sync when never synced before', async () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        false;
-
-      // Mock some local wallets for the full sync to process
-      mockGetLocalEntropyWallets.mockReturnValue([
-        {
-          id: 'entropy:wallet-1',
-          metadata: { entropy: { id: 'test-entropy-id' } },
-        } as unknown as AccountWalletEntropyObject,
-      ]);
-
-      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
-
-      // Wait for the atomic queue to process the full sync
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Should have checked the state
-      expect(mockContext.messenger.call).toHaveBeenCalledWith(
-        'UserStorageController:getState',
-      );
-
-      // Should have triggered a full sync operation
-      expect(mockGetLocalEntropyWallets).toHaveBeenCalled();
-      expect(mockGetProfileId).toHaveBeenCalled();
-    });
   });
 
   describe('enqueueSingleGroupSync', () => {
@@ -185,6 +178,9 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
       );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
     });
 
     it('returns early when account syncing is disabled', () => {
@@ -196,6 +192,40 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.messenger.call).toHaveBeenCalledWith(
         'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
+    });
+
+    it('returns early when a full sync is already in progress', () => {
+      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
+      );
+    });
+
+    it('returns early when a full sync has not completed at least once', () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
+        false;
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      // Should not have called any messenger functions beyond the state check
+      expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
+      expect(mockContext.messenger.call).toHaveBeenCalledWith(
+        'UserStorageController:getState',
+      );
+      expect(mockContext.messenger.call).not.toHaveBeenCalledWith(
+        'UserStorageController:performGetStorage',
       );
     });
 
@@ -243,33 +273,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockGetLocalEntropyWallets).not.toHaveBeenCalled();
 
       // Should have called getProfileId as part of group sync
-      expect(mockGetProfileId).toHaveBeenCalled();
-    });
-
-    it('triggers full sync when never synced before', async () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        false;
-
-      // Mock some local wallets for the full sync to process
-      mockGetLocalEntropyWallets.mockReturnValue([
-        {
-          id: 'entropy:wallet-1',
-          metadata: { entropy: { id: 'test-entropy-id' } },
-        } as unknown as AccountWalletEntropyObject,
-      ]);
-
-      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
-
-      // Wait for the atomic queue to process the full sync
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Should have checked the state
-      expect(mockContext.messenger.call).toHaveBeenCalledWith(
-        'UserStorageController:getState',
-      );
-
-      // Should have triggered a full sync operation instead of group sync
-      expect(mockGetLocalEntropyWallets).toHaveBeenCalled();
       expect(mockGetProfileId).toHaveBeenCalled();
     });
   });
