@@ -493,8 +493,6 @@ export class PhishingController extends BaseController<
 
     this.updatePhishingDetector();
     this.#subscribeToTransactionControllerStateChange();
-
-    // Initial scan will happen when the first state change event fires
   }
 
   #subscribeToTransactionControllerStateChange() {
@@ -606,7 +604,6 @@ export class PhishingController extends BaseController<
 
       // If we found token addresses, scan them
       if (extractedAddresses.length > 0) {
-        // Deduplicate addresses
         const uniqueTokens = [...new Set(extractedAddresses)];
 
         // Use chainId from patches or get from first transaction with simulation data
@@ -618,11 +615,6 @@ export class PhishingController extends BaseController<
         }
 
         if (chainId) {
-          console.log(
-            `PhishingController: Scanning ${uniqueTokens.length} tokens from simulation patches`,
-            { chainId, tokens: uniqueTokens },
-          );
-
           this.bulkScanTokens({
             chainId,
             tokens: uniqueTokens,
