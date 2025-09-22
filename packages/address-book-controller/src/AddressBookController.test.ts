@@ -1,13 +1,17 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { toHex } from '@metamask/controller-utils';
-import { Messenger } from '@metamask/messenger';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type {
-  AddressBookControllerActions,
-  AddressBookControllerEvents,
-  AddressBookControllerContactUpdatedEvent,
   AddressBookControllerContactDeletedEvent,
+  AddressBookControllerMessenger,
 } from './AddressBookController';
 import {
   AddressBookController,
@@ -15,21 +19,32 @@ import {
   controllerName,
 } from './AddressBookController';
 
+type AllActions = MessengerActions<AddressBookControllerMessenger>;
+
+type AllEvents = MessengerEvents<AddressBookControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+/**
+ * Creates a new root messenger instance for testing.
+ *
+ * @returns A new Messenger instance.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
 /**
  * Helper function to create test fixtures
  *
  * @returns Test fixtures including messenger, controller, and event listeners
  */
 function arrangeMocks() {
-  const rootMessenger = new Messenger<
-    'Root',
-    AddressBookControllerActions,
-    AddressBookControllerEvents
-  >({ namespace: 'Root' });
+  const rootMessenger = getRootMessenger();
   const addressBookControllerMessenger = new Messenger<
     typeof controllerName,
-    AddressBookControllerActions,
-    AddressBookControllerEvents,
+    AllActions,
+    AllEvents,
     typeof rootMessenger
   >({
     namespace: controllerName,
@@ -45,7 +60,7 @@ function arrangeMocks() {
 
   // Subscribe to events
   rootMessenger.subscribe(
-    'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+    'AddressBookController:contactUpdated',
     contactUpdatedListener,
   );
   rootMessenger.subscribe(
@@ -633,7 +648,7 @@ describe('AddressBookController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
