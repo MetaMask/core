@@ -1,49 +1,55 @@
 import type { Hex } from '@metamask/utils';
 
-export enum ProductType {
-  SHIELD = 'shield',
-}
+export const PRODUCT_TYPES = {
+  SHIELD: 'shield',
+} as const;
+
+export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
+
+export const PAYMENT_TYPES = {
+  byCard: 'card',
+  byCrypto: 'crypto',
+} as const;
+
+export type PaymentType = (typeof PAYMENT_TYPES)[keyof typeof PAYMENT_TYPES];
+
+export const RECURRING_INTERVALS = {
+  month: 'month',
+  year: 'year',
+} as const;
+
+export type RecurringInterval =
+  (typeof RECURRING_INTERVALS)[keyof typeof RECURRING_INTERVALS];
+
+export const SUBSCRIPTION_STATUSES = {
+  // Initial states
+  incomplete: 'incomplete',
+  incompleteExpired: 'incomplete_expired',
+  // Active states
+  provisional: 'provisional',
+  trialing: 'trialing',
+  active: 'active',
+  // Payment issues
+  pastDue: 'past_due',
+  unpaid: 'unpaid',
+  // Cancelled states
+  canceled: 'canceled',
+  // Paused states
+  paused: 'paused',
+} as const;
+
+export type SubscriptionStatus =
+  (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
 
 /** only usd for now */
 export type Currency = 'usd';
 
 export type Product = {
   name: ProductType;
-  id: string;
   currency: Currency;
-  amount: number;
+  unitAmount: number;
+  unitDecimals: number;
 };
-
-export enum PaymentType {
-  byCard = 'card',
-  byCrypto = 'crypto',
-}
-
-export enum RecurringInterval {
-  month = 'month',
-  year = 'year',
-}
-
-export enum SubscriptionStatus {
-  // Initial states
-  incomplete = 'incomplete',
-  incompleteExpired = 'incomplete_expired',
-
-  // Active states
-  provisional = 'provisional',
-  trialing = 'trialing',
-  active = 'active',
-
-  // Payment issues
-  pastDue = 'past_due',
-  unpaid = 'unpaid',
-
-  // Cancelled states
-  canceled = 'canceled',
-
-  // Paused states
-  paused = 'paused',
-}
 
 // state
 export type Subscription = {
@@ -51,19 +57,41 @@ export type Subscription = {
   products: Product[];
   currentPeriodStart: string; // ISO 8601
   currentPeriodEnd: string; // ISO 8601
+  /** is subscription scheduled for cancellation */
+  cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
   interval: RecurringInterval;
   paymentMethod: SubscriptionPaymentMethod;
+  trialPeriodDays?: number;
+  trialStart?: string; // ISO 8601
+  trialEnd?: string; // ISO 8601
+  /** is subscription ending soon */
+  endDate?: string; // ISO 8601
+  billingCycles?: number;
 };
 
-export type SubscriptionPaymentMethod = {
-  type: PaymentType;
-  crypto?: {
+export type SubscriptionCardPaymentMethod = {
+  type: Extract<PaymentType, 'card'>;
+  card: {
+    brand: string;
+    /** display brand account for dual brand card */
+    displayBrand: string;
+    last4: string;
+  };
+};
+
+export type SubscriptionCryptoPaymentMethod = {
+  type: Extract<PaymentType, 'crypto'>;
+  crypto: {
     payerAddress: Hex;
     chainId: Hex;
     tokenSymbol: string;
   };
 };
+
+export type SubscriptionPaymentMethod =
+  | SubscriptionCardPaymentMethod
+  | SubscriptionCryptoPaymentMethod;
 
 export type GetSubscriptionsResponse = {
   customerId?: string;
@@ -75,6 +103,7 @@ export type StartSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
+  successUrl?: string;
 };
 
 export type StartSubscriptionResponse = {
@@ -181,10 +210,16 @@ export type GetCryptoApproveTransactionResponse = {
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
-  cancelSubscription(request: { subscriptionId: string }): Promise<void>;
+  cancelSubscription(request: {
+    subscriptionId: string;
+  }): Promise<Subscription>;
+  unCancelSubscription(request: {
+    subscriptionId: string;
+  }): Promise<Subscription>;
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
+  getBillingPortalUrl(): Promise<BillingPortalResponse>;
   getPricing(): Promise<PricingResponse>;
   startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
@@ -199,10 +234,10 @@ export type ISubscriptionService = {
 
 export type UpdatePaymentMethodOpts =
   | ({
-      paymentType: PaymentType.byCard;
+      paymentType: Extract<PaymentType, 'card'>;
     } & UpdatePaymentMethodCardRequest)
   | ({
-      paymentType: PaymentType.byCrypto;
+      paymentType: Extract<PaymentType, 'crypto'>;
     } & UpdatePaymentMethodCryptoRequest);
 
 export type UpdatePaymentMethodCardRequest = {
@@ -215,6 +250,7 @@ export type UpdatePaymentMethodCardRequest = {
    * Recurring interval
    */
   recurringInterval: RecurringInterval;
+  successUrl?: string;
 };
 
 export type UpdatePaymentMethodCryptoRequest = {
@@ -225,4 +261,8 @@ export type UpdatePaymentMethodCryptoRequest = {
   rawTransaction: Hex;
   recurringInterval: RecurringInterval;
   billingCycles: number;
+};
+
+export type BillingPortalResponse = {
+  url: string;
 };

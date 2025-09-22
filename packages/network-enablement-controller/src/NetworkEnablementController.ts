@@ -224,6 +224,51 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Enables a network for the user within a specific namespace.
+   *
+   * This method accepts either a Hex chain ID (for EVM networks) or a CAIP-2 chain ID
+   * (for any blockchain network) and enables it within the specified namespace.
+   * The method validates that the chainId belongs to the specified namespace for safety.
+   *
+   * Before enabling the target network, this method disables all other networks
+   * in the same namespace to ensure exclusive behavior within the namespace.
+   *
+   * @param chainId - The chain ID of the network to enable. Can be either:
+   * - A Hex string (e.g., '0x1' for Ethereum mainnet) for EVM networks
+   * - A CAIP-2 chain ID (e.g., 'eip155:1' for Ethereum mainnet, 'solana:mainnet' for Solana)
+   * @param namespace - The CAIP namespace where the network should be enabled
+   * @throws Error if the chainId's derived namespace doesn't match the provided namespace
+   */
+  enableNetworkInNamespace(
+    chainId: Hex | CaipChainId,
+    namespace: CaipNamespace,
+  ): void {
+    const { namespace: derivedNamespace, storageKey } = deriveKeys(chainId);
+
+    // Validate that the derived namespace matches the provided namespace
+    if (derivedNamespace !== namespace) {
+      throw new Error(
+        `Chain ID ${chainId} belongs to namespace ${derivedNamespace}, but namespace ${namespace} was specified`,
+      );
+    }
+
+    this.update((s) => {
+      // Ensure the namespace bucket exists
+      this.#ensureNamespaceBucket(s, namespace);
+
+      // Disable all networks in the specified namespace first
+      if (s.enabledNetworkMap[namespace]) {
+        Object.keys(s.enabledNetworkMap[namespace]).forEach((key) => {
+          s.enabledNetworkMap[namespace][key as CaipChainId | Hex] = false;
+        });
+      }
+
+      // Enable the target network in the specified namespace
+      s.enabledNetworkMap[namespace][storageKey] = true;
+    });
+  }
+
+  /**
    * Enables all popular networks and Solana mainnet.
    *
    * This method first disables all networks across all namespaces, then enables
@@ -298,9 +343,9 @@ export class NetworkEnablementController extends BaseController<
    * Initializes the network enablement state from network controller configurations.
    *
    * This method reads the current network configurations from both NetworkController
-   * and MultichainNetworkController and initializes the enabled network map accordingly.
-   * It ensures proper namespace buckets exist for all configured networks and enables
-   * popular networks by default.
+   * and MultichainNetworkController and syncs the enabled network map accordingly.
+   * It ensures proper namespace buckets exist for all configured networks and only
+   * adds missing networks with a default value of false, preserving existing user settings.
    *
    * This method should be called after the NetworkController and MultichainNetworkController
    * have been initialized and their configurations are available.
@@ -321,79 +366,27 @@ export class NetworkEnablementController extends BaseController<
       Object.keys(
         networkControllerState.networkConfigurationsByChainId,
       ).forEach((chainId) => {
-        const { namespace } = deriveKeys(chainId as Hex);
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
         this.#ensureNamespaceBucket(s, namespace);
+
+        // Only add network if it doesn't already exist in state (preserves user settings)
+        if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
+          s.enabledNetworkMap[namespace][storageKey] = false;
+        }
       });
 
       // Initialize namespace buckets for all networks from MultichainNetworkController
       Object.keys(
         multichainState.multichainNetworkConfigurationsByChainId,
       ).forEach((chainId) => {
-        const { namespace } = deriveKeys(chainId as CaipChainId);
+        const { namespace, storageKey } = deriveKeys(chainId as CaipChainId);
         this.#ensureNamespaceBucket(s, namespace);
-      });
 
-      // Enable popular networks that exist in the configurations
-      POPULAR_NETWORKS.forEach((chainId) => {
-        const { namespace, storageKey } = deriveKeys(chainId as Hex);
-
-        // Check if network exists in NetworkController configurations
-        if (
-          s.enabledNetworkMap[namespace] &&
-          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
-        ) {
-          s.enabledNetworkMap[namespace][storageKey] = true;
+        // Only add network if it doesn't already exist in state (preserves user settings)
+        if (s.enabledNetworkMap[namespace][storageKey] === undefined) {
+          s.enabledNetworkMap[namespace][storageKey] = false;
         }
       });
-
-      // Enable Solana mainnet if it exists in configurations
-      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
-      if (
-        s.enabledNetworkMap[solanaKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          SolScope.Mainnet
-        ]
-      ) {
-        s.enabledNetworkMap[solanaKeys.namespace][solanaKeys.storageKey] = true;
-      }
-
-      // Enable Bitcoin mainnet if it exists in configurations
-      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
-      if (
-        s.enabledNetworkMap[bitcoinKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Mainnet
-        ]
-      ) {
-        s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
-          true;
-      }
-
-      // Enable Bitcoin testnet if it exists in configurations
-      const bitcoinTestnetKeys = deriveKeys(BtcScope.Testnet as CaipChainId);
-      if (
-        s.enabledNetworkMap[bitcoinTestnetKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Testnet
-        ]
-      ) {
-        s.enabledNetworkMap[bitcoinTestnetKeys.namespace][
-          bitcoinTestnetKeys.storageKey
-        ] = false;
-      }
-
-      // Enable Bitcoin signet testnet if it exists in configurations
-      const bitcoinSignetKeys = deriveKeys(BtcScope.Signet as CaipChainId);
-      if (
-        s.enabledNetworkMap[bitcoinSignetKeys.namespace] &&
-        multichainState.multichainNetworkConfigurationsByChainId[
-          BtcScope.Signet
-        ]
-      ) {
-        s.enabledNetworkMap[bitcoinSignetKeys.namespace][
-          bitcoinSignetKeys.storageKey
-        ] = false;
-      }
     });
   }
 
