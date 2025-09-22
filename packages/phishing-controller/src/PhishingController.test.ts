@@ -1,10 +1,5 @@
 import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
-import type {
-  SimulationTokenBalanceChange,
-  SimulationTokenStandard,
-  TransactionControllerStateChangeEvent,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
@@ -25,33 +20,12 @@ import {
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   type BulkPhishingDetectionScanResponse,
 } from './PhishingController';
-import {
-  formatHostnameToUrl,
-  createMockTransaction,
-  createMockStateChangePayload,
-  createMockTokenBalanceChange,
-  TEST_ADDRESSES,
-} from './tests/utils';
+import { formatHostnameToUrl } from './tests/utils';
 import type { PhishingDetectionScanResult } from './types';
 import { PhishingDetectorResultType, RecommendedAction } from './types';
 import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
-
-/**
- * Constructs a restricted messenger.
- *
- * @returns A restricted messenger.
- */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<PhishingControllerActions, never>();
-
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
-}
 
 /**
  * Constructs a restricted messenger with transaction events enabled.
