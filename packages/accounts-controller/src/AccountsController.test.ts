@@ -243,7 +243,7 @@ function buildMessenger(): RootMessenger {
 /**
  * Builds a messenger for the AccountsController.
  *
- * @param rootMessenger - The parent messenger.
+ * @param rootMessenger - The root messenger.
  * @returns The messenger for AccountsController.
  */
 function buildAccountsControllerMessenger(rootMessenger = buildMessenger()) {
