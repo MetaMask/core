@@ -462,7 +462,7 @@ export class AccountTreeController extends BaseController<
       }
 
       // Use the higher of the two: highest parsed index or computed index
-      proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex);
+      proposedNameIndex = Math.min(highestAccountNameIndex, proposedNameIndex);
 
       // Find a unique name by checking for conflicts and incrementing if needed
       let nameExists: boolean;
