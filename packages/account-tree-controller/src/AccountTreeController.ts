@@ -259,23 +259,19 @@ export class AccountTreeController extends BaseController<
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
     let previousSelectedAccountGroupStillExists = false;
-    for (const wallet of Object.values(wallets)) {
-      this.#applyAccountWalletMetadata(wallet);
-
-      for (const group of Object.values(wallet.groups)) {
-        if (group.id === previousSelectedAccountGroup) {
-          previousSelectedAccountGroupStillExists = true;
-        }
-      }
-    }
-
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
       // Apply group metadata within the state update
       for (const wallet of Object.values(state.accountTree.wallets)) {
+        this.#applyAccountWalletMetadata(state, wallet.id);
+
         for (const group of Object.values(wallet.groups)) {
           this.#applyAccountGroupMetadata(state, wallet.id, group.id);
+
+          if (group.id === previousSelectedAccountGroup) {
+            previousSelectedAccountGroupStillExists = true;
+          }
         }
       }
 
@@ -342,10 +338,15 @@ export class AccountTreeController extends BaseController<
    * first, and then fallbacks to default values (based on the wallet's
    * type).
    *
-   * @param wallet Account wallet object to update.
+   * @param state Controller state to update for persistence.
+   * @param walletId The wallet ID to update.
    */
-  #applyAccountWalletMetadata(wallet: AccountWalletObject) {
-    const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
+  #applyAccountWalletMetadata(
+    state: AccountTreeControllerState,
+    walletId: AccountWalletId,
+  ) {
+    const wallet = state.accountTree.wallets[walletId];
+    const persistedMetadata = state.accountWalletsMetadata[walletId];
 
     // Apply persisted name if available (including empty strings)
     if (persistedMetadata?.name !== undefined) {
@@ -608,7 +609,7 @@ export class AccountTreeController extends BaseController<
 
         const wallet = state.accountTree.wallets[walletId];
         if (wallet) {
-          this.#applyAccountWalletMetadata(wallet);
+          this.#applyAccountWalletMetadata(state, walletId);
           this.#applyAccountGroupMetadata(state, walletId, groupId);
         }
       }
