@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Set `lastUpdatedAt` to `0` when generating default account group names ([#6672](https://github.com/MetaMask/core/pull/6672))
+  - This created conflicts with backup and sync, where newly created local groups' names were taking precedence over user-defined backed up names.
+
 ## [0.18.0]
 
 ### Added

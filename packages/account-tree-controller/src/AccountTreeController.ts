@@ -489,7 +489,10 @@ export class AccountTreeController extends BaseController<
       state.accountGroupsMetadata[group.id] ??= {};
       state.accountGroupsMetadata[group.id].name = {
         value: proposedName,
-        lastUpdatedAt: Date.now(),
+        // The `lastUpdatedAt` field is used for backup and sync, when comparing local names
+        // with backed up names. In this case, the generated name should never take precedence
+        // over a user-defined name, so we set `lastUpdatedAt` to 0.
+        lastUpdatedAt: 0,
       };
     }
 
