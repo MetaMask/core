@@ -2,7 +2,7 @@ import type {
   StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
 import type { Messenger } from '@metamask/messenger';
 
@@ -103,25 +103,25 @@ const controllerMetadata = {
   currentAppVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
   previousAppVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
   previousMigrationVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
   currentMigrationVersion: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 } satisfies StateMetadata<AppMetadataControllerState>;
