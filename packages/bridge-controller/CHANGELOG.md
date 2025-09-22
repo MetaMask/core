@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Solana Devnet support to bridge controller ([#6670](https://github.com/MetaMask/core/pull/6670))
+
 ## [43.2.0]
 
 ### Added

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+- Add Solana Devnet support to multichain network controller ([#6670](https://github.com/MetaMask/core/pull/6670))
 
 ### Changed
 
