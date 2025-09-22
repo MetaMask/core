@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.2.0]
 
-### Uncategorized
-
-- Fix network-controller build ([#6452](https://github.com/MetaMask/core/pull/6452))
-- chore(network-controller): Speed up network client tests ([#6377](https://github.com/MetaMask/core/pull/6377))
-- Document recent breaking change to controller-utils ([#6343](https://github.com/MetaMask/core/pull/6343))
-
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
@@ -28,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rephrase "circuit broken" errors so they are more user-friendly ([#6423](https://github.com/MetaMask/core/pull/6423))
   - These are errors produced when a request is made to an RPC endpoint after it returns too many consecutive 5xx responses and the underlying circuit is open.
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.8` to `^5.0.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
 
 ### Deprecated
 
