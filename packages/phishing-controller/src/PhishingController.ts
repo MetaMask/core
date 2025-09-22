@@ -1019,40 +1019,36 @@ export class PhishingController extends BaseController<
 
     // If there are tokens to fetch, call the bulk token scan API
     if (tokensToFetch.length > 0) {
-      try {
-        const apiResponse = await this.#fetchTokenScanBulkResults(
-          chain,
-          tokensToFetch,
-        );
+      const apiResponse = await this.#fetchTokenScanBulkResults(
+        chain,
+        tokensToFetch,
+      );
 
-        if (apiResponse?.results) {
-          // Process API results and update cache
-          for (const tokenAddress of tokensToFetch) {
-            const normalizedAddress = tokenAddress.toLowerCase();
-            const tokenResult = apiResponse.results[normalizedAddress];
+      if (apiResponse?.results) {
+        // Process API results and update cache
+        for (const tokenAddress of tokensToFetch) {
+          const normalizedAddress = tokenAddress.toLowerCase();
+          const tokenResult = apiResponse.results[normalizedAddress];
 
-            if (tokenResult?.result_type) {
-              const result = {
-                result_type: tokenResult.result_type,
-                chain: tokenResult.chain || normalizedChainId,
-                address: tokenResult.address || normalizedAddress,
-              };
+          if (tokenResult?.result_type) {
+            const result = {
+              result_type: tokenResult.result_type,
+              chain: tokenResult.chain || normalizedChainId,
+              address: tokenResult.address || normalizedAddress,
+            };
 
-              // Update cache
-              const cacheKey = buildCacheKey(
-                normalizedChainId,
-                normalizedAddress,
-              );
-              this.#tokenScanCache.set(cacheKey, {
-                result_type: tokenResult.result_type,
-              });
+            // Update cache
+            const cacheKey = buildCacheKey(
+              normalizedChainId,
+              normalizedAddress,
+            );
+            this.#tokenScanCache.set(cacheKey, {
+              result_type: tokenResult.result_type,
+            });
 
-              results[normalizedAddress] = result;
-            }
+            results[normalizedAddress] = result;
           }
         }
-      } catch (error) {
-        console.error('Error scanning tokens:', error);
       }
     }
 
