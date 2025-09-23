@@ -1,13 +1,10 @@
-import {
-  AccountWalletType,
-  AccountGroupType,
-  select,
-} from '@metamask/account-api';
+import { AccountWalletType, select } from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
   AccountSelector,
   MultichainAccountWalletId,
+  AccountGroupType,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';
@@ -259,23 +256,35 @@ export class AccountTreeController extends BaseController<
 
     // Once we have the account tree, we can apply persisted metadata (names + UI states).
     let previousSelectedAccountGroupStillExists = false;
-    for (const wallet of Object.values(wallets)) {
-      this.#applyAccountWalletMetadata(wallet);
-
-      for (const group of Object.values(wallet.groups)) {
-        if (group.id === previousSelectedAccountGroup) {
-          previousSelectedAccountGroupStillExists = true;
-        }
-      }
-    }
-
     this.update((state) => {
       state.accountTree.wallets = wallets;
 
       // Apply group metadata within the state update
       for (const wallet of Object.values(state.accountTree.wallets)) {
+        this.#applyAccountWalletMetadata(state, wallet.id);
+
+        // Used for default group default names (so we use human-indexing here).
+        let nextNaturalNameIndex = 1;
         for (const group of Object.values(wallet.groups)) {
-          this.#applyAccountGroupMetadata(state, wallet.id, group.id);
+          this.#applyAccountGroupMetadata(
+            state,
+            wallet.id,
+            group.id,
+            // FIXME: We should not need this kind of logic if we were not inserting accounts
+            // 1 by 1. Instead, we should be inserting wallets and groups directly. This would
+            // allow us to naturally insert a group in the tree AND update its metadata right
+            // away...
+            // But here, we have to wait for the entire group to be ready before updating
+            // its metadata (mainly because we're dealing with single accounts rather than entire
+            // groups).
+            // That is why we need this kind of extra parameter.
+            nextNaturalNameIndex,
+          );
+
+          if (group.id === previousSelectedAccountGroup) {
+            previousSelectedAccountGroupStillExists = true;
+          }
+          nextNaturalNameIndex += 1;
         }
       }
 
@@ -342,10 +351,15 @@ export class AccountTreeController extends BaseController<
    * first, and then fallbacks to default values (based on the wallet's
    * type).
    *
-   * @param wallet Account wallet object to update.
+   * @param state Controller state to update for persistence.
+   * @param walletId The wallet ID to update.
    */
-  #applyAccountWalletMetadata(wallet: AccountWalletObject) {
-    const persistedMetadata = this.state.accountWalletsMetadata[wallet.id];
+  #applyAccountWalletMetadata(
+    state: AccountTreeControllerState,
+    walletId: AccountWalletId,
+  ) {
+    const wallet = state.accountTree.wallets[walletId];
+    const persistedMetadata = state.accountWalletsMetadata[walletId];
 
     // Apply persisted name if available (including empty strings)
     if (persistedMetadata?.name !== undefined) {
@@ -402,11 +416,13 @@ export class AccountTreeController extends BaseController<
    * @param state Controller state to update for persistence.
    * @param walletId The wallet ID containing the group.
    * @param groupId The account group ID to update.
+   * @param nextNaturalNameIndex The next natural name index for this group (only used for default names).
    */
   #applyAccountGroupMetadata(
     state: AccountTreeControllerState,
     walletId: AccountWalletId,
     groupId: AccountGroupId,
+    nextNaturalNameIndex?: number,
   ) {
     const wallet = state.accountTree.wallets[walletId];
     const group = wallet.groups[groupId];
@@ -420,15 +436,14 @@ export class AccountTreeController extends BaseController<
       // Get the appropriate rule for this wallet type
       const rule = this.#getRuleForWallet(wallet);
 
+      // Get the prefix for groups of this wallet
+      const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
+
       // Skip computed names for now - use default naming with per-wallet logic
       // TODO: Implement computed names in a future iteration
 
-      // Generate default name and ensure it's unique within the wallet
-      let proposedName = '';
-      let proposedNameIndex: number;
-
       // Parse the highest account index being used (similar to accounts-controller)
-      let highestAccountNameIndex = 0;
+      let highestNameIndex = 0;
       for (const existingGroup of Object.values(
         wallet.groups,
       ) as AccountGroupObject[]) {
@@ -437,50 +452,53 @@ export class AccountTreeController extends BaseController<
           continue;
         }
         // Parse the existing group name to extract the numeric index
-        // TODO: This regex only matches "Account N" pattern. Hardware wallets (Trezor, Ledger, etc.)
-        // use different patterns like "Trezor N", "Ledger N" per keyringTypeToName().
-        // We'll enhance this to handle all keyring types in a future iteration.
         const nameMatch = existingGroup.metadata.name.match(/Account (\d+)$/u);
         if (nameMatch) {
           const nameIndex = parseInt(nameMatch[1], 10);
-          if (nameIndex > highestAccountNameIndex) {
-            highestAccountNameIndex = nameIndex;
+          if (nameIndex > highestNameIndex) {
+            highestNameIndex = nameIndex;
           }
         }
       }
 
-      // For entropy-based multichain groups, start with the actual groupIndex
-      if (
-        group.type === AccountGroupType.MultichainAccount &&
-        group.metadata.entropy
-      ) {
-        proposedNameIndex = group.metadata.entropy.groupIndex;
-      } else {
-        // For other wallet types, start with the number of existing groups
-        // This gives us the next logical sequential number
-        proposedNameIndex = Object.keys(wallet.groups).length - 1;
-      }
-
-      // Use the higher of the two: highest parsed index or computed index
-      proposedNameIndex = Math.min(highestAccountNameIndex, proposedNameIndex);
+      // We just use the highest known index no matter the wallet type.
+      //
+      // For entropy-based wallets (bip44), if a multichain account group with group index 1
+      // is inserted before another one with group index 0, then the naming will be:
+      // - "Account 1" (group index 1)
+      // - "Account 2" (group index 0)
+      // This naming makes more sense for the end-user.
+      //
+      // For other type of wallets, since those wallets can create arbitrary gaps, we still
+      // rely on the highest know index to avoid back-filling account with "old names".
+      let proposedNameIndex = Math.max(
+        // Use + 1 to use the next available index.
+        highestNameIndex + 1,
+        // In case all accounts have been renamed differently than the usual "Account <index>"
+        // pattern, we want to use the next "natural" index, which is just the number of groups
+        // in that wallet (e.g. ["Account A", "Another Account"], next natural index would be
+        // "Account 3" in this case).
+        nextNaturalNameIndex ?? Object.keys(wallet.groups).length,
+      );
 
       // Find a unique name by checking for conflicts and incrementing if needed
-      let nameExists: boolean;
+      let proposedNameExists: boolean;
+      let proposedName = '';
       do {
-        proposedName = rule.getDefaultAccountGroupName(proposedNameIndex);
+        proposedName = `${namePrefix} ${proposedNameIndex}`;
 
         // Check if this name already exists in the wallet (excluding current group)
-        nameExists = !isAccountGroupNameUniqueFromWallet(
+        proposedNameExists = !isAccountGroupNameUniqueFromWallet(
           wallet,
           group.id,
           proposedName,
         );
 
         /* istanbul ignore next */
-        if (nameExists) {
+        if (proposedNameExists) {
           proposedNameIndex += 1; // Try next number
         }
-      } while (nameExists);
+      } while (proposedNameExists);
 
       state.accountTree.wallets[walletId].groups[groupId].metadata.name =
         proposedName;
@@ -608,7 +626,7 @@ export class AccountTreeController extends BaseController<
 
         const wallet = state.accountTree.wallets[walletId];
         if (wallet) {
-          this.#applyAccountWalletMetadata(wallet);
+          this.#applyAccountWalletMetadata(state, walletId);
           this.#applyAccountGroupMetadata(state, walletId, groupId);
         }
       }

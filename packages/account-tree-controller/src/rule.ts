@@ -10,7 +10,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObject, AccountGroupObjectOf } from './group';
 import type { AccountTreeControllerMessenger } from './types';
-import type { AccountWalletObjectOf } from './wallet';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 
 export type RuleResult<
   WalletType extends AccountWalletType,
@@ -83,10 +83,12 @@ export type Rule<
   /**
    * Gets default name for a group based on its position in the wallet.
    *
-   * @param index - The group's position within its wallet.
-   * @returns The default name for that group.
+   * @param wallet - Wallet associated to this rule.
+   * @returns The default name prefix for groups of that wallet.
    */
-  getDefaultAccountGroupName(index: number): string;
+  getDefaultAccountGroupPrefix(
+    wallet: AccountWalletObjectOf<WalletType>,
+  ): string;
 };
 
 export class BaseRule {
@@ -113,12 +115,13 @@ export class BaseRule {
   }
 
   /**
-   * Gets default name for a group based on its position in the wallet.
+   * Gets default prefix name for a group.
    *
-   * @param index - The group's position within its wallet.
-   * @returns The default name for that group.
+   * @param wallet - Wallet of this group.
+   * @returns The default prefix name for that group.
    */
-  getDefaultAccountGroupName(index?: number): string {
-    return index === undefined ? '' : `Account ${index + 1}`;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getDefaultAccountGroupPrefix(wallet: AccountWalletObject): string {
+    return 'Account';
   }
 }
