@@ -17,7 +17,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { EntropyRule } from './entropy';
 import {
   getAccountTreeControllerMessenger,
-  getAccountsControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
@@ -63,13 +62,12 @@ const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
 describe('EntropyRule', () => {
   describe('getComputedAccountGroupName', () => {
     it('uses BaseRule implementation', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new EntropyRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
 
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => MOCK_HD_ACCOUNT_1,
       );
@@ -97,13 +95,12 @@ describe('EntropyRule', () => {
     });
 
     it('returns empty string when account is not found', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new EntropyRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
 
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => undefined,
       );
@@ -160,11 +157,10 @@ describe('EntropyRule', () => {
     });
 
     it('getComputedAccountGroupName returns account name with EVM priority', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new EntropyRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
 
       const mockEvmAccount: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
@@ -176,7 +172,7 @@ describe('EntropyRule', () => {
         },
       };
 
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => mockEvmAccount,
       );
@@ -202,13 +198,12 @@ describe('EntropyRule', () => {
     });
 
     it('getComputedAccountGroupName returns empty string when no accounts found', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new EntropyRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
 
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => undefined,
       );
@@ -234,9 +229,10 @@ describe('EntropyRule', () => {
     });
 
     it('getComputedAccountGroupName returns empty string for non-EVM accounts to prevent chain-specific names', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new EntropyRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new EntropyRule(accountTreeControllerMessenger);
 
       const mockSolanaAccount: InternalAccount = {
         ...MOCK_HD_ACCOUNT_1,
@@ -248,7 +244,7 @@ describe('EntropyRule', () => {
         },
       };
 
-      rootMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         (accountId: string) => {
           const accounts: Record<string, InternalAccount> = {

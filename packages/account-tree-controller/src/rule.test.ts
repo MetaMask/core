@@ -17,7 +17,6 @@ import type { AccountGroupObject } from './group';
 import { BaseRule } from './rule';
 import {
   getAccountTreeControllerMessenger,
-  getAccountsControllerMessenger,
   getRootMessenger,
 } from '../tests/mockMessenger';
 
@@ -56,13 +55,12 @@ const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
 describe('BaseRule', () => {
   describe('getComputedAccountGroupName', () => {
     it('returns empty string when account is not found', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new BaseRule(accountTreeControllerMessenger);
 
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => undefined,
       );
@@ -88,13 +86,12 @@ describe('BaseRule', () => {
     });
 
     it('returns account name when account is found', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new BaseRule(accountTreeControllerMessenger);
 
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => MOCK_HD_ACCOUNT_1,
       );
@@ -124,17 +121,19 @@ describe('BaseRule', () => {
 
   describe('getDefaultAccountGroupName', () => {
     it('returns empty string when no index is provided', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new BaseRule(accountTreeControllerMessenger);
 
       expect(rule.getDefaultAccountGroupName()).toBe('');
     });
 
     it('returns formatted account name when index is provided', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new BaseRule(accountTreeControllerMessenger);
 
       expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
       expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');

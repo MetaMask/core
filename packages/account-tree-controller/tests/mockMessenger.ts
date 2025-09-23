@@ -1,21 +1,11 @@
 import {
   Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
 } from '@metamask/messenger';
-import type { GetSnap } from '@metamask/snaps-controllers';
 
-import type {
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
-  AccountsControllerAccountRenamedEvent,
-  AccountsControllerGetAccountAction,
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerListMultichainAccountsAction,
-  AccountsControllerSelectedAccountChangeEvent,
-  AccountsControllerSetSelectedAccountAction,
-} from '../../accounts-controller/src/AccountsController';
-import type { KeyringControllerGetStateAction } from '../../keyring-controller/src/KeyringController';
 import type { AccountTreeControllerMessenger } from '../src/types';
 
 type AllAccountTreeControllerActions =
@@ -31,10 +21,10 @@ type AllAccountTreeControllerEvents =
  */
 export function getRootMessenger() {
   return new Messenger<
-    'Root',
+    MockAnyNamespace,
     AllAccountTreeControllerActions,
     AllAccountTreeControllerEvents
-  >({ namespace: 'Root' });
+  >({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
@@ -78,75 +68,4 @@ export function getAccountTreeControllerMessenger(
     ],
   });
   return accountTreeControllerMessenger;
-}
-
-/**
- * Retrieves a messenger for the AccountsController.
- *
- * @param rootMessenger - The root messenger instance.
- * @returns The messenger for the AccountsController.
- */
-export function getAccountsControllerMessenger(
-  rootMessenger: ReturnType<typeof getRootMessenger>,
-): Messenger<
-  'AccountsController',
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerListMultichainAccountsAction
-  | AccountsControllerSetSelectedAccountAction,
-  | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountRenamedEvent
-  | AccountsControllerSelectedAccountChangeEvent,
-  typeof rootMessenger
-> {
-  return new Messenger<
-    'AccountsController',
-    | AccountsControllerGetAccountAction
-    | AccountsControllerGetSelectedAccountAction
-    | AccountsControllerListMultichainAccountsAction
-    | AccountsControllerSetSelectedAccountAction,
-    | AccountsControllerAccountAddedEvent
-    | AccountsControllerAccountRemovedEvent
-    | AccountsControllerAccountRenamedEvent
-    | AccountsControllerSelectedAccountChangeEvent,
-    typeof rootMessenger
-  >({ namespace: 'AccountsController', parent: rootMessenger });
-}
-
-/**
- * Retrieves a messenger for the KeyringController.
- *
- * @param rootMessenger - The root messenger instance.
- * @returns The messenger for the KeyringController.
- */
-export function getKeyringControllerMessenger(
-  rootMessenger: ReturnType<typeof getRootMessenger>,
-): Messenger<
-  'KeyringController',
-  KeyringControllerGetStateAction,
-  never,
-  typeof rootMessenger
-> {
-  return new Messenger<
-    'KeyringController',
-    KeyringControllerGetStateAction,
-    never,
-    typeof rootMessenger
-  >({ namespace: 'KeyringController', parent: rootMessenger });
-}
-
-/**
- * Retrieves a messenger for the SnapController.
- *
- * @param rootMessenger - The root messenger instance.
- * @returns The messenger for the SnapController.
- */
-export function getSnapControllerMessenger(
-  rootMessenger: ReturnType<typeof getRootMessenger>,
-): Messenger<'SnapController', GetSnap, never, typeof rootMessenger> {
-  return new Messenger<'SnapController', GetSnap, never, typeof rootMessenger>({
-    namespace: 'SnapController',
-    parent: rootMessenger,
-  });
 }

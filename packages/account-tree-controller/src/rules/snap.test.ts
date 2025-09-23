@@ -13,9 +13,7 @@ import type { Snap } from '@metamask/snaps-utils';
 import { SnapRule } from './snap';
 import {
   getAccountTreeControllerMessenger,
-  getAccountsControllerMessenger,
   getRootMessenger,
-  getSnapControllerMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
 import type { AccountWalletObjectOf } from '../wallet';
@@ -59,14 +57,13 @@ const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
 describe('SnapRule', () => {
   describe('getComputedAccountGroupName', () => {
     it('returns computed name from base class', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new SnapRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
 
       // Mock the AccountsController to return an account
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => MOCK_SNAP_ACCOUNT_1,
       );
@@ -91,14 +88,13 @@ describe('SnapRule', () => {
     });
 
     it('returns empty string when account not found', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const accountsControllerMessenger =
-        getAccountsControllerMessenger(rootMessenger);
-      const rule = new SnapRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
 
       // Mock the AccountsController to return undefined (account not found)
-      accountsControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'AccountsController:getAccount',
         () => undefined,
       );
@@ -124,9 +120,10 @@ describe('SnapRule', () => {
 
   describe('getDefaultAccountGroupName', () => {
     it('returns default name from base class based on index', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new SnapRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
 
       expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
       expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
@@ -136,13 +133,13 @@ describe('SnapRule', () => {
 
   describe('getDefaultAccountWalletName', () => {
     it('returns snap proposed name when available', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const snapControllerMessenger = getSnapControllerMessenger(rootMessenger);
-      const rule = new SnapRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
 
       // Mock SnapController to return snap with proposed name
-      snapControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'SnapController:get',
         () => MOCK_SNAP_1 as unknown as Snap,
       );
@@ -162,10 +159,10 @@ describe('SnapRule', () => {
     });
 
     it('returns cleaned snap ID when no proposed name available', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const snapControllerMessenger = getSnapControllerMessenger(rootMessenger);
-      const rule = new SnapRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
 
       const snapWithoutProposedName = {
         id: 'npm:@metamask/example-snap' as unknown as SnapId,
@@ -179,7 +176,7 @@ describe('SnapRule', () => {
       };
 
       // Mock SnapController to return snap without proposed name
-      snapControllerMessenger.registerActionHandler(
+      messenger.registerActionHandler(
         'SnapController:get',
         () => snapWithoutProposedName as unknown as Snap,
       );
@@ -203,16 +200,13 @@ describe('SnapRule', () => {
     });
 
     it('returns cleaned snap ID when snap not found', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const snapControllerMessenger = getSnapControllerMessenger(rootMessenger);
-      const rule = new SnapRule(messenger);
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
 
       // Mock SnapController to return undefined (snap not found)
-      snapControllerMessenger.registerActionHandler(
-        'SnapController:get',
-        () => undefined,
-      );
+      messenger.registerActionHandler('SnapController:get', () => undefined);
 
       const snapId = 'npm:@metamask/missing-snap';
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {

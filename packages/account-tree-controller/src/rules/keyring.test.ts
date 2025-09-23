@@ -11,7 +11,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
 import {
   getAccountTreeControllerMessenger,
-  getAccountsControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
@@ -66,13 +65,12 @@ describe('keyring', () => {
 
     describe('getComputedAccountGroupName', () => {
       it('uses BaseRule implementation', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const accountsControllerMessenger =
-          getAccountsControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+        const messenger = getRootMessenger();
+        const accountTreeControllerMessenger =
+          getAccountTreeControllerMessenger(messenger);
+        const rule = new KeyringRule(accountTreeControllerMessenger);
 
-        accountsControllerMessenger.registerActionHandler(
+        messenger.registerActionHandler(
           'AccountsController:getAccount',
           () => MOCK_HARDWARE_ACCOUNT_1,
         );
@@ -97,13 +95,12 @@ describe('keyring', () => {
       });
 
       it('returns empty string when account is not found', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const accountsControllerMessenger =
-          getAccountsControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+        const messenger = getRootMessenger();
+        const accountTreeControllerMessenger =
+          getAccountTreeControllerMessenger(messenger);
+        const rule = new KeyringRule(accountTreeControllerMessenger);
 
-        accountsControllerMessenger.registerActionHandler(
+        messenger.registerActionHandler(
           'AccountsController:getAccount',
           () => undefined,
         );
@@ -128,9 +125,10 @@ describe('keyring', () => {
 
     describe('getDefaultAccountGroupName', () => {
       it('uses BaseRule implementation', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+        const messenger = getRootMessenger();
+        const accountTreeControllerMessenger =
+          getAccountTreeControllerMessenger(messenger);
+        const rule = new KeyringRule(accountTreeControllerMessenger);
 
         expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
         expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
@@ -138,14 +136,13 @@ describe('keyring', () => {
       });
 
       it('getComputedAccountGroupName returns computed name from base class', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const accountsControllerMessenger =
-          getAccountsControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+        const messenger = getRootMessenger();
+        const accountTreeControllerMessenger =
+          getAccountTreeControllerMessenger(messenger);
+        const rule = new KeyringRule(accountTreeControllerMessenger);
 
         // Mock the AccountsController to always return the account
-        accountsControllerMessenger.registerActionHandler(
+        messenger.registerActionHandler(
           'AccountsController:getAccount',
           () => MOCK_HARDWARE_ACCOUNT_1,
         );
@@ -173,14 +170,13 @@ describe('keyring', () => {
       });
 
       it('getComputedAccountGroupName returns empty string when account not found', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const accountsControllerMessenger =
-          getAccountsControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+        const messenger = getRootMessenger();
+        const accountTreeControllerMessenger =
+          getAccountTreeControllerMessenger(messenger);
+        const rule = new KeyringRule(accountTreeControllerMessenger);
 
         // Mock the AccountsController to return undefined (account not found)
-        accountsControllerMessenger.registerActionHandler(
+        messenger.registerActionHandler(
           'AccountsController:getAccount',
           () => undefined,
         );
@@ -207,9 +203,10 @@ describe('keyring', () => {
       });
 
       it('getDefaultAccountWalletName returns wallet name based on keyring type', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+        const messenger = getRootMessenger();
+        const accountTreeControllerMessenger =
+          getAccountTreeControllerMessenger(messenger);
+        const rule = new KeyringRule(accountTreeControllerMessenger);
 
         const hdWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.hd),
