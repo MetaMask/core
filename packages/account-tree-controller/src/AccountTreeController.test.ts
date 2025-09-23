@@ -1225,7 +1225,7 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      // Publish in shuffled order: SOL, EVM, TRON
+      // Publish in shuffled order: SOL, TRON, EVM
       messenger.publish('AccountsController:accountAdded', solAccount);
       messenger.publish('AccountsController:accountAdded', tronAccount);
       messenger.publish('AccountsController:accountAdded', evmAccount);
