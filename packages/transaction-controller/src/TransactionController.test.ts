@@ -102,6 +102,7 @@ import {
   updateSwapsTransaction,
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
+import { ERC20Interface } from './utils/utils';
 import { ErrorCode } from './utils/validation';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -1553,9 +1554,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
         mockSendFlowHistory,
       );
-      expect(controller.state.transactions[0].isFirstTimeInteraction).toBe(
-        true,
-      );
     });
 
     it.each([
@@ -1593,64 +1591,124 @@ describe('TransactionController', () => {
       },
     );
 
-    it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [
-              {
-                id: '1',
-                chainId: MOCK_NETWORK.chainId,
-                networkClientId: NETWORK_CLIENT_ID_MOCK,
-                status: TransactionStatus.confirmed as const,
-                time: 123456789,
-                txParams: {
-                  from: ACCOUNT_MOCK,
-                  to: ACCOUNT_MOCK,
-                },
-                isFirstTimeInteraction: false, // Ensure this is set
-              },
-            ],
+    describe('first time interaction', () => {
+      it('updates first time interaction to true if no existing transaction returned from accounts API', async () => {
+        const { controller } = setupController();
+
+        getAccountAddressRelationshipMock.mockResolvedValueOnce({
+          count: 0,
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
           },
-        },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+        expect(controller.state.transactions[0].isFirstTimeInteraction).toBe(
+          true,
+        );
       });
 
-      // Add second transaction with the same from, to, and chainId
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-        },
-      );
+      it('calls accounts API with correct parameters for ERCX transfers', async () => {
+        const { controller } = setupController();
+        const recipient = '0x1234567890123456789012345678901234567890';
+        const contractAddress = '0x9876543210987654321098765432109876543210';
 
-      await flushPromises();
+        const amount = '1000000000000000000';
+        const transferData = ERC20Interface.encodeFunctionData('transfer', [
+          recipient,
+          amount,
+        ]);
 
-      expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(
-        false,
-      );
-    });
+        getAccountAddressRelationshipMock.mockResolvedValueOnce({
+          count: 0,
+        });
 
-    it('does not update first time interaction properties if disabled', async () => {
-      const { controller } = setupController({
-        options: { isFirstTimeInteractionEnabled: () => false },
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: contractAddress,
+            data: transferData,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+        expect(getAccountAddressRelationshipMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            from: ACCOUNT_MOCK,
+            to: recipient,
+          }),
+        );
       });
 
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-        },
-      );
+      it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  id: '1',
+                  chainId: MOCK_NETWORK.chainId,
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  status: TransactionStatus.confirmed as const,
+                  time: 123456789,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_MOCK,
+                  },
+                  isFirstTimeInteraction: false, // Ensure this is set
+                },
+              ],
+            },
+          },
+        });
 
-      await flushPromises();
+        // Add second transaction with the same from, to, and chainId
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
-      expect(getAccountAddressRelationshipMock).not.toHaveBeenCalled();
+        await flushPromises();
+
+        expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(
+          false,
+        );
+      });
+
+      it('does not update first time interaction properties if disabled', async () => {
+        const { controller } = setupController({
+          options: { isFirstTimeInteractionEnabled: () => false },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getAccountAddressRelationshipMock).not.toHaveBeenCalled();
+      });
     });
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
@@ -8124,9 +8182,7 @@ describe('TransactionController', () => {
           },
         });
 
-        const result = await messenger.call(
-          'TransactionController:getTransactions',
-        );
+        const result = messenger.call('TransactionController:getTransactions');
 
         expect(result).toHaveLength(1);
         expect(result[0]).toMatchObject({
@@ -8163,14 +8219,11 @@ describe('TransactionController', () => {
           },
         });
 
-        const result = await messenger.call(
-          'TransactionController:getTransactions',
-          {
-            searchCriteria: {
-              from: ACCOUNT_MOCK,
-            },
+        const result = messenger.call('TransactionController:getTransactions', {
+          searchCriteria: {
+            from: ACCOUNT_MOCK,
           },
-        );
+        });
 
         expect(result).toHaveLength(1);
         expect(result[0].txParams.from).toBe(ACCOUNT_MOCK);
@@ -8201,7 +8254,7 @@ describe('TransactionController', () => {
           },
         };
 
-        await messenger.call(
+        messenger.call(
           'TransactionController:updateTransaction',
           updatedTransaction,
           'Test update note',

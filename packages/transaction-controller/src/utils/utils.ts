@@ -1,4 +1,11 @@
 import type { AccessList, AuthorizationList } from '@ethereumjs/common';
+import { Interface } from '@ethersproject/abi';
+import {
+  abiERC721,
+  abiERC20,
+  abiERC1155,
+  abiFiatTokenV2,
+} from '@metamask/metamask-eth-abis';
 import {
   add0x,
   getKnownPropertyNames,
@@ -17,6 +24,11 @@ import type {
 } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
+
+export const ERC20Interface = new Interface(abiERC20);
+export const ERC721Interface = new Interface(abiERC721);
+export const ERC1155Interface = new Interface(abiERC1155);
+export const USDCInterface = new Interface(abiFiatTokenV2);
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -235,4 +247,35 @@ export function setEnvelopeType(
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
   }
+}
+
+/**
+ * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
+ * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
+ * contract standards
+ *
+ * @param data - Encoded transaction data.
+ * @returns A representation of an ethereum contract call.
+ */
+export function parseTransactionData(data: string) {
+  const interfaces = [
+    ERC20Interface,
+    ERC721Interface,
+    ERC1155Interface,
+    USDCInterface,
+  ];
+
+  if (!data) {
+    return undefined;
+  }
+
+  for (const iface of interfaces) {
+    try {
+      return iface.parseTransaction({ data });
+    } catch {
+      // Intentionally empty
+    }
+  }
+
+  return undefined;
 }

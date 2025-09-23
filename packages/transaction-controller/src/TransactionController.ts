@@ -169,6 +169,7 @@ import {
   validateIfTransactionUnapproved,
   normalizeTxError,
   normalizeGasFeeValues,
+  parseTransactionData,
   setEnvelopeType,
 } from './utils/utils';
 import {
@@ -4163,16 +4164,22 @@ export class TransactionController extends BaseController<
     const {
       chainId,
       id: transactionId,
-      txParams: { to, from },
+      txParams: { data, from, to },
     } = transactionMeta;
+
+    let recipient = to;
+    if (data) {
+      const parsedData = parseTransactionData(data);
+      recipient = parsedData?.args?._to || to;
+    }
 
     const request: GetAccountAddressRelationshipRequest = {
       chainId: hexToNumber(chainId),
-      to: to as string,
+      to: recipient as string,
       from,
     };
 
-    validateParamTo(to);
+    validateParamTo(recipient);
 
     const existingTransaction = this.state.transactions.find(
       (tx) =>

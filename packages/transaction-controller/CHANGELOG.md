@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `isFirstTimeInteraction` to be correctly settled when transferring ERCX tokens. ([#6615](https://github.com/MetaMask/core/pull/6615))
+
 ## [60.4.0]
 
 ### Added
