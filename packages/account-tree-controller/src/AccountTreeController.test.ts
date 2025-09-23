@@ -1,4 +1,8 @@
-import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
+import type {
+  AccountGroupIdOf,
+  AccountWalletId,
+  Bip44Account,
+} from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
@@ -587,7 +591,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_2.id],
                   metadata: {
-                    name: 'Snap Account 2', // Updated: per-wallet numbering (different wallet)
+                    name: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                   },
@@ -610,7 +614,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
                   metadata: {
-                    name: 'Ledger Account 2', // Updated: per-wallet numbering (different wallet)
+                    name: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                   },
@@ -652,13 +656,13 @@ describe('AccountTreeController', () => {
           },
           [expectedKeyringWalletIdGroup]: {
             name: {
-              value: 'Ledger Account 2', // Updated: per-wallet numbering (different wallet)
+              value: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
           [expectedSnapWalletIdGroup]: {
             name: {
-              value: 'Snap Account 2', // Updated: per-wallet numbering (different wallet)
+              value: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
@@ -2903,8 +2907,8 @@ describe('AccountTreeController', () => {
       expect(uniqueNames.size).toBe(2);
 
       // Due to optimization, names start at wallet.length, so we get "Account 3" and "Account 4"
-      expect(allNames).toContain('Ledger Account 3');
-      expect(allNames).toContain('Ledger Account 4');
+      expect(allNames).toContain('Ledger Account 1');
+      expect(allNames).toContain('Ledger Account 2');
 
       // Verify they're actually different
       expect(group1.metadata.name).not.toBe(group2.metadata.name);
@@ -4031,6 +4035,77 @@ describe('AccountTreeController', () => {
         controller.state.accountTree.wallets[walletId].groups[groupId].metadata
           .name,
       ).toBe('Conflict Name (2)');
+    });
+  });
+
+  describe('naming', () => {
+    it('names non-HD keyrings accounts properly', () => {
+      const { controller, messenger } = setup();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringTypes.ledger,
+      );
+
+      const getGroupFromAccount = (mockAccount: InternalAccount) => {
+        const groupId = toAccountGroupId(walletId, mockAccount.address);
+        return controller.state.accountTree.wallets[walletId].groups[groupId];
+      };
+
+      const mockAccount1 = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-id-1',
+        address: '0x123',
+      };
+      const mockAccount2 = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-id-2',
+        address: '0x456',
+      };
+      const mockAccount3 = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-id-3',
+        address: '0x789',
+      };
+
+      // Add all 3 accounts.
+      [mockAccount1, mockAccount2, mockAccount3].forEach(
+        (mockAccount, index) => {
+          messenger.publish('AccountsController:accountAdded', mockAccount);
+
+          const group = getGroupFromAccount(mockAccount);
+          expect(group).toBeDefined();
+          expect(group.metadata.name).toBe(`Ledger Account ${index + 1}`);
+        },
+      );
+
+      // Remove account 2, should still create account 4 afterward.
+      const mockAccount4 = {
+        ...MOCK_HARDWARE_ACCOUNT_1,
+        id: 'mock-id-4',
+        address: '0xabc',
+      };
+
+      messenger.publish('AccountsController:accountRemoved', mockAccount2.id);
+
+      expect(getGroupFromAccount(mockAccount4)).toBeUndefined();
+      messenger.publish('AccountsController:accountAdded', mockAccount4);
+
+      const group4 = getGroupFromAccount(mockAccount4);
+      expect(group4).toBeDefined();
+      expect(group4.metadata.name).toBe('Ledger Account 4');
+
+      // Now, removing account 3 and 4, should defaults to an index of "2" (since only
+      // account 1 remains), thus, re-inserting account 2, should be named "* Account 2".
+      messenger.publish('AccountsController:accountRemoved', mockAccount4.id);
+      messenger.publish('AccountsController:accountRemoved', mockAccount3.id);
+
+      expect(getGroupFromAccount(mockAccount2)).toBeUndefined();
+      messenger.publish('AccountsController:accountAdded', mockAccount2);
+
+      const group2 = getGroupFromAccount(mockAccount2);
+      expect(group2).toBeDefined();
+      expect(group2.metadata.name).toBe('Ledger Account 2');
     });
   });
 });
