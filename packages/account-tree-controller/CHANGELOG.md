@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Set the `setAccountGroupName`'s option `autoHandleConflict` to `true` for all backup & sync operations ([#]())
+- Set the `setAccountGroupName`'s option `autoHandleConflict` to `true` for all backup & sync operations ([#6697](https://github.com/MetaMask/core/pull/6697))
 - Add new group naming for non-HD keyring accounts ([#6679](https://github.com/MetaMask/core/pull/6679))
   - Hardware-wallet account groups are now named: "Ledger|Trezor|QR|Lattice|OneKey Account N".
   - Private key account groups are now named: "Imported Account N".
