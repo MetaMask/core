@@ -9,6 +9,7 @@ import type {
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
 import {
+  CaveatMutatorOperation,
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
@@ -37,10 +38,17 @@ function partialRevokePermissions(
   ).value;
 
   for (const scopeString of scopes) {
-    updatedCaveatValue = Caip25CaveatMutators[Caip25CaveatType].removeScope(
+    const result = Caip25CaveatMutators[Caip25CaveatType].removeScope(
       updatedCaveatValue,
       scopeString,
-    )?.value ?? {
+    );
+
+    // If operation is a Noop, it means a scope was passed that was not present in the permission, so we proceed with the loop
+    if (result.operation === CaveatMutatorOperation.Noop) {
+      continue;
+    }
+
+    updatedCaveatValue = result?.value ?? {
       requiredScopes: {},
       optionalScopes: {},
       sessionProperties: {},
