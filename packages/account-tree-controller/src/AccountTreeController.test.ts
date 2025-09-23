@@ -2902,7 +2902,7 @@ describe('AccountTreeController', () => {
       // Critical assertion: should have 2 unique names (no duplicates)
       expect(uniqueNames.size).toBe(2);
 
-      // Due to optimization, names start at wallet.length, so we get "Account 3" and "Account 4"
+      // Due to optimization, names start at wallet.length, so we get "Account 1" and "Account 2"
       expect(allNames).toContain('Account 1');
       expect(allNames).toContain('Account 2');
 
