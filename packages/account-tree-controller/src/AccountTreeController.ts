@@ -25,8 +25,14 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject } from './group';
+import type {
+  AccountGroupObject,
+  AccountOrderObject,
+  AccountTypeKey,
+} from './group';
 import {
+  AccountTypeOrder,
+  deriveAccountsByOrder,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
 } from './group';
@@ -757,6 +763,11 @@ export class AccountTreeController extends BaseController<
 
     const groupId = result.group.id;
     let group = wallet.groups[groupId];
+    const type = account.type as AccountTypeKey;
+    const accountOrder: AccountOrderObject = [
+      AccountTypeOrder[type],
+      account.id,
+    ];
     if (!group) {
       wallet.groups[groupId] = {
         ...result.group,
@@ -765,7 +776,8 @@ export class AccountTreeController extends BaseController<
         metadata: {
           name: '',
           ...{ pinned: false, hidden: false }, // Default UI states
-          ...result.group.metadata, // Allow rules to override defaults
+          ...result.group.metadata,
+          accountOrder: [accountOrder], // Allow rules to override defaults
         },
         // We do need to type-cast since we're not narrowing `result` with
         // the union tag `result.group.type`.
@@ -780,7 +792,15 @@ export class AccountTreeController extends BaseController<
         this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
-      group.accounts.push(account.id);
+      group.metadata.accountOrder.push(accountOrder);
+      const accounts = deriveAccountsByOrder(group.metadata.accountOrder) as [
+        AccountId,
+        ...AccountId[],
+      ];
+      // We need to do this at every insertion because race conditions can happen
+      // during the account creation process where one provider completes before the other.
+      // The discovery process in the service can also lead to some accounts being created "out of order".
+      group.accounts = accounts;
     }
 
     // Update the reverse mapping for this account.
