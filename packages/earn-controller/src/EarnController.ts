@@ -115,16 +115,22 @@ const lendingTransactionTypes = new Set<LendingTransactionTypes>([
  */
 const earnControllerMetadata: StateMetadata<EarnControllerState> = {
   pooled_staking: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   lending: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   lastUpdated: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: true,
+    usedInUi: false,
   },
 };
 

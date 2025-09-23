@@ -65,8 +65,10 @@ export type SampleGasPricesControllerState = {
  */
 const gasPricesControllerMetadata = {
   gasPricesByChainId: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 } satisfies StateMetadata<SampleGasPricesControllerState>;
 

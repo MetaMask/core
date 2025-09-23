@@ -31,7 +31,7 @@ export type DecryptMessageManagerUpdateBadgeEvent = {
 };
 
 export type DecryptMessageManagerMessenger = RestrictedMessenger<
-  string,
+  typeof managerName,
   ActionConstraint,
   | EventConstraint
   | DecryptMessageManagerUnapprovedMessageAddedEvent
@@ -93,6 +93,7 @@ export interface DecryptMessageParamsMetamask
  * Controller in charge of managing - storing, adding, removing, updating - DecryptMessages.
  */
 export class DecryptMessageManager extends AbstractMessageManager<
+  typeof managerName,
   DecryptMessage,
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
