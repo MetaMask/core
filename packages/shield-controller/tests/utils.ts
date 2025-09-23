@@ -1,4 +1,9 @@
 import {
+  SignatureRequestStatus,
+  SignatureRequestType,
+  type SignatureRequest,
+} from '@metamask/signature-controller';
+import {
   TransactionStatus,
   TransactionType,
   type TransactionMeta,
@@ -27,6 +32,27 @@ export function generateMockTxMeta(): TransactionMeta {
     type: TransactionType.contractInteraction,
     origin: 'https://metamask.io',
     submittedTime: Date.now(),
+  };
+}
+
+/**
+ * Generate a mock signature request.
+ *
+ * @returns A mock signature request.
+ */
+export function generateMockSignatureRequest(): SignatureRequest {
+  return {
+    chainId: '0x1',
+    id: random(),
+    type: SignatureRequestType.PersonalSign,
+    messageParams: {
+      data: '0x00',
+      from: '0x0000000000000000000000000000000000000000',
+      origin: 'https://metamask.io',
+    },
+    networkClientId: '1',
+    status: SignatureRequestStatus.Unapproved,
+    time: Date.now(),
   };
 }
 

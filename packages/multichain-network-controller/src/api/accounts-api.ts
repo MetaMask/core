@@ -55,6 +55,7 @@ export const MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES = [
   String(BtcScope.Signet),
   String(BtcScope.Regtest),
   String(SolScope.Mainnet),
+  String(SolScope.Devnet),
   String(EthScope.Mainnet),
   String(EthScope.Testnet),
   String(EthScope.Eoa),

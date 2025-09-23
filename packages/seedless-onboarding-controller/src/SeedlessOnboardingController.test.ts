@@ -1,5 +1,8 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import type { Messenger } from '@metamask/base-controller';
+import {
+  deriveStateFromMetadata,
+  type Messenger,
+} from '@metamask/base-controller';
 import type { EncryptionKey } from '@metamask/browser-passworder';
 import {
   encrypt,
@@ -28,6 +31,7 @@ import {
 import { gcm } from '@noble/ciphers/aes';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
+import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
 
 import {
@@ -2665,29 +2669,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw an error if the old password is incorrect', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, encryptor, baseMessenger }) => {
-          // unlock the controller
-          baseMessenger.publish('KeyringController:unlock');
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockRejectedValueOnce(new Error('Incorrect password'));
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, 'INCORRECT_PASSWORD'),
-          ).rejects.toThrow('Incorrect password');
-        },
-      );
-    });
-
     it('should throw an error if failed to change password', async () => {
       await withController(
         {
@@ -2772,40 +2753,6 @@ describe('SeedlessOnboardingController', () => {
               newKeyShareIndex: LATEST_KEY_INDEX,
               newPassword: NEW_MOCK_PASSWORD,
             }),
-          );
-        },
-      );
-    });
-
-    it('should throw error when authentication info is missing for assertPasswordInSync', async () => {
-      await withController(
-        {
-          state: {
-            // Create a state with vault but missing auth info
-            vault: JSON.stringify({ mockVault: 'data' }),
-            authPubKey: MOCK_AUTH_PUB_KEY,
-            socialBackupsMetadata: [],
-            // Intentionally missing nodeAuthTokens, authConnectionId, userId
-          },
-        },
-        async ({ controller, baseMessenger, encryptor }) => {
-          // Mock the encryptor to pass verifyVaultPassword
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockResolvedValueOnce('mock decrypted data');
-
-          // unlock the controller
-          baseMessenger.publish('KeyringController:unlock');
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          await expect(
-            controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-          );
-
-          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
-            false,
           );
         },
       );
@@ -2991,6 +2938,10 @@ describe('SeedlessOnboardingController', () => {
     const MOCK_PASSWORD = 'mock-password';
 
     it('should lock the controller', async () => {
+      const mutexAcquireSpy = jest
+        .spyOn(Mutex.prototype, 'acquire')
+        .mockResolvedValueOnce(jest.fn());
+
       await withController(
         {
           state: getMockInitialControllerState({
@@ -3006,7 +2957,10 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
 
-          controller.setLocked();
+          await controller.setLocked();
+
+          // verify that the mutex acquire was called
+          expect(mutexAcquireSpy).toHaveBeenCalled();
 
           await expect(
             controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
@@ -3015,73 +2969,6 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
-        },
-      );
-    });
-
-    it('should lock the controller when the keyring is locked', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, baseMessenger, toprfClient }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            MOCK_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          baseMessenger.publish('KeyringController:lock');
-
-          await expect(
-            controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
-              keyringId: MOCK_KEYRING_ID,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
-          );
-        },
-      );
-    });
-
-    it('should unlock the controller when the keyring is unlocked', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, baseMessenger }) => {
-          await expect(
-            controller.addNewSecretData(MOCK_SEED_PHRASE, SecretType.Mnemonic, {
-              keyringId: MOCK_KEYRING_ID,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
-          );
-
-          baseMessenger.publish('KeyringController:unlock');
-
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          controller.updateBackupMetadataState({
-            keyringId: MOCK_KEYRING_ID,
-            data: MOCK_SEED_PHRASE,
-            type: SecretType.Mnemonic,
-          });
-
-          const MOCK_SEED_PHRASE_HASH = keccak256AndHexify(MOCK_SEED_PHRASE);
-          expect(controller.state.socialBackupsMetadata).toStrictEqual([
-            {
-              type: SecretType.Mnemonic,
-              keyringId: MOCK_KEYRING_ID,
-              hash: MOCK_SEED_PHRASE_HASH,
-            },
-          ]);
         },
       );
     });
@@ -3306,7 +3193,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await controller.submitGlobalPassword({
             globalPassword: GLOBAL_PASSWORD,
@@ -3474,7 +3361,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          controller.setLocked();
+          await controller.setLocked();
 
           await controller.submitGlobalPassword({
             globalPassword: GLOBAL_PASSWORD,
@@ -3791,7 +3678,7 @@ describe('SeedlessOnboardingController', () => {
           // We still need verifyPassword to work conceptually, even if unlock is bypassed
           // verifyPasswordSpy.mockResolvedValueOnce(); // Don't mock, let the real one run inside syncLatestGlobalPassword
 
-          controller.setLocked();
+          await controller.setLocked();
 
           // Mock recoverEncKey for the global password
           const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
@@ -4023,7 +3910,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, toprfClient }) => {
           // Ensure the controller is locked
-          controller.setLocked();
+          await controller.setLocked();
 
           // Mock fetchAuthPubKey to return a valid response
           jest.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValue({
@@ -5544,6 +5431,242 @@ describe('SeedlessOnboardingController', () => {
           // The first one was removed in the catch block (line 1911)
           // The second one was removed after successful revocation
           expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
+        },
+      );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'anonymous',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "authConnection": "google",
+              "authConnectionId": "authConnectionId",
+              "groupedAuthConnectionId": "groupedAuthConnectionId",
+              "isSeedlessOnboardingUserAuthenticated": false,
+              "passwordOutdatedCache": Object {
+                "isExpiredPwd": false,
+                "timestamp": 1234567890,
+              },
+            }
+          `);
+        },
+      );
+    });
+
+    it('includes expected state in state logs', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInStateLogs',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "accessToken": true,
+              "authConnection": "google",
+              "authConnectionId": "authConnectionId",
+              "authPubKey": "authPubKey",
+              "groupedAuthConnectionId": "groupedAuthConnectionId",
+              "isSeedlessOnboardingUserAuthenticated": false,
+              "metadataAccessToken": true,
+              "nodeAuthTokens": true,
+              "passwordOutdatedCache": Object {
+                "isExpiredPwd": false,
+                "timestamp": 1234567890,
+              },
+              "pendingToBeRevokedTokens": true,
+              "refreshToken": true,
+              "revokeToken": true,
+              "userId": "userId",
+            }
+          `);
+        },
+      );
+    });
+
+    it('persists expected state', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ),
+          ).toMatchInlineSnapshot(`
+            Object {
+              "authConnection": "google",
+              "authConnectionId": "authConnectionId",
+              "authPubKey": "authPubKey",
+              "encryptedKeyringEncryptionKey": "encryptedKeyringEncryptionKey",
+              "encryptedSeedlessEncryptionKey": "encryptedSeedlessEncryptionKey",
+              "groupedAuthConnectionId": "groupedAuthConnectionId",
+              "isSeedlessOnboardingUserAuthenticated": false,
+              "metadataAccessToken": "metadataAccessToken",
+              "nodeAuthTokens": Array [],
+              "passwordOutdatedCache": Object {
+                "isExpiredPwd": false,
+                "timestamp": 1234567890,
+              },
+              "pendingToBeRevokedTokens": Array [
+                Object {
+                  "refreshToken": "refreshToken",
+                  "revokeToken": "revokeToken",
+                },
+              ],
+              "refreshToken": "refreshToken",
+              "socialBackupsMetadata": Array [],
+              "socialLoginEmail": "socialLoginEmail",
+              "userId": "userId",
+              "vault": "vault",
+            }
+          `);
+        },
+      );
+    });
+
+    it('exposes expected state to UI', async () => {
+      await withController(
+        {
+          state: {
+            accessToken: 'accessToken',
+            authPubKey: 'authPubKey',
+            authConnection: AuthConnection.Google,
+            authConnectionId: 'authConnectionId',
+            encryptedKeyringEncryptionKey: 'encryptedKeyringEncryptionKey',
+            encryptedSeedlessEncryptionKey: 'encryptedSeedlessEncryptionKey',
+            groupedAuthConnectionId: 'groupedAuthConnectionId',
+            isSeedlessOnboardingUserAuthenticated: true,
+            metadataAccessToken: 'metadataAccessToken',
+            nodeAuthTokens: [],
+            passwordOutdatedCache: {
+              isExpiredPwd: false,
+              timestamp: 1234567890,
+            },
+            pendingToBeRevokedTokens: [
+              { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
+            ],
+            refreshToken: 'refreshToken',
+            revokeToken: 'revokeToken',
+            socialBackupsMetadata: [],
+            socialLoginEmail: 'socialLoginEmail',
+            userId: 'userId',
+            vault: 'vault',
+            vaultEncryptionKey: 'vaultEncryptionKey',
+            vaultEncryptionSalt: 'vaultEncryptionSalt',
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'usedInUi',
+            ),
+          ).toMatchInlineSnapshot(`
+          Object {
+            "authConnection": "google",
+            "socialLoginEmail": "socialLoginEmail",
+          }
+        `);
         },
       );
     });

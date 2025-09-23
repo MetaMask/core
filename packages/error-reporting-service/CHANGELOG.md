@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Changed
 
 - **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6462](https://github.com/MetaMask/core/pull/6462))
   - Previously, `ErrorReportingService` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
-- Bump `@metamask/base-controller` from `^8.0.1` to `^8.2.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
 
 ## [2.0.0]
 
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5882](https://github.com/MetaMask/core/pull/5882))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@2.0.0...@metamask/error-reporting-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/error-reporting-service@1.0.0...@metamask/error-reporting-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/error-reporting-service@1.0.0

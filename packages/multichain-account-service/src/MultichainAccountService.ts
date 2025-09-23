@@ -5,13 +5,20 @@ import {
 import type {
   MultichainAccountWalletId,
   Bip44Account,
-  AccountProvider,
 } from '@metamask/account-api';
+import type { HdKeyring } from '@metamask/eth-hd-keyring';
+import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { areUint8ArraysEqual } from '@metamask/utils';
 
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type {
+  EvmAccountProviderConfig,
+  NamedAccountProvider,
+  SolAccountProviderConfig,
+} from './providers';
 import {
   AccountProviderWrapper,
   isAccountProviderWrapper,
@@ -25,9 +32,13 @@ export const serviceName = 'MultichainAccountService';
 /**
  * The options that {@link MultichainAccountService} takes.
  */
-type MultichainAccountServiceOptions = {
+export type MultichainAccountServiceOptions = {
   messenger: MultichainAccountServiceMessenger;
-  providers?: AccountProvider<Bip44Account<KeyringAccount>>[];
+  providers?: NamedAccountProvider[];
+  providerConfigs?: {
+    [EvmAccountProvider.NAME]?: EvmAccountProviderConfig;
+    [SolAccountProvider.NAME]?: SolAccountProviderConfig;
+  };
 };
 
 /** Reverse mapping object used to map account IDs and their wallet/multichain account. */
@@ -42,7 +53,7 @@ type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #providers: AccountProvider<Bip44Account<KeyringAccount>>[];
+  readonly #providers: NamedAccountProvider[];
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -66,19 +77,30 @@ export class MultichainAccountService {
    * @param options.messenger - The messenger suited to this
    * MultichainAccountService.
    * @param options.providers - Optional list of account
+   * @param options.providerConfigs - Optional provider configs
    * providers.
    */
-  constructor({ messenger, providers = [] }: MultichainAccountServiceOptions) {
+  constructor({
+    messenger,
+    providers = [],
+    providerConfigs,
+  }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
     this.#accountIdToContext = new Map();
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
-      new EvmAccountProvider(this.#messenger),
+      new EvmAccountProvider(
+        this.#messenger,
+        providerConfigs?.[EvmAccountProvider.NAME],
+      ),
       new AccountProviderWrapper(
         this.#messenger,
-        new SolAccountProvider(this.#messenger),
+        new SolAccountProvider(
+          this.#messenger,
+          providerConfigs?.[SolAccountProvider.NAME],
+        ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
@@ -121,8 +143,8 @@ export class MultichainAccountService {
       (...args) => this.alignWallet(...args),
     );
     this.#messenger.registerActionHandler(
-      'MultichainAccountService:getIsAlignmentInProgress',
-      () => this.getIsAlignmentInProgress(),
+      'MultichainAccountService:createMultichainAccountWallet',
+      (...args) => this.createMultichainAccountWallet(...args),
     );
 
     this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
@@ -153,6 +175,7 @@ export class MultichainAccountService {
         const wallet = new MultichainAccountWallet({
           entropySource,
           providers: this.#providers,
+          messenger: this.#messenger,
         });
         this.#wallets.set(wallet.id, wallet);
 
@@ -185,6 +208,7 @@ export class MultichainAccountService {
       wallet = new MultichainAccountWallet({
         entropySource: account.options.entropy.id,
         providers: this.#providers,
+        messenger: this.#messenger,
       });
       this.#wallets.set(wallet.id, wallet);
 
@@ -294,6 +318,57 @@ export class MultichainAccountService {
   }
 
   /**
+   * Creates a new multichain account wallet with the given mnemonic.
+   *
+   * NOTE: This method should only be called in client code where a mutex lock is acquired.
+   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
+   *
+   * @param options - Options.
+   * @param options.mnemonic - The mnemonic to use to create the new wallet.
+   * @throws If the mnemonic has already been imported.
+   * @returns The new multichain account wallet.
+   */
+  async createMultichainAccountWallet({
+    mnemonic,
+  }: {
+    mnemonic: string;
+  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    const existingKeyrings = this.#messenger.call(
+      'KeyringController:getKeyringsByType',
+      KeyringTypes.hd,
+    ) as HdKeyring[];
+
+    const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
+
+    const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
+      if (!keyring.mnemonic) {
+        return false;
+      }
+      return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
+    });
+
+    if (alreadyHasImportedSrp) {
+      throw new Error('This Secret Recovery Phrase has already been imported.');
+    }
+
+    const result = await this.#messenger.call(
+      'KeyringController:addNewKeyring',
+      KeyringTypes.hd,
+      { mnemonic },
+    );
+
+    const wallet = new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: result.id,
+      messenger: this.#messenger,
+    });
+
+    this.#wallets.set(wallet.id, wallet);
+
+    return wallet;
+  }
+
+  /**
    * Gets a reference to the multichain account group matching this entropy source
    * and a group index.
    *
@@ -397,22 +472,11 @@ export class MultichainAccountService {
   }
 
   /**
-   * Gets whether wallet alignment is currently in progress.
-   *
-   * @returns True if any wallet alignment is in progress, false otherwise.
-   */
-  getIsAlignmentInProgress(): boolean {
-    return Array.from(this.#wallets.values()).some((wallet) =>
-      wallet.getIsAlignmentInProgress(),
-    );
-  }
-
-  /**
    * Align all multichain account wallets.
    */
   async alignWallets(): Promise<void> {
     const wallets = this.getMultichainAccountWallets();
-    await Promise.all(wallets.map((w) => w.alignGroups()));
+    await Promise.all(wallets.map((w) => w.alignAccounts()));
   }
 
   /**
@@ -422,6 +486,6 @@ export class MultichainAccountService {
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
     const wallet = this.getMultichainAccountWallet({ entropySource });
-    await wallet.alignGroups();
+    await wallet.alignAccounts();
   }
 }

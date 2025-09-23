@@ -810,26 +810,89 @@ describe('Messenger', () => {
       expect(selector.callCount).toBe(4);
     });
 
-    it('throws subscriber errors in a timeout', () => {
-      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    it('captures subscriber errors using captureException', () => {
+      const captureException = jest.fn();
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        captureException,
+        namespace: 'Fixture',
+      });
+      const exampleError = new Error('Example error');
+
+      const handler = sinon.stub().throws(() => exampleError);
+      messenger.subscribe('Fixture:message', handler);
+
+      expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(exampleError);
+    });
+
+    it('captures subscriber thrown non-errors using captureException', () => {
+      const captureException = jest.fn();
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        captureException,
+        namespace: 'Fixture',
+      });
+      const exampleException = 'Non-error thrown value';
+
+      const handler = sinon.stub().throws(() => exampleException);
+      messenger.subscribe('Fixture:message', handler);
+
+      expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(exampleException),
+      );
+    });
+
+    it('captures subscriber errors using inherited captureException', () => {
+      const captureException = jest.fn();
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
+        captureException,
+        namespace: 'Parent',
+      });
+      const messenger = new Messenger<
+        'Fixture',
+        never,
+        MessageEvent,
+        typeof parentMessenger
+      >({
+        namespace: 'Fixture',
+        parent: parentMessenger,
+      });
+      const exampleError = new Error('Example error');
+
+      const handler = sinon.stub().throws(() => exampleError);
+      messenger.subscribe('Fixture:message', handler);
+
+      expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(exampleError);
+    });
+
+    it('logs subscriber errors to console if no captureException provided', () => {
+      const consoleError = jest.fn();
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
+      const exampleError = new Error('Example error');
 
-      const handler = sinon.stub().throws(() => new Error('Example error'));
+      const handler = sinon.stub().throws(() => exampleError);
       messenger.subscribe('Fixture:message', handler);
 
       expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
-      expect(setTimeoutStub.callCount).toBe(1);
-      const onTimeout = setTimeoutStub.firstCall.args[0];
-      expect(() => onTimeout()).toThrow('Example error');
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(exampleError);
     });
 
     it('continues calling subscribers when one throws', () => {
-      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        captureException: jest.fn(),
         namespace: 'Fixture',
       });
 
@@ -844,9 +907,6 @@ describe('Messenger', () => {
       expect(handler1.callCount).toBe(1);
       expect(handler2.calledWithExactly('hello')).toBe(true);
       expect(handler2.callCount).toBe(1);
-      expect(setTimeoutStub.callCount).toBe(1);
-      const onTimeout = setTimeoutStub.firstCall.args[0];
-      expect(() => onTimeout()).toThrow('Example error');
     });
 
     it('does not call subscriber after unsubscribing', () => {

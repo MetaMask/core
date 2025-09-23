@@ -6,11 +6,13 @@ import type { KeyringAccount } from '@metamask/keyring-api';
 
 export type MockAccountProvider = {
   accounts: KeyringAccount[];
+  constructor: jest.Mock;
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
-  discoverAndCreateAccounts: jest.Mock;
+  discoverAccounts: jest.Mock;
   isAccountCompatible?: jest.Mock;
+  getName: jest.Mock;
 };
 
 export function makeMockAccountProvider(
@@ -18,19 +20,23 @@ export function makeMockAccountProvider(
 ): MockAccountProvider {
   return {
     accounts,
+    constructor: jest.fn(),
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
-    discoverAndCreateAccounts: jest.fn(),
+    discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
+    getName: jest.fn(),
   };
 }
 
-export function setupAccountProvider({
+export function setupNamedAccountProvider({
+  name = 'Mocked Provider',
   accounts,
   mocks = makeMockAccountProvider(),
   filter = () => true,
 }: {
+  name?: string;
   mocks?: MockAccountProvider;
   accounts: KeyringAccount[];
   filter?: (account: KeyringAccount) => boolean;
@@ -43,6 +49,8 @@ export function setupAccountProvider({
     mocks.accounts.filter(
       (account) => isBip44Account(account) && filter(account),
     );
+
+  mocks.getName.mockImplementation(() => name);
 
   mocks.getAccounts.mockImplementation(getAccounts);
   mocks.getAccount.mockImplementation(

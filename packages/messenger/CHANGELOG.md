@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- Add `captureException` constructor parameter ([#6605](https://github.com/MetaMask/core/pull/6605))
+  - This function will be used to capture any errors thrown from subscribers.
+  - If this is unset but a parent is provided, `captureException` is inherited from the parent.
+
+### Changed
+
+- Stop re-throwing subscriber errors in a `setTimeout` ([#6605](https://github.com/MetaMask/core/pull/6605))
+  - Instead errors are captured with `captureException`, or logged to the console.
+
+## [0.2.0]
+
 ### Added
 
 - Allow disabling namespace checks in unit tests using the new `MOCK_ANY_NAMESPACE` constant and `MockAnyNamespace` type ([#6420](https://github.com/MetaMask/core/pull/6420))
@@ -43,5 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.2.0...@metamask/messenger@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...@metamask/messenger@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/messenger@0.1.0
