@@ -70,7 +70,7 @@ export async function updateFirstTimeInteraction({
       parsedData?.name === 'safeTransferFrom'
     ) {
       // ERC721 and ERC1155
-      recipient = parsedData?.args[1]?._to;
+      recipient = parsedData?.args[1];
     } else if (parsedData?.name === 'transfer') {
       // ERC20
       recipient = parsedData?.args?._to;

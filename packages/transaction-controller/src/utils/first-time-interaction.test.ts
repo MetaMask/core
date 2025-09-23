@@ -169,7 +169,7 @@ describe('updateFirstTimeInteraction', () => {
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'transferFrom',
-          args: [null, { _to: '0xrecipient' }],
+          args: [null, '0xrecipient'],
         } as unknown as ReturnType<typeof decodeTransactionData>);
         mockGetAccountAddressRelationship.mockResolvedValue({ count: 0 });
 
@@ -198,7 +198,7 @@ describe('updateFirstTimeInteraction', () => {
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'safeTransferFrom',
-          args: [null, { _to: '0xrecipient' }],
+          args: [null, '0xrecipient'],
         } as unknown as ReturnType<typeof decodeTransactionData>);
         mockGetAccountAddressRelationship.mockResolvedValue({ count: 0 });
 
