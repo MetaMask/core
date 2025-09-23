@@ -449,20 +449,17 @@ export class AccountTreeController extends BaseController<
         }
       }
 
-      let proposedNameIndex: number;
-      if (group.type === AccountGroupType.MultichainAccount) {
-        // For entropy-based multichain groups, try to start with the actual groupIndex
-        // (use the higher of the two: highest parsed index or group index)
-        proposedNameIndex = Math.max(
-          highestNameIndex + 1, // + 1 to use the next available index.
-          group.metadata.entropy.groupIndex + 1, // + 1 to use human-indexing.
-        );
-      } else {
-        // For other wallet types, we just use the highest known index since those
-        // wallets can delete their accounts, it is safer to always use the highest
-        // one we parsed.
-        proposedNameIndex = highestNameIndex + 1; // + 1 to use the next available index.
-      }
+      // We just use the highest known index no matter the wallet type.
+      //
+      // For entropy-based wallets (bip44), if a multichain account group with group index 1
+      // is inserted before another one with group index 0, then the naming will be:
+      // - "Account 1" (group index 1)
+      // - "Account 2" (group index 0)
+      // This naming makes more sense for the end-user.
+      //
+      // For other type of wallets, since those wallets can create arbitrary gaps, we still
+      // rely on the highest know index to avoid back-filling account with "old names".
+      let proposedNameIndex = highestNameIndex + 1; // + 1 to use the next available index.
 
       // Find a unique name by checking for conflicts and incrementing if needed
       let proposedNameExists: boolean;
