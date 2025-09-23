@@ -197,6 +197,7 @@ linkStyle default opacity:0.5
   delegation_controller --> keyring_controller;
   earn_controller --> base_controller;
   earn_controller --> controller_utils;
+  earn_controller --> messenger;
   earn_controller --> account_tree_controller;
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
@@ -292,6 +293,7 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
