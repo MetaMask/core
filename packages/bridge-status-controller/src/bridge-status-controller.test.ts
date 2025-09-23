@@ -1766,7 +1766,6 @@ describe('BridgeStatusController', () => {
     };
 
     const mockSolanaAccount = {
-      id: 'solana-account-1',
       address: '0x123...',
       metadata: {
         snap: {
@@ -1973,7 +1972,6 @@ describe('BridgeStatusController', () => {
     };
 
     const mockSolanaAccount = {
-      id: 'solana-account-1',
       address: '0x123...',
       metadata: {
         snap: {

@@ -5,7 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { isNativeAddress, isSolanaChainId } from './bridge';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -14,7 +14,7 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
-  NonEvmFees,
+  SolanaFees,
 } from '../types';
 
 export const isValidQuoteRequest = (
@@ -31,18 +31,12 @@ export const isValidQuoteRequest = (
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
   }
-  // If bridging between different chain types or different non-EVM chains, require dest wallet address
-  // Cases that need destWalletAddress:
-  // 1. EVM -> non-EVM
-  // 2. non-EVM -> EVM
-  // 3. non-EVM -> different non-EVM (e.g., SOL -> BTC)
-  // Only same-chain swaps don't need destWalletAddress
+  // If bridging and one of the chains is solana, require the dest wallet address
   if (
     partialRequest.destChainId &&
     partialRequest.srcChainId &&
-    partialRequest.destChainId !== partialRequest.srcChainId && // Different chains
-    (isNonEvmChainId(partialRequest.destChainId) ||
-      isNonEvmChainId(partialRequest.srcChainId)) // At least one is non-EVM
+    isSolanaChainId(partialRequest.destChainId) ===
+      !isSolanaChainId(partialRequest.srcChainId)
   ) {
     stringFields.push('destWalletAddress');
     if (!partialRequest.destWalletAddress) {
@@ -94,20 +88,20 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   return new BigNumber(value).div(divisor);
 };
 
-export const calcNonEvmTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & NonEvmFees,
+export const calcSolanaTotalNetworkFee = (
+  bridgeQuote: QuoteResponse & SolanaFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const { nonEvmFeesInNative } = bridgeQuote;
-  // Fees are now stored directly in native units (SOL, BTC) without conversion
-  const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
-
+  const { solanaFeesInLamports } = bridgeQuote;
+  const solanaFeeInNative = calcTokenAmount(solanaFeesInLamports ?? '0', 9);
   return {
-    amount: feeInNative.toString(),
+    amount: solanaFeeInNative.toString(),
     valueInCurrency: exchangeRate
-      ? feeInNative.times(exchangeRate).toString()
+      ? solanaFeeInNative.times(exchangeRate).toString()
       : null,
-    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
+    usd: usdExchangeRate
+      ? solanaFeeInNative.times(usdExchangeRate).toString()
+      : null,
   };
 };
 
