@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix group naming for PK/Hardware accounts ([#6677](https://github.com/MetaMask/core/pull/6677))
+  - Previously, the first PK/Hardware account would start as `Account 2` as opposed to `Account 1` and thus subsequent group names were off as well.
+
 ## [1.0.0]
 
 ### Changed
