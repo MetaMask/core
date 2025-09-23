@@ -10,6 +10,7 @@ import {
   EthMethod,
   EthScope,
   KeyringAccountEntropyTypeOption,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -93,7 +94,7 @@ function getAccountTreeControllerMessenger(
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
-      'AccountsController:getSelectedAccount',
+      'AccountsController:getSelectedMultichainAccount',
       'AccountsController:setSelectedAccount',
       'KeyringController:getState',
       'SnapController:get',
@@ -264,6 +265,109 @@ describe('EntropyRule', () => {
       };
 
       expect(rule.getComputedAccountGroupName(group)).toBe('');
+    });
+
+    it('getComputedAccountGroupName returns empty string for non-EVM accounts to prevent chain-specific names', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const rule = new EntropyRule(messenger);
+
+      const mockSolanaAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'solana-account-id',
+        type: SolAccountType.DataAccount,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'Solana Account 2', // This should NOT bubble up as group name
+        },
+      };
+
+      rootMessenger.registerActionHandler(
+        'AccountsController:getAccount',
+        (accountId: string) => {
+          const accounts: Record<string, InternalAccount> = {
+            'solana-account-id': mockSolanaAccount,
+          };
+          return accounts[accountId];
+        },
+      );
+
+      const group: AccountGroupObjectOf<AccountGroupType.MultichainAccount> = {
+        id: toMultichainAccountGroupId(
+          toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        ),
+        type: AccountGroupType.MultichainAccount,
+        accounts: [mockSolanaAccount.id],
+        metadata: {
+          name: '',
+          entropy: {
+            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          },
+          pinned: false,
+          hidden: false,
+        },
+      };
+
+      // Should return empty string, not "Solana Account 2", to fallback to default naming
+      expect(rule.getComputedAccountGroupName(group)).toBe('');
+    });
+
+    it('getComputedAccountGroupName returns EVM name even when non-EVM accounts are present first', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getAccountTreeControllerMessenger(rootMessenger);
+      const rule = new EntropyRule(messenger);
+
+      const mockSolanaAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'solana-account-id',
+        type: SolAccountType.DataAccount,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'Solana Account 2',
+        },
+      };
+
+      const mockEvmAccount: InternalAccount = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'evm-account-id',
+        type: EthAccountType.Eoa,
+        metadata: {
+          ...MOCK_HD_ACCOUNT_1.metadata,
+          name: 'Main Account',
+        },
+      };
+
+      rootMessenger.registerActionHandler(
+        'AccountsController:getAccount',
+        (accountId: string) => {
+          const accounts: Record<string, InternalAccount> = {
+            'solana-account-id': mockSolanaAccount,
+            'evm-account-id': mockEvmAccount,
+          };
+          return accounts[accountId];
+        },
+      );
+
+      const group: AccountGroupObjectOf<AccountGroupType.MultichainAccount> = {
+        id: toMultichainAccountGroupId(
+          toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        ),
+        type: AccountGroupType.MultichainAccount,
+        accounts: [mockSolanaAccount.id, mockEvmAccount.id], // Solana first, EVM second
+        metadata: {
+          name: '',
+          entropy: {
+            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+          },
+          pinned: false,
+          hidden: false,
+        },
+      };
+
+      // Should return EVM account name, not Solana account name
+      expect(rule.getComputedAccountGroupName(group)).toBe('Main Account');
     });
   });
 });

@@ -116,19 +116,27 @@ A variable named `${controllerName}Metadata` should be defined (there is no need
 ```typescript
 const keyringControllerMetadata = {
   vault: {
+    // We don't want to include this in state logs because it contains sensitive key material.
+    includeInStateLogs: false,
     // We want to persist this property so it's restored automatically, as we
     // cannot reconstruct it otherwise.
     persist: true,
     // This property can be used to identify a user, so we want to make sure we
     // do not include it in Sentry.
     anonymous: false,
+    // This property is only used in the controller, not in the UI.
+    usedInUi: false,
   },
   isUnlocked: {
+    // This value is not sensitive, and is useful for diagnosing errors reported through support.
+    includeInStateLogs: true
     // We do not need to persist this property in state, as we want to
     // initialize state with the wallet unlocked.
     persist: false,
     // This property has no PII, so it is safe to send to Sentry.
     anonymous: true,
+    // This is used in the UI
+    usedInUi: true,
   },
 };
 

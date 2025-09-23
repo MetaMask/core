@@ -94,8 +94,18 @@ export type EnsControllerMessenger = Messenger<
 >;
 
 const metadata = {
-  ensEntries: { persist: true, anonymous: false },
-  ensResolutionsByAddress: { persist: true, anonymous: false },
+  ensEntries: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  ensResolutionsByAddress: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState = {

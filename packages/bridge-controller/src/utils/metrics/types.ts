@@ -42,6 +42,7 @@ export type QuoteFetchData = {
 export type TradeData = {
   usd_quoted_gas: number;
   gas_included: boolean;
+  gas_included_7702: boolean;
   quoted_time_minutes: number;
   usd_quoted_return: number;
   provider: `${string}_${string}`;
