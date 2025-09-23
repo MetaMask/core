@@ -1695,7 +1695,7 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Constructor helper for registering this controller's messaging system
+   * Constructor helper for registering this controller's messeger
    * actions.
    */
   #registerMessageHandlers() {
@@ -1774,7 +1774,7 @@ export class KeyringController extends BaseController<
       this.withKeyring.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${name}:addNewKeyring`,
       this.addNewKeyring.bind(this),
     );
