@@ -104,6 +104,7 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.All,
     });
   });
+
   it('should return false if the URL is in the allowlist', async () => {
     const allowlistedHostname = 'example.com';
 
@@ -111,16 +112,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [allowlistedHostname],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [allowlistedHostname],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -234,18 +228,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              blocklist: ['this-should-not-be-in-default-blocklist.com'],
-              fuzzylist: [],
-              allowlist: ['this-should-not-be-in-default-allowlist.com'],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -395,6 +380,7 @@ describe('PhishingController', () => {
       await controller.maybeUpdateState();
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
+
     it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
       nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
@@ -772,18 +758,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['metamask.io'],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['metamask.io'],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -814,18 +791,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -847,18 +815,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -880,18 +839,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['etnerscan.io'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['etnerscan.io'],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -922,18 +872,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            allowlist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          allowlist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -966,18 +907,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1010,18 +942,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1064,18 +987,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1101,18 +1015,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1143,18 +1048,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: ['opensea.io'],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          fuzzylist: ['opensea.io'],
           tolerance: 2,
           version: 0,
           lastUpdated: 1,
@@ -1185,18 +1081,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: ['opensea.io'],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          fuzzylist: ['opensea.io'],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1221,18 +1108,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['electrum.mx'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['electrum.mx'],
+          fuzzylist: [],
           tolerance: 2,
           version: 0,
           lastUpdated: 1,
@@ -1269,18 +1147,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['electrum.mx'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['electrum.mx'],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1318,18 +1187,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1366,18 +1226,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -1414,20 +1265,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['example.com/path'],
-            fuzzylist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
-          tolerance: 0,
           allowlist: [],
+          blocklist: ['example.com/path'],
+          fuzzylist: [],
+          tolerance: 0,
           version: 0,
           lastUpdated: 1,
         },
@@ -1492,20 +1333,10 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [exampleBlockedUrl],
-              fuzzylist: [],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
-            tolerance: 0,
             allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            fuzzylist: [],
+            tolerance: 0,
             version: 0,
             lastUpdated: 1,
           },
@@ -1557,18 +1388,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [exampleBlockedUrl],
-              fuzzylist: [],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -1622,20 +1444,10 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: ['example.com', 'malicious.com/phishing'],
-              fuzzylist: [],
-            },
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
-            tolerance: 0,
             allowlist: [],
+            blocklist: ['example.com', 'malicious.com/phishing'],
+            fuzzylist: [],
+            tolerance: 0,
             version: 0,
             lastUpdated: 1,
           },
@@ -1782,18 +1594,9 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, {
             data: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              eth_phishing_detect_config: {
-                allowlist: [],
-                blocklist: [],
-                fuzzylist: [],
-              },
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              phishfort_hotlist: {
-                blocklist: [],
-              },
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
               tolerance: 0,
               version: 0,
               lastUpdated: 1,
@@ -1824,18 +1627,9 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, {
             data: {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              eth_phishing_detect_config: {
-                allowlist: [],
-                blocklist: [],
-                fuzzylist: [],
-              },
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              phishfort_hotlist: {
-                blocklist: [],
-              },
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
               tolerance: 0,
               version: 0,
               lastUpdated: 1,
@@ -2411,16 +2205,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2453,16 +2240,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2496,16 +2276,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2536,16 +2309,9 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-            },
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -2592,16 +2358,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [allowlistedDomain],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [allowlistedDomain],
+          blocklist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
