@@ -14,10 +14,8 @@ type UpdateFirstTimeInteractionRequest = {
   existingTransactions: TransactionMeta[];
   getTransaction: (transactionId: string) => TransactionMeta | undefined;
   isFirstTimeInteractionEnabled: () => boolean;
-  options?: {
-    traceContext?: TraceContext;
-  };
   trace: TraceCallback;
+  traceContext?: TraceContext;
   transactionMeta: TransactionMeta;
   updateTransactionInternal: (
     updateParams: {
@@ -35,8 +33,8 @@ type UpdateFirstTimeInteractionRequest = {
  * @param params.existingTransactions - The existing transactions.
  * @param params.getTransaction - Function to get a transaction by ID.
  * @param params.isFirstTimeInteractionEnabled - The function to check if first time interaction is enabled.
- * @param params.options - The options for updating first time interaction.
  * @param params.trace - The trace callback.
+ * @param params.traceContext - The trace context.
  * @param params.transactionMeta - The transaction meta object.
  * @param params.updateTransactionInternal - Function to update transaction internal state.
  * @returns Promise that resolves when the update is complete.
@@ -45,13 +43,11 @@ export async function updateFirstTimeInteraction({
   existingTransactions,
   getTransaction,
   isFirstTimeInteractionEnabled,
-  options = {},
   trace,
+  traceContext,
   transactionMeta,
   updateTransactionInternal,
 }: UpdateFirstTimeInteractionRequest): Promise<void> {
-  const { traceContext } = options;
-
   if (!isFirstTimeInteractionEnabled()) {
     return;
   }

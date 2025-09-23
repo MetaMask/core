@@ -1404,10 +1404,10 @@ export class TransactionController extends BaseController<
 
         updateFirstTimeInteraction({
           transactionMeta: addedTransactionMeta,
-          options: { traceContext },
           isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
           existingTransactions: this.state.transactions,
           trace: this.#trace,
+          traceContext,
           getTransaction: (transactionId: string) =>
             this.#getTransaction(transactionId),
           updateTransactionInternal: this.#updateTransactionInternal.bind(this),
