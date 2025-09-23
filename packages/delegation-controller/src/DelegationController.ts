@@ -23,7 +23,7 @@ const delegationControllerMetadata = {
   delegations: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 } satisfies StateMetadata<DelegationControllerState>;
