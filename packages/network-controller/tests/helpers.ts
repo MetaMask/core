@@ -7,8 +7,10 @@ import {
 } from '@metamask/controller-utils';
 import {
   Messenger,
+  type MockAnyNamespace,
   type MessengerActions,
   type MessengerEvents,
+  MOCK_ANY_NAMESPACE,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
@@ -49,7 +51,7 @@ export type AllNetworkControllerEvents =
   MessengerEvents<NetworkControllerMessenger>;
 
 export type RootMessenger = Messenger<
-  'Root',
+  MockAnyNamespace,
   AllNetworkControllerActions,
   AllNetworkControllerEvents
 >;
@@ -83,7 +85,7 @@ export const TESTNET = {
  * @returns The messenger.
  */
 export function buildRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: 'Root' });
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
@@ -109,31 +111,6 @@ export function buildNetworkControllerMessenger(
     actions: ['ErrorReportingService:captureException'],
   });
   return networkControllerMessenger;
-}
-
-/**
- * Build a messenger for the error reporting service.
- *
- * @param rootMessenger - The root messenger.
- * @returns The error reporting service messenger.
- */
-export function buildErrorReportingServiceMessenger(
-  rootMessenger = buildRootMessenger(),
-): Messenger<
-  'ErrorReportingService',
-  AllNetworkControllerActions,
-  AllNetworkControllerEvents,
-  typeof rootMessenger
-> {
-  return new Messenger<
-    'ErrorReportingService',
-    AllNetworkControllerActions,
-    AllNetworkControllerEvents,
-    typeof rootMessenger
-  >({
-    namespace: 'ErrorReportingService',
-    parent: rootMessenger,
-  });
 }
 
 /**

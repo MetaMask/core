@@ -201,7 +201,12 @@ async function getCurrencyConversionRate({
 }
 
 const tokenRatesControllerMetadata = {
-  marketData: { persist: true, anonymous: false },
+  marketData: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 /**

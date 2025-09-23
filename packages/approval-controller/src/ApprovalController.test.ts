@@ -1,6 +1,13 @@
 /* eslint-disable jest/expect-expect */
 
-import { Messenger } from '@metamask/messenger';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
@@ -9,6 +16,7 @@ import type {
   AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
+  ApprovalControllerMessenger,
   ErrorOptions,
   StartFlowOptions,
   SuccessOptions,
@@ -27,6 +35,12 @@ import {
 } from './errors';
 
 jest.mock('nanoid');
+
+type AllActions = MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const nanoidMock = jest.mocked(nanoid);
 
@@ -228,11 +242,9 @@ function getError(message: string, code?: number) {
  * @returns A controller messenger.
  */
 function getMessengers() {
-  const rootMessenger = new Messenger<
-    'Root',
-    ApprovalControllerActions,
-    ApprovalControllerEvents
-  >({ namespace: 'Root' });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
   return {
     rootMessenger,
     approvalControllerMessenger: new Messenger<
@@ -1697,6 +1709,64 @@ describe('approval controller', () => {
           }),
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "pendingApprovals": Object {},
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "approvalFlows": Array [],
+          "pendingApprovalCount": 0,
+          "pendingApprovals": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "approvalFlows": Array [],
+          "pendingApprovalCount": 0,
+          "pendingApprovals": Object {},
+        }
+      `);
     });
   });
 });

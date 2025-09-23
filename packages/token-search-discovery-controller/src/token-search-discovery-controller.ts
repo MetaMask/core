@@ -2,6 +2,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
@@ -30,10 +31,21 @@ export type TokenSearchDiscoveryControllerState = {
   lastSearchTimestamp: number | null;
 };
 
-const tokenSearchDiscoveryControllerMetadata = {
-  recentSearches: { persist: true, anonymous: false },
-  lastSearchTimestamp: { persist: true, anonymous: false },
-} as const;
+const tokenSearchDiscoveryControllerMetadata: StateMetadata<TokenSearchDiscoveryControllerState> =
+  {
+    recentSearches: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: false,
+      usedInUi: true,
+    },
+    lastSearchTimestamp: {
+      includeInStateLogs: true,
+      persist: true,
+      anonymous: false,
+      usedInUi: true,
+    },
+  };
 
 // === MESSENGER ===
 

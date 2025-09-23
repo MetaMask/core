@@ -1,4 +1,7 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  StateMetadata,
+} from '@metamask/base-controller/next';
 import {
   BaseController,
   type ControllerStateChangeEvent,
@@ -26,10 +29,25 @@ export const APPROVAL_TYPE_RESULT_SUCCESS = 'result_success';
 
 const controllerName = 'ApprovalController';
 
-const stateMetadata = {
-  pendingApprovals: { persist: false, anonymous: true },
-  pendingApprovalCount: { persist: false, anonymous: false },
-  approvalFlows: { persist: false, anonymous: false },
+const stateMetadata: StateMetadata<ApprovalControllerState> = {
+  pendingApprovals: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  pendingApprovalCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  approvalFlows: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>

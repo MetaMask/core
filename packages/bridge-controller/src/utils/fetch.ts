@@ -2,11 +2,16 @@ import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
+import { isBitcoinChainId } from './bridge';
 import {
   formatAddressToCaipReference,
   formatChainIdToDec,
 } from './caip-formatters';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
+import {
+  validateQuoteResponse,
+  validateBitcoinQuoteResponse,
+  validateSwapsTokenObject,
+} from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
@@ -91,7 +96,7 @@ export async function fetchBridgeQuotes(
     insufficientBal: Boolean(request.insufficientBal),
     resetApproval: Boolean(request.resetApproval),
     gasIncluded: Boolean(request.gasIncluded),
-    gasless7702: Boolean(request.gasless7702),
+    gasIncluded7702: Boolean(request.gasIncluded7702),
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
@@ -122,6 +127,11 @@ export async function fetchBridgeQuotes(
   const filteredQuotes = quotes.filter(
     (quoteResponse: unknown): quoteResponse is QuoteResponse => {
       try {
+        const isBitcoinQuote = isBitcoinChainId(request.srcChainId);
+
+        if (isBitcoinQuote) {
+          return validateBitcoinQuoteResponse(quoteResponse);
+        }
         return validateQuoteResponse(quoteResponse);
       } catch (error) {
         if (error instanceof StructError) {

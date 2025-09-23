@@ -85,8 +85,11 @@ export const ChainConfigurationSchema = type({
   isActiveDest: boolean(),
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
+  stablecoins: optional(array(string())),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
+  isGaslessSwapEnabled: optional(boolean()),
+  noFeeAssets: optional(array(string())),
 });
 
 export const PriceImpactThresholdSchema = type({
@@ -192,7 +195,7 @@ export const QuoteSchema = type({
   /**
    * Whether the quote can use EIP-7702 delegated gasless execution
    */
-  gasless7702: optional(boolean()),
+  gasIncluded7702: optional(boolean()),
   bridgeId: string(),
   bridges: array(string()),
   steps: array(StepSchema),
@@ -202,6 +205,7 @@ export const QuoteSchema = type({
       totalFromAmountUsd: optional(string()),
       totalToAmountUsd: optional(string()),
       priceImpact: optional(string()),
+      totalFeeAmountUsd: optional(string()),
     }),
   ),
 });
@@ -216,16 +220,35 @@ export const TxDataSchema = type({
   effectiveGas: optional(number()),
 });
 
+export const BitcoinTradeDataSchema = type({
+  unsignedPsbtBase64: string(),
+  inputsToSign: nullable(array(type({}))),
+});
+
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(TxDataSchema),
-  trade: union([TxDataSchema, string()]),
+  trade: union([TxDataSchema, BitcoinTradeDataSchema, string()]),
+});
+
+export const BitcoinQuoteResponseSchema = type({
+  quote: QuoteSchema,
+  estimatedProcessingTimeInSeconds: number(),
+  approval: optional(TxDataSchema),
+  trade: BitcoinTradeDataSchema,
 });
 
 export const validateQuoteResponse = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
+  return true;
+};
+
+export const validateBitcoinQuoteResponse = (
+  data: unknown,
+): data is Infer<typeof BitcoinQuoteResponseSchema> => {
+  assert(data, BitcoinQuoteResponseSchema);
   return true;
 };

@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import {
   ChainId,
   convertHexToDecimal,
@@ -1283,6 +1284,75 @@ describe('GasFeeController', () => {
           )}`,
         }),
       );
+    });
+  });
+
+  describe('metadata', () => {
+    beforeEach(async () => {
+      await setupGasFeeController();
+    });
+
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          gasFeeController.state,
+          gasFeeController.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          gasFeeController.state,
+          gasFeeController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "estimatedGasFeeTimeBounds": Object {},
+          "gasEstimateType": "none",
+          "gasFeeEstimates": Object {},
+          "gasFeeEstimatesByChainId": Object {},
+          "nonRPCGasFeeApisDisabled": false,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          gasFeeController.state,
+          gasFeeController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "estimatedGasFeeTimeBounds": Object {},
+          "gasEstimateType": "none",
+          "gasFeeEstimates": Object {},
+          "gasFeeEstimatesByChainId": Object {},
+          "nonRPCGasFeeApisDisabled": false,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          gasFeeController.state,
+          gasFeeController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "estimatedGasFeeTimeBounds": Object {},
+          "gasEstimateType": "none",
+          "gasFeeEstimates": Object {},
+          "gasFeeEstimatesByChainId": Object {},
+        }
+      `);
     });
   });
 });

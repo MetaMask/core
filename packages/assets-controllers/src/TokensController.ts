@@ -10,6 +10,7 @@ import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
 import contractsMap from '@metamask/contract-metadata';
@@ -88,18 +89,24 @@ export type TokensControllerState = {
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 };
 
-const metadata = {
+const metadata: StateMetadata<TokensControllerState> = {
   allTokens: {
+    includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   allIgnoredTokens: {
+    includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
   allDetectedTokens: {
+    includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
 };
 

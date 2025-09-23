@@ -9,6 +9,7 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
+  type StateMetadata,
 } from '@metamask/base-controller/next';
 import {
   safelyExecute,
@@ -206,10 +207,25 @@ export type NftControllerState = {
   ignoredNfts: Nft[];
 };
 
-const nftControllerMetadata = {
-  allNftContracts: { persist: true, anonymous: false },
-  allNfts: { persist: true, anonymous: false },
-  ignoredNfts: { persist: true, anonymous: false },
+const nftControllerMetadata: StateMetadata<NftControllerState> = {
+  allNftContracts: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  allNfts: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  ignoredNfts: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
 };
 
 const ALL_NFTS_STATE_KEY = 'allNfts';
