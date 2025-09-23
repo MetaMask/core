@@ -117,19 +117,19 @@ const earnControllerMetadata: StateMetadata<EarnControllerState> = {
   pooled_staking: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   lending: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   lastUpdated: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
