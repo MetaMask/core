@@ -434,9 +434,6 @@ export class AccountTreeController extends BaseController<
           continue;
         }
         // Parse the existing group name to extract the numeric index
-        // TODO: This regex only matches "Account N" pattern. Hardware wallets (Trezor, Ledger, etc.)
-        // use different patterns like "Trezor N", "Ledger N" per keyringTypeToName().
-        // We'll enhance this to handle all keyring types in a future iteration.
         const nameMatch = existingGroup.metadata.name.match(/Account (\d+)$/u);
         if (nameMatch) {
           const nameIndex = parseInt(nameMatch[1], 10);
