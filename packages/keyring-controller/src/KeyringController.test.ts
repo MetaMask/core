@@ -4289,7 +4289,7 @@ describe('KeyringController', () => {
             deriveStateFromMetadata(
               controller.state,
               controller.metadata,
-              'anonymous',
+              'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
             Object {
