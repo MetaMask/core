@@ -17,6 +17,9 @@ import {
   SolAccountType,
   SolMethod,
   SolScope,
+  TrxAccountType,
+  TrxMethod,
+  TrxScope,
 } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -29,7 +32,7 @@ import {
 } from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
-import { isAccountGroupNameUnique } from './group';
+import { AccountTypeKey, AccountTypeOrder, isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -81,6 +84,15 @@ const MOCK_SNAP_2 = {
   enabled: true,
   manifest: {
     proposedName: 'Mock Snap 2',
+  },
+};
+
+const MOCK_SNAP_3 = {
+  id: 'local:mock-snap-id-3',
+  name: 'Mock Snap 3',
+  enabled: true,
+  manifest: {
+    proposedName: 'Mock Snap 3',
   },
 };
 
@@ -178,6 +190,29 @@ const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
     snap: MOCK_SNAP_2,
     importTime: 0,
     lastSelected: 0,
+  },
+};
+
+const MOCK_TRX_ACCOUNT_1: InternalAccount = {
+  id: 'mock-trx-id-1',
+  address: 'TROn11',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  methods: [TrxMethod.SignMessageV2],
+  type: TrxAccountType.Eoa,
+  scopes: [TrxScope.Mainnet],
+  metadata: {
+    name: 'Snap Acc 3',
+    keyring: { type: KeyringTypes.snap },
+    importTime: 0,
+    lastSelected: 0,
+    snap: MOCK_SNAP_3,
   },
 };
 
@@ -527,6 +562,14 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [
+                        AccountTypeOrder[
+                          MOCK_HD_ACCOUNT_1.type as AccountTypeKey
+                        ],
+                        MOCK_HD_ACCOUNT_1.id,
+                      ],
+                    ],
                   },
                 },
               },
@@ -553,6 +596,14 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [
+                        AccountTypeOrder[
+                          MOCK_HD_ACCOUNT_2.type as AccountTypeKey
+                        ],
+                        MOCK_HD_ACCOUNT_2.id,
+                      ],
+                    ],
                   },
                 },
                 [expectedWalletId2Group2]: {
@@ -567,6 +618,14 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [
+                        AccountTypeOrder[
+                          MOCK_SNAP_ACCOUNT_1.type as AccountTypeKey
+                        ],
+                        MOCK_SNAP_ACCOUNT_1.id,
+                      ],
+                    ],
                   },
                 },
               },
@@ -590,6 +649,14 @@ describe('AccountTreeController', () => {
                     name: 'Account 2', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [
+                        AccountTypeOrder[
+                          MOCK_SNAP_ACCOUNT_2.type as AccountTypeKey
+                        ],
+                        MOCK_SNAP_ACCOUNT_2.id,
+                      ],
+                    ],
                   },
                 },
               },
@@ -613,6 +680,14 @@ describe('AccountTreeController', () => {
                     name: 'Account 2', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [
+                        AccountTypeOrder[
+                          MOCK_HARDWARE_ACCOUNT_1.type as AccountTypeKey
+                        ],
+                        MOCK_HARDWARE_ACCOUNT_1.id,
+                      ],
+                    ],
                   },
                 },
               },
@@ -984,6 +1059,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [[0, mockHdAccount2.id]],
                   },
                   accounts: [mockHdAccount2.id], // HD account 1 got removed.
                 },
@@ -1063,6 +1139,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [[0, mockHdAccount2.id]],
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -1115,6 +1192,56 @@ describe('AccountTreeController', () => {
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('account ordering by type', () => {
+    it('orders accounts in group according to AccountTypeOrder regardless of insertion order', () => {
+
+      const evmAccount = MOCK_HD_ACCOUNT_1;
+
+      const solAccount = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        options: {
+          ...MOCK_SNAP_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 0,
+            derivationPath: '',
+          },
+        },
+      };
+
+      const tronAccount = MOCK_TRX_ACCOUNT_1;
+
+      const { controller, messenger } = setup({
+        accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Publish in shuffled order: SOL, EVM, TRON
+      messenger.publish('AccountsController:accountAdded', solAccount);
+      messenger.publish('AccountsController:accountAdded', tronAccount);
+      messenger.publish('AccountsController:accountAdded', evmAccount);
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      const group =
+        controller.state.accountTree.wallets[walletId]?.groups[groupId];
+      expect(group).toBeDefined();
+
+      // AccountTypeOrder: EVM (0) < SOL (6) < TRON (7)
+      expect(group?.accounts).toStrictEqual([
+        'mock-id-1',
+        'mock-snap-id-1',
+        'mock-trx-id-1',
+      ]);
     });
   });
 
@@ -1180,6 +1307,10 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [0, mockHdAccount1.id],
+                      [0, mockHdAccount2.id],
+                    ],
                   },
                   accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
                 },
@@ -1277,6 +1408,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [[0, mockHdAccount1.id]],
                   },
                   accounts: [mockHdAccount1.id],
                 },
@@ -1304,6 +1436,14 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    accountOrder: [
+                      [
+                        AccountTypeOrder[
+                          MOCK_HD_ACCOUNT_2.type as AccountTypeKey
+                        ],
+                        MOCK_HD_ACCOUNT_2.id,
+                      ],
+                    ],
                   },
                   accounts: [mockHdAccount2.id],
                 },
