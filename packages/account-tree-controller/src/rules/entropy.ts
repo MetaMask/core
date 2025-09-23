@@ -110,7 +110,9 @@ export class EntropyRule
     return '';
   }
 
-  getDefaultAccountGroupName(index: number): string {
-    return `Account ${index + 1}`;
+  getDefaultAccountGroupPrefix(
+    _wallet: AccountWalletObjectOf<AccountWalletType.Entropy>,
+  ): string {
+    return 'Account';
   }
 }

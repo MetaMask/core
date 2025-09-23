@@ -27,6 +27,7 @@ import type {
   AllowedActions,
   AllowedEvents,
 } from './types';
+import type { AccountWalletObject } from './wallet';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -176,23 +177,15 @@ describe('BaseRule', () => {
     });
   });
 
-  describe('getDefaultAccountGroupName', () => {
-    it('returns empty string when no index is provided', () => {
+  describe('getDefaultAccountGroupPrefix', () => {
+    it('returns formatted account name prefix', () => {
       const rootMessenger = getRootMessenger();
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
       const rule = new BaseRule(messenger);
+      // The wallet object is not used here.
+      const wallet = {} as unknown as AccountWalletObject;
 
-      expect(rule.getDefaultAccountGroupName()).toBe('');
-    });
-
-    it('returns formatted account name when index is provided', () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getAccountTreeControllerMessenger(rootMessenger);
-      const rule = new BaseRule(messenger);
-
-      expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
-      expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
-      expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
+      expect(rule.getDefaultAccountGroupPrefix(wallet)).toBe('Account');
     });
   });
 });

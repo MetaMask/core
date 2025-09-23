@@ -650,7 +650,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_SNAP_ACCOUNT_2.id],
                   metadata: {
-                    name: 'Account 2', // Updated: per-wallet numbering (different wallet)
+                    name: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                     accountOrder: [
@@ -681,7 +681,7 @@ describe('AccountTreeController', () => {
                   type: AccountGroupType.SingleAccount,
                   accounts: [MOCK_HARDWARE_ACCOUNT_1.id],
                   metadata: {
-                    name: 'Account 2', // Updated: per-wallet numbering (different wallet)
+                    name: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
                     accountOrder: [
@@ -731,13 +731,13 @@ describe('AccountTreeController', () => {
           },
           [expectedKeyringWalletIdGroup]: {
             name: {
-              value: 'Account 2', // Updated: per-wallet numbering (different wallet)
+              value: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
           [expectedSnapWalletIdGroup]: {
             name: {
-              value: 'Account 2', // Updated: per-wallet numbering (different wallet)
+              value: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
               lastUpdatedAt: expect.any(Number),
             },
           },
@@ -2573,8 +2573,8 @@ describe('AccountTreeController', () => {
 
       // Groups should use consistent default naming regardless of import time
       // Updated expectations based on per-wallet sequential naming logic
-      expect(group1?.metadata.name).toBe('Account 3'); // Updated: reflects actual naming logic
-      expect(group2?.metadata.name).toBe('Account 2'); // Updated: reflects actual naming logic
+      expect(group1?.metadata.name).toBe('Account 2'); // Updated: reflects actual naming logic
+      expect(group2?.metadata.name).toBe('Account 1'); // Updated: reflects actual naming logic
     });
 
     it('uses fallback naming when rule-based naming returns empty string', () => {
@@ -3046,8 +3046,8 @@ describe('AccountTreeController', () => {
       expect(uniqueNames.size).toBe(2);
 
       // Due to optimization, names start at wallet.length, so we get "Account 3" and "Account 4"
-      expect(allNames).toContain('Account 3');
-      expect(allNames).toContain('Account 4');
+      expect(allNames).toContain('Ledger Account 1');
+      expect(allNames).toContain('Ledger Account 2');
 
       // Verify they're actually different
       expect(group1.metadata.name).not.toBe(group2.metadata.name);
@@ -4174,6 +4174,221 @@ describe('AccountTreeController', () => {
         controller.state.accountTree.wallets[walletId].groups[groupId].metadata
           .name,
       ).toBe('Conflict Name (2)');
+    });
+  });
+
+  describe('naming', () => {
+    const mockAccount1 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-1',
+      address: '0x123',
+    };
+    const mockAccount2 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-2',
+      address: '0x456',
+    };
+    const mockAccount3 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-3',
+      address: '0x789',
+    };
+    const mockAccount4 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-4',
+      address: '0xabc',
+    };
+
+    const mockWalletId = toAccountWalletId(
+      AccountWalletType.Keyring,
+      KeyringTypes.ledger,
+    );
+
+    const getAccountGroupFromAccount = (
+      controller: AccountTreeController,
+      mockAccount: InternalAccount,
+    ) => {
+      const groupId = toAccountGroupId(mockWalletId, mockAccount.address);
+      return controller.state.accountTree.wallets[mockWalletId].groups[groupId];
+    };
+
+    it('names non-HD keyrings accounts properly', () => {
+      const { controller, messenger } = setup();
+
+      // Add all 3 accounts.
+      [mockAccount1, mockAccount2, mockAccount3].forEach(
+        (mockAccount, index) => {
+          messenger.publish('AccountsController:accountAdded', mockAccount);
+
+          const mockGroup = getAccountGroupFromAccount(controller, mockAccount);
+          expect(mockGroup).toBeDefined();
+          expect(mockGroup.metadata.name).toBe(`Ledger Account ${index + 1}`);
+        },
+      );
+
+      // Remove account 2, should still create account 4 afterward.
+      messenger.publish('AccountsController:accountRemoved', mockAccount2.id);
+
+      expect(
+        getAccountGroupFromAccount(controller, mockAccount4),
+      ).toBeUndefined();
+      messenger.publish('AccountsController:accountAdded', mockAccount4);
+
+      const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
+      expect(mockGroup4).toBeDefined();
+      expect(mockGroup4.metadata.name).toBe('Ledger Account 4');
+
+      // Now, removing account 3 and 4, should defaults to an index of "2" (since only
+      // account 1 remains), thus, re-inserting account 2, should be named "* Account 2".
+      messenger.publish('AccountsController:accountRemoved', mockAccount4.id);
+      messenger.publish('AccountsController:accountRemoved', mockAccount3.id);
+
+      expect(
+        getAccountGroupFromAccount(controller, mockAccount2),
+      ).toBeUndefined();
+      messenger.publish('AccountsController:accountAdded', mockAccount2);
+
+      const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+      expect(mockGroup2).toBeDefined();
+      expect(mockGroup2.metadata.name).toBe('Ledger Account 2');
+    });
+
+    it('ignores bad account group name pattern and fallback to natural indexing', () => {
+      const { controller, messenger } = setup({
+        accounts: [mockAccount1],
+      });
+
+      controller.init();
+
+      const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+      expect(mockGroup1).toBeDefined();
+
+      const mockIndex = 90;
+      controller.setAccountGroupName(
+        mockGroup1.id,
+        `Account${mockIndex}`, // No space, so this should fallback to natural indexing
+      );
+
+      // The first account has a non-matching pattern, thus we should fallback to the next
+      // natural index.
+      messenger.publish('AccountsController:accountAdded', mockAccount2);
+      const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+      expect(mockGroup2).toBeDefined();
+      expect(mockGroup2.metadata.name).toBe(`Ledger Account 2`); // Natural indexing.
+    });
+
+    it.each([
+      ['Account', 'account'],
+      ['Account', 'aCCount'],
+      ['Account', 'accOunT'],
+      [' ', '  '],
+      [' ', '\t'],
+      [' ', ' \t'],
+      [' ', '\t '],
+    ])(
+      'ignores case (case-insensitive) and spaces when extracting highest index: "$0" -> "$1"',
+      (toReplace, replaced) => {
+        const { controller, messenger } = setup({
+          accounts: [mockAccount1],
+        });
+
+        controller.init();
+
+        const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+        expect(mockGroup1).toBeDefined();
+
+        const mockIndex = 90;
+        controller.setAccountGroupName(
+          mockGroup1.id,
+          mockGroup1.metadata.name
+            .replace(toReplace, replaced)
+            .replace('1', `${mockIndex}`), // Use index different than 1.
+        );
+
+        // Even if the account is not strictly named "Ledger Account 90", we should be able
+        // to compute the next index from there.
+        messenger.publish('AccountsController:accountAdded', mockAccount2);
+        const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+        expect(mockGroup2).toBeDefined();
+        expect(mockGroup2.metadata.name).toBe(
+          `Ledger Account ${mockIndex + 1}`,
+        );
+      },
+    );
+
+    it.each([' ', '  ', '\t', ' \t'])(
+      'extract name indexes and ignore multiple spaces: "%s"',
+      (space) => {
+        const { controller, messenger } = setup({
+          accounts: [mockAccount1],
+        });
+
+        controller.init();
+
+        const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+        expect(mockGroup1).toBeDefined();
+
+        const mockIndex = 90;
+        controller.setAccountGroupName(
+          mockGroup1.id,
+          mockGroup1.metadata.name
+            .replace(' ', space)
+            .replace('1', `${mockIndex}`), // Use index different than 1.
+        );
+
+        // Even if the account is not strictly named "Ledger Account 90", we should be able
+        // to compute the next index from there.
+        messenger.publish('AccountsController:accountAdded', mockAccount2);
+        const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+        expect(mockGroup2).toBeDefined();
+        expect(mockGroup2.metadata.name).toBe(
+          `Ledger Account ${mockIndex + 1}`,
+        );
+      },
+    );
+
+    it('uses natural indexing for pre-existing accounts', () => {
+      const { controller } = setup({
+        accounts: [mockAccount1, mockAccount2, mockAccount3],
+      });
+
+      controller.init();
+
+      // After initializing the controller, all accounts should be named appropriately.
+      [mockAccount1, mockAccount2, mockAccount3].forEach(
+        (mockAccount, index) => {
+          const mockGroup = getAccountGroupFromAccount(controller, mockAccount);
+          expect(mockGroup).toBeDefined();
+          expect(mockGroup.metadata.name).toBe(`Ledger Account ${index + 1}`);
+        },
+      );
+    });
+
+    it('fallbacks to natural indexing if group names are not using our default name pattern', () => {
+      const { controller, messenger } = setup();
+
+      [mockAccount1, mockAccount2, mockAccount3].forEach((mockAccount) =>
+        messenger.publish('AccountsController:accountAdded', mockAccount),
+      );
+
+      const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+      const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+      const mockGroup3 = getAccountGroupFromAccount(controller, mockAccount3);
+      expect(mockGroup1).toBeDefined();
+      expect(mockGroup2).toBeDefined();
+      expect(mockGroup3).toBeDefined();
+
+      // Rename all accounts to something different than "* Account <index>".
+      controller.setAccountGroupName(mockGroup1.id, 'Account A');
+      controller.setAccountGroupName(mockGroup2.id, 'The next account');
+      controller.setAccountGroupName(mockGroup3.id, 'Best account so far');
+
+      // Adding a new account should not reset back to "Account 1", but it should
+      // use the next natural index, here, "Account 4".
+      messenger.publish('AccountsController:accountAdded', mockAccount4);
+      const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
+      expect(mockGroup4).toBeDefined();
+      expect(mockGroup4.metadata.name).toBe('Ledger Account 4');
     });
   });
 });

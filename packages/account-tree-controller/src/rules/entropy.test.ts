@@ -14,6 +14,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import { EntropyRule } from './entropy';
 import {
@@ -183,40 +184,15 @@ describe('EntropyRule', () => {
     });
   });
 
-  describe('getDefaultAccountGroupName', () => {
-    it('returns formatted account name based on index', () => {
+  describe('getDefaultAccountGroupPrefix', () => {
+    it('returns formatted account name prefix', () => {
       const rootMessenger = getRootMessenger();
       const messenger = getAccountTreeControllerMessenger(rootMessenger);
       const rule = new EntropyRule(messenger);
+      // The entropy wallet object is not used here.
+      const wallet = {} as unknown as AccountWalletEntropyObject;
 
-      const group: AccountGroupObjectOf<AccountGroupType.MultichainAccount> = {
-        id: toMultichainAccountGroupId(
-          toMultichainAccountWalletId(MOCK_HD_KEYRING_1.metadata.id),
-          MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-        ),
-        type: AccountGroupType.MultichainAccount,
-        accounts: [MOCK_HD_ACCOUNT_1.id],
-        metadata: {
-          name: MOCK_HD_ACCOUNT_1.metadata.name,
-          entropy: {
-            groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-          },
-          pinned: false,
-          hidden: false,
-          accountOrder: [
-            [
-              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
-              MOCK_HD_ACCOUNT_1.id,
-            ],
-          ],
-        },
-      };
-
-      // Use group in a no-op assertion to silence unused variable
-      expect(group.id).toBeDefined();
-      expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
-      expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
-      expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
+      expect(rule.getDefaultAccountGroupPrefix(wallet)).toBe('Account');
     });
 
     it('getComputedAccountGroupName returns account name with EVM priority', () => {

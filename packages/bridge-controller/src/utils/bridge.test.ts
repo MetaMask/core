@@ -9,7 +9,6 @@ import {
   isBitcoinChainId,
   isCrossChain,
   isEthUsdt,
-  isNonEvmChainId,
   isSolanaChainId,
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
@@ -198,34 +197,6 @@ describe('Bridge utils', () => {
       expect(isBitcoinChainId('invalid')).toBe(false);
       expect(isBitcoinChainId('test')).toBe(false);
       expect(isBitcoinChainId('')).toBe(false);
-    });
-  });
-
-  describe('isNonEvmChainId', () => {
-    it('returns true for Solana chainIds', () => {
-      expect(isNonEvmChainId(ChainId.SOLANA)).toBe(true);
-      expect(isNonEvmChainId(SolScope.Mainnet)).toBe(true);
-      expect(isNonEvmChainId('1151111081099710')).toBe(true);
-    });
-
-    it('returns true for Bitcoin chainIds', () => {
-      expect(isNonEvmChainId(ChainId.BTC)).toBe(true);
-      expect(isNonEvmChainId(BtcScope.Mainnet)).toBe(true);
-      expect(isNonEvmChainId('20000000000001')).toBe(true);
-    });
-
-    it('returns false for EVM chainIds', () => {
-      expect(isNonEvmChainId('0x1')).toBe(false);
-      expect(isNonEvmChainId(1)).toBe(false);
-      expect(isNonEvmChainId('eip155:1')).toBe(false);
-      expect(isNonEvmChainId(ChainId.ETH)).toBe(false);
-      expect(isNonEvmChainId(ChainId.POLYGON)).toBe(false);
-    });
-
-    it('returns false for invalid chainIds', () => {
-      expect(isNonEvmChainId('invalid')).toBe(false);
-      expect(isNonEvmChainId('test')).toBe(false);
-      expect(isNonEvmChainId('')).toBe(false);
     });
   });
 
