@@ -1,7 +1,6 @@
 import {
   Caip25CaveatMutators,
   Caip25CaveatType,
-  type Caip25CaveatValue,
   Caip25EndowmentPermissionName,
   getCaipAccountIdsFromCaip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
@@ -10,12 +9,13 @@ import type {
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
 import {
-  type Caveat,
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
+
+import type { WalletRevokeSessionHooks } from './types';
 
 /**
  * Revokes specific session scopes from an existing caveat.
@@ -29,18 +29,7 @@ import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
  */
 function partialRevokePermissions(
   scopes: string[],
-  hooks: {
-    revokePermissionForOrigin: (permissionName: string) => void;
-    updateCaveat: (
-      target: string,
-      caveatType: string,
-      caveatValue: Caip25CaveatValue,
-    ) => void;
-    getCaveatForOrigin: (
-      endowmentPermissionName: string,
-      caveatType: string,
-    ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-  },
+  hooks: WalletRevokeSessionHooks,
 ) {
   let updatedCaveatValue = hooks.getCaveatForOrigin(
     Caip25EndowmentPermissionName,
@@ -99,18 +88,7 @@ async function walletRevokeSessionHandler(
   response: JsonRpcSuccess,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
-  hooks: {
-    revokePermissionForOrigin: (permissionName: string) => void;
-    updateCaveat: (
-      target: string,
-      caveatType: string,
-      caveatValue: Caip25CaveatValue,
-    ) => void;
-    getCaveatForOrigin: (
-      endowmentPermissionName: string,
-      caveatType: string,
-    ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-  },
+  hooks: WalletRevokeSessionHooks,
 ) {
   const {
     params: { scopes },
