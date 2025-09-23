@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [44.0.0]
 
 ### Changed
@@ -62,8 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
-  - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 - **BREAKING** Rename QuotesError and InputSourceDestinationSwitched events to match segment schema ([#6447](https://github.com/MetaMask/core/pull/6447))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
 - **BREAKING** Rename `gasless7702` to `gasIncluded7702` in QuoteRequest and Quote types
