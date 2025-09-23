@@ -88,7 +88,7 @@ export async function determineTransactionType(
 }
 
 /**
- * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
+ * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155 and USDC.
  * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
  * contract standards
  *
@@ -119,12 +119,10 @@ export function decodeTransactionData(data: string) {
 }
 
 /**
- * Attempts to decode transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
- * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
- * contract standards
+ * Attempts to get the method name from the given transaction data.
  *
  * @param data - Encoded transaction data.
- * @returns A representation of an ethereum contract call.
+ * @returns The method name.
  */
 function getMethodName(data?: string): string | undefined {
   return decodeTransactionData(data as string)?.name;
