@@ -1,4 +1,7 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  StateMetadata,
+} from '@metamask/base-controller/next';
 import {
   BaseController,
   type ControllerStateChangeEvent,
@@ -26,23 +29,23 @@ export const APPROVAL_TYPE_RESULT_SUCCESS = 'result_success';
 
 const controllerName = 'ApprovalController';
 
-const stateMetadata = {
+const stateMetadata: StateMetadata<ApprovalControllerState> = {
   pendingApprovals: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   pendingApprovalCount: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   approvalFlows: {
     includeInStateLogs: true,
     persist: false,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };

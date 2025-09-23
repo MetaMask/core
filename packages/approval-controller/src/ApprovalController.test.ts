@@ -1707,7 +1707,7 @@ describe('approval controller', () => {
         deriveStateFromMetadata(
           approvalController.state,
           approvalController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
         Object {

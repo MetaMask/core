@@ -11,6 +11,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
 import {
@@ -182,35 +183,35 @@ import {
  * Metadata for the TransactionController state, describing how to "anonymize"
  * the state and which parts should be persisted.
  */
-const metadata = {
+const metadata: StateMetadata<TransactionControllerState> = {
   transactions: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   transactionBatches: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   methodData: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   lastFetchedBlockNumbers: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
   submitHistory: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };

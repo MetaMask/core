@@ -1,6 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller/next';
 import {
   convertHexToDecimal,
@@ -160,35 +161,35 @@ type FallbackGasFeeEstimates = {
   networkCongestion: null;
 };
 
-const metadata = {
+const metadata: StateMetadata<GasFeeState> = {
   gasFeeEstimatesByChainId: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   gasFeeEstimates: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   estimatedGasFeeTimeBounds: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   gasEstimateType: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   nonRPCGasFeeApisDisabled: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };

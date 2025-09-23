@@ -1200,19 +1200,19 @@ export class NetworkController extends BaseController<
         selectedNetworkClientId: {
           includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: true,
         },
         networksMetadata: {
           includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: true,
         },
         networkConfigurationsByChainId: {
           includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: true,
         },
       },

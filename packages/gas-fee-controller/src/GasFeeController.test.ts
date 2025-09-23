@@ -1297,7 +1297,7 @@ describe('GasFeeController', () => {
         deriveStateFromMetadata(
           gasFeeController.state,
           gasFeeController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
