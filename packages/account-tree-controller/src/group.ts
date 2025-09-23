@@ -50,9 +50,9 @@ export type AccountOrderTuple = [number, AccountId];
 /**
  * Sort two account order objects by their account type.
  *
- * @param a - The first account order object.
- * @param b - The second account order object.
- * @returns The sorted account order objects.
+ * @param a - The first account order tuple.
+ * @param b - The second account order tuple.
+ * @returns The sorted account order tuples.
  */
 function sortByAccountType(a: AccountOrderTuple, b: AccountOrderTuple) {
   return a[0] - b[0];
@@ -61,7 +61,7 @@ function sortByAccountType(a: AccountOrderTuple, b: AccountOrderTuple) {
 /**
  * Derive accounts by their order.
  *
- * @param AccountOrderTuples - The account order objects.
+ * @param AccountOrderTuples - The account order tuples.
  * @returns The account IDs by their order.
  */
 export function deriveAccountsByOrder(
