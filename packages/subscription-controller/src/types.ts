@@ -74,6 +74,8 @@ export type SubscriptionCardPaymentMethod = {
   type: Extract<PaymentType, 'card'>;
   card: {
     brand: string;
+    /** display brand account for dual brand card */
+    displayBrand: string;
     last4: string;
   };
 };
@@ -101,6 +103,7 @@ export type StartSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
+  successUrl?: string;
 };
 
 export type StartSubscriptionResponse = {
@@ -247,6 +250,7 @@ export type UpdatePaymentMethodCardRequest = {
    * Recurring interval
    */
   recurringInterval: RecurringInterval;
+  successUrl?: string;
 };
 
 export type UpdatePaymentMethodCryptoRequest = {
