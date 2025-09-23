@@ -71,6 +71,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getAccountByAddress',
   'AccountsController:getSelectedAccount',
+  'TokenBalancesController:updateBalances',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
@@ -87,6 +88,10 @@ export type AccountActivityServiceAllowedActions =
   | {
       type: 'AccountsController:getSelectedAccount';
       handler: () => InternalAccount;
+    }
+  | {
+      type: 'TokenBalancesController:updateBalances';
+      handler: (options?: { chainIds?: string[]; queryAllAccounts?: boolean }) => Promise<void>;
     };
 
 // Event types for the messaging system
@@ -182,10 +187,8 @@ export class AccountActivityService {
 
   readonly #options: Required<AccountActivityServiceOptions>;
 
-  // Track the currently subscribed account address (in CAIP-10 format)
-  currentSubscribedAddress: string | null = null;
-
-  // Note: Subscription tracking is now centralized in WebSocketService
+  // WebSocketService is the source of truth for subscription state
+  // Using WebSocketService.findSubscriptionsByChannelPrefix() for cleanup
 
   /**
    * Creates a new Account Activity service instance
@@ -232,6 +235,7 @@ export class AccountActivityService {
 
       // Check if already subscribed
       if (this.#webSocketService.isChannelSubscribed(channel)) {
+        console.log(`[${SERVICE_NAME}] Already subscribed to channel: ${channel}`);
         return;
       }
 
@@ -261,9 +265,6 @@ export class AccountActivityService {
           );
         },
       });
-
-      // Track the subscribed address
-      this.currentSubscribedAddress = subscription.address;
     } catch (error) {
       console.warn(`[${SERVICE_NAME}] Subscription failed, forcing reconnection:`, error);
       await this.#forceReconnection();
@@ -291,13 +292,6 @@ export class AccountActivityService {
 
       // Fast path: Direct unsubscribe using stored unsubscribe function
       await subscriptionInfo.unsubscribe();
-
-      // Clear the tracked address if this was the subscribed account
-      if (this.currentSubscribedAddress === address) {
-        this.currentSubscribedAddress = null;
-      }
-
-      // Subscription cleanup is handled centrally in WebSocketService
     } catch (error) {
       console.warn(`[${SERVICE_NAME}] Unsubscription failed, forcing reconnection:`, error);
       await this.#forceReconnection();
@@ -432,26 +426,31 @@ export class AccountActivityService {
     try {
       // Convert new account to CAIP-10 format
       const newAddress = this.#convertToCaip10Address(newAccount);
+      const newChannel = `${this.#options.subscriptionNamespace}.${newAddress}`;
 
       // If already subscribed to this account, no need to change
-      if (this.currentSubscribedAddress === newAddress) {
+      if (this.#webSocketService.isChannelSubscribed(newChannel)) {
         console.log(`[${SERVICE_NAME}] Already subscribed to account: ${newAddress}`);
         return;
       }
 
-      // First, subscribe to the new selected account to minimize data gaps
+      // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
+      await this.#unsubscribeFromAllAccountActivity();
+
+      // Then, subscribe to the new selected account
       await this.subscribeAccounts({ address: newAddress });
       console.log(`[${SERVICE_NAME}] Subscribed to new selected account: ${newAddress}`);
 
-      // Then, unsubscribe from the previously subscribed account if any
-      if (this.currentSubscribedAddress && this.currentSubscribedAddress !== newAddress) {
-        console.log(
-          `[${SERVICE_NAME}] Unsubscribing from previous account: ${this.currentSubscribedAddress}`,
-        );
-        await this.unsubscribeAccounts({
-          address: this.currentSubscribedAddress,
+      // Trigger TokenBalancesController to fetch current data to avoid stale balance information
+      try {
+        console.log(`[${SERVICE_NAME}] Triggering balance update for account switch`);
+        await this.#messenger.call('TokenBalancesController:updateBalances', {
+          queryAllAccounts: false, // Only update for current account
         });
-        console.log(`[${SERVICE_NAME}] Successfully unsubscribed from previous account: ${this.currentSubscribedAddress}`);
+        console.log(`[${SERVICE_NAME}] Balance update triggered successfully`);
+      } catch (balanceError) {
+        // Don't fail account switching if balance update fails
+        console.warn(`[${SERVICE_NAME}] Failed to trigger balance update:`, balanceError);
       }
     } catch (error) {
       console.warn(`[${SERVICE_NAME}] Account change failed, forcing reconnection:`, error);
@@ -466,8 +465,7 @@ export class AccountActivityService {
     try {
       console.log(`[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`);
       
-      // Clear local subscription tracking since backend will clean up all subscriptions
-      this.currentSubscribedAddress = null;
+      // All subscriptions will be cleaned up automatically on WebSocket disconnect
       
       await this.#webSocketService.disconnect();
       await this.#webSocketService.connect();
@@ -508,8 +506,8 @@ export class AccountActivityService {
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
-      // WebSocket disconnected - clear subscription
-      this.currentSubscribedAddress = null;
+      // WebSocket disconnected - subscriptions are automatically cleaned up by WebSocketService
+      console.log(`[${SERVICE_NAME}] WebSocket disconnected/error - subscriptions cleaned up automatically`);
     }
   }
 
@@ -536,9 +534,10 @@ export class AccountActivityService {
 
       // Convert to CAIP-10 format and subscribe
       const address = this.#convertToCaip10Address(selectedAccount);
+      const channel = `${this.#options.subscriptionNamespace}.${address}`;
 
       // Only subscribe if we're not already subscribed to this account
-      if (this.currentSubscribedAddress !== address) {
+      if (!this.#webSocketService.isChannelSubscribed(channel)) {
         await this.subscribeAccounts({ address });
         console.log(`[${SERVICE_NAME}] Successfully subscribed to selected account: ${address}`);
       } else {
@@ -549,6 +548,37 @@ export class AccountActivityService {
     }
   }
 
+
+  /**
+   * Unsubscribe from all account activity subscriptions for this service
+   * Finds all channels matching the service's namespace and unsubscribes from them
+   */
+  async #unsubscribeFromAllAccountActivity(): Promise<void> {
+    try {
+      console.log(`[${SERVICE_NAME}] Unsubscribing from all account activity subscriptions...`);
+      
+      // Use WebSocketService to find all subscriptions with our namespace prefix
+      const accountActivitySubscriptions = this.#webSocketService.findSubscriptionsByChannelPrefix(
+        this.#options.subscriptionNamespace
+      );
+      
+      console.log(`[${SERVICE_NAME}] Found ${accountActivitySubscriptions.length} account activity subscriptions to unsubscribe from`);
+      
+      // Unsubscribe from all matching subscriptions
+      for (const subscription of accountActivitySubscriptions) {
+        try {
+          await subscription.unsubscribe();
+          console.log(`[${SERVICE_NAME}] Successfully unsubscribed from subscription: ${subscription.subscriptionId} (channels: ${subscription.channels.join(', ')})`);
+        } catch (error) {
+          console.error(`[${SERVICE_NAME}] Failed to unsubscribe from subscription ${subscription.subscriptionId}:`, error);
+        }
+      }
+      
+      console.log(`[${SERVICE_NAME}] Finished unsubscribing from all account activity subscriptions`);
+    } catch (error) {
+      console.error(`[${SERVICE_NAME}] Failed to unsubscribe from all account activity:`, error);
+    }
+  }
 
   /**
    * Handle system notification for chain status changes
@@ -583,8 +613,8 @@ export class AccountActivityService {
    */
   destroy(): void {
     try {
-      // Clear tracked subscription
-      this.currentSubscribedAddress = null;
+      // Note: All WebSocket subscriptions will be cleaned up when WebSocket disconnects
+      // We don't need to manually unsubscribe here for fast cleanup
 
       // Clean up system notification callback
       this.#webSocketService.removeChannelCallback(`system-notifications.v1.${this.#options.subscriptionNamespace}`);

@@ -870,6 +870,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
 
     let shouldPoll = false;
+    const nativeBalanceUpdates: { address: string; chainId: Hex; balance: Hex }[] = [];
 
     try {
       this.update((state) => {
@@ -894,6 +895,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           
           // Extract token address from asset type (e.g., "eip155:1/erc20:0x...")
           let tokenAddress: string;
+          let isNativeToken = false;
           
           if (asset.type.includes('/erc20:')) {
             // ERC20 token
@@ -901,6 +903,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           } else if (asset.type.includes('/slip44:')) {
             // Native token - use zero address
             tokenAddress = '0x0000000000000000000000000000000000000000';
+            isNativeToken = true;
           } else {
             console.warn('Unsupported asset type:', asset.type, '- will trigger fallback polling');
             shouldPoll = true;
@@ -919,8 +922,25 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           // Update the balance immediately
           state.tokenBalances[checksumAddress][chainId as ChainIdHex][checksumTokenAddress] = balanceHex;
           console.log(`Updated balance for ${checksumAddress} on ${chain} (${chainId}): ${asset.unit} = ${postBalance.amount}`);
+          
+          // Collect native token updates for AccountTrackerController
+          if (isNativeToken) {
+            nativeBalanceUpdates.push({
+              address: checksumAddress,
+              chainId: chainId as Hex,
+              balance: balanceHex,
+            });
+          }
         }
       });
+
+      // Update AccountTrackerController for native balances to maintain state consistency
+      if (nativeBalanceUpdates.length > 0) {
+        this.messagingSystem.call(
+          'AccountTrackerController:updateNativeBalances',
+          nativeBalanceUpdates,
+        );
+      }
     } catch (error) {
       console.error('Error handling AccountActivityService balance update:', error);
       shouldPoll = true;

@@ -80,6 +80,17 @@ export type WebSocketServiceIsChannelSubscribedAction = {
 };
 
 /**
+ * Finds all subscriptions that have channels starting with the specified prefix
+ *
+ * @param channelPrefix - The channel prefix to search for (e.g., "account-activity.v1")
+ * @returns Array of subscription info for matching subscriptions
+ */
+export type WebSocketServiceFindSubscriptionsByChannelPrefixAction = {
+  type: `WebSocketService:findSubscriptionsByChannelPrefix`;
+  handler: WebSocketService['findSubscriptionsByChannelPrefix'];
+};
+
+/**
  * Register a callback for specific channels
  *
  * @param options - Channel callback configuration
@@ -140,6 +151,7 @@ export type WebSocketServiceMethodActions =
   | WebSocketServiceGetConnectionInfoAction
   | WebSocketServiceGetSubscriptionByChannelAction
   | WebSocketServiceIsChannelSubscribedAction
+  | WebSocketServiceFindSubscriptionsByChannelPrefixAction
   | WebSocketServiceAddChannelCallbackAction
   | WebSocketServiceRemoveChannelCallbackAction
   | WebSocketServiceGetChannelCallbacksAction;

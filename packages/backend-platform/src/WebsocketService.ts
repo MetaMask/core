@@ -12,6 +12,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getConnectionInfo',
   'getSubscriptionByChannel',
   'isChannelSubscribed',
+  'findSubscriptionsByChannelPrefix',
   'addChannelCallback',
   'removeChannelCallback',
   'getChannelCallbacks',
@@ -64,6 +65,9 @@ export type WebSocketServiceOptions = {
 
   /** Optional callback to determine if connection should be enabled (default: always enabled) */
   enabledCallback?: () => boolean;
+
+  /** Enable authentication using AuthenticationController (default: false) */
+  enableAuthentication?: boolean;
 };
 
 /**
@@ -174,9 +178,23 @@ export type WebSocketConnectionInfo = {
 // Action types for the messaging system - using generated method actions
 export type WebSocketServiceActions = WebSocketServiceMethodActions;
 
-export type WebSocketServiceAllowedActions = never;
+// Authentication and wallet state management actions
+export type AuthenticationControllerGetBearerToken = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
 
-export type WebSocketServiceAllowedEvents = never;
+export type WebSocketServiceAllowedActions = 
+  | AuthenticationControllerGetBearerToken;
+
+// Authentication state events (includes wallet unlock state)
+export type AuthenticationControllerStateChangeEvent = {
+  type: 'AuthenticationController:stateChange';
+  payload: [{ isSignedIn: boolean; [key: string]: any }, { isSignedIn: boolean; [key: string]: any }];
+};
+
+export type WebSocketServiceAllowedEvents = 
+  | AuthenticationControllerStateChangeEvent;
 
 // Event types for WebSocket connection state changes
 export type WebSocketServiceConnectionStateChangedEvent = {
@@ -219,9 +237,11 @@ export class WebSocketService {
 
   readonly #messenger: WebSocketServiceMessenger;
 
-  readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger' | 'enabledCallback'>>;
+  readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger' | 'enabledCallback' | 'enableAuthentication'>>;
 
   readonly #enabledCallback: (() => boolean) | undefined;
+
+  readonly #enableAuthentication: boolean;
 
   #ws: WebSocket | undefined;
 
@@ -275,6 +295,7 @@ export class WebSocketService {
   constructor(options: WebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#enabledCallback = options.enabledCallback;
+    this.#enableAuthentication = options.enableAuthentication ?? false;
 
     this.#options = {
       url: options.url,
@@ -284,6 +305,11 @@ export class WebSocketService {
       requestTimeout: options.requestTimeout ?? 30000,
     };
 
+    // Setup authentication if enabled
+    if (this.#enableAuthentication) {
+      this.#setupAuthentication();
+    }
+
     // Register action handlers using the method actions pattern
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -292,15 +318,85 @@ export class WebSocketService {
   }
 
   /**
-   * Establishes WebSocket connection
+   * Setup authentication event handling - simplified approach using AuthenticationController
+   * AuthenticationController.isSignedIn includes both wallet unlock AND identity provider auth.
+   * App lifecycle (AppStateWebSocketManager) handles WHEN to connect/disconnect for resources.
+   * @private
+   */
+  #setupAuthentication(): void {
+    try {
+      // Subscribe to authentication state changes - this includes wallet unlock state
+      // AuthenticationController can only be signed in if wallet is unlocked
+      this.#messenger.subscribe('AuthenticationController:stateChange', (newState, prevState) => {
+        const wasSignedIn = prevState?.isSignedIn || false;
+        const isSignedIn = newState?.isSignedIn || false;
+        
+        console.log(`[${SERVICE_NAME}] 🔐 Authentication state changed: ${wasSignedIn ? 'signed-in' : 'signed-out'} → ${isSignedIn ? 'signed-in' : 'signed-out'}`);
+        
+        if (!wasSignedIn && isSignedIn) {
+          // User signed in (wallet unlocked + authenticated) - try to connect
+          console.log(`[${SERVICE_NAME}] ✅ User signed in (wallet unlocked + authenticated), attempting connection...`);
+          // Clear any pending reconnection timer since we're attempting connection
+          this.#clearTimers();
+          if (this.#state === WebSocketState.DISCONNECTED) {
+            this.connect().catch((error) => {
+              console.warn(`[${SERVICE_NAME}] Failed to connect after sign-in:`, error);
+            });
+          }
+        } else if (wasSignedIn && !isSignedIn) {
+          // User signed out (wallet locked OR signed out) - stop reconnection attempts
+          console.log(`[${SERVICE_NAME}] 🔒 User signed out (wallet locked OR signed out), stopping reconnection attempts...`);
+          this.#clearTimers();
+          this.#reconnectAttempts = 0;
+          // Note: Don't disconnect here - let AppStateWebSocketManager handle disconnection
+        }
+      });
+    } catch (error) {
+      console.warn(`[${SERVICE_NAME}] Failed to setup authentication:`, error);
+    }
+  }
+
+  /**
+   * Establishes WebSocket connection with smart reconnection behavior
+   *
+   * Simplified Priority System (using AuthenticationController):
+   * 1. App closed/backgrounded → Stop all attempts (save resources)
+   * 2. User not signed in (wallet locked OR not authenticated) → Keep retrying  
+   * 3. User signed in (wallet unlocked + authenticated) → Connect successfully
    *
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Check if connection is enabled via callback
+    // Priority 1: Check if connection is enabled via callback (app lifecycle check)
+    // If app is closed/backgrounded, stop all connection attempts to save resources
     if (this.#enabledCallback && !this.#enabledCallback()) {
-      console.log(`[${SERVICE_NAME}] Connection disabled by enabledCallback - skipping connect`);
+      console.log(`[${SERVICE_NAME}] Connection disabled by enabledCallback (app closed/backgrounded) - stopping connect and clearing reconnection attempts`);
+      // Clear any pending reconnection attempts since app is disabled
+      this.#clearTimers();
+      this.#reconnectAttempts = 0;
       return;
+    }
+
+    // Priority 2: Check authentication requirements (simplified - just check if signed in)
+    if (this.#enableAuthentication) {
+      try {
+        // AuthenticationController.getBearerToken() handles wallet unlock checks internally
+        const bearerToken = await this.#messenger.call('AuthenticationController:getBearerToken');
+        if (!bearerToken) {
+          console.debug(`[${SERVICE_NAME}] Authentication required but user is not signed in (wallet locked OR not authenticated). Scheduling retry...`);
+          this.#scheduleReconnect();
+          return;
+        }
+        
+        console.debug(`[${SERVICE_NAME}] ✅ Authentication requirements met: user signed in`);
+      } catch (error) {
+        console.warn(`[${SERVICE_NAME}] Failed to check authentication requirements:`, error);
+        
+        // Simple approach: if we can't connect for ANY reason, schedule a retry
+        console.debug(`[${SERVICE_NAME}] Connection failed - scheduling reconnection attempt`);
+        this.#scheduleReconnect();
+        return;
+      }
     }
 
     // If already connected, return immediately
@@ -498,6 +594,32 @@ export class WebSocketService {
     return false;
   }
 
+  /**
+   * Finds all subscriptions that have channels starting with the specified prefix
+   *
+   * @param channelPrefix - The channel prefix to search for (e.g., "account-activity.v1")
+   * @returns Array of subscription info for matching subscriptions
+   */
+  findSubscriptionsByChannelPrefix(channelPrefix: string): SubscriptionInfo[] {
+    const matchingSubscriptions: SubscriptionInfo[] = [];
+    
+    for (const [subscriptionId, subscription] of this.#subscriptions) {
+      // Check if any channel in this subscription starts with the prefix
+      const hasMatchingChannel = subscription.channels.some(channel => 
+        channel.startsWith(channelPrefix)
+      );
+      
+      if (hasMatchingChannel) {
+        matchingSubscriptions.push({
+          subscriptionId,
+          channels: subscription.channels,
+          unsubscribe: subscription.unsubscribe,
+        });
+      }
+    }
+    
+    return matchingSubscriptions;
+  }
 
   /**
    * Register a callback for specific channels
@@ -531,7 +653,7 @@ export class WebSocketService {
   }): void {
     // Check if callback already exists for this channel
     if (this.#channelCallbacks.has(options.channelName)) {
-      console.log(`[${SERVICE_NAME}] Channel callback already exists for '${options.channelName}', skipping`);
+      console.debug(`[${SERVICE_NAME}] Channel callback already exists for '${options.channelName}', skipping`);
       return;
     }
 
@@ -680,13 +802,58 @@ export class WebSocketService {
   }
 
   /**
+   * Builds an authenticated WebSocket URL with bearer token as query parameter.
+   * Uses query parameter for WebSocket authentication since native WebSocket
+   * doesn't support custom headers during handshake.
+   *
+   * @returns Promise that resolves to the authenticated WebSocket URL
+   * @throws Error if authentication is enabled but no access token is available
+   */
+  async #buildAuthenticatedUrl(): Promise<string> {
+    const baseUrl = this.#options.url;
+
+    if (!this.#enableAuthentication) {
+      return baseUrl; // No authentication enabled
+    }
+
+    try {
+      console.log(`[${SERVICE_NAME}] 🔐 Getting access token for authenticated connection...`);
+      
+      // Get access token directly from AuthenticationController via messenger
+      const accessToken = await this.#messenger.call('AuthenticationController:getBearerToken');
+
+      if (!accessToken) {
+        // This shouldn't happen since connect() already checks for token availability,
+        // but handle gracefully to avoid disrupting reconnection logic
+        console.warn(`[${SERVICE_NAME}] No access token available during URL building (possible race condition) - connection will fail but retries will continue`);
+        throw new Error('No access token available');
+      }
+
+      console.log(`[${SERVICE_NAME}] ✅ Building authenticated WebSocket URL with bearer token`);
+
+      // Add token as query parameter to the WebSocket URL
+      const url = new URL(baseUrl);
+      url.searchParams.set('token', accessToken);
+
+      return url.toString();
+    } catch (error) {
+      console.error(
+        `[${SERVICE_NAME}] Failed to build authenticated WebSocket URL - connection blocked:`,
+        error,
+      );
+      throw error; // Re-throw error to prevent connection when authentication is required
+    }
+  }
+
+  /**
    * Establishes the actual WebSocket connection
    *
    * @returns Promise that resolves when connection is established
    */
   async #establishConnection(): Promise<void> {
+    const wsUrl = await this.#buildAuthenticatedUrl();
+    
     return new Promise((resolve, reject) => {
-      const wsUrl = this.#options.url;
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
         console.log(
@@ -1059,9 +1226,13 @@ export class WebSocketService {
     this.#reconnectTimer = setTimeout(() => {
       // Check if connection is still enabled before reconnecting
       if (this.#enabledCallback && !this.#enabledCallback()) {
-        console.log(`[${SERVICE_NAME}] Reconnection disabled by enabledCallback - skipping attempt #${this.#reconnectAttempts}`);
+        console.log(`[${SERVICE_NAME}] Reconnection disabled by enabledCallback (app closed/backgrounded) - stopping all reconnection attempts`);
+        this.#reconnectAttempts = 0;
         return;
       }
+
+      // Authentication checks are handled in connect() method
+      // No need to check here since AuthenticationController manages wallet state internally
 
       console.log(
         `🔄 ${delay}ms delay elapsed - starting reconnection attempt #${this.#reconnectAttempts}...`,
