@@ -16,7 +16,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { EntropyRule } from './entropy';
-import type { AccountGroupObjectOf } from '../group';
+import { AccountTypeKey, AccountTypeOrder, type AccountGroupObjectOf } from '../group';
 import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerActions,
@@ -128,6 +128,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
@@ -160,6 +166,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
@@ -187,6 +199,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
@@ -231,6 +249,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
@@ -261,6 +285,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
@@ -306,6 +336,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
@@ -363,6 +399,12 @@ describe('EntropyRule', () => {
           },
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [
+              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
+              MOCK_HD_ACCOUNT_1.id,
+            ],
+          ],
         },
       };
 
