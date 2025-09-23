@@ -263,12 +263,28 @@ export class AccountTreeController extends BaseController<
       for (const wallet of Object.values(state.accountTree.wallets)) {
         this.#applyAccountWalletMetadata(state, wallet.id);
 
+        // Used for default group default names (so we use human-indexing here).
+        let nextNaturalNameIndex = 1;
         for (const group of Object.values(wallet.groups)) {
-          this.#applyAccountGroupMetadata(state, wallet.id, group.id);
+          this.#applyAccountGroupMetadata(
+            state,
+            wallet.id,
+            group.id,
+            // FIXME: We should not need this kind of logic if we were not inserting accounts
+            // 1 by 1. Instead, we should be inserting wallets and groups directly. This would
+            // allow us to naturally insert a group in the tree AND update its metadata right
+            // away...
+            // But here, we have to wait for the entire group to be ready before updating
+            // its metadata (mainly because we're dealing with single accounts rather than entire
+            // groups).
+            // That is why we need this kind of extra parameter.
+            nextNaturalNameIndex,
+          );
 
           if (group.id === previousSelectedAccountGroup) {
             previousSelectedAccountGroupStillExists = true;
           }
+          nextNaturalNameIndex += 1;
         }
       }
 
@@ -400,11 +416,13 @@ export class AccountTreeController extends BaseController<
    * @param state Controller state to update for persistence.
    * @param walletId The wallet ID containing the group.
    * @param groupId The account group ID to update.
+   * @param nextNaturalNameIndex The next natural name index for this group (only used for default names).
    */
   #applyAccountGroupMetadata(
     state: AccountTreeControllerState,
     walletId: AccountWalletId,
     groupId: AccountGroupId,
+    nextNaturalNameIndex?: number,
   ) {
     const wallet = state.accountTree.wallets[walletId];
     const group = wallet.groups[groupId];
@@ -453,7 +471,15 @@ export class AccountTreeController extends BaseController<
       //
       // For other type of wallets, since those wallets can create arbitrary gaps, we still
       // rely on the highest know index to avoid back-filling account with "old names".
-      let proposedNameIndex = highestNameIndex + 1; // + 1 to use the next available index.
+      let proposedNameIndex = Math.max(
+        // Use + 1 to use the next available index.
+        highestNameIndex + 1,
+        // In case all accounts have been renamed differently than the usual "Account <index>"
+        // pattern, we want to use the next "natural" index, which is just the number of groups
+        // in that wallet (e.g. ["Account A", "Another Account"], next natural index would be
+        // "Account 3" in this case).
+        nextNaturalNameIndex ?? Object.keys(wallet.groups).length,
+      );
 
       // Find a unique name by checking for conflicts and incrementing if needed
       let proposedNameExists: boolean;

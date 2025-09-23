@@ -4035,73 +4035,123 @@ describe('AccountTreeController', () => {
   });
 
   describe('naming', () => {
+    const mockAccount1 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-1',
+      address: '0x123',
+    };
+    const mockAccount2 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-2',
+      address: '0x456',
+    };
+    const mockAccount3 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-3',
+      address: '0x789',
+    };
+    const mockAccount4 = {
+      ...MOCK_HARDWARE_ACCOUNT_1,
+      id: 'mock-id-4',
+      address: '0xabc',
+    };
+
+    const mockWalletId = toAccountWalletId(
+      AccountWalletType.Keyring,
+      KeyringTypes.ledger,
+    );
+
+    const getAccountGroupFromAccount = (
+      controller: AccountTreeController,
+      mockAccount: InternalAccount,
+    ) => {
+      const groupId = toAccountGroupId(mockWalletId, mockAccount.address);
+      return controller.state.accountTree.wallets[mockWalletId].groups[groupId];
+    };
+
     it('names non-HD keyrings accounts properly', () => {
       const { controller, messenger } = setup();
-
-      const walletId = toAccountWalletId(
-        AccountWalletType.Keyring,
-        KeyringTypes.ledger,
-      );
-
-      const getGroupFromAccount = (mockAccount: InternalAccount) => {
-        const groupId = toAccountGroupId(walletId, mockAccount.address);
-        return controller.state.accountTree.wallets[walletId].groups[groupId];
-      };
-
-      const mockAccount1 = {
-        ...MOCK_HARDWARE_ACCOUNT_1,
-        id: 'mock-id-1',
-        address: '0x123',
-      };
-      const mockAccount2 = {
-        ...MOCK_HARDWARE_ACCOUNT_1,
-        id: 'mock-id-2',
-        address: '0x456',
-      };
-      const mockAccount3 = {
-        ...MOCK_HARDWARE_ACCOUNT_1,
-        id: 'mock-id-3',
-        address: '0x789',
-      };
 
       // Add all 3 accounts.
       [mockAccount1, mockAccount2, mockAccount3].forEach(
         (mockAccount, index) => {
           messenger.publish('AccountsController:accountAdded', mockAccount);
 
-          const group = getGroupFromAccount(mockAccount);
-          expect(group).toBeDefined();
-          expect(group.metadata.name).toBe(`Ledger Account ${index + 1}`);
+          const mockGroup = getAccountGroupFromAccount(controller, mockAccount);
+          expect(mockGroup).toBeDefined();
+          expect(mockGroup.metadata.name).toBe(`Ledger Account ${index + 1}`);
         },
       );
 
       // Remove account 2, should still create account 4 afterward.
-      const mockAccount4 = {
-        ...MOCK_HARDWARE_ACCOUNT_1,
-        id: 'mock-id-4',
-        address: '0xabc',
-      };
-
       messenger.publish('AccountsController:accountRemoved', mockAccount2.id);
 
-      expect(getGroupFromAccount(mockAccount4)).toBeUndefined();
+      expect(
+        getAccountGroupFromAccount(controller, mockAccount4),
+      ).toBeUndefined();
       messenger.publish('AccountsController:accountAdded', mockAccount4);
 
-      const group4 = getGroupFromAccount(mockAccount4);
-      expect(group4).toBeDefined();
-      expect(group4.metadata.name).toBe('Ledger Account 4');
+      const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
+      expect(mockGroup4).toBeDefined();
+      expect(mockGroup4.metadata.name).toBe('Ledger Account 4');
 
       // Now, removing account 3 and 4, should defaults to an index of "2" (since only
       // account 1 remains), thus, re-inserting account 2, should be named "* Account 2".
       messenger.publish('AccountsController:accountRemoved', mockAccount4.id);
       messenger.publish('AccountsController:accountRemoved', mockAccount3.id);
 
-      expect(getGroupFromAccount(mockAccount2)).toBeUndefined();
+      expect(
+        getAccountGroupFromAccount(controller, mockAccount2),
+      ).toBeUndefined();
       messenger.publish('AccountsController:accountAdded', mockAccount2);
 
-      const group2 = getGroupFromAccount(mockAccount2);
-      expect(group2).toBeDefined();
-      expect(group2.metadata.name).toBe('Ledger Account 2');
+      const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+      expect(mockGroup2).toBeDefined();
+      expect(mockGroup2.metadata.name).toBe('Ledger Account 2');
+    });
+
+    it('uses natural indexing for pre-existing accounts', () => {
+      const { controller } = setup({
+        accounts: [mockAccount1, mockAccount2, mockAccount3],
+      });
+
+      controller.init();
+
+      // After initializing the controller, all accounts should be named appropriately.
+      [mockAccount1, mockAccount2, mockAccount3].forEach(
+        (mockAccount, index) => {
+          const mockGroup = getAccountGroupFromAccount(controller, mockAccount);
+          expect(mockGroup).toBeDefined();
+          expect(mockGroup.metadata.name).toBe(`Ledger Account ${index + 1}`);
+        },
+      );
+    });
+
+    it('fallbacks to natural indexing if group names are not using our default name pattern', () => {
+      const { controller, messenger } = setup();
+
+      [mockAccount1, mockAccount2, mockAccount3].forEach((mockAccount) =>
+        messenger.publish('AccountsController:accountAdded', mockAccount),
+      );
+
+      const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+      const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+      const mockGroup3 = getAccountGroupFromAccount(controller, mockAccount3);
+      expect(mockGroup1).toBeDefined();
+      expect(mockGroup2).toBeDefined();
+      expect(mockGroup3).toBeDefined();
+
+      // Rename all accounts to something different than "* Account <index>".
+      controller.setAccountGroupName(mockGroup1.id, 'Account A');
+      controller.setAccountGroupName(mockGroup2.id, 'The next account');
+      controller.setAccountGroupName(mockGroup3.id, 'Best account so far');
+
+      // Adding a new account should not reset back to "Account 1", but it should
+      // use the next natural index, here, "Account 4".
+      messenger.publish('AccountsController:accountAdded', mockAccount4);
+      const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
+      expect(mockGroup4).toBeDefined();
+      expect(mockGroup4.metadata.name).toBe('Ledger Account 4');
     });
   });
 });
