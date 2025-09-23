@@ -1,6 +1,8 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
+import type { EventSourceMessage } from '@microsoft/fetch-event-source';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 import { isBitcoinChainId } from './bridge';
 import {
@@ -255,3 +257,109 @@ export const fetchAssetPrices = async (
 
   return combinedPrices;
 };
+
+/**
+ * Converts the generic quote request to the type that the bridge-api expects
+ * then fetches quotes from the bridge-api
+ *
+ * @param fetchFn - The fetch function to use
+ * @param request - The quote request
+ * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
+ * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param serverEventHandlers - The server event handlers
+ * @param serverEventHandlers.onValidationFailures - The function to handle validation failures
+ * @param serverEventHandlers.onValidQuotesReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onerror - The function to handle errors
+ * @returns A list of bridge tx quotes
+ */
+export async function fetchBridgeQuoteStream(
+  fetchFn: FetchFunction,
+  request: GenericQuoteRequest,
+  signal: AbortSignal | null,
+  clientId: string,
+  bridgeApiBaseUrl: string,
+  serverEventHandlers: {
+    onValidationFailures: (validationFailures: string[]) => void;
+    onValidQuotesReceived: (quotes: QuoteResponse[]) => void;
+    onerror: (event: EventSourceMessage) => void;
+  },
+): Promise<void> {
+  const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
+  // Transform the generic quote request into QuoteRequest
+  const normalizedRequest: QuoteRequest = {
+    walletAddress: formatAddressToCaipReference(request.walletAddress),
+    destWalletAddress: formatAddressToCaipReference(destWalletAddress),
+    srcChainId: formatChainIdToDec(request.srcChainId),
+    destChainId: formatChainIdToDec(request.destChainId),
+    srcTokenAddress: formatAddressToCaipReference(request.srcTokenAddress),
+    destTokenAddress: formatAddressToCaipReference(request.destTokenAddress),
+    srcTokenAmount: request.srcTokenAmount,
+    insufficientBal: Boolean(request.insufficientBal),
+    resetApproval: Boolean(request.resetApproval),
+    gasIncluded: Boolean(request.gasIncluded),
+    gasIncluded7702: Boolean(request.gasIncluded7702),
+  };
+  if (request.slippage !== undefined) {
+    normalizedRequest.slippage = request.slippage;
+  }
+  if (request.noFee !== undefined) {
+    normalizedRequest.noFee = request.noFee;
+  }
+  if (request.aggIds && request.aggIds.length > 0) {
+    normalizedRequest.aggIds = request.aggIds;
+  }
+  if (request.bridgeIds && request.bridgeIds.length > 0) {
+    normalizedRequest.bridgeIds = request.bridgeIds;
+  }
+
+  const queryParams = new URLSearchParams();
+  Object.entries(normalizedRequest).forEach(([key, value]) => {
+    queryParams.append(key, value.toString());
+  });
+
+  const onMessage = (event: EventSourceMessage) => {
+    console.log('===onmessage', event);
+    const uniqueValidationFailures: Set<string> = new Set<string>([]);
+    if (event.data === '') {
+      return;
+    }
+    const quoteResponse = JSON.parse(event.data);
+    try {
+      // TODO validate bitcoin quote
+      validateQuoteResponse(quoteResponse);
+
+      serverEventHandlers.onValidQuotesReceived([quoteResponse]);
+    } catch (error) {
+      if (error instanceof StructError) {
+        error.failures().forEach(({ branch, path }) => {
+          const aggregatorId =
+            branch?.[0]?.quote?.bridgeId ||
+            branch?.[0]?.quote?.bridges?.[0] ||
+            (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+            (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+            'unknown';
+          const pathString = path?.join('.') || 'unknown';
+          uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
+        });
+      }
+      const validationFailures = Array.from(uniqueValidationFailures);
+      if (uniqueValidationFailures.size > 0) {
+        console.warn('Quote validation failed', validationFailures);
+        serverEventHandlers.onValidationFailures(validationFailures);
+      }
+    }
+  };
+
+  const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
+  await fetchEventSource(urlStream, {
+    headers: getClientIdHeader(clientId),
+    signal,
+    onmessage: onMessage,
+    onerror: serverEventHandlers.onerror,
+    onclose: () => {
+      console.log('===onclose', 'should loading be set here?');
+    },
+    // fetch: fetchFn,
+  });
+}

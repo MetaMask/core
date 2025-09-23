@@ -48,7 +48,11 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import { getBridgeFeatureFlags } from './utils/feature-flags';
-import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
+import {
+  fetchAssetPrices,
+  fetchBridgeQuotes,
+  fetchBridgeQuoteStream,
+} from './utils/fetch';
 import {
   AbortReason,
   MetricsActionType,
@@ -263,7 +267,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
-    await this.#fetchBridgeQuotes(pollingInput);
+    const shouldStream = true;
+    if (shouldStream) {
+      await this.#fetchBridgeQuoteStream(pollingInput);
+    } else {
+      await this.#fetchBridgeQuotes(pollingInput);
+    }
   };
 
   updateBridgeQuoteRequestParams = async (
@@ -611,6 +620,142 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         },
       );
     } catch (error) {
+      const isAbortError = (error as Error).name === 'AbortError';
+      if (
+        isAbortError ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+        ].includes(error as AbortReason)
+      ) {
+        // Exit the function early to prevent other state updates
+        return;
+      }
+
+      this.update((state) => {
+        state.quoteFetchError =
+          error instanceof Error ? error.message : (error?.toString() ?? null);
+        state.quotesLoadingStatus = RequestStatus.ERROR;
+        state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+      });
+      this.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.QuotesError,
+        context,
+      );
+      console.log('Failed to fetch bridge quotes', error);
+    }
+    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messagingSystem);
+    const { maxRefreshCount } = bridgeFeatureFlags;
+
+    // Stop polling if the maximum number of refreshes has been reached
+    if (
+      updatedQuoteRequest.insufficientBal ||
+      (!updatedQuoteRequest.insufficientBal &&
+        this.state.quotesRefreshCount >= maxRefreshCount)
+    ) {
+      this.stopAllPolling();
+    }
+
+    // Update quote fetching stats
+    const quotesLastFetched = Date.now();
+    this.update((state) => {
+      state.quotesInitialLoadTime =
+        state.quotesRefreshCount === 0 && this.#quotesFirstFetched
+          ? quotesLastFetched - this.#quotesFirstFetched
+          : this.state.quotesInitialLoadTime;
+      state.quotesLastFetched = quotesLastFetched;
+      state.quotesRefreshCount += 1;
+    });
+  };
+
+  fetchQuoteStream = async (
+    quoteRequest: GenericQuoteRequest,
+    abortSignal: AbortSignal | null = null,
+  ): Promise<void> => {
+    await fetchBridgeQuoteStream(
+      this.#fetchFn,
+      quoteRequest,
+      abortSignal,
+      this.#clientId,
+
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      {
+        onValidationFailures: (validationFailures: string[]) => {
+          console.log('===validationFailures', validationFailures);
+          this.#trackResponseValidationFailures(validationFailures);
+        },
+        onValidQuotesReceived: async (quotes: QuoteResponse[]) => {
+          console.log('===event', quotes);
+          const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
+          const quotesWithNonEvmFees = await this.#appendNonEvmFees(quotes);
+          const quotesWithFees =
+            quotesWithL1GasFees ?? quotesWithNonEvmFees ?? quotes;
+          this.update((state) => {
+            state.quotes.push(...quotesWithFees);
+          });
+        },
+        onerror: (event) => {
+          console.log('===event error', event);
+        },
+      },
+    );
+  };
+
+  readonly #fetchBridgeQuoteStream = async ({
+    networkClientId: _networkClientId,
+    updatedQuoteRequest,
+    context,
+  }: BridgePollingInput) => {
+    this.#abortController?.abort('New quote request');
+    this.#abortController = new AbortController();
+
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesRequested,
+      context,
+    );
+    this.update((state) => {
+      state.quotesLoadingStatus = RequestStatus.LOADING;
+      state.quoteRequest = updatedQuoteRequest;
+      state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+    });
+
+    try {
+      await this.#trace(
+        {
+          name: isCrossChain(
+            updatedQuoteRequest.srcChainId,
+            updatedQuoteRequest.destChainId,
+          )
+            ? TraceName.BridgeQuotesFetched
+            : TraceName.SwapQuotesFetched,
+          data: {
+            srcChainId: formatChainIdToCaip(updatedQuoteRequest.srcChainId),
+            destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
+          },
+        },
+        async () => {
+          // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#setMinimumBalanceForRentExemptionInLamports(
+            updatedQuoteRequest.srcChainId,
+          );
+          await this.fetchQuoteStream(
+            updatedQuoteRequest,
+            // AbortController is always defined by this line, because we assign it a few lines above,
+            // not sure why Jest thinks it's not
+            // Linters accurately say that it's defined
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.#abortController!.signal as AbortSignal,
+          );
+
+          this.update((state) => {
+            state.quotesLoadingStatus = RequestStatus.FETCHED;
+          });
+        },
+      );
+    } catch (error) {
+      console.log('=====error', error);
       const isAbortError = (error as Error).name === 'AbortError';
       if (
         isAbortError ||
