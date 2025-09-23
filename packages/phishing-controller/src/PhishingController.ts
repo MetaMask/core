@@ -113,7 +113,6 @@ export type C2DomainBlocklistResponse = {
  * @property version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
-  eth_phishing_detect_config: Record<ListTypes, string[]>;
   allowlist: string[];
   blocklist: string[];
   fuzzylist: string[];
