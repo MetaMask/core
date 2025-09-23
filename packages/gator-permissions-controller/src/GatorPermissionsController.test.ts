@@ -397,21 +397,21 @@ describe('GatorPermissionsController', () => {
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       expect(
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
 
     it('includes expected state in state logs', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       expect(
@@ -432,7 +432,7 @@ describe('GatorPermissionsController', () => {
 
     it('persists expected state', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       expect(
@@ -451,7 +451,7 @@ describe('GatorPermissionsController', () => {
 
     it('exposes expected state to UI', () => {
       const controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
 
       expect(
@@ -487,7 +487,7 @@ describe('GatorPermissionsController', () => {
 
     beforeEach(() => {
       controller = new GatorPermissionsController({
-        messenger: getMessenger(),
+        messenger: getGatorPermissionsControllerMessenger(),
       });
     });
 

@@ -92,32 +92,33 @@ export type GatorPermissionsControllerState = {
   gatorPermissionsProviderSnapId: SnapId;
 };
 
-const gatorPermissionsControllerMetadata = {
-  isGatorPermissionsEnabled: {
-    includeInStateLogs: true,
-    persist: true,
-    anonymous: false,
-    usedInUi: false,
-  },
-  gatorPermissionsMapSerialized: {
-    includeInStateLogs: true,
-    persist: true,
-    anonymous: false,
-    usedInUi: true,
-  },
-  isFetchingGatorPermissions: {
-    includeInStateLogs: true,
-    persist: false,
-    anonymous: false,
-    usedInUi: false,
-  },
-  gatorPermissionsProviderSnapId: {
-    includeInStateLogs: true,
-    persist: false,
-    anonymous: false,
-    usedInUi: false,
-  },
-} satisfies StateMetadata<GatorPermissionsControllerState>;
+const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControllerState> =
+  {
+    isGatorPermissionsEnabled: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+    gatorPermissionsMapSerialized: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    isFetchingGatorPermissions: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+    gatorPermissionsProviderSnapId: {
+      includeInStateLogs: true,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
+  } satisfies StateMetadata<GatorPermissionsControllerState>;
 
 /**
  * Constructs the default {@link GatorPermissionsController} state. This allows
