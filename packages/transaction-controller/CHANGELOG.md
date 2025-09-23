@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `TransactionController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [60.4.0]
 
 ### Added
@@ -42,11 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `isGasFeeIncluded` to `TransactionMeta`, `TransactionBatchRequest` and `addTransaction` options so the client can signal that MetaMask is compensated for the gas fee by the transaction ([#6428](https://github.com/MetaMask/core/pull/6428))
 - Add optional `gasUsed` property to `TransactionMeta`, returned by the transaction simulation result ([#6410](https://github.com/MetaMask/core/pull/6410))
-
-### Changed
-
-- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
-  - Previously, `TransactionController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
 
 ## [60.1.0]
 
