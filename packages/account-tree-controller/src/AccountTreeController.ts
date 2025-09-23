@@ -427,12 +427,8 @@ export class AccountTreeController extends BaseController<
       // Skip computed names for now - use default naming with per-wallet logic
       // TODO: Implement computed names in a future iteration
 
-      // Generate default name and ensure it's unique within the wallet
-      let proposedName = '';
-      let proposedNameIndex: number;
-
       // Parse the highest account index being used (similar to accounts-controller)
-      let highestAccountNameIndex = 0;
+      let highestNameIndex = 0;
       for (const existingGroup of Object.values(
         wallet.groups,
       ) as AccountGroupObject[]) {
@@ -447,45 +443,45 @@ export class AccountTreeController extends BaseController<
         const nameMatch = existingGroup.metadata.name.match(/Account (\d+)$/u);
         if (nameMatch) {
           const nameIndex = parseInt(nameMatch[1], 10);
-          if (nameIndex > highestAccountNameIndex) {
-            highestAccountNameIndex = nameIndex;
+          if (nameIndex > highestNameIndex) {
+            highestNameIndex = nameIndex;
           }
         }
       }
 
-      // For entropy-based multichain groups, start with the actual groupIndex
-      if (
-        group.type === AccountGroupType.MultichainAccount &&
-        group.metadata.entropy
-      ) {
-        proposedNameIndex = group.metadata.entropy.groupIndex;
+      let proposedNameIndex: number;
+      if (group.type === AccountGroupType.MultichainAccount) {
+        // For entropy-based multichain groups, try to start with the actual groupIndex
+        // (use the higher of the two: highest parsed index or group index)
+        proposedNameIndex = Math.max(
+          highestNameIndex + 1, // + 1 to use the next available index.
+          group.metadata.entropy.groupIndex + 1, // + 1 to use human-indexing.
+        );
       } else {
-        // For other wallet types, start with the number of existing groups
-        // This gives us the next logical sequential number
-        proposedNameIndex = Object.keys(wallet.groups).length - 1;
+        // For other wallet types, we just use the highest known index since those
+        // wallets can delete their accounts, it is safer to always use the highest
+        // one we parsed.
+        proposedNameIndex = highestNameIndex + 1; // + 1 to use the next available index.
       }
 
-      // Use the higher of the two: highest parsed index or computed index
-      proposedNameIndex =
-        Math.max(highestAccountNameIndex, proposedNameIndex) + 1;
-
       // Find a unique name by checking for conflicts and incrementing if needed
-      let nameExists: boolean;
+      let proposedNameExists: boolean;
+      let proposedName = '';
       do {
         proposedName = `${namePrefix} ${proposedNameIndex}`;
 
         // Check if this name already exists in the wallet (excluding current group)
-        nameExists = !isAccountGroupNameUniqueFromWallet(
+        proposedNameExists = !isAccountGroupNameUniqueFromWallet(
           wallet,
           group.id,
           proposedName,
         );
 
         /* istanbul ignore next */
-        if (nameExists) {
+        if (proposedNameExists) {
           proposedNameIndex += 1; // Try next number
         }
-      } while (nameExists);
+      } while (proposedNameExists);
 
       state.accountTree.wallets[walletId].groups[groupId].metadata.name =
         proposedName;
