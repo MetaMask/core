@@ -132,7 +132,7 @@ describe('updateFirstTimeInteraction', () => {
         });
       });
 
-      it('extracts recipient from transfer method data', async () => {
+      it('extracts recipient from transfer method data, explicitly using _to', async () => {
         const transactionMetaWithData = {
           ...mockTransactionMeta,
           txParams: { ...mockTransactionMeta.txParams, data: '0xabcdef' },
@@ -161,7 +161,7 @@ describe('updateFirstTimeInteraction', () => {
         });
       });
 
-      it('extracts recipient from transferFrom method data', async () => {
+      it('extracts recipient from transferFrom method data, explicitly using to', async () => {
         const transactionMetaWithData = {
           ...mockTransactionMeta,
           txParams: { ...mockTransactionMeta.txParams, data: '0xabcdef' },
@@ -169,36 +169,7 @@ describe('updateFirstTimeInteraction', () => {
 
         mockDecodeTransactionData.mockReturnValue({
           name: 'transferFrom',
-          args: [null, '0xrecipient'],
-        } as unknown as ReturnType<typeof decodeTransactionData>);
-        mockGetAccountAddressRelationship.mockResolvedValue({ count: 0 });
-
-        await updateFirstTimeInteraction({
-          existingTransactions: [],
-          getTransaction: mockGetTransaction,
-          isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
-          trace: mockTrace,
-          transactionMeta: transactionMetaWithData,
-          updateTransactionInternal: mockUpdateTransactionInternal,
-        });
-
-        expect(mockValidateParamTo).toHaveBeenCalledWith('0xrecipient');
-        expect(mockGetAccountAddressRelationship).toHaveBeenCalledWith({
-          chainId: 1,
-          to: '0xrecipient',
-          from: '0xfrom',
-        });
-      });
-
-      it('extracts recipient from safeTransferFrom method data', async () => {
-        const transactionMetaWithData = {
-          ...mockTransactionMeta,
-          txParams: { ...mockTransactionMeta.txParams, data: '0xabcdef' },
-        };
-
-        mockDecodeTransactionData.mockReturnValue({
-          name: 'safeTransferFrom',
-          args: [null, '0xrecipient'],
+          args: { to: '0xrecipient' },
         } as unknown as ReturnType<typeof decodeTransactionData>);
         mockGetAccountAddressRelationship.mockResolvedValue({ count: 0 });
 

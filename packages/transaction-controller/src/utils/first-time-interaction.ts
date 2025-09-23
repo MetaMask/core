@@ -61,16 +61,9 @@ export async function updateFirstTimeInteraction({
   let recipient;
   if (data) {
     const parsedData = decodeTransactionData(data);
-    if (
-      parsedData?.name === 'transferFrom' ||
-      parsedData?.name === 'safeTransferFrom'
-    ) {
-      // ERC721 and ERC1155
-      recipient = parsedData?.args[1];
-    } else if (parsedData?.name === 'transfer') {
-      // ERC20
-      recipient = parsedData?.args?._to;
-    }
+    // _to is for ERC20, ERC721 and USDC
+    // to is for ERC1155
+    recipient = parsedData?.args?._to || parsedData?.args?.to;
   }
 
   if (!recipient) {
