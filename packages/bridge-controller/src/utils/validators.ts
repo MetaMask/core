@@ -80,6 +80,11 @@ export const BridgeAssetSchema = type({
   iconUrl: optional(nullable(string())),
 });
 
+const DefaultPairSchema = type({
+  standard: record(string(), string()),
+  other: record(string(), string()),
+});
+
 export const ChainConfigurationSchema = type({
   isActiveSrc: boolean(),
   isActiveDest: boolean(),
@@ -90,6 +95,7 @@ export const ChainConfigurationSchema = type({
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
   noFeeAssets: optional(array(string())),
+  bip44DefaultPairs: optional(DefaultPairSchema),
 });
 
 export const PriceImpactThresholdSchema = type({
@@ -104,11 +110,6 @@ const GenericQuoteRequestSchema = type({
 });
 
 const FeatureIdSchema = enums(Object.values(FeatureId));
-
-const Bip44DefaultPairSchema = type({
-  standard: record(string(), string()),
-  other: record(string(), string()),
-});
 
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
@@ -127,9 +128,7 @@ export const PlatformConfigSchema = type({
    * The bip44 default pairs for the chains
    * Key is the CAIP chainId namespace
    */
-  bip44DefaultPairs: optional(
-    record(string(), optional(Bip44DefaultPairSchema)),
-  ),
+  defaultPairs: optional(record(string(), optional(DefaultPairSchema))),
 });
 
 export const validateFeatureFlagsResponse = (
