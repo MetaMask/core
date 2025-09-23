@@ -9,22 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.0]
 
-### Uncategorized
-
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-- Release/546.0.0 ([#6572](https://github.com/MetaMask/core/pull/6572))
-
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
-- Decode delegation permissions using `@metamask/gator-permissions-controller` when calling `newUnsignedTypedMessage` ([#6619](https://github.com/MetaMask/core/pull/6619))
+- **BREAKING:** Decode delegation permissions using `@metamask/gator-permissions-controller` when calling `newUnsignedTypedMessage`, adds `@metamask/gator-permissions-controller` as a peer dependency. ([#6619](https://github.com/MetaMask/core/pull/6619))
 
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/network-controller` from `^24.1.0` to `^24.2.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/keyring-controller` from `^23.0.0` to `^23.1.0` ([#6590](https://github.com/MetaMask/core/pull/6590))
+- Bump `@metamask/accounts-controller` from `^33.0.0` to `^33.1.0` ([#6572](https://github.com/MetaMask/core/pull/6572))
 
 ## [33.0.0]
 
