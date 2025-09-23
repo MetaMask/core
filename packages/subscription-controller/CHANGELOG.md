@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: revert 575.0.0 ([#6685](https://github.com/MetaMask/core/pull/6685))
+- Release 575.0.0 ([#6682](https://github.com/MetaMask/core/pull/6682))
+
 ### Changed
 
 - Added `displayBrand` in card payment type ([#6669](https://github.com/MetaMask/core/pull/6669))
