@@ -3,6 +3,7 @@ import {
   Caip25CaveatType,
   type Caip25CaveatValue,
   Caip25EndowmentPermissionName,
+  getCaipAccountIdsFromCaip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
 import type {
   JsonRpcEngineNextCallback,
@@ -17,6 +18,58 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
 
 /**
+ * Revokes specific session scopes from an existing caveat.
+ * Fully revokes permission if no accounts remain permitted after iterating through scopes.
+ *
+ * @param scopes - Array of scope strings to remove from the caveat.
+ * @param hooks - The hooks object.
+ * @param hooks.revokePermissionForOrigin - The hook for revoking a permission for an origin function.
+ * @param hooks.updateCaveat - The hook used to conditionally update the caveat rather than fully revoke the permission.
+ * @param hooks.getCaveatForOrigin - The hook to fetch an existing caveat for the origin of the request.
+ */
+function partialRevokePermissions(
+  scopes: string[],
+  hooks: {
+    revokePermissionForOrigin: (permissionName: string) => void;
+    updateCaveat: (
+      target: string,
+      caveatType: string,
+      caveatValue: Caip25CaveatValue,
+    ) => void;
+    getCaveatForOrigin: (
+      endowmentPermissionName: string,
+      caveatType: string,
+    ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+  },
+) {
+  let updatedCaveatValue = hooks.getCaveatForOrigin(
+    Caip25EndowmentPermissionName,
+    Caip25CaveatType,
+  ).value;
+  for (const scopeString of scopes) {
+    updatedCaveatValue =
+      Caip25CaveatMutators[Caip25CaveatType].removeScope(
+        updatedCaveatValue,
+        scopeString,
+      )?.value ?? updatedCaveatValue;
+  }
+
+  const caipAccountIds =
+    getCaipAccountIdsFromCaip25CaveatValue(updatedCaveatValue);
+
+  // We fully revoke permission if no accounts are left after scope removal loop.
+  if (!caipAccountIds.length) {
+    hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
+  } else {
+    hooks.updateCaveat(
+      Caip25EndowmentPermissionName,
+      Caip25CaveatType,
+      updatedCaveatValue,
+    );
+  }
+}
+
+/**
  * Handler for the `wallet_revokeSession` RPC method as specified by [CAIP-285](https://chainagnostic.org/CAIPs/caip-285).
  * The implementation below deviates from the linked spec in that it ignores the `sessionId` param
  * and instead revokes the singular session for the origin if available. Additionally,
@@ -29,14 +82,14 @@ import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
  * @param end - The end callback function.
  * @param hooks - The hooks object.
  * @param hooks.revokePermissionForOrigin - The hook for revoking a permission for an origin function.
- * @param hooks.updateCaveat -
- * @param hooks.getCaveatForOrigin -
+ * @param hooks.updateCaveat - The hook used to conditionally update the caveat rather than fully revoke the permission.
+ * @param hooks.getCaveatForOrigin - The hook to fetch an existing caveat for the origin of the request.
  * @returns Nothing.
  */
 async function walletRevokeSessionHandler(
   request: JsonRpcRequest & {
     origin: string;
-    params: { sessionScopes?: string[] };
+    params: { scopes?: string[] };
   },
   response: JsonRpcSuccess,
   _next: JsonRpcEngineNextCallback,
@@ -55,32 +108,12 @@ async function walletRevokeSessionHandler(
   },
 ) {
   const {
-    params: { sessionScopes },
+    params: { scopes },
   } = request;
 
   try {
-    if (sessionScopes?.length) {
-      const existingCaveat = hooks.getCaveatForOrigin(
-        Caip25EndowmentPermissionName,
-        Caip25CaveatType,
-      );
-
-      let updatedCaveatValue;
-      for (const scopeString of sessionScopes) {
-        updatedCaveatValue =
-          Caip25CaveatMutators[Caip25CaveatType].removeScope(
-            updatedCaveatValue ?? existingCaveat.value,
-            scopeString,
-          )?.value ?? updatedCaveatValue;
-      }
-
-      if (updatedCaveatValue) {
-        hooks.updateCaveat(
-          Caip25EndowmentPermissionName,
-          Caip25CaveatType,
-          updatedCaveatValue,
-        );
-      }
+    if (scopes?.length) {
+      partialRevokePermissions(scopes, hooks);
     } else {
       hooks.revokePermissionForOrigin(Caip25EndowmentPermissionName);
     }
