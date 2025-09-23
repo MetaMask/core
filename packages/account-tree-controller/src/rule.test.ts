@@ -14,7 +14,11 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { AccountTypeKey, AccountTypeOrder, type AccountGroupObject } from './group';
+import {
+  type AccountTypeKey,
+  AccountTypeOrder,
+  type AccountGroupObject,
+} from './group';
 import { BaseRule } from './rule';
 import type {
   AccountTreeControllerMessenger,

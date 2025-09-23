@@ -32,7 +32,11 @@ import {
 } from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
-import { AccountTypeKey, AccountTypeOrder, isAccountGroupNameUnique } from './group';
+import {
+  type AccountTypeKey,
+  AccountTypeOrder,
+  isAccountGroupNameUnique,
+} from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,

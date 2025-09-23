@@ -12,7 +12,11 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 
 import { SnapRule } from './snap';
-import { AccountTypeKey, AccountTypeOrder, type AccountGroupObjectOf } from '../group';
+import {
+  type AccountTypeKey,
+  AccountTypeOrder,
+  type AccountGroupObjectOf,
+} from '../group';
 import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerActions,
