@@ -208,6 +208,7 @@ linkStyle default opacity:0.5
   eip1193_permission_middleware --> permission_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
+  ens_controller --> messenger;
   ens_controller --> network_controller;
   error_reporting_service --> base_controller;
   eth_json_rpc_provider --> json_rpc_engine;
@@ -292,6 +293,7 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
