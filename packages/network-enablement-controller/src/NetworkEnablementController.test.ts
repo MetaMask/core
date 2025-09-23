@@ -2256,8 +2256,8 @@ describe('NetworkEnablementController', () => {
 
       // Should switch to Avalanche since we're not in popular networks mode (2 ≤ 2, not >2)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
-      expect(controller.isNetworkEnabled('0x1')).toBe(false);
-      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
       expect(controller.isNetworkEnabled('0x2105')).toBe(false);
     });
   });

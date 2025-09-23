@@ -479,7 +479,7 @@ export class NetworkEnablementController extends BaseController<
     );
 
     // Return true if more than 2 popular networks are enabled
-    return enabledPopularNetworksCount > 2;
+    return enabledPopularNetworksCount > 1;
   }
 
   /**
