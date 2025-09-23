@@ -543,35 +543,12 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Extracts token addresses from a transaction's simulation data
-   *
-   * @param transaction - Transaction metadata to extract tokens from
-   * @returns Array of lowercase token addresses
-   */
-  #extractTokenAddressesFromTransaction(
-    transaction: TransactionMeta,
-  ): string[] {
-    const addresses: string[] = [];
-
-    if (transaction.simulationData?.tokenBalanceChanges) {
-      for (const tokenChange of transaction.simulationData
-        .tokenBalanceChanges) {
-        if (tokenChange?.address && typeof tokenChange.address === 'string') {
-          addresses.push(tokenChange.address.toLowerCase());
-        }
-      }
-    }
-
-    return addresses;
-  }
-
-  /**
    * Handle transaction controller state changes using Immer patches
-   * Extracts token addresses from simulation data and groups them by chain for proper scanning
+   * Extracts token addresses from simulation data and groups them by chain for bulk scanning
    *
-   * @param _state - The current transaction controller state (unused)
+   * @param _state - The current transaction controller state
    * @param _state.transactions - Array of transaction metadata
-   * @param patches - Array of Immer patches describing what changed
+   * @param patches - Array of Immer patches only for transaction-level changes
    */
   #onTransactionControllerStateChange(
     _state: { transactions: TransactionMeta[] },
@@ -588,7 +565,7 @@ export class PhishingController extends BaseController<
         // Handle transaction-level patches (includes simulation data updates)
         if (this.#isTransactionPatch(patch) && patch.path.length === 2) {
           const transaction = patch.value as TransactionMeta;
-          this.#collectTokensFromTransaction(transaction, tokensByChain);
+          this.#getTokensFromTransaction(transaction, tokensByChain);
         }
       }
 
@@ -604,14 +581,17 @@ export class PhishingController extends BaseController<
    * @param transaction - Transaction metadata to extract tokens from
    * @param tokensByChain - Map to collect tokens grouped by chainId
    */
-  #collectTokensFromTransaction(
+  #getTokensFromTransaction(
     transaction: TransactionMeta,
     tokensByChain: Map<string, Set<string>>,
   ) {
-    const tokenAddresses =
-      this.#extractTokenAddressesFromTransaction(transaction);
+    // extract token addresses from simulation data
+    const tokenAddresses = transaction.simulationData?.tokenBalanceChanges?.map(
+      (tokenChange) => tokenChange.address.toLowerCase(),
+    );
 
-    if (tokenAddresses.length > 0 && transaction.chainId) {
+    // add token addresses to the map by chainId
+    if (tokenAddresses && tokenAddresses.length > 0 && transaction.chainId) {
       const chainId = transaction.chainId.toLowerCase();
 
       if (!tokensByChain.has(chainId)) {
