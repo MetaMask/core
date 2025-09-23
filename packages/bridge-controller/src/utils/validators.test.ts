@@ -113,6 +113,13 @@ describe('validators', () => {
             '1': {
               isActiveDest: true,
               isActiveSrc: true,
+              defaultPairs: {
+                standard: {
+                  'bip122:000000000019d6689c085ae165831e93/slip44:0':
+                    'eip155:1/slip44:60',
+                },
+                other: {},
+              },
             },
             '10': {
               isActiveDest: true,
