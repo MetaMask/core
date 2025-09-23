@@ -452,7 +452,8 @@ export class AccountTreeController extends BaseController<
           continue;
         }
         // Parse the existing group name to extract the numeric index
-        const nameMatch = existingGroup.metadata.name.match(/Account (\d+)$/u);
+        const nameMatch =
+          existingGroup.metadata.name.match(/account\s+(\d+)$/iu);
         if (nameMatch) {
           const nameIndex = parseInt(nameMatch[1], 10);
           if (nameIndex > highestNameIndex) {
