@@ -17,14 +17,14 @@ import {
   getStatusRequestParams,
   getTxMetaFields,
   handleSolanaTxResponse,
-  handleLineaDelay,
+  handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   getClientRequest,
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
 } from './transaction';
-import { LINEA_DELAY_MS } from '../constants';
+import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
 
 describe('Bridge Status Controller Transaction Utils', () => {
@@ -974,7 +974,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
   });
 
-  describe('handleLineaDelay', () => {
+  describe('handleApprovalDelay', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       jest.clearAllMocks();
@@ -1007,13 +1007,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleLineaDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(mockQuoteResponse);
 
       // Verify that the timer was set with the correct delay
       expect(jest.getTimerCount()).toBe(1);
 
       // Fast-forward the timer
-      jest.advanceTimersByTime(LINEA_DELAY_MS);
+      jest.advanceTimersByTime(APPROVAL_DELAY_MS);
 
       // Wait for the promise to resolve
       await delayPromise;
@@ -1022,8 +1022,46 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(jest.getTimerCount()).toBe(0);
     });
 
-    it('should not delay when source chain is not Linea', async () => {
-      // Create a minimal mock quote response with a non-Linea source chain
+    it('should delay when source chain is Base', async () => {
+      // Create a minimal mock quote response with Base as the source chain
+      const mockQuoteResponse = {
+        quote: {
+          srcChainId: ChainId.BASE,
+          // Other required properties with minimal values
+          requestId: 'test-request-id',
+          srcAsset: { address: '0x123', symbol: 'ETH', decimals: 18 },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: ChainId.ETH,
+          destAsset: { address: '0x456', symbol: 'ETH', decimals: 18 },
+          destTokenAmount: '1000000000000000000',
+          bridgeId: 'test-bridge',
+          bridges: ['test-bridge'],
+          steps: [],
+          feeData: {},
+        },
+        // Required properties for QuoteResponse
+        trade: {} as TxData,
+        estimatedProcessingTimeInSeconds: 60,
+      } as unknown as QuoteResponse;
+
+      // Create a promise that will resolve after the delay
+      const delayPromise = handleApprovalDelay(mockQuoteResponse);
+
+      // Verify that the timer was set with the correct delay
+      expect(jest.getTimerCount()).toBe(1);
+
+      // Fast-forward the timer
+      jest.advanceTimersByTime(APPROVAL_DELAY_MS);
+
+      // Wait for the promise to resolve
+      await delayPromise;
+
+      // Verify that the timer was cleared
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should not delay when source chain is not Linea or Base', async () => {
+      // Create a minimal mock quote response with a non-Linea/Base source chain
       const mockQuoteResponse = {
         quote: {
           srcChainId: ChainId.ETH,
@@ -1045,7 +1083,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as QuoteResponse;
 
       // Create a promise that will resolve after the delay
-      const delayPromise = handleLineaDelay(mockQuoteResponse);
+      const delayPromise = handleApprovalDelay(mockQuoteResponse);
 
       // Verify that no timer was set
       expect(jest.getTimerCount()).toBe(0);

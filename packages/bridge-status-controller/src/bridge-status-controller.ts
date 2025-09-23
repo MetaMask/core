@@ -69,7 +69,7 @@ import {
   getClientRequest,
   getStatusRequestParams,
   getUSDTAllowanceResetTx,
-  handleLineaDelay,
+  handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   handleSolanaTxResponse,
 } from './utils/transaction';
@@ -813,7 +813,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           requireApproval,
         });
 
-        await handleLineaDelay(quoteResponse);
+        await handleApprovalDelay(quoteResponse);
         return approvalTxMeta;
       };
 
