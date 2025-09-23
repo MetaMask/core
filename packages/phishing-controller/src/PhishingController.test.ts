@@ -3392,6 +3392,7 @@ describe('URL Scan Cache', () => {
           "hotlistLastFetched": 0,
           "phishingLists": Array [],
           "stalelistLastFetched": 0,
+          "tokenScanCache": Object {},
           "urlScanCache": Object {},
           "whitelist": Array [],
         }
@@ -3409,6 +3410,7 @@ describe('URL Scan Cache', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "tokenScanCache": Object {},
           "urlScanCache": Object {},
         }
       `);
