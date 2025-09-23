@@ -45,7 +45,7 @@ describe('updateFirstTimeInteraction', () => {
         return await callback();
       },
     );
-    mockValidateParamTo.mockImplementation(() => {});
+    mockValidateParamTo.mockImplementation(() => undefined);
     mockGetTransaction.mockReturnValue(mockTransactionMeta);
   });
 
