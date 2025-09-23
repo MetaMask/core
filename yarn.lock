@@ -4509,7 +4509,7 @@ __metadata:
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
-    "@metamask/signature-controller": "npm:^33.0.0"
+    "@metamask/signature-controller": "npm:^34.0.0"
     "@metamask/transaction-controller": "npm:^60.4.0"
     "@metamask/utils": "npm:^11.8.0"
     "@ts-bridge/cli": "npm:^0.6.1"
@@ -4522,12 +4522,12 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
   peerDependencies:
-    "@metamask/signature-controller": ^33.0.0
+    "@metamask/signature-controller": ^34.0.0
     "@metamask/transaction-controller": ^60.0.0
   languageName: unknown
   linkType: soft
 
-"@metamask/signature-controller@npm:^33.0.0, @metamask/signature-controller@workspace:packages/signature-controller":
+"@metamask/signature-controller@npm:^34.0.0, @metamask/signature-controller@workspace:packages/signature-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
   dependencies:
