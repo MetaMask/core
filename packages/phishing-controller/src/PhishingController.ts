@@ -105,15 +105,18 @@ export type C2DomainBlocklistResponse = {
  * @type PhishingStalelist
  *
  * type defining expected type of the stalelist.json file.
- * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
+ * @property allowlist - List of approved origins.
+ * @property blocklist - List of unapproved origins.
+ * @property fuzzylist - List of fuzzy-matched unapproved origins.
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_phishing_detect_config: Record<ListTypes, string[]>;
+  allowlist: string[];
+  blocklist: string[];
+  fuzzylist: string[];
   tolerance: number;
   version: number;
   lastUpdated: number;
@@ -1006,17 +1009,16 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    const { eth_phishing_detect_config, ...partialState } =
-      stalelistResponse.data;
-
     const { blocklist, blocklistPaths } = separateBlocklistEntries(
-      eth_phishing_detect_config.blocklist,
+      stalelistResponse.data.blocklist,
     );
 
     const metamaskListState: PhishingListState = {
-      ...eth_phishing_detect_config,
-      ...partialState,
+      allowlist: stalelistResponse.data.allowlist,
+      fuzzylist: stalelistResponse.data.fuzzylist,
+      tolerance: stalelistResponse.data.tolerance,
+      version: stalelistResponse.data.version,
+      lastUpdated: stalelistResponse.data.lastUpdated,
       blocklist,
       blocklistPaths,
       c2DomainBlocklist: c2DomainBlocklistResponse
