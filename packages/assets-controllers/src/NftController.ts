@@ -242,9 +242,24 @@ export type NftControllerState = {
 };
 
 const nftControllerMetadata = {
-  allNftContracts: { persist: true, anonymous: false },
-  allNfts: { persist: true, anonymous: false },
-  ignoredNfts: { persist: true, anonymous: false },
+  allNftContracts: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  allNfts: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  ignoredNfts: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
 };
 
 const ALL_NFTS_STATE_KEY = 'allNfts';

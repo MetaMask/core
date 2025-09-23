@@ -7,6 +7,7 @@ import {
   TRIGGER_API_NOTIFICATIONS_ENDPOINT,
   TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
 } from '../services/onchain-notifications';
+import { PERPS_API_CREATE_ORDERS } from '../services/perp-notifications';
 
 type MockResponse = {
   url: string;
@@ -54,6 +55,14 @@ export const getMockListNotificationsResponse = () => {
 export const getMockMarkNotificationsAsReadResponse = () => {
   return {
     url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
+    requestMethod: 'POST',
+    response: null,
+  } satisfies MockResponse;
+};
+
+export const getMockCreatePerpOrderNotification = () => {
+  return {
+    url: PERPS_API_CREATE_ORDERS,
     requestMethod: 'POST',
     response: null,
   } satisfies MockResponse;

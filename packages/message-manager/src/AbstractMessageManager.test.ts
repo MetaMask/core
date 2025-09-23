@@ -1,4 +1,7 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
+import {
+  deriveStateFromMetadata,
+  type RestrictedMessenger,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
@@ -25,6 +28,7 @@ type ConcreteMessageManagerActions = never;
 type ConcreteMessageManagerEvents = never;
 
 class AbstractTestManager extends AbstractMessageManager<
+  'TestManager',
   ConcreteMessage,
   ConcreteMessageParams,
   ConcreteMessageParamsMetamask,
@@ -68,7 +72,7 @@ const MOCK_MESSENGER = {
   registerActionHandler: jest.fn(),
   registerInitialEventPayload: jest.fn(),
 } as unknown as RestrictedMessenger<
-  'AbstractMessageManager',
+  'TestManager',
   never,
   never,
   string,
@@ -78,7 +82,7 @@ const MOCK_MESSENGER = {
 const MOCK_INITIAL_OPTIONS = {
   additionalFinishStatuses: undefined,
   messenger: MOCK_MESSENGER,
-  name: 'AbstractMessageManager' as const,
+  name: 'TestManager' as const,
   securityProviderRequest: undefined,
 };
 
@@ -398,7 +402,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
 
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+        'TestManager: Message not found for id: 1.',
       );
     });
   });
@@ -450,7 +454,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
 
       expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+        'TestManager: Message not found for id: 1.',
       );
     });
   });
@@ -564,6 +568,66 @@ describe('AbstractTestManager', () => {
       });
       controller.clearUnapprovedMessages();
       expect(controller.getUnapprovedMessagesCount()).toBe(0);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "unapprovedMessages": Object {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "unapprovedMessages": Object {},
+          "unapprovedMessagesCount": 0,
+        }
+      `);
     });
   });
 });

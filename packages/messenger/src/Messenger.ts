@@ -75,7 +75,7 @@ export type EventConstraint = {
  *
  * @template Subject - The messenger type to extract from.
  */
-type MessengerActions<
+export type MessengerActions<
   Subject extends Messenger<string, ActionConstraint, EventConstraint>,
 > =
   Subject extends Messenger<string, infer Action, EventConstraint>
@@ -87,12 +87,29 @@ type MessengerActions<
  *
  * @template Subject - The messenger type to extract from.
  */
-type MessengerEvents<
+export type MessengerEvents<
   Subject extends Messenger<string, ActionConstraint, EventConstraint>,
 > =
   Subject extends Messenger<string, ActionConstraint, infer Event>
     ? Event
     : never;
+
+/**
+ * Messenger namespace checks can be disabled by using this as the `namespace` constructor
+ * parameter, and using `MockAnyNamespace` as the Namespace type parameter.
+ *
+ * This is useful for mocking a variety of different actions/events in unit tests. Please do not
+ * use this in production code.
+ */
+export const MOCK_ANY_NAMESPACE = 'MOCK_ANY_NAMESPACE';
+
+/**
+ * A type representing any namespace.
+ *
+ * This is useful for mocking a variety of different actions/events in unit tests. Please do not
+ * use this in production code.
+ */
+export type MockAnyNamespace = string;
 
 /**
  * Metadata for a single event subscription.
@@ -160,6 +177,7 @@ type DelegatedMessenger = Pick<
   | '_internalRegisterDelegatedActionHandler'
   | '_internalRegisterDelegatedInitialEventPayload'
   | '_internalUnregisterDelegatedActionHandler'
+  | 'captureException'
 >;
 
 type StripNamespace<Namespaced extends NamespacedName> =
@@ -179,8 +197,8 @@ type StripNamespace<Namespaced extends NamespacedName> =
  */
 export class Messenger<
   Namespace extends string,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
+  Action extends ActionConstraint = never,
+  Event extends EventConstraint = never,
   Parent extends Messenger<
     string,
     ActionConstraint,
@@ -238,19 +256,29 @@ export class Messenger<
   >();
 
   /**
+   * Reports an error to an error monitoring service.
+   *
+   * @param error - The error to report.
+   */
+  readonly captureException?: (error: Error) => void;
+
+  /**
    * Construct a messenger.
    *
    * If a parent messenger is given, all actions and events under this messenger's namespace will
    * be delegated to the parent automatically.
    *
    * @param args - Constructor arguments
+   * @param args.captureException - Reports an error to an error monitoring service.
    * @param args.namespace - The messenger namespace.
    * @param args.parent - The parent messenger.
    */
   constructor({
+    captureException,
     namespace,
     parent,
   }: {
+    captureException?: (error: Error) => void;
     namespace: Namespace;
     parent?: Action['type'] extends MessengerActions<Parent>['type']
       ? Event['type'] extends MessengerEvents<Parent>['type']
@@ -260,6 +288,7 @@ export class Messenger<
   }) {
     this.#namespace = namespace;
     this.#parent = parent;
+    this.captureException = captureException ?? this.#parent?.captureException;
   }
 
   /**
@@ -278,7 +307,6 @@ export class Messenger<
   registerActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(actionType: ActionType, handler: ActionHandler<Action, ActionType>) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(actionType)) {
       throw new Error(
         `Only allowed registering action handlers prefixed by '${
@@ -341,7 +369,6 @@ export class Messenger<
   unregisterActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(actionType: ActionType) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(actionType)) {
       throw new Error(
         `Only allowed unregistering action handlers prefixed by '${
@@ -356,14 +383,6 @@ export class Messenger<
     actionType: ActionType,
   ) {
     this.#actions.delete(actionType);
-    const delegationTargets = this.#actionDelegationTargets.get(actionType);
-    if (!delegationTargets) {
-      return;
-    }
-    for (const messenger of delegationTargets) {
-      messenger._internalUnregisterDelegatedActionHandler(actionType);
-    }
-    this.#actionDelegationTargets.delete(actionType);
   }
 
   /**
@@ -427,7 +446,6 @@ export class Messenger<
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
   }) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
         `Only allowed registering initial payloads for events prefixed by '${
@@ -486,7 +504,6 @@ export class Messenger<
     eventType: EventType & NamespacedName<Namespace>,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#namespace}:'`,
@@ -524,11 +541,14 @@ export class Messenger<
             (handler as GenericEventHandler)(...payload);
           }
         } catch (error) {
-          // Throw error after timeout so that it is capured as a console error
-          // (and by Sentry) without interrupting the event publishing.
-          setTimeout(() => {
-            throw error;
-          });
+          // Capture error without interrupting the event publishing.
+          if (this.captureException) {
+            this.captureException(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          } else {
+            console.error(error);
+          }
         }
       }
     }
@@ -763,7 +783,7 @@ export class Messenger<
           | undefined;
         if (!actionHandler) {
           throw new Error(
-            `Cannot call '${actionType}', action not registered.`,
+            `A handler for ${actionType} has not been registered`,
           );
         }
         return actionHandler(...args);
@@ -993,10 +1013,15 @@ export class Messenger<
   /**
    * Determine whether the given name is within the current namespace.
    *
+   * If the current namespace is MOCK_ANY_NAMESPACE, this check always returns true.
+   *
    * @param name - The name to check
    * @returns Whether the name is within the current namespace
    */
   #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
-    return name.startsWith(`${this.#namespace}:`);
+    return (
+      this.#namespace === MOCK_ANY_NAMESPACE ||
+      name.startsWith(`${this.#namespace}:`)
+    );
   }
 }

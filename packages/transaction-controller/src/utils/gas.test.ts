@@ -60,6 +60,7 @@ const BLOCK_GAS_LIMIT_MOCK = 123456789;
 const BLOCK_NUMBER_MOCK = '0x5678';
 const ETH_QUERY_MOCK = {} as unknown as EthQuery;
 const FALLBACK_MULTIPLIER_35_PERCENT = 0.35;
+const GET_SIMULATION_CONFIG_MOCK = jest.fn();
 const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
 const CHAIN_ID_MOCK = '0x123';
 const GAS_2_MOCK = 12345;
@@ -86,6 +87,7 @@ const UPDATE_GAS_REQUEST_MOCK = {
   isCustomNetwork: false,
   isSimulationEnabled: false,
   ethQuery: ETH_QUERY_MOCK,
+  getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
   messenger: MESSENGER_MOCK,
 } as UpdateGasRequest;
 
@@ -418,6 +420,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -443,6 +446,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -478,6 +482,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -503,6 +508,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -525,6 +531,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -552,6 +559,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -577,6 +585,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -602,6 +611,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -648,6 +658,7 @@ describe('gas', () => {
           ethQuery: ETH_QUERY_MOCK,
           ignoreDelegationSignatures: true,
           isSimulationEnabled: true,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: TRANSACTION_META_MOCK.txParams,
         });
@@ -667,6 +678,7 @@ describe('gas', () => {
             ethQuery: ETH_QUERY_MOCK,
             ignoreDelegationSignatures: true,
             isSimulationEnabled: false,
+            getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
             messenger: MESSENGER_MOCK,
             txParams: TRANSACTION_META_MOCK.txParams,
           }),
@@ -695,6 +707,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -730,6 +743,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -786,6 +800,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -796,6 +811,7 @@ describe('gas', () => {
         });
 
         expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           transactions: [
             {
               ...TRANSACTION_META_MOCK.txParams,
@@ -822,6 +838,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: false,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -858,6 +875,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -894,6 +912,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1010,6 +1029,7 @@ describe('gas', () => {
       const result = await simulateGasBatch({
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         transactions: TRANSACTION_BATCH_REQUEST_MOCK,
       });
 
@@ -1019,6 +1039,7 @@ describe('gas', () => {
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         transactions: [
           {
             ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
@@ -1037,12 +1058,17 @@ describe('gas', () => {
         transactions: [
           { gasLimit: GAS_MOCK_1 } as unknown as SimulationResponseTransaction,
         ], // Only one transaction returned
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await expect(
         simulateGasBatch({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(
@@ -1058,12 +1084,17 @@ describe('gas', () => {
           { gasLimit: undefined },
           { gasLimit: GAS_MOCK_2 },
         ] as unknown as SimulationResponseTransaction[],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       await expect(
         simulateGasBatch({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(
@@ -1076,11 +1107,16 @@ describe('gas', () => {
     it('handles empty transactions gracefully', async () => {
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
       });
 
       const result = await simulateGasBatch({
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         transactions: [],
       });
 
@@ -1090,6 +1126,7 @@ describe('gas', () => {
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         transactions: [],
       });
     });
@@ -1103,6 +1140,7 @@ describe('gas', () => {
         simulateGasBatch({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(

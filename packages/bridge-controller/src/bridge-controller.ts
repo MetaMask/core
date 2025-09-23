@@ -25,7 +25,7 @@ import type { QuoteRequest } from './types';
 import {
   type L1GasFees,
   type GenericQuoteRequest,
-  type SolanaFees,
+  type NonEvmFees,
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
@@ -38,6 +38,7 @@ import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
+  isNonEvmChainId,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -49,6 +50,7 @@ import {
 import { getBridgeFeatureFlags } from './utils/feature-flags';
 import { fetchAssetPrices, fetchBridgeQuotes } from './utils/fetch';
 import {
+  AbortReason,
   MetricsActionType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -70,51 +72,67 @@ import type {
 import { type CrossChainSwapsEventProperties } from './utils/metrics/types';
 import { isValidQuoteRequest } from './utils/quote';
 import {
-  getFeeForTransactionRequest,
+  computeFeeRequest,
   getMinimumBalanceForRentExemptionRequest,
 } from './utils/snaps';
 import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotes: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesInitialLoadTime: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLastFetched: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLoadingStatus: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quoteFetchError: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesRefreshCount: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   assetExchangeRates: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   minimumBalanceForRentExemptionInLamports: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
 };
-
-const RESET_STATE_ABORT_MESSAGE = 'Reset controller state';
 
 /**
  * The input to start polling for the {@link BridgeController}
@@ -129,8 +147,8 @@ type BridgePollingInput = {
   updatedQuoteRequest: GenericQuoteRequest;
   context: Pick<
     RequiredEventContextFromClient,
-    UnifiedSwapBridgeEventName.QuoteError
-  >[UnifiedSwapBridgeEventName.QuoteError] &
+    UnifiedSwapBridgeEventName.QuotesError
+  >[UnifiedSwapBridgeEventName.QuotesError] &
     Pick<
       RequiredEventContextFromClient,
       UnifiedSwapBridgeEventName.QuotesRequested
@@ -253,7 +271,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
-    this.#abortController?.abort('Quote request updated');
+    this.#abortController?.abort(AbortReason.QuoteRequestUpdated);
 
     this.#trackInputChangedEvents(paramsToUpdate);
 
@@ -293,7 +311,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const providerConfig = this.#getSelectedNetworkClient()?.configuration;
 
       let insufficientBal: boolean | undefined;
-      if (isSolanaChainId(updatedQuoteRequest.srcChainId)) {
+      if (isNonEvmChainId(updatedQuoteRequest.srcChainId)) {
         // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
       } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
@@ -342,7 +360,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
 
     // If quoteRequestOverrides is specified, merge it with the quoteRequest
-    const baseQuotes = await fetchBridgeQuotes(
+    const { quotes: baseQuotes, validationFailures } = await fetchBridgeQuotes(
       quoteRequestOverrides
         ? { ...quoteRequest, ...quoteRequestOverrides }
         : quoteRequest,
@@ -351,10 +369,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
+
+    this.#trackResponseValidationFailures(validationFailures);
+
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(baseQuotes);
     const quotesWithFees =
-      quotesWithL1GasFees ?? quotesWithSolanaFees ?? baseQuotes;
+      quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     // Sort perps quotes by increasing estimated processing time (fastest first)
     if (featureId === FeatureId.PERPS) {
       return quotesWithFees.sort((a, b) => {
@@ -365,6 +386,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       });
     }
     return quotesWithFees;
+  };
+
+  readonly #trackResponseValidationFailures = (
+    validationFailures: string[],
+  ) => {
+    if (validationFailures.length === 0) {
+      return;
+    }
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesValidationFailed,
+      {
+        failures: validationFailures,
+      },
+    );
   };
 
   readonly #getExchangeRateSources = () => {
@@ -448,6 +483,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
   ) => {
     const walletAddress = this.#getMultichainSelectedAccount()?.address;
+
+    // Only check balance for EVM chains
+    if (isNonEvmChainId(quoteRequest.srcChainId)) {
+      return true;
+    }
+
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
     const provider = this.#getSelectedNetworkClient()?.provider;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
@@ -470,13 +511,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  stopPollingForQuotes = (reason?: string) => {
+  stopPollingForQuotes = (reason?: AbortReason) => {
     this.stopAllPolling();
     this.#abortController?.abort(reason);
   };
 
   resetState = () => {
-    this.stopPollingForQuotes(RESET_STATE_ABORT_MESSAGE);
+    this.stopPollingForQuotes(AbortReason.ResetState);
 
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
@@ -568,20 +609,26 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
-      const isAbortedDueToReset = error === RESET_STATE_ABORT_MESSAGE;
-      if (isAbortedDueToReset || isAbortError) {
-        // Exit the function early to avoid other state updates
+      if (
+        isAbortError ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+        ].includes(error as AbortReason)
+      ) {
+        // Exit the function early to prevent other state updates
         return;
       }
 
       this.update((state) => {
         state.quoteFetchError =
-          error instanceof Error ? error.message : 'Unknown error';
+          error instanceof Error ? error.message : (error?.toString() ?? null);
         state.quotesLoadingStatus = RequestStatus.ERROR;
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuoteError,
+        UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
@@ -705,51 +752,75 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
   };
 
-  readonly #appendSolanaFees = async (
+  /**
+   * Appends transaction fees for non-EVM chains to quotes
+   *
+   * @param quotes - Array of quote responses to append fees to
+   * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
+   */
+  readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
-  ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
-    // Return early if some of the quotes are not for solana
+  ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
     if (
-      quotes.some(({ quote: { srcChainId } }) => !isSolanaChainId(srcChainId))
+      quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
     ) {
       return undefined;
     }
 
-    const solanaFeePromises = Promise.allSettled(
+    const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
-        const { trade } = quoteResponse;
+        const { trade, quote } = quoteResponse;
         const selectedAccount = this.#getMultichainSelectedAccount();
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
-          const { value: fees } = (await this.messagingSystem.call(
+          const scope = formatChainIdToCaip(quote.srcChainId);
+
+          const response = (await this.messagingSystem.call(
             'SnapController:handleRequest',
-            getFeeForTransactionRequest(
+            computeFeeRequest(
               selectedAccount.metadata.snap?.id,
               trade,
+              selectedAccount.id,
+              scope,
             ),
-          )) as { value: string };
+          )) as {
+            type: 'base' | 'priority';
+            asset: {
+              unit: string;
+              type: string;
+              amount: string;
+              fungible: true;
+            };
+          }[];
+
+          const baseFee = response?.find((fee) => fee.type === 'base');
+          // Store fees in native units as returned by the snap (e.g., SOL, BTC)
+          const feeInNative = baseFee?.asset?.amount || '0';
 
           return {
             ...quoteResponse,
-            solanaFeesInLamports: fees,
+            nonEvmFeesInNative: feeInNative,
           };
         }
         return quoteResponse;
       }),
     );
 
-    const quotesWithSolanaFees = (await solanaFeePromises).reduce<
-      (QuoteResponse & SolanaFees)[]
+    const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
+      (QuoteResponse & NonEvmFees)[]
     >((acc, result) => {
       if (result.status === 'fulfilled' && result.value) {
         acc.push(result.value);
       } else if (result.status === 'rejected') {
-        console.error('Error calculating solana fees for quote', result.reason);
+        console.error(
+          'Error calculating non-EVM fees for quote',
+          result.reason,
+        );
       }
       return acc;
     }, []);
 
-    return quotesWithSolanaFees;
+    return quotesWithNonEvmFees;
   };
 
   #getMultichainSelectedAccount() {
@@ -831,6 +902,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...baseProperties,
         };
+      case UnifiedSwapBridgeEventName.QuotesValidationFailed:
+        return {
+          ...this.#getRequestParams(),
+          refresh_count: this.state.quotesRefreshCount,
+          ...baseProperties,
+        };
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
           ...this.#getRequestParams(),
@@ -846,7 +923,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.QuoteError:
+      case UnifiedSwapBridgeEventName.QuotesError:
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
@@ -869,7 +946,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
         };
-      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
         return {
@@ -880,7 +956,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...propertiesFromClient,
         };
       }
-      // These are populated by BridgeStatusController
+      case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
+        return baseProperties;
+      // These events may be published after the bridge-controller state is reset
+      // So the BridgeStatusController populates all the properties
+      case UnifiedSwapBridgeEventName.Submitted:
       case UnifiedSwapBridgeEventName.Completed:
         return propertiesFromClient;
       case UnifiedSwapBridgeEventName.InputChanged:

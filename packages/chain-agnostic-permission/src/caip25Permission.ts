@@ -591,7 +591,14 @@ export const getCaip25PermissionFromLegacyPermissions =
         value: Hex[];
       }[];
     };
-  }) => {
+  }): {
+    [Caip25EndowmentPermissionName]: {
+      caveats: NonEmptyArray<{
+        type: typeof Caip25CaveatType;
+        value: typeof caveatValueWithAccountsAndChains;
+      }>;
+    };
+  } => {
     const permissions = pick(requestedPermissions, [
       PermissionKeys.eth_accounts,
       PermissionKeys.permittedChains,

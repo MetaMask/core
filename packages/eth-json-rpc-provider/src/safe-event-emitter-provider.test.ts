@@ -35,32 +35,6 @@ function createMockEngine(method: string, response: Json) {
 }
 
 describe('SafeEventEmitterProvider', () => {
-  describe('constructor', () => {
-    it('listens for notifications from provider, emitting them as "data"', async () => {
-      const engine = new JsonRpcEngine();
-      const provider = new SafeEventEmitterProvider({ engine });
-      const notificationListener = jest.fn();
-      provider.on('data', notificationListener);
-
-      // `json-rpc-engine` v6 does not support JSON-RPC notifications directly,
-      // so this is the best way to emulate this behavior.
-      // We should replace this with `await engine.handle(notification)` when we update to v7
-      // TODO: v7 is now integrated; fix this
-      engine.emit('notification', 'test');
-
-      expect(notificationListener).toHaveBeenCalledWith(null, 'test');
-    });
-
-    it('does not throw if engine does not support events', () => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const engine = new JsonRpcEngine() as any;
-      delete engine.on;
-
-      expect(() => new SafeEventEmitterProvider({ engine })).not.toThrow();
-    });
-  });
-
   it('returns the correct block number with @metamask/eth-query', async () => {
     const provider = new SafeEventEmitterProvider({
       engine: createMockEngine('eth_blockNumber', 42),

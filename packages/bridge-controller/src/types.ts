@@ -77,8 +77,8 @@ export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
-export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
 /**
@@ -132,6 +132,10 @@ export type QuoteMetadata = {
    * The amount that the user will receive (destTokenAmount)
    */
   toTokenAmount: TokenAmountValues;
+  /**
+   * The minimum amount that the user will receive (minDestTokenAmount)
+   */
+  minToTokenAmount: TokenAmountValues;
   /**
    * If gas is included: toTokenAmount
    * Otherwise: toTokenAmount - totalNetworkFee
@@ -215,6 +219,10 @@ export type QuoteRequest<
    * and the current network has STX support
    */
   gasIncluded: boolean;
+  /**
+   * Whether to request quotes that use EIP-7702 delegated gasless execution
+   */
+  gasIncluded7702: boolean;
   noFee?: boolean;
 };
 
@@ -269,6 +277,7 @@ export enum ChainId {
   AVALANCHE = 43114,
   LINEA = 59144,
   SOLANA = 1151111081099710,
+  BTC = 20000000000001,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -293,7 +302,7 @@ export enum BridgeBackgroundAction {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
+  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   quotesInitialLoadTime: number | null;
   quotesLastFetched: number | null;
   quotesLoadingStatus: RequestStatus | null;

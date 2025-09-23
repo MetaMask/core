@@ -29,8 +29,18 @@ export type RemoteFeatureFlagControllerState = {
 };
 
 const remoteFeatureFlagControllerMetadata = {
-  remoteFeatureFlags: { persist: true, anonymous: true },
-  cacheTimestamp: { persist: true, anonymous: true },
+  remoteFeatureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  cacheTimestamp: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: false,
+  },
 };
 
 // === MESSENGER ===
@@ -192,7 +202,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const processedRemoteFeatureFlags =
+      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedRemoteFeatureFlags,

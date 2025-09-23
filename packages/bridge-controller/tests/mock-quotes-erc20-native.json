@@ -18,6 +18,7 @@
       },
       "destChainId": 42161,
       "destTokenAmount": "991225000000000000",
+      "minDestTokenAmount": "970000000000000000",
       "destAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:42161/slip44:614",
@@ -127,6 +128,7 @@
       },
       "destChainId": 42161,
       "destTokenAmount": "991147696728676903",
+      "minDestTokenAmount": "969000000000000000",
       "destAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:42161/slip44:614",
@@ -236,6 +238,7 @@
       },
       "destChainId": 42161,
       "destTokenAmount": "991112862890876485",
+      "minDestTokenAmount": "968000000000000000",
       "destAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:42161/slip44:614",
@@ -345,6 +348,7 @@
       },
       "destChainId": 42161,
       "destTokenAmount": "990221346602370184",
+      "minDestTokenAmount": "967000000000000000",
       "destAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:42161/slip44:614",
@@ -464,6 +468,7 @@
         "chainAgnosticId": null
       },
       "destTokenAmount": "991147696728676903",
+      "minDestTokenAmount": "969000000000000000",
       "feeData": {
         "metabridge": {
           "amount": "8750000000000000",
@@ -566,6 +571,7 @@
       },
       "destChainId": 42161,
       "destTokenAmount": "989989428114299041",
+      "minDestTokenAmount": "966000000000000000",
       "destAsset": {
         "id": "42161_0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "symbol": "ETH",

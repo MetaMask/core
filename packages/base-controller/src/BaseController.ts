@@ -80,20 +80,47 @@ export type StateMetadata<T extends StateConstraint> = {
 
 /**
  * Metadata for a single state property
- *
- * @property persist - Indicates whether this property should be persisted
- * (`true` for persistent, `false` for transient), or is set to a function
- * that derives the persistent state from the state.
- * @property anonymous - Indicates whether this property is already anonymous,
- * (`true` for anonymous, `false` if it has potential to be personally
- * identifiable), or is set to a function that returns an anonymized
- * representation of this state.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export type StatePropertyMetadata<T extends Json> = {
-  persist: boolean | StateDeriver<T>;
-  anonymous: boolean | StateDeriver<T>;
+export type StatePropertyMetadata<ControllerState extends Json> = {
+  /**
+   * Indicates whether this property should be included in debug snapshots attached to Sentry
+   * errors.
+   *
+   * Set this to false if the state may contain personally identifiable information, or if it's
+   * too large to include in a debug snapshot.
+   */
+  anonymous: boolean | StateDeriver<ControllerState>;
+  /**
+   * Indicates whether this property should be included in state logs.
+   *
+   * Set this to false if the data should be kept hidden from support agents (e.g. if it contains
+   * secret keys, or personally-identifiable information that is not useful for debugging).
+   *
+   * We do allow state logs to contain some personally identifiable information to assist with
+   * diagnosing errors (e.g. transaction hashes, addresses), but we still attempt to limit the
+   * data we expose to what is most useful for helping users.
+   */
+  includeInStateLogs?: boolean | StateDeriver<ControllerState>;
+  /**
+   * Indicates whether this property should be persisted.
+   *
+   * If true, the property will be persisted and saved between sessions.
+   * If false, the property will not be saved between sessions, and it will always be missing from the `state` constructor parameter.
+   */
+  persist: boolean | StateDeriver<ControllerState>;
+  /**
+   * Indicates whether this property is used by the UI.
+   *
+   * If true, the property will be accessible from the UI.
+   * If false, it will be inaccessible from the UI.
+   *
+   * Making a property accessible to the UI has a performance overhead, so it's better to set this
+   * to `false` if it's not used in the UI, especially for properties that can be large in size.
+   *
+   * Note that we disallow the use of a state derivation function here to preserve type information
+   * for the UI (the state deriver type always returns `Json`).
+   */
+  usedInUi?: boolean;
 };
 
 /**
@@ -107,7 +134,10 @@ export type StateDeriverConstraint = (value: never) => Json;
  * This type can be assigned to any `StatePropertyMetadata` type.
  */
 export type StatePropertyMetadataConstraint = {
-  [P in 'anonymous' | 'persist']: boolean | StateDeriverConstraint;
+  anonymous: boolean | StateDeriverConstraint;
+  includeInStateLogs?: boolean | StateDeriverConstraint;
+  persist: boolean | StateDeriverConstraint;
+  usedInUi?: boolean;
 };
 
 /**
@@ -321,30 +351,41 @@ export class BaseController<
  * By "anonymized" we mean that it should not contain any information that could be personally
  * identifiable.
  *
+ * @deprecated Use `deriveStateFromMetadata` instead.
  * @param state - The controller state.
  * @param metadata - The controller state metadata, which describes how to derive the
  * anonymized state.
+ * @param captureException - Reports an error to an error monitoring service.
  * @returns The anonymized controller state.
  */
 export function getAnonymizedState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
+  captureException?: (error: Error) => void,
 ): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'anonymous');
+  return deriveStateFromMetadata(
+    state,
+    metadata,
+    'anonymous',
+    captureException,
+  );
 }
 
 /**
  * Returns the subset of state that should be persisted.
  *
+ * @deprecated Use `deriveStateFromMetadata` instead.
  * @param state - The controller state.
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
+ * @param captureException - Reports an error to an error monitoring service.
  * @returns The subset of controller state that should be persisted.
  */
 export function getPersistentState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
+  captureException?: (error: Error) => void,
 ): Record<keyof ControllerState, Json> {
-  return deriveStateFromMetadata(state, metadata, 'persist');
+  return deriveStateFromMetadata(state, metadata, 'persist', captureException);
 }
 
 /**
@@ -353,12 +394,16 @@ export function getPersistentState<ControllerState extends StateConstraint>(
  * @param state - The full controller state.
  * @param metadata - The controller metadata.
  * @param metadataProperty - The metadata property to use to derive state.
+ * @param captureException - Reports an error to an error monitoring service.
  * @returns The metadata-derived controller state.
  */
-function deriveStateFromMetadata<ControllerState extends StateConstraint>(
+export function deriveStateFromMetadata<
+  ControllerState extends StateConstraint,
+>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-  metadataProperty: 'anonymous' | 'persist',
+  metadataProperty: keyof StatePropertyMetadata<Json>,
+  captureException?: (error: Error) => void,
 ): Record<keyof ControllerState, Json> {
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
     Record<keyof ControllerState, Json>
@@ -377,11 +422,23 @@ function deriveStateFromMetadata<ControllerState extends StateConstraint>(
       }
       return derivedState;
     } catch (error) {
-      // Throw error after timeout so that it is captured as a console error
-      // (and by Sentry) without interrupting state-related operations
-      setTimeout(() => {
-        throw error;
-      });
+      // Capture error without interrupting state-related operations
+      // See [ADR core#0016](https://github.com/MetaMask/decisions/blob/main/decisions/core/0016-core-classes-error-reporting.md)
+      if (captureException) {
+        try {
+          captureException(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        } catch (captureExceptionError) {
+          console.error(
+            new Error(`Error thrown when calling 'captureException'`),
+            captureExceptionError,
+          );
+          console.error(error);
+        }
+      } else {
+        console.error(error);
+      }
       return derivedState;
     }
   }, {} as never);

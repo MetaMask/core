@@ -9,6 +9,7 @@ import {
   multicallOrFallback,
   aggregate3,
   getTokenBalancesForMultipleAddresses,
+  getStakedBalancesForAddresses,
   type Aggregate3Call,
 } from './multicall';
 
@@ -1141,7 +1142,7 @@ describe('multicall', () => {
         expect(result.tokenBalances).toBeDefined();
       });
 
-      it('should handle case where no staking contract address exists for chain', async () => {
+      it('should handle case where no staking contract address exists for chain (staking handled separately)', async () => {
         const groups = [
           {
             accountAddress:
@@ -1175,7 +1176,7 @@ describe('multicall', () => {
           unsupportedChainId,
           provider,
           false, // includeNative
-          true, // includeStaked - this should not add staked balances for unsupported chain
+          false, // includeStaked - Note: staking is handled separately now
         );
 
         expect(result.tokenBalances).toBeDefined();
@@ -1201,7 +1202,7 @@ describe('multicall', () => {
         // Should have processed native balances despite empty groups
       });
 
-      it('should not return early when groups empty but includeStaked is true', async () => {
+      it('should return empty results when groups are empty (staking handled separately)', async () => {
         const groups: { accountAddress: Hex; tokenAddresses: Hex[] }[] = [];
 
         // Mock for staking contract call
@@ -1226,7 +1227,7 @@ describe('multicall', () => {
         // Should have processed staking even with empty groups
       });
 
-      it('should not return early when groups empty but both includeNative and includeStaked are true', async () => {
+      it('should process native balances when groups are empty and includeNative is true', async () => {
         const groups: { accountAddress: Hex; tokenAddresses: Hex[] }[] = [];
 
         // Mock getBalance for native balance
@@ -1248,13 +1249,13 @@ describe('multicall', () => {
           '0x1',
           provider,
           true, // includeNative
-          true, // includeStaked - both should prevent early return
+          false, // includeStaked
         );
 
         expect(result.tokenBalances).toBeDefined();
       });
 
-      it('should handle staking call when stakingContract is null', async () => {
+      it('should handle token balance calls when only token calls are made', async () => {
         const groups = [
           {
             accountAddress:
@@ -1265,10 +1266,7 @@ describe('multicall', () => {
           },
         ];
 
-        // Use a chain that doesn't have staking contract but still try to include staked
-        // This would result in stakingContract being null but callType being 'staking'
-
-        // First mock the aggregate3 call to succeed with both token and staking results
+        // Mock the aggregate3 call to succeed with only token balance result
         jest.spyOn(provider, 'call').mockResolvedValue(
           defaultAbiCoder.encode(
             ['tuple(bool success, bytes returnData)[]'],
@@ -1279,11 +1277,6 @@ describe('multicall', () => {
                   success: true,
                   returnData: defaultAbiCoder.encode(['uint256'], ['1000']),
                 },
-                // Staking call (but stakingContract will be null)
-                {
-                  success: true,
-                  returnData: defaultAbiCoder.encode(['uint256'], ['500']),
-                },
               ],
             ],
           ),
@@ -1291,14 +1284,280 @@ describe('multicall', () => {
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
-          '0x1', // Use mainnet which has staking contract
+          '0x1', // Use mainnet
           provider,
           false, // includeNative
-          true, // includeStaked
+          false, // includeStaked
         );
 
         expect(result.tokenBalances).toBeDefined();
-        expect(result.stakedBalances).toBeDefined();
+        expect(result.stakedBalances).toBeUndefined();
+      });
+    });
+  });
+
+  describe('getStakedBalancesForAddresses', () => {
+    const testAddresses = [
+      '0x1111111111111111111111111111111111111111',
+      '0x2222222222222222222222222222222222222222',
+    ];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should fetch staked balances for addresses with non-zero shares', async () => {
+      // Mock getShares calls - first address has shares, second doesn't
+      jest
+        .spyOn(provider, 'call')
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+                ], // 1 share for address 1
+                [true, defaultAbiCoder.encode(['uint256'], ['0'])], // 0 shares for address 2
+              ],
+            ],
+          ),
+        )
+        // Mock convertToAssets call for address 1
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['2000000000000000000']),
+                ], // 2 ETH for 1 share
+              ],
+            ],
+          ),
+        );
+
+      const result = await getStakedBalancesForAddresses(
+        testAddresses,
+        '0x1',
+        provider,
+      );
+
+      expect(result).toStrictEqual({
+        [testAddresses[0]]: new BN('2000000000000000000'), // 2 ETH
+        // Address 2 not included since it has 0 shares
+      });
+
+      // Should have been called twice - once for getShares, once for convertToAssets
+      expect(provider.call).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return empty object when all addresses have zero shares', async () => {
+      // Mock getShares calls - all addresses have zero shares
+      jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        defaultAbiCoder.encode(
+          ['tuple(bool,bytes)[]'],
+          [
+            [
+              [true, defaultAbiCoder.encode(['uint256'], ['0'])], // 0 shares for address 1
+              [true, defaultAbiCoder.encode(['uint256'], ['0'])], // 0 shares for address 2
+            ],
+          ],
+        ),
+      );
+
+      const result = await getStakedBalancesForAddresses(
+        testAddresses,
+        '0x1',
+        provider,
+      );
+
+      expect(result).toStrictEqual({});
+
+      // Should only have been called once for getShares
+      expect(provider.call).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle failed getShares calls gracefully', async () => {
+      // Mock getShares with some failures
+      jest
+        .spyOn(provider, 'call')
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [false, '0x'], // Failed call for address 1
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+                ], // Success for address 2
+              ],
+            ],
+          ),
+        )
+        // Mock convertToAssets for successful address
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['2000000000000000000']),
+                ], // 2 ETH
+              ],
+            ],
+          ),
+        );
+
+      const result = await getStakedBalancesForAddresses(
+        testAddresses,
+        '0x1',
+        provider,
+      );
+
+      expect(result).toStrictEqual({
+        [testAddresses[1]]: new BN('2000000000000000000'), // Only successful address
+      });
+    });
+
+    it('should handle failed convertToAssets calls gracefully', async () => {
+      // Mock successful getShares
+      jest
+        .spyOn(provider, 'call')
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+                ], // 1 share
+              ],
+            ],
+          ),
+        )
+        // Mock failed convertToAssets
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [false, '0x'], // Failed convertToAssets call
+              ],
+            ],
+          ),
+        );
+
+      const result = await getStakedBalancesForAddresses(
+        [testAddresses[0]],
+        '0x1',
+        provider,
+      );
+
+      expect(result).toStrictEqual({}); // No results due to failed conversion
+    });
+
+    it('should handle unsupported chains', async () => {
+      const callSpy = jest.spyOn(provider, 'call');
+
+      const result = await getStakedBalancesForAddresses(
+        testAddresses,
+        '0x999', // Unsupported chain
+        provider,
+      );
+
+      expect(result).toStrictEqual({});
+      expect(callSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle contract call errors gracefully', async () => {
+      // Mock contract call to throw error
+      jest
+        .spyOn(provider, 'call')
+        .mockRejectedValue(new Error('Contract error'));
+
+      const result = await getStakedBalancesForAddresses(
+        testAddresses,
+        '0x1',
+        provider,
+      );
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should handle empty user addresses array', async () => {
+      const callSpy = jest.spyOn(provider, 'call');
+
+      const result = await getStakedBalancesForAddresses([], '0x1', provider);
+
+      expect(result).toStrictEqual({});
+      expect(callSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple addresses with mixed shares', async () => {
+      const manyAddresses = [
+        '0x1111111111111111111111111111111111111111',
+        '0x2222222222222222222222222222222222222222',
+        '0x3333333333333333333333333333333333333333',
+        '0x4444444444444444444444444444444444444444',
+      ];
+
+      // Mock getShares - addresses 1 and 3 have shares, 2 and 4 don't
+      jest
+        .spyOn(provider, 'call')
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+                ], // Address 1: 1 share
+                [true, defaultAbiCoder.encode(['uint256'], ['0'])], // Address 2: 0 shares
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['500000000000000000']),
+                ], // Address 3: 0.5 shares
+                [true, defaultAbiCoder.encode(['uint256'], ['0'])], // Address 4: 0 shares
+              ],
+            ],
+          ),
+        )
+        // Mock convertToAssets for addresses with shares
+        .mockResolvedValueOnce(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              [
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['2000000000000000000']),
+                ], // 2 ETH for 1 share
+                [
+                  true,
+                  defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+                ], // 1 ETH for 0.5 shares
+              ],
+            ],
+          ),
+        );
+
+      const result = await getStakedBalancesForAddresses(
+        manyAddresses,
+        '0x1',
+        provider,
+      );
+
+      expect(result).toStrictEqual({
+        [manyAddresses[0]]: new BN('2000000000000000000'), // 2 ETH
+        [manyAddresses[2]]: new BN('1000000000000000000'), // 1 ETH
+        // Addresses 1 and 3 not included (zero shares)
       });
     });
   });

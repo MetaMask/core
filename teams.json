@@ -14,10 +14,12 @@
   "metamask/composable-controller": "team-wallet-framework",
   "metamask/controller-utils": "team-wallet-framework",
   "metamask/delegation-controller": "team-vault",
+  "metamask/eip-5792-middleware": "team-wallet-api-platform",
   "metamask/eip1193-permission-middleware": "team-wallet-api-platform",
   "metamask/ens-controller": "team-confirmations",
   "metamask/eth-json-rpc-provider": "team-wallet-api-platform,team-wallet-framework",
   "metamask/gas-fee-controller": "team-confirmations",
+  "metamask/gator-permissions-controller": "team-delegation",
   "metamask/json-rpc-engine": "team-wallet-api-platform,team-wallet-framework",
   "metamask/json-rpc-middleware-stream": "team-wallet-api-platform,team-wallet-framework",
   "metamask/keyring-controller": "team-accounts",
@@ -50,5 +52,7 @@
   "metamask/error-reporting-service": "team-wallet-framework",
   "metamask/foundryup": "team-mobile-platform,team-extension-platform",
   "metamask/seedless-onboarding-controller": "team-web3auth",
+  "metamask/shield-controller": "team-web3auth",
+  "metamask/subscription-controller": "team-web3auth",
   "metamask/network-enablement-controller": "team-assets"
 }

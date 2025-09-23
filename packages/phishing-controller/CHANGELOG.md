@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add bulk token scanning functionality to detect malicious tokens ([#6483](https://github.com/MetaMask/core/pull/6483))
+  - Add `bulkScanTokens` method to scan multiple tokens for malicious activity
+  - Add `BulkTokenScanRequest` and `BulkTokenScanResponse` types
+  - Add `tokenScanCache` to `PhishingControllerState`
+  - Add proper action registration for `bulkScanTokens` method as `PhishingControllerBulkScanTokensAction`
+  - Support for multiple chains including Ethereum, Polygon, BSC, Arbitrum, Avalanche, Base, Optimism, ect...
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6587](https://github.com/MetaMask/core/pull/6587))
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
-- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.14.0` ([#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@noble/hashes` from `^1.4.0` to `^1.8.0` ([#6101](https://github.com/MetaMask/core/pull/6101))
 
 ## [13.1.0]
