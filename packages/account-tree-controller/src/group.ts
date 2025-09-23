@@ -4,6 +4,14 @@ import {
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
+import {
+  type AnyAccountType,
+  BtcAccountType,
+  EthAccountType,
+  type KeyringAccountType,
+  SolAccountType,
+  TrxAccountType,
+} from '@metamask/keyring-api';
 
 import type { UpdatableField, ExtractFieldValues } from './type-utils';
 import type { AccountTreeControllerState } from './types';
@@ -20,6 +28,47 @@ export type AccountTreeGroupPersistedMetadata = {
   /** Whether this group is hidden in the UI */
   hidden?: UpdatableField<boolean>;
 };
+
+type NonGenericAccountType<T extends KeyringAccountType = KeyringAccountType> =
+  T extends `${AnyAccountType.Account}` ? never : T;
+
+export const AccountTypeOrder: Record<NonGenericAccountType, number> = {
+  [EthAccountType.Eoa]: 0,
+  [EthAccountType.Erc4337]: 1,
+  [BtcAccountType.P2pkh]: 2,
+  [BtcAccountType.P2sh]: 3,
+  [BtcAccountType.P2wpkh]: 4,
+  [BtcAccountType.P2tr]: 5,
+  [SolAccountType.DataAccount]: 6,
+  [TrxAccountType.Eoa]: 7,
+};
+
+export type AccountTypeKey = keyof typeof AccountTypeOrder;
+
+export type AccountOrderObject = [number, AccountId];
+
+/**
+ * Sort two account order objects by their account type.
+ *
+ * @param a - The first account order object.
+ * @param b - The second account order object.
+ * @returns The sorted account order objects.
+ */
+function sortByAccountType(a: AccountOrderObject, b: AccountOrderObject) {
+  return a[0] - b[0];
+}
+
+/**
+ * Derive accounts by their order.
+ *
+ * @param accountOrderObjects - The account order objects.
+ * @returns The account IDs by their order.
+ */
+export function deriveAccountsByOrder(
+  accountOrderObjects: AccountOrderObject[],
+): AccountId[] {
+  return accountOrderObjects.sort(sortByAccountType).map((obj) => obj[1]);
+}
 
 /**
  * Tree metadata for account groups (required plain values extracted from persisted metadata).
@@ -54,6 +103,7 @@ export type AccountGroupMultichainAccountObject = {
     entropy: {
       groupIndex: number;
     };
+    accountOrder: AccountOrderObject[];
   };
 };
 
@@ -65,7 +115,9 @@ export type AccountGroupSingleAccountObject = {
   id: AccountGroupId;
   // Blockchain Accounts (1 account per group):
   accounts: [AccountId];
-  metadata: AccountTreeGroupMetadata;
+  metadata: AccountTreeGroupMetadata & {
+    accountOrder: AccountOrderObject[];
+  };
 };
 
 /**
