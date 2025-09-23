@@ -117,7 +117,12 @@ describe('wallet_revokeSession', () => {
   });
 
   it('fully revokes permission when all accounts are removed after scope removal', async () => {
-    const { handler, getCaveatForOrigin, updateCaveat, revokePermissionForOrigin } = createMockedHandler();
+    const {
+      handler,
+      getCaveatForOrigin,
+      updateCaveat,
+      revokePermissionForOrigin,
+    } = createMockedHandler();
     getCaveatForOrigin.mockImplementation(() => ({
       value: {
         optionalScopes: {
@@ -132,9 +137,14 @@ describe('wallet_revokeSession', () => {
       },
     }));
 
-    await handler({ ...baseRequest, params: { scopes: ['eip155:1', 'eip155:5'] } });
+    await handler({
+      ...baseRequest,
+      params: { scopes: ['eip155:1', 'eip155:5'] },
+    });
     expect(updateCaveat).not.toHaveBeenCalled();
-    expect(revokePermissionForOrigin).toHaveBeenCalledWith(Caip25EndowmentPermissionName);
+    expect(revokePermissionForOrigin).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+    );
   });
 
   it('returns true if the CAIP-25 endowment permission does not exist', async () => {

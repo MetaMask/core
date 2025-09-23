@@ -46,12 +46,17 @@ function partialRevokePermissions(
     Caip25EndowmentPermissionName,
     Caip25CaveatType,
   ).value;
+
   for (const scopeString of scopes) {
-    updatedCaveatValue =
-      Caip25CaveatMutators[Caip25CaveatType].removeScope(
-        updatedCaveatValue,
-        scopeString,
-      )?.value ?? updatedCaveatValue;
+    updatedCaveatValue = Caip25CaveatMutators[Caip25CaveatType].removeScope(
+      updatedCaveatValue,
+      scopeString,
+    )?.value ?? {
+      requiredScopes: {},
+      optionalScopes: {},
+      sessionProperties: {},
+      isMultichainOrigin: true,
+    };
   }
 
   const caipAccountIds =
