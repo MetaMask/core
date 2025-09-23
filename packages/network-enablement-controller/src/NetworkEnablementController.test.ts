@@ -156,7 +156,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
           [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
           [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
-          '0xa86a': false, // Avalanche network added but not enabled (keeps current selection)
+          '0xa86a': true, // Avalanche network added and enabled (keeps current selection)
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -1494,8 +1494,8 @@ describe('NetworkEnablementController', () => {
       await advanceTime({ clock, duration: 1 });
 
       // Now it should be added but not enabled (keeps current selection in popular mode)
-      expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
-      expect(controller.isNetworkEnabled('eip155:43114')).toBe(false);
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+      expect(controller.isNetworkEnabled('eip155:43114')).toBe(true);
     });
 
     it('handles disabling networks across different namespaces independently, but adding networks has exclusive behavior', async () => {
@@ -2221,7 +2221,7 @@ describe('NetworkEnablementController', () => {
       await advanceTime({ clock, duration: 1 });
 
       // Should keep current selection (add Polygon but don't enable it)
-      expect(controller.isNetworkEnabled('0x89')).toBe(false); // Polygon not enabled
+      expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon enabled
       expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum still enabled
       expect(controller.isNetworkEnabled('0xe708')).toBe(true); // Linea still enabled
       expect(controller.isNetworkEnabled('0x2105')).toBe(true); // Base still enabled

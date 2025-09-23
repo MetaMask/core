@@ -537,7 +537,7 @@ export class NetworkEnablementController extends BaseController<
 
       if (shouldKeepCurrentSelection) {
         // Add the popular network but don't enable it (keep current selection)
-        s.enabledNetworkMap[namespace][storageKey] = false;
+        s.enabledNetworkMap[namespace][storageKey] = true;
       } else {
         // Switch to the newly added network (disable all others, enable this one)
         Object.keys(s.enabledNetworkMap).forEach((ns) => {
