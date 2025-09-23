@@ -29,11 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
-  - Add `BitcoinTradeDataSchema` and `BitcoinQuoteResponseSchema` validators
-  - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
-- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6454](https://github.com/MetaMask/core/pull/6454))
 - Add `selectDefaultSlippagePercentage` that returns the default slippage for a chain and token combination ([#6616](https://github.com/MetaMask/core/pull/6616))
   - Return `0.5` if requesting a bridge quote
   - Return `undefined` (auto) if requesting a Solana swap
@@ -43,25 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename fee handling for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Replace `SolanaFees` type with `NonEvmFees` type
-  - Replace `solanaFeesInLamports` field with `nonEvmFeesInNative` field
-  - Update `#appendSolanaFees` to `#appendNonEvmFees` to support all non-EVM chains
-  - The `nonEvmFeesInNative` field stores fees in the smallest units for each chain (lamports for Solana, satoshis for Bitcoin)
-- Update Snap methods to use new unified interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Replace `getFeeForTransaction` with `computeFee` method that returns fees in native token units
-  - Update fee calculation to handle different unit conversions per chain
-  - Support fee computation for Bitcoin and Solana chains
-- Update quote validation to support Bitcoin-specific trade data format ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Add separate validation for Bitcoin quotes that include `unsignedPsbtBase64` field
-- Update selectors and utilities to use `isNonEvmChainId` instead of `isSolanaChainId` for generic non-EVM handling ([#6454](https://github.com/MetaMask/core/pull/6454))
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
-
-### Removed
-
-- **BREAKING:** Remove deprecated `SolanaFees` type - use `NonEvmFees` type instead ([#6454](https://github.com/MetaMask/core/pull/6454))
-- **BREAKING:** Remove `solanaFeesInLamports` field from quotes - use `nonEvmFeesInNative` field instead ([#6454](https://github.com/MetaMask/core/pull/6454))
 
 ## [43.0.0]
 
