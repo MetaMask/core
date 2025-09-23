@@ -1,6 +1,7 @@
 import { Web3Provider } from '@ethersproject/providers';
 import {
   BaseController,
+  StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
 } from '@metamask/base-controller/next';
@@ -93,17 +94,17 @@ export type EnsControllerMessenger = Messenger<
   EnsControllerEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<EnsControllerState> = {
   ensEntries: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   ensResolutionsByAddress: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
