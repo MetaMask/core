@@ -184,24 +184,34 @@ import {
  */
 const metadata = {
   transactions: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   transactionBatches: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   methodData: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   lastFetchedBlockNumbers: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
   submitHistory: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
 };
 
@@ -299,12 +309,58 @@ export type TransactionControllerEstimateGasAction = {
 };
 
 /**
+ * Adds external provided transaction to state as confirmed transaction.
+ *
+ * @param transactionMeta - TransactionMeta to add transactions.
+ * @param transactionReceipt - TransactionReceipt of the external transaction.
+ * @param baseFeePerGas - Base fee per gas of the external transaction.
+ */
+export type TransactionControllerConfirmExternalTransactionAction = {
+  type: `${typeof controllerName}:confirmExternalTransaction`;
+  handler: TransactionController['confirmExternalTransaction'];
+};
+
+export type TransactionControllerGetNonceLockAction = {
+  type: `${typeof controllerName}:getNonceLock`;
+  handler: TransactionController['getNonceLock'];
+};
+
+/**
+ * Search transaction metadata for matching entries.
+ *
+ * @param opts - Options bag.
+ * @param opts.initialList - The transactions to search. Defaults to the current state.
+ * @param opts.limit - The maximum number of transactions to return. No limit by default.
+ * @param opts.searchCriteria - An object containing values or functions for transaction properties to filter transactions with.
+ * @returns An array of transactions matching the provided options.
+ */
+export type TransactionControllerGetTransactionsAction = {
+  type: `${typeof controllerName}:getTransactions`;
+  handler: TransactionController['getTransactions'];
+};
+
+/**
+ * Updates an existing transaction in state.
+ *
+ * @param transactionMeta - The new transaction to store in state.
+ * @param note - A note or update reason to include in the transaction history.
+ */
+export type TransactionControllerUpdateTransactionAction = {
+  type: `${typeof controllerName}:updateTransaction`;
+  handler: TransactionController['updateTransaction'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
+  | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
+  | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
-  | TransactionControllerUpdateCustodialTransactionAction;
+  | TransactionControllerGetTransactionsAction
+  | TransactionControllerUpdateCustodialTransactionAction
+  | TransactionControllerUpdateTransactionAction;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -1090,6 +1146,7 @@ export class TransactionController extends BaseController<
         transactionMeta: TransactionMeta,
       ) => this.#publishTransaction(ethQuery, transactionMeta) as Promise<Hex>,
       request,
+      signTransaction: this.#signTransaction.bind(this),
       update: this.update.bind(this),
       updateTransaction: this.#updateTransactionInternal.bind(this),
     });
@@ -4406,13 +4463,33 @@ export class TransactionController extends BaseController<
 
   #registerActionHandlers(): void {
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:confirmExternalTransaction`,
+      this.confirmExternalTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:estimateGas`,
       this.estimateGas.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:getNonceLock`,
+      this.getNonceLock.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getTransactions`,
+      this.getTransactions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:updateCustodialTransaction`,
       this.updateCustodialTransaction.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateTransaction`,
+      this.updateTransaction.bind(this),
     );
   }
 

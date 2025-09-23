@@ -1,5 +1,9 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
-import { BaseController, Messenger } from '@metamask/base-controller';
+import {
+  BaseController,
+  Messenger,
+  deriveStateFromMetadata,
+} from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
@@ -435,5 +439,191 @@ describe('ComposableController', () => {
           }),
         }),
     ).not.toThrow();
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      type ComposableControllerState = {
+        FooController: FooControllerState;
+      };
+      const messenger = new Messenger<
+        never,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
+      >();
+      const fooMessenger = messenger.getRestricted<
+        'FooController',
+        never,
+        never
+      >({
+        name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const fooController = new FooController(fooMessenger);
+      const composableControllerMessenger = messenger.getRestricted({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: ['FooController:stateChange'],
+      });
+      const controller = new ComposableController<
+        ComposableControllerState,
+        Pick<ControllersMap, keyof ComposableControllerState>
+      >({
+        controllers: {
+          FooController: fooController,
+        },
+        messenger: composableControllerMessenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "FooController": Object {
+            "foo": "foo",
+          },
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      type ComposableControllerState = {
+        FooController: FooControllerState;
+      };
+      const messenger = new Messenger<
+        never,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
+      >();
+      const fooMessenger = messenger.getRestricted<
+        'FooController',
+        never,
+        never
+      >({
+        name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const fooController = new FooController(fooMessenger);
+      const composableControllerMessenger = messenger.getRestricted({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: ['FooController:stateChange'],
+      });
+      const controller = new ComposableController<
+        ComposableControllerState,
+        Pick<ControllersMap, keyof ComposableControllerState>
+      >({
+        controllers: {
+          FooController: fooController,
+        },
+        messenger: composableControllerMessenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      type ComposableControllerState = {
+        FooController: FooControllerState;
+      };
+      const messenger = new Messenger<
+        never,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
+      >();
+      const fooMessenger = messenger.getRestricted<
+        'FooController',
+        never,
+        never
+      >({
+        name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const fooController = new FooController(fooMessenger);
+      const composableControllerMessenger = messenger.getRestricted({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: ['FooController:stateChange'],
+      });
+      const controller = new ComposableController<
+        ComposableControllerState,
+        Pick<ControllersMap, keyof ComposableControllerState>
+      >({
+        controllers: {
+          FooController: fooController,
+        },
+        messenger: composableControllerMessenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "FooController": Object {
+            "foo": "foo",
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      type ComposableControllerState = {
+        FooController: FooControllerState;
+      };
+      const messenger = new Messenger<
+        never,
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
+      >();
+      const fooMessenger = messenger.getRestricted<
+        'FooController',
+        never,
+        never
+      >({
+        name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const fooController = new FooController(fooMessenger);
+      const composableControllerMessenger = messenger.getRestricted({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: ['FooController:stateChange'],
+      });
+      const controller = new ComposableController<
+        ComposableControllerState,
+        Pick<ControllersMap, keyof ComposableControllerState>
+      >({
+        controllers: {
+          FooController: fooController,
+        },
+        messenger: composableControllerMessenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
   });
 });

@@ -11,7 +11,11 @@ import {
   TOPRFErrorCode,
   TOPRFError,
 } from '@metamask/toprf-secure-backup';
-import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  isNullOrUndefined,
+} from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
@@ -93,87 +97,131 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
 const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerState> =
   {
     vault: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     socialBackupsMetadata: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     nodeAuthTokens: {
+      includeInStateLogs: (nodeAuthTokens) =>
+        !isNullOrUndefined(nodeAuthTokens),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     authConnection: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: true,
     },
     authConnectionId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     groupedAuthConnectionId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     userId: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     socialLoginEmail: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: true,
     },
     vaultEncryptionKey: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     vaultEncryptionSalt: {
+      includeInStateLogs: false,
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     authPubKey: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     passwordOutdatedCache: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
     refreshToken: {
+      includeInStateLogs: (refreshToken) => !isNullOrUndefined(refreshToken),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     revokeToken: {
+      includeInStateLogs: (revokeToken) => !isNullOrUndefined(revokeToken),
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     pendingToBeRevokedTokens: {
+      includeInStateLogs: (pendingToBeRevokedTokens) =>
+        !isNullOrUndefined(pendingToBeRevokedTokens) &&
+        pendingToBeRevokedTokens.length > 0,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     // stays in vault
     accessToken: {
+      includeInStateLogs: (accessToken) => !isNullOrUndefined(accessToken),
       persist: false,
       anonymous: false,
+      usedInUi: false,
     },
     // stays outside of vault as this token is accessed by the metadata service
     // before the vault is created or unlocked.
     metadataAccessToken: {
+      includeInStateLogs: (metadataAccessToken) =>
+        !isNullOrUndefined(metadataAccessToken),
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     encryptedSeedlessEncryptionKey: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     encryptedKeyringEncryptionKey: {
+      includeInStateLogs: false,
       persist: true,
       anonymous: false,
+      usedInUi: false,
     },
     isSeedlessOnboardingUserAuthenticated: {
+      includeInStateLogs: true,
       persist: true,
       anonymous: true,
+      usedInUi: false,
     },
   };
 
@@ -260,15 +308,6 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
-
-    // setup subscriptions to the keyring lock event
-    // when the keyring is locked (wallet is locked), the controller will be cleared of its credentials
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.setLocked();
-    });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.#setUnlocked();
-    });
   }
 
   async fetchMetadataAccessCreds(): Promise<{
@@ -697,17 +736,21 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
    * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
    *
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
+   *
+   * @returns A promise that resolves to the success of the operation.
    */
-  setLocked() {
-    this.update((state) => {
-      delete state.vaultEncryptionKey;
-      delete state.vaultEncryptionSalt;
-      delete state.revokeToken;
-      delete state.accessToken;
-    });
+  async setLocked() {
+    return await this.#withControllerLock(async () => {
+      this.update((state) => {
+        delete state.vaultEncryptionKey;
+        delete state.vaultEncryptionSalt;
+        delete state.revokeToken;
+        delete state.accessToken;
+      });
 
-    this.#cachedDecryptedVaultData = undefined;
-    this.#isUnlocked = false;
+      this.#cachedDecryptedVaultData = undefined;
+      this.#isUnlocked = false;
+    });
   }
 
   /**
@@ -1693,17 +1736,13 @@ export class SeedlessOnboardingController<EncryptionKey> extends BaseController<
     authPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
   }> {
+    this.#assertIsAuthenticatedUser(this.state);
     const {
       nodeAuthTokens,
       authConnectionId,
       groupedAuthConnectionId,
       userId,
     } = this.state;
-    if (!nodeAuthTokens || !authConnectionId || !userId) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
-      );
-    }
 
     const { authPubKey, keyIndex: latestKeyIndex } = await this.toprfClient
       .fetchAuthPubKey({

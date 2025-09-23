@@ -1,27 +1,37 @@
+import type { Signer } from '@metamask/7715-permission-types';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller/next';
 import { BaseController } from '@metamask/base-controller/next';
+import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 
+import type { DecodedPermission } from './decodePermission';
+import {
+  getPermissionDataAndExpiry,
+  identifyPermissionByEnforcers,
+  reconstructDecodedPermission,
+} from './decodePermission';
 import {
   GatorPermissionsFetchError,
   GatorPermissionsNotEnabledError,
   GatorPermissionsProviderError,
+  OriginNotAllowedError,
+  PermissionDecodingError,
 } from './errors';
 import { controllerLog } from './logger';
 import type { StoredGatorPermissionSanitized } from './types';
 import {
   GatorPermissionsSnapRpcMethod,
   type GatorPermissionsMap,
-  type PermissionTypes,
-  type SignerParam,
+  type PermissionTypesWithCustom,
   type StoredGatorPermission,
+  type DelegationDetails,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -35,7 +45,7 @@ const controllerName = 'GatorPermissionsController';
 
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
-  '@metamask/gator-permissions-snap' as SnapId;
+  'npm:@metamask/gator-permissions-snap' as SnapId;
 
 const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'native-token-stream': {},
@@ -44,6 +54,14 @@ const defaultGatorPermissionsMap: GatorPermissionsMap = {
   'erc20-token-periodic': {},
   other: {},
 };
+
+/**
+ * Delegation framework version used to select the correct deployed enforcer
+ * contract addresses from `@metamask/delegation-deployments`.
+ */
+export const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
+
+const contractsByChainId = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
 
 // === STATE ===
 
@@ -76,20 +94,28 @@ export type GatorPermissionsControllerState = {
 
 const gatorPermissionsControllerMetadata = {
   isGatorPermissionsEnabled: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: false,
   },
   gatorPermissionsMapSerialized: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   isFetchingGatorPermissions: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
   gatorPermissionsProviderSnapId: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: false,
   },
 } satisfies StateMetadata<GatorPermissionsControllerState>;
 
@@ -147,6 +173,12 @@ export type GatorPermissionsControllerDisableGatorPermissionsAction = {
   handler: GatorPermissionsController['disableGatorPermissions'];
 };
 
+export type GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction =
+  {
+    type: `${typeof controllerName}:decodePermissionFromPermissionContextForOrigin`;
+    handler: GatorPermissionsController['decodePermissionFromPermissionContextForOrigin'];
+  };
+
 /**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
@@ -155,7 +187,8 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerGetStateAction
   | GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction
   | GatorPermissionsControllerEnableGatorPermissionsAction
-  | GatorPermissionsControllerDisableGatorPermissionsAction;
+  | GatorPermissionsControllerDisableGatorPermissionsAction
+  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -258,6 +291,11 @@ export default class GatorPermissionsController extends BaseController<
       `${controllerName}:disableGatorPermissions`,
       this.disableGatorPermissions.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
+      this.decodePermissionFromPermissionContextForOrigin.bind(this),
+    );
   }
 
   /**
@@ -282,7 +320,9 @@ export default class GatorPermissionsController extends BaseController<
     snapId,
   }: {
     snapId: SnapId;
-  }): Promise<StoredGatorPermission<SignerParam, PermissionTypes>[] | null> {
+  }): Promise<
+    StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null
+  > {
     try {
       const response = (await this.messenger.call(
         'SnapController:handleRequest',
@@ -296,7 +336,7 @@ export default class GatorPermissionsController extends BaseController<
               GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
           },
         },
-      )) as StoredGatorPermission<SignerParam, PermissionTypes>[] | null;
+      )) as StoredGatorPermission<Signer, PermissionTypesWithCustom>[] | null;
 
       return response;
     } catch (error) {
@@ -319,14 +359,18 @@ export default class GatorPermissionsController extends BaseController<
    * @returns The sanitized stored gator permission.
    */
   #sanitizeStoredGatorPermission(
-    storedGatorPermission: StoredGatorPermission<SignerParam, PermissionTypes>,
-  ): StoredGatorPermissionSanitized<SignerParam, PermissionTypes> {
+    storedGatorPermission: StoredGatorPermission<
+      Signer,
+      PermissionTypesWithCustom
+    >,
+  ): StoredGatorPermissionSanitized<Signer, PermissionTypesWithCustom> {
     const { permissionResponse } = storedGatorPermission;
-    const { isAdjustmentAllowed, accountMeta, signer, ...rest } =
-      permissionResponse;
+    const { rules, dependencyInfo, signer, ...rest } = permissionResponse;
     return {
       ...storedGatorPermission,
-      permissionResponse: { ...rest },
+      permissionResponse: {
+        ...rest,
+      },
     };
   }
 
@@ -338,7 +382,7 @@ export default class GatorPermissionsController extends BaseController<
    */
   #categorizePermissionsDataByTypeAndChainId(
     storedGatorPermissions:
-      | StoredGatorPermission<SignerParam, PermissionTypes>[]
+      | StoredGatorPermission<Signer, PermissionTypesWithCustom>[]
       | null,
   ): GatorPermissionsMap {
     if (!storedGatorPermissions) {
@@ -367,8 +411,8 @@ export default class GatorPermissionsController extends BaseController<
               gatorPermissionsMap[permissionType][
                 chainId
               ] as StoredGatorPermissionSanitized<
-                SignerParam,
-                PermissionTypes
+                Signer,
+                PermissionTypesWithCustom
               >[]
             ).push(sanitizedStoredGatorPermission);
             break;
@@ -381,8 +425,8 @@ export default class GatorPermissionsController extends BaseController<
               gatorPermissionsMap.other[
                 chainId
               ] as StoredGatorPermissionSanitized<
-                SignerParam,
-                PermissionTypes
+                Signer,
+                PermissionTypesWithCustom
               >[]
             ).push(sanitizedStoredGatorPermission);
             break;
@@ -472,6 +516,84 @@ export default class GatorPermissionsController extends BaseController<
       });
     } finally {
       this.#setIsFetchingGatorPermissions(false);
+    }
+  }
+
+  /**
+   * Decodes a permission context into a structured permission for a specific origin.
+   *
+   * This method validates the caller origin, decodes the provided `permissionContext`
+   * into delegations, identifies the permission type from the caveat enforcers,
+   * extracts the permission-specific data and expiry, and reconstructs a
+   * {@link DecodedPermission} containing chainId, account addresses, signer, type and data.
+   *
+   * @param args - The arguments to this function.
+   * @param args.origin - The caller's origin; must match the configured permissions provider Snap id.
+   * @param args.chainId - Numeric EIP-155 chain id used for resolving enforcer contracts and encoding.
+   * @param args.delegation - delegation representing the permission.
+   * @param args.metadata - metadata included in the request.
+   * @param args.metadata.justification - the justification as specified in the request metadata.
+   * @param args.metadata.origin - the origin as specified in the request metadata.
+   *
+   * @returns A decoded permission object suitable for UI consumption and follow-up actions.
+   * @throws If the origin is not allowed, the context cannot be decoded into exactly one delegation,
+   * or the enforcers/terms do not match a supported permission type.
+   */
+  public decodePermissionFromPermissionContextForOrigin({
+    origin,
+    chainId,
+    delegation: { caveats, delegator, delegate, authority },
+    metadata: { justification, origin: specifiedOrigin },
+  }: {
+    origin: string;
+    chainId: number;
+    metadata: {
+      justification: string;
+      origin: string;
+    };
+    delegation: DelegationDetails;
+  }): DecodedPermission {
+    if (origin !== this.permissionsProviderSnapId) {
+      throw new OriginNotAllowedError({ origin });
+    }
+
+    const contracts = contractsByChainId[chainId];
+
+    if (!contracts) {
+      throw new Error(`Contracts not found for chainId: ${chainId}`);
+    }
+
+    try {
+      const enforcers = caveats.map((caveat) => caveat.enforcer);
+
+      const permissionType = identifyPermissionByEnforcers({
+        enforcers,
+        contracts,
+      });
+
+      const { expiry, data } = getPermissionDataAndExpiry({
+        contracts,
+        caveats,
+        permissionType,
+      });
+
+      const permission = reconstructDecodedPermission({
+        chainId,
+        permissionType,
+        delegator,
+        delegate,
+        authority,
+        expiry,
+        data,
+        justification,
+        specifiedOrigin,
+      });
+
+      return permission;
+    } catch (error) {
+      throw new PermissionDecodingError({
+        cause: error as Error,
+      });
     }
   }
 }
