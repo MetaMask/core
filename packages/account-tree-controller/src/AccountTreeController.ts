@@ -27,7 +27,7 @@ import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
 import type {
   AccountGroupObject,
-  AccountOrderObject,
+  AccountOrderTuple,
   AccountTypeKey,
 } from './group';
 import {
@@ -773,7 +773,7 @@ export class AccountTreeController extends BaseController<
     const groupId = result.group.id;
     let group = wallet.groups[groupId];
     const type = account.type as AccountTypeKey;
-    const accountOrder: AccountOrderObject = [
+    const accountOrder: AccountOrderTuple = [
       AccountTypeOrder[type],
       account.id,
     ];
