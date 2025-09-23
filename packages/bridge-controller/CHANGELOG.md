@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add new controller metadata properties to `BridgeController` ([#6589](https://github.com/MetaMask/core/pull/6589))
-- Add `bip44DefaultPairs` to feature flag types and validators ([#6645](https://github.com/MetaMask/core/pull/6645))
+- Add `bip44DefaultPairs` and `chains[chainId].defaultPairs` to feature flag types and validators ([#6645](https://github.com/MetaMask/core/pull/6645))
 
 ### Changed
 
