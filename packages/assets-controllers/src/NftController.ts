@@ -9,7 +9,7 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  StateMetadata,
+  type StateMetadata,
 } from '@metamask/base-controller/next';
 import {
   safelyExecute,
