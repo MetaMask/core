@@ -46,6 +46,10 @@ export type TypeFeatureAnnouncementFields = {
     mobileLink?: EntryFieldTypes.EntryLink<TypeMobileLinkFields>;
 
     clients?: EntryFieldTypes.Text<'extension' | 'mobile' | 'portfolio'>;
+
+    // Min Versions
+    extensionMinimumVersionNumber?: EntryFieldTypes.Text;
+    mobileMinimumVersionNumber?: EntryFieldTypes.Text;
   };
   contentTypeId: 'productAnnouncement';
 };

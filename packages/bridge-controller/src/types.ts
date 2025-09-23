@@ -77,8 +77,8 @@ export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
-export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
 /**
@@ -222,7 +222,7 @@ export type QuoteRequest<
   /**
    * Whether to request quotes that use EIP-7702 delegated gasless execution
    */
-  gasless7702: boolean;
+  gasIncluded7702: boolean;
   noFee?: boolean;
 };
 
@@ -302,7 +302,7 @@ export enum BridgeBackgroundAction {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
+  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   quotesInitialLoadTime: number | null;
   quotesLastFetched: number | null;
   quotesLoadingStatus: RequestStatus | null;

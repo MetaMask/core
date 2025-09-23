@@ -1,6 +1,13 @@
+import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { CoverageResult, CoverageStatus, ShieldBackend } from './types';
+import type {
+  CoverageResult,
+  CoverageStatus,
+  LogSignatureRequest,
+  LogTransactionRequest,
+  ShieldBackend,
+} from './types';
 
 export type InitCoverageCheckRequest = {
   txParams: [
@@ -13,6 +20,14 @@ export type InitCoverageCheckRequest = {
     },
   ];
   chainId: string;
+  origin?: string;
+};
+
+export type InitSignatureCoverageCheckRequest = {
+  chainId: string;
+  data: string;
+  from: string;
+  method: string;
   origin?: string;
 };
 
@@ -59,9 +74,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
     this.#fetch = fetchFn;
   }
 
-  checkCoverage: (txMeta: TransactionMeta) => Promise<CoverageResult> = async (
-    txMeta,
-  ) => {
+  async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     const reqBody: InitCoverageCheckRequest = {
       txParams: [
         {
@@ -76,22 +89,76 @@ export class ShieldRemoteBackend implements ShieldBackend {
       origin: txMeta.origin,
     };
 
-    const { coverageId } = await this.#initCoverageCheck(reqBody);
+    const { coverageId } = await this.#initCoverageCheck(
+      'v1/transaction/coverage/init',
+      reqBody,
+    );
 
-    return this.#getCoverageResult(coverageId);
-  };
+    const coverageResult = await this.#getCoverageResult(coverageId);
+    return { coverageId, status: coverageResult.status };
+  }
 
-  async #initCoverageCheck(
-    reqBody: InitCoverageCheckRequest,
-  ): Promise<InitCoverageCheckResponse> {
+  async checkSignatureCoverage(
+    signatureRequest: SignatureRequest,
+  ): Promise<CoverageResult> {
+    if (typeof signatureRequest.messageParams.data !== 'string') {
+      throw new Error('Signature data must be a string');
+    }
+
+    const reqBody: InitSignatureCoverageCheckRequest = {
+      chainId: signatureRequest.chainId,
+      data: signatureRequest.messageParams.data,
+      from: signatureRequest.messageParams.from,
+      method: signatureRequest.type,
+      origin: signatureRequest.messageParams.origin,
+    };
+
+    const { coverageId } = await this.#initCoverageCheck(
+      'v1/signature/coverage/init',
+      reqBody,
+    );
+
+    const coverageResult = await this.#getCoverageResult(coverageId);
+    return { coverageId, status: coverageResult.status };
+  }
+
+  async logSignature(req: LogSignatureRequest): Promise<void> {
     const res = await this.#fetch(
-      `${this.#baseUrl}/v1/transaction/coverage/init`,
+      `${this.#baseUrl}/v1/signature/coverage/log`,
       {
         method: 'POST',
         headers: await this.#createHeaders(),
-        body: JSON.stringify(reqBody),
+        body: JSON.stringify(req),
       },
     );
+    if (res.status !== 200) {
+      throw new Error(`Failed to log signature: ${res.status}`);
+    }
+  }
+
+  async logTransaction(req: LogTransactionRequest): Promise<void> {
+    const res = await this.#fetch(
+      `${this.#baseUrl}/v1/transaction/coverage/log`,
+      {
+        method: 'POST',
+        headers: await this.#createHeaders(),
+        body: JSON.stringify(req),
+      },
+    );
+    if (res.status !== 200) {
+      throw new Error(`Failed to log transaction: ${res.status}`);
+    }
+  }
+
+  async #initCoverageCheck(
+    path: string,
+    reqBody: unknown,
+  ): Promise<InitCoverageCheckResponse> {
+    const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
+      method: 'POST',
+      headers: await this.#createHeaders(),
+      body: JSON.stringify(reqBody),
+    });
     if (res.status !== 200) {
       throw new Error(`Failed to init coverage check: ${res.status}`);
     }

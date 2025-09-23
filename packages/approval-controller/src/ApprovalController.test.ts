@@ -1,5 +1,6 @@
 /* eslint-disable jest/expect-expect */
 
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { Messenger } from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
@@ -1697,6 +1698,64 @@ describe('approval controller', () => {
           }),
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "pendingApprovals": Object {},
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "approvalFlows": Array [],
+          "pendingApprovalCount": 0,
+          "pendingApprovals": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "approvalFlows": Array [],
+          "pendingApprovalCount": 0,
+          "pendingApprovals": Object {},
+        }
+      `);
     });
   });
 });

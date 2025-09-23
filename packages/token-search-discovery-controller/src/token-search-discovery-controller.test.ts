@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
 
 import { AbstractTokenDiscoveryApiService } from './token-discovery-api-service/abstract-token-discovery-api-service';
 import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
@@ -272,6 +272,63 @@ describe('TokenSearchDiscoveryController', () => {
 
       const results = await errorController.getTrendingTokens({});
       expect(results).toStrictEqual([]);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          mainController.state,
+          mainController.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          mainController.state,
+          mainController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastSearchTimestamp": null,
+          "recentSearches": Array [],
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          mainController.state,
+          mainController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastSearchTimestamp": null,
+          "recentSearches": Array [],
+        }
+      `);
+    });
+
+    it('includes expected state in UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          mainController.state,
+          mainController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "lastSearchTimestamp": null,
+          "recentSearches": Array [],
+        }
+      `);
     });
   });
 });
