@@ -14,6 +14,9 @@
       "path": "../accounts-controller"
     },
     {
+      "path": "../messenger"
+    },
+    {
       "path": "../multichain-account-service"
     },
     {
