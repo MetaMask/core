@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add new group naming for non-HD keyring accounts ([#6679](https://github.com/MetaMask/core/pull/6679))
+  - Hardware-wallet account groups are now named: "Ledger|Trezor|QR|Lattice|OneKey Account N".
+  - Private key account groups are now named: "Imported Account N".
+  - Snap account groups are now named: "Snap Account N".
+- Account group names now use natural indexing as a fallback ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679))
+  - If a user names his accounts without any indexes, we would just use the number of accounts to compute the next available index.
+
 ### Fixed
 
-- Fix group naming for PK/Hardware accounts ([#6677](https://github.com/MetaMask/core/pull/6677))
-  - Previously, the first PK/Hardware account would start as `Account 2` as opposed to `Account 1` and thus subsequent group names were off as well.
+- Fix group naming for non-HD keyring accounts ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679))
+  - Previously, the first non-HD keyring account would start as `Account 2` as opposed to `Account 1` and thus subsequent group names were off as well.
 
 ## [1.0.0]
 
