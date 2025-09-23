@@ -14,10 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Revert accidental breaking changes included in v44.0.0 ([#6454](https://github.com/MetaMask/core/pull/6454))
 - Refactor `handleLineaDelay` to `handleApprovalDelay` for improved abstraction and add support for Base chain by using an array and `includes` for chain ID checks ([#6674](https://github.com/MetaMask/core/pull/6674))
 
-## [44.0.0]
+## [44.0.0] [DEPRECATED]
 
 ### Changed
 
+- This version was deprecated because it accidentally included additional breaking changes; use v44.1.0 or later versions instead
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^43.0.0` to `^44.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
 
 ## [43.1.0]
