@@ -649,6 +649,15 @@ export class AccountTreeController extends BaseController<
           const index = accounts.indexOf(accountId);
           if (index !== -1) {
             accounts.splice(index, 1);
+            const accountOrder =
+              state.accountTree.wallets[walletId]?.groups[groupId].metadata
+                .accountOrder;
+            const accountOrderIndex = accountOrder.findIndex(
+              (order) => order[1] === accountId,
+            );
+            if (accountOrderIndex !== -1) {
+              accountOrder.splice(accountOrderIndex, 1);
+            }
 
             // Check if we need to update selectedAccountGroup after removal
             if (
