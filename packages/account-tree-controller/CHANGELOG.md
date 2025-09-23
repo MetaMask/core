@@ -10,11 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Set the `setAccountGroupName`'s option `autoHandleConflict` to `true` for all backup & sync operations ([#6697](https://github.com/MetaMask/core/pull/6697))
-- Add new group naming for non-HD keyring accounts ([#6679](https://github.com/MetaMask/core/pull/6679))
+- Add new group naming for non-HD keyring accounts ([#6679](https://github.com/MetaMask/core/pull/6679)), ([#6696](https://github.com/MetaMask/core/pull/6696))
   - Hardware-wallet account groups are now named: "Ledger|Trezor|QR|Lattice|OneKey Account N".
   - Private key account groups are now named: "Imported Account N".
   - Snap account groups are now named: "Snap Account N".
-- Account group names now use natural indexing as a fallback ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679))
+- Account group names now use natural indexing as a fallback ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679)), ([#6696](https://github.com/MetaMask/core/pull/6696))
   - If a user names his accounts without any indexes, we would just use the number of accounts to compute the next available index.
 
 ### Fixed

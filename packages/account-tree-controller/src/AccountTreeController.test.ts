@@ -4110,6 +4110,100 @@ describe('AccountTreeController', () => {
       expect(mockGroup2.metadata.name).toBe('Ledger Account 2');
     });
 
+    it('ignores bad account group name pattern and fallback to natural indexing', () => {
+      const { controller, messenger } = setup({
+        accounts: [mockAccount1],
+      });
+
+      controller.init();
+
+      const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+      expect(mockGroup1).toBeDefined();
+
+      const mockIndex = 90;
+      controller.setAccountGroupName(
+        mockGroup1.id,
+        `Account${mockIndex}`, // No space, so this should fallback to natural indexing
+      );
+
+      // The first account has a non-matching pattern, thus we should fallback to the next
+      // natural index.
+      messenger.publish('AccountsController:accountAdded', mockAccount2);
+      const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+      expect(mockGroup2).toBeDefined();
+      expect(mockGroup2.metadata.name).toBe(`Ledger Account 2`); // Natural indexing.
+    });
+
+    it.each([
+      ['Account', 'account'],
+      ['Account', 'aCCount'],
+      ['Account', 'accOunT'],
+      [' ', '  '],
+      [' ', '\t'],
+      [' ', ' \t'],
+      [' ', '\t '],
+    ])(
+      'ignores case (case-insensitive) and spaces when extracting highest index: "$0" -> "$1"',
+      (toReplace, replaced) => {
+        const { controller, messenger } = setup({
+          accounts: [mockAccount1],
+        });
+
+        controller.init();
+
+        const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+        expect(mockGroup1).toBeDefined();
+
+        const mockIndex = 90;
+        controller.setAccountGroupName(
+          mockGroup1.id,
+          mockGroup1.metadata.name
+            .replace(toReplace, replaced)
+            .replace('1', `${mockIndex}`), // Use index different than 1.
+        );
+
+        // Even if the account is not strictly named "Ledger Account 90", we should be able
+        // to compute the next index from there.
+        messenger.publish('AccountsController:accountAdded', mockAccount2);
+        const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+        expect(mockGroup2).toBeDefined();
+        expect(mockGroup2.metadata.name).toBe(
+          `Ledger Account ${mockIndex + 1}`,
+        );
+      },
+    );
+
+    it.each([' ', '  ', '\t', ' \t'])(
+      'extract name indexes and ignore multiple spaces: "%s"',
+      (space) => {
+        const { controller, messenger } = setup({
+          accounts: [mockAccount1],
+        });
+
+        controller.init();
+
+        const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
+        expect(mockGroup1).toBeDefined();
+
+        const mockIndex = 90;
+        controller.setAccountGroupName(
+          mockGroup1.id,
+          mockGroup1.metadata.name
+            .replace(' ', space)
+            .replace('1', `${mockIndex}`), // Use index different than 1.
+        );
+
+        // Even if the account is not strictly named "Ledger Account 90", we should be able
+        // to compute the next index from there.
+        messenger.publish('AccountsController:accountAdded', mockAccount2);
+        const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
+        expect(mockGroup2).toBeDefined();
+        expect(mockGroup2.metadata.name).toBe(
+          `Ledger Account ${mockIndex + 1}`,
+        );
+      },
+    );
+
     it('uses natural indexing for pre-existing accounts', () => {
       const { controller } = setup({
         accounts: [mockAccount1, mockAccount2, mockAccount3],
