@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Improve network addition behavior to be context-aware: when in popular networks mode (>2 popular networks enabled) and adding a popular network, keep current selection instead of switching to the newly added network. Otherwise, switch to the newly added network as before ([#6693](https://github.com/MetaMask/core/pull/6693))
+- Improved network addition logic — if multiple popular networks are enabled and the user is in popular networks mode, adding another popular network keeps the current selection; otherwise, it switches to the newly added network. ([#6693](https://github.com/MetaMask/core/pull/6693))
 
 ## [1.2.0]
 
