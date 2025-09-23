@@ -51,17 +51,13 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, hexToNumber } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import {
-  getAccountAddressRelationship,
-  type GetAccountAddressRelationshipRequest,
-} from './api/accounts-api';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
@@ -139,6 +135,7 @@ import {
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { getGasFeeTokens } from './utils/gas-fee-tokens';
 import { updateGasFees } from './utils/gas-fees';
@@ -169,12 +166,10 @@ import {
   validateIfTransactionUnapproved,
   normalizeTxError,
   normalizeGasFeeValues,
-  parseTransactionData,
   setEnvelopeType,
 } from './utils/utils';
 import {
   ErrorCode,
-  validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
@@ -1407,8 +1402,15 @@ export class TransactionController extends BaseController<
           throw error;
         });
 
-        this.#updateFirstTimeInteraction(addedTransactionMeta, {
-          traceContext,
+        updateFirstTimeInteraction({
+          transactionMeta: addedTransactionMeta,
+          options: { traceContext },
+          isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
+          existingTransactions: this.state.transactions,
+          trace: this.#trace,
+          getTransaction: (transactionId: string) =>
+            this.#getTransaction(transactionId),
+          updateTransactionInternal: this.#updateTransactionInternal.bind(this),
         }).catch((error) => {
           log('Error while updating first interaction properties', error);
         });
@@ -4147,93 +4149,6 @@ export class TransactionController extends BaseController<
     }
 
     return transactionMeta;
-  }
-
-  async #updateFirstTimeInteraction(
-    transactionMeta: TransactionMeta,
-    {
-      traceContext,
-    }: {
-      traceContext?: TraceContext;
-    } = {},
-  ) {
-    if (!this.#isFirstTimeInteractionEnabled()) {
-      return;
-    }
-
-    const {
-      chainId,
-      id: transactionId,
-      txParams: { data, from, to },
-    } = transactionMeta;
-
-    let recipient = to;
-    if (data) {
-      const parsedData = parseTransactionData(data);
-      recipient = parsedData?.args?._to || to;
-    }
-
-    const request: GetAccountAddressRelationshipRequest = {
-      chainId: hexToNumber(chainId),
-      to: recipient as string,
-      from,
-    };
-
-    validateParamTo(recipient);
-
-    const existingTransaction = this.state.transactions.find(
-      (tx) =>
-        tx.chainId === chainId &&
-        tx.txParams.from === from &&
-        tx.txParams.to === to &&
-        tx.id !== transactionId,
-    );
-
-    // Check if there is an existing transaction with the same from, to, and chainId
-    // else we continue to check the account address relationship from API
-    if (existingTransaction) {
-      return;
-    }
-
-    try {
-      const { count } = await this.#trace(
-        { name: 'Account Address Relationship', parentContext: traceContext },
-        () => getAccountAddressRelationship(request),
-      );
-
-      const isFirstTimeInteraction =
-        count === undefined ? undefined : count === 0;
-
-      const finalTransactionMeta = this.#getTransaction(transactionId);
-
-      /* istanbul ignore if */
-      if (!finalTransactionMeta) {
-        log(
-          'Cannot update first time interaction as transaction not found',
-          transactionId,
-        );
-        return;
-      }
-
-      this.#updateTransactionInternal(
-        {
-          transactionId,
-          note: 'TransactionController#updateFirstInteraction - Update first time interaction',
-        },
-        (txMeta) => {
-          txMeta.isFirstTimeInteraction = isFirstTimeInteraction;
-        },
-      );
-
-      log('Updated first time interaction', transactionId, {
-        isFirstTimeInteraction,
-      });
-    } catch (error) {
-      log(
-        'Error fetching account address relationship, skipping first time interaction update',
-        error,
-      );
-    }
   }
 
   async #updateSimulationData(

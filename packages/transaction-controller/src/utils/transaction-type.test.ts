@@ -1,7 +1,14 @@
 import EthQuery from '@metamask/eth-query';
 
 import { DELEGATION_PREFIX } from './eip7702';
-import { determineTransactionType } from './transaction-type';
+import {
+  decodeTransactionData,
+  determineTransactionType,
+  ERC20Interface,
+  ERC721Interface,
+  ERC1155Interface,
+  USDCInterface,
+} from './transaction-type';
 import { FakeProvider } from '../../../../tests/fake-provider';
 import { TransactionType } from '../types';
 
@@ -247,5 +254,91 @@ describe('determineTransactionType', () => {
       type: TransactionType.contractInteraction,
       getCodeResponse: undefined,
     });
+  });
+});
+
+describe('decodeTransactionData', () => {
+  it('returns undefined for undefined data', () => {
+    expect(
+      decodeTransactionData(undefined as unknown as string),
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for empty string input', () => {
+    expect(decodeTransactionData('')).toBeUndefined();
+  });
+  it('parses ERC20 transfer data correctly', () => {
+    const to = '0x1234567890123456789012345678901234567890';
+    const amount = '1000000000000000000'; // 1 token with 18 decimals
+    const transferData = ERC20Interface.encodeFunctionData('transfer', [
+      to,
+      amount,
+    ]);
+
+    const result = decodeTransactionData(transferData);
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('transfer');
+    expect(result?.args._to.toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[0].toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[1].toString()).toBe(amount);
+  });
+
+  it('parses ERC721 transferFrom data correctly', () => {
+    const from = '0x1234567890123456789012345678901234567890';
+    const to = '0x2234567890123456789012345678901234567890';
+    const tokenId = '123';
+    const transferData = ERC721Interface.encodeFunctionData('transferFrom', [
+      from,
+      to,
+      tokenId,
+    ]);
+
+    const result = decodeTransactionData(transferData);
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('transferFrom');
+    expect(result?.args._to.toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[0].toLowerCase()).toBe(from.toLowerCase());
+    expect(result?.args[1].toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[2].toString()).toBe(tokenId);
+  });
+
+  it('parses ERC1155 safeTransferFrom data correctly', () => {
+    const from = '0x1234567890123456789012345678901234567890';
+    const to = '0x2234567890123456789012345678901234567890';
+    const tokenId = '123';
+    const amount = '1';
+    const data = '0x';
+    const transferData = ERC1155Interface.encodeFunctionData(
+      'safeTransferFrom',
+      [from, to, tokenId, amount, data],
+    );
+
+    const result = decodeTransactionData(transferData);
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('safeTransferFrom');
+    expect(result?.args[0].toLowerCase()).toBe(from.toLowerCase());
+    expect(result?.args[1].toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[2].toString()).toBe(tokenId);
+    expect(result?.args[3].toString()).toBe(amount);
+  });
+
+  it('parses USDC transfer data correctly', () => {
+    const to = '0x1234567890123456789012345678901234567890';
+    const amount = '1000000'; // 1 USDC (6 decimals)
+    const transferData = USDCInterface.encodeFunctionData('transfer', [
+      to,
+      amount,
+    ]);
+
+    const result = decodeTransactionData(transferData);
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('transfer');
+    expect(result?.args._to.toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[0].toLowerCase()).toBe(to.toLowerCase());
+    expect(result?.args[1].toString()).toBe(amount);
   });
 });

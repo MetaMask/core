@@ -14,10 +14,10 @@ import { TransactionType } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
-const ERC20Interface = new Interface(abiERC20);
-const ERC721Interface = new Interface(abiERC721);
-const ERC1155Interface = new Interface(abiERC1155);
-const USDCInterface = new Interface(abiFiatTokenV2);
+export const ERC20Interface = new Interface(abiERC20);
+export const ERC721Interface = new Interface(abiERC721);
+export const ERC1155Interface = new Interface(abiERC1155);
+export const USDCInterface = new Interface(abiFiatTokenV2);
 
 /**
  * Determines the type of the transaction by analyzing the txParams.
@@ -88,6 +88,37 @@ export async function determineTransactionType(
 }
 
 /**
+ * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
+ * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
+ * contract standards
+ *
+ * @param data - Encoded transaction data.
+ * @returns A representation of an ethereum contract call.
+ */
+export function decodeTransactionData(data: string) {
+  const interfaces = [
+    ERC20Interface,
+    ERC721Interface,
+    ERC1155Interface,
+    USDCInterface,
+  ];
+
+  if (!data) {
+    return undefined;
+  }
+
+  for (const iface of interfaces) {
+    try {
+      return iface.parseTransaction({ data });
+    } catch {
+      // Intentionally empty
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Attempts to decode transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
  * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
  * contract standards
@@ -96,26 +127,7 @@ export async function determineTransactionType(
  * @returns A representation of an ethereum contract call.
  */
 function getMethodName(data?: string): string | undefined {
-  if (!data || data.length < 10) {
-    return undefined;
-  }
-
-  const fourByte = data.substring(0, 10).toLowerCase();
-
-  for (const interfaceInstance of [
-    ERC20Interface,
-    ERC721Interface,
-    ERC1155Interface,
-    USDCInterface,
-  ]) {
-    try {
-      return interfaceInstance.getFunction(fourByte).name;
-    } catch {
-      // Intentionally empty
-    }
-  }
-
-  return undefined;
+  return decodeTransactionData(data as string)?.name;
 }
 
 /**
