@@ -160,8 +160,18 @@ export type MultichainAssetsRatesPollingInput = {
 };
 
 const metadata = {
-  conversionRates: { persist: true, anonymous: true },
-  historicalPrices: { persist: false, anonymous: true },
+  conversionRates: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  historicalPrices: {
+    includeInStateLogs: false,
+    persist: false,
+    anonymous: true,
+    usedInUi: true,
+  },
 };
 
 export type ConversionRatesWithMarketData = {

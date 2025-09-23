@@ -151,6 +151,7 @@ export const getTradeDataFromQuote = (
   return {
     usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
     gas_included: quoteResponse.quote.gasIncluded ?? false,
+    gas_included_7702: quoteResponse.quote.gasIncluded7702 ?? false,
     provider: formatProviderLabel(quoteResponse.quote),
     quoted_time_minutes: Number(
       quoteResponse.estimatedProcessingTimeInSeconds / 60,
@@ -205,6 +206,7 @@ export const getTradeDataFromHistory = (
   return {
     usd_quoted_gas: Number(historyItem.pricingData?.quotedGasInUsd ?? 0),
     gas_included: historyItem.quote.gasIncluded ?? false,
+    gas_included_7702: historyItem.quote.gasIncluded7702 ?? false,
     provider: formatProviderLabel(historyItem.quote),
     quoted_time_minutes: Number(
       historyItem.estimatedProcessingTimeInSeconds / 60,
@@ -247,9 +249,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     ].includes(transactionMeta.status)
       ? StatusTypes.FAILED
       : StatusTypes.COMPLETE,
-    error_message: transactionMeta.error?.message
-      ? 'Failed to finalize swap tx'
-      : undefined,
+    error_message: transactionMeta.error?.message ?? '',
     chain_id_source: formatChainIdToCaip(transactionMeta.chainId),
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
@@ -279,6 +279,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     price_impact: 0,
     usd_quoted_gas: 0,
     gas_included: false,
+    gas_included_7702: false,
     quoted_time_minutes: 0,
     usd_quoted_return: 0,
     provider: '' as `${string}_${string}`,

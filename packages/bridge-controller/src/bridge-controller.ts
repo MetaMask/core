@@ -78,40 +78,58 @@ import { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotes: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesInitialLoadTime: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLastFetched: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesLoadingStatus: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quoteFetchError: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   quotesRefreshCount: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   assetExchangeRates: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
   minimumBalanceForRentExemptionInLamports: {
+    includeInStateLogs: true,
     persist: false,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -128,8 +146,8 @@ type BridgePollingInput = {
   updatedQuoteRequest: GenericQuoteRequest;
   context: Pick<
     RequiredEventContextFromClient,
-    UnifiedSwapBridgeEventName.QuoteError
-  >[UnifiedSwapBridgeEventName.QuoteError] &
+    UnifiedSwapBridgeEventName.QuotesError
+  >[UnifiedSwapBridgeEventName.QuotesError] &
     Pick<
       RequiredEventContextFromClient,
       UnifiedSwapBridgeEventName.QuotesRequested
@@ -341,7 +359,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       : undefined;
 
     // If quoteRequestOverrides is specified, merge it with the quoteRequest
-    const baseQuotes = await fetchBridgeQuotes(
+    const { quotes: baseQuotes, validationFailures } = await fetchBridgeQuotes(
       quoteRequestOverrides
         ? { ...quoteRequest, ...quoteRequestOverrides }
         : quoteRequest,
@@ -350,6 +368,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
+
+    this.#trackResponseValidationFailures(validationFailures);
+
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
     const quotesWithSolanaFees = await this.#appendSolanaFees(baseQuotes);
     const quotesWithFees =
@@ -364,6 +385,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       });
     }
     return quotesWithFees;
+  };
+
+  readonly #trackResponseValidationFailures = (
+    validationFailures: string[],
+  ) => {
+    if (validationFailures.length === 0) {
+      return;
+    }
+    this.trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.QuotesValidationFailed,
+      {
+        failures: validationFailures,
+      },
+    );
   };
 
   readonly #getExchangeRateSources = () => {
@@ -586,7 +621,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       });
       this.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.QuoteError,
+        UnifiedSwapBridgeEventName.QuotesError,
         context,
       );
       console.log('Failed to fetch bridge quotes', error);
@@ -836,6 +871,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...baseProperties,
         };
+      case UnifiedSwapBridgeEventName.QuotesValidationFailed:
+        return {
+          ...this.#getRequestParams(),
+          refresh_count: this.state.quotesRefreshCount,
+          ...baseProperties,
+        };
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
           ...this.#getRequestParams(),
@@ -851,7 +892,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.QuoteError:
+      case UnifiedSwapBridgeEventName.QuotesError:
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),

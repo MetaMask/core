@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.14.0]
+
+### Added
+
+- Export `NETWORKS_BYPASSING_VALIDATION` constant globally . ([#6627](https://github.com/MetaMask/core/pull/6627))
+
+## [11.13.0]
+
+### Added
+
+- Add constant `NETWORKS_BYPASSING_VALIDATION` to allow clients to ignore warning messages for specific networks. ([#6557](https://github.com/MetaMask/core/pull/6557))
+- Add `circuitBreakDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This is the amount of time that the underlying circuit breaker policy will pause execution of the input function while the circuit is broken.
+- Add `getRemainingCircuitOpenDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This returns the amount of time after which the underlying circuit breaker policy will resume execution of the input function after the circuit reopens.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
 ## [11.12.0]
 
 ### Added
@@ -557,7 +577,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.0...HEAD
+[11.14.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.13.0...@metamask/controller-utils@11.14.0
+[11.13.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.12.0...@metamask/controller-utils@11.13.0
 [11.12.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...@metamask/controller-utils@11.12.0
 [11.11.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...@metamask/controller-utils@11.11.0
 [11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0

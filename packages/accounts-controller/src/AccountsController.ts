@@ -40,6 +40,7 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
   getEvmDerivationPathForIndex,
@@ -221,8 +222,10 @@ export type AccountsControllerMessenger = RestrictedMessenger<
 
 const accountsControllerMetadata = {
   internalAccounts: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -479,14 +482,8 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
-      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
-      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
-      // which sometimes fail when compiling locally.
-      (state as AccountsControllerState).internalAccounts.accounts[account.id] =
-        internalAccount;
-      (state as AccountsControllerState).internalAccounts.selectedAccount =
-        account.id;
+      state.internalAccounts.accounts[account.id] = internalAccount;
+      state.internalAccounts.selectedAccount = account.id;
     });
 
     this.messagingSystem.publish(
@@ -529,12 +526,7 @@ export class AccountsController extends BaseController<
     };
 
     this.#update((state) => {
-      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
-      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
-      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
-      // which sometimes fail when compiling locally.
-      (state as AccountsControllerState).internalAccounts.accounts[accountId] =
-        internalAccount;
+      state.internalAccounts.accounts[accountId] = internalAccount;
     });
 
     if (metadata.name) {
@@ -615,9 +607,11 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState) => {
-        currentState.internalAccounts = backup.internalAccounts;
-      });
+      this.update(
+        (currentState: WritableDraft<AccountsControllerStrictState>) => {
+          currentState.internalAccounts = backup.internalAccounts;
+        },
+      );
     }
   }
 
@@ -839,63 +833,71 @@ export class AccountsController extends BaseController<
       added: [] as InternalAccount[],
     };
 
-    this.#update((state) => {
-      const { internalAccounts } = state;
+    this.#update(
+      (state) => {
+        const { internalAccounts } = state;
 
-      for (const patch of [patches.snap, patches.normal]) {
-        for (const account of patch.removed) {
-          delete internalAccounts.accounts[account.id];
+        for (const patch of [patches.snap, patches.normal]) {
+          for (const account of patch.removed) {
+            delete internalAccounts.accounts[account.id];
 
-          diff.removed.push(account.id);
-        }
+            diff.removed.push(account.id);
+          }
 
-        for (const added of patch.added) {
-          const account = this.#getInternalAccountFromAddressAndType(
-            added.address,
-            added.keyring,
-          );
-
-          if (account) {
-            // Re-compute the list of accounts everytime, so we can make sure new names
-            // are also considered.
-            const accounts = Object.values(
-              internalAccounts.accounts,
-            ) as InternalAccount[];
-
-            // Get next account name available for this given keyring.
-            const name = this.getNextAvailableAccountName(
-              account.metadata.keyring.type,
-              accounts,
+          for (const added of patch.added) {
+            const account = this.#getInternalAccountFromAddressAndType(
+              added.address,
+              added.keyring,
             );
 
-            // If it's the first account, we need to select it.
-            const lastSelected =
-              accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+            if (account) {
+              // Re-compute the list of accounts everytime, so we can make sure new names
+              // are also considered.
+              const accounts = Object.values(
+                internalAccounts.accounts,
+              ) as InternalAccount[];
 
-            internalAccounts.accounts[account.id] = {
-              ...account,
-              metadata: {
-                ...account.metadata,
-                name,
-                importTime: Date.now(),
-                lastSelected,
-              },
-            };
+              // Get next account name available for this given keyring.
+              const name = this.getNextAvailableAccountName(
+                account.metadata.keyring.type,
+                accounts,
+              );
 
-            diff.added.push(internalAccounts.accounts[account.id]);
+              // If it's the first account, we need to select it.
+              const lastSelected =
+                accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+
+              internalAccounts.accounts[account.id] = {
+                ...account,
+                metadata: {
+                  ...account.metadata,
+                  name,
+                  importTime: Date.now(),
+                  lastSelected,
+                },
+              };
+
+              diff.added.push(internalAccounts.accounts[account.id]);
+            }
           }
         }
-      }
-    });
+      },
+      // Will get executed after the update, but before re-selecting an account in case
+      // the current one is not valid anymore.
+      () => {
+        // Now publish events
+        for (const id of diff.removed) {
+          this.messagingSystem.publish('AccountsController:accountRemoved', id);
+        }
 
-    // Now publish events
-    for (const id of diff.removed) {
-      this.messagingSystem.publish('AccountsController:accountRemoved', id);
-    }
-
-    for (const account of diff.added) {
-      this.messagingSystem.publish('AccountsController:accountAdded', account);
-    }
+        for (const account of diff.added) {
+          this.messagingSystem.publish(
+            'AccountsController:accountAdded',
+            account,
+          );
+        }
+      },
+    );
 
     // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
     // like `accountUpdated` (we would still need to check if anything really changed on the account).
@@ -905,14 +907,19 @@ export class AccountsController extends BaseController<
    * Update the state and fixup the currently selected account.
    *
    * @param callback - Callback for updating state, passed a draft state object.
+   * @param beforeAutoSelectAccount - Callback to be executed before auto-selecting an account
+   * if the current one is no longer available.
    */
-  #update(callback: (state: WritableDraft<AccountsControllerState>) => void) {
+  #update(
+    callback: (state: WritableDraft<AccountsControllerStrictState>) => void,
+    beforeAutoSelectAccount?: () => void,
+  ) {
     // The currently selected account might get deleted during the update, so keep track
     // of it before doing any change.
     const previouslySelectedAccount =
       this.state.internalAccounts.selectedAccount;
 
-    this.update((state) => {
+    this.update((state: WritableDraft<AccountsControllerStrictState>) => {
       callback(state);
 
       // If the account no longer exists (or none is selected), we need to re-select another one.
@@ -935,6 +942,9 @@ export class AccountsController extends BaseController<
         }
       }
     });
+
+    // We might want to do some pre-work before selecting a new account.
+    beforeAutoSelectAccount?.();
 
     // Now, we compare the newly selected account, and we send event if different.
     const { selectedAccount } = this.state.internalAccounts;

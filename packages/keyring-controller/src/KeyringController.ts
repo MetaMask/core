@@ -184,6 +184,11 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerAddNewKeyringAction = {
+  type: `${typeof name}:addNewKeyring`;
+  handler: KeyringController['addNewKeyring'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -220,7 +225,8 @@ export type KeyringControllerActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
-  | KeyringControllerWithKeyringAction;
+  | KeyringControllerWithKeyringAction
+  | KeyringControllerAddNewKeyringAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -461,7 +467,6 @@ const defaultKeyringBuilders = [
   // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
-  // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(HdKeyring),
 ];
 
@@ -672,11 +677,36 @@ export class KeyringController extends BaseController<
     super({
       name,
       metadata: {
-        vault: { persist: true, anonymous: false },
-        isUnlocked: { persist: false, anonymous: true },
-        keyrings: { persist: false, anonymous: false },
-        encryptionKey: { persist: false, anonymous: false },
-        encryptionSalt: { persist: false, anonymous: false },
+        vault: {
+          includeInStateLogs: false,
+          persist: true,
+          anonymous: false,
+          usedInUi: false,
+        },
+        isUnlocked: {
+          includeInStateLogs: true,
+          persist: false,
+          anonymous: true,
+          usedInUi: true,
+        },
+        keyrings: {
+          includeInStateLogs: true,
+          persist: false,
+          anonymous: false,
+          usedInUi: true,
+        },
+        encryptionKey: {
+          includeInStateLogs: false,
+          persist: false,
+          anonymous: false,
+          usedInUi: false,
+        },
+        encryptionSalt: {
+          includeInStateLogs: false,
+          persist: false,
+          anonymous: false,
+          usedInUi: false,
+        },
       },
       messenger,
       state: {
@@ -1742,6 +1772,11 @@ export class KeyringController extends BaseController<
     this.messenger.registerActionHandler(
       `${name}:withKeyring`,
       this.withKeyring.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:addNewKeyring`,
+      this.addNewKeyring.bind(this),
     );
   }
 

@@ -47,6 +47,7 @@ import {
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
 } from './utils/quote';
+import { getDefaultSlippagePercentage } from './utils/slippage';
 
 /**
  * The controller states that provide exchange rates
@@ -264,7 +265,16 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   ) => {
     const newQuotes = quotes.map((quote) => {
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
-      const toTokenAmount = calcToAmount(quote.quote, destTokenExchangeRate);
+      const toTokenAmount = calcToAmount(
+        quote.quote.destTokenAmount,
+        quote.quote.destAsset,
+        destTokenExchangeRate,
+      );
+      const minToTokenAmount = calcToAmount(
+        quote.quote.minDestTokenAmount,
+        quote.quote.destAsset,
+        destTokenExchangeRate,
+      );
 
       const includedTxFees = calcIncludedTxFees(
         quote.quote,
@@ -315,6 +325,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         // QuoteMetadata fields
         sentAmount,
         toTokenAmount,
+        minToTokenAmount,
         swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
         totalNetworkFee: totalEstimatedNetworkFee,
         totalMaxNetworkFee,
@@ -436,3 +447,39 @@ export const selectMinimumBalanceForRentExemptionInSOL = (
   new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
     .div(10 ** 9)
     .toString();
+
+export const selectDefaultSlippagePercentage = createBridgeSelector(
+  [
+    (state) => selectBridgeFeatureFlags(state).chains,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.srcTokenAddress,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.destTokenAddress,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.srcChainId
+        ? formatChainIdToCaip(slippageParams.srcChainId)
+        : undefined,
+    (_, slippageParams: Parameters<typeof getDefaultSlippagePercentage>[0]) =>
+      slippageParams.destChainId
+        ? formatChainIdToCaip(slippageParams.destChainId)
+        : undefined,
+  ],
+  (
+    featureFlagsByChain,
+    srcTokenAddress,
+    destTokenAddress,
+    srcChainId,
+    destChainId,
+  ) => {
+    return getDefaultSlippagePercentage(
+      {
+        srcTokenAddress,
+        destTokenAddress,
+        srcChainId,
+        destChainId,
+      },
+      srcChainId ? featureFlagsByChain[srcChainId]?.stablecoins : undefined,
+      destChainId ? featureFlagsByChain[destChainId]?.stablecoins : undefined,
+    );
+  },
+);

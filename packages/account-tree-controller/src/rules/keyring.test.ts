@@ -18,7 +18,10 @@ import type {
   AllowedActions,
   AllowedEvents,
 } from '../types';
-import type { AccountWalletObjectOf } from '../wallet';
+import type {
+  AccountWalletKeyringObject,
+  AccountWalletObjectOf,
+} from '../wallet';
 
 describe('keyring', () => {
   describe('getAccountWalletNameFromKeyringType', () => {
@@ -98,7 +101,7 @@ describe('keyring', () => {
         allowedActions: [
           'AccountsController:listMultichainAccounts',
           'AccountsController:getAccount',
-          'AccountsController:getSelectedAccount',
+          'AccountsController:getSelectedMultichainAccount',
           'AccountsController:setSelectedAccount',
           'KeyringController:getState',
           'SnapController:get',
@@ -164,16 +167,35 @@ describe('keyring', () => {
       });
     });
 
-    describe('getDefaultAccountGroupName', () => {
-      it('uses BaseRule implementation', () => {
-        const rootMessenger = getRootMessenger();
-        const messenger = getAccountTreeControllerMessenger(rootMessenger);
-        const rule = new KeyringRule(messenger);
+    describe('getDefaultAccountGroupPrefix', () => {
+      it.each([
+        [KeyringTypes.lattice, 'Lattice Account'],
+        [KeyringTypes.ledger, 'Ledger Account'],
+        [KeyringTypes.oneKey, 'OneKey Account'],
+        [KeyringTypes.qr, 'QR Account'],
+        [KeyringTypes.trezor, 'Trezor Account'],
+        [KeyringTypes.simple, 'Imported Account'],
+        ['unknown', 'Unknown Account'],
+      ])(
+        'returns default name prefix for "$0" to be "$1"',
+        (type, expectedPrefix) => {
+          const rootMessenger = getRootMessenger();
+          const messenger = getAccountTreeControllerMessenger(rootMessenger);
+          const rule = new KeyringRule(messenger);
 
-        expect(rule.getDefaultAccountGroupName(0)).toBe('Account 1');
-        expect(rule.getDefaultAccountGroupName(1)).toBe('Account 2');
-        expect(rule.getDefaultAccountGroupName(5)).toBe('Account 6');
-      });
+          const wallet = {
+            metadata: {
+              keyring: {
+                type,
+              },
+            },
+          } as unknown as AccountWalletKeyringObject;
+
+          expect(rule.getDefaultAccountGroupPrefix(wallet)).toBe(
+            expectedPrefix,
+          );
+        },
+      );
 
       it('getComputedAccountGroupName returns computed name from base class', () => {
         const rootMessenger = getRootMessenger();
@@ -248,6 +270,7 @@ describe('keyring', () => {
         const hdWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.hd),
           type: AccountWalletType.Keyring,
+          status: 'ready',
           groups: {},
           metadata: {
             name: '',
@@ -258,6 +281,7 @@ describe('keyring', () => {
         const ledgerWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.ledger),
           type: AccountWalletType.Keyring,
+          status: 'ready',
           groups: {},
           metadata: {
             name: '',
@@ -268,6 +292,7 @@ describe('keyring', () => {
         const trezorWallet: AccountWalletObjectOf<AccountWalletType.Keyring> = {
           id: toAccountWalletId(AccountWalletType.Keyring, KeyringTypes.trezor),
           type: AccountWalletType.Keyring,
+          status: 'ready',
           groups: {},
           metadata: {
             name: '',

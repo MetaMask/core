@@ -10,8 +10,9 @@ export type {
   EventConstraint,
   MessengerActions,
   MessengerEvents,
+  MockAnyNamespace,
   NamespacedBy,
   NotNamespacedBy,
   NamespacedName,
 } from './Messenger';
-export { Messenger } from './Messenger';
+export { MOCK_ANY_NAMESPACE, Messenger } from './Messenger';

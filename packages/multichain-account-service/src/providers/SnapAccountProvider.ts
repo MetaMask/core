@@ -6,13 +6,13 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Json, SnapId } from '@metamask/snaps-sdk';
 import type { MultichainAccountServiceMessenger } from 'src/types';
 
-import { BaseAccountProvider } from './BaseAccountProvider';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 
 export type RestrictedSnapKeyringCreateAccount = (
   options: Record<string, Json>,
 ) => Promise<KeyringAccount>;
 
-export abstract class SnapAccountProvider extends BaseAccountProvider {
+export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   readonly snapId: SnapId;
 
   constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
@@ -50,8 +50,14 @@ export abstract class SnapAccountProvider extends BaseAccountProvider {
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 
-  abstract discoverAndCreateAccounts(options: {
+  abstract discoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
 }
+
+export const isSnapAccountProvider = (
+  provider: unknown,
+): provider is SnapAccountProvider => {
+  return provider instanceof SnapAccountProvider;
+};

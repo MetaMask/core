@@ -57,7 +57,30 @@ export type TransactionMeta = {
   /**
    * Additional transactions that must also be submitted in a batch.
    */
-  batchTransactions?: NestedTransactionMetadata[];
+  batchTransactions?: BatchTransaction[];
+
+  /**
+   * Optional configuration when processing `batchTransactions`.
+   */
+  batchTransactionsOptions?: {
+    /**
+     * Whether to disable batch transaction processing via an EIP-7702 upgraded account.
+     * Defaults to `true` if no options object, `false` otherwise.
+     */
+    disable7702?: boolean;
+
+    /**
+     * Whether to disable batch transaction via the `publishBatch` hook.
+     * Defaults to `false`.
+     */
+    disableHook?: boolean;
+
+    /**
+     * Whether to disable batch transaction via sequential transactions.
+     * Defaults to `true` if no options object, `false` otherwise.
+     */
+    disableSequential?: boolean;
+  };
 
   /**
    * Number of the block where the transaction has been included.
@@ -217,6 +240,11 @@ export type TransactionMeta = {
   gasLimitNoBuffer?: string;
 
   /**
+   * The estimated gas used by the transaction, after any refunds. Generated from transaction simulation.
+   */
+  gasUsed?: Hex;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
@@ -236,6 +264,9 @@ export type TransactionMeta = {
    * No signing will be performed in the client and the `nonce` will be `undefined`.
    */
   isExternalSign?: boolean;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
 
   /**
    * Whether the transaction is an incoming token transfer.
@@ -724,6 +755,26 @@ export enum TransactionType {
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
+
+  /**
+   * Buy a position via Predict.
+   */
+  predictBuy = 'predictBuy',
+
+  /**
+   * Claim winnings from a position via Predict.
+   */
+  predictClaim = 'predictClaim',
+
+  /**
+   * Deposit funds to be available for use via Predict.
+   */
+  predictDeposit = 'predictDeposit',
+
+  /**
+   * Sell a position via Predict.
+   */
+  predictSell = 'predictSell',
 
   /**
    * When a transaction is failed it can be retried by
@@ -1591,6 +1642,20 @@ export type NestedTransactionMetadata = BatchTransactionParams & {
 };
 
 /**
+ * An additional transaction dynamically added to a standard single transaction to form a batch.
+ */
+export type BatchTransaction = BatchTransactionParams & {
+  /**
+   * Whether the transaction is executed after the main transaction.
+   * Defaults to `true`.
+   */
+  isAfter?: boolean;
+
+  /** Type of the batch transaction. */
+  type?: TransactionType;
+};
+
+/**
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
@@ -1626,8 +1691,20 @@ export type TransactionBatchSingleRequest = {
 export type TransactionBatchRequest = {
   batchId?: Hex;
 
+  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
+  disable7702?: boolean;
+
+  /** Whether to disable batch transaction via the `publishBatch` hook. */
+  disableHook?: boolean;
+
+  /** Whether to disable batch transaction via sequential transactions. */
+  disableSequential?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
 
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
@@ -1643,15 +1720,6 @@ export type TransactionBatchRequest = {
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
-
-  /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
-  disable7702?: boolean;
-
-  /** Whether to disable batch transaction via the `publishBatch` hook. */
-  disableHook?: boolean;
-
-  /** Whether to disable batch transaction via sequential transactions. */
-  disableSequential?: boolean;
 
   /**
    * Whether to use the publish batch hook to submit the batch.
@@ -1937,3 +2005,11 @@ export type MetamaskPayMetadata = {
   /** Total cost of the transaction in fiat currency, including gas, fees, and the funds themselves. */
   totalFiat?: string;
 };
+
+/**
+ * Parameters for the transaction simulation API.
+ */
+export type GetSimulationConfig = (url: string) => Promise<{
+  newUrl?: string;
+  authorization?: string;
+}>;
