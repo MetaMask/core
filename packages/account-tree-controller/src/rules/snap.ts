@@ -5,7 +5,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import type { AccountGroupObjectOf } from '../group';
+import { AccountTypeKey, AccountTypeOrder, type AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
@@ -75,6 +75,9 @@ export class SnapRule
         metadata: {
           pinned: false,
           hidden: false,
+          accountOrder: [
+            [AccountTypeOrder[account.type as AccountTypeKey], account.id],
+          ],
         },
       },
     };
