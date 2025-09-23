@@ -114,7 +114,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  */
 export async function getBalanceChanges(
   request: GetBalanceChangesRequest,
-): Promise<SimulationData> {
+): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
   log('Request', request);
 
   try {
@@ -139,12 +139,13 @@ export async function getBalanceChanges(
 
     const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
+    const gasUsed = response.transactions?.[0]?.gasUsed;
     const simulationData = {
       nativeBalanceChange,
       tokenBalanceChanges,
     };
 
-    return simulationData;
+    return { simulationData, gasUsed };
   } catch (error) {
     log('Failed to get balance changes', error, request);
 
@@ -161,11 +162,14 @@ export async function getBalanceChanges(
     const { code, message } = simulationError;
 
     return {
-      tokenBalanceChanges: [],
-      error: {
-        code,
-        message,
+      simulationData: {
+        tokenBalanceChanges: [],
+        error: {
+          code,
+          message,
+        },
       },
+      gasUsed: undefined,
     };
   }
 }

@@ -7,11 +7,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [41.2.0]
+## [45.0.0]
 
 ### Uncategorized
 
-- Release/511.0.0 ([#6372](https://github.com/MetaMask/core/pull/6372))
+- Release/574.0.0 ([#6680](https://github.com/MetaMask/core/pull/6680))
+
+### Added
+
+- Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Add `BitcoinTradeDataSchema` and `BitcoinQuoteResponseSchema` validators
+  - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
+- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+### Changed
+
+- **BREAKING:** Rename fee handling for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Replace `SolanaFees` type with `NonEvmFees` type
+  - Replace `solanaFeesInLamports` field with `nonEvmFeesInNative` field
+  - Update `#appendSolanaFees` to `#appendNonEvmFees` to support all non-EVM chains
+  - The `nonEvmFeesInNative` field stores fees in the smallest units for each chain (lamports for Solana, satoshis for Bitcoin)
+- Update Snap methods to use new unified interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Replace `getFeeForTransaction` with `computeFee` method that returns fees in native token units
+  - Update fee calculation to handle different unit conversions per chain
+  - Support fee computation for Bitcoin and Solana chains
+- Update quote validation to support Bitcoin-specific trade data format ([#6454](https://github.com/MetaMask/core/pull/6454))
+  - Add separate validation for Bitcoin quotes that include `unsignedPsbtBase64` field
+- Update selectors and utilities to use `isNonEvmChainId` instead of `isSolanaChainId` for generic non-EVM handling ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+### Removed
+
+- **BREAKING:** Remove deprecated `SolanaFees` type - use `NonEvmFees` type instead ([#6454](https://github.com/MetaMask/core/pull/6454))
+- **BREAKING:** Remove `solanaFeesInLamports` field from quotes - use `nonEvmFeesInNative` field instead ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+## [44.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^75.0.0` to `^76.0.0` ([#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [43.2.1]
+
+### Added
+
+- Add Solana Devnet support to bridge controller ([#6670](https://github.com/MetaMask/core/pull/6670))
+
+## [43.2.0]
+
+### Added
+
+- Add optional `noFeeAssets` property to the `ChainConfigurationSchema` type ([#6665](https://github.com/MetaMask/core/pull/6665))
+
+## [43.1.0]
+
+### Added
+
+- Add `selectDefaultSlippagePercentage` that returns the default slippage for a chain and token combination ([#6616](https://github.com/MetaMask/core/pull/6616))
+  - Return `0.5` if requesting a bridge quote
+  - Return `undefined` (auto) if requesting a Solana swap
+  - Return `0.5` if both tokens are stablecoins (based on dynamic `stablecoins` list from LD chain config)
+  - Return `2` for all other EVM swaps
+- Add new controller metadata properties to `BridgeController` ([#6589](https://github.com/MetaMask/core/pull/6589))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [43.0.0]
+
+### Added
+
+- Add `totalFeeAmountUsd` to `quote` to support rewards estimation ([#6592](https://github.com/MetaMask/core/pull/6592))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/assets-controller` from `^74.0.0` to `^75.0.0` ([#6570](https://github.com/MetaMask/core/pull/6570))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Add optional `isGaslessSwapEnabled` LaunchDarkly config to feature flags schema ([#6573](https://github.com/MetaMask/core/pull/6573))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
+## [42.0.0]
+
+### Added
+
+- Add `gas_included_7702` field to metrics tracking for EIP-7702 gasless transactions ([#6363](https://github.com/MetaMask/core/pull/6363))
+
+### Changed
+
+- **BREAKING** Rename QuotesError and InputSourceDestinationSwitched events to match segment schema ([#6447](https://github.com/MetaMask/core/pull/6447))
+- Bump `@metamask/base-controller` from `^8.2.0` to `^8.3.0` ([#6465](https://github.com/MetaMask/core/pull/6465))
+- **BREAKING** Rename `gasless7702` to `gasIncluded7702` in QuoteRequest and Quote types
+
+## [41.4.0]
+
+### Added
+
+- Add Bitcoin as a supported bridge chain ([#6389](https://github.com/MetaMask/core/pull/6389))
+- Export `isBitcoinChainId` utility function ([#6389](https://github.com/MetaMask/core/pull/6389))
+
+## [41.3.0]
+
+### Added
+
+- Publish `QuotesValidationFailed` and `StatusValidationFailed` events ([#6362](https://github.com/MetaMask/core/pull/6362))
+
+## [41.2.0]
 
 ### Changed
 
@@ -535,7 +637,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@45.0.0...HEAD
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.0...@metamask/bridge-controller@45.0.0
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.1...@metamask/bridge-controller@44.0.0
+[43.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.0...@metamask/bridge-controller@43.2.1
+[43.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.1.0...@metamask/bridge-controller@43.2.0
+[43.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.0.0...@metamask/bridge-controller@43.1.0
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@42.0.0...@metamask/bridge-controller@43.0.0
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...@metamask/bridge-controller@42.0.0
+[41.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.3.0...@metamask/bridge-controller@41.4.0
+[41.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.2.0...@metamask/bridge-controller@41.3.0
 [41.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.1.0...@metamask/bridge-controller@41.2.0
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.0.0...@metamask/bridge-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@40.0.0...@metamask/bridge-controller@41.0.0

@@ -150,6 +150,7 @@ describe('SnapRule', () => {
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {
         id: toAccountWalletId(AccountWalletType.Snap, MOCK_SNAP_1.id),
         type: AccountWalletType.Snap,
+        status: 'ready',
         groups: {},
         metadata: {
           name: '',
@@ -189,6 +190,7 @@ describe('SnapRule', () => {
           snapWithoutProposedName.id,
         ),
         type: AccountWalletType.Snap,
+        status: 'ready',
         groups: {},
         metadata: {
           name: '',
@@ -216,6 +218,7 @@ describe('SnapRule', () => {
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {
         id: toAccountWalletId(AccountWalletType.Snap, snapId),
         type: AccountWalletType.Snap,
+        status: 'ready',
         groups: {},
         metadata: {
           name: '',

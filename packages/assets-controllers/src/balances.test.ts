@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import {
   calculateBalanceForAllWallets,
   calculateBalanceChangeForAllWallets,
   calculateBalanceChangeForAccountGroup,
 } from './balances';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 
 const createBaseMockState = (userCurrency = 'USD') => ({
   AccountTreeController: {
@@ -509,6 +511,123 @@ describe('calculateBalanceForAllWallets', () => {
       enabledNetworkMap,
     );
     expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+  });
+
+  it('skips non-EVM assets when conversion rate is missing', () => {
+    const state = createMobileMockState('USD');
+
+    // Add a non-EVM account
+    (
+      state.engine.backgroundState as any
+    ).AccountsController.internalAccounts.accounts['account-missing-rate'] = {
+      id: 'account-missing-rate',
+      address: 'NonEvmMissingRate',
+      type: 'solana:eoa',
+      scopes: ['solana:mainnet'],
+      methods: [],
+      options: {},
+      metadata: {
+        name: 'SolMissingRate',
+        keyring: { type: 'hd' },
+        importTime: 0,
+      },
+    };
+
+    // Add the account to a wallet group
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push(
+      'account-missing-rate',
+    );
+
+    // Set up balance for an asset without a corresponding conversion rate
+    (state.engine.backgroundState as any).MultichainBalancesController.balances[
+      'account-missing-rate'
+    ] = {
+      'solana:mainnet/asset:no-rate': { amount: '100', unit: 'NORATES' },
+    };
+
+    // Intentionally NOT setting a conversion rate for this asset
+    // This tests line 238 in balances.ts: if (!conversionRate) { return null; }
+
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+
+    // The calculation should complete successfully, excluding the asset with missing rate
+    expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+    // The total should remain the same as without the missing-rate asset since it gets filtered out
+    expect(typeof result.totalBalanceInUserCurrency).toBe('number');
+    expect(Number.isFinite(result.totalBalanceInUserCurrency)).toBe(true);
+  });
+
+  it('includes native and staked balances in totals', () => {
+    const state = createMobileMockState('USD');
+
+    const baseline = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+
+    const account = '0x1234567890123456789012345678901234567890';
+    const chainId = '0x1';
+    const ZERO = '0x0000000000000000000000000000000000000000';
+    const nativeMktAddr = getNativeTokenAddress(chainId as any);
+    (state.engine.backgroundState as any).TokenRatesController.marketData[
+      chainId
+    ][nativeMktAddr] = {
+      tokenAddress: nativeMktAddr,
+      currency: 'ETH',
+      price: 1.0,
+    } as any;
+
+    // 1 ETH native
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      account
+    ][chainId][ZERO] = '0xde0b6b3a7640000';
+
+    // 0.5 staked ETH
+    const stakingAddr = (
+      STAKING_CONTRACT_ADDRESS_BY_CHAINID as Record<string, string>
+    )[chainId];
+    (state.engine.backgroundState as any).TokenBalancesController.tokenBalances[
+      account
+    ][chainId][stakingAddr] = '0x6f05b59d3b20000';
+
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+
+    // ETH->USD = 2400, price=1, amounts 1.0 + 0.5 => +3600
+    expect(result.totalBalanceInUserCurrency).toBeCloseTo(
+      baseline.totalBalanceInUserCurrency + 3600,
+      6,
+    );
   });
 
   describe('calculateBalanceChangeForAllWallets', () => {
@@ -1322,6 +1441,77 @@ describe('calculateBalanceForAllWallets', () => {
       expect(res.period).toBe('1d');
       // Non-zero change expected if token balance and price exist
       expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('computes 1d change including native and staked balances', () => {
+      const state = createMobileMockState('USD');
+
+      // Baseline: give WETH a 10% change so baseline is 2400 current
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        '0x1'
+      ]['0xD0b86a33E6441b8C4C3C1d3e2C1d3e2C1d3e2C1'].pricePercentChange1d = 10;
+
+      const before = calculateBalanceChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      const account = '0x1234567890123456789012345678901234567890';
+      const chainId = '0x1';
+      const ZERO = '0x0000000000000000000000000000000000000000';
+      const nativeMktAddr = getNativeTokenAddress(chainId as any);
+      (state.engine.backgroundState as any).TokenRatesController.marketData[
+        chainId
+      ][nativeMktAddr] = {
+        tokenAddress: nativeMktAddr,
+        currency: 'ETH',
+        price: 1.0,
+        pricePercentChange1d: 10,
+      } as any;
+
+      // 1 ETH native and 0.5 staked ETH
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account][chainId][ZERO] =
+        '0xde0b6b3a7640000';
+      const stakingAddr = (
+        STAKING_CONTRACT_ADDRESS_BY_CHAINID as Record<string, string>
+      )[chainId];
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account][chainId][stakingAddr] =
+        '0x6f05b59d3b20000';
+
+      const after = calculateBalanceChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+      );
+
+      // Additional current = 2400 + 1200; additional previous = (3600 / 1.1)
+      expect(after.currentTotalInUserCurrency).toBeCloseTo(
+        before.currentTotalInUserCurrency + 3600,
+        6,
+      );
+      expect(after.previousTotalInUserCurrency).toBeCloseTo(
+        before.previousTotalInUserCurrency + 3600 / 1.1,
+        6,
+      );
     });
 
     it('respects enabledNetworkMap for group', () => {

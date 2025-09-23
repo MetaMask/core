@@ -1,4 +1,7 @@
-import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import {
+  parseAccountGroupId,
+  type AccountGroupId,
+} from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -12,9 +15,11 @@ import {
   isStrictHexString,
 } from '@metamask/utils';
 
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import type { CurrencyRateState } from './CurrencyRateController';
 import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';
 import type { MultichainBalancesControllerState } from './MultichainBalancesController';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from './TokenBalancesController';
 import type { TokenRatesControllerState } from './TokenRatesController';
 import type { TokensControllerState } from './TokensController';
@@ -76,16 +81,12 @@ const isChainEnabledByMap = (
   return Boolean(map[namespace]?.[id]);
 };
 
-const getWalletIdFromGroupId = (groupId: string): AccountWalletId => {
-  return groupId.split('/')[0] as AccountWalletId;
-};
-
 const getInternalAccountsForGroup = (
   accountTreeState: AccountTreeControllerState,
   accountsState: AccountsControllerState,
   groupId: string,
 ): InternalAccount[] => {
-  const walletId = getWalletIdFromGroupId(groupId);
+  const walletId = parseAccountGroupId(groupId).wallet.id;
   const wallet = accountTreeState.accountTree.wallets[walletId];
   if (!wallet) {
     return [];
@@ -123,6 +124,7 @@ function getEvmTokenBalances(
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
 ) {
+  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex;
   const accountBalances =
     tokenBalancesState.tokenBalances[account.address as Hex] ?? {};
 
@@ -138,17 +140,32 @@ function getEvmTokenBalances(
     .map((tokenBalance) => {
       const { chainId, tokenAddress, balance } = tokenBalance;
 
-      // Get Token Info
-      const accountTokens =
-        tokensState?.allTokens?.[chainId]?.[account.address];
-      const token = accountTokens?.find((t) => t.address === tokenAddress);
-      if (!token) {
-        return null;
+      const stakingContractAddress =
+        STAKING_CONTRACT_ADDRESS_BY_CHAINID[
+          chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
+        ];
+      const isNative = tokenAddress === ZERO_ADDRESS;
+      const isStakedNative = stakingContractAddress
+        ? tokenAddress.toLowerCase() === stakingContractAddress.toLowerCase()
+        : false;
+
+      // Get Token Info (skip allTokens check for native and staked native)
+      if (!isNative && !isStakedNative) {
+        const accountTokens =
+          tokensState?.allTokens?.[chainId]?.[account.address];
+        const token = accountTokens?.find((t) => t.address === tokenAddress);
+        if (!token) {
+          return null;
+        }
       }
 
       // Get market data
+      const marketDataAddress =
+        isNative || isStakedNative
+          ? getNativeTokenAddress(chainId as Hex)
+          : (tokenAddress as Hex);
       const tokenMarketData =
-        tokenRatesState?.marketData?.[chainId]?.[tokenAddress];
+        tokenRatesState?.marketData?.[chainId]?.[marketDataAddress];
       if (!tokenMarketData?.price) {
         return null;
       }
@@ -162,7 +179,15 @@ function getEvmTokenBalances(
       }
 
       // Calculate values
-      const decimals = isNonNaNNumber(token.decimals) ? token.decimals : 18;
+      let decimals = 18;
+      if (!isNative && !isStakedNative) {
+        const accountTokens =
+          tokensState?.allTokens?.[chainId]?.[account.address];
+        const token = accountTokens?.find((t) => t.address === tokenAddress);
+        decimals = isNonNaNNumber(token?.decimals)
+          ? (token?.decimals as number)
+          : 18;
+      }
       const decimalBalance = parseInt(balance, 16);
       if (!isNonNaNNumber(decimalBalance)) {
         return null;

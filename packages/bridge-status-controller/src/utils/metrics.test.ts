@@ -784,6 +784,7 @@ describe('metrics utils', () => {
       expect(result).toMatchInlineSnapshot(`
         Object {
           "gas_included": false,
+          "gas_included_7702": false,
           "provider": "across_across",
           "quoted_time_minutes": 15,
           "usd_quoted_gas": 2.54739,
@@ -985,7 +986,7 @@ describe('metrics utils', () => {
     it('should return correct properties for a successful swap transaction', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
-        error_message: undefined,
+        error_message: '',
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
@@ -1003,6 +1004,7 @@ describe('metrics utils', () => {
         price_impact: 0,
         usd_quoted_gas: 0,
         gas_included: false,
+        gas_included_7702: false,
         quoted_time_minutes: 0,
         usd_quoted_return: 0,
         provider: '',
@@ -1027,7 +1029,7 @@ describe('metrics utils', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
-      expect(result.error_message).toBe('Failed to finalize swap tx');
+      expect(result.error_message).toBe('Transaction failed');
       expect(result.source_transaction).toBe('FAILED');
     });
 
