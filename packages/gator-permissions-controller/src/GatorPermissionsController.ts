@@ -293,7 +293,7 @@ export default class GatorPermissionsController extends BaseController<
       this.disableGatorPermissions.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
       this.decodePermissionFromPermissionContextForOrigin.bind(this),
     );
