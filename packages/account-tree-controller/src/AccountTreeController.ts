@@ -458,11 +458,11 @@ export class AccountTreeController extends BaseController<
       } else {
         // For other wallet types, start with the number of existing groups
         // This gives us the next logical sequential number
-        proposedNameIndex = Object.keys(wallet.groups).length;
+        proposedNameIndex = Object.keys(wallet.groups).length - 1;
       }
 
       // Use the higher of the two: highest parsed index or computed index
-      proposedNameIndex = Math.max(highestAccountNameIndex, proposedNameIndex);
+      proposedNameIndex = Math.min(highestAccountNameIndex, proposedNameIndex);
 
       // Find a unique name by checking for conflicts and incrementing if needed
       let nameExists: boolean;
@@ -489,7 +489,10 @@ export class AccountTreeController extends BaseController<
       state.accountGroupsMetadata[group.id] ??= {};
       state.accountGroupsMetadata[group.id].name = {
         value: proposedName,
-        lastUpdatedAt: Date.now(),
+        // The `lastUpdatedAt` field is used for backup and sync, when comparing local names
+        // with backed up names. In this case, the generated name should never take precedence
+        // over a user-defined name, so we set `lastUpdatedAt` to 0.
+        lastUpdatedAt: 0,
       };
     }
 

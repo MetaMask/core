@@ -1766,6 +1766,7 @@ describe('BridgeStatusController', () => {
     };
 
     const mockSolanaAccount = {
+      id: 'solana-account-1',
       address: '0x123...',
       metadata: {
         snap: {
@@ -1972,6 +1973,7 @@ describe('BridgeStatusController', () => {
     };
 
     const mockSolanaAccount = {
+      id: 'solana-account-1',
       address: '0x123...',
       metadata: {
         snap: {
@@ -2464,7 +2466,7 @@ describe('BridgeStatusController', () => {
 
     it('should delay after submitting linea approval', async () => {
       const handleLineaDelaySpy = jest
-        .spyOn(transactionUtils, 'handleLineaDelay')
+        .spyOn(transactionUtils, 'handleApprovalDelay')
         .mockResolvedValueOnce();
       const mockTraceFn = jest
         .fn()
@@ -2493,6 +2495,44 @@ describe('BridgeStatusController', () => {
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
       expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(mockTraceFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should delay after submitting base approval', async () => {
+      const handleBaseDelaySpy = jest
+        .spyOn(transactionUtils, 'handleApprovalDelay')
+        .mockResolvedValueOnce();
+      const mockTraceFn = jest
+        .fn()
+        .mockImplementation((_p, callback) => callback());
+
+      setupEventTrackingMocks(mockMessengerCall);
+      setupApprovalMocks(mockMessengerCall);
+      setupBridgeMocks(mockMessengerCall);
+
+      const { controller, startPollingForBridgeTxStatusSpy } = getController(
+        mockMessengerCall,
+        mockTraceFn,
+      );
+
+      const baseQuoteResponse = {
+        ...mockEvmQuoteResponse,
+        quote: { ...mockEvmQuoteResponse.quote, srcChainId: 8453 },
+        trade: {
+          ...(mockEvmQuoteResponse.trade as TxData),
+          gasLimit: undefined,
+        } as never,
+      };
+
+      const result = await controller.submitTx(baseQuoteResponse, false);
+      controller.stopAllPolling();
+
+      expect(mockTraceFn).toHaveBeenCalledTimes(2);
+      expect(handleBaseDelaySpy).toHaveBeenCalledTimes(1);
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();

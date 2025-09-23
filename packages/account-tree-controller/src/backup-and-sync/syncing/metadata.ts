@@ -52,8 +52,8 @@ export async function compareAndSyncMetadata<T>({
   }
 
   const isUserStorageMoreRecent =
-    localTimestamp &&
-    userStorageTimestamp &&
+    localTimestamp !== undefined &&
+    userStorageTimestamp !== undefined &&
     localTimestamp < userStorageTimestamp;
 
   // Validate user storage value using the provided validator
