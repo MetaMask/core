@@ -1,13 +1,10 @@
-import {
-  AccountWalletType,
-  AccountGroupType,
-  select,
-} from '@metamask/account-api';
+import { AccountWalletType, select } from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
   AccountSelector,
   MultichainAccountWalletId,
+  AccountGroupType,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import { type AccountId } from '@metamask/accounts-controller';

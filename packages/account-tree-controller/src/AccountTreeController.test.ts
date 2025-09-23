@@ -1,8 +1,4 @@
-import type {
-  AccountGroupIdOf,
-  AccountWalletId,
-  Bip44Account,
-} from '@metamask/account-api';
+import type { AccountWalletId, Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
   AccountWalletType,
