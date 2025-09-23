@@ -5,7 +5,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import { AccountTypeKey, AccountTypeOrder, type AccountGroupObjectOf } from '../group';
+import {
+  type AccountTypeKey,
+  AccountTypeOrder,
+  type AccountGroupObjectOf,
+} from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 

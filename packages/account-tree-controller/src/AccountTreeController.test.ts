@@ -1201,7 +1201,6 @@ describe('AccountTreeController', () => {
 
   describe('account ordering by type', () => {
     it('orders accounts in group according to AccountTypeOrder regardless of insertion order', () => {
-
       const evmAccount = MOCK_HD_ACCOUNT_1;
 
       const solAccount = {

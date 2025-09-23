@@ -4,7 +4,11 @@ import { toAccountGroupId, toAccountWalletId } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { AccountTypeKey, AccountTypeOrder, type AccountGroupObjectOf } from '../group';
+import {
+  type AccountTypeKey,
+  AccountTypeOrder,
+  type AccountGroupObjectOf,
+} from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
