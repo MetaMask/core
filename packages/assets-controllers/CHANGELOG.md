@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add export for `CurrencyRateMessenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+
 ### Changed
 
 - **BREAKING:** Migrate the following controllers to the new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))

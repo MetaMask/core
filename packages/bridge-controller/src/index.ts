@@ -57,6 +57,7 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
+  type BridgeControllerGetStateAction,
 } from './types';
 
 export {
