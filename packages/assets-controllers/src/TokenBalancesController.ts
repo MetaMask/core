@@ -259,12 +259,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
 
     // Register action handlers for polling interval control
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `TokenBalancesController:updateChainPollingConfigs`,
       this.updateChainPollingConfigs.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `TokenBalancesController:getChainPollingConfig`,
       this.getChainPollingConfig.bind(this),
     );
