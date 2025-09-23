@@ -412,6 +412,85 @@ describe('PhishingController', () => {
       await controller.maybeUpdateState();
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
     });
+
+    it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
+      const controller = new PhishingController({
+        messenger: getRestrictedMessenger(),
+        stalelistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: ['initial-safe-site.com'],
+              blocklist: ['new-phishing-site.com'],
+              blocklistPaths: {},
+              c2DomainBlocklist: [],
+              fuzzylist: ['new-fuzzy-site.com'],
+              tolerance: 2,
+              version: 1,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+            },
+          ],
+          whitelist: [],
+          whitelistPaths: [],
+          hotlistLastFetched: 0,
+          stalelistLastFetched: 0,
+          c2DomainBlocklistLastFetched: 0,
+          urlScanCache: {},
+        },
+      });
+
+      nock.cleanAll();
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: ['example.com/path'],
+            fuzzylist: ['new-fuzzy-site.com'],
+            allowlist: ['new-safe-site.com'],
+            tolerance: 2,
+            version: 2,
+            lastUpdated: 2,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${2}`)
+        .reply(200, {
+          data: [],
+        });
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 2,
+        });
+
+      // Force the stalelist to be out of date and trigger update
+      const clock = sinon.useFakeTimers();
+      clock.tick(1000 * 10);
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toEqual([
+        {
+          allowlist: ['new-safe-site.com'],
+          blocklist: [],
+          blocklistPaths: {
+            'example.com': {
+              path: {},
+            },
+          },
+          c2DomainBlocklist: [],
+          fuzzylist: ['new-fuzzy-site.com'],
+          tolerance: 2,
+          version: 2,
+          lastUpdated: 2,
+          name: ListNames.MetaMask,
+        },
+      ]);
+
+      clock.restore();
+    });
   });
 
   describe('isStalelistOutOfDate', () => {
