@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import {
   Messenger,
@@ -688,6 +689,60 @@ describe(`${controllerName}`, () => {
       expect(() => controller.store({ entry: invalidEntry })).toThrow(
         'Invalid authority',
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "delegations": Object {},
+        }
+      `);
+    });
+
+    it('includes expected state in UI', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
     });
   });
 });

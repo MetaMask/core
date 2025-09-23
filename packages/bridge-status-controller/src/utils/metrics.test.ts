@@ -784,6 +784,7 @@ describe('metrics utils', () => {
       expect(result).toMatchInlineSnapshot(`
         Object {
           "gas_included": false,
+          "gas_included_7702": false,
           "provider": "across_across",
           "quoted_time_minutes": 15,
           "usd_quoted_gas": 2.54739,
@@ -1003,6 +1004,7 @@ describe('metrics utils', () => {
         price_impact: 0,
         usd_quoted_gas: 0,
         gas_included: false,
+        gas_included_7702: false,
         quoted_time_minutes: 0,
         usd_quoted_return: 0,
         provider: '',

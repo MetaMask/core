@@ -122,8 +122,10 @@ export type AccountTrackerControllerState = {
 
 const accountTrackerMetadata = {
   accountsByChainId: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -205,6 +207,7 @@ export type AccountTrackerControllerMessenger = RestrictedMessenger<
 /** The input to start polling for the {@link AccountTrackerController} */
 type AccountTrackerPollingInput = {
   networkClientIds: NetworkClientId[];
+  queryAllAccounts?: boolean;
 };
 
 /**
@@ -219,6 +222,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #includeStakedAssets: boolean;
 
+  readonly #accountsApiChainIds: ChainIdHex[];
+
   readonly #getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
 
   readonly #balanceFetchers: BalanceFetcher[];
@@ -232,7 +237,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.messenger - The controller messaging system.
    * @param options.getStakedBalanceForChain - The function to get the staked native asset balance for a chain.
    * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
-   * @param options.useAccountsAPI - Enable Accounts‑API strategy (if supported chain).
+   * @param options.accountsApiChainIds - Array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    */
   constructor({
@@ -241,7 +246,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger,
     getStakedBalanceForChain,
     includeStakedAssets = false,
-    useAccountsAPI = false,
+    accountsApiChainIds = [],
     allowExternalServices = () => true,
   }: {
     interval?: number;
@@ -249,7 +254,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger: AccountTrackerControllerMessenger;
     getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
     includeStakedAssets?: boolean;
-    useAccountsAPI?: boolean;
+    accountsApiChainIds?: ChainIdHex[];
     allowExternalServices?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
@@ -275,11 +280,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.#getStakedBalanceForChain = getStakedBalanceForChain;
 
     this.#includeStakedAssets = includeStakedAssets;
+    this.#accountsApiChainIds = [...accountsApiChainIds];
 
     // Initialize balance fetchers - Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(useAccountsAPI && allowExternalServices()
-        ? [new AccountsApiBalanceFetcher('extension', this.#getProvider)]
+      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+        ? [this.#createAccountsApiFetcher()]
         : []),
       createAccountTrackerRpcBalanceFetcher(
         this.#getProvider,
@@ -391,6 +397,31 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   };
 
   /**
+   * Creates an AccountsApiBalanceFetcher that only supports chains in the accountsApiChainIds array
+   *
+   * @returns A BalanceFetcher that wraps AccountsApiBalanceFetcher with chainId filtering
+   */
+  readonly #createAccountsApiFetcher = (): BalanceFetcher => {
+    const originalFetcher = new AccountsApiBalanceFetcher(
+      'extension',
+      this.#getProvider,
+    );
+
+    return {
+      supports: (chainId: ChainIdHex): boolean => {
+        // Only support chains that are both:
+        // 1. In our specified accountsApiChainIds array
+        // 2. Actually supported by the AccountsApi
+        return (
+          this.#accountsApiChainIds.includes(chainId) &&
+          originalFetcher.supports(chainId)
+        );
+      },
+      fetch: originalFetcher.fetch.bind(originalFetcher),
+    };
+  };
+
+  /**
    * Resolves a networkClientId to a network client config
    * or globally selected network config if not provided
    *
@@ -441,13 +472,15 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    *
    * @param input - The input for the poll.
    * @param input.networkClientIds - The network client IDs used to get balances.
+   * @param input.queryAllAccounts - Whether to query all accounts or just the selected account
    */
   async _executePoll({
     networkClientIds,
+    queryAllAccounts = false,
   }: AccountTrackerPollingInput): Promise<void> {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.refresh(networkClientIds);
+    this.refresh(networkClientIds, queryAllAccounts);
   }
 
   /**
@@ -456,8 +489,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * If multi-account is enabled, updates balances for all accounts.
    *
    * @param networkClientIds - Optional network client IDs to fetch a network client with
+   * @param queryAllAccounts - Whether to query all accounts or just the selected account
    */
-  async refresh(networkClientIds: NetworkClientId[]) {
+  async refresh(
+    networkClientIds: NetworkClientId[],
+    queryAllAccounts: boolean = false,
+  ) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
@@ -493,7 +530,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         try {
           const balances = await fetcher.fetch({
             chainIds: supportedChains,
-            queryAllAccounts: isMultiAccountBalancesEnabled,
+            queryAllAccounts: queryAllAccounts ?? isMultiAccountBalancesEnabled,
             selectedAccount: toChecksumHexAddress(
               selectedAccount.address,
             ) as ChecksumAddress,
@@ -539,6 +576,16 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
           if (token === ZERO_ADDRESS) {
             // Native balance
+            // Ensure the account entry exists before accessing it
+            if (!nextAccountsByChainId[chainId]) {
+              nextAccountsByChainId[chainId] = {};
+            }
+            if (!nextAccountsByChainId[chainId][checksumAddress]) {
+              nextAccountsByChainId[chainId][checksumAddress] = {
+                balance: '0x0',
+              };
+            }
+
             if (
               nextAccountsByChainId[chainId][checksumAddress].balance !==
               hexValue

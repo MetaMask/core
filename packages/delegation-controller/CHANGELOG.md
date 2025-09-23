@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6531](https://github.com/MetaMask/core/pull/6531))
+
 ### Changed
 
-+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6459](https://github.com/MetaMask/core/pull/6459))
-+  - Previously, `DelegationController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6459](https://github.com/MetaMask/core/pull/6459))
+  - Previously, `DelegationController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [0.7.0]
 
