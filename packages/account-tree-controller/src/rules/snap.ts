@@ -6,7 +6,6 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
 import { getAccountGroupPrefixFromKeyringType } from './keyring';
-import { type AccountTypeKey, AccountTypeOrder } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
@@ -76,9 +75,6 @@ export class SnapRule
         metadata: {
           pinned: false,
           hidden: false,
-          accountOrder: [
-            [AccountTypeOrder[account.type as AccountTypeKey], account.id],
-          ],
         },
       },
     };

@@ -9,8 +9,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountTypeKey } from '../group';
-import { AccountTypeOrder, type AccountGroupObjectOf } from '../group';
+import type { AccountGroupObjectOf } from '../group';
 import { BaseRule, type Rule, type RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
@@ -74,9 +73,6 @@ export class EntropyRule
           },
           pinned: false,
           hidden: false,
-          accountOrder: [
-            [AccountTypeOrder[account.type as AccountTypeKey], account.id],
-          ],
         },
       },
     };

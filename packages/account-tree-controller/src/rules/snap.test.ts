@@ -12,11 +12,7 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 
 import { SnapRule } from './snap';
-import {
-  type AccountTypeKey,
-  AccountTypeOrder,
-  type AccountGroupObjectOf,
-} from '../group';
+import type { AccountGroupObjectOf } from '../group';
 import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerActions,
@@ -126,12 +122,6 @@ describe('SnapRule', () => {
           name: '',
           pinned: false,
           hidden: false,
-          accountOrder: [
-            [
-              AccountTypeOrder[MOCK_SNAP_ACCOUNT_1.type as AccountTypeKey],
-              MOCK_SNAP_ACCOUNT_1.id,
-            ],
-          ],
         },
       };
 
@@ -162,12 +152,6 @@ describe('SnapRule', () => {
           name: '',
           pinned: false,
           hidden: false,
-          accountOrder: [
-            [
-              AccountTypeOrder[MOCK_SNAP_ACCOUNT_1.type as AccountTypeKey],
-              MOCK_SNAP_ACCOUNT_1.id,
-            ],
-          ],
         },
       };
 

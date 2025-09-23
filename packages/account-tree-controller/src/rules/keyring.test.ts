@@ -10,11 +10,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
-import {
-  type AccountTypeKey,
-  AccountTypeOrder,
-  type AccountGroupObjectOf,
-} from '../group';
+import type { AccountGroupObjectOf } from '../group';
 import type {
   AccountTreeControllerMessenger,
   AccountTreeControllerActions,
@@ -135,14 +131,6 @@ describe('keyring', () => {
             name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
             pinned: false,
             hidden: false,
-            accountOrder: [
-              [
-                AccountTypeOrder[
-                  MOCK_HARDWARE_ACCOUNT_1.type as AccountTypeKey
-                ],
-                MOCK_HARDWARE_ACCOUNT_1.id,
-              ],
-            ],
           },
         };
 
@@ -172,14 +160,6 @@ describe('keyring', () => {
             name: MOCK_HARDWARE_ACCOUNT_1.metadata.name,
             pinned: false,
             hidden: false,
-            accountOrder: [
-              [
-                AccountTypeOrder[
-                  MOCK_HARDWARE_ACCOUNT_1.type as AccountTypeKey
-                ],
-                MOCK_HARDWARE_ACCOUNT_1.id,
-              ],
-            ],
           },
         };
 
@@ -242,14 +222,6 @@ describe('keyring', () => {
             name: '',
             pinned: false,
             hidden: false,
-            accountOrder: [
-              [
-                AccountTypeOrder[
-                  MOCK_HARDWARE_ACCOUNT_1.type as AccountTypeKey
-                ],
-                MOCK_HARDWARE_ACCOUNT_1.id,
-              ],
-            ],
           },
         };
 
@@ -283,14 +255,6 @@ describe('keyring', () => {
             name: '',
             pinned: false,
             hidden: false,
-            accountOrder: [
-              [
-                AccountTypeOrder[
-                  MOCK_HARDWARE_ACCOUNT_1.type as AccountTypeKey
-                ],
-                MOCK_HARDWARE_ACCOUNT_1.id,
-              ],
-            ],
           },
         };
 

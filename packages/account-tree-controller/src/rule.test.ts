@@ -14,11 +14,7 @@ import {
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import {
-  type AccountTypeKey,
-  AccountTypeOrder,
-  type AccountGroupObject,
-} from './group';
+import type { AccountGroupObject } from './group';
 import { BaseRule } from './rule';
 import type {
   AccountTreeControllerMessenger,
@@ -126,12 +122,6 @@ describe('BaseRule', () => {
           },
           pinned: false,
           hidden: false,
-          accountOrder: [
-            [
-              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
-              MOCK_HD_ACCOUNT_1.id,
-            ],
-          ],
         },
       };
 
@@ -162,12 +152,6 @@ describe('BaseRule', () => {
           },
           pinned: false,
           hidden: false,
-          accountOrder: [
-            [
-              AccountTypeOrder[MOCK_HD_ACCOUNT_1.type as AccountTypeKey],
-              MOCK_HD_ACCOUNT_1.id,
-            ],
-          ],
         },
       };
 

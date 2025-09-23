@@ -32,11 +32,7 @@ import {
 } from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
-import {
-  type AccountTypeKey,
-  AccountTypeOrder,
-  isAccountGroupNameUnique,
-} from './group';
+import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -566,14 +562,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [
-                        AccountTypeOrder[
-                          MOCK_HD_ACCOUNT_1.type as AccountTypeKey
-                        ],
-                        MOCK_HD_ACCOUNT_1.id,
-                      ],
-                    ],
                   },
                 },
               },
@@ -600,14 +588,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [
-                        AccountTypeOrder[
-                          MOCK_HD_ACCOUNT_2.type as AccountTypeKey
-                        ],
-                        MOCK_HD_ACCOUNT_2.id,
-                      ],
-                    ],
                   },
                 },
                 [expectedWalletId2Group2]: {
@@ -622,14 +602,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [
-                        AccountTypeOrder[
-                          MOCK_SNAP_ACCOUNT_1.type as AccountTypeKey
-                        ],
-                        MOCK_SNAP_ACCOUNT_1.id,
-                      ],
-                    ],
                   },
                 },
               },
@@ -653,14 +625,6 @@ describe('AccountTreeController', () => {
                     name: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [
-                        AccountTypeOrder[
-                          MOCK_SNAP_ACCOUNT_2.type as AccountTypeKey
-                        ],
-                        MOCK_SNAP_ACCOUNT_2.id,
-                      ],
-                    ],
                   },
                 },
               },
@@ -684,14 +648,6 @@ describe('AccountTreeController', () => {
                     name: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [
-                        AccountTypeOrder[
-                          MOCK_HARDWARE_ACCOUNT_1.type as AccountTypeKey
-                        ],
-                        MOCK_HARDWARE_ACCOUNT_1.id,
-                      ],
-                    ],
                   },
                 },
               },
@@ -1063,7 +1019,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [[0, mockHdAccount2.id]],
                   },
                   accounts: [mockHdAccount2.id], // HD account 1 got removed.
                 },
@@ -1143,7 +1098,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [[0, mockHdAccount2.id]],
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -1310,10 +1264,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [0, mockHdAccount1.id],
-                      [0, mockHdAccount2.id],
-                    ],
                   },
                   accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
                 },
@@ -1411,7 +1361,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [[0, mockHdAccount1.id]],
                   },
                   accounts: [mockHdAccount1.id],
                 },
@@ -1439,14 +1388,6 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
-                    accountOrder: [
-                      [
-                        AccountTypeOrder[
-                          MOCK_HD_ACCOUNT_2.type as AccountTypeKey
-                        ],
-                        MOCK_HD_ACCOUNT_2.id,
-                      ],
-                    ],
                   },
                   accounts: [mockHdAccount2.id],
                 },

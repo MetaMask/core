@@ -45,31 +45,6 @@ export const AccountTypeOrder: Record<NonGenericAccountType, number> = {
 
 export type AccountTypeKey = keyof typeof AccountTypeOrder;
 
-export type AccountOrderTuple = [number, AccountId];
-
-/**
- * Sort two account order objects by their account type.
- *
- * @param a - The first account order tuple.
- * @param b - The second account order tuple.
- * @returns The sorted account order tuples.
- */
-function sortByAccountType(a: AccountOrderTuple, b: AccountOrderTuple) {
-  return a[0] - b[0];
-}
-
-/**
- * Derive accounts by their order.
- *
- * @param AccountOrderTuples - The account order tuples.
- * @returns The account IDs by their order.
- */
-export function deriveAccountsByOrder(
-  AccountOrderTuples: AccountOrderTuple[],
-): AccountId[] {
-  return AccountOrderTuples.sort(sortByAccountType).map((obj) => obj[1]);
-}
-
 /**
  * Tree metadata for account groups (required plain values extracted from persisted metadata).
  */
@@ -103,7 +78,6 @@ export type AccountGroupMultichainAccountObject = {
     entropy: {
       groupIndex: number;
     };
-    accountOrder: AccountOrderTuple[];
   };
 };
 
@@ -115,9 +89,7 @@ export type AccountGroupSingleAccountObject = {
   id: AccountGroupId;
   // Blockchain Accounts (1 account per group):
   accounts: [AccountId];
-  metadata: AccountTreeGroupMetadata & {
-    accountOrder: AccountOrderTuple[];
-  };
+  metadata: AccountTreeGroupMetadata;
 };
 
 /**
