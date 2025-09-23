@@ -27,7 +27,6 @@ import {
   buildCustomNetworkClientConfiguration,
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
-  buildErrorReportingServiceMessenger,
   buildInfuraNetworkClientConfiguration,
   buildInfuraNetworkConfiguration,
   buildInfuraRpcEndpoint,
@@ -354,9 +353,7 @@ describe('NetworkController', () => {
     describe('if selectedNetworkClientId does not match the networkClientId of an RPC endpoint in networkConfigurationsByChainId', () => {
       it('corrects selectedNetworkClientId to the default RPC endpoint of the first chain', () => {
         const messenger = buildRootMessenger();
-        const errorReportingServiceMessenger =
-          buildErrorReportingServiceMessenger(messenger);
-        errorReportingServiceMessenger.registerActionHandler(
+        messenger.registerActionHandler(
           'ErrorReportingService:captureException',
           jest.fn(),
         );
@@ -396,10 +393,8 @@ describe('NetworkController', () => {
 
       it('logs a Sentry error', () => {
         const messenger = buildRootMessenger();
-        const errorReportingServiceMessenger =
-          buildErrorReportingServiceMessenger(messenger);
         const captureExceptionMock = jest.fn();
-        errorReportingServiceMessenger.registerActionHandler(
+        messenger.registerActionHandler(
           'ErrorReportingService:captureException',
           captureExceptionMock,
         );

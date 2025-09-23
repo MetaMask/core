@@ -1,7 +1,13 @@
 /* eslint-disable jest/expect-expect */
 
 import { deriveStateFromMetadata } from '@metamask/base-controller/next';
-import { Messenger } from '@metamask/messenger';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
@@ -10,6 +16,7 @@ import type {
   AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
+  ApprovalControllerMessenger,
   ErrorOptions,
   StartFlowOptions,
   SuccessOptions,
@@ -28,6 +35,12 @@ import {
 } from './errors';
 
 jest.mock('nanoid');
+
+type AllActions = MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const nanoidMock = jest.mocked(nanoid);
 
@@ -229,11 +242,9 @@ function getError(message: string, code?: number) {
  * @returns A controller messenger.
  */
 function getMessengers() {
-  const rootMessenger = new Messenger<
-    'Root',
-    ApprovalControllerActions,
-    ApprovalControllerEvents
-  >({ namespace: 'Root' });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
   return {
     rootMessenger,
     approvalControllerMessenger: new Messenger<

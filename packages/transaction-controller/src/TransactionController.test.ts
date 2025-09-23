@@ -15,7 +15,13 @@ import {
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import { Messenger } from '@metamask/messenger';
+import {
+  Messenger,
+  type MockAnyNamespace,
+  type MessengerActions,
+  type MessengerEvents,
+  MOCK_ANY_NAMESPACE,
+} from '@metamask/messenger';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -52,11 +58,7 @@ import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { shouldResimulate } from './helpers/ResimulateHelper';
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import type {
-  AllowedActions,
-  AllowedEvents,
   MethodData,
-  TransactionControllerActions,
-  TransactionControllerEvents,
   TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
@@ -113,10 +115,16 @@ import {
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
 
+type AllTransactionControllerActions =
+  MessengerActions<TransactionControllerMessenger>;
+
+type AllTransactionControllerEvents =
+  MessengerEvents<TransactionControllerMessenger>;
+
 type RootMessenger = Messenger<
-  'Root',
-  TransactionControllerActions | AllowedActions,
-  TransactionControllerEvents | AllowedEvents
+  MockAnyNamespace,
+  AllTransactionControllerActions,
+  AllTransactionControllerEvents
 >;
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
@@ -662,32 +670,20 @@ describe('TransactionController', () => {
       });
     };
     const rootMessenger: RootMessenger = new Messenger({
-      namespace: 'Root',
+      namespace: MOCK_ANY_NAMESPACE,
     });
-    const networkControllerMessenger = new Messenger<
-      'NetworkController',
-      AllowedActions,
-      AllowedEvents,
-      typeof rootMessenger
-    >({ namespace: 'NetworkController', parent: rootMessenger });
     const getNetworkClientById = buildMockGetNetworkClientById(
       mockNetworkClientConfigurationsByNetworkClientId,
     );
-    networkControllerMessenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientById,
     );
 
     const { addTransactionApprovalRequest = { state: 'pending' } } =
       messengerOptions;
-    const approvalControllerMessenger = new Messenger<
-      'ApprovalController',
-      AllowedActions,
-      AllowedEvents,
-      typeof rootMessenger
-    >({ namespace: 'ApprovalController', parent: rootMessenger });
     const mockTransactionApprovalRequest = mockAddTransactionApprovalRequest(
-      approvalControllerMessenger,
+      rootMessenger,
       addTransactionApprovalRequest,
     );
 
@@ -730,20 +726,13 @@ describe('TransactionController', () => {
       ],
     });
 
-    const accountsControllerMessenger = new Messenger<
-      'AccountsController',
-      AllowedActions,
-      AllowedEvents,
-      typeof rootMessenger
-    >({ namespace: 'AccountsController', parent: rootMessenger });
-
     const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
-    accountsControllerMessenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
       mockGetSelectedAccount,
     );
 
-    accountsControllerMessenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'AccountsController:getState',
       () => ({}) as never,
     );
@@ -752,17 +741,7 @@ describe('TransactionController', () => {
       featureFlags: {},
     });
 
-    const remoteFeatureFlagControllerMessenger = new Messenger<
-      'RemoteFeatureFlagController',
-      AllowedActions,
-      AllowedEvents,
-      typeof rootMessenger
-    >({
-      namespace: 'RemoteFeatureFlagController',
-      parent: rootMessenger,
-    });
-
-    remoteFeatureFlagControllerMessenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'RemoteFeatureFlagController:getState',
       remoteFeatureFlagControllerGetStateMock,
     );
@@ -793,7 +772,7 @@ describe('TransactionController', () => {
     return {
       controller,
       messenger: transactionControllerMessenger,
-      networkControllerMessenger,
+      rootMessenger,
       mockTransactionApprovalRequest,
       mockGetSelectedAccount,
       changeNetwork,
@@ -822,7 +801,7 @@ describe('TransactionController', () => {
    * finally the mocked version of the action handler itself.
    */
   function mockAddTransactionApprovalRequest(
-    messenger: Messenger<'ApprovalController', AllowedActions, AllowedEvents>,
+    messenger: RootMessenger,
     options:
       | {
           state: 'approved';
@@ -6082,8 +6061,8 @@ describe('TransactionController', () => {
     });
 
     it('uses the nonceTracker for the networkClientId matching the chainId', async () => {
-      const { controller, networkControllerMessenger } = setupController();
-      networkControllerMessenger.registerActionHandler(
+      const { controller, rootMessenger } = setupController();
+      rootMessenger.registerActionHandler(
         'NetworkController:findNetworkClientIdByChainId',
         () => 'sepolia',
       );
