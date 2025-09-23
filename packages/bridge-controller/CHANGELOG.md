@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [44.0.1]
 
-### Uncategorized
+### Changed
 
-- Revert "SWAPS-2839 update bridge controllers for bitcoin (#6454)" ([#6454](https://github.com/MetaMask/core/pull/6454))
-- Revert "Release/574.0.0" ([#6689](https://github.com/MetaMask/core/pull/6689))
+- Revert accidental breaking changes included in v44.0.0 ([#6454](https://github.com/MetaMask/core/pull/6454))
 
 ## [44.0.0]
 
