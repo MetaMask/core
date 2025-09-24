@@ -155,7 +155,7 @@ export class CowSwapProvider extends BaseIntentProvider {
     }
   }
 
-  async cancelOrder(orderId: string, chainId: number): Promise<boolean> {
+  async cancelOrder(orderId: string, _chainId: number): Promise<boolean> {
     // CowSwap doesn't support order cancellation via API
     // Orders expire naturally based on their validTo timestamp
     console.warn(

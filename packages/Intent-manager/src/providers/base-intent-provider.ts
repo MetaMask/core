@@ -96,6 +96,7 @@ export abstract class BaseIntentProvider {
 
   /**
    * Get the configuration for this provider
+   *
    * @returns The provider configuration
    */
   getConfig(): IntentProviderConfig {
