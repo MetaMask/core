@@ -339,7 +339,7 @@ export class AccountTreeController extends BaseController<
    * Re-initialize the controller's state.
    *
    * This is done in one single (atomic) `update` block to avoid having a temporary
-   * cleared state.
+   * cleared state. Use this when you need to force a full re-init even if already initialized.
    */
   reinit() {
     this.#initialized = false;
