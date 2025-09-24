@@ -17,6 +17,9 @@ import {
   SolAccountType,
   SolMethod,
   SolScope,
+  TrxAccountType,
+  TrxMethod,
+  TrxScope,
 } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -81,6 +84,15 @@ const MOCK_SNAP_2 = {
   enabled: true,
   manifest: {
     proposedName: 'Mock Snap 2',
+  },
+};
+
+const MOCK_SNAP_3 = {
+  id: 'local:mock-snap-id-3',
+  name: 'Mock Snap 3',
+  enabled: true,
+  manifest: {
+    proposedName: 'Mock Snap 3',
   },
 };
 
@@ -178,6 +190,29 @@ const MOCK_SNAP_ACCOUNT_2: InternalAccount = {
     snap: MOCK_SNAP_2,
     importTime: 0,
     lastSelected: 0,
+  },
+};
+
+const MOCK_TRX_ACCOUNT_1: InternalAccount = {
+  id: 'mock-trx-id-1',
+  address: 'TROn11',
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  methods: [TrxMethod.SignMessageV2],
+  type: TrxAccountType.Eoa,
+  scopes: [TrxScope.Mainnet],
+  metadata: {
+    name: 'Snap Acc 3',
+    keyring: { type: KeyringTypes.snap },
+    importTime: 0,
+    lastSelected: 0,
+    snap: MOCK_SNAP_3,
   },
 };
 
@@ -1115,6 +1150,56 @@ describe('AccountTreeController', () => {
           selectedAccountGroup: expect.any(String), // Will be set after init
         },
       } as AccountTreeControllerState);
+    });
+  });
+
+  describe('account ordering by type', () => {
+    it('orders accounts in group according to ACCOUNT_TYPE_TO_SORT_ORDER regardless of insertion order', () => {
+      const evmAccount = MOCK_HD_ACCOUNT_1;
+
+      const solAccount = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        id: 'mock-sol-id-1',
+        options: {
+          ...MOCK_SNAP_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex: 0,
+            derivationPath: '',
+          },
+        },
+      };
+
+      const tronAccount = MOCK_TRX_ACCOUNT_1;
+
+      const { controller, messenger } = setup({
+        accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Publish in shuffled order: SOL, TRON, EVM
+      messenger.publish('AccountsController:accountAdded', solAccount);
+      messenger.publish('AccountsController:accountAdded', tronAccount);
+      messenger.publish('AccountsController:accountAdded', evmAccount);
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(walletId, 0);
+
+      const group =
+        controller.state.accountTree.wallets[walletId]?.groups[groupId];
+      expect(group).toBeDefined();
+
+      // Account order: EVM (0) < SOL (6) < TRON (7)
+      expect(group?.accounts).toStrictEqual([
+        'mock-id-1',
+        'mock-sol-id-1',
+        'mock-trx-id-1',
+      ]);
     });
   });
 

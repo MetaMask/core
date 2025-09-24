@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `wallet_invokeMethod` requests no longer fail with unauthorized error if the `isMultichainOrigin` property is false on the requesting origin's CAIP-25 Permission.
+
 ## [1.1.0]
 
 ### Changed
