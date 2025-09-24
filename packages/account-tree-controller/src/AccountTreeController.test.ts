@@ -4218,6 +4218,51 @@ describe('AccountTreeController', () => {
       return controller.state.accountTree.wallets[mockWalletId].groups[groupId];
     };
 
+    it('names all accounts properly even if they are not ordered naturally', () => {
+      const mockHdAccount1 = MOCK_HD_ACCOUNT_1;
+      const mockHdAccount2 = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-id-2',
+        address: '0x456',
+        options: {
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            groupIndex: 1,
+          },
+        },
+      };
+
+      const { controller, mocks } = setup({
+        // We start with 1 account (index 0).
+        accounts: [mockHdAccount1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      // Then, we insert a second account (index 1), but we re-order it so it appears
+      // before the first account (index 0).
+      mocks.AccountsController.accounts = [mockHdAccount2, mockHdAccount1];
+
+      // Re-init the controller should still give proper naming.
+      controller.init();
+
+      [mockHdAccount1, mockHdAccount2].forEach((mockAccount, index) => {
+        const walletId = toMultichainAccountWalletId(
+          mockAccount.options.entropy.id,
+        );
+        const groupId = toMultichainAccountGroupId(
+          walletId,
+          mockAccount.options.entropy.groupIndex,
+        );
+
+        const mockGroup =
+          controller.state.accountTree.wallets[walletId].groups[groupId];
+        expect(mockGroup).toBeDefined();
+        expect(mockGroup.metadata.name).toBe(`Account ${index + 1}`);
+      });
+    });
+
     it('names non-HD keyrings accounts properly', () => {
       const { controller, messenger } = setup();
 

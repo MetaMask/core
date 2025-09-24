@@ -484,16 +484,22 @@ export class AccountTreeController extends BaseController<
 
       // Parse the highest account index being used (similar to accounts-controller)
       let highestNameIndex = 0;
-      for (const existingGroup of Object.values(
+      for (const { id: otherGroupId } of Object.values(
         wallet.groups,
       ) as AccountGroupObject[]) {
         // Skip the current group being processed
-        if (existingGroup.id === group.id) {
+        if (otherGroupId === groupId) {
           continue;
         }
+
+        // We always get the name from the persisted map, since `init` will clear the
+        // `state.accountTree.wallets`, thus, given empty `group.metadata.name`.
+        // NOTE: If the other group has not been named yet, we just use an empty name.
+        const otherGroupName =
+          state.accountGroupsMetadata[otherGroupId]?.name?.value ?? '';
+
         // Parse the existing group name to extract the numeric index
-        const nameMatch =
-          existingGroup.metadata.name.match(/account\s+(\d+)$/iu);
+        const nameMatch = otherGroupName.match(/account\s+(\d+)$/iu);
         if (nameMatch) {
           const nameIndex = parseInt(nameMatch[1], 10);
           if (nameIndex > highestNameIndex) {
@@ -545,8 +551,8 @@ export class AccountTreeController extends BaseController<
         proposedName;
 
       // Persist the generated name to ensure consistency
-      state.accountGroupsMetadata[group.id] ??= {};
-      state.accountGroupsMetadata[group.id].name = {
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].name = {
         value: proposedName,
         // The `lastUpdatedAt` field is used for backup and sync, when comparing local names
         // with backed up names. In this case, the generated name should never take precedence

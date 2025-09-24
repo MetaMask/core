@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix use of unknown `group.metadata.name` when checking for group name uniqueness ([#6706](https://github.com/MetaMask/core/pull/6706))
 - Added logic that prevents an account within a group from being out of order ([#6683](https://github.com/MetaMask/core/pull/6683))
 
 ## [1.1.0]
