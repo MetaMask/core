@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import {
@@ -1453,7 +1453,7 @@ describe('UserOperationController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`Object {}`);
     });
