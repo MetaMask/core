@@ -120,7 +120,7 @@ export type PreferencesState = {
   /**
    * Controls whether Multi rpc modal is displayed or not
    */
-  useMultiRpcMigration: boolean;
+  showMultiRpcModal: boolean;
   /**
    * Controls whether to use the safe chains list validation
    */
@@ -147,6 +147,10 @@ export type PreferencesState = {
    * @deprecated This preference is deprecated and will be removed in the future.
    */
   smartAccountOptInForAccounts: Hex[];
+  /**
+   * Controls token filtering controls
+   */
+  tokenNetworkFilter: Record<string, boolean>;
 };
 
 const metadata = {
@@ -240,7 +244,7 @@ const metadata = {
     anonymous: true,
     usedInUi: true,
   },
-  useMultiRpcMigration: {
+  showMultiRpcModal: {
     includeInStateLogs: true,
     persist: true,
     anonymous: true,
@@ -280,6 +284,12 @@ const metadata = {
     includeInStateLogs: true,
     persist: true,
     anonymous: true,
+    usedInUi: true,
+  },
+  tokenNetworkFilter: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
     usedInUi: true,
   },
 };
@@ -352,7 +362,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
-    useMultiRpcMigration: true,
+    showMultiRpcModal: true,
     smartTransactionsOptInStatus: true,
     useTransactionSimulations: true,
     useSafeChainsListValidation: true,
@@ -365,6 +375,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     dismissSmartAccountSuggestionEnabled: false,
     smartAccountOptIn: true,
     smartAccountOptInForAccounts: [],
+    tokenNetworkFilter: {},
   };
 }
 
@@ -652,13 +663,13 @@ export class PreferencesController extends BaseController<
   /**
    * Toggle multi rpc migration modal.
    *
-   * @param useMultiRpcMigration - Boolean indicating if the multi rpc modal will be displayed or not.
+   * @param showMultiRpcModal - Boolean indicating if the multi rpc modal will be displayed or not.
    */
-  setUseMultiRpcMigration(useMultiRpcMigration: boolean) {
+  setShowMultiRpcModal(showMultiRpcModal: boolean) {
     this.update((state) => {
-      state.useMultiRpcMigration = useMultiRpcMigration;
-      if (!useMultiRpcMigration) {
-        state.useMultiRpcMigration = false;
+      state.showMultiRpcModal = showMultiRpcModal;
+      if (!showMultiRpcModal) {
+        state.showMultiRpcModal = false;
       }
     });
   }
@@ -753,6 +764,17 @@ export class PreferencesController extends BaseController<
   setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
     this.update((state) => {
       state.smartAccountOptInForAccounts = accounts;
+    });
+  }
+
+  /**
+   * Set the token network filter configuration setting.
+   *
+   * @param tokenNetworkFilter - Object describing token network filter configuration.
+   */
+  setTokenNetworkFilter(tokenNetworkFilter: Record<string, boolean>) {
+    this.update((state) => {
+      state.tokenNetworkFilter = tokenNetworkFilter;
     });
   }
 }

@@ -135,6 +135,8 @@ export class AccountTreeController extends BaseController<
 
   readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
+  #initialized: boolean;
+
   /**
    * Constructor for AccountTreeController.
    *
@@ -162,6 +164,9 @@ export class AccountTreeController extends BaseController<
         ...state,
       },
     });
+
+    // This will be set to true upon the first `init` call.
+    this.#initialized = false;
 
     // Reverse map to allow fast node access from an account ID.
     this.#accountIdToContext = new Map();
@@ -245,6 +250,12 @@ export class AccountTreeController extends BaseController<
    * state with it.
    */
   init() {
+    if (this.#initialized) {
+      // We prevent re-initilializing the state multiple times. Though, we can use
+      // `reinit` to re-init everything from scratch.
+      return;
+    }
+
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // Clear mappings for fresh rebuild.
@@ -319,6 +330,28 @@ export class AccountTreeController extends BaseController<
         this.state.accountTree.selectedAccountGroup,
         previousSelectedAccountGroup,
       );
+    }
+
+    this.#initialized = true;
+  }
+
+  /**
+   * Re-initialize the controller's state.
+   *
+   * This is done in one single (atomic) `update` block to avoid having a temporary
+   * cleared state. Use this when you need to force a full re-init even if already initialized.
+   */
+  reinit() {
+    this.#initialized = false;
+    this.init();
+  }
+
+  /**
+   * Force-init if the controller's state has not been initilized yet.
+   */
+  #initAtLeastOnce() {
+    if (!this.#initialized) {
+      this.init();
     }
   }
 
@@ -451,16 +484,22 @@ export class AccountTreeController extends BaseController<
 
       // Parse the highest account index being used (similar to accounts-controller)
       let highestNameIndex = 0;
-      for (const existingGroup of Object.values(
+      for (const { id: otherGroupId } of Object.values(
         wallet.groups,
       ) as AccountGroupObject[]) {
         // Skip the current group being processed
-        if (existingGroup.id === group.id) {
+        if (otherGroupId === groupId) {
           continue;
         }
+
+        // We always get the name from the persisted map, since `init` will clear the
+        // `state.accountTree.wallets`, thus, given empty `group.metadata.name`.
+        // NOTE: If the other group has not been named yet, we just use an empty name.
+        const otherGroupName =
+          state.accountGroupsMetadata[otherGroupId]?.name?.value ?? '';
+
         // Parse the existing group name to extract the numeric index
-        const nameMatch =
-          existingGroup.metadata.name.match(/account\s+(\d+)$/iu);
+        const nameMatch = otherGroupName.match(/account\s+(\d+)$/iu);
         if (nameMatch) {
           const nameIndex = parseInt(nameMatch[1], 10);
           if (nameIndex > highestNameIndex) {
@@ -512,8 +551,8 @@ export class AccountTreeController extends BaseController<
         proposedName;
 
       // Persist the generated name to ensure consistency
-      state.accountGroupsMetadata[group.id] ??= {};
-      state.accountGroupsMetadata[group.id].name = {
+      state.accountGroupsMetadata[groupId] ??= {};
+      state.accountGroupsMetadata[groupId].name = {
         value: proposedName,
         // The `lastUpdatedAt` field is used for backup and sync, when comparing local names
         // with backed up names. In this case, the generated name should never take precedence
@@ -625,24 +664,33 @@ export class AccountTreeController extends BaseController<
    * @param account - New account.
    */
   #handleAccountAdded(account: InternalAccount) {
-    this.update((state) => {
-      this.#insert(state.accountTree.wallets, account);
+    // We force-init to make sure we have the proper account groups for the
+    // incoming account change.
+    this.#initAtLeastOnce();
 
-      const context = this.#accountIdToContext.get(account.id);
-      if (context) {
-        const { walletId, groupId } = context;
+    // Check if this account got already added by `#initAtLeastOnce`, if not, then we
+    // can proceed.
+    if (!this.#accountIdToContext.has(account.id)) {
+      this.update((state) => {
+        this.#insert(state.accountTree.wallets, account);
 
-        const wallet = state.accountTree.wallets[walletId];
-        if (wallet) {
-          this.#applyAccountWalletMetadata(state, walletId);
-          this.#applyAccountGroupMetadata(state, walletId, groupId);
+        const context = this.#accountIdToContext.get(account.id);
+        if (context) {
+          const { walletId, groupId } = context;
+
+          const wallet = state.accountTree.wallets[walletId];
+          if (wallet) {
+            this.#applyAccountWalletMetadata(state, walletId);
+            this.#applyAccountGroupMetadata(state, walletId, groupId);
+          }
         }
-      }
-    });
-    this.messagingSystem.publish(
-      `${controllerName}:accountTreeChange`,
-      this.state.accountTree,
-    );
+      });
+
+      this.messagingSystem.publish(
+        `${controllerName}:accountTreeChange`,
+        this.state.accountTree,
+      );
+    }
   }
 
   /**
@@ -652,6 +700,10 @@ export class AccountTreeController extends BaseController<
    * @param accountId - Removed account ID.
    */
   #handleAccountRemoved(accountId: AccountId) {
+    // We force-init to make sure we have the proper account groups for the
+    // incoming account change.
+    this.#initAtLeastOnce();
+
     const context = this.#accountIdToContext.get(accountId);
 
     if (context) {
@@ -1314,6 +1366,9 @@ export class AccountTreeController extends BaseController<
       };
     });
     this.#backupAndSyncService.clearState();
+
+    // So we know we have to call `init` again.
+    this.#initialized = false;
   }
 
   /**
