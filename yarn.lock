@@ -2594,6 +2594,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/core-backend": "file:../core-backend"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/keyring-api": "npm:^21.0.0"
@@ -2885,7 +2886,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -2915,6 +2916,39 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@babel/runtime": ^7.0.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/core-backend@file:../core-backend::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
+  version: 0.0.0
+  resolution: "@metamask/core-backend@file:../core-backend#../core-backend::hash=d804de&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.3.0"
+    "@metamask/controller-utils": "npm:^11.12.0"
+    "@metamask/utils": "npm:^11.4.2"
+    uuid: "npm:^8.3.2"
+  checksum: 10/245633dc25670a3b30f490e031d06d1dea735810565709baa85b1a84b9f5d2de4a029f4297e66324e667e95d00e3db55f5158d1621a77c5944ef9942eb409228
+  languageName: node
+  linkType: hard
+
+"@metamask/core-backend@workspace:packages/core-backend":
+  version: 0.0.0-use.local
+  resolution: "@metamask/core-backend@workspace:packages/core-backend"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.3.0"
+    "@metamask/controller-utils": "npm:^11.12.0"
+    "@metamask/utils": "npm:^11.4.2"
+    "@ts-bridge/cli": "npm:^0.6.1"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    sinon: "npm:^9.2.4"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 

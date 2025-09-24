@@ -57,6 +57,7 @@
     "@metamask/base-controller": "^8.4.0",
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^11.14.0",
+    "@metamask/core-backend": "file:../core-backend",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/keyring-api": "^21.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
