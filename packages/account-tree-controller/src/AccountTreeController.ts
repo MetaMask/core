@@ -782,8 +782,7 @@ export class AccountTreeController extends BaseController<
 
     const groupId = result.group.id;
     let group = wallet.groups[groupId];
-    const type = account.type as AccountTypeKey;
-    const { id } = account;
+    const { type, id } = account;
     const sortOrder = AccountTypeOrder[type];
 
     if (!group) {

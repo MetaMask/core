@@ -5,7 +5,7 @@ import {
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import {
-  type AnyAccountType,
+  AnyAccountType,
   BtcAccountType,
   EthAccountType,
   type KeyringAccountType,
@@ -29,10 +29,12 @@ export type AccountTreeGroupPersistedMetadata = {
   hidden?: UpdatableField<boolean>;
 };
 
-type NonGenericAccountType<T extends KeyringAccountType = KeyringAccountType> =
-  T extends `${AnyAccountType.Account}` ? never : T;
+const MAX_SORT_ORDER = 9999;
 
-export const AccountTypeOrder: Record<NonGenericAccountType, number> = {
+/**
+ * Order of account types.
+ */
+export const AccountTypeOrder: Record<KeyringAccountType, number> = {
   [EthAccountType.Eoa]: 0,
   [EthAccountType.Erc4337]: 1,
   [BtcAccountType.P2pkh]: 2,
@@ -41,6 +43,7 @@ export const AccountTypeOrder: Record<NonGenericAccountType, number> = {
   [BtcAccountType.P2tr]: 5,
   [SolAccountType.DataAccount]: 6,
   [TrxAccountType.Eoa]: 7,
+  [AnyAccountType.Account]: MAX_SORT_ORDER,
 };
 
 export type AccountTypeKey = keyof typeof AccountTypeOrder;
