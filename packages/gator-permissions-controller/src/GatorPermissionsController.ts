@@ -634,7 +634,8 @@ export default class GatorPermissionsController extends BaseController<
         handler: HandlerType.OnRpcRequest,
         request: {
           jsonrpc: '2.0',
-          method: GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+          method:
+            GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
           params: revocationParams,
         },
       });
@@ -643,7 +644,8 @@ export default class GatorPermissionsController extends BaseController<
     } catch (error) {
       controllerLog('Failed to submit revocation', error);
       throw new GatorPermissionsProviderError({
-        method: GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
         cause: error as Error,
       });
     }
