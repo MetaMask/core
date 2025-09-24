@@ -1,23 +1,24 @@
 name: MetaMask Security Code Scanner
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    secrets:
+      SECURITY_SCAN_METRICS_TOKEN:
+        required: false
+      APPSEC_BOT_SLACK_WEBHOOK:
+        required: false
   workflow_dispatch:
 
 jobs:
   run-security-scan:
+    name: Run security scan
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
     steps:
-      - name: MetaMask Security Code Scanner
+      - name: Analyse code
         uses: MetaMask/action-security-code-scanner@v1
         with:
           repo: ${{ github.repository }}
