@@ -110,6 +110,10 @@ export async function fetchBridgeQuotes(
   Object.entries(normalizedRequest).forEach(([key, value]) => {
     queryParams.append(key, value.toString());
   });
+
+  // TODO remove this flag after testing to return both quotes and intents quotes
+  queryParams.append('onlyIntent', 'true');
+
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
