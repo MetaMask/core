@@ -2646,11 +2646,7 @@ __metadata:
     "@metamask/network-controller": ^24.0.0
     "@metamask/permission-controller": ^11.0.0
     "@metamask/phishing-controller": ^14.0.0
-<<<<<<< HEAD
-    "@metamask/preferences-controller": ^19.0.0
-=======
     "@metamask/preferences-controller": ^20.0.0
->>>>>>> 8a91ea20ef9752a9f5e38c11652d11f25ce3d761
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
     "@metamask/transaction-controller": ^60.0.0
