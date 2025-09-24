@@ -37,11 +37,11 @@ export const MAX_SORT_ORDER = 9999;
 export const ACCOUNT_TYPE_TO_SORT_ORDER: Record<KeyringAccountType, number> = {
   [EthAccountType.Eoa]: 0,
   [EthAccountType.Erc4337]: 1,
-  [BtcAccountType.P2pkh]: 2,
-  [BtcAccountType.P2sh]: 3,
-  [BtcAccountType.P2wpkh]: 4,
-  [BtcAccountType.P2tr]: 5,
-  [SolAccountType.DataAccount]: 6,
+  [SolAccountType.DataAccount]: 2,
+  [BtcAccountType.P2pkh]: 3,
+  [BtcAccountType.P2sh]: 4,
+  [BtcAccountType.P2wpkh]: 5,
+  [BtcAccountType.P2tr]: 6,
   [TrxAccountType.Eoa]: 7,
   [AnyAccountType.Account]: MAX_SORT_ORDER,
 };
