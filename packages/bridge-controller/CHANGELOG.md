@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Bitcoin bridge transactions ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
+- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6705](https://github.com/MetaMask/core/pull/6705))
+
 ## [44.0.1]
 
 ### Changed
@@ -36,10 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
-  - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
-- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6454](https://github.com/MetaMask/core/pull/6454))
 - Add `selectDefaultSlippagePercentage` that returns the default slippage for a chain and token combination ([#6616](https://github.com/MetaMask/core/pull/6616))
   - Return `0.5` if requesting a bridge quote
   - Return `undefined` (auto) if requesting a Solana swap
