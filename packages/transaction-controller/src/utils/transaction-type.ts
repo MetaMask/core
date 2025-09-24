@@ -117,7 +117,7 @@ export function decodeTransactionData(
   ]) {
     try {
       if (options?.getMethodName) {
-        return iface.getFunction(fourByte).name;
+        return iface.getFunction(fourByte)?.name;
       }
       return iface.parseTransaction({ data });
     } catch {
@@ -134,10 +134,10 @@ export function decodeTransactionData(
  * @param data - Encoded transaction data.
  * @returns The method name.
  */
-function getMethodName(data?: string): string {
+function getMethodName(data?: string): string | undefined {
   return decodeTransactionData(data as string, {
     getMethodName: true,
-  }) as string;
+  }) as string | undefined;
 }
 
 /**
