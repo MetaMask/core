@@ -3634,7 +3634,6 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/80f3151dacdf16644d7b3ca5127c6c70ad70e0bc432478b217b00847c4d72b319a9e20a59eb63bf3a9f4f94386b62c0804a11c23980132bfb189746fa9c4999d
   languageName: node
   linkType: hard
 
@@ -3646,7 +3645,6 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/80f3151dacdf16644d7b3ca5127c6c70ad70e0bc432478b217b00847c4d72b319a9e20a59eb63bf3a9f4f94386b62c0804a11c23980132bfb189746fa9c4999d
   languageName: node
   linkType: hard
 
