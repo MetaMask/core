@@ -1,18 +1,26 @@
+import { Interface, type TransactionDescription } from '@ethersproject/abi';
 import EthQuery from '@metamask/eth-query';
+import {
+  abiERC721,
+  abiERC20,
+  abiERC1155,
+  abiFiatTokenV2,
+} from '@metamask/metamask-eth-abis';
 
 import { DELEGATION_PREFIX } from './eip7702';
 import {
   decodeTransactionData,
   determineTransactionType,
-  ERC20Interface,
-  ERC721Interface,
-  ERC1155Interface,
-  USDCInterface,
 } from './transaction-type';
 import { FakeProvider } from '../../../../tests/fake-provider';
 import { TransactionType } from '../types';
 
 type GetCodeCallback = (err: Error | null, result?: string) => void;
+
+const ERC20Interface = new Interface(abiERC20);
+const ERC721Interface = new Interface(abiERC721);
+const ERC1155Interface = new Interface(abiERC1155);
+const USDCInterface = new Interface(abiFiatTokenV2);
 
 /**
  * Creates a mock EthQuery instance for testing.
@@ -275,7 +283,9 @@ describe('decodeTransactionData', () => {
       amount,
     ]);
 
-    const result = decodeTransactionData(transferData);
+    const result = decodeTransactionData(
+      transferData,
+    ) as TransactionDescription;
 
     expect(result).toBeDefined();
     expect(result?.name).toBe('transfer');
@@ -294,7 +304,9 @@ describe('decodeTransactionData', () => {
       tokenId,
     ]);
 
-    const result = decodeTransactionData(transferData);
+    const result = decodeTransactionData(
+      transferData,
+    ) as TransactionDescription;
 
     expect(result).toBeDefined();
     expect(result?.name).toBe('transferFrom');
@@ -315,7 +327,9 @@ describe('decodeTransactionData', () => {
       [from, to, tokenId, amount, data],
     );
 
-    const result = decodeTransactionData(transferData);
+    const result = decodeTransactionData(
+      transferData,
+    ) as TransactionDescription;
 
     expect(result).toBeDefined();
     expect(result?.name).toBe('safeTransferFrom');
@@ -333,7 +347,9 @@ describe('decodeTransactionData', () => {
       amount,
     ]);
 
-    const result = decodeTransactionData(transferData);
+    const result = decodeTransactionData(
+      transferData,
+    ) as TransactionDescription;
 
     expect(result).toBeDefined();
     expect(result?.name).toBe('transfer');

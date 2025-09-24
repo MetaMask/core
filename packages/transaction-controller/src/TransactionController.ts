@@ -1403,14 +1403,14 @@ export class TransactionController extends BaseController<
         });
 
         updateFirstTimeInteraction({
-          transactionMeta: addedTransactionMeta,
-          isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
           existingTransactions: this.state.transactions,
-          trace: this.#trace,
-          traceContext,
           getTransaction: (transactionId: string) =>
             this.#getTransaction(transactionId),
-          updateTransactionInternal: this.#updateTransactionInternal.bind(this),
+          isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
+          trace: this.#trace,
+          traceContext,
+          transactionMeta: addedTransactionMeta,
+          updateTransaction: this.#updateTransactionInternal.bind(this),
         }).catch((error) => {
           log('Error while updating first interaction properties', error);
         });

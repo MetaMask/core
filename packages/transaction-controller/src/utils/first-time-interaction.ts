@@ -1,3 +1,4 @@
+import type { TransactionDescription } from '@ethersproject/abi';
 import type { TraceContext, TraceCallback } from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 
@@ -17,7 +18,7 @@ type UpdateFirstTimeInteractionRequest = {
   trace: TraceCallback;
   traceContext?: TraceContext;
   transactionMeta: TransactionMeta;
-  updateTransactionInternal: (
+  updateTransaction: (
     updateParams: {
       transactionId: string;
       note: string;
@@ -36,7 +37,7 @@ type UpdateFirstTimeInteractionRequest = {
  * @param params.trace - The trace callback.
  * @param params.traceContext - The trace context.
  * @param params.transactionMeta - The transaction meta object.
- * @param params.updateTransactionInternal - Function to update transaction internal state.
+ * @param params.updateTransaction - Function to update transaction internal state.
  * @returns Promise that resolves when the update is complete.
  */
 export async function updateFirstTimeInteraction({
@@ -46,7 +47,7 @@ export async function updateFirstTimeInteraction({
   trace,
   traceContext,
   transactionMeta,
-  updateTransactionInternal,
+  updateTransaction,
 }: UpdateFirstTimeInteractionRequest): Promise<void> {
   if (!isFirstTimeInteractionEnabled()) {
     return;
@@ -60,7 +61,7 @@ export async function updateFirstTimeInteraction({
 
   let recipient;
   if (data) {
-    const parsedData = decodeTransactionData(data);
+    const parsedData = decodeTransactionData(data) as TransactionDescription;
     // _to is for ERC20, ERC721 and USDC
     // to is for ERC1155
     recipient = parsedData?.args?._to || parsedData?.args?.to;
@@ -82,8 +83,8 @@ export async function updateFirstTimeInteraction({
   const existingTransaction = existingTransactions.find(
     (tx) =>
       tx.chainId === chainId &&
-      tx.txParams.from === from &&
-      tx.txParams.to === to &&
+      tx.txParams.from.toLowerCase() === from.toLowerCase() &&
+      tx.txParams.to?.toLowerCase() === to?.toLowerCase() &&
       tx.id !== transactionId,
   );
 
@@ -113,7 +114,7 @@ export async function updateFirstTimeInteraction({
       return;
     }
 
-    updateTransactionInternal(
+    updateTransaction(
       {
         transactionId,
         note: 'TransactionController#updateFirstInteraction - Update first time interaction',

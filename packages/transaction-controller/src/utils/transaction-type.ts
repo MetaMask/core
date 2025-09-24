@@ -1,4 +1,4 @@
-import { Interface } from '@ethersproject/abi';
+import { Interface, type TransactionDescription } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import {
@@ -14,10 +14,10 @@ import { TransactionType } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
-export const ERC20Interface = new Interface(abiERC20);
-export const ERC721Interface = new Interface(abiERC721);
-export const ERC1155Interface = new Interface(abiERC1155);
-export const USDCInterface = new Interface(abiFiatTokenV2);
+const ERC20Interface = new Interface(abiERC20);
+const ERC721Interface = new Interface(abiERC721);
+const ERC1155Interface = new Interface(abiERC1155);
+const USDCInterface = new Interface(abiFiatTokenV2);
 
 /**
  * Determines the type of the transaction by analyzing the txParams.
@@ -93,22 +93,32 @@ export async function determineTransactionType(
  * contract standards
  *
  * @param data - Encoded transaction data.
+ * @param options - Options bag.
+ * @param options.getMethodName - Whether to get the method name.
  * @returns A representation of an ethereum contract call.
  */
-export function decodeTransactionData(data: string) {
-  const interfaces = [
+export function decodeTransactionData(
+  data: string,
+  options?: {
+    getMethodName?: boolean;
+  },
+): undefined | TransactionDescription | string {
+  if (!data || data.length < 10) {
+    return undefined;
+  }
+
+  const fourByte = data.substring(0, 10).toLowerCase();
+
+  for (const iface of [
     ERC20Interface,
     ERC721Interface,
     ERC1155Interface,
     USDCInterface,
-  ];
-
-  if (!data) {
-    return undefined;
-  }
-
-  for (const iface of interfaces) {
+  ]) {
     try {
+      if (options?.getMethodName) {
+        return iface.getFunction(fourByte).name;
+      }
       return iface.parseTransaction({ data });
     } catch {
       // Intentionally empty
@@ -124,8 +134,10 @@ export function decodeTransactionData(data: string) {
  * @param data - Encoded transaction data.
  * @returns The method name.
  */
-function getMethodName(data?: string): string | undefined {
-  return decodeTransactionData(data as string)?.name;
+function getMethodName(data?: string): string {
+  return decodeTransactionData(data as string, {
+    getMethodName: true,
+  }) as string;
 }
 
 /**

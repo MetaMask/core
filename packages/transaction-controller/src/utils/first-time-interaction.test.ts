@@ -60,7 +60,7 @@ describe('updateFirstTimeInteraction', () => {
         traceContext: mockTraceContext,
         trace: mockTrace,
         transactionMeta: mockTransactionMeta,
-        updateTransactionInternal: mockUpdateTransactionInternal,
+        updateTransaction: mockUpdateTransactionInternal,
       });
 
       expect(mockIsFirstTimeInteractionEnabled).toHaveBeenCalledTimes(1);
@@ -90,7 +90,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: transactionMetaNoData,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockDecodeTransactionData).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: transactionMetaWithData,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockDecodeTransactionData).toHaveBeenCalledWith('0xabcdef');
@@ -150,7 +150,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: transactionMetaWithData,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockValidateParamTo).toHaveBeenCalledWith('0xrecipient');
@@ -179,7 +179,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: transactionMetaWithData,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockValidateParamTo).toHaveBeenCalledWith('0xrecipient');
@@ -204,7 +204,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockGetAccountAddressRelationship).not.toHaveBeenCalled();
@@ -226,7 +226,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockGetAccountAddressRelationship).toHaveBeenCalled();
@@ -248,7 +248,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockGetAccountAddressRelationship).toHaveBeenCalled();
@@ -270,7 +270,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockGetAccountAddressRelationship).toHaveBeenCalled();
@@ -291,7 +291,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockGetAccountAddressRelationship).toHaveBeenCalled();
@@ -310,7 +310,7 @@ describe('updateFirstTimeInteraction', () => {
           traceContext: mockTraceContext,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockTrace).toHaveBeenCalledWith(
@@ -331,7 +331,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockUpdateTransactionInternal).toHaveBeenCalledWith(
@@ -357,7 +357,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockUpdateTransactionInternal).toHaveBeenCalledWith(
@@ -385,7 +385,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockUpdateTransactionInternal).toHaveBeenCalledWith(
@@ -412,7 +412,7 @@ describe('updateFirstTimeInteraction', () => {
           isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
           trace: mockTrace,
           transactionMeta: mockTransactionMeta,
-          updateTransactionInternal: mockUpdateTransactionInternal,
+          updateTransaction: mockUpdateTransactionInternal,
         });
 
         expect(mockUpdateTransactionInternal).not.toHaveBeenCalled();
@@ -429,7 +429,7 @@ describe('updateFirstTimeInteraction', () => {
         isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
         trace: mockTrace,
         transactionMeta: mockTransactionMeta,
-        updateTransactionInternal: mockUpdateTransactionInternal,
+        updateTransaction: mockUpdateTransactionInternal,
       });
 
       expect(mockUpdateTransactionInternal).not.toHaveBeenCalled();
@@ -452,7 +452,7 @@ describe('updateFirstTimeInteraction', () => {
         isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
         trace: mockTrace,
         transactionMeta: transactionMetaWithData,
-        updateTransactionInternal: mockUpdateTransactionInternal,
+        updateTransaction: mockUpdateTransactionInternal,
       });
 
       expect(mockValidateParamTo).toHaveBeenCalledWith('0xto');
@@ -481,7 +481,7 @@ describe('updateFirstTimeInteraction', () => {
         isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
         trace: mockTrace,
         transactionMeta: transactionMetaWithData,
-        updateTransactionInternal: mockUpdateTransactionInternal,
+        updateTransaction: mockUpdateTransactionInternal,
       });
 
       expect(mockValidateParamTo).toHaveBeenCalledWith('0xto');
