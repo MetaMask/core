@@ -662,8 +662,7 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    // Check if this account got already added by `#initAtLeastOnce`, if not, then we
-    // can proceed.
+    // Check if this account is already known by the tree to avoid double-insertion.
     if (!this.#accountIdToContext.has(account.id)) {
       this.update((state) => {
         this.#insert(state.accountTree.wallets, account);
