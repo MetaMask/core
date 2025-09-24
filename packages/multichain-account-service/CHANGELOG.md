@@ -18,10 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a timeout around Solana account creation ([#6704](https://github.com/MetaMask/core/pull/6704))
   - This timeout can be configured at the client level through the config passed to the `MultichainAccountService`.
 
-### Changed
-
-- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
-
 ## [1.0.0]
 
 ### Changed
