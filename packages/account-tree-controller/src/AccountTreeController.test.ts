@@ -32,7 +32,7 @@ import {
 } from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
-import { isAccountGroupNameUnique } from './group';
+import { AccountGroupMultichainAccountObject, isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -42,6 +42,7 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './types';
+import { AccountWalletKeyringObject, AccountWalletObject } from './wallet';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
@@ -1215,6 +1216,26 @@ describe('AccountTreeController', () => {
         },
       } as AccountTreeControllerState);
     });
+
+    it('does not remove account if init has not been called', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      const mockAccountTreeChange = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        mockAccountTreeChange,
+      );
+
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+
+      expect(mockAccountTreeChange).not.toHaveBeenCalled();
+    });
   });
 
   describe('account ordering by type', () => {
@@ -1486,6 +1507,14 @@ describe('AccountTreeController', () => {
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
+    });
+
+    it('does not add any account if init has not been called', () => {
+      const { controller, messenger } = setup();
+
+      expect(controller.state.accountTree.wallets).toStrictEqual({});
+      messenger.publish('AccountsController:accountAdded', MOCK_HD_ACCOUNT_1);
+      expect(controller.state.accountTree.wallets).toStrictEqual({});
     });
   });
 
@@ -4266,6 +4295,8 @@ describe('AccountTreeController', () => {
     it('names non-HD keyrings accounts properly', () => {
       const { controller, messenger } = setup();
 
+      controller.init();
+
       // Add all 3 accounts.
       [mockAccount1, mockAccount2, mockAccount3].forEach(
         (mockAccount, index) => {
@@ -4417,6 +4448,8 @@ describe('AccountTreeController', () => {
 
     it('fallbacks to natural indexing if group names are not using our default name pattern', () => {
       const { controller, messenger } = setup();
+
+      controller.init();
 
       [mockAccount1, mockAccount2, mockAccount3].forEach((mockAccount) =>
         messenger.publish('AccountsController:accountAdded', mockAccount),
