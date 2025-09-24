@@ -15,9 +15,9 @@ import type {
 } from './types';
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
-  WebSocketService,
   WebSocketConnectionInfo,
   WebSocketServiceConnectionStateChangedEvent,
+  SubscriptionInfo,
 } from './WebsocketService';
 import { WebSocketState } from './WebsocketService';
 
@@ -72,6 +72,14 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getAccountByAddress',
   'AccountsController:getSelectedAccount',
   'TokenBalancesController:updateBalances',
+  'BackendWebSocketService:connect',
+  'BackendWebSocketService:disconnect',
+  'BackendWebSocketService:isChannelSubscribed',
+  'BackendWebSocketService:getSubscriptionByChannel',
+  'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+  'BackendWebSocketService:addChannelCallback',
+  'BackendWebSocketService:removeChannelCallback',
+  'BackendWebSocketService:sendRequest',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
@@ -92,6 +100,38 @@ export type AccountActivityServiceAllowedActions =
   | {
       type: 'TokenBalancesController:updateBalances';
       handler: (options?: { chainIds?: string[]; queryAllAccounts?: boolean }) => Promise<void>;
+    }
+  | {
+      type: 'BackendWebSocketService:connect';
+      handler: () => Promise<void>;
+    }
+  | {
+      type: 'BackendWebSocketService:disconnect';
+      handler: () => Promise<void>;
+    }
+  | {
+      type: 'BackendWebSocketService:isChannelSubscribed';
+      handler: (channel: string) => boolean;
+    }
+  | {
+      type: 'BackendWebSocketService:getSubscriptionByChannel';
+      handler: (channel: string) => SubscriptionInfo | undefined;
+    }
+  | {
+      type: 'BackendWebSocketService:findSubscriptionsByChannelPrefix';
+      handler: (channelPrefix: string) => SubscriptionInfo[];
+    }
+  | {
+      type: 'BackendWebSocketService:addChannelCallback';
+      handler: (options: { channelName: string; callback: (notification: any) => void }) => void;
+    }
+  | {
+      type: 'BackendWebSocketService:removeChannelCallback';
+      handler: (channelName: string) => boolean;
+    }
+  | {
+      type: 'BackendWebSocketService:sendRequest';
+      handler: (message: any) => Promise<any>;
     };
 
 // Event types for the messaging system
@@ -154,17 +194,16 @@ export type AccountActivityServiceMessenger = RestrictedMessenger<
  * - Comprehensive balance updates with transfer tracking
  *
  * Architecture:
- * - WebSocketService manages the actual WebSocket subscriptions and callbacks
- * - AccountActivityService only tracks channel-to-subscriptionId mappings
+ * - Uses messenger pattern to communicate with BackendWebSocketService
+ * - AccountActivityService tracks channel-to-subscriptionId mappings via messenger calls
  * - Automatically subscribes to selected account on initialization
  * - Switches subscriptions when selected account changes
- * - No duplication of subscription state between services
+ * - No direct dependency on WebSocketService (uses messenger instead)
  *
  * @example
  * ```typescript
  * const service = new AccountActivityService({
  *   messenger: activityMessenger,
- *   webSocketService: wsService,
  * });
  *
  * // Service automatically subscribes to the currently selected account
@@ -183,26 +222,22 @@ export class AccountActivityService {
 
   readonly #messenger: AccountActivityServiceMessenger;
 
-  readonly #webSocketService: WebSocketService;
-
   readonly #options: Required<AccountActivityServiceOptions>;
 
-  // WebSocketService is the source of truth for subscription state
-  // Using WebSocketService.findSubscriptionsByChannelPrefix() for cleanup
+  // BackendWebSocketService is the source of truth for subscription state
+  // Using BackendWebSocketService:findSubscriptionsByChannelPrefix() for cleanup
 
   /**
    * Creates a new Account Activity service instance
    *
-   * @param options - Configuration options including messenger and WebSocket service
+   * @param options - Configuration options including messenger
    */
   constructor(
     options: AccountActivityServiceOptions & {
       messenger: AccountActivityServiceMessenger;
-      webSocketService: WebSocketService;
     },
   ) {
     this.#messenger = options.messenger;
-    this.#webSocketService = options.webSocketService;
 
     // Set configuration with defaults
     this.#options = {
@@ -228,13 +263,13 @@ export class AccountActivityService {
    */
   async subscribeAccounts(subscription: AccountSubscription): Promise<void> {
     try {
-      await this.#webSocketService.connect();
+      await this.#messenger.call('BackendWebSocketService:connect');
 
       // Create channel name from address
       const channel = `${this.#options.subscriptionNamespace}.${subscription.address}`;
 
       // Check if already subscribed
-      if (this.#webSocketService.isChannelSubscribed(channel)) {
+      if (this.#messenger.call('BackendWebSocketService:isChannelSubscribed', channel)) {
         console.log(`[${SERVICE_NAME}] Already subscribed to channel: ${channel}`);
         return;
       }
@@ -242,7 +277,7 @@ export class AccountActivityService {
       // Set up system notifications callback for chain status updates
       const systemChannelName = `system-notifications.v1.${this.#options.subscriptionNamespace}`;
       console.log(`[${SERVICE_NAME}] Adding channel callback for '${systemChannelName}'`);
-      this.#webSocketService.addChannelCallback({
+      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
         channelName: systemChannelName,
         callback: (notification) => {
           try {
@@ -255,9 +290,26 @@ export class AccountActivityService {
         }
       });
 
-      // Create subscription with optimized callback routing
-      await this.#webSocketService.subscribe({
-        channels: [channel],
+      // Create subscription using sendRequest since subscribe isn't exposed as messenger action
+      const subscriptionResponse = await this.#messenger.call('BackendWebSocketService:sendRequest', {
+        event: 'subscribe',
+        data: { channels: [channel] },
+      });
+
+      if (!subscriptionResponse?.subscriptionId) {
+        throw new Error('Invalid subscription response: missing subscription ID');
+      }
+
+      // Check for failures
+      if (subscriptionResponse.failed && subscriptionResponse.failed.length > 0) {
+        throw new Error(
+          `Subscription failed for channels: ${subscriptionResponse.failed.join(', ')}`,
+        );
+      }
+
+      // Set up channel callback for direct processing of account activity updates
+      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
+        channelName: channel,
         callback: (notification) => {
           // Fast path: Direct processing of account activity updates
           this.#handleAccountActivityUpdate(
@@ -283,7 +335,7 @@ export class AccountActivityService {
       // Find channel for the specified address
       const channel = `${this.#options.subscriptionNamespace}.${address}`;
       const subscriptionInfo =
-        this.#webSocketService.getSubscriptionByChannel(channel);
+        this.#messenger.call('BackendWebSocketService:getSubscriptionByChannel', channel);
 
       if (!subscriptionInfo) {
         console.log(`[${SERVICE_NAME}] No subscription found for address: ${address}`);
@@ -429,7 +481,7 @@ export class AccountActivityService {
       const newChannel = `${this.#options.subscriptionNamespace}.${newAddress}`;
 
       // If already subscribed to this account, no need to change
-      if (this.#webSocketService.isChannelSubscribed(newChannel)) {
+      if (this.#messenger.call('BackendWebSocketService:isChannelSubscribed', newChannel)) {
         console.log(`[${SERVICE_NAME}] Already subscribed to account: ${newAddress}`);
         return;
       }
@@ -467,8 +519,8 @@ export class AccountActivityService {
       
       // All subscriptions will be cleaned up automatically on WebSocket disconnect
       
-      await this.#webSocketService.disconnect();
-      await this.#webSocketService.connect();
+      await this.#messenger.call('BackendWebSocketService:disconnect');
+      await this.#messenger.call('BackendWebSocketService:connect');
     } catch (error) {
       console.error(`[${SERVICE_NAME}] Failed to force WebSocket reconnection:`, error);
     }
@@ -537,7 +589,7 @@ export class AccountActivityService {
       const channel = `${this.#options.subscriptionNamespace}.${address}`;
 
       // Only subscribe if we're not already subscribed to this account
-      if (!this.#webSocketService.isChannelSubscribed(channel)) {
+      if (!this.#messenger.call('BackendWebSocketService:isChannelSubscribed', channel)) {
         await this.subscribeAccounts({ address });
         console.log(`[${SERVICE_NAME}] Successfully subscribed to selected account: ${address}`);
       } else {
@@ -558,7 +610,7 @@ export class AccountActivityService {
       console.log(`[${SERVICE_NAME}] Unsubscribing from all account activity subscriptions...`);
       
       // Use WebSocketService to find all subscriptions with our namespace prefix
-      const accountActivitySubscriptions = this.#webSocketService.findSubscriptionsByChannelPrefix(
+      const accountActivitySubscriptions = this.#messenger.call('BackendWebSocketService:findSubscriptionsByChannelPrefix',
         this.#options.subscriptionNamespace
       );
       
@@ -617,7 +669,7 @@ export class AccountActivityService {
       // We don't need to manually unsubscribe here for fast cleanup
 
       // Clean up system notification callback
-      this.#webSocketService.removeChannelCallback(`system-notifications.v1.${this.#options.subscriptionNamespace}`);
+      this.#messenger.call('BackendWebSocketService:removeChannelCallback', `system-notifications.v1.${this.#options.subscriptionNamespace}`);
 
       // Unregister action handlers to prevent stale references
       this.#messenger.unregisterActionHandler(

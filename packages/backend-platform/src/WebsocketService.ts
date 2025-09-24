@@ -277,15 +277,9 @@ export class WebSocketService {
   // Value: ChannelCallback configuration
   readonly #channelCallbacks = new Map<string, ChannelCallback>();
 
-  /**
-   * Extracts error message from unknown error type
-   *
-   * @param error - Error of unknown type
-   * @returns Error message string
-   */
-  #getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
+  // =============================================================================
+  // 1. CONSTRUCTOR & INITIALIZATION
+  // =============================================================================
 
   /**
    * Creates a new WebSocket service instance
@@ -355,6 +349,10 @@ export class WebSocketService {
       console.warn(`[${SERVICE_NAME}] Failed to setup authentication:`, error);
     }
   }
+
+  // =============================================================================
+  // 2. PUBLIC API METHODS
+  // =============================================================================
 
   /**
    * Establishes WebSocket connection with smart reconnection behavior
@@ -801,6 +799,10 @@ export class WebSocketService {
     return subscription;
   }
 
+  // =============================================================================
+  // 3. CONNECTION MANAGEMENT (PRIVATE)
+  // =============================================================================
+
   /**
    * Builds an authenticated WebSocket URL with bearer token as query parameter.
    * Uses query parameter for WebSocket authentication since native WebSocket
@@ -875,37 +877,43 @@ export class WebSocketService {
         // Reset reconnect attempts on successful connection
         this.#reconnectAttempts = 0;
 
-        this.#setupEventHandlers();
-
         resolve();
       };
 
       ws.onerror = (event: Event) => {
-        clearTimeout(connectTimeout);
-        console.error(`[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`, {
-          type: event.type,
-          target: event.target,
-          url: wsUrl,
-          readyState: ws.readyState,
-          readyStateName: {
-            0: 'CONNECTING',
-            1: 'OPEN',
-            2: 'CLOSING',
-            3: 'CLOSED',
-          }[ws.readyState],
-        });
-        const error = new Error(
-          `WebSocket connection error to ${wsUrl}: readyState=${ws.readyState}`,
-        );
-        reject(error);
+        if (this.#state === WebSocketState.CONNECTING) {
+          // Handle connection-phase errors
+          clearTimeout(connectTimeout);
+          console.error(`[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`, {
+            type: event.type,
+            target: event.target,
+            url: wsUrl,
+            readyState: ws.readyState,
+            readyStateName: {
+              0: 'CONNECTING',
+              1: 'OPEN',
+              2: 'CLOSING',
+              3: 'CLOSED',
+            }[ws.readyState],
+          });
+          const error = new Error(
+            `WebSocket connection error to ${wsUrl}: readyState=${ws.readyState}`,
+          );
+          reject(error);
+        } else {
+          // Handle runtime errors
+          console.log(`[${SERVICE_NAME}] WebSocket onerror event triggered:`, event);
+          this.#handleError(new Error(`WebSocket error: ${event.type}`));
+        }
       };
 
       ws.onclose = (event: CloseEvent) => {
-        clearTimeout(connectTimeout);
-        console.log(
-          `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
-        );
         if (this.#state === WebSocketState.CONNECTING) {
+          // Handle connection-phase close events
+          clearTimeout(connectTimeout);
+          console.log(
+            `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
+          );
           console.log(
             `[${SERVICE_NAME}] Connection attempt failed due to close event during CONNECTING state`,
           );
@@ -915,45 +923,29 @@ export class WebSocketService {
             ),
           );
         } else {
-          // If we're not connecting, handle it as a normal close event
-          console.log(`[${SERVICE_NAME}] Handling close event as normal disconnection`);
+          // Handle runtime close events
+          console.log(
+            `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
+          );
           this.#handleClose(event);
         }
+      };
+
+      // Set up message handler immediately - no need to wait for connection
+      ws.onmessage = (event: MessageEvent) => {
+        // Fast path: Optimized parsing for mobile real-time performance
+        const message = this.#parseMessage(event.data);
+        if (message) {
+          this.#handleMessage(message);
+        }
+        // Note: Parse errors are silently ignored for mobile performance
       };
     });
   }
 
-  /**
-   * Sets up WebSocket event handlers
-   */
-  #setupEventHandlers(): void {
-    console.log(`[${SERVICE_NAME}] Setting up WebSocket event handlers for operational phase`);
-
-    if (!this.#ws) {
-      throw new Error('WebSocket not initialized for event handler setup');
-    }
-
-    this.#ws.onmessage = (event: MessageEvent) => {
-      // Fast path: Optimized parsing for mobile real-time performance
-      const message = this.#parseMessage(event.data);
-      if (message) {
-        this.#handleMessage(message);
-      }
-      // Note: Parse errors are silently ignored for mobile performance
-    };
-
-    this.#ws.onclose = (event: CloseEvent) => {
-      console.log(
-        `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
-      );
-      this.#handleClose(event);
-    };
-
-    this.#ws.onerror = (event: Event) => {
-      console.log(`[${SERVICE_NAME}] WebSocket onerror event triggered:`, event);
-      this.#handleError(new Error(`WebSocket error: ${event.type}`));
-    };
-  }
+  // =============================================================================
+  // 4. MESSAGE HANDLING (PRIVATE)
+  // =============================================================================
 
   /**
    * Handles incoming WebSocket messages (optimized for mobile real-time performance)
@@ -1134,6 +1126,10 @@ export class WebSocketService {
     }
   }
 
+  // =============================================================================
+  // 5. EVENT HANDLERS (PRIVATE)
+  // =============================================================================
+
   /**
    * Handles WebSocket close events (mobile optimized)
    *
@@ -1208,6 +1204,10 @@ export class WebSocketService {
       );
     }
   }
+
+  // =============================================================================
+  // 6. STATE MANAGEMENT (PRIVATE)
+  // =============================================================================
 
   /**
    * Schedules a reconnection attempt with exponential backoff
@@ -1319,6 +1319,20 @@ export class WebSocketService {
         );
       }
     }
+  }
+
+  // =============================================================================
+  // 7. UTILITY METHODS (PRIVATE)
+  // =============================================================================
+
+  /**
+   * Extracts error message from unknown error type
+   *
+   * @param error - Error of unknown type
+   * @returns Error message string
+   */
+  #getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   /**
