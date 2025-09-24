@@ -25,10 +25,6 @@
     "import-x/namespace": 9,
     "jest/no-conditional-in-test": 6
   },
-  "packages/assets-controllers/src/NftController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 46
-  },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
     "import-x/namespace": 6,
     "import-x/order": 4
@@ -349,21 +345,10 @@
     "jest/no-conditional-in-test": 1
   },
   "packages/signature-controller/src/SignatureController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4
-  },
-  "packages/signature-controller/src/utils/decoding-api.test.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/signature-controller/src/utils/decoding-api.ts": {
-    "import-x/order": 1
-  },
-  "packages/signature-controller/src/utils/normalize.test.ts": {
-    "import-x/order": 1
+    "@typescript-eslint/no-unsafe-enum-comparison": 3
   },
   "packages/signature-controller/src/utils/normalize.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/tag-lines": 2
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/signature-controller/src/utils/validation.ts": {
     "@typescript-eslint/no-base-to-string": 1,
