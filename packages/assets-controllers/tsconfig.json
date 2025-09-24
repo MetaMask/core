@@ -8,7 +8,7 @@
     { "path": "../account-tree-controller" },
     { "path": "../accounts-controller" },
     { "path": "../approval-controller" },
-    { "path": "../backend-platform" },
+    { "path": "../core-backend" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../keyring-controller" },

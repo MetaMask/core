@@ -1,9 +1,9 @@
-# `@metamask/backend-platform`
+# `@metamask/core-backend`
 
-Backend platform services for MetaMask, serving as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (Extension, Mobile). Provides real-time data delivery including account activity monitoring, price updates, and WebSocket connection management.
+Core backend services for MetaMask, serving as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (Extension, Mobile). Provides real-time data delivery including account activity monitoring, price updates, and WebSocket connection management.
 
 ## Table of Contents
-- [`@metamask/backend-platform`](#metamaskbackend-platform)
+- [`@metamask/core-backend`](#metamaskcore-backend)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
@@ -37,13 +37,13 @@ Backend platform services for MetaMask, serving as the data layer between Backen
 ## Installation
 
 ```bash
-yarn add @metamask/backend-platform
+yarn add @metamask/core-backend
 ```
 
 or
 
 ```bash
-npm install @metamask/backend-platform
+npm install @metamask/core-backend
 ```
 
 ## Quick Start
@@ -51,7 +51,7 @@ npm install @metamask/backend-platform
 ### Basic Usage
 
 ```typescript
-import { WebSocketService, AccountActivityService } from '@metamask/backend-platform';
+import { WebSocketService, AccountActivityService } from '@metamask/core-backend';
 
 // Initialize WebSocket service
 const webSocketService = new WebSocketService({

@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/backend-platform",
+  "name": "@metamask/core-backend",
   "version": "0.0.0",
-  "description": "Backend platform services for MetaMask",
+  "description": "Core backend services for MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/backend-platform#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/core-backend#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/backend-platform",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/backend-platform",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/core-backend",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/core-backend",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",

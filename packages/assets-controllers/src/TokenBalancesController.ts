@@ -6,7 +6,7 @@ import type {
   BalanceUpdate,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent
-} from '@metamask/backend-platform';
+} from '@metamask/core-backend';
 
 import { Web3Provider } from '@ethersproject/providers';
 import type {
