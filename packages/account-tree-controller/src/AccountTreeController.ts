@@ -662,24 +662,29 @@ export class AccountTreeController extends BaseController<
     // incoming account change.
     this.#initAtLeastOnce();
 
-    this.update((state) => {
-      this.#insert(state.accountTree.wallets, account);
+    // Check if this account got already added by `#initAtLeastOnce`, if not, then we
+    // can proceed
+    if (!this.#accountIdToContext.has(account.id)) {
+      this.update((state) => {
+        this.#insert(state.accountTree.wallets, account);
 
-      const context = this.#accountIdToContext.get(account.id);
-      if (context) {
-        const { walletId, groupId } = context;
+        const context = this.#accountIdToContext.get(account.id);
+        if (context) {
+          const { walletId, groupId } = context;
 
-        const wallet = state.accountTree.wallets[walletId];
-        if (wallet) {
-          this.#applyAccountWalletMetadata(state, walletId);
-          this.#applyAccountGroupMetadata(state, walletId, groupId);
+          const wallet = state.accountTree.wallets[walletId];
+          if (wallet) {
+            this.#applyAccountWalletMetadata(state, walletId);
+            this.#applyAccountGroupMetadata(state, walletId, groupId);
+          }
         }
-      }
-    });
-    this.messagingSystem.publish(
-      `${controllerName}:accountTreeChange`,
-      this.state.accountTree,
-    );
+      });
+
+      this.messagingSystem.publish(
+        `${controllerName}:accountTreeChange`,
+        this.state.accountTree,
+      );
+    }
   }
 
   /**
