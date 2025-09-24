@@ -29,12 +29,12 @@ export type AccountTreeGroupPersistedMetadata = {
   hidden?: UpdatableField<boolean>;
 };
 
-const MAX_SORT_ORDER = 9999;
+export const MAX_SORT_ORDER = 9999;
 
 /**
  * Order of account types.
  */
-export const AccountTypeOrder: Record<KeyringAccountType, number> = {
+export const ACCOUNT_TYPE_TO_SORT_ORDER: Record<KeyringAccountType, number> = {
   [EthAccountType.Eoa]: 0,
   [EthAccountType.Erc4337]: 1,
   [BtcAccountType.P2pkh]: 2,
@@ -46,7 +46,7 @@ export const AccountTypeOrder: Record<KeyringAccountType, number> = {
   [AnyAccountType.Account]: MAX_SORT_ORDER,
 };
 
-export type AccountTypeKey = keyof typeof AccountTypeOrder;
+export type AccountTypeOrderKey = keyof typeof ACCOUNT_TYPE_TO_SORT_ORDER;
 
 /**
  * Tree metadata for account groups (required plain values extracted from persisted metadata).

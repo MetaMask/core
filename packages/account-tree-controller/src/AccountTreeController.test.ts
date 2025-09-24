@@ -1154,11 +1154,12 @@ describe('AccountTreeController', () => {
   });
 
   describe('account ordering by type', () => {
-    it('orders accounts in group according to AccountTypeOrder regardless of insertion order', () => {
+    it('orders accounts in group according to ACCOUNT_TYPE_TO_SORT_ORDER regardless of insertion order', () => {
       const evmAccount = MOCK_HD_ACCOUNT_1;
 
       const solAccount = {
         ...MOCK_SNAP_ACCOUNT_1,
+        id: 'mock-sol-id-1',
         options: {
           ...MOCK_SNAP_ACCOUNT_1.options,
           entropy: {
@@ -1193,10 +1194,10 @@ describe('AccountTreeController', () => {
         controller.state.accountTree.wallets[walletId]?.groups[groupId];
       expect(group).toBeDefined();
 
-      // AccountTypeOrder: EVM (0) < SOL (6) < TRON (7)
+      // Account order: EVM (0) < SOL (6) < TRON (7)
       expect(group?.accounts).toStrictEqual([
         'mock-id-1',
-        'mock-snap-id-1',
+        'mock-sol-id-1',
         'mock-trx-id-1',
       ]);
     });

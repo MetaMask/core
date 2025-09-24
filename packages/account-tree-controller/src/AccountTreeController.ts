@@ -22,11 +22,12 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject, AccountTypeKey } from './group';
+import type { AccountGroupObject, AccountTypeOrderKey } from './group';
 import {
-  AccountTypeOrder,
+  ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
+  MAX_SORT_ORDER,
 } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
@@ -111,7 +112,7 @@ export type AccountContext = {
   /**
    * Sort order of the account.
    */
-  sortOrder: (typeof AccountTypeOrder)[AccountTypeKey];
+  sortOrder: (typeof ACCOUNT_TYPE_TO_SORT_ORDER)[AccountTypeOrderKey];
 };
 
 export class AccountTreeController extends BaseController<
@@ -783,7 +784,7 @@ export class AccountTreeController extends BaseController<
     const groupId = result.group.id;
     let group = wallet.groups[groupId];
     const { type, id } = account;
-    const sortOrder = AccountTypeOrder[type];
+    const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
 
     if (!group) {
       wallet.groups[groupId] = {
@@ -824,7 +825,9 @@ export class AccountTreeController extends BaseController<
             a === id ? sortOrder : this.#accountIdToContext.get(a)?.sortOrder;
           const bSortOrder =
             b === id ? sortOrder : this.#accountIdToContext.get(b)?.sortOrder;
-          return (aSortOrder ?? 0) - (bSortOrder ?? 0);
+          return (
+            (aSortOrder ?? MAX_SORT_ORDER) - (bSortOrder ?? MAX_SORT_ORDER)
+          );
         },
       );
     }
