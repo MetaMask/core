@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
 - Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6705](https://github.com/MetaMask/core/pull/6705))
 
+### Changed
+
+- **BREAKING:** Rename fee handling for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Replace `SolanaFees` type with `NonEvmFees` type (exported type)
+  - Replace `solanaFeesInLamports` property in quote responses with `nonEvmFeesInNative` property
+  - The `nonEvmFeesInNative` property stores fees in the native units for each chain (SOL for Solana, BTC for Bitcoin)
+- **BREAKING:** Update Snap methods to use new unified interface for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Snaps must now implement `computeFee` method instead of `getFeeForTransaction` for fee calculation
+  - The `computeFee` method returns fees in native token units rather than smallest units
+
 ## [44.0.1]
 
 ### Changed
@@ -52,13 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename fee handling for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Replace `SolanaFees` type with `NonEvmFees` type (exported type)
-  - Replace `solanaFeesInLamports` property in quote responses with `nonEvmFeesInNative` property
-  - The `nonEvmFeesInNative` property stores fees in the native units for each chain (SOL for Solana, BTC for Bitcoin)
-- **BREAKING:** Update Snap methods to use new unified interface for non-EVM chains ([#6454](https://github.com/MetaMask/core/pull/6454))
-  - Snaps must now implement `computeFee` method instead of `getFeeForTransaction` for fee calculation
-  - The `computeFee` method returns fees in native token units rather than smallest units
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
