@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `reinit` method ([#6709](https://github.com/MetaMask/core/pull/6709))
+  - This method can be used if we change the entire list of accounts of the `AccountsController` and want to re-initilize the tree with it.
 
 ### Changed
 
