@@ -135,6 +135,8 @@ export class AccountTreeController extends BaseController<
 
   readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
+  #initialized: boolean;
+
   /**
    * Constructor for AccountTreeController.
    *
@@ -162,6 +164,9 @@ export class AccountTreeController extends BaseController<
         ...state,
       },
     });
+
+    // This will be set to true upon the first `init` call.
+    this.#initialized = false;
 
     // Reverse map to allow fast node access from an account ID.
     this.#accountIdToContext = new Map();
@@ -245,6 +250,12 @@ export class AccountTreeController extends BaseController<
    * state with it.
    */
   init() {
+    if (this.#initialized) {
+      // We prevent re-initilializing the state multiple times. Though, we can use
+      // `clearState` + `init` to re-init everything from scratch.
+      return;
+    }
+
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // Clear mappings for fresh rebuild.
@@ -320,6 +331,8 @@ export class AccountTreeController extends BaseController<
         previousSelectedAccountGroup,
       );
     }
+
+    this.#initialized = true;
   }
 
   /**
@@ -625,6 +638,12 @@ export class AccountTreeController extends BaseController<
    * @param account - New account.
    */
   #handleAccountAdded(account: InternalAccount) {
+    // We force-init to make sure we have the proper account groups for the
+    // incoming account change.
+    if (!this.#initialized) {
+      this.init();
+    }
+
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
 
@@ -652,6 +671,12 @@ export class AccountTreeController extends BaseController<
    * @param accountId - Removed account ID.
    */
   #handleAccountRemoved(accountId: AccountId) {
+    // We force-init to make sure we have the proper account groups for the
+    // incoming account change.
+    if (!this.#initialized) {
+      this.init();
+    }
+
     const context = this.#accountIdToContext.get(accountId);
 
     if (context) {
@@ -1314,6 +1339,9 @@ export class AccountTreeController extends BaseController<
       };
     });
     this.#backupAndSyncService.clearState();
+
+    // So we know we have to call `init` again.
+    this.#initialized = false;
   }
 
   /**
