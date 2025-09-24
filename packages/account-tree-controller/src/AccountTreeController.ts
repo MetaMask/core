@@ -22,10 +22,12 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject } from './group';
+import type { AccountGroupObject, AccountTypeOrderKey } from './group';
 import {
+  ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
+  MAX_SORT_ORDER,
 } from './group';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
@@ -106,6 +108,11 @@ export type AccountContext = {
    * Account group ID associated to that account.
    */
   groupId: AccountGroupObject['id'];
+
+  /**
+   * Sort order of the account.
+   */
+  sortOrder: (typeof ACCOUNT_TYPE_TO_SORT_ORDER)[AccountTypeOrderKey];
 };
 
 export class AccountTreeController extends BaseController<
@@ -776,11 +783,14 @@ export class AccountTreeController extends BaseController<
 
     const groupId = result.group.id;
     let group = wallet.groups[groupId];
+    const { type, id } = account;
+    const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
+
     if (!group) {
       wallet.groups[groupId] = {
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
-        accounts: [account.id],
+        accounts: [id],
         metadata: {
           name: '',
           ...{ pinned: false, hidden: false }, // Default UI states
@@ -799,13 +809,34 @@ export class AccountTreeController extends BaseController<
         this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
-      group.accounts.push(account.id);
+      group.accounts.push(id);
+      // We need to do this at every insertion because race conditions can happen
+      // during the account creation process where one provider completes before the other.
+      // The discovery process in the service can also lead to some accounts being created "out of order".
+      const { accounts } = group;
+      accounts.sort(
+        /* istanbul ignore next: Comparator branch execution (a===id vs b===id)
+         * and return attribution vary across engines; final ordering is covered
+         * by behavior tests. Ignoring the entire comparator avoids flaky line
+         * coverage without reducing scenario coverage.
+         */
+        (a, b) => {
+          const aSortOrder =
+            a === id ? sortOrder : this.#accountIdToContext.get(a)?.sortOrder;
+          const bSortOrder =
+            b === id ? sortOrder : this.#accountIdToContext.get(b)?.sortOrder;
+          return (
+            (aSortOrder ?? MAX_SORT_ORDER) - (bSortOrder ?? MAX_SORT_ORDER)
+          );
+        },
+      );
     }
 
     // Update the reverse mapping for this account.
     this.#accountIdToContext.set(account.id, {
       walletId: wallet.id,
       groupId: group.id,
+      sortOrder,
     });
   }
 

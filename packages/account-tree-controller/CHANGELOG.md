@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Added logic that prevents an account within a group from being out of order ([#6683](https://github.com/MetaMask/core/pull/6683))
+
 ## [1.1.0]
 
 ### Changed
