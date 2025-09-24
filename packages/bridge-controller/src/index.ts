@@ -26,7 +26,7 @@ export {
 export type {
   ChainConfiguration,
   L1GasFees,
-  NonEvmFees,
+  SolanaFees,
   QuoteMetadata,
   GasMultiplierByChainId,
   FeatureFlagResponse,
@@ -105,7 +105,6 @@ export {
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
-  isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
   isCrossChain,
