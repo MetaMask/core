@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix use of unknown `group.metadata.name` when checking for group name uniqueness ([#6706](https://github.com/MetaMask/core/pull/6706))
+
 ## [1.1.0]
 
 ### Changed
