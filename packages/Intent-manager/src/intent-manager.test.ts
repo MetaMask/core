@@ -26,12 +26,20 @@ describe('IntentManager', () => {
   describe('submitIntent', () => {
     it('should submit an intent and return an order', async () => {
       const submissionParams: IntentSubmissionParams = {
-        providerName: 'cowswap',
-        chainId: 1,
-        orderData: {
-          sellToken: '0xA0b86a33E6441e6e80D0c4C6C7527d72',
-          buyToken: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-          sellAmount: '1000000000000000000',
+        quote: {
+          id: 'test-quote-1',
+          provider: 'cowswap',
+          srcAmount: '1000000000000000000',
+          destAmount: '2000000000000000000',
+          estimatedGas: '100000',
+          estimatedTime: 300,
+          priceImpact: 0.01,
+          fees: [],
+          validUntil: Date.now() + 300000,
+          metadata: {
+            sellToken: '0xA0b86a33E6441e6e80D0c4C6C7527d72',
+            buyToken: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+          },
         },
         signature: '0xsignature',
         userAddress: '0x123',

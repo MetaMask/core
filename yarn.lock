@@ -3628,25 +3628,25 @@ __metadata:
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=888849&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=e9b1c0&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/00e33da873f02bc35d3d98d59a0c949d0e204921f590576926837de5a5ca3bfd7fcd1647fd10d6970a78ba8abbbca5ddb3fa16c585962cf14b637edf477a35f5
+  checksum: 10/80f3151dacdf16644d7b3ca5127c6c70ad70e0bc432478b217b00847c4d72b319a9e20a59eb63bf3a9f4f94386b62c0804a11c23980132bfb189746fa9c4999d
   languageName: node
   linkType: hard
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=888849&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=e9b1c0&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/00e33da873f02bc35d3d98d59a0c949d0e204921f590576926837de5a5ca3bfd7fcd1647fd10d6970a78ba8abbbca5ddb3fa16c585962cf14b637edf477a35f5
+  checksum: 10/80f3151dacdf16644d7b3ca5127c6c70ad70e0bc432478b217b00847c4d72b319a9e20a59eb63bf3a9f4f94386b62c0804a11c23980132bfb189746fa9c4999d
   languageName: node
   linkType: hard
 
@@ -4915,26 +4915,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.8.0":
-  version: 11.8.0
-  resolution: "@metamask/utils@npm:11.8.0"
-  dependencies:
-    "@ethereumjs/tx": "npm:^4.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@noble/hashes": "npm:^1.3.1"
-    "@scure/base": "npm:^1.1.3"
-    "@types/debug": "npm:^4.1.7"
-    "@types/lodash": "npm:^4.17.20"
-    debug: "npm:^4.3.4"
-    lodash: "npm:^4.17.21"
-    pony-cause: "npm:^2.1.10"
-    semver: "npm:^7.5.4"
-    uuid: "npm:^9.0.1"
-  checksum: 10/d5a9d8c04223fc62b0d4a078b505e062f5d1d47e752df36802189bec19a9e68aee7a9b0df9b15e7e6fa15fd9d65f61c7e4909604209dddc21f0943cd9a2fd5d1
-  languageName: node
-  linkType: hard
-
-"@metamask/utils@npm:^11.4.2":
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.0":
   version: 11.8.1
   resolution: "@metamask/utils@npm:11.8.1"
   dependencies:
