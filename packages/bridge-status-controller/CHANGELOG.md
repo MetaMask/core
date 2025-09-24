@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Bitcoin bridge transactions ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Support Bitcoin transaction submission through unified Snap interface
+
+### Changed
+
+- **BREAKING:** Update transaction submission to use new unified Snap interface for all non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Replace `signAndSendTransactionWithoutConfirmation` with `ClientRequest:signAndSendTransaction` method for Snap communication
+  - This changes the expected Snap interface but maintains backward compatibility through response handling
+- Export `handleSolanaTxResponse` as an alias for `handleNonEvmTxResponse` for backward compatibility (deprecated) ([#6705](https://github.com/MetaMask/core/pull/6705))
+- Rename `createClientTransactionRequest` from `signAndSendTransactionRequest` for clarity ([#6705](https://github.com/MetaMask/core/pull/6705))
+
+### Removed
+
+- Remove direct dependency on `@metamask/keyring-api` ([#6705](https://github.com/MetaMask/core/pull/6705))
+
+### Fixed
+
+- Fix invalid fallback chain ID for non-EVM chains in transaction metadata ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Changed from invalid `0x0` to `0x1` as temporary workaround for activity list display
+
 ## [45.0.0]
 
 ### Changed
