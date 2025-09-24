@@ -3628,25 +3628,25 @@ __metadata:
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=f1cd90&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=888849&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/cdc87ae1c9b46f7ab3914f1ca4a3b1681a83a799dbaeaf55ccec83621a51bb21834a25b97e50c1dcdfe5749035e480f9adfca4cef1eed3f0ac8db9c5140c757d
+  checksum: 10/00e33da873f02bc35d3d98d59a0c949d0e204921f590576926837de5a5ca3bfd7fcd1647fd10d6970a78ba8abbbca5ddb3fa16c585962cf14b637edf477a35f5
   languageName: node
   linkType: hard
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=f1cd90&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=888849&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.4.2"
-  checksum: 10/cdc87ae1c9b46f7ab3914f1ca4a3b1681a83a799dbaeaf55ccec83621a51bb21834a25b97e50c1dcdfe5749035e480f9adfca4cef1eed3f0ac8db9c5140c757d
+  checksum: 10/00e33da873f02bc35d3d98d59a0c949d0e204921f590576926837de5a5ca3bfd7fcd1647fd10d6970a78ba8abbbca5ddb3fa16c585962cf14b637edf477a35f5
   languageName: node
   linkType: hard
 
