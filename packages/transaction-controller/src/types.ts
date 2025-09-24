@@ -757,6 +757,26 @@ export enum TransactionType {
   personalSign = 'personal_sign',
 
   /**
+   * Buy a position via Predict.
+   */
+  predictBuy = 'predictBuy',
+
+  /**
+   * Claim winnings from a position via Predict.
+   */
+  predictClaim = 'predictClaim',
+
+  /**
+   * Deposit funds to be available for use via Predict.
+   */
+  predictDeposit = 'predictDeposit',
+
+  /**
+   * Sell a position via Predict.
+   */
+  predictSell = 'predictSell',
+
+  /**
    * When a transaction is failed it can be retried by
    * resubmitting the same transaction with a higher gas fee. This type is also used
    * to speed up pending transactions. This is accomplished by creating a new tx with

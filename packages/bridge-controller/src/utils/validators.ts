@@ -220,35 +220,16 @@ export const TxDataSchema = type({
   effectiveGas: optional(number()),
 });
 
-export const BitcoinTradeDataSchema = type({
-  unsignedPsbtBase64: string(),
-  inputsToSign: nullable(array(type({}))),
-});
-
 export const QuoteResponseSchema = type({
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(TxDataSchema),
-  trade: union([TxDataSchema, BitcoinTradeDataSchema, string()]),
-});
-
-export const BitcoinQuoteResponseSchema = type({
-  quote: QuoteSchema,
-  estimatedProcessingTimeInSeconds: number(),
-  approval: optional(TxDataSchema),
-  trade: BitcoinTradeDataSchema,
+  trade: union([TxDataSchema, string()]),
 });
 
 export const validateQuoteResponse = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
-  return true;
-};
-
-export const validateBitcoinQuoteResponse = (
-  data: unknown,
-): data is Infer<typeof BitcoinQuoteResponseSchema> => {
-  assert(data, BitcoinQuoteResponseSchema);
   return true;
 };
