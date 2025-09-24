@@ -4245,7 +4245,7 @@ describe('AccountTreeController', () => {
       mocks.AccountsController.accounts = [mockHdAccount2, mockHdAccount1];
 
       // Re-init the controller should still give proper naming.
-      controller.init();
+      controller.reinit();
 
       [mockHdAccount1, mockHdAccount2].forEach((mockAccount, index) => {
         const walletId = toMultichainAccountWalletId(
