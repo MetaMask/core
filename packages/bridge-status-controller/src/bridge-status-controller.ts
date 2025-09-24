@@ -782,8 +782,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const metadataTxHashes = Array.isArray(intentOrder.metadata.txHashes)
       ? (intentOrder.metadata.txHashes as string[])
       : [];
-    const allHashes =
-      metadataTxHashes.length > 0 ? metadataTxHashes : txHash ? [txHash] : [];
+
+    let allHashes: string[];
+    if (metadataTxHashes.length > 0) {
+      allHashes = metadataTxHashes;
+    } else if (txHash) {
+      allHashes = [txHash];
+    } else {
+      allHashes = [];
+    }
 
     const newStatus = {
       status: statusType,
