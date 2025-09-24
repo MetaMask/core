@@ -4,13 +4,12 @@ import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import { withTimeout } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
-import { withRetry } from './utils';
+import { withRetry, withTimeout } from './utils';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type BtcAccountProviderConfig = {
@@ -21,12 +20,12 @@ export type BtcAccountProviderConfig = {
   };
 };
 
-export const BITCOIN_ACCOUNT_PROVIDER_NAME = 'Bitcoin' as const;
+export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin' as const;
 
 export class BtcAccountProvider extends SnapAccountProvider {
-  static NAME = BITCOIN_ACCOUNT_PROVIDER_NAME;
+  static NAME = BTC_ACCOUNT_PROVIDER_NAME;
 
-  static BITCOIN_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap' as SnapId;
+  static BTC_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap' as SnapId;
 
   readonly #client: KeyringClient;
 
@@ -42,9 +41,9 @@ export class BtcAccountProvider extends SnapAccountProvider {
       },
     },
   ) {
-    super(BtcAccountProvider.BITCOIN_SNAP_ID, messenger);
+    super(BtcAccountProvider.BTC_SNAP_ID, messenger);
     this.#client = this.#getKeyringClientFromSnapId(
-      BtcAccountProvider.BITCOIN_SNAP_ID,
+      BtcAccountProvider.BTC_SNAP_ID,
     );
     this.#config = config;
   }

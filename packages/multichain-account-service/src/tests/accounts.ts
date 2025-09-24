@@ -170,7 +170,7 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
     name: 'Bitcoin Native Segwit Account 1',
     importTime: 0,
     keyring: {
-      type: 'Snap keyring',
+      type: KeyringTypes.snap,
     },
     snap: {
       id: 'mock-btc-snap-id',
@@ -199,7 +199,7 @@ export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
     name: 'Bitcoin Taproot Account 1',
     importTime: 0,
     keyring: {
-      type: 'Snap keyring',
+      type: KeyringTypes.snap,
     },
     snap: {
       id: 'mock-btc-snap-id',
