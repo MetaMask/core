@@ -54,6 +54,9 @@ export const MOCK_SNAP_2 = {
 export const MOCK_ENTROPY_SOURCE_1 = 'mock-keyring-id-1';
 export const MOCK_ENTROPY_SOURCE_2 = 'mock-keyring-id-2';
 
+export const MOCK_MNEMONIC =
+  'abandon ability able about above absent absorb abstract absurd abuse access accident';
+
 export const MOCK_HD_KEYRING_1 = {
   type: KeyringTypes.hd,
   metadata: { id: MOCK_ENTROPY_SOURCE_1, name: 'HD Keyring 1' },
@@ -145,7 +148,7 @@ export const MOCK_SOL_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
 export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'b0f030d8-e101-4b5a-a3dd-13f8ca8ec1db',
   type: BtcAccountType.P2wpkh,
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   address: 'bc1qx8ls07cy8j8nrluy2u0xwn7gh8fxg0rg4s8zze',
   options: {
     entropy: {
@@ -174,7 +177,7 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
 export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'a20c2e1a-6ff6-40ba-b8e0-ccdb6f9933bb',
   type: BtcAccountType.P2tr,
-  methods: [BtcMethod.SendBitcoin],
+  methods: Object.values(BtcMethod),
   address: 'tb1p5cyxnuxmeuwuvkwfem96lxx9wex9kkf4mt9ll6q60jfsnrzqg4sszkqjnh',
   options: {
     entropy: {

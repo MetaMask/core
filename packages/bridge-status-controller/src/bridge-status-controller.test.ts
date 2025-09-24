@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 /* eslint-disable jest/no-restricted-matchers */
 import type { AccountsControllerActions } from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   BridgeControllerActions,
   BridgeControllerEvents,
@@ -2470,7 +2470,7 @@ describe('BridgeStatusController', () => {
 
     it('should delay after submitting linea approval', async () => {
       const handleLineaDelaySpy = jest
-        .spyOn(transactionUtils, 'handleLineaDelay')
+        .spyOn(transactionUtils, 'handleApprovalDelay')
         .mockResolvedValueOnce();
       const mockTraceFn = jest
         .fn()
@@ -2499,6 +2499,44 @@ describe('BridgeStatusController', () => {
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
       expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
+      expect(result).toMatchSnapshot();
+      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      expect(mockTraceFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should delay after submitting base approval', async () => {
+      const handleBaseDelaySpy = jest
+        .spyOn(transactionUtils, 'handleApprovalDelay')
+        .mockResolvedValueOnce();
+      const mockTraceFn = jest
+        .fn()
+        .mockImplementation((_p, callback) => callback());
+
+      setupEventTrackingMocks(mockMessengerCall);
+      setupApprovalMocks(mockMessengerCall);
+      setupBridgeMocks(mockMessengerCall);
+
+      const { controller, startPollingForBridgeTxStatusSpy } = getController(
+        mockMessengerCall,
+        mockTraceFn,
+      );
+
+      const baseQuoteResponse = {
+        ...mockEvmQuoteResponse,
+        quote: { ...mockEvmQuoteResponse.quote, srcChainId: 8453 },
+        trade: {
+          ...(mockEvmQuoteResponse.trade as TxData),
+          gasLimit: undefined,
+        } as never,
+      };
+
+      const result = await controller.submitTx(baseQuoteResponse, false);
+      controller.stopAllPolling();
+
+      expect(mockTraceFn).toHaveBeenCalledTimes(2);
+      expect(handleBaseDelaySpy).toHaveBeenCalledTimes(1);
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();
@@ -3652,6 +3690,68 @@ describe('BridgeStatusController', () => {
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`Object {}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "txHistory": Object {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "txHistory": Object {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = getController(jest.fn());
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "txHistory": Object {},
+        }
+      `);
     });
   });
 });

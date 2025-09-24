@@ -75,7 +75,6 @@ export {
   BRIDGE_QUOTE_MAX_ETA_SECONDS,
   BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE,
   BRIDGE_PREFERRED_GAS_ESTIMATE,
-  BRIDGE_DEFAULT_SLIPPAGE,
   BRIDGE_MM_FEE_RATE,
   REFRESH_INTERVAL_MS,
   DEFAULT_MAX_REFRESH_COUNT,
@@ -132,6 +131,7 @@ export {
 
 export {
   selectBridgeQuotes,
+  selectDefaultSlippagePercentage,
   type BridgeAppState,
   selectExchangeRateByChainIdAndAddress,
   selectIsQuoteExpired,
@@ -142,3 +142,5 @@ export {
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
 
 export { getBridgeFeatureFlags } from './utils/feature-flags';
+
+export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage';

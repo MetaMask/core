@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.0.0]
+
+### Added
+
+- Add generic number formatter ([#6664](https://github.com/MetaMask/core/pull/6664))
+  - The new formatter is available as the `formatNumber` property on the return value of `createFormatters`.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.7.0` to `^1.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [75.2.0]
+
+### Added
+
+- Add `Monad Mainnet` support ([#6618](https://github.com/MetaMask/core/pull/6618))
+
+  - Add `Monad Mainnet` balance scan contract address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
+  - Add `Monad Mainnet` in `SupportedTokenDetectionNetworks`
+  - Add `Monad Mainnet` in `SUPPORTED_CHAIN_IDS`
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.13.0` to `^11.14.0` ([#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+### Fixed
+
+- Fix `TokenBalancesController` selective session stopping to prevent old polling sessions from interfering with new ones when chain configurations change ([#6635](https://github.com/MetaMask/core/pull/6635))
+
+## [75.1.0]
+
+### Added
+
+- Shared fiat currency and token formatters ([#6577](https://github.com/MetaMask/core/pull/6577))
+
+### Changed
+
+- Add `queryAllAccounts` parameter support to `AccountTrackerController.refresh()`, `AccountTrackerController._executePoll()`, and `TokenBalancesController.updateBalances()` for flexible account selection during balance updates ([#6600](https://github.com/MetaMask/core/pull/6600))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.13.0` ([#6620](https://github.com/MetaMask/core/pull/6620))
+
+## [75.0.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6472](https://github.com/MetaMask/core/pull/6472))
+
+### Changed
+
+- **BREAKING:** Replace `useAccountAPI` boolean with `accountsApiChainIds` array in `TokenBalancesController` for granular per-chain Accounts API configuration ([#6487](https://github.com/MetaMask/core/pull/6487))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+
 ## [74.3.3]
 
 ### Changed
@@ -1961,7 +2014,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@76.0.0...HEAD
+[76.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.2.0...@metamask/assets-controllers@76.0.0
+[75.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.1.0...@metamask/assets-controllers@75.2.0
+[75.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.0.0...@metamask/assets-controllers@75.1.0
+[75.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.3...@metamask/assets-controllers@75.0.0
 [74.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.2...@metamask/assets-controllers@74.3.3
 [74.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.1...@metamask/assets-controllers@74.3.2
 [74.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.0...@metamask/assets-controllers@74.3.1

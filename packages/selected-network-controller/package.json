@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "23.0.0",
+  "version": "24.0.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -47,14 +47,14 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.3.0",
-    "@metamask/json-rpc-engine": "^10.0.3",
+    "@metamask/base-controller": "^8.4.0",
+    "@metamask/json-rpc-engine": "^10.1.0",
     "@metamask/swappable-obj-proxy": "^2.3.0",
-    "@metamask/utils": "^11.4.2"
+    "@metamask/utils": "^11.8.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^24.1.0",
+    "@metamask/network-controller": "^24.2.0",
     "@metamask/permission-controller": "^11.0.6",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

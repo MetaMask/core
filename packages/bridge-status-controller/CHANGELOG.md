@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [44.1.0]
+
+### Changed
+
+- Revert accidental breaking changes included in v44.0.0 ([#6454](https://github.com/MetaMask/core/pull/6454))
+- Refactor `handleLineaDelay` to `handleApprovalDelay` for improved abstraction and add support for Base chain by using an array and `includes` for chain ID checks ([#6674](https://github.com/MetaMask/core/pull/6674))
+
+## [44.0.0] [DEPRECATED]
+
+### Changed
+
+- This version was deprecated because it accidentally included additional breaking changes; use v44.1.0 or later versions instead
+- **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^43.0.0` to `^44.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [43.1.0]
+
+### Added
+
+- Add new controller metadata properties to `BridgeStatusController` ([#6589](https://github.com/MetaMask/core/pull/6589))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [43.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/bridge-controller` peer dependency from `^42.0.0` to `^43.0.0` ([#6612](https://github.com/MetaMask/core/pull/6612))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
 ## [42.0.0]
 
 ### Added
@@ -533,7 +566,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@42.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.1.0...HEAD
+[44.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.0.0...@metamask/bridge-status-controller@44.1.0
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.1.0...@metamask/bridge-status-controller@44.0.0
+[43.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.0.0...@metamask/bridge-status-controller@43.1.0
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@42.0.0...@metamask/bridge-status-controller@43.0.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@41.0.0...@metamask/bridge-status-controller@42.0.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.2.0...@metamask/bridge-status-controller@41.0.0
 [40.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@40.1.0...@metamask/bridge-status-controller@40.2.0

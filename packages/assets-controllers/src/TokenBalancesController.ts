@@ -55,7 +55,12 @@ const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
 
 const metadata = {
-  tokenBalances: { persist: true, anonymous: false },
+  tokenBalances: {
+    includeInStateLogs: false,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
 };
 
 // account → chain → token → balance
@@ -143,8 +148,8 @@ export type TokenBalancesControllerOptions = {
   state?: Partial<TokenBalancesControllerState>;
   /** When `true`, balances for *all* known accounts are queried. */
   queryMultipleAccounts?: boolean;
-  /** Enable Accounts‑API strategy (if supported chain). */
-  useAccountsAPI?: boolean;
+  /** Array of chainIds that should use Accounts-API strategy (if supported by API). */
+  accountsApiChainIds?: ChainIdHex[];
   /** Disable external HTTP calls (privacy / offline mode). */
   allowExternalServices?: () => boolean;
   /** Custom logger. */
@@ -174,6 +179,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 > {
   readonly #queryAllAccounts: boolean;
 
+  readonly #accountsApiChainIds: ChainIdHex[];
+
   readonly #balanceFetchers: BalanceFetcher[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
@@ -201,7 +208,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainPollingIntervals = {},
     state = {},
     queryMultipleAccounts = true,
-    useAccountsAPI = false,
+    accountsApiChainIds = [],
     allowExternalServices = () => true,
   }: TokenBalancesControllerOptions) {
     super({
@@ -212,13 +219,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     });
 
     this.#queryAllAccounts = queryMultipleAccounts;
+    this.#accountsApiChainIds = [...accountsApiChainIds];
     this.#defaultInterval = interval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
 
     // Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
-      ...(useAccountsAPI && allowExternalServices()
-        ? [new AccountsApiBalanceFetcher('extension', this.#getProvider)]
+      ...(accountsApiChainIds.length > 0 && allowExternalServices()
+        ? [this.#createAccountsApiFetcher()]
         : []),
       new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
         allTokens: this.#allTokens,
@@ -296,6 +304,31 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
+  };
+
+  /**
+   * Creates an AccountsApiBalanceFetcher that only supports chains in the accountsApiChainIds array
+   *
+   * @returns A BalanceFetcher that wraps AccountsApiBalanceFetcher with chainId filtering
+   */
+  readonly #createAccountsApiFetcher = (): BalanceFetcher => {
+    const originalFetcher = new AccountsApiBalanceFetcher(
+      'extension',
+      this.#getProvider,
+    );
+
+    return {
+      supports: (chainId: ChainIdHex): boolean => {
+        // Only support chains that are both:
+        // 1. In our specified accountsApiChainIds array
+        // 2. Actually supported by the AccountsApi
+        return (
+          this.#accountsApiChainIds.includes(chainId) &&
+          originalFetcher.supports(chainId)
+        );
+      },
+      fetch: originalFetcher.fetch.bind(originalFetcher),
+    };
   };
 
   /**
@@ -409,12 +442,41 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   /**
    * Override to handle our custom polling approach
+   *
+   * @param tokenSetId - The token set ID to stop polling for
    */
-  override _stopPollingByPollingTokenSetId() {
-    this.#isControllerPollingActive = false;
-    this.#requestedChainIds = []; // Clear original intent when stopping
-    this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
-    this.#intervalPollingTimers.clear();
+  override _stopPollingByPollingTokenSetId(tokenSetId: string) {
+    let parsedTokenSetId;
+    let chainsToStop: ChainIdHex[] = [];
+
+    try {
+      parsedTokenSetId = JSON.parse(tokenSetId);
+      chainsToStop = parsedTokenSetId.chainIds || [];
+    } catch (error) {
+      console.warn('Failed to parse tokenSetId, stopping all polling:', error);
+      // Fallback: stop all polling if we can't parse the tokenSetId
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+      return;
+    }
+
+    // Compare with current chains - only stop if it matches our current session
+    const currentChainsSet = new Set(this.#requestedChainIds);
+    const stopChainsSet = new Set(chainsToStop);
+
+    // Check if this stop request is for our current session
+    const isCurrentSession =
+      currentChainsSet.size === stopChainsSet.size &&
+      [...currentChainsSet].every((chain) => stopChainsSet.has(chain));
+
+    if (isCurrentSession) {
+      this.#isControllerPollingActive = false;
+      this.#requestedChainIds = [];
+      this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
+      this.#intervalPollingTimers.clear();
+    }
   }
 
   /**
@@ -431,9 +493,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
-  override async _executePoll({ chainIds }: { chainIds: ChainIdHex[] }) {
+  override async _executePoll({
+    chainIds,
+    queryAllAccounts = false,
+  }: {
+    chainIds: ChainIdHex[];
+    queryAllAccounts?: boolean;
+  }) {
     // This won't be called with our custom implementation, but keep for compatibility
-    await this.updateBalances({ chainIds });
+    await this.updateBalances({ chainIds, queryAllAccounts });
   }
 
   /**
@@ -459,7 +527,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({ chainIds }: { chainIds?: ChainIdHex[] } = {}) {
+  async updateBalances({
+    chainIds,
+    queryAllAccounts = false,
+  }: { chainIds?: ChainIdHex[]; queryAllAccounts?: boolean } = {}) {
     const targetChains = chainIds ?? this.#chainIdsWithTokens();
     if (!targetChains.length) {
       return;
@@ -487,7 +558,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       try {
         const balances = await fetcher.fetch({
           chainIds: supportedChains,
-          queryAllAccounts: this.#queryAllAccounts,
+          queryAllAccounts: queryAllAccounts ?? this.#queryAllAccounts,
           selectedAccount: selected as ChecksumAddress,
           allAccounts,
         });

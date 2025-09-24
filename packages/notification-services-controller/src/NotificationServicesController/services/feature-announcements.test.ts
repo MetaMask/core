@@ -19,7 +19,7 @@ jest.mock('@contentful/rich-text-html-renderer', () => ({
 const featureAnnouncementsEnv = {
   spaceId: ':space_id',
   accessToken: ':access_token',
-  platform: 'extension',
+  platform: 'extension' as 'extension' | 'mobile',
 };
 
 describe('Feature Announcement Notifications', () => {
@@ -44,7 +44,7 @@ describe('Feature Announcement Notifications', () => {
     await assertEnvEmpty({ platform: null as MockedType });
     await assertEnvEmpty({ spaceId: null as MockedType });
     await assertEnvEmpty({ accessToken: '' });
-    await assertEnvEmpty({ platform: '' });
+    await assertEnvEmpty({ platform: '' as MockedType });
     await assertEnvEmpty({ spaceId: '' });
   });
 
@@ -97,6 +97,106 @@ describe('Feature Announcement Notifications', () => {
 
     expect(resultNotification.data).toBeDefined();
   });
+
+  const testPlatforms = [
+    {
+      platform: 'extension' as const,
+      versionField: 'extensionMinimumVersionNumber' as const,
+    },
+    {
+      platform: 'mobile' as const,
+      versionField: 'mobileMinimumVersionNumber' as const,
+    },
+  ];
+
+  describe.each(testPlatforms)(
+    'Feature Announcement $platform filtering',
+    ({ platform, versionField }) => {
+      const arrangeAct = async (
+        minimumVersion: string | undefined,
+        platformVersion: string | undefined,
+      ) => {
+        const apiResponse = createMockFeatureAnnouncementAPIResult();
+        if (apiResponse.items && apiResponse.items[0]) {
+          apiResponse.items[0].fields.extensionMinimumVersionNumber = undefined;
+          apiResponse.items[0].fields.mobileMinimumVersionNumber = undefined;
+          if (minimumVersion !== undefined) {
+            apiResponse.items[0].fields[versionField] = minimumVersion;
+          }
+        }
+
+        const mockEndpoint = mockFetchFeatureAnnouncementNotifications({
+          status: 200,
+          body: apiResponse,
+        });
+
+        const notifications = await getFeatureAnnouncementNotifications({
+          ...featureAnnouncementsEnv,
+          platform,
+          platformVersion,
+        });
+
+        mockEndpoint.done();
+        return notifications;
+      };
+
+      const testCases = [
+        {
+          name: 'should show notifications when platform version meets minimum requirement',
+          minimumVersion: '1.0.0',
+          platformVersion: '2.0.0',
+          expectedLength: 1,
+        },
+        {
+          name: 'should show notifications when platform version equals minimum requirement',
+          minimumVersion: '1.0.0',
+          platformVersion: '1.0.0',
+          expectedLength: 1,
+        },
+        {
+          name: 'should hide notifications when platform version is below minimum requirement',
+          minimumVersion: '3.0.0',
+          platformVersion: '2.0.0',
+          expectedLength: 0,
+        },
+        {
+          name: 'should show notifications when no platform version is provided',
+          minimumVersion: '2.0.0',
+          platformVersion: undefined,
+          expectedLength: 1,
+        },
+        {
+          name: 'should show notifications when no minimum version is specified for the platform',
+          minimumVersion: undefined,
+          platformVersion: '1.0.0',
+          expectedLength: 1,
+        },
+        {
+          name: 'should handle invalid version strings gracefully',
+          minimumVersion: 'invalid-version',
+          platformVersion: '2.0.0',
+          expectedLength: 0,
+        },
+        {
+          name: 'should handle invalid platform version gracefully',
+          minimumVersion: '2.0.0',
+          platformVersion: 'invalid-version',
+          expectedLength: 0,
+        },
+      ];
+
+      it.each(testCases)(
+        '$name',
+        async ({ minimumVersion, platformVersion, expectedLength }) => {
+          const notifications = await arrangeAct(
+            minimumVersion,
+            platformVersion,
+          );
+          expect(notifications).toHaveLength(expectedLength);
+        },
+      );
+    },
+  );
 });
 
 describe('getFeatureAnnouncementUrl', () => {
