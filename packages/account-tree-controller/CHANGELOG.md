@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
+## [1.2.0]
+
+### Added
+
+- Add `reinit` method ([#6709](https://github.com/MetaMask/core/pull/6709))
+  - This method can be used if we change the entire list of accounts of the `AccountsController` and want to re-initilize the tree with it.
+
+### Changed
+
+- Implicitly call `init` before mutating the tree ([#6709](https://github.com/MetaMask/core/pull/6709))
+  - This ensure the tree is always using existing accounts before inserting/removing any new accounts if `init` has not been called yet.
+
 ### Fixed
 
 - Fix use of unknown `group.metadata.name` when checking for group name uniqueness ([#6706](https://github.com/MetaMask/core/pull/6706))
@@ -315,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.2.0...HEAD
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.1.0...@metamask/account-tree-controller@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.0.0...@metamask/account-tree-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.1...@metamask/account-tree-controller@1.0.0
 [0.18.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.0...@metamask/account-tree-controller@0.18.1
