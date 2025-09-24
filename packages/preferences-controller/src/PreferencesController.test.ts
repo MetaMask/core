@@ -22,7 +22,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
+      displayNftMedia: false,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
@@ -433,16 +433,16 @@ describe('PreferencesController', () => {
 
   it('should set useNftDetection', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(true);
+    controller.setDisplayNftMedia(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
   });
 
-  it('should throw an error when useNftDetection is set and openSeaEnabled is false', () => {
+  it('should throw an error when useNftDetection is set and displayNftMedia is false', () => {
     const controller = setupPreferencesController();
-    controller.setOpenSeaEnabled(false);
+    controller.setDisplayNftMedia(false);
     expect(() => controller.setUseNftDetection(true)).toThrow(
-      'useNftDetection cannot be enabled if openSeaEnabled is false',
+      'useNftDetection cannot be enabled if displayNftMedia is false',
     );
   });
 
@@ -586,10 +586,10 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "showIncomingTransactions": Object {
@@ -644,13 +644,13 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "lostIdentities": Object {},
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -707,13 +707,13 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "lostIdentities": Object {},
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -770,12 +770,12 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "openSeaEnabled": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
