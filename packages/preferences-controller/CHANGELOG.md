@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a new controller state metadata property: `tokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- Add a new controller state property: `tokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
 - Add a new controller method: `setTokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
