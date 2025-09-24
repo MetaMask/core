@@ -30,7 +30,7 @@ describe('PreferencesController', () => {
       smartAccountOptInForAccounts: [],
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
-      useMultiRpcMigration: true,
+      showMultiRpcModal: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce(
@@ -49,6 +49,7 @@ describe('PreferencesController', () => {
       },
       privacyMode: false,
       dismissSmartAccountSuggestionEnabled: false,
+      tokenNetworkFilter: {},
     });
   });
 
@@ -448,14 +449,23 @@ describe('PreferencesController', () => {
 
   it('should set useMultiRpcMigration', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(true);
-    expect(controller.state.useMultiRpcMigration).toBe(true);
+    controller.setShowMultiRpcModal(true);
+    expect(controller.state.showMultiRpcModal).toBe(true);
   });
 
   it('should set useMultiRpcMigration is false value is passed', () => {
     const controller = setupPreferencesController();
-    controller.setUseMultiRpcMigration(false);
-    expect(controller.state.useMultiRpcMigration).toBe(false);
+    controller.setShowMultiRpcModal(false);
+    expect(controller.state.showMultiRpcModal).toBe(false);
+  });
+
+  it('sets tokenNetworkFilter', () => {
+    const controller = setupPreferencesController();
+    controller.setTokenNetworkFilter({ '0x1': true, '0xa': false });
+    expect(controller.state.tokenNetworkFilter).toStrictEqual({
+      '0x1': true,
+      '0xa': false,
+    });
   });
 
   it('should set featureFlags', () => {
@@ -615,6 +625,7 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": true,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
@@ -623,7 +634,6 @@ describe('PreferencesController', () => {
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
@@ -677,16 +687,17 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": true,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
@@ -740,16 +751,17 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": true,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
@@ -802,16 +814,17 @@ describe('PreferencesController', () => {
             "0xfa": true,
             "0xfa2": true,
           },
+          "showMultiRpcModal": true,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "smartTransactionsOptInStatus": true,
+          "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
-          "useMultiRpcMigration": true,
           "useNftDetection": false,
           "useSafeChainsListValidation": true,
           "useTokenDetection": true,
