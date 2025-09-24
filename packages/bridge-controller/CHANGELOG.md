@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Bitcoin bridge transactions ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Handle Bitcoin PSBT (Partially Signed Bitcoin Transaction) format in trade data
+  - Support Bitcoin chain ID (`ChainId.BTC = 20000000000001`) and CAIP format (`bip122:000000000019d6689c085ae165831e93`)
+- Export `isNonEvmChainId` utility function to check for non-EVM chains (Solana, Bitcoin) ([#6705](https://github.com/MetaMask/core/pull/6705))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708)
+- **BREAKING:** Rename fee handling for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Replace `SolanaFees` type with `NonEvmFees` type (exported type)
+  - Replace `solanaFeesInLamports` property in quote responses with `nonEvmFeesInNative` property
+  - The `nonEvmFeesInNative` property stores fees in the native units for each chain (SOL for Solana, BTC for Bitcoin)
+- **BREAKING:** Update Snap methods to use new unified interface for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
+  - Snaps must now implement `computeFee` method instead of `getFeeForTransaction` for fee calculation
+  - The `computeFee` method returns fees in native token units rather than smallest units
 
 ## [45.0.0]
 

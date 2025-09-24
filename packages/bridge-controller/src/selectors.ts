@@ -26,7 +26,7 @@ import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
   isNativeAddress,
-  isSolanaChainId,
+  isNonEvmChainId,
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
@@ -41,7 +41,7 @@ import {
   calcIncludedTxFees,
   calcRelayerFee,
   calcSentAmount,
-  calcSolanaTotalNetworkFee,
+  calcNonEvmTotalNetworkFee,
   calcSwapRate,
   calcToAmount,
   calcTotalEstimatedNetworkFee,
@@ -140,8 +140,8 @@ const getExchangeRateByChainIdAndAddress = (
   if (bridgeControllerRate?.exchangeRate) {
     return bridgeControllerRate;
   }
-  // If the chain is a Solana chain, use the conversion rate from the multichain assets controller
-  if (isSolanaChainId(chainId)) {
+  // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
+  if (isNonEvmChainId(chainId)) {
     const multichainAssetExchangeRate = conversionRates?.[assetId];
     if (multichainAssetExchangeRate) {
       return {
@@ -164,22 +164,24 @@ const getExchangeRateByChainIdAndAddress = (
     return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
-  const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
-  const evmTokenExchangeRateForAddress = isStrictHexString(address)
-    ? evmTokenExchangeRates?.[address]
-    : null;
-  const nativeCurrencyRate = evmTokenExchangeRateForAddress
-    ? currencyRates[evmTokenExchangeRateForAddress?.currency]
-    : undefined;
-  if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
-    return {
-      exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-        .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
-        .toString(),
-      usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
-        .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
-        .toString(),
-    };
+  if (!isNonEvmChainId(chainId)) {
+    const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const evmTokenExchangeRateForAddress = isStrictHexString(address)
+      ? evmTokenExchangeRates?.[address]
+      : null;
+    const nativeCurrencyRate = evmTokenExchangeRateForAddress
+      ? currencyRates[evmTokenExchangeRateForAddress?.currency]
+      : undefined;
+    if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
+      return {
+        exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+          .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
+          .toString(),
+        usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+          .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
+          .toString(),
+      };
+    }
   }
 
   return {};
@@ -287,8 +289,9 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (isSolanaChainId(quote.quote.srcChainId)) {
-        totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
+      if (isNonEvmChainId(quote.quote.srcChainId)) {
+        // Use the new generic function for all non-EVM chains
+        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,
           nativeExchangeRate,
         );
