@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix invalid fallback chain ID for non-EVM chains in transaction metadata ([#6705](https://github.com/MetaMask/core/pull/6705))
   - Changed from invalid `0x0` to `0x1` as temporary workaround for activity list display
 
+## [45.0.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^44.0.1` to `^45.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+
 ## [44.1.0]
 
 ### Changed
@@ -589,7 +595,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@45.0.0...HEAD
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.1.0...@metamask/bridge-status-controller@45.0.0
 [44.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.0.0...@metamask/bridge-status-controller@44.1.0
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.1.0...@metamask/bridge-status-controller@44.0.0
 [43.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.0.0...@metamask/bridge-status-controller@43.1.0

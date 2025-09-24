@@ -2403,7 +2403,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-tree-controller@npm:^1.1.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
+"@metamask/account-tree-controller@npm:^1.2.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
@@ -2413,7 +2413,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/keyring-api": "npm:^21.0.0"
     "@metamask/keyring-controller": "npm:^23.1.0"
-    "@metamask/multichain-account-service": "npm:^1.0.0"
+    "@metamask/multichain-account-service": "npm:^1.1.0"
     "@metamask/profile-sync-controller": "npm:^25.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -2574,7 +2574,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^76.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^77.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -2587,7 +2587,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-api": "npm:^0.12.0"
-    "@metamask/account-tree-controller": "npm:^1.1.0"
+    "@metamask/account-tree-controller": "npm:^1.2.0"
     "@metamask/accounts-controller": "npm:^33.1.0"
     "@metamask/approval-controller": "npm:^7.1.3"
     "@metamask/auto-changelog": "npm:^3.4.4"
@@ -2601,12 +2601,12 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^9.0.0"
     "@metamask/keyring-snap-client": "npm:^8.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/multichain-account-service": "npm:^1.0.0"
+    "@metamask/multichain-account-service": "npm:^1.1.0"
     "@metamask/network-controller": "npm:^24.2.0"
     "@metamask/permission-controller": "npm:^11.0.6"
-    "@metamask/phishing-controller": "npm:^13.1.0"
+    "@metamask/phishing-controller": "npm:^14.0.0"
     "@metamask/polling-controller": "npm:^14.0.0"
-    "@metamask/preferences-controller": "npm:^19.0.0"
+    "@metamask/preferences-controller": "npm:^20.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^14.0.1"
@@ -2645,8 +2645,8 @@ __metadata:
     "@metamask/keyring-controller": ^23.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/permission-controller": ^11.0.0
-    "@metamask/phishing-controller": ^13.0.0
-    "@metamask/preferences-controller": ^19.0.0
+    "@metamask/phishing-controller": ^14.0.0
+    "@metamask/preferences-controller": ^20.0.0
     "@metamask/providers": ^22.0.0
     "@metamask/snaps-controllers": ^14.0.0
     "@metamask/transaction-controller": ^60.0.0
@@ -2723,7 +2723,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^44.0.1, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^45.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2733,7 +2733,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^33.1.0"
-    "@metamask/assets-controllers": "npm:^76.0.0"
+    "@metamask/assets-controllers": "npm:^77.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
@@ -2764,7 +2764,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^33.0.0
-    "@metamask/assets-controllers": ^76.0.0
+    "@metamask/assets-controllers": ^77.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/remote-feature-flag-controller": ^1.6.0
     "@metamask/snaps-controllers": ^14.0.0
@@ -2779,7 +2779,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^33.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
-    "@metamask/bridge-controller": "npm:^44.0.1"
+    "@metamask/bridge-controller": "npm:^45.0.0"
     "@metamask/controller-utils": "npm:^11.14.0"
     "@metamask/gas-fee-controller": "npm:^24.0.0"
     "@metamask/network-controller": "npm:^24.2.0"
@@ -2802,7 +2802,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^33.0.0
-    "@metamask/bridge-controller": ^44.0.0
+    "@metamask/bridge-controller": ^45.0.0
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/snaps-controllers": ^14.0.0
@@ -3050,7 +3050,7 @@ __metadata:
   dependencies:
     "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/account-tree-controller": "npm:^1.1.0"
+    "@metamask/account-tree-controller": "npm:^1.2.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
@@ -3845,7 +3845,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-account-service@npm:^1.0.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
+"@metamask/multichain-account-service@npm:^1.1.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
@@ -4205,13 +4205,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/phishing-controller@npm:^13.1.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^14.0.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/transaction-controller": "npm:^60.4.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/jest": "npm:^27.4.1"
     "@types/punycode": "npm:^2.1.0"
@@ -4226,6 +4227,8 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/transaction-controller": ^60.4.0
   languageName: unknown
   linkType: soft
 
@@ -4264,7 +4267,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@npm:^19.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@npm:^20.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
@@ -4508,7 +4511,7 @@ __metadata:
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
-    "@metamask/signature-controller": "npm:^33.0.0"
+    "@metamask/signature-controller": "npm:^34.0.0"
     "@metamask/transaction-controller": "npm:^60.4.0"
     "@metamask/utils": "npm:^11.8.0"
     "@ts-bridge/cli": "npm:^0.6.1"
@@ -4521,12 +4524,12 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
   peerDependencies:
-    "@metamask/signature-controller": ^33.0.0
+    "@metamask/signature-controller": ^34.0.0
     "@metamask/transaction-controller": ^60.0.0
   languageName: unknown
   linkType: soft
 
-"@metamask/signature-controller@npm:^33.0.0, @metamask/signature-controller@workspace:packages/signature-controller":
+"@metamask/signature-controller@npm:^34.0.0, @metamask/signature-controller@workspace:packages/signature-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
   dependencies:

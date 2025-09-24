@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Snaps must now implement `computeFee` method instead of `getFeeForTransaction` for fee calculation
   - The `computeFee` method returns fees in native token units rather than smallest units
 
+## [45.0.0]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^76.0.0` to `^77.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+
 ## [44.0.1]
 
 ### Changed
@@ -627,7 +633,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@45.0.0...HEAD
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.1...@metamask/bridge-controller@45.0.0
 [44.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.0...@metamask/bridge-controller@44.0.1
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.1...@metamask/bridge-controller@44.0.0
 [43.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.0...@metamask/bridge-controller@43.2.1

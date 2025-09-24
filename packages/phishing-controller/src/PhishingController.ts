@@ -9,6 +9,11 @@ import {
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import type {
+  TransactionControllerStateChangeEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
+import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
 import { CacheManager, type CacheEntry } from './CacheManager';
@@ -359,12 +364,22 @@ export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 
+/**
+ * The external actions available to the PhishingController.
+ */
+type AllowedActions = never;
+
+/**
+ * The external events available to the PhishingController.
+ */
+export type AllowedEvents = TransactionControllerStateChangeEvent;
+
 export type PhishingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  PhishingControllerActions,
-  PhishingControllerEvents,
-  never,
-  never
+  PhishingControllerActions | AllowedActions,
+  PhishingControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -408,6 +423,11 @@ export class PhishingController extends BaseController<
 
   #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
+  readonly #transactionControllerStateChangeHandler: (
+    state: { transactions: TransactionMeta[] },
+    patches: Patch[],
+  ) => void;
+
   /**
    * Construct a Phishing Controller.
    *
@@ -446,6 +466,8 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#transactionControllerStateChangeHandler =
+      this.#onTransactionControllerStateChange.bind(this);
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -470,6 +492,14 @@ export class PhishingController extends BaseController<
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
+    this.#subscribeToTransactionControllerStateChange();
+  }
+
+  #subscribeToTransactionControllerStateChange() {
+    this.messagingSystem.subscribe(
+      'TransactionController:stateChange',
+      this.#transactionControllerStateChangeHandler,
+    );
   }
 
   /**
@@ -496,6 +526,105 @@ export class PhishingController extends BaseController<
       `${controllerName}:bulkScanTokens` as const,
       this.bulkScanTokens.bind(this),
     );
+  }
+
+  /**
+   * Checks if a patch represents a transaction-level change or nested transaction property change
+   *
+   * @param patch - Immer patch to check
+   * @returns True if patch affects a transaction or its nested properties
+   */
+  #isTransactionPatch(patch: Patch): boolean {
+    const { path } = patch;
+    return (
+      path.length === 2 &&
+      path[0] === 'transactions' &&
+      typeof path[1] === 'number'
+    );
+  }
+
+  /**
+   * Handle transaction controller state changes using Immer patches
+   * Extracts token addresses from simulation data and groups them by chain for bulk scanning
+   *
+   * @param _state - The current transaction controller state
+   * @param _state.transactions - Array of transaction metadata
+   * @param patches - Array of Immer patches only for transaction-level changes
+   */
+  #onTransactionControllerStateChange(
+    _state: { transactions: TransactionMeta[] },
+    patches: Patch[],
+  ) {
+    try {
+      const tokensByChain = new Map<string, Set<string>>();
+
+      for (const patch of patches) {
+        if (patch.op === 'remove') {
+          continue;
+        }
+
+        // Handle transaction-level patches (includes simulation data updates)
+        if (this.#isTransactionPatch(patch)) {
+          const transaction = patch.value as TransactionMeta;
+          this.#getTokensFromTransaction(transaction, tokensByChain);
+        }
+      }
+
+      this.#scanTokensByChain(tokensByChain);
+    } catch (error) {
+      console.error('Error processing transaction state change:', error);
+    }
+  }
+
+  /**
+   * Collect token addresses from a transaction and group them by chain
+   *
+   * @param transaction - Transaction metadata to extract tokens from
+   * @param tokensByChain - Map to collect tokens grouped by chainId
+   */
+  #getTokensFromTransaction(
+    transaction: TransactionMeta,
+    tokensByChain: Map<string, Set<string>>,
+  ) {
+    // extract token addresses from simulation data
+    const tokenAddresses = transaction.simulationData?.tokenBalanceChanges?.map(
+      (tokenChange) => tokenChange.address.toLowerCase(),
+    );
+
+    // add token addresses to the map by chainId
+    if (tokenAddresses && tokenAddresses.length > 0 && transaction.chainId) {
+      const chainId = transaction.chainId.toLowerCase();
+
+      if (!tokensByChain.has(chainId)) {
+        tokensByChain.set(chainId, new Set());
+      }
+
+      const chainTokens = tokensByChain.get(chainId);
+      if (chainTokens) {
+        for (const address of tokenAddresses) {
+          chainTokens.add(address);
+        }
+      }
+    }
+  }
+
+  /**
+   * Scan tokens grouped by chain ID
+   *
+   * @param tokensByChain - Map of chainId to token addresses
+   */
+  #scanTokensByChain(tokensByChain: Map<string, Set<string>>) {
+    for (const [chainId, tokenSet] of tokensByChain) {
+      if (tokenSet.size > 0) {
+        const tokens = Array.from(tokenSet);
+        this.bulkScanTokens({
+          chainId,
+          tokens,
+        }).catch((error) =>
+          console.error(`Error scanning tokens for chain ${chainId}:`, error),
+        );
+      }
+    }
   }
 
   /**
