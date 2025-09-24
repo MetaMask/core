@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [77.0.0]
 
-### Uncategorized
-
-- Release/578.0.0 ([#6712](https://github.com/MetaMask/core/pull/6712))
-- Release/575.0.0 ([#6700](https://github.com/MetaMask/core/pull/6700))
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-
 ### Changed
 
 - **BREAKING:** Rename `openSeaEnabled` to `displayNftMedia` in `NftController` ([#4774](https://github.com/MetaMask/core/pull/4774))
