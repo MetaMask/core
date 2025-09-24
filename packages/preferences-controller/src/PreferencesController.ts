@@ -82,7 +82,7 @@ export type PreferencesState = {
   /**
    * Controls whether the OpenSea API is used
    */
-  openSeaEnabled: boolean;
+  displayNftMedia: boolean;
   /**
    * Controls whether "security alerts" are enabled
    */
@@ -150,28 +150,138 @@ export type PreferencesState = {
 };
 
 const metadata = {
-  featureFlags: { persist: true, anonymous: true },
-  identities: { persist: true, anonymous: false },
-  ipfsGateway: { persist: true, anonymous: false },
-  isIpfsGatewayEnabled: { persist: true, anonymous: true },
-  isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
-  lostIdentities: { persist: true, anonymous: false },
-  openSeaEnabled: { persist: true, anonymous: true },
-  securityAlertsEnabled: { persist: true, anonymous: true },
-  selectedAddress: { persist: true, anonymous: false },
-  showTestNetworks: { persist: true, anonymous: true },
-  showIncomingTransactions: { persist: true, anonymous: true },
-  useNftDetection: { persist: true, anonymous: true },
-  useTokenDetection: { persist: true, anonymous: true },
-  smartTransactionsOptInStatus: { persist: true, anonymous: false },
-  useTransactionSimulations: { persist: true, anonymous: true },
-  useMultiRpcMigration: { persist: true, anonymous: true },
-  useSafeChainsListValidation: { persist: true, anonymous: true },
-  tokenSortConfig: { persist: true, anonymous: true },
-  privacyMode: { persist: true, anonymous: true },
-  dismissSmartAccountSuggestionEnabled: { persist: true, anonymous: true },
-  smartAccountOptIn: { persist: true, anonymous: true },
-  smartAccountOptInForAccounts: { persist: true, anonymous: true },
+  featureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  identities: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  ipfsGateway: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  isIpfsGatewayEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  isMultiAccountBalancesEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  lostIdentities: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: false,
+  },
+  displayNftMedia: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  securityAlertsEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  selectedAddress: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  showTestNetworks: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  showIncomingTransactions: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  useNftDetection: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  useTokenDetection: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  smartTransactionsOptInStatus: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: false,
+    usedInUi: true,
+  },
+  useTransactionSimulations: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  useMultiRpcMigration: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  useSafeChainsListValidation: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  tokenSortConfig: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  privacyMode: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  dismissSmartAccountSuggestionEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  smartAccountOptIn: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
+  smartAccountOptInForAccounts: {
+    includeInStateLogs: true,
+    persist: true,
+    anonymous: true,
+    usedInUi: true,
+  },
 };
 
 const name = 'PreferencesController';
@@ -213,7 +323,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     isIpfsGatewayEnabled: true,
     isMultiAccountBalancesEnabled: true,
     lostIdentities: {},
-    openSeaEnabled: false,
+    displayNftMedia: false,
     securityAlertsEnabled: false,
     selectedAddress: '',
     showIncomingTransactions: {
@@ -451,9 +561,9 @@ export class PreferencesController extends BaseController<
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
   setUseNftDetection(useNftDetection: boolean) {
-    if (useNftDetection && !this.state.openSeaEnabled) {
+    if (useNftDetection && !this.state.displayNftMedia) {
       throw new Error(
-        'useNftDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if displayNftMedia is false',
       );
     }
     this.update((state) => {
@@ -462,14 +572,14 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Toggle the opensea enabled setting.
+   * Toggle the display nft media enabled setting.
    *
-   * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+   * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
-  setOpenSeaEnabled(openSeaEnabled: boolean) {
+  setDisplayNftMedia(displayNftMedia: boolean) {
     this.update((state) => {
-      state.openSeaEnabled = openSeaEnabled;
-      if (!openSeaEnabled) {
+      state.displayNftMedia = displayNftMedia;
+      if (!displayNftMedia) {
         state.useNftDetection = false;
       }
     });

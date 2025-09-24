@@ -158,12 +158,16 @@ export type MultichainAssetsControllerMessenger = RestrictedMessenger<
  */
 const assetsControllerMetadata = {
   assetsMetadata: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
   accountsAssets: {
+    includeInStateLogs: false,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 

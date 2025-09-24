@@ -79,19 +79,23 @@ const TRANSACTION_HASH_MOCK = '0x123';
 const TRANSACTION_HASH_2_MOCK = '0x456';
 const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
+const TRANSACTION_SIGNATURE_3_MOCK = '0xdef123';
 const ERROR_MESSAGE_MOCK = 'Test error';
 const SECURITY_ALERT_ID_MOCK = '123-456';
 const ORIGIN_MOCK = 'test.com';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xfedfedfedfedfedfedfedfedfedfedfedfedfedf';
+const NONCE_PREVIOUS_MOCK = '0x110';
 const NONCE_MOCK = '0x111';
+const NONCE_MOCK_2 = '0x112';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_CUSTOM_MOCK,
   txParams: {
-    from: FROM_MOCK,
-    to: TO_MOCK,
     data: DATA_MOCK,
+    from: FROM_MOCK,
+    nonce: NONCE_MOCK,
+    to: TO_MOCK,
     value: VALUE_MOCK,
   },
 } as unknown as TransactionMeta;
@@ -284,6 +288,10 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['getTransaction']
     >;
 
+    let signTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['signTransaction']
+    >;
+
     let request: AddBatchTransactionOptions;
 
     beforeEach(() => {
@@ -296,6 +304,7 @@ describe('Batch Utils', () => {
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
       updateMock = jest.fn();
+      signTransactionMock = jest.fn();
 
       getGasFeeEstimatesMock = jest
         .fn()
@@ -335,16 +344,21 @@ describe('Batch Utils', () => {
 
       doesChainSupportEIP7702Mock.mockReturnValue(true);
 
+      signTransactionMock.mockResolvedValue(TRANSACTION_SIGNATURE_3_MOCK);
+
       request = {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
+        getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
+        getPendingTransactionTracker: getPendingTransactionTrackerMock,
         getSimulationConfig: jest.fn(),
         getTransaction: getTransactionMock,
         isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
+        publishTransaction: publishTransactionMock,
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -355,11 +369,9 @@ describe('Batch Utils', () => {
           disableHook: false,
           disableSequential: false,
         },
-        updateTransaction: updateTransactionMock,
-        publishTransaction: publishTransactionMock,
-        getPendingTransactionTracker: getPendingTransactionTrackerMock,
+        signTransaction: signTransactionMock,
         update: updateMock,
-        getGasFeeEstimates: getGasFeeEstimatesMock,
+        updateTransaction: updateTransactionMock,
       };
     });
 
@@ -1131,21 +1143,13 @@ describe('Batch Utils', () => {
           gasLimit: GAS_TOTAL_MOCK,
         });
 
-        addTransactionMock
-          .mockResolvedValueOnce({
-            transactionMeta: {
-              ...TRANSACTION_META_MOCK,
-              id: TRANSACTION_ID_MOCK,
-            },
-            result: Promise.resolve(''),
-          })
-          .mockResolvedValueOnce({
-            transactionMeta: {
-              ...TRANSACTION_META_MOCK,
-              id: TRANSACTION_ID_2_MOCK,
-            },
-            result: Promise.resolve(''),
-          });
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
 
         publishBatchHook.mockResolvedValue({
           results: [
@@ -1157,6 +1161,12 @@ describe('Batch Utils', () => {
             },
           ],
         });
+
+        getTransactionMock.mockReturnValueOnce({
+          txParams: {
+            nonce: NONCE_PREVIOUS_MOCK,
+          },
+        } as TransactionMeta);
 
         addTransactionBatch({
           ...request,
@@ -1257,6 +1267,12 @@ describe('Batch Utils', () => {
           ],
         });
 
+        getTransactionMock.mockReturnValueOnce({
+          txParams: {
+            nonce: NONCE_MOCK,
+          },
+        } as TransactionMeta);
+
         addTransactionBatch({
           ...request,
           publishBatchHook,
@@ -1297,6 +1313,115 @@ describe('Batch Utils', () => {
         expect(updateTransactionMock).toHaveBeenCalledTimes(1);
         expect(existingTransactionMock).toStrictEqual({
           batchId: expect.any(String),
+        });
+      });
+
+      it('re-signs transaction if existing transaction is not first in batch', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const onPublish = jest.fn();
+
+        const EXISTING_TRANSACTION_MOCK = {
+          id: TRANSACTION_ID_2_MOCK,
+          onPublish,
+          signedTransaction: TRANSACTION_SIGNATURE_2_MOCK,
+        } as TransactionBatchSingleRequest['existingTransaction'];
+
+        simulateGasBatchMock.mockResolvedValueOnce({
+          gasLimit: GAS_TOTAL_MOCK,
+        });
+
+        addTransactionMock.mockResolvedValue({
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        });
+
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
+
+        getTransactionMock
+          .mockReturnValueOnce({
+            txParams: {
+              nonce: NONCE_MOCK,
+            },
+          } as TransactionMeta)
+          .mockReturnValueOnce({
+            txParams: {
+              nonce: NONCE_MOCK_2,
+            },
+          } as TransactionMeta)
+          .mockReturnValueOnce({
+            txParams: {
+              nonce: NONCE_MOCK_2,
+            },
+          } as TransactionMeta);
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            disable7702: true,
+            transactions: [
+              request.request.transactions[0],
+              {
+                ...request.request.transactions[1],
+                existingTransaction: EXISTING_TRANSACTION_MOCK,
+              },
+            ],
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+
+        expect(publishBatchHook).toHaveBeenCalledTimes(1);
+        expect(publishBatchHook).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          transactions: [
+            {
+              id: TRANSACTION_ID_MOCK,
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+              signedTx: TRANSACTION_SIGNATURE_MOCK,
+            },
+            {
+              id: TRANSACTION_ID_2_MOCK,
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+              signedTx: TRANSACTION_SIGNATURE_3_MOCK,
+            },
+          ],
+        });
+
+        expect(onPublish).toHaveBeenCalledTimes(1);
+        expect(onPublish).toHaveBeenCalledWith({
+          transactionHash: TRANSACTION_HASH_2_MOCK,
         });
       });
 

@@ -69,7 +69,7 @@ import {
   getClientRequest,
   getStatusRequestParams,
   getUSDTAllowanceResetTx,
-  handleLineaDelay,
+  handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   handleSolanaTxResponse,
 } from './utils/transaction';
@@ -79,8 +79,10 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
   // basically match the behavior of TransactionController
   txHistory: {
+    includeInStateLogs: true,
     persist: true,
     anonymous: false,
+    usedInUi: true,
   },
 };
 
@@ -184,6 +186,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.messagingSystem.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
       this.restartPollingForFailedAttempts.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
+      this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
 
     // Set interval
@@ -807,7 +813,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           requireApproval,
         });
 
-        await handleLineaDelay(quoteResponse);
+        await handleApprovalDelay(quoteResponse);
         return approvalTxMeta;
       };
 
@@ -975,6 +981,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
 
     const { batchId } = await this.#addTransactionBatchFn(transactionParams);
+
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
       messagingSystem: this.messagingSystem,
       updateTransactionFn: this.#updateTransactionFn,
@@ -1086,7 +1093,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           },
         },
         async () => {
-          if (isStxEnabledOnClient || quoteResponse.quote.gasless7702) {
+          if (isStxEnabledOnClient || quoteResponse.quote.gasIncluded7702) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
@@ -1099,6 +1106,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 quoteResponse,
                 requireApproval,
               });
+
             approvalTxId = approvalMeta?.id;
             return tradeMeta;
           }
@@ -1108,6 +1116,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             quoteResponse,
             requireApproval,
           );
+
           approvalTxId = approvalTxMeta?.id;
 
           await handleMobileHardwareWalletDelay(requireApproval);

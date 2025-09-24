@@ -35,11 +35,6 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
 
     expect(result).toHaveLength(16);
 
-    // Check that entries have different expiry times
-    const expiryTimes = result.map((entry) => entry.permissionResponse.expiry);
-    const uniqueExpiryTimes = new Set(expiryTimes);
-    expect(uniqueExpiryTimes.size).toBe(16);
-
     // Check that all entries have the correct chainId
     const chainIds = result.map((entry) => entry.permissionResponse.chainId);
     expect(chainIds).toContain('0x1');
@@ -329,11 +324,6 @@ describe('mockGatorPermissionsStorageEntriesFactory', () => {
 
     // Total expected entries
     expect(result).toHaveLength(16);
-
-    // Verify all entries have unique expiry times
-    const expiryTimes = result.map((entry) => entry.permissionResponse.expiry);
-    const uniqueExpiryTimes = new Set(expiryTimes);
-    expect(uniqueExpiryTimes.size).toBe(16);
 
     // Verify chain IDs are correct
     const chainIds = result.map((entry) => entry.permissionResponse.chainId);

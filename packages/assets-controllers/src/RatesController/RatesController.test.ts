@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
@@ -69,7 +69,7 @@ function setupRatesController({
   fetchMultiExchangeRate,
 }: {
   interval?: number;
-  initialState: Partial<RatesControllerState>;
+  initialState?: Partial<RatesControllerState>;
   messenger: Messenger<RatesControllerActions, RatesControllerEvents>;
   includeUsdRate: boolean;
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
@@ -393,6 +393,134 @@ describe('RatesController', () => {
       await expect(ratesController.setFiatCurrency('')).rejects.toThrow(
         'The currency can not be an empty string',
       );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const controller = setupRatesController({
+        messenger: buildMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'anonymous',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "cryptocurrencies": Array [
+            "btc",
+            "sol",
+          ],
+          "fiatCurrency": "usd",
+          "rates": Object {
+            "btc": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+            "sol": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+          },
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const controller = setupRatesController({
+        messenger: buildMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "cryptocurrencies": Array [
+            "btc",
+            "sol",
+          ],
+          "fiatCurrency": "usd",
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const controller = setupRatesController({
+        messenger: buildMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "cryptocurrencies": Array [
+            "btc",
+            "sol",
+          ],
+          "fiatCurrency": "usd",
+          "rates": Object {
+            "btc": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+            "sol": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const controller = setupRatesController({
+        messenger: buildMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        Object {
+          "fiatCurrency": "usd",
+          "rates": Object {
+            "btc": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+            "sol": Object {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+          },
+        }
+      `);
     });
   });
 });

@@ -143,8 +143,10 @@ export class ComposableController<
         StateMetadata<ComposableControllerState>
       >((metadata, name) => {
         (metadata as StateMetadataConstraint)[name] = {
+          includeInStateLogs: false,
           persist: true,
           anonymous: true,
+          usedInUi: false,
         };
         return metadata;
       }, {} as never),
