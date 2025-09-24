@@ -537,7 +537,7 @@ export class PhishingController extends BaseController<
   #isTransactionPatch(patch: Patch): boolean {
     const { path } = patch;
     return (
-      path.length >= 2 &&
+      path.length === 2 &&
       path[0] === 'transactions' &&
       typeof path[1] === 'number'
     );
