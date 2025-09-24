@@ -162,6 +162,7 @@ jest.mock('uuid', () => {
  * @param args.bulkScanUrlsMock - Used to construct mock versions of the
  * `PhishingController:bulkScanUrls` action.
  * @param args.defaultSelectedAccount - The default selected account to use in
+ * @param args.displayNftMedia - The default displayNftMedia to use in
  * @returns A collection of test controllers and mocks.
  */
 function setupController({
@@ -178,6 +179,7 @@ function setupController({
   mockNetworkClientConfigurationsByNetworkClientId = {},
   defaultSelectedAccount = OWNER_ACCOUNT,
   mockGetNetworkClientIdByChainId = {},
+  displayNftMedia = true,
 }: {
   options?: Partial<ConstructorParameters<typeof NftController>[0]>;
   getERC721AssetName?: jest.Mock<
@@ -222,6 +224,7 @@ function setupController({
   >;
   defaultSelectedAccount?: InternalAccount;
   mockGetNetworkClientIdByChainId?: Record<Hex, NetworkClientConfiguration>;
+  displayNftMedia?: boolean;
 } = {}) {
   const messenger = new Messenger<
     | ExtractAvailableAction<NftControllerMessenger>
@@ -388,7 +391,7 @@ function setupController({
 
   triggerPreferencesStateChange({
     ...getDefaultPreferencesState(),
-    displayNftMedia: true,
+    displayNftMedia,
   });
 
   const triggerSelectedAccountChange = (
@@ -4946,7 +4949,7 @@ describe('NftController', () => {
       expect(spy).toHaveBeenCalledTimes(0);
     });
 
-    it('should call update Nft metadata when preferences change is triggered and ipfsGateway changes', async () => {
+    it('calls update Nft metadata when preferences change is triggered and ipfsGateway changes', async () => {
       const {
         nftController,
         mockGetAccount,
@@ -4980,6 +4983,7 @@ describe('NftController', () => {
         triggerSelectedAccountChange,
       } = setupController({
         defaultSelectedAccount: OWNER_ACCOUNT,
+        displayNftMedia: false,
       });
       const spy = jest.spyOn(nftController, 'updateNftMetadata');
       const testNetworkClientId = 'mainnet';
@@ -5006,6 +5010,7 @@ describe('NftController', () => {
         triggerSelectedAccountChange,
       } = setupController({
         defaultSelectedAccount: OWNER_ACCOUNT,
+        displayNftMedia: false,
       });
       const spy = jest.spyOn(nftController, 'updateNftMetadata');
       const testNetworkClientId = 'mainnet';
