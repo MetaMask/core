@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
@@ -10,6 +11,7 @@ import {
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
   type PhishingControllerActions,
+  type PhishingControllerEvents,
   type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
@@ -18,7 +20,12 @@ import {
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   type BulkPhishingDetectionScanResponse,
 } from './PhishingController';
-import { formatHostnameToUrl } from './tests/utils';
+import {
+  createMockStateChangePayload,
+  createMockTransaction,
+  formatHostnameToUrl,
+  TEST_ADDRESSES,
+} from './tests/utils';
 import type { PhishingDetectionScanResult } from './types';
 import { PhishingDetectorResultType, RecommendedAction } from './types';
 import { getHostnameFromUrl } from './utils';
@@ -26,18 +33,24 @@ import { getHostnameFromUrl } from './utils';
 const controllerName = 'PhishingController';
 
 /**
- * Constructs a restricted messenger.
+ * Constructs a restricted messenger with transaction events enabled.
  *
- * @returns A restricted messenger.
+ * @returns A restricted messenger that can listen to TransactionController events.
  */
-function getRestrictedMessenger() {
-  const messenger = new Messenger<PhishingControllerActions, never>();
+function getRestrictedMessengerWithTransactionEvents() {
+  const messenger = new Messenger<
+    PhishingControllerActions,
+    PhishingControllerEvents | TransactionControllerStateChangeEvent
+  >();
 
-  return messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+  return {
+    messenger: messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [],
+      allowedEvents: ['TransactionController:stateChange'],
+    }),
+    globalMessenger: messenger,
+  };
 }
 
 /**
@@ -48,7 +61,7 @@ function getRestrictedMessenger() {
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
-    messenger: getRestrictedMessenger(),
+    messenger: getRestrictedMessengerWithTransactionEvents().messenger,
     ...options,
   });
 }
@@ -3414,6 +3427,198 @@ describe('URL Scan Cache', () => {
           "urlScanCache": Object {},
         }
       `);
+    });
+  });
+
+  describe('Transaction Controller State Change Integration', () => {
+    let controller: PhishingController;
+    let globalMessenger: Messenger<
+      PhishingControllerActions,
+      PhishingControllerEvents | TransactionControllerStateChangeEvent
+    >;
+    let bulkScanTokensSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      const messengerSetup = getRestrictedMessengerWithTransactionEvents();
+      globalMessenger = messengerSetup.globalMessenger;
+
+      controller = new PhishingController({
+        messenger: messengerSetup.messenger,
+      });
+
+      bulkScanTokensSpy = jest
+        .spyOn(controller, 'bulkScanTokens')
+        .mockResolvedValue({});
+    });
+
+    afterEach(() => {
+      bulkScanTokensSpy.mockRestore();
+    });
+
+    it('should trigger bulk token scanning when transaction with token balance changes is added', async () => {
+      const mockTransaction = createMockTransaction('test-tx-1', [
+        TEST_ADDRESSES.USDC,
+        TEST_ADDRESSES.MOCK_TOKEN_1,
+      ]);
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+        chainId: mockTransaction.chainId.toLowerCase(),
+        tokens: [
+          TEST_ADDRESSES.USDC.toLowerCase(),
+          TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+        ],
+      });
+    });
+
+    it('should skip processing when patch operation is remove', async () => {
+      const mockTransaction = createMockTransaction('test-tx-1', [
+        TEST_ADDRESSES.USDC,
+      ]);
+
+      const stateChangePayload = createMockStateChangePayload([]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'remove' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger bulk token scanning when transaction has no token balance changes', async () => {
+      const mockTransaction = createMockTransaction('test-tx-1', []);
+
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger bulk token scanning when using default tokenAddresses parameter', async () => {
+      const mockTransaction = createMockTransaction('test-tx-2');
+
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors in transaction state change processing', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const stateChangePayload = createMockStateChangePayload([]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: null,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error processing transaction state change:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should handle errors in bulk token scanning', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      bulkScanTokensSpy.mockRejectedValue(new Error('Scanning failed'));
+
+      const mockTransaction = createMockTransaction('test-tx-1', [
+        TEST_ADDRESSES.USDC,
+      ]);
+
+      const stateChangePayload = createMockStateChangePayload([
+        mockTransaction,
+      ]);
+
+      globalMessenger.publish(
+        'TransactionController:stateChange',
+        stateChangePayload,
+        [
+          {
+            op: 'add' as const,
+            path: ['transactions', 0],
+            value: mockTransaction,
+          },
+        ],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error scanning tokens for chain 0x1:',
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });
