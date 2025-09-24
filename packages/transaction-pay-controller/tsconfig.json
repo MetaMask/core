@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../bridge-controller"
+    },
+    {
+      "path": "../bridge-status-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../transaction-controller"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

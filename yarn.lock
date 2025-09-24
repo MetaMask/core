@@ -2774,7 +2774,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
+"@metamask/bridge-status-controller@npm:^44.0.0, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
@@ -4847,6 +4847,33 @@ __metadata:
     "@metamask/gas-fee-controller": ^24.0.0
     "@metamask/network-controller": ^24.0.0
     "@metamask/remote-feature-flag-controller": ^1.5.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.4.0"
+    "@metamask/bridge-controller": "npm:^44.0.0"
+    "@metamask/bridge-status-controller": "npm:^44.0.0"
+    "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/transaction-controller": "npm:^60.4.0"
+    "@metamask/utils": "npm:^11.8.0"
+    "@types/jest": "npm:^27.4.1"
+    bn.js: "npm:^5.2.1"
+    deepmerge: "npm:^4.2.2"
+    immer: "npm:^9.0.6"
+    jest: "npm:^27.5.1"
+    lodash: "npm:^4.17.21"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/bridge-controller": ^44.0.0
+    "@metamask/bridge-status-controller": ^44.0.0
+    "@metamask/transaction-controller": ^60.0.0
   languageName: unknown
   linkType: soft
 
