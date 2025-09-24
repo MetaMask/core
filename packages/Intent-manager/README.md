@@ -58,11 +58,7 @@ const submissionParams: IntentSubmissionParams = {
 const order = await intentManager.submitIntent(submissionParams);
 
 // Monitor order status
-const status = await intentManager.getOrderStatus(
-  order.id,
-  'cowswap',
-  1
-);
+const status = await intentManager.getOrderStatus(order.id, 'cowswap', 1);
 ```
 
 ## API Reference
@@ -100,11 +96,7 @@ const order = await intentManager.submitIntent({
 Retrieves the current status of an order.
 
 ```typescript
-const status = await intentManager.getOrderStatus(
-  'order-123',
-  'cowswap',
-  1
-);
+const status = await intentManager.getOrderStatus('order-123', 'cowswap', 1);
 ```
 
 ##### `cancelOrder(orderId, providerName, chainId): Promise<boolean>`
@@ -112,11 +104,7 @@ const status = await intentManager.getOrderStatus(
 Cancels a pending order.
 
 ```typescript
-const cancelled = await intentManager.cancelOrder(
-  'order-123',
-  'cowswap',
-  1
-);
+const cancelled = await intentManager.cancelOrder('order-123', 'cowswap', 1);
 ```
 
 #### Provider Management
@@ -151,8 +139,6 @@ const providers = intentManager.getAvailableProviders({
 ```
 
 ## Core Types
-
-
 
 ### IntentOrder
 
@@ -270,8 +256,6 @@ try {
 
 ## Best Practices
 
-
-
 ### Order Monitoring
 
 - **Poll Status Regularly**: Check order status periodically for updates
@@ -279,12 +263,20 @@ try {
 - **Retry Failed Orders**: Consider retrying with different providers
 
 ```typescript
-async function monitorOrder(orderId: string, provider: string, chainId: number) {
+async function monitorOrder(
+  orderId: string,
+  provider: string,
+  chainId: number,
+) {
   const maxAttempts = 60; // 5 minutes with 5-second intervals
   let attempts = 0;
 
   while (attempts < maxAttempts) {
-    const order = await intentManager.getOrderStatus(orderId, provider, chainId);
+    const order = await intentManager.getOrderStatus(
+      orderId,
+      provider,
+      chainId,
+    );
 
     if (order.status === IntentOrderStatus.COMPLETED) {
       return order;
@@ -292,7 +284,7 @@ async function monitorOrder(orderId: string, provider: string, chainId: number) 
       throw new Error(`Order failed: ${order.id}`);
     }
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     attempts++;
   }
 
