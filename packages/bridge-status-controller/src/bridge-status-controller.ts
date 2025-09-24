@@ -521,9 +521,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     await this.#fetchBridgeTxStatus(pollingInput);
   };
 
-  #getMultichainSelectedAccount() {
+  #getMultichainSelectedAccount(accountAddress: string) {
     return this.messagingSystem.call(
-      'AccountsController:getSelectedMultichainAccount',
+      'AccountsController:getAccountByAddress',
+      accountAddress,
     );
   }
 
@@ -1006,17 +1007,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   /**
    * Submits a cross-chain swap transaction
    *
+   * @param accountAddress - The address of the account to submit the transaction for
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @returns The transaction meta
    */
   submitTx = async (
+    accountAddress: string,
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
 
-    const selectedAccount = this.#getMultichainSelectedAccount();
+    const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
     if (!selectedAccount) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: undefined multichain account',

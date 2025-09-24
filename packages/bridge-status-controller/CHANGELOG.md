@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Call `AccountsController:getAccountByAddress` action to retrieve Solana account details for transaction submission, instead of using the selected internal account
+
 ## [46.0.0]
 
 ### Added
