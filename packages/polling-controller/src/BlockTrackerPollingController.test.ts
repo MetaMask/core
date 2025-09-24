@@ -1,7 +1,7 @@
 import {
   MOCK_ANY_NAMESPACE,
   Messenger,
-  MockAnyNamespace,
+  type MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkClient } from '@metamask/network-controller';
 import EventEmitter from 'events';
