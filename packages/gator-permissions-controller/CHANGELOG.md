@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `submitRevocation` action to submit permission revocations through the gator permissions provider snap
+  - New `RevocationParams` type with `delegationHash` field
+  - New `GatorPermissionsControllerSubmitRevocationAction` action type
+  - Supports `permissionsProvider_submitRevocation` RPC method
+
 ## [0.2.0]
 
 ### Added
