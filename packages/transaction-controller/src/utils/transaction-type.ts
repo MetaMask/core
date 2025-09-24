@@ -1,4 +1,4 @@
-import { Interface } from '@ethersproject/abi';
+import { Interface, type TransactionDescription } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import {
@@ -88,34 +88,56 @@ export async function determineTransactionType(
 }
 
 /**
- * Attempts to decode transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
+ * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155 and USDC.
  * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
  * contract standards
  *
  * @param data - Encoded transaction data.
+ * @param options - Options bag.
+ * @param options.getMethodName - Whether to get the method name.
  * @returns A representation of an ethereum contract call.
  */
-function getMethodName(data?: string): string | undefined {
+export function decodeTransactionData(
+  data: string,
+  options?: {
+    getMethodName?: boolean;
+  },
+): undefined | TransactionDescription | string {
   if (!data || data.length < 10) {
     return undefined;
   }
 
   const fourByte = data.substring(0, 10).toLowerCase();
 
-  for (const interfaceInstance of [
+  for (const iface of [
     ERC20Interface,
     ERC721Interface,
     ERC1155Interface,
     USDCInterface,
   ]) {
     try {
-      return interfaceInstance.getFunction(fourByte).name;
+      if (options?.getMethodName) {
+        return iface.getFunction(fourByte)?.name;
+      }
+      return iface.parseTransaction({ data });
     } catch {
       // Intentionally empty
     }
   }
 
   return undefined;
+}
+
+/**
+ * Attempts to get the method name from the given transaction data.
+ *
+ * @param data - Encoded transaction data.
+ * @returns The method name.
+ */
+function getMethodName(data?: string): string | undefined {
+  return decodeTransactionData(data as string, {
+    getMethodName: true,
+  }) as string | undefined;
 }
 
 /**
