@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Implicitly call `init` before mutating the tree ([#6709](https://github.com/MetaMask/core/pull/6709))
-  - This ensure the tree to always use existing accounts before inserting/removing any new accounts if `init` has not been called yet.
+  - This ensure the tree is always using existing accounts before inserting/removing any new accounts if `init` has not been called yet.
 
 ### Fixed
 
