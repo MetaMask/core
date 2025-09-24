@@ -380,7 +380,9 @@ function setupController({
     ...options,
   });
 
-  const triggerPreferencesStateChange = (state: PreferencesState) => {
+  const triggerPreferencesStateChange = (
+    state: PreferencesState & { openSeaEnabled?: boolean },
+  ) => {
     messenger.publish('PreferencesController:stateChange', state, []);
   };
 
@@ -4944,7 +4946,7 @@ describe('NftController', () => {
       expect(spy).toHaveBeenCalledTimes(0);
     });
 
-    it('should call update Nft metadata when preferences change is triggered and at least ipfsGateway, openSeaEnabled or isIpfsGatewayEnabled change', async () => {
+    it('should call update Nft metadata when preferences change is triggered and ipfsGateway changes', async () => {
       const {
         nftController,
         mockGetAccount,
@@ -4965,6 +4967,58 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         ipfsGateway: 'https://toto/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls update Nft metadata when preferences change is triggered and displayNftMedia changes', async () => {
+      const {
+        nftController,
+        mockGetAccount,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController({
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      const testNetworkClientId = 'mainnet';
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', testNetworkClientId, {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        displayNftMedia: true,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls update Nft metadata when preferences change is triggered and openSeaEnabled changes', async () => {
+      const {
+        nftController,
+        mockGetAccount,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController({
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      const testNetworkClientId = 'mainnet';
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', testNetworkClientId, {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+      });
+
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        openSeaEnabled: true,
       });
 
       expect(spy).toHaveBeenCalledTimes(1);

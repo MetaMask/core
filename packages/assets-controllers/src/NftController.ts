@@ -35,10 +35,7 @@ import type {
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
 import { RecommendedAction } from '@metamask/phishing-controller';
-import type {
-  PreferencesControllerStateChangeEvent,
-  PreferencesState,
-} from '@metamask/preferences-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
@@ -427,30 +424,41 @@ export class NftController extends BaseController<
    *
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.ipfsGateway - The configured IPFS gateway.
-   * @param preferencesState.displayNftMedia - Controls whether the NFT API is used.
    * @param preferencesState.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
+   * @param preferencesState.displayNftMedia - Controls whether the NFT API is used (mobile).
+   * @param preferencesState.openSeaEnabled - Controls whether the NFT API is used (extension).
    */
   async #onPreferencesControllerStateChange({
     ipfsGateway,
-    displayNftMedia,
     isIpfsGatewayEnabled,
-  }: PreferencesState) {
+    displayNftMedia,
+    openSeaEnabled,
+  }: {
+    ipfsGateway: string;
+    isIpfsGatewayEnabled: boolean;
+    // TODO: Mobile PreferencesController uses displayNftMedia, Extension PreferencesController uses openSeaEnabled
+    // TODO: Replace this type with PreferencesState once both clients use the same PreferencesController
+    displayNftMedia?: boolean;
+    openSeaEnabled?: boolean;
+  }) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
+
+    const newDisplayNftMedia = Boolean(displayNftMedia || openSeaEnabled);
+
     // Get current state values
     if (
       this.#ipfsGateway !== ipfsGateway ||
-      this.#displayNftMedia !== displayNftMedia ||
+      this.#displayNftMedia !== newDisplayNftMedia ||
       this.#isIpfsGatewayEnabled !== isIpfsGatewayEnabled
     ) {
       this.#ipfsGateway = ipfsGateway;
-      this.#displayNftMedia = displayNftMedia;
+      this.#displayNftMedia = newDisplayNftMedia;
       this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
       const needsUpdateNftMetadata =
-        (isIpfsGatewayEnabled && ipfsGateway !== '') || displayNftMedia;
-
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || newDisplayNftMedia;
       if (needsUpdateNftMetadata && selectedAccount) {
         await this.#updateNftUpdateForAccount(selectedAccount);
       }
@@ -1252,6 +1260,7 @@ export class NftController extends BaseController<
 
     if (type !== ERC721 && type !== ERC1155) {
       throw rpcErrors.invalidParams(
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Non NFT asset type ${type} not supported by watchNft`,
       );
     }
