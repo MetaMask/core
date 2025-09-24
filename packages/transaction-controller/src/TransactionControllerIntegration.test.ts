@@ -5,7 +5,6 @@ import type {
   ApprovalControllerEvents,
 } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { Messenger } from '@metamask/base-controller';
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
@@ -13,6 +12,11 @@ import {
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 import {
   NetworkController,
   NetworkClientType,
@@ -29,8 +33,7 @@ import { useFakeTimers } from 'sinon';
 import { v4 as uuidV4 } from 'uuid';
 
 import type {
-  TransactionControllerActions,
-  TransactionControllerEvents,
+  TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
@@ -65,16 +68,25 @@ jest.mock('uuid', () => {
   };
 });
 
-type UnrestrictedMessenger = Messenger<
-  | AccountsControllerActions
-  | ApprovalControllerActions
+type AllTransactionControllerActions =
+  MessengerActions<TransactionControllerMessenger>;
+
+type AllTransactionControllerEvents =
+  MessengerEvents<TransactionControllerMessenger>;
+
+type AllActions =
+  | AllTransactionControllerActions
   | NetworkControllerActions
-  | TransactionControllerActions
-  | RemoteFeatureFlagControllerGetStateAction,
-  | ApprovalControllerEvents
+  | ApprovalControllerActions
+  | AccountsControllerActions
+  | RemoteFeatureFlagControllerGetStateAction;
+
+type AllEvents =
+  | AllTransactionControllerEvents
   | NetworkControllerEvents
-  | TransactionControllerEvents
->;
+  | ApprovalControllerEvents;
+
+type RootMessenger = Messenger<'Root', AllActions, AllEvents>;
 
 const uuidV4Mock = jest.mocked(uuidV4);
 
@@ -158,13 +170,19 @@ const setupController = async (
     ],
   });
 
-  const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
+  const rootMessenger: RootMessenger = new Messenger({ namespace: 'Root' });
+
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    NetworkControllerActions,
+    NetworkControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
+  });
   const networkController = new NetworkController({
-    messenger: unrestrictedMessenger.getRestricted({
-      name: 'NetworkController',
-      allowedActions: [],
-      allowedEvents: [],
-    }),
+    messenger: networkControllerMessenger,
     infuraProjectId,
     getRpcServiceOptions: () => ({
       fetch,
@@ -177,19 +195,33 @@ const setupController = async (
   assert(provider, 'Provider must be available');
   assert(blockTracker, 'Provider must be available');
 
+  const approvalControllerMessenger = new Messenger<
+    'ApprovalController',
+    ApprovalControllerActions,
+    ApprovalControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'ApprovalController',
+    parent: rootMessenger,
+  });
   const approvalController = new ApprovalController({
-    messenger: unrestrictedMessenger.getRestricted({
-      name: 'ApprovalController',
-      allowedActions: [],
-      allowedEvents: [],
-    }),
+    messenger: approvalControllerMessenger,
     showApprovalRequest: jest.fn(),
     typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
 
-  const messenger = unrestrictedMessenger.getRestricted({
-    name: 'TransactionController',
-    allowedActions: [
+  const messenger = new Messenger<
+    'TransactionController',
+    MessengerActions<TransactionControllerMessenger>,
+    MessengerEvents<TransactionControllerMessenger>,
+    typeof rootMessenger
+  >({
+    namespace: 'TransactionController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
       'AccountsController:getSelectedAccount',
       'AccountsController:getState',
       'ApprovalController:addRequest',
@@ -197,24 +229,42 @@ const setupController = async (
       'NetworkController:findNetworkClientIdByChainId',
       'RemoteFeatureFlagController:getState',
     ],
-    allowedEvents: ['NetworkController:stateChange'],
+    events: ['NetworkController:stateChange'],
   });
 
   const mockGetSelectedAccount = jest
     .fn()
     .mockReturnValue(mockData.selectedAccount);
 
-  unrestrictedMessenger.registerActionHandler(
+  const accountsControllerMessenger = new Messenger<
+    'AccountsController',
+    AccountsControllerActions,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'AccountsController',
+    parent: rootMessenger,
+  });
+  accountsControllerMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
   );
-
-  unrestrictedMessenger.registerActionHandler(
+  accountsControllerMessenger.registerActionHandler(
     'AccountsController:getState',
     () => ({}) as never,
   );
 
-  unrestrictedMessenger.registerActionHandler(
+  const remoteFeatureFlagControllerMessenger = new Messenger<
+    'RemoteFeatureFlagController',
+    RemoteFeatureFlagControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'RemoteFeatureFlagController',
+    parent: rootMessenger,
+  });
+
+  remoteFeatureFlagControllerMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
     () => ({ cacheTimestamp: 0, remoteFeatureFlags: {} }),
   );

@@ -82,7 +82,7 @@
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "import-x/namespace": 1,
-    "import-x/order": 4,
+    "import-x/order": 3,
     "jest/no-conditional-in-test": 2
   },
   "packages/assets-controllers/src/TokensController.ts": {

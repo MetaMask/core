@@ -153,8 +153,10 @@ linkStyle default opacity:0.5
   announcement_controller --> base_controller;
   app_metadata_controller --> base_controller;
   approval_controller --> base_controller;
+  approval_controller --> messenger;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> messenger;
   assets_controllers --> polling_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
@@ -246,6 +248,7 @@ linkStyle default opacity:0.5
   network_controller --> controller_utils;
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
+  network_controller --> messenger;
   network_controller --> error_reporting_service;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
@@ -292,6 +295,7 @@ linkStyle default opacity:0.5
   signature_controller --> controller_utils;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
+  signature_controller --> gator_permissions_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;

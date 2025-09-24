@@ -1,5 +1,9 @@
-import { Messenger } from '@metamask/base-controller';
 import { query } from '@metamask/controller-utils';
+import {
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+} from '@metamask/messenger';
 
 import {
   updateSwapsTransaction,
@@ -9,13 +13,7 @@ import {
 } from './swaps';
 import { flushPromises } from '../../../../tests/helpers';
 import { CHAIN_IDS } from '../constants';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  TransactionControllerActions,
-  TransactionControllerEvents,
-  TransactionControllerMessenger,
-} from '../TransactionController';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType, TransactionStatus } from '../types';
 
@@ -47,17 +45,29 @@ describe('updateSwapsTransaction', () => {
         destinationTokenSymbol: 'DAI',
       },
     };
+    const rootMessenger = new Messenger<
+      'Root',
+      MessengerActions<TransactionControllerMessenger>,
+      MessengerEvents<TransactionControllerMessenger>
+    >({
+      namespace: 'Root',
+    });
     messenger = new Messenger<
-      TransactionControllerActions | AllowedActions,
-      TransactionControllerEvents | AllowedEvents
-    >().getRestricted({
-      name: 'TransactionController',
-      allowedActions: [
+      'TransactionController',
+      MessengerActions<TransactionControllerMessenger>,
+      MessengerEvents<TransactionControllerMessenger>,
+      typeof rootMessenger
+    >({
+      namespace: 'TransactionController',
+      parent: rootMessenger,
+    });
+    rootMessenger.delegate({
+      messenger,
+      actions: [
         'ApprovalController:addRequest',
         'NetworkController:getNetworkClientById',
         'NetworkController:findNetworkClientIdByChainId',
       ],
-      allowedEvents: [],
     });
     request = {
       isSwapsDisabled: false,
