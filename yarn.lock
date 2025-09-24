@@ -4213,6 +4213,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/transaction-controller": "npm:^60.4.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/jest": "npm:^27.4.1"
     "@types/punycode": "npm:^2.1.0"
@@ -4227,6 +4228,8 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/transaction-controller": ^60.4.0
   languageName: unknown
   linkType: soft
 
