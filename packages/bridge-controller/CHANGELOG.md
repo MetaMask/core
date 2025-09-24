@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [44.0.1]
+
+### Changed
+
+- Revert accidental breaking changes included in v44.0.0 ([#6454](https://github.com/MetaMask/core/pull/6454))
+
+## [44.0.0] [DEPRECATED]
+
+### Changed
+
+- This version was deprecated because it accidentally included additional breaking changes; use v44.0.1 or later versions instead
+- **BREAKING:** Bump peer dependency `@metamask/assets-controllers` from `^75.0.0` to `^76.0.0` ([#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [43.2.1]
+
+### Added
+
+- Add Solana Devnet support to bridge controller ([#6670](https://github.com/MetaMask/core/pull/6670))
+
+## [43.2.0]
+
+### Added
+
+- Add optional `noFeeAssets` property to the `ChainConfigurationSchema` type ([#6665](https://github.com/MetaMask/core/pull/6665))
+
+## [43.1.0]
+
 ### Added
 
 - Add support for Bitcoin bridge transactions ([#6454](https://github.com/MetaMask/core/pull/6454))
@@ -594,7 +621,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.1...HEAD
+[44.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@44.0.0...@metamask/bridge-controller@44.0.1
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.1...@metamask/bridge-controller@44.0.0
+[43.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.2.0...@metamask/bridge-controller@43.2.1
+[43.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.1.0...@metamask/bridge-controller@43.2.0
+[43.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@43.0.0...@metamask/bridge-controller@43.1.0
 [43.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@42.0.0...@metamask/bridge-controller@43.0.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.4.0...@metamask/bridge-controller@42.0.0
 [41.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@41.3.0...@metamask/bridge-controller@41.4.0

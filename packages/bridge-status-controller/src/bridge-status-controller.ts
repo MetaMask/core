@@ -69,7 +69,7 @@ import {
   getClientRequest,
   getStatusRequestParams,
   getUSDTAllowanceResetTx,
-  handleLineaDelay,
+  handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   handleNonEvmTxResponse,
   generateActionId,
@@ -818,7 +818,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           requireApproval,
         });
 
-        await handleLineaDelay(quoteResponse);
+        await handleApprovalDelay(quoteResponse);
         return approvalTxMeta;
       };
 

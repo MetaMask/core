@@ -9,8 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improved network addition logic — if multiple popular networks are enabled and the user is in popular networks mode, adding another popular network keeps the current selection; otherwise, it switches to the newly added network. ([#6693](https://github.com/MetaMask/core/pull/6693))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/multichain-network-controller` from `^0.11.0` to `^1.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [1.2.0]
+
+### Changed
+
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
+### Fixed
+
+- Fix `init()` method to preserve existing user network settings instead of resetting them, while syncing with NetworkController and MultichainNetworkController states ([#6658](https://github.com/MetaMask/core/pull/6658))
 
 ## [1.1.0]
 
@@ -92,7 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@1.2.0...@metamask/network-enablement-controller@2.0.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@1.1.0...@metamask/network-enablement-controller@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@1.0.0...@metamask/network-enablement-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@0.6.0...@metamask/network-enablement-controller@1.0.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@0.5.0...@metamask/network-enablement-controller@0.6.0
