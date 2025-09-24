@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.0]
 
-### Uncategorized
-
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-
 ### Added
 
 - Add a new controller state property: `tokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))

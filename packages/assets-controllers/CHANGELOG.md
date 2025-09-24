@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [77.0.0]
 
-### Uncategorized
-
-- Release/575.0.0 ([#6700](https://github.com/MetaMask/core/pull/6700))
-- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
-
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/preferences-controller` from `^19.0.0` to `^20.0.0` ([#6711](https://github.com/MetaMask/core/pull/6711))
 - **BREAKING:** Rename `openSeaEnabled` to `displayNftMedia` in `NftController` ([#4774](https://github.com/MetaMask/core/pull/4774))
   - Ensure compatibility for extension preferences controller state
 - **BREAKING:** Remove `setApiKey` function and `openSeaApiKey` from `NftController` since opensea is not used anymore for NFT data ([#4774](https://github.com/MetaMask/core/pull/4774))
