@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `predictBuy`, `predictClaim`, `predictDeposit` and `predictSell` to `TransactionType` ([#6690](https://github.com/MetaMask/core/pull/6690))
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
 ## [60.4.0]
 
 ### Added

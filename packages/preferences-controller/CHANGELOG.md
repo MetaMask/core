@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 - **BREAKING:** Rename `openSeaEnabled` to `displayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
 - **BREAKING:** Rename `setOpenSeaEnabled` to `setDisplayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
