@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BridgeControllerGetStateAction` type ([#6444](https://github.com/MetaMask/core/pull/6444))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `BridgeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+
 ## [44.0.0]
 
 ### Changed

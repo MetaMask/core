@@ -167,27 +167,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     // Register action handlers
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:startPollingForBridgeTxStatus`,
       this.startPollingForBridgeTxStatus.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:wipeBridgeStatus`,
       this.wipeBridgeStatus.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:resetState`,
       this.resetState.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
       this.submitTx.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
       this.restartPollingForFailedAttempts.bind(this),
     );
-    this.messagingSystem.registerActionHandler(
+    this.messenger.registerActionHandler(
       `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
       this.getBridgeHistoryItemByTxMetaId.bind(this),
     );
@@ -195,7 +195,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionFailed',
       ({ transactionMeta }) => {
         const { type, status, id } = transactionMeta;
@@ -227,7 +227,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         const { type, id, chainId } = transactionMeta;
@@ -283,10 +283,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
       });
     } else {
-      const { selectedNetworkClientId } = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messenger.call(
         'NetworkController:getState',
       );
-      const selectedNetworkClient = this.messagingSystem.call(
+      const selectedNetworkClient = this.messenger.call(
         'NetworkController:getNetworkClientById',
         selectedNetworkClientId,
       );
@@ -522,7 +522,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   #getMultichainSelectedAccount() {
-    return this.messagingSystem.call(
+    return this.messenger.call(
       'AccountsController:getSelectedMultichainAccount',
     );
   }
@@ -668,7 +668,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     // Look up in TransactionController if txMeta has been updated with the srcTxHash
-    const txControllerState = this.messagingSystem.call(
+    const txControllerState = this.messenger.call(
       'TransactionController:getState',
     );
     const txMeta = txControllerState.transactions.find(
@@ -757,7 +757,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     const request = getClientRequest(quoteResponse, selectedAccount);
-    const requestResponse = (await this.messagingSystem.call(
+    const requestResponse = (await this.messenger.call(
       'SnapController:handleRequest',
       request,
     )) as string | { result: Record<string, string> } | { signature: string };
@@ -780,12 +780,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     >['result'],
   ): Promise<TransactionMeta> => {
     const transactionHash = await hashPromise;
-    const finalTransactionMeta: TransactionMeta | undefined =
-      this.messagingSystem
-        .call('TransactionController:getState')
-        .transactions.find(
-          (tx: TransactionMeta) => tx.hash === transactionHash,
-        );
+    const finalTransactionMeta: TransactionMeta | undefined = this.messenger
+      .call('TransactionController:getState')
+      .transactions.find((tx: TransactionMeta) => tx.hash === transactionHash);
     if (!finalTransactionMeta) {
       throw new Error(
         'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
@@ -854,7 +851,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }): Promise<TransactionMeta> => {
     const actionId = generateActionId().toString();
 
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getAccountByAddress',
       trade.from,
     );
@@ -864,7 +861,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
     const hexChainId = formatChainIdToHex(trade.chainId);
-    const networkClientId = this.messagingSystem.call(
+    const networkClientId = this.messenger.call(
       'NetworkController:findNetworkClientIdByChainId',
       hexChainId,
     );
@@ -905,7 +902,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
   ) => {
     const resetApproval = await getUSDTAllowanceResetTx(
-      this.messagingSystem,
+      this.messenger,
       quoteResponse,
     );
     if (resetApproval) {
@@ -921,7 +918,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     networkClientId: string,
     chainId: Hex,
   ) => {
-    const { gasFeeEstimates } = this.messagingSystem.call(
+    const { gasFeeEstimates } = this.messenger.call(
       'GasFeeController:getState',
     );
     const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
@@ -957,11 +954,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleEvmTransactionBatch = async (
     args: Omit<
       Parameters<typeof getAddTransactionBatchParams>[0],
-      'messagingSystem' | 'estimateGasFeeFn'
+      'messenger' | 'estimateGasFeeFn'
     >,
   ) => {
     const transactionParams = await getAddTransactionBatchParams({
-      messagingSystem: this.messagingSystem,
+      messenger: this.messenger,
       estimateGasFeeFn: this.#estimateGasFeeFn,
       ...args,
     });
@@ -983,7 +980,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { batchId } = await this.#addTransactionBatchFn(transactionParams);
 
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
-      messagingSystem: this.messagingSystem,
+      messenger: this.messenger,
       updateTransactionFn: this.#updateTransactionFn,
       batchId,
       txDataByType,
@@ -1009,7 +1006,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
-    this.messagingSystem.call('BridgeController:stopPollingForQuotes');
+    this.messenger.call('BridgeController:stopPollingForQuotes');
 
     const selectedAccount = this.#getMultichainSelectedAccount();
     if (!selectedAccount) {
@@ -1098,7 +1095,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
                 resetApproval: await getUSDTAllowanceResetTx(
-                  this.messagingSystem,
+                  this.messenger,
                   quoteResponse,
                 ),
                 approval: quoteResponse.approval,
@@ -1190,7 +1187,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
 
     if (!txMetaId) {
-      this.messagingSystem.call(
+      this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         baseProperties,
@@ -1201,7 +1198,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const historyItem: BridgeHistoryItem | undefined =
       this.state.txHistory[txMetaId];
     if (!historyItem) {
-      this.messagingSystem.call(
+      this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         eventProperties ?? {},
@@ -1209,12 +1206,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const selectedAccount = this.messagingSystem.call(
+    const selectedAccount = this.messenger.call(
       'AccountsController:getAccountByAddress',
       historyItem.account,
     );
 
-    const { transactions } = this.messagingSystem.call(
+    const { transactions } = this.messenger.call(
       'TransactionController:getState',
     );
     const txMeta = transactions?.find(({ id }) => id === txMetaId);
@@ -1231,7 +1228,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         token_address_source,
         token_address_destination,
       } = requestParamProperties;
-      this.messagingSystem.call(
+      this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         {
@@ -1256,7 +1253,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getPriceImpactFromQuote(historyItem.quote),
     };
 
-    this.messagingSystem.call(
+    this.messenger.call(
       'BridgeController:trackUnifiedSwapBridgeEvent',
       eventName,
       requiredEventProperties,

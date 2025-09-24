@@ -1,6 +1,13 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import {
+  Messenger,
+  MOCK_ANY_NAMESPACE,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
@@ -10,11 +17,8 @@ import { useFakeTimers } from 'sinon';
 import * as multicall from './multicall';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
-  AllowedActions,
-  AllowedEvents,
   ChainIdHex,
-  TokenBalancesControllerActions,
-  TokenBalancesControllerEvents,
+  TokenBalancesControllerMessenger,
   TokenBalancesControllerState,
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
@@ -22,6 +26,18 @@ import type { TokensControllerState } from './TokensController';
 import { advanceTime, flushPromises } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
+
+type AllTokenBalancesControllerActions =
+  MessengerActions<TokenBalancesControllerMessenger>;
+
+type AllTokenBalancesControllerEvents =
+  MessengerEvents<TokenBalancesControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenBalancesControllerActions,
+  AllTokenBalancesControllerEvents
+>;
 
 // Mock safelyExecuteWithTimeout
 jest.mock('@metamask/controller-utils', () => ({
@@ -48,14 +64,22 @@ const setupController = ({
   tokens?: Partial<TokensControllerState>;
   listAccounts?: InternalAccount[];
 } = {}) => {
-  const messenger = new Messenger<
-    TokenBalancesControllerActions | AllowedActions,
-    TokenBalancesControllerEvents | AllowedEvents
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
-  const tokenBalancesMessenger = messenger.getRestricted({
-    name: 'TokenBalancesController',
-    allowedActions: [
+  const tokenBalancesControllerMessenger = new Messenger<
+    'TokenBalancesController',
+    AllTokenBalancesControllerActions,
+    AllTokenBalancesControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'TokenBalancesController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: tokenBalancesControllerMessenger,
+    actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'PreferencesController:getState',
@@ -65,7 +89,7 @@ const setupController = ({
       'AccountTrackerController:updateNativeBalances',
       'AccountTrackerController:updateStakedBalances',
     ],
-    allowedEvents: [
+    events: [
       'NetworkController:stateChange',
       'PreferencesController:stateChange',
       'TokensController:stateChange',
@@ -153,7 +177,7 @@ const setupController = ({
     }),
   );
   const controller = new TokenBalancesController({
-    messenger: tokenBalancesMessenger,
+    messenger: tokenBalancesControllerMessenger,
     ...config,
   });
   const updateSpy = jest.spyOn(controller, 'update' as never);
@@ -162,6 +186,7 @@ const setupController = ({
     controller,
     updateSpy,
     messenger,
+    tokenBalancesControllerMessenger,
   };
 };
 
@@ -1271,7 +1296,7 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x1111111111111111111111111111111111111111';
       const chainId = '0x1';
 
-      const { controller, messenger } = setupController({
+      const { controller, tokenBalancesControllerMessenger } = setupController({
         config: { accountsApiChainIds: [], allowExternalServices: () => true },
         tokens: {
           allTokens: {
@@ -1287,7 +1312,10 @@ describe('TokenBalancesController', () => {
       });
 
       // Set up spy for event publishing
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = jest.spyOn(
+        tokenBalancesControllerMessenger,
+        'publish',
+      );
 
       jest
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')

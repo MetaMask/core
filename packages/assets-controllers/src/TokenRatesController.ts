@@ -6,13 +6,13 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
-} from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
 import {
   safelyExecute,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -157,12 +157,10 @@ export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
 /**
  * The messenger of the {@link TokenRatesController} for communication.
  */
-export type TokenRatesControllerMessenger = RestrictedMessenger<
+export type TokenRatesControllerMessenger = Messenger<
   typeof controllerName,
   TokenRatesControllerActions | AllowedActions,
-  TokenRatesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenRatesControllerEvents | AllowedEvents
 >;
 
 /**
@@ -298,7 +296,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   #subscribeToTokensStateChange() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'TokensController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -307,7 +305,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           return;
         }
 
-        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+        const { networkConfigurationsByChainId } = this.messenger.call(
           'NetworkController:getState',
         );
 
@@ -356,7 +354,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   #subscribeToNetworkStateChange() {
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -449,7 +447,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     allTokens: TokensControllerState['allTokens'];
     allDetectedTokens: TokensControllerState['allDetectedTokens'];
   } {
-    const { allTokens, allDetectedTokens } = this.messagingSystem.call(
+    const { allTokens, allDetectedTokens } = this.messenger.call(
       'TokensController:getState',
     );
 
@@ -654,7 +652,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param input.chainIds - The chain ids to poll token rates on.
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+    const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
 
