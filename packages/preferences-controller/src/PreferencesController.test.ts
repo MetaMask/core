@@ -43,7 +43,7 @@ describe('PreferencesController', () => {
       smartTransactionsOptInStatus: true,
       useSafeChainsListValidation: true,
       tokenSortConfig: {
-        key: 'tokenFiatBalance',
+        key: 'tokenFiatAmount',
         order: 'dsc',
         sortCallback: 'stringNumeric',
       },
@@ -539,7 +539,7 @@ describe('PreferencesController', () => {
   it('should set tokenSortConfig', () => {
     const controller = setupPreferencesController();
     expect(controller.state.tokenSortConfig).toStrictEqual({
-      key: 'tokenFiatBalance',
+      key: 'tokenFiatAmount',
       order: 'dsc',
       sortCallback: 'stringNumeric',
     });
@@ -630,7 +630,7 @@ describe('PreferencesController', () => {
           "smartAccountOptIn": true,
           "smartAccountOptInForAccounts": Array [],
           "tokenSortConfig": Object {
-            "key": "tokenFiatBalance",
+            "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
@@ -694,7 +694,7 @@ describe('PreferencesController', () => {
           "smartTransactionsOptInStatus": true,
           "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
-            "key": "tokenFiatBalance",
+            "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
@@ -758,7 +758,7 @@ describe('PreferencesController', () => {
           "smartTransactionsOptInStatus": true,
           "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
-            "key": "tokenFiatBalance",
+            "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },
@@ -821,7 +821,7 @@ describe('PreferencesController', () => {
           "smartTransactionsOptInStatus": true,
           "tokenNetworkFilter": Object {},
           "tokenSortConfig": Object {
-            "key": "tokenFiatBalance",
+            "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
           },

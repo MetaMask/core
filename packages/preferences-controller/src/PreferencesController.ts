@@ -367,7 +367,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     useTransactionSimulations: true,
     useSafeChainsListValidation: true,
     tokenSortConfig: {
-      key: 'tokenFiatBalance',
+      key: 'tokenFiatAmount',
       order: 'dsc',
       sortCallback: 'stringNumeric',
     },
