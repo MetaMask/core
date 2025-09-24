@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `tokenScanCache` to `PhishingControllerState`
   - Add proper action registration for `bulkScanTokens` method as `PhishingControllerBulkScanTokensAction`
   - Support for multiple chains including Ethereum, Polygon, BSC, Arbitrum, Avalanche, Base, Optimism, ect...
+- Add token screening from transaction simulation data ([#6617](https://github.com/MetaMask/core/pull/6617))
+  - Add `#onTransactionControllerStateChange` method to handle transaction state changes
+  - Add `#scanTokensFromSimulation` method to extract and scan tokens from transaction simulation data
+  - Add `start` and `stop` methods to manage Transaction Controller state change subscription
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6587](https://github.com/MetaMask/core/pull/6587))
 
 ### Changed
