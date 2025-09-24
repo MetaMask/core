@@ -586,10 +586,10 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "displayNftMedia": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "showIncomingTransactions": Object {
@@ -644,13 +644,13 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "lostIdentities": Object {},
-          "displayNftMedia": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -707,13 +707,13 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "lostIdentities": Object {},
-          "displayNftMedia": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
@@ -770,12 +770,12 @@ describe('PreferencesController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "dismissSmartAccountSuggestionEnabled": false,
+          "displayNftMedia": false,
           "featureFlags": Object {},
           "identities": Object {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "displayNftMedia": false,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
