@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Implicitly call `init` before mutating the tree ([#6709](https://github.com/MetaMask/core/pull/6709))
+  - This ensure the tree to always use existing accounts before inserting/removing any new accounts if `init` has not been called yet.
+
 ### Fixed
 
 - Added logic that prevents an account within a group from being out of order ([#6683](https://github.com/MetaMask/core/pull/6683))
