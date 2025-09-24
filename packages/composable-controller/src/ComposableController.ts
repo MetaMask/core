@@ -1,12 +1,13 @@
 import type {
-  RestrictedMessenger,
   StateConstraint,
   StateMetadata,
   StateMetadataConstraint,
   ControllerStateChangeEvent,
+  ControllerGetStateAction,
   BaseControllerInstance as ControllerInstance,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+} from '@metamask/base-controller/next';
+import { BaseController } from '@metamask/base-controller/next';
+import type { Messenger } from '@metamask/messenger';
 
 export const controllerName = 'ComposableController';
 
@@ -19,6 +20,15 @@ export const INVALID_CONTROLLER_ERROR =
 export type ComposableControllerStateConstraint = {
   [controllerName: string]: StateConstraint;
 };
+
+/**
+ * The `getState` action type for the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ComposableControllerGetStateAction<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ControllerGetStateAction<typeof controllerName, ComposableControllerState>;
 
 /**
  * The `stateChange` event type for the {@link ComposableControllerMessenger}.
@@ -40,6 +50,15 @@ export type ComposableControllerStateChangeEvent<
 export type ComposableControllerEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = ComposableControllerStateChangeEvent<ComposableControllerState>;
+
+/**
+ * A union type of action types available to the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ComposableControllerActions<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerGetStateAction<ComposableControllerState>;
 
 /**
  * A utility type that extracts controllers from the {@link ComposableControllerState} type,
@@ -75,13 +94,11 @@ export type AllowedEvents<
  */
 export type ComposableControllerMessenger<
   ComposableControllerState extends ComposableControllerStateConstraint,
-> = RestrictedMessenger<
+> = Messenger<
   typeof controllerName,
-  never,
+  ComposableControllerActions<ComposableControllerState>,
   | ComposableControllerEvents<ComposableControllerState>
-  | AllowedEvents<ComposableControllerState>,
-  never,
-  AllowedEvents<ComposableControllerState>['type']
+  | AllowedEvents<ComposableControllerState>
 >;
 
 /**
@@ -106,7 +123,7 @@ export class ComposableController<
    *
    * @param options - Initial options used to configure this controller
    * @param options.controllers - An object that contains child controllers keyed by their names.
-   * @param options.messenger - A restricted messenger.
+   * @param options.messenger - A controller messenger.
    */
   constructor({
     controllers,
@@ -141,6 +158,7 @@ export class ComposableController<
         },
         {} as never,
       ),
+      // @ts-expect-error "Property 'messagingSystem' is missing in type ..."
       messenger,
     });
 
@@ -161,16 +179,12 @@ export class ComposableController<
         delete this.metadata[name];
         delete this.state[name];
         // eslint-disable-next-line no-empty
-      } catch (_) {}
-      // False negative. `name` is a string type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      } catch {}
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
     }
     try {
-      this.messagingSystem.subscribe(
-        // False negative. `name` is a string type.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `${name}:stateChange`,
+      this.messenger.subscribe(
+        `${controllerName}:stateChange`,
         (childState: StateConstraint) => {
           this.update((state) => {
             // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
