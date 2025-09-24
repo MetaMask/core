@@ -71,9 +71,9 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getAccountByAddress',
   'AccountsController:getSelectedAccount',
-  'TokenBalancesController:updateBalances',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:disconnect',
+  'BackendWebSocketService:subscribe',
   'BackendWebSocketService:isChannelSubscribed',
   'BackendWebSocketService:getSubscriptionByChannel',
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
@@ -98,16 +98,16 @@ export type AccountActivityServiceAllowedActions =
       handler: () => InternalAccount;
     }
   | {
-      type: 'TokenBalancesController:updateBalances';
-      handler: (options?: { chainIds?: string[]; queryAllAccounts?: boolean }) => Promise<void>;
-    }
-  | {
       type: 'BackendWebSocketService:connect';
       handler: () => Promise<void>;
     }
   | {
       type: 'BackendWebSocketService:disconnect';
       handler: () => Promise<void>;
+    }
+  | {
+      type: 'BackendWebSocketService:subscribe';
+      handler: (options: { channels: string[]; callback: (notification: any) => void }) => Promise<{ subscriptionId: string; unsubscribe: () => Promise<void> }>;
     }
   | {
       type: 'BackendWebSocketService:isChannelSubscribed';
@@ -290,26 +290,9 @@ export class AccountActivityService {
         }
       });
 
-      // Create subscription using sendRequest since subscribe isn't exposed as messenger action
-      const subscriptionResponse = await this.#messenger.call('BackendWebSocketService:sendRequest', {
-        event: 'subscribe',
-        data: { channels: [channel] },
-      });
-
-      if (!subscriptionResponse?.subscriptionId) {
-        throw new Error('Invalid subscription response: missing subscription ID');
-      }
-
-      // Check for failures
-      if (subscriptionResponse.failed && subscriptionResponse.failed.length > 0) {
-        throw new Error(
-          `Subscription failed for channels: ${subscriptionResponse.failed.join(', ')}`,
-        );
-      }
-
-      // Set up channel callback for direct processing of account activity updates
-      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
-        channelName: channel,
+      // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
+      await this.#messenger.call('BackendWebSocketService:subscribe', {
+        channels: [channel],
         callback: (notification) => {
           // Fast path: Direct processing of account activity updates
           this.#handleAccountActivityUpdate(
@@ -493,17 +476,7 @@ export class AccountActivityService {
       await this.subscribeAccounts({ address: newAddress });
       console.log(`[${SERVICE_NAME}] Subscribed to new selected account: ${newAddress}`);
 
-      // Trigger TokenBalancesController to fetch current data to avoid stale balance information
-      try {
-        console.log(`[${SERVICE_NAME}] Triggering balance update for account switch`);
-        await this.#messenger.call('TokenBalancesController:updateBalances', {
-          queryAllAccounts: false, // Only update for current account
-        });
-        console.log(`[${SERVICE_NAME}] Balance update triggered successfully`);
-      } catch (balanceError) {
-        // Don't fail account switching if balance update fails
-        console.warn(`[${SERVICE_NAME}] Failed to trigger balance update:`, balanceError);
-      }
+      // TokenBalancesController handles its own polling - no need to manually trigger updates
     } catch (error) {
       console.warn(`[${SERVICE_NAME}] Account change failed, forcing reconnection:`, error);
       await this.#forceReconnection();

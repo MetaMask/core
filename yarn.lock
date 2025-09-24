@@ -2705,14 +2705,13 @@ __metadata:
 
 "@metamask/backend-platform@file:../backend-platform::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
   version: 0.0.0
-  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=d4cbf3&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  resolution: "@metamask/backend-platform@file:../backend-platform#../backend-platform::hash=05e089&locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
     "@metamask/utils": "npm:^11.4.2"
     uuid: "npm:^8.3.2"
-    ws: "npm:^8.16.0"
-  checksum: 10/86fdcf6be6d9223305375ede09b9df8d7db81a8e378738be83197446563fb946f0752622e514cfc99fe3b4b224c81f8672ee8b870bdac2931d9b8c2b2f97dc92
+  checksum: 10/4dfb4af4f013ccfa086e8195061ebe8604dfb7f483008d1c5db4fde36951186a22a9aeb4519730bdfee7f73dacc3e264288ff5cc783dfaf074d338c29fa02966
   languageName: node
   linkType: hard
 
@@ -2726,7 +2725,6 @@ __metadata:
     "@metamask/utils": "npm:^11.4.2"
     "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
-    "@types/ws": "npm:^8.5.10"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     sinon: "npm:^9.2.4"
@@ -2735,7 +2733,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
-    ws: "npm:^8.16.0"
   languageName: unknown
   linkType: soft
 
@@ -5991,15 +5988,6 @@ __metadata:
   version: 9.0.8
   resolution: "@types/uuid@npm:9.0.8"
   checksum: 10/b8c60b7ba8250356b5088302583d1704a4e1a13558d143c549c408bf8920535602ffc12394ede77f8a8083511b023704bc66d1345792714002bfa261b17c5275
-  languageName: node
-  linkType: hard
-
-"@types/ws@npm:^8.5.10":
-  version: 8.18.1
-  resolution: "@types/ws@npm:8.18.1"
-  dependencies:
-    "@types/node": "npm:*"
-  checksum: 10/1ce05e3174dcacf28dae0e9b854ef1c9a12da44c7ed73617ab6897c5cbe4fccbb155a20be5508ae9a7dde2f83bd80f5cf3baa386b934fc4b40889ec963e94f3a
   languageName: node
   linkType: hard
 
@@ -14965,21 +14953,6 @@ __metadata:
     utf-8-validate:
       optional: true
   checksum: 10/9c796b84ba80ffc2c2adcdfc9c8e9a219ba99caa435c9a8d45f9ac593bba325563b3f83edc5eb067cc6d21b9a6bf2c930adf76dd40af5f58a5ca6859e81858f0
-  languageName: node
-  linkType: hard
-
-"ws@npm:^8.16.0":
-  version: 8.18.3
-  resolution: "ws@npm:8.18.3"
-  peerDependencies:
-    bufferutil: ^4.0.1
-    utf-8-validate: ">=5.0.2"
-  peerDependenciesMeta:
-    bufferutil:
-      optional: true
-    utf-8-validate:
-      optional: true
-  checksum: 10/725964438d752f0ab0de582cd48d6eeada58d1511c3f613485b5598a83680bedac6187c765b0fe082e2d8cc4341fc57707c813ae780feee82d0c5efe6a4c61b6
   languageName: node
   linkType: hard
 

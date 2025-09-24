@@ -141,6 +141,19 @@ export type WebSocketServiceGetChannelCallbacksAction = {
 };
 
 /**
+ * Create and manage a subscription with direct callback routing
+ *
+ * @param options - Subscription configuration
+ * @param options.channels - Array of channel names to subscribe to
+ * @param options.callback - Callback function for handling notifications
+ * @returns Promise that resolves with subscription object containing unsubscribe method
+ */
+export type WebSocketServiceSubscribeAction = {
+  type: `WebSocketService:subscribe`;
+  handler: WebSocketService['subscribe'];
+};
+
+/**
  * Union of all WebSocketService action types.
  */
 export type WebSocketServiceMethodActions =
@@ -154,4 +167,5 @@ export type WebSocketServiceMethodActions =
   | WebSocketServiceFindSubscriptionsByChannelPrefixAction
   | WebSocketServiceAddChannelCallbackAction
   | WebSocketServiceRemoveChannelCallbackAction
-  | WebSocketServiceGetChannelCallbacksAction;
+  | WebSocketServiceGetChannelCallbacksAction
+  | WebSocketServiceSubscribeAction;

@@ -9,6 +9,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'disconnect', 
   'sendMessage',
   'sendRequest',
+  'subscribe',
   'getConnectionInfo',
   'getSubscriptionByChannel',
   'isChannelSubscribed',
