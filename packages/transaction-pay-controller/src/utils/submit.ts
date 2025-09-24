@@ -1,21 +1,30 @@
+import type { Messenger } from '@metamask/base-controller';
 import { StatusTypes } from '@metamask/bridge-controller';
 import type { BridgeHistoryItem } from '@metamask/bridge-status-controller';
+import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
+import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { projectLogger } from '../logger';
-import type { TransactionPayControllerMessenger } from '../TransactionPayController';
 import type { TransactionBridgeQuote } from '../types';
 
 const log = createModuleLogger(projectLogger, 'submit');
 
+export type SubmitMessenger = Messenger<
+  BridgeStatusControllerActions,
+  | BridgeStatusControllerStateChangeEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
+>;
+
 export type SubmitBridgeQuotesRequest = {
   from: Hex;
   isSmartTransaction: boolean;
-  messenger: TransactionPayControllerMessenger;
+  messenger: SubmitMessenger;
   quotes: TransactionBridgeQuote[];
   updateTransaction: (fn: (transactionMeta: TransactionMeta) => void) => void;
 };
@@ -111,7 +120,7 @@ async function submitBridgeTransaction(
  */
 async function waitForBridgeCompletion(
   bridgeTransactionId: string,
-  messenger: TransactionPayControllerMessenger,
+  messenger: SubmitMessenger,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const handler = (bridgeHistory: BridgeHistoryItem) => {
@@ -153,7 +162,7 @@ async function waitForBridgeCompletion(
 function collectTransactionIds(
   chainId: Hex,
   from: Hex,
-  messenger: TransactionPayControllerMessenger,
+  messenger: SubmitMessenger,
   onTransaction: (transactionId: string) => void,
 ): { end: () => void } {
   const listener = (tx: TransactionMeta) => {

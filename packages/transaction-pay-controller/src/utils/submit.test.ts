@@ -10,9 +10,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
 import { cloneDeep, noop } from 'lodash';
 
-import type { SubmitBridgeQuotesRequest } from './submit';
+import type { SubmitBridgeQuotesRequest, SubmitMessenger } from './submit';
 import { submitBridgeQuotes } from './submit';
-import type { TransactionPayControllerMessenger } from '../TransactionPayController';
 import type { TransactionBridgeQuote } from '../types';
 
 const FROM_MOCK = '0x123';
@@ -41,13 +40,12 @@ const BRIDGE_TRANSACTION_META_2_MOCK = {
 } as TransactionMeta;
 
 describe('Submit Utils', () => {
-  let baseMessenger: Messenger<
+  let messengerMock: Messenger<
     BridgeStatusControllerActions,
     | BridgeStatusControllerEvents
     | TransactionControllerUnapprovedTransactionAddedEvent
   >;
 
-  let messengerMock: jest.Mocked<TransactionPayControllerMessenger>;
   let request: SubmitBridgeQuotesRequest;
 
   const submitTransactionMock: jest.MockedFunction<
@@ -64,7 +62,7 @@ describe('Submit Utils', () => {
     transactionId: string,
     status: StatusTypes,
   ): void {
-    baseMessenger.publish(
+    messengerMock.publish(
       'BridgeStatusController:stateChange',
       {
         txHistory: {
@@ -85,7 +83,7 @@ describe('Submit Utils', () => {
    * @param id - The ID of the transaction to add.
    */
   function addUnapprovedTransaction(id: string): void {
-    baseMessenger.publish('TransactionController:unapprovedTransactionAdded', {
+    messengerMock.publish('TransactionController:unapprovedTransactionAdded', {
       id,
       chainId: CHAIN_ID_MOCK,
       txParams: {
@@ -97,25 +95,16 @@ describe('Submit Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    baseMessenger = new Messenger<
+    messengerMock = new Messenger<
       BridgeStatusControllerActions,
       | BridgeStatusControllerStateChangeEvent
       | TransactionControllerUnapprovedTransactionAddedEvent
     >();
 
-    baseMessenger.registerActionHandler(
+    messengerMock.registerActionHandler(
       'BridgeStatusController:submitTx',
       submitTransactionMock,
     );
-
-    messengerMock = baseMessenger.getRestricted({
-      name: 'TransactionPayController',
-      allowedActions: ['BridgeStatusController:submitTx'],
-      allowedEvents: [
-        'BridgeStatusController:stateChange',
-        'TransactionController:unapprovedTransactionAdded',
-      ],
-    }) as jest.Mocked<TransactionPayControllerMessenger>;
 
     submitTransactionMock.mockImplementationOnce(async () => {
       setTimeout(() => {
