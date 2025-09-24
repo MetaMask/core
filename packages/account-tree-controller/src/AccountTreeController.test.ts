@@ -838,7 +838,7 @@ describe('AccountTreeController', () => {
         () => MOCK_HD_ACCOUNT_2,
       );
 
-      controller.init();
+      controller.reinit();
 
       const newDefaultAccountGroupId = toMultichainAccountGroupId(
         toMultichainAccountWalletId(MOCK_HD_ACCOUNT_2.options.entropy.id),
@@ -848,6 +848,70 @@ describe('AccountTreeController', () => {
       expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
         newDefaultAccountGroupId,
       );
+    });
+
+    it('is a no-op if init is called twice', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      expect(
+        mocks.AccountsController.listMultichainAccounts,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.AccountsController.getSelectedMultichainAccount,
+      ).toHaveBeenCalledTimes(1);
+
+      // Calling init again is a no-op, so we're not fetching the list of accounts
+      // a second time.
+      controller.init();
+      expect(
+        mocks.AccountsController.listMultichainAccounts,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.AccountsController.getSelectedMultichainAccount,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('is re-fetching the list of accounts during re-init', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      expect(
+        mocks.AccountsController.listMultichainAccounts,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.AccountsController.getSelectedMultichainAccount,
+      ).toHaveBeenCalledTimes(1);
+
+      // Deep copy initial tree.
+      const initialTree = JSON.parse(
+        JSON.stringify(controller.state.accountTree),
+      );
+
+      // We now change the list of accounts entirely and call re-init to re-fetch
+      // the new account list.
+      mocks.AccountsController.accounts = [MOCK_HD_ACCOUNT_2];
+
+      controller.reinit();
+      expect(
+        mocks.AccountsController.listMultichainAccounts,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        mocks.AccountsController.getSelectedMultichainAccount,
+      ).toHaveBeenCalledTimes(2);
+
+      // Deep copy new tree.
+      const updatedTree = JSON.parse(
+        JSON.stringify(controller.state.accountTree),
+      );
+
+      expect(initialTree).not.toStrictEqual(updatedTree);
     });
   });
 
@@ -1935,7 +1999,7 @@ describe('AccountTreeController', () => {
       controller.setAccountGroupName(expectedGroupId1, customName);
 
       // Re-init to test persistence
-      controller.init();
+      controller.reinit();
 
       const wallet = controller.state.accountTree.wallets[expectedWalletId1];
       const group = wallet?.groups[expectedGroupId1];
@@ -1966,7 +2030,7 @@ describe('AccountTreeController', () => {
       const customName = 'My Primary Wallet';
       controller.setAccountWalletName(expectedWalletId1, customName);
 
-      controller.init();
+      controller.reinit();
 
       const wallet = controller.state.accountTree.wallets[expectedWalletId1];
       expect(wallet?.metadata.name).toBe(customName);
@@ -2083,7 +2147,7 @@ describe('AccountTreeController', () => {
       controller.setAccountGroupPinned(expectedGroupId, true);
 
       // Re-init to test persistence
-      controller.init();
+      controller.reinit();
 
       // Verify pinned state persists
       expect(
@@ -2120,7 +2184,7 @@ describe('AccountTreeController', () => {
       controller.setAccountGroupHidden(expectedGroupId, true);
 
       // Re-init to test persistence
-      controller.init();
+      controller.reinit();
 
       // Verify hidden state persists
       expect(
@@ -2881,7 +2945,7 @@ describe('AccountTreeController', () => {
       expect(wallet1.groups[group2Id].metadata.name).toBe('Account 2'); // groupIndex 1 → Account 2
 
       // Simulate app restart by re-initializing
-      controller.init();
+      controller.reinit();
 
       // Names should remain the same (consistent entropy.groupIndex)
       const state2 = controller.state;
@@ -3060,7 +3124,7 @@ describe('AccountTreeController', () => {
       controller.setAccountGroupName(group1Id, 'Custom Name');
 
       // Step 3: Re-initialize (simulate app restart)
-      controller.init();
+      controller.reinit();
 
       // Step 4: Verify the second group gets its proper name without conflict
       const state2 = controller.state;
@@ -3476,7 +3540,7 @@ describe('AccountTreeController', () => {
         () => MOCK_HD_ACCOUNT_2,
       );
 
-      controller.init();
+      controller.reinit();
 
       const oldDefaultAccountGroupId = defaultAccountGroupId;
       const newDefaultAccountGroupId = toMultichainAccountGroupId(
@@ -4181,7 +4245,7 @@ describe('AccountTreeController', () => {
       mocks.AccountsController.accounts = [mockHdAccount2, mockHdAccount1];
 
       // Re-init the controller should still give proper naming.
-      controller.init();
+      controller.reinit();
 
       [mockHdAccount1, mockHdAccount2].forEach((mockAccount, index) => {
         const walletId = toMultichainAccountWalletId(
