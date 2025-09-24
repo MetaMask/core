@@ -32,7 +32,7 @@ import {
 } from './AccountTreeController';
 import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
-import { AccountGroupMultichainAccountObject, isAccountGroupNameUnique } from './group';
+import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import {
   type AccountTreeControllerMessenger,
@@ -42,7 +42,6 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './types';
-import { AccountWalletKeyringObject, AccountWalletObject } from './wallet';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
