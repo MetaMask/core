@@ -36,6 +36,7 @@ import type {
   GatorPermissionsMap,
   StoredGatorPermission,
   PermissionTypesWithCustom,
+  RevocationParams,
 } from './types';
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
@@ -689,6 +690,91 @@ describe('GatorPermissionsController', () => {
           metadata: buildMetadata(''),
         }),
       ).toThrow('Failed to decode permission');
+    });
+  });
+
+  describe('submitRevocation', () => {
+    it('should successfully submit a revocation when gator permissions are enabled', async () => {
+      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const messenger = getMessenger(
+        getRootMessenger({
+          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+        }),
+      );
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const revocationParams: RevocationParams = {
+        delegationHash: '0x1234567890abcdef1234567890abcdef12345678',
+      };
+
+      await controller.submitRevocation(revocationParams);
+
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_submitRevocation',
+          params: revocationParams,
+        },
+      });
+    });
+
+    it('should throw GatorPermissionsNotEnabledError when gator permissions are disabled', async () => {
+      const messenger = getMessenger();
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: false,
+        },
+      });
+
+      const revocationParams: RevocationParams = {
+        delegationHash: '0x1234567890abcdef1234567890abcdef12345678',
+      };
+
+      await expect(
+        controller.submitRevocation(revocationParams),
+      ).rejects.toThrow('Gator permissions are not enabled');
+    });
+
+    it('should throw GatorPermissionsProviderError when snap request fails', async () => {
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockRejectedValue(new Error('Snap request failed'));
+      const messenger = getMessenger(
+        getRootMessenger({
+          snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+        }),
+      );
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const revocationParams: RevocationParams = {
+        delegationHash: '0x1234567890abcdef1234567890abcdef12345678',
+      };
+
+      await expect(
+        controller.submitRevocation(revocationParams),
+      ).rejects.toThrow(
+        'Failed to handle snap request to gator permissions provider for method permissionsProvider_submitRevocation',
+      );
     });
   });
 });

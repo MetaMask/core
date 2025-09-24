@@ -32,6 +32,7 @@ import {
   type PermissionTypesWithCustom,
   type StoredGatorPermission,
   type DelegationDetails,
+  type RevocationParams,
 } from './types';
 import {
   deserializeGatorPermissionsMap,
@@ -181,6 +182,14 @@ export type GatorPermissionsControllerDecodePermissionFromPermissionContextForOr
   };
 
 /**
+ * The action which can be used to submit a revocation.
+ */
+export type GatorPermissionsControllerSubmitRevocationAction = {
+  type: `${typeof controllerName}:submitRevocation`;
+  handler: GatorPermissionsController['submitRevocation'];
+};
+
+/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
@@ -189,7 +198,8 @@ export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction
   | GatorPermissionsControllerEnableGatorPermissionsAction
   | GatorPermissionsControllerDisableGatorPermissionsAction
-  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction;
+  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
+  | GatorPermissionsControllerSubmitRevocationAction;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -296,6 +306,11 @@ export default class GatorPermissionsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
       this.decodePermissionFromPermissionContextForOrigin.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:submitRevocation`,
+      this.submitRevocation.bind(this),
     );
   }
 
@@ -593,6 +608,41 @@ export default class GatorPermissionsController extends BaseController<
       return permission;
     } catch (error) {
       throw new PermissionDecodingError({
+        cause: error as Error,
+      });
+    }
+  }
+
+  /**
+   * Submits a revocation to the gator permissions provider snap.
+   *
+   * @param revocationParams - The revocation parameters containing the delegation hash.
+   * @returns A promise that resolves when the revocation is submitted successfully.
+   * @throws {GatorPermissionsNotEnabledError} If the gator permissions are not enabled.
+   * @throws {GatorPermissionsProviderError} If the snap request fails.
+   */
+  public async submitRevocation(
+    revocationParams: RevocationParams,
+  ): Promise<void> {
+    this.#assertGatorPermissionsEnabled();
+
+    try {
+      await this.messagingSystem.call('SnapController:handleRequest', {
+        snapId: this.state.gatorPermissionsProviderSnapId,
+        origin: 'metamask',
+        handler: HandlerType.OnRpcRequest,
+        request: {
+          jsonrpc: '2.0',
+          method: GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+          params: revocationParams,
+        },
+      });
+
+      controllerLog('Successfully submitted revocation', revocationParams);
+    } catch (error) {
+      controllerLog('Failed to submit revocation', error);
+      throw new GatorPermissionsProviderError({
+        method: GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
         cause: error as Error,
       });
     }
