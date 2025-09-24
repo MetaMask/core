@@ -252,7 +252,7 @@ export class AccountTreeController extends BaseController<
   init() {
     if (this.#initialized) {
       // We prevent re-initilializing the state multiple times. Though, we can use
-      // `clearState` + `init` to re-init everything from scratch.
+      // `reinit` to re-init everything from scratch.
       return;
     }
 
@@ -333,6 +333,26 @@ export class AccountTreeController extends BaseController<
     }
 
     this.#initialized = true;
+  }
+
+  /**
+   * Re-initialize the controller's state.
+   *
+   * This is done in one single (atomic) `update` block to avoid having a temporary
+   * cleared state.
+   */
+  reinit() {
+    this.#initialized = false;
+    this.init();
+  }
+
+  /**
+   * Force-init if the controller's state has not been initilized yet.
+   */
+  #initAtLeastOnce() {
+    if (!this.#initialized) {
+      this.init();
+    }
   }
 
   /**
@@ -640,9 +660,7 @@ export class AccountTreeController extends BaseController<
   #handleAccountAdded(account: InternalAccount) {
     // We force-init to make sure we have the proper account groups for the
     // incoming account change.
-    if (!this.#initialized) {
-      this.init();
-    }
+    this.#initAtLeastOnce();
 
     this.update((state) => {
       this.#insert(state.accountTree.wallets, account);
@@ -673,9 +691,7 @@ export class AccountTreeController extends BaseController<
   #handleAccountRemoved(accountId: AccountId) {
     // We force-init to make sure we have the proper account groups for the
     // incoming account change.
-    if (!this.#initialized) {
-      this.init();
-    }
+    this.#initAtLeastOnce();
 
     const context = this.#accountIdToContext.get(accountId);
 

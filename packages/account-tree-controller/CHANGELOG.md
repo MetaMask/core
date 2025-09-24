@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `reinit` method ([#6709](https://github.com/MetaMask/core/pull/6709))
+
 ### Changed
 
 - Implicitly call `init` before mutating the tree ([#6709](https://github.com/MetaMask/core/pull/6709))
