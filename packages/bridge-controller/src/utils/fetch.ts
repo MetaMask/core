@@ -113,6 +113,7 @@ export async function fetchBridgeQuotes(
 
   // TODO remove this flag after testing to return both quotes and intents quotes
   queryParams.append('onlyIntent', 'true');
+  queryParams.append('intent', 'true');
 
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {

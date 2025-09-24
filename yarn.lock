@@ -2888,7 +2888,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.10.0, @metamask/controller-utils@npm:^11.12.0, @metamask/controller-utils@npm:^11.14.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -3625,6 +3625,7 @@ __metadata:
     "@metamask/snaps-controllers": ^14.0.1
   languageName: unknown
   linkType: soft
+
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller":
   version: 1.0.0
   resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=0af8ad&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
@@ -3668,7 +3669,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   languageName: unknown
   linkType: soft
-  
+
 "@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.0.3, @metamask/json-rpc-engine@npm:^10.1.0, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
@@ -3722,6 +3723,18 @@ __metadata:
     "@noble/hashes": "npm:^1.3.2"
     "@scure/base": "npm:^1.0.0"
   checksum: 10/29b2db7f2626414f6147e6a25aae16b1a012485aa394fb6ad2b3f26519455dae7e6e6fdd502f279e1924251b7058a853982297f37761372ed034db5f150fc720
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-api@npm:^20.1.0":
+  version: 20.1.1
+  resolution: "@metamask/keyring-api@npm:20.1.1"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/f261205687c9aa1c39a2221e30a6edd4f530d2b0afd86a8ab13ea23d2af2a0bf1c89a8c4ad5646368e3b06909613d64195c335063319edd018636c9fa6ee63ee
   languageName: node
   linkType: hard
 
@@ -4902,7 +4915,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.8.0":
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.0":
   version: 11.8.0
   resolution: "@metamask/utils@npm:11.8.0"
   dependencies:
