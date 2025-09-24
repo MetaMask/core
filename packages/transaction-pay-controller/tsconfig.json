@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "../assets-controllers"
+    },
+    {
       "path": "../base-controller"
     },
     {

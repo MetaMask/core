@@ -1,0 +1,48 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
+
+import { parseRequiredTokens } from './required-tokens';
+import { getTokenBalance, getTokenDecimals } from './token';
+import type { TransactionPayControllerMessenger } from '../types';
+
+jest.mock('./token');
+
+const TRANSACTION_META_MOCK = {
+  txParams: {
+    data: '0xa9059cbb0000000000000000000000005a52e96bacdabb82fd05763e25335261b270efcb000000000000000000000000000000000000000000000000000000000001E240',
+    to: '0x123',
+  },
+} as TransactionMeta;
+
+const MESSENGER_MOCK = {} as TransactionPayControllerMessenger;
+
+describe('Required Tokens Utils', () => {
+  const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const getTokenDecimalsMock = jest.mocked(getTokenDecimals);
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  describe('parseRequiredTokens', () => {
+    it('returns token transfer required token', () => {
+      getTokenDecimalsMock.mockReturnValue(3);
+      getTokenBalanceMock.mockReturnValue(new BigNumber('789000'));
+
+      const result = parseRequiredTokens(TRANSACTION_META_MOCK, MESSENGER_MOCK);
+
+      expect(result).toStrictEqual([
+        {
+          address: TRANSACTION_META_MOCK.txParams.to,
+          allowUnderMinimum: false,
+          amountHuman: '123.456',
+          amountRaw: '123456',
+          balanceHuman: '789',
+          balanceRaw: '789000',
+          decimals: 3,
+          skipIfBalance: false,
+        },
+      ]);
+    });
+  });
+});

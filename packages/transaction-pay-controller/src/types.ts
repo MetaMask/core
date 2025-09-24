@@ -1,3 +1,5 @@
+import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
+import type { TokenListControllerActions } from '@metamask/assets-controllers';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
@@ -5,10 +7,14 @@ import type { QuoteMetadata, QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 export const controllerName = 'TransactionPayController';
 
-type AllowedActions = BridgeStatusControllerActions;
+type AllowedActions =
+  | BridgeStatusControllerActions
+  | TokenBalancesControllerGetStateAction
+  | TokenListControllerActions;
 
 type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
@@ -53,3 +59,14 @@ export type TransactionData = {
 };
 
 export type TransactionBridgeQuote = QuoteResponse & QuoteMetadata;
+
+export type RequiredTransactionToken = {
+  address: Hex;
+  allowUnderMinimum: boolean;
+  amountRaw: string;
+  amountHuman: string;
+  balanceRaw: string;
+  balanceHuman: string;
+  decimals: number;
+  skipIfBalance: boolean;
+};

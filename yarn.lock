@@ -4854,13 +4854,18 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller"
   dependencies:
+    "@ethersproject/abi": "npm:^5.7.0"
+    "@ethersproject/contracts": "npm:^5.7.0"
+    "@metamask/assets-controllers": "npm:^76.0.0"
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/bridge-controller": "npm:^44.0.0"
     "@metamask/bridge-status-controller": "npm:^44.0.0"
     "@metamask/controller-utils": "npm:^11.14.0"
+    "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/transaction-controller": "npm:^60.4.0"
     "@metamask/utils": "npm:^11.8.0"
     "@types/jest": "npm:^27.4.1"
+    bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.1"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
@@ -4871,6 +4876,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
+    "@metamask/assets-controllers": ^76.0.0
     "@metamask/bridge-controller": ^44.0.0
     "@metamask/bridge-status-controller": ^44.0.0
     "@metamask/transaction-controller": ^60.0.0
