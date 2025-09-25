@@ -1,23 +1,37 @@
-import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
+import type {
+  CurrencyRateControllerActions,
+  TokenBalancesControllerGetStateAction,
+} from '@metamask/assets-controllers';
 import type { TokenListControllerActions } from '@metamask/assets-controllers';
+import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { QuoteMetadata, QuoteResponse } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
+import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { TransactionControllerUnapprovedTransactionAddedEvent } from '@metamask/transaction-controller';
+import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
+import type { TransactionControllerStateChangeEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export const controllerName = 'TransactionPayController';
 
-type AllowedActions =
+export type AllowedActions =
   | BridgeStatusControllerActions
+  | CurrencyRateControllerActions
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction
   | TokenBalancesControllerGetStateAction
-  | TokenListControllerActions;
+  | TokenListControllerActions
+  | TokenRatesControllerGetStateAction
+  | TransactionControllerGetStateAction;
 
-type AllowedEvents =
+export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
+  | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
 export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
@@ -55,18 +69,36 @@ export type TransactionPayControllerState = {
 };
 
 export type TransactionData = {
-  quotes: TransactionBridgeQuote[];
+  paymentToken?: TransactionPaymentToken;
+  quotes?: TransactionBridgeQuote[];
+  tokens: TransactionToken[];
 };
 
 export type TransactionBridgeQuote = QuoteResponse & QuoteMetadata;
 
-export type RequiredTransactionToken = {
+export type TransactionTokenRequired = {
   address: Hex;
   allowUnderMinimum: boolean;
-  amountRaw: string;
   amountHuman: string;
-  balanceRaw: string;
+  amountRaw: string;
   balanceHuman: string;
+  balanceRaw: string;
+  chainId: Hex;
   decimals: number;
   skipIfBalance: boolean;
+};
+
+export type TransactionTokenFiat = {
+  amountFiat: string;
+  amountUsd: string;
+};
+
+export type TransactionToken = TransactionTokenRequired & TransactionTokenFiat;
+
+export type TransactionPaymentToken = {
+  address: Hex;
+  balanceHuman: string;
+  balanceRaw: string;
+  chainId: Hex;
+  decimals: number;
 };

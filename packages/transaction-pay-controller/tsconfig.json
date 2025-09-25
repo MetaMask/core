@@ -20,6 +20,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../network-controller"
+    },
+    {
       "path": "../transaction-controller"
     }
   ],

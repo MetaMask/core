@@ -18,9 +18,9 @@ export function getTokenBalance(
   account: Hex,
   chainId: Hex,
   tokenAddress: Hex,
-): BigNumber {
+): string {
   const controllerState = messenger.call('TokenBalancesController:getState');
-  const normalizedAccount = toChecksumHexAddress(account) as Hex;
+  const normalizedAccount = account.toLowerCase() as Hex;
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
 
   const balanceHex =
@@ -28,7 +28,7 @@ export function getTokenBalance(
       normalizedTokenAddress
     ];
 
-  return new BigNumber(balanceHex ?? '0x0', 16);
+  return new BigNumber(balanceHex ?? '0x0', 16).toString(10);
 }
 
 /**
@@ -45,9 +45,82 @@ export function getTokenDecimals(
   chainId: Hex,
 ): number | undefined {
   const controllerState = messenger.call('TokenListController:getState');
-  const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
+  const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
   return controllerState.tokensChainsCache?.[chainId]?.data[
     normalizedTokenAddress
   ]?.decimals;
+}
+
+/**
+ * Calculate fiat rates for a specific token.
+ *
+ * @param messenger - Controller messenger.
+ * @param tokenAddress - Address of the token contract.
+ * @param chainId - Id of the chain.
+ * @returns An object containing the USD and fiat rates, or undefined if rates are not available.
+ */
+export function getTokenFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  tokenAddress: Hex,
+  chainId: Hex,
+): { usdRate: string; fiatRate: string } | undefined {
+  let ticker;
+
+  try {
+    const networkClientId = messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      chainId,
+    );
+
+    const networkConfiguration = messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+
+    ticker = networkConfiguration.configuration.ticker;
+  } catch {
+    // Intentionally empty
+  }
+
+  if (!ticker) {
+    return undefined;
+  }
+
+  const rateControllerState = messenger.call('TokenRatesController:getState');
+
+  const currencyRateControllerState = messenger.call(
+    'CurrencyRateController:getState',
+  );
+
+  const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
+
+  const tokenToNativeRate =
+    rateControllerState.marketData?.[chainId]?.[normalizedTokenAddress]?.price;
+
+  if (tokenToNativeRate === undefined) {
+    return undefined;
+  }
+
+  const {
+    conversionRate: nativeToFiatRate,
+    usdConversionRate: nativeToUsdRate,
+  } = currencyRateControllerState.currencyRates?.[ticker] ?? {
+    conversionRate: null,
+    usdConversionRate: null,
+  };
+
+  if (nativeToFiatRate === null || nativeToUsdRate === null) {
+    return undefined;
+  }
+
+  const usdRate = new BigNumber(tokenToNativeRate)
+    .multipliedBy(nativeToUsdRate)
+    .toString(10);
+
+  const fiatRate = new BigNumber(tokenToNativeRate)
+    .multipliedBy(nativeToFiatRate)
+    .toString(10);
+
+  return { usdRate, fiatRate };
 }

@@ -1,5 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { BigNumber } from 'bignumber.js';
+import type { Hex } from '@metamask/utils';
 
 import { parseRequiredTokens } from './required-tokens';
 import { getTokenBalance, getTokenDecimals } from './token';
@@ -8,6 +8,7 @@ import type { TransactionPayControllerMessenger } from '../types';
 jest.mock('./token');
 
 const TRANSACTION_META_MOCK = {
+  chainId: '0x1' as Hex,
   txParams: {
     data: '0xa9059cbb0000000000000000000000005a52e96bacdabb82fd05763e25335261b270efcb000000000000000000000000000000000000000000000000000000000001E240',
     to: '0x123',
@@ -27,7 +28,7 @@ describe('Required Tokens Utils', () => {
   describe('parseRequiredTokens', () => {
     it('returns token transfer required token', () => {
       getTokenDecimalsMock.mockReturnValue(3);
-      getTokenBalanceMock.mockReturnValue(new BigNumber('789000'));
+      getTokenBalanceMock.mockReturnValue('789000');
 
       const result = parseRequiredTokens(TRANSACTION_META_MOCK, MESSENGER_MOCK);
 
@@ -39,10 +40,47 @@ describe('Required Tokens Utils', () => {
           amountRaw: '123456',
           balanceHuman: '789',
           balanceRaw: '789000',
+          chainId: TRANSACTION_META_MOCK.chainId,
           decimals: 3,
           skipIfBalance: false,
         },
       ]);
+    });
+
+    it('returns empty array if no to', () => {
+      const result = parseRequiredTokens(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: { ...TRANSACTION_META_MOCK.txParams, to: undefined },
+        },
+        MESSENGER_MOCK,
+      );
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array if no data', () => {
+      const result = parseRequiredTokens(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: { ...TRANSACTION_META_MOCK.txParams, data: undefined },
+        },
+        MESSENGER_MOCK,
+      );
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array if not transfer', () => {
+      const result = parseRequiredTokens(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: { ...TRANSACTION_META_MOCK.txParams, data: '0x12345678' },
+        },
+        MESSENGER_MOCK,
+      );
+
+      expect(result).toStrictEqual([]);
     });
   });
 });

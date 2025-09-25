@@ -7,8 +7,8 @@ import { BigNumber } from 'bignumber.js';
 
 import { getTokenBalance, getTokenDecimals } from './token';
 import type {
-  RequiredTransactionToken,
   TransactionPayControllerMessenger,
+  TransactionTokenRequired,
 } from '../types';
 
 /**
@@ -21,10 +21,10 @@ import type {
 export function parseRequiredTokens(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): RequiredTransactionToken[] {
+): TransactionTokenRequired[] {
   return [parseTokenTransfer(transaction, messenger)].filter(
     Boolean,
-  ) as RequiredTransactionToken[];
+  ) as TransactionTokenRequired[];
 }
 
 /**
@@ -37,24 +37,20 @@ export function parseRequiredTokens(
 function parseTokenTransfer(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-): RequiredTransactionToken | undefined {
+): TransactionTokenRequired | undefined {
   const { chainId, txParams } = transaction;
   const { data } = txParams;
   const from = txParams.from as Hex;
   const to = txParams.to as Hex | undefined;
 
-  if (!to) {
+  if (!to || !data) {
     return undefined;
   }
 
   let transferAmount: Hex | undefined;
 
   try {
-    const result = new Interface(abiERC20).decodeFunctionData(
-      'transfer',
-      data ?? '0x',
-    );
-
+    const result = new Interface(abiERC20).decodeFunctionData('transfer', data);
     transferAmount = toHex(result._value);
   } catch {
     // Intentionally empty
@@ -84,6 +80,7 @@ function parseTokenTransfer(
     amountRaw,
     balanceHuman,
     balanceRaw,
+    chainId,
     decimals: tokenDecimals,
     skipIfBalance: false,
   };
