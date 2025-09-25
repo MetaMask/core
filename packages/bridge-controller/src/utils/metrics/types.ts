@@ -145,7 +145,10 @@ export type RequiredEventContextFromClient = {
     | // Tx failed before confirmation
     (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
-        Pick<RequestMetadata, 'stx_enabled' | 'usd_amount_source'> &
+        Pick<
+          RequestMetadata,
+          'stx_enabled' | 'usd_amount_source' | 'is_hardware_wallet'
+        > &
         Pick<
           RequestParams,
           'token_symbol_source' | 'token_symbol_destination'

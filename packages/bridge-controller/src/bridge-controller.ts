@@ -852,7 +852,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    // console.log('===selectedNetworkClientId', selectedNetworkClientId);
     return selectedNetworkClientId;
   }
 
@@ -878,14 +877,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
+    | 'stx_enabled'
+    | 'usd_amount_source'
+    | 'security_warnings'
+    | 'is_hardware_wallet'
   > => {
     return {
       slippage_limit: this.state.quoteRequest.slippage,
       swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
-      is_hardware_wallet: isHardwareWallet(
-        this.#getMultichainSelectedAccount(),
-      ),
       custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
     };
   };
@@ -932,6 +931,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
@@ -939,6 +941,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
@@ -946,6 +951,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
@@ -957,6 +965,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestParams(),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
+          is_hardware_wallet: isHardwareWallet(
+            this.#getMultichainSelectedAccount(),
+          ),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.Failed: {
