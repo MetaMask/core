@@ -5,24 +5,27 @@
  * and balance updates for those accounts via the comprehensive AccountActivityMessage format.
  */
 
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetSelectedAccountAction,
+} from '@metamask/accounts-controller';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
+  WebSocketConnectionInfo,
+  BackendWebSocketServiceConnectionStateChangedEvent,
+  SubscriptionInfo,
+  ServerNotificationMessage,
+} from './BackendWebSocketService';
+import { WebSocketState } from './BackendWebSocketService';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
-import type {
-  WebSocketConnectionInfo,
-  WebSocketServiceConnectionStateChangedEvent,
-  SubscriptionInfo,
-  ServerNotificationMessage,
-  ClientRequestMessage,
-  ServerResponseMessage,
-} from './WebsocketService';
-import { WebSocketState } from './WebsocketService';
 
 /**
  * System notification data for chain status updates
@@ -95,61 +98,9 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
 ] as const;
 
 export type AccountActivityServiceAllowedActions =
-  | {
-      type: 'AccountsController:getAccountByAddress';
-      handler: (address: string) => InternalAccount | undefined;
-    }
-  | {
-      type: 'AccountsController:getSelectedAccount';
-      handler: () => InternalAccount;
-    }
-  | {
-      type: 'BackendWebSocketService:connect';
-      handler: () => Promise<void>;
-    }
-  | {
-      type: 'BackendWebSocketService:disconnect';
-      handler: () => Promise<void>;
-    }
-  | {
-      type: 'BackendWebSocketService:subscribe';
-      handler: (options: {
-        channels: string[];
-        callback: (notification: ServerNotificationMessage) => void;
-      }) => Promise<{
-        subscriptionId: string;
-        unsubscribe: () => Promise<void>;
-      }>;
-    }
-  | {
-      type: 'BackendWebSocketService:isChannelSubscribed';
-      handler: (channel: string) => boolean;
-    }
-  | {
-      type: 'BackendWebSocketService:getSubscriptionByChannel';
-      handler: (channel: string) => SubscriptionInfo | undefined;
-    }
-  | {
-      type: 'BackendWebSocketService:findSubscriptionsByChannelPrefix';
-      handler: (channelPrefix: string) => SubscriptionInfo[];
-    }
-  | {
-      type: 'BackendWebSocketService:addChannelCallback';
-      handler: (options: {
-        channelName: string;
-        callback: (notification: ServerNotificationMessage) => void;
-      }) => void;
-    }
-  | {
-      type: 'BackendWebSocketService:removeChannelCallback';
-      handler: (channelName: string) => boolean;
-    }
-  | {
-      type: 'BackendWebSocketService:sendRequest';
-      handler: (
-        message: ClientRequestMessage,
-      ) => Promise<ServerResponseMessage>;
-    };
+  | AccountsControllerGetAccountByAddressAction
+  | AccountsControllerGetSelectedAccountAction
+  | BackendWebSocketServiceMethodActions;
 
 // Event types for the messaging system
 
@@ -189,7 +140,7 @@ export type AccountActivityServiceAllowedEvents =
       type: 'AccountsController:selectedAccountChange';
       payload: [InternalAccount];
     }
-  | WebSocketServiceConnectionStateChangedEvent;
+  | BackendWebSocketServiceConnectionStateChangedEvent;
 
 export type AccountActivityServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
@@ -303,7 +254,7 @@ export class AccountActivityService {
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
         channels: [channel],
-        callback: (notification) => {
+        callback: (notification: ServerNotificationMessage) => {
           // Fast path: Direct processing of account activity updates
           this.#handleAccountActivityUpdate(
             notification.data as AccountActivityMessage,
@@ -333,7 +284,7 @@ export class AccountActivityService {
       const subscriptionInfo = this.#messenger.call(
         'BackendWebSocketService:getSubscriptionByChannel',
         channel,
-      );
+      ) as SubscriptionInfo | undefined;
 
       if (!subscriptionInfo) {
         console.log(
@@ -486,7 +437,7 @@ export class AccountActivityService {
       );
       this.#messenger.call('BackendWebSocketService:addChannelCallback', {
         channelName: systemChannelName,
-        callback: (notification) => {
+        callback: (notification: ServerNotificationMessage) => {
           try {
             // Parse the notification data as a system notification
             const systemData = notification.data as SystemNotificationData;
@@ -637,7 +588,7 @@ export class AccountActivityService {
       // Get the currently selected account
       const selectedAccount = this.#messenger.call(
         'AccountsController:getSelectedAccount',
-      );
+      ) as InternalAccount;
 
       if (!selectedAccount || !selectedAccount.address) {
         console.log(`[${SERVICE_NAME}] No selected account found to subscribe`);
@@ -690,7 +641,7 @@ export class AccountActivityService {
       const accountActivitySubscriptions = this.#messenger.call(
         'BackendWebSocketService:findSubscriptionsByChannelPrefix',
         this.#options.subscriptionNamespace,
-      );
+      ) as SubscriptionInfo[];
 
       console.log(
         `[${SERVICE_NAME}] Found ${accountActivitySubscriptions.length} account activity subscriptions to unsubscribe from`,

@@ -10,13 +10,13 @@ import {
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './AccountActivityService';
-import type { AccountActivityMessage } from './types';
 import type {
   WebSocketConnectionInfo,
-  WebSocketService,
+  BackendWebSocketService,
   ServerNotificationMessage,
-} from './WebsocketService';
-import { WebSocketState } from './WebsocketService';
+} from './BackendWebSocketService';
+import { WebSocketState } from './BackendWebSocketService';
+import type { AccountActivityMessage } from './types';
 
 // Test helper constants - using string literals to avoid import errors
 enum ChainId {
@@ -43,11 +43,11 @@ const createMockInternalAccount = (options: {
   scopes: ['eip155:1'], // Required scopes property
 });
 
-// Mock WebSocketService
-jest.mock('./WebsocketService');
+// Mock BackendWebSocketService
+jest.mock('./BackendWebSocketService');
 
 describe('AccountActivityService', () => {
-  let mockWebSocketService: jest.Mocked<WebSocketService>;
+  let mockBackendWebSocketService: jest.Mocked<BackendWebSocketService>;
   let mockMessenger: jest.Mocked<AccountActivityServiceMessenger>;
   let accountActivityService: AccountActivityService;
   let mockSelectedAccount: InternalAccount;
@@ -59,8 +59,8 @@ describe('AccountActivityService', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
-    // Mock WebSocketService - we'll mock the messenger calls instead of injecting the service
-    mockWebSocketService = {
+    // Mock BackendWebSocketService - we'll mock the messenger calls instead of injecting the service
+    mockBackendWebSocketService = {
       name: 'BackendWebSocketService',
       connect: jest.fn(),
       disconnect: jest.fn(),
@@ -76,7 +76,7 @@ describe('AccountActivityService', () => {
       sendMessage: jest.fn(),
       sendRequest: jest.fn(),
       findSubscriptionsByChannelPrefix: jest.fn(),
-    } as unknown as jest.Mocked<WebSocketService>;
+    } as unknown as jest.Mocked<BackendWebSocketService>;
 
     // Mock messenger with all required methods and proper responses
     mockMessenger = {
@@ -253,7 +253,7 @@ describe('AccountActivityService', () => {
     };
 
     beforeEach(() => {
-      mockWebSocketService.subscribe.mockResolvedValue({
+      mockBackendWebSocketService.subscribe.mockResolvedValue({
         subscriptionId: 'sub-123',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
@@ -517,12 +517,12 @@ describe('AccountActivityService', () => {
 
     beforeEach(async () => {
       // Set up initial subscription
-      mockWebSocketService.subscribe.mockResolvedValue({
+      mockBackendWebSocketService.subscribe.mockResolvedValue({
         subscriptionId: 'sub-123',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
 
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue({
+      mockBackendWebSocketService.getSubscriptionByChannel.mockReturnValue({
         subscriptionId: 'sub-123',
         channels: [
           'account-activity.v1.0x1234567890123456789012345678901234567890',
@@ -566,7 +566,9 @@ describe('AccountActivityService', () => {
     });
 
     it('should handle unsubscribe when not subscribed', async () => {
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue(undefined);
+      mockBackendWebSocketService.getSubscriptionByChannel.mockReturnValue(
+        undefined,
+      );
 
       // unsubscribeAccounts doesn't throw errors - it logs and returns
       await accountActivityService.unsubscribeAccounts(mockSubscription);
@@ -639,7 +641,7 @@ describe('AccountActivityService', () => {
       };
 
       // Mock the subscription setup for the new account
-      mockWebSocketService.subscribe.mockResolvedValue({
+      mockBackendWebSocketService.subscribe.mockResolvedValue({
         subscriptionId: 'sub-new',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
@@ -821,7 +823,7 @@ describe('AccountActivityService', () => {
         address: '0x1234567890123456789012345678901234567890',
       };
 
-      mockWebSocketService.subscribe.mockResolvedValue({
+      mockBackendWebSocketService.subscribe.mockResolvedValue({
         subscriptionId: 'sub-123',
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
@@ -1435,8 +1437,8 @@ describe('AccountActivityService', () => {
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       };
 
-      mockWebSocketService.subscribe.mockResolvedValue(mockSubscription);
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue(
+      mockBackendWebSocketService.subscribe.mockResolvedValue(mockSubscription);
+      mockBackendWebSocketService.getSubscriptionByChannel.mockReturnValue(
         mockSubscription,
       );
 
@@ -1558,7 +1560,7 @@ describe('AccountActivityService', () => {
 
       let capturedCallback: (notification: ServerNotificationMessage) => void =
         jest.fn();
-      mockWebSocketService.subscribe.mockImplementation(
+      mockBackendWebSocketService.subscribe.mockImplementation(
         async ({ callback }) => {
           capturedCallback = callback as (
             notification: ServerNotificationMessage,
@@ -1801,7 +1803,7 @@ describe('AccountActivityService', () => {
         channels: ['test-channel'],
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       };
-      mockWebSocketService.subscribe.mockResolvedValue(mockSubscription);
+      mockBackendWebSocketService.subscribe.mockResolvedValue(mockSubscription);
 
       await service.subscribeAccounts({
         address: testAccount.address,
@@ -2056,7 +2058,7 @@ describe('AccountActivityService', () => {
 
       let capturedCallback: (notification: ServerNotificationMessage) => void =
         jest.fn();
-      mockWebSocketService.subscribe.mockImplementation(
+      mockBackendWebSocketService.subscribe.mockImplementation(
         async ({ callback }) => {
           capturedCallback = callback as (
             notification: ServerNotificationMessage,
