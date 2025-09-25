@@ -22,6 +22,57 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * Gets human-readable close reason from RFC 6455 close code
+ *
+ * @param code - WebSocket close code
+ * @returns Human-readable close reason
+ */
+export function getCloseReason(code: number): string {
+  switch (code) {
+    case 1000:
+      return 'Normal Closure';
+    case 1001:
+      return 'Going Away';
+    case 1002:
+      return 'Protocol Error';
+    case 1003:
+      return 'Unsupported Data';
+    case 1004:
+      return 'Reserved';
+    case 1005:
+      return 'No Status Received';
+    case 1006:
+      return 'Abnormal Closure';
+    case 1007:
+      return 'Invalid frame payload data';
+    case 1008:
+      return 'Policy Violation';
+    case 1009:
+      return 'Message Too Big';
+    case 1010:
+      return 'Mandatory Extension';
+    case 1011:
+      return 'Internal Server Error';
+    case 1012:
+      return 'Service Restart';
+    case 1013:
+      return 'Try Again Later';
+    case 1014:
+      return 'Bad Gateway';
+    case 1015:
+      return 'TLS Handshake';
+    default:
+      if (code >= 3000 && code <= 3999) {
+        return 'Library/Framework Error';
+      }
+      if (code >= 4000 && code <= 4999) {
+        return 'Application Error';
+      }
+      return 'Unknown';
+  }
+}
+
+/**
  * WebSocket connection states
  */
 export enum WebSocketState {
@@ -68,9 +119,6 @@ export type BackendWebSocketServiceOptions = {
 
   /** Optional callback to determine if connection should be enabled (default: always enabled) */
   enabledCallback?: () => boolean;
-
-  /** Enable authentication using AuthenticationController (default: false) */
-  enableAuthentication?: boolean;
 };
 
 /**
@@ -172,7 +220,6 @@ export type WebSocketConnectionInfo = {
   state: WebSocketState;
   url: string;
   reconnectAttempts: number;
-  lastError?: string;
   connectedAt?: number;
 };
 
@@ -228,15 +275,10 @@ export class BackendWebSocketService {
   readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
-    Omit<
-      BackendWebSocketServiceOptions,
-      'messenger' | 'enabledCallback' | 'enableAuthentication'
-    >
+    Omit<BackendWebSocketServiceOptions, 'messenger' | 'enabledCallback'>
   >;
 
   readonly #enabledCallback: (() => boolean) | undefined;
-
-  readonly #enableAuthentication: boolean;
 
   #ws: WebSocket | undefined;
 
@@ -257,8 +299,6 @@ export class BackendWebSocketService {
       timeout: NodeJS.Timeout;
     }
   >();
-
-  #lastError: string | null = null;
 
   #connectedAt: number | null = null;
 
@@ -284,7 +324,6 @@ export class BackendWebSocketService {
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#enabledCallback = options.enabledCallback;
-    this.#enableAuthentication = options.enableAuthentication ?? false;
 
     this.#options = {
       url: options.url,
@@ -294,10 +333,8 @@ export class BackendWebSocketService {
       requestTimeout: options.requestTimeout ?? 30000,
     };
 
-    // Setup authentication if enabled
-    if (this.#enableAuthentication) {
-      this.#setupAuthentication();
-    }
+    // Setup authentication (always enabled)
+    this.#setupAuthentication();
 
     // Register action handlers using the method actions pattern
     this.#messenger.registerMethodActionHandlers(
@@ -398,36 +435,34 @@ export class BackendWebSocketService {
     }
 
     // Priority 2: Check authentication requirements (simplified - just check if signed in)
-    if (this.#enableAuthentication) {
-      try {
-        // AuthenticationController.getBearerToken() handles wallet unlock checks internally
-        const bearerToken = await this.#messenger.call(
-          'AuthenticationController:getBearerToken',
-        );
-        if (!bearerToken) {
-          console.debug(
-            `[${SERVICE_NAME}] Authentication required but user is not signed in (wallet locked OR not authenticated). Scheduling retry...`,
-          );
-          this.#scheduleReconnect();
-          return;
-        }
-
+    try {
+      // AuthenticationController.getBearerToken() handles wallet unlock checks internally
+      const bearerToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      if (!bearerToken) {
         console.debug(
-          `[${SERVICE_NAME}] ✅ Authentication requirements met: user signed in`,
-        );
-      } catch (error) {
-        console.warn(
-          `[${SERVICE_NAME}] Failed to check authentication requirements:`,
-          error,
-        );
-
-        // Simple approach: if we can't connect for ANY reason, schedule a retry
-        console.debug(
-          `[${SERVICE_NAME}] Connection failed - scheduling reconnection attempt`,
+          `[${SERVICE_NAME}] Authentication required but user is not signed in (wallet locked OR not authenticated). Scheduling retry...`,
         );
         this.#scheduleReconnect();
         return;
       }
+
+      console.debug(
+        `[${SERVICE_NAME}] ✅ Authentication requirements met: user signed in`,
+      );
+    } catch (error) {
+      console.warn(
+        `[${SERVICE_NAME}] Failed to check authentication requirements:`,
+        error,
+      );
+
+      // Simple approach: if we can't connect for ANY reason, schedule a retry
+      console.debug(
+        `[${SERVICE_NAME}] Connection failed - scheduling reconnection attempt`,
+      );
+      this.#scheduleReconnect();
+      return;
     }
 
     // If already connected, return immediately
@@ -445,7 +480,6 @@ export class BackendWebSocketService {
       `[${SERVICE_NAME}] 🔄 Starting connection attempt to ${this.#options.url}`,
     );
     this.#setState(WebSocketState.CONNECTING);
-    this.#lastError = null;
 
     // Create and store the connection promise
     this.#connectionPromise = this.#establishConnection();
@@ -458,7 +492,6 @@ export class BackendWebSocketService {
       console.error(
         `[${SERVICE_NAME}] ❌ Connection attempt failed: ${errorMessage}`,
       );
-      this.#lastError = errorMessage;
       this.#setState(WebSocketState.ERROR);
 
       throw new Error(`Failed to connect to WebSocket: ${errorMessage}`);
@@ -510,12 +543,8 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when message is sent
    */
   async sendMessage(message: ClientRequestMessage): Promise<void> {
-    if (this.#state !== WebSocketState.CONNECTED) {
+    if (this.#state !== WebSocketState.CONNECTED || !this.#ws) {
       throw new Error(`Cannot send message: WebSocket is ${this.#state}`);
-    }
-
-    if (!this.#ws) {
-      throw new Error('WebSocket not initialized');
     }
 
     try {
@@ -577,7 +606,7 @@ export class BackendWebSocketService {
       this.sendMessage(requestMessage).catch((error) => {
         this.#pendingRequests.delete(requestId);
         clearTimeout(timeout);
-        reject(new Error(this.#getErrorMessage(error)));
+        reject(error instanceof Error ? error : new Error(String(error)));
       });
     });
   }
@@ -592,7 +621,6 @@ export class BackendWebSocketService {
       state: this.#state,
       url: this.#options.url,
       reconnectAttempts: this.#reconnectAttempts,
-      lastError: this.#lastError ?? undefined,
       connectedAt: this.#connectedAt ?? undefined,
     };
   }
@@ -857,9 +885,7 @@ export class BackendWebSocketService {
   async #buildAuthenticatedUrl(): Promise<string> {
     const baseUrl = this.#options.url;
 
-    if (!this.#enableAuthentication) {
-      return baseUrl; // No authentication enabled
-    }
+    // Authentication is always enabled
 
     try {
       console.debug(
@@ -872,11 +898,6 @@ export class BackendWebSocketService {
       );
 
       if (!accessToken) {
-        // This shouldn't happen since connect() already checks for token availability,
-        // but handle gracefully to avoid disrupting reconnection logic
-        console.warn(
-          `[${SERVICE_NAME}] No access token available during URL building (possible race condition) - connection will fail but retries will continue`,
-        );
         throw new Error('No access token available');
       }
 
@@ -891,10 +912,10 @@ export class BackendWebSocketService {
       return url.toString();
     } catch (error) {
       console.error(
-        `[${SERVICE_NAME}] Failed to build authenticated WebSocket URL - connection blocked:`,
+        `[${SERVICE_NAME}] Failed to build authenticated WebSocket URL:`,
         error,
       );
-      throw error; // Re-throw error to prevent connection when authentication is required
+      throw error;
     }
   }
 
@@ -939,22 +960,9 @@ export class BackendWebSocketService {
           clearTimeout(connectTimeout);
           console.error(
             `[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`,
-            {
-              type: event.type,
-              target: event.target,
-              url: wsUrl,
-              readyState: ws.readyState,
-              readyStateName: {
-                0: 'CONNECTING',
-                1: 'OPEN',
-                2: 'CLOSING',
-                3: 'CLOSED',
-              }[ws.readyState],
-            },
+            event,
           );
-          const error = new Error(
-            `WebSocket connection error to ${wsUrl}: readyState=${ws.readyState}`,
-          );
+          const error = new Error(`WebSocket connection error to ${wsUrl}`);
           reject(error);
         } else {
           // Handle runtime errors
@@ -971,7 +979,7 @@ export class BackendWebSocketService {
           // Handle connection-phase close events
           clearTimeout(connectTimeout);
           console.debug(
-            `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
+            `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
           );
           console.debug(
             `[${SERVICE_NAME}] Connection attempt failed due to close event during CONNECTING state`,
@@ -1118,35 +1126,18 @@ export class BackendWebSocketService {
    */
   #handleSubscriptionNotification(message: ServerNotificationMessage): void {
     const { subscriptionId } = message;
-
-    // Guard: Only handle if subscriptionId exists
     if (!subscriptionId) {
       return;
-    }
+    } // Malformed message, ignore
 
     // Fast path: Direct callback routing by subscription ID
     const subscription = this.#subscriptions.get(subscriptionId);
     if (subscription) {
       const { callback } = subscription;
-      // Development: Full error handling
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          callback(message);
-        } catch (error) {
-          console.error(
-            `[${SERVICE_NAME}] Error in subscription callback for ${subscriptionId}:`,
-            error,
-          );
-        }
-      } else {
-        // Production: Direct call for maximum speed
-        callback(message);
-      }
-    } else if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        `[${SERVICE_NAME}] No subscription found for subscriptionId: ${subscriptionId}`,
-      );
+      // Let user callback errors bubble up - they should handle their own errors
+      callback(message);
     }
+    // Silently ignore unknown subscriptions - this is expected during cleanup
   }
 
   /**
@@ -1213,7 +1204,7 @@ export class BackendWebSocketService {
     this.#clearSubscriptions();
 
     // Log close reason for debugging
-    const closeReason = this.#getCloseReason(event.code);
+    const closeReason = getCloseReason(event.code);
     console.debug(
       `[${SERVICE_NAME}] WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`,
     );
@@ -1241,17 +1232,16 @@ export class BackendWebSocketService {
         `[${SERVICE_NAME}] Non-recoverable error - close code: ${event.code} - ${closeReason}`,
       );
       this.#setState(WebSocketState.ERROR);
-      this.#lastError = `Non-recoverable close code: ${event.code} - ${closeReason}`;
     }
   }
 
   /**
    * Handles WebSocket errors
    *
-   * @param error - Error that occurred
+   * @param _error - Error that occurred (unused)
    */
-  #handleError(error: Error): void {
-    this.#lastError = error.message;
+  #handleError(_error: Error): void {
+    // Placeholder for future error handling logic
   }
 
   /**
@@ -1404,57 +1394,6 @@ export class BackendWebSocketService {
    */
   #getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
-  }
-
-  /**
-   * Gets human-readable close reason from RFC 6455 close code
-   *
-   * @param code - WebSocket close code
-   * @returns Human-readable close reason
-   */
-  #getCloseReason(code: number): string {
-    switch (code) {
-      case 1000:
-        return 'Normal Closure';
-      case 1001:
-        return 'Going Away';
-      case 1002:
-        return 'Protocol Error';
-      case 1003:
-        return 'Unsupported Data';
-      case 1004:
-        return 'Reserved';
-      case 1005:
-        return 'No Status Received';
-      case 1006:
-        return 'Abnormal Closure';
-      case 1007:
-        return 'Invalid frame payload data';
-      case 1008:
-        return 'Policy Violation';
-      case 1009:
-        return 'Message Too Big';
-      case 1010:
-        return 'Mandatory Extension';
-      case 1011:
-        return 'Internal Server Error';
-      case 1012:
-        return 'Service Restart';
-      case 1013:
-        return 'Try Again Later';
-      case 1014:
-        return 'Bad Gateway';
-      case 1015:
-        return 'TLS Handshake';
-      default:
-        if (code >= 3000 && code <= 3999) {
-          return 'Library/Framework Error';
-        }
-        if (code >= 4000 && code <= 4999) {
-          return 'Application Error';
-        }
-        return 'Unknown';
-    }
   }
 
   /**
