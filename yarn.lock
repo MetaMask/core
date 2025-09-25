@@ -2927,7 +2927,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.4.0"
     "@metamask/controller-utils": "npm:^11.14.0"
     "@metamask/profile-sync-controller": "npm:^25.0.0"
-    "@metamask/utils": "npm:^11.4.2"
+    "@metamask/utils": "npm:^11.8.1"
     "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
