@@ -117,11 +117,6 @@ export type RequiredEventContextFromClient = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
   } & Pick<RequestMetadata, 'security_warnings'>;
   // Emitted by BridgeStatusController
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: Pick<
-    QuoteFetchData,
-    'price_impact'
-  > &
-    TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -231,10 +226,6 @@ export type EventPropertiesFromControllerState = {
       has_sufficient_funds: boolean;
       error_message: string;
     };
-  [UnifiedSwapBridgeEventName.SnapConfirmationViewed]: RequestMetadata &
-    RequestParams &
-    QuoteFetchData &
-    TradeData;
   [UnifiedSwapBridgeEventName.Submitted]: null;
   [UnifiedSwapBridgeEventName.Completed]: null;
   [UnifiedSwapBridgeEventName.Failed]: RequestParams &

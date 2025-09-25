@@ -2124,24 +2124,6 @@ describe('BridgeController', function () {
       });
     });
 
-    it('should track the SnapConfirmationViewed event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.SnapConfirmationViewed,
-        {
-          price_impact: 0,
-          usd_quoted_gas: 0,
-          gas_included: false,
-          gas_included_7702: false,
-          quoted_time_minutes: 0,
-          usd_quoted_return: 0,
-          provider: 'provider_bridge',
-        },
-      );
-      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-
-      expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
-    });
-
     it('should track the Submitted event', () => {
       const controller = new BridgeController({
         messenger: messengerMock,

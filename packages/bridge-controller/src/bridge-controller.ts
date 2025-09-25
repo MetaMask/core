@@ -959,12 +959,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getQuoteFetchData(),
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.SnapConfirmationViewed:
-        return {
-          ...baseProperties,
-          ...this.#getRequestParams(),
-          ...this.#getRequestMetadata(),
-        };
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
         return {

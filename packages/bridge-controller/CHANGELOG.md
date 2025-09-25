@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING** Make `walletAddress` a required quote request parameter when calling the `updateBridgeQuoteRequestParams` handler ([#6719](https://github.com/MetaMask/core/pull/6719))
 
+### Removed
+
+- Deprecate the unused `SnapConfirmationViewed` event ([#6719](https://github.com/MetaMask/core/pull/6719))
+
 ### Fixed
 
 - Replace `AccountsController:getSelectedMultichainAccount` usages with AccountsController:getAccountByAddress` when retrieving Solana account details for quote metadata ([#6719](https://github.com/MetaMask/core/pull/6719))

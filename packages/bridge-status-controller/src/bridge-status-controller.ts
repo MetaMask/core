@@ -1191,7 +1191,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     T extends
       | typeof UnifiedSwapBridgeEventName.Submitted
       | typeof UnifiedSwapBridgeEventName.Failed
-      | typeof UnifiedSwapBridgeEventName.SnapConfirmationViewed
       | typeof UnifiedSwapBridgeEventName.Completed
       | typeof UnifiedSwapBridgeEventName.StatusValidationFailed,
   >(
