@@ -8,6 +8,8 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
+import type { Logger } from './logger';
+import { projectLogger as log, createModuleLogger, warn } from './logger';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -39,6 +41,8 @@ export class MultichainAccountGroup<
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
+  readonly #log: Logger;
+
   // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
@@ -61,6 +65,8 @@ export class MultichainAccountGroup<
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
+    this.#log = createModuleLogger(log, `[${this.#id}]`);
+
     this.sync();
     this.#initialized = true;
   }
@@ -72,6 +78,7 @@ export class MultichainAccountGroup<
    * account doesn't know about.
    */
   sync(): void {
+    this.#log('Synchronizing with account providers...');
     // Clear reverse mapping and re-construct it entirely based on the refreshed
     // list of accounts from each providers.
     this.#accountToProvider.clear();
@@ -103,6 +110,8 @@ export class MultichainAccountGroup<
         this,
       );
     }
+
+    this.#log('Synchronized');
   }
 
   /**
@@ -219,23 +228,34 @@ export class MultichainAccountGroup<
    * This will create accounts for providers that don't have any accounts yet.
    */
   async alignAccounts(): Promise<void> {
+    this.#log('Aligning accounts...');
+
     const results = await Promise.allSettled(
-      this.#providers.map((provider) => {
+      this.#providers.map(async (provider) => {
         const accounts = this.#providerToAccounts.get(provider);
         if (!accounts || accounts.length === 0) {
-          return provider.createAccounts({
+          this.#log(
+            `Found missing accounts for account provider "${provider.getName()}", createing them now...`,
+          );
+          const created = await provider.createAccounts({
             entropySource: this.wallet.entropySource,
             groupIndex: this.groupIndex,
           });
+          this.#log(`Created ${created.length} accounts`);
+
+          return created;
         }
         return Promise.resolve();
       }),
     );
 
     if (results.some((result) => result.status === 'rejected')) {
-      console.warn(
-        `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`,
-      );
+      const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`;
+
+      this.#log(warn(message));
+      console.warn(message);
     }
+
+    this.#log('Aligned');
   }
 }
