@@ -362,7 +362,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
-    showMultiRpcModal: true,
+    showMultiRpcModal: false,
     smartTransactionsOptInStatus: true,
     useTransactionSimulations: true,
     useSafeChainsListValidation: true,

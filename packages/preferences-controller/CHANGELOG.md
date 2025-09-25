@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Changes default for `showMultiRpcModal` to `false` ([#6723](https://github.com/MetaMask/core/pull/6723))
+
 ## [20.0.0]
 
 ### Added
