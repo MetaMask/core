@@ -305,31 +305,8 @@ export class AccountActivityService {
   }
 
   // =============================================================================
-  // Private Methods
+  // Private Methods - Initialization & Setup
   // =============================================================================
-
-  /**
-   * Convert an InternalAccount address to CAIP-10 format or raw address
-   *
-   * @param account - The internal account to convert
-   * @returns The CAIP-10 formatted address or raw address
-   */
-  #convertToCaip10Address(account: InternalAccount): string {
-    // Check if account has EVM scopes
-    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
-      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
-      return `eip155:0:${account.address}`;
-    }
-
-    // Check if account has Solana scopes
-    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
-      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
-      return `solana:0:${account.address}`;
-    }
-
-    // For other chains or unknown scopes, return raw address
-    return account.address;
-  }
 
   /**
    * Register all action handlers using the new method actions pattern
@@ -339,53 +316,6 @@ export class AccountActivityService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * Handle account activity updates (transactions + balance changes)
-   * Processes the comprehensive AccountActivityMessage format with detailed balance updates and transfers
-   *
-   * @param payload - The account activity message containing transaction and balance updates
-   * @example AccountActivityMessage format handling:
-   * Input: {
-   *   address: "0x123",
-   *   tx: { hash: "0x...", chain: "eip155:1", status: "completed", ... },
-   *   updates: [{
-   *     asset: { fungible: true, type: "eip155:1/erc20:0x...", unit: "USDT" },
-   *     postBalance: { amount: "1254.75" },
-   *     transfers: [{ from: "0x...", to: "0x...", amount: "500.00" }]
-   *   }]
-   * }
-   * Output: Transaction and balance updates published separately
-   */
-  #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
-    try {
-      const { address, tx, updates } = payload;
-
-      console.log(
-        `[${SERVICE_NAME}] Handling account activity update for ${address} with ${updates.length} balance updates`,
-      );
-
-      // Process transaction update
-      this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
-
-      // Publish comprehensive balance updates with transfer details
-      console.log(`[${SERVICE_NAME}] Publishing balance update event...`);
-      this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
-        address,
-        chain: tx.chain,
-        updates,
-      });
-      console.log(
-        `[${SERVICE_NAME}] Balance update event published successfully`,
-      );
-    } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Error handling account activity update:`,
-        error,
-      );
-      console.error(`[${SERVICE_NAME}] Payload that caused error:`, payload);
-    }
   }
 
   /**
@@ -458,6 +388,57 @@ export class AccountActivityService {
     }
   }
 
+  // =============================================================================
+  // Private Methods - Event Handlers
+  // =============================================================================
+
+  /**
+   * Handle account activity updates (transactions + balance changes)
+   * Processes the comprehensive AccountActivityMessage format with detailed balance updates and transfers
+   *
+   * @param payload - The account activity message containing transaction and balance updates
+   * @example AccountActivityMessage format handling:
+   * Input: {
+   *   address: "0x123",
+   *   tx: { hash: "0x...", chain: "eip155:1", status: "completed", ... },
+   *   updates: [{
+   *     asset: { fungible: true, type: "eip155:1/erc20:0x...", unit: "USDT" },
+   *     postBalance: { amount: "1254.75" },
+   *     transfers: [{ from: "0x...", to: "0x...", amount: "500.00" }]
+   *   }]
+   * }
+   * Output: Transaction and balance updates published separately
+   */
+  #handleAccountActivityUpdate(payload: AccountActivityMessage): void {
+    try {
+      const { address, tx, updates } = payload;
+
+      console.log(
+        `[${SERVICE_NAME}] Handling account activity update for ${address} with ${updates.length} balance updates`,
+      );
+
+      // Process transaction update
+      this.#messenger.publish(`AccountActivityService:transactionUpdated`, tx);
+
+      // Publish comprehensive balance updates with transfer details
+      console.log(`[${SERVICE_NAME}] Publishing balance update event...`);
+      this.#messenger.publish(`AccountActivityService:balanceUpdated`, {
+        address,
+        chain: tx.chain,
+        updates,
+      });
+      console.log(
+        `[${SERVICE_NAME}] Balance update event published successfully`,
+      );
+    } catch (error) {
+      console.error(
+        `[${SERVICE_NAME}] Error handling account activity update:`,
+        error,
+      );
+      console.error(`[${SERVICE_NAME}] Payload that caused error:`, payload);
+    }
+  }
+
   /**
    * Handle selected account change event
    *
@@ -513,70 +494,44 @@ export class AccountActivityService {
   }
 
   /**
-   * Force WebSocket reconnection to clean up subscription state
+   * Handle system notification for chain status changes
+   * Publishes only the status change (delta) for affected chains
+   *
+   * @param data - System notification data containing chain status updates
    */
-  async #forceReconnection(): Promise<void> {
-    try {
-      console.log(
-        `[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`,
+  #handleSystemNotification(data: SystemNotificationData): void {
+    // Validate required fields
+    if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
+      throw new Error(
+        'Invalid system notification data: missing chainIds or status',
       );
+    }
 
-      // All subscriptions will be cleaned up automatically on WebSocket disconnect
+    console.log(
+      `[${SERVICE_NAME}] Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`,
+    );
 
-      await this.#messenger.call('BackendWebSocketService:disconnect');
-      await this.#messenger.call('BackendWebSocketService:connect');
+    // Publish status change directly (delta update)
+    try {
+      this.#messenger.publish(`AccountActivityService:statusChanged`, {
+        chainIds: data.chainIds,
+        status: data.status,
+      });
+
+      console.log(
+        `[${SERVICE_NAME}] Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`,
+      );
     } catch (error) {
       console.error(
-        `[${SERVICE_NAME}] Failed to force WebSocket reconnection:`,
+        `[${SERVICE_NAME}] Failed to publish status change event:`,
         error,
       );
     }
   }
 
-  /**
-   * Handle WebSocket connection state changes for fallback polling and resubscription
-   *
-   * @param connectionInfo - WebSocket connection state information
-   */
-  #handleWebSocketStateChange(connectionInfo: WebSocketConnectionInfo): void {
-    const { state } = connectionInfo;
-    console.log(`[${SERVICE_NAME}] WebSocket state changed to ${state}`);
-
-    if (state === WebSocketState.CONNECTED) {
-      // WebSocket connected - resubscribe and set all chains as up
-      try {
-        this.#subscribeSelectedAccount().catch((error) => {
-          console.error(
-            `[${SERVICE_NAME}] Failed to resubscribe to selected account:`,
-            error,
-          );
-        });
-
-        // Publish initial status - all supported chains are up when WebSocket connects
-        this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds: Array.from(SUPPORTED_CHAINS),
-          status: 'up' as const,
-        });
-
-        console.log(
-          `[${SERVICE_NAME}] WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`,
-        );
-      } catch (error) {
-        console.error(
-          `[${SERVICE_NAME}] Failed to handle WebSocket connected state:`,
-          error,
-        );
-      }
-    } else if (
-      state === WebSocketState.DISCONNECTED ||
-      state === WebSocketState.ERROR
-    ) {
-      // WebSocket disconnected - subscriptions are automatically cleaned up by WebSocketService
-      console.log(
-        `[${SERVICE_NAME}] WebSocket disconnected/error - subscriptions cleaned up automatically`,
-      );
-    }
-  }
+  // =============================================================================
+  // Private Methods - Subscription Management
+  // =============================================================================
 
   /**
    * Subscribe to the currently selected account only
@@ -673,41 +628,102 @@ export class AccountActivityService {
     }
   }
 
+  // =============================================================================
+  // Private Methods - Utility Functions
+  // =============================================================================
+
   /**
-   * Handle system notification for chain status changes
-   * Publishes only the status change (delta) for affected chains
+   * Convert an InternalAccount address to CAIP-10 format or raw address
    *
-   * @param data - System notification data containing chain status updates
+   * @param account - The internal account to convert
+   * @returns The CAIP-10 formatted address or raw address
    */
-  #handleSystemNotification(data: SystemNotificationData): void {
-    // Validate required fields
-    if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
-      throw new Error(
-        'Invalid system notification data: missing chainIds or status',
-      );
+  #convertToCaip10Address(account: InternalAccount): string {
+    // Check if account has EVM scopes
+    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
+      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
+      return `eip155:0:${account.address}`;
     }
 
-    console.log(
-      `[${SERVICE_NAME}] Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`,
-    );
+    // Check if account has Solana scopes
+    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
+      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
+      return `solana:0:${account.address}`;
+    }
 
-    // Publish status change directly (delta update)
+    // For other chains or unknown scopes, return raw address
+    return account.address;
+  }
+
+  /**
+   * Force WebSocket reconnection to clean up subscription state
+   */
+  async #forceReconnection(): Promise<void> {
     try {
-      this.#messenger.publish(`AccountActivityService:statusChanged`, {
-        chainIds: data.chainIds,
-        status: data.status,
-      });
-
       console.log(
-        `[${SERVICE_NAME}] Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`,
+        `[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`,
       );
+
+      // All subscriptions will be cleaned up automatically on WebSocket disconnect
+
+      await this.#messenger.call('BackendWebSocketService:disconnect');
+      await this.#messenger.call('BackendWebSocketService:connect');
     } catch (error) {
       console.error(
-        `[${SERVICE_NAME}] Failed to publish status change event:`,
+        `[${SERVICE_NAME}] Failed to force WebSocket reconnection:`,
         error,
       );
     }
   }
+
+  /**
+   * Handle WebSocket connection state changes for fallback polling and resubscription
+   *
+   * @param connectionInfo - WebSocket connection state information
+   */
+  #handleWebSocketStateChange(connectionInfo: WebSocketConnectionInfo): void {
+    const { state } = connectionInfo;
+    console.log(`[${SERVICE_NAME}] WebSocket state changed to ${state}`);
+
+    if (state === WebSocketState.CONNECTED) {
+      // WebSocket connected - resubscribe and set all chains as up
+      try {
+        this.#subscribeSelectedAccount().catch((error) => {
+          console.error(
+            `[${SERVICE_NAME}] Failed to resubscribe to selected account:`,
+            error,
+          );
+        });
+
+        // Publish initial status - all supported chains are up when WebSocket connects
+        this.#messenger.publish(`AccountActivityService:statusChanged`, {
+          chainIds: Array.from(SUPPORTED_CHAINS),
+          status: 'up' as const,
+        });
+
+        console.log(
+          `[${SERVICE_NAME}] WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`,
+        );
+      } catch (error) {
+        console.error(
+          `[${SERVICE_NAME}] Failed to handle WebSocket connected state:`,
+          error,
+        );
+      }
+    } else if (
+      state === WebSocketState.DISCONNECTED ||
+      state === WebSocketState.ERROR
+    ) {
+      // WebSocket disconnected - subscriptions are automatically cleaned up by WebSocketService
+      console.log(
+        `[${SERVICE_NAME}] WebSocket disconnected/error - subscriptions cleaned up automatically`,
+      );
+    }
+  }
+
+  // =============================================================================
+  // Private Methods - Cleanup
+  // =============================================================================
 
   /**
    * Destroy the service and clean up all resources
