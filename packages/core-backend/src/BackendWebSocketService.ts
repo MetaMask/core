@@ -1015,7 +1015,7 @@ export class BackendWebSocketService {
   // =============================================================================
 
   /**
-   * Handles incoming WebSocket messages (optimized for mobile real-time performance)
+   * Handles incoming WebSocket messages
    *
    * @param message - The WebSocket message to handle
    */
