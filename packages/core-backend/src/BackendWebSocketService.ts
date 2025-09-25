@@ -1,21 +1,8 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { v4 as uuidV4 } from 'uuid';
 
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
-
-// Authentication controller action types - temporarily defined due to build dependencies
-type AuthenticationControllerGetBearerToken = {
-  type: 'AuthenticationController:getBearerToken';
-  handler: (entropySourceId?: string) => Promise<string>;
-};
-
-type AuthenticationControllerStateChangeEvent = {
-  type: 'AuthenticationController:stateChange';
-  payload: [
-    { isSignedIn: boolean; [key: string]: unknown },
-    { isSignedIn: boolean; [key: string]: unknown },
-  ];
-};
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 
@@ -194,10 +181,10 @@ export type BackendWebSocketServiceActions =
   BackendWebSocketServiceMethodActions;
 
 export type BackendWebSocketServiceAllowedActions =
-  AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerToken;
 
 export type BackendWebSocketServiceAllowedEvents =
-  AuthenticationControllerStateChangeEvent;
+  AuthenticationController.AuthenticationControllerStateChangeEvent;
 
 // Event types for WebSocket connection state changes
 export type BackendWebSocketServiceConnectionStateChangedEvent = {
