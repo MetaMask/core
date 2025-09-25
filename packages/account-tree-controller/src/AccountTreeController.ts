@@ -29,6 +29,7 @@ import {
   isAccountGroupNameUniqueFromWallet,
   MAX_SORT_ORDER,
 } from './group';
+import { projectLogger as log } from './logger';
 import type { Rule } from './rule';
 import { EntropyRule } from './rules/entropy';
 import { KeyringRule } from './rules/keyring';
@@ -256,6 +257,8 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
+    log('Initializing...');
+
     const wallets: AccountTreeControllerState['accountTree']['wallets'] = {};
 
     // Clear mappings for fresh rebuild.
@@ -325,6 +328,9 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup !==
       this.state.accountTree.selectedAccountGroup
     ) {
+      log(
+        `Selected (initial) group is: [${this.state.accountTree.selectedAccountGroup}]`,
+      );
       this.messagingSystem.publish(
         `${controllerName}:selectedAccountGroupChange`,
         this.state.accountTree.selectedAccountGroup,
@@ -332,6 +338,7 @@ export class AccountTreeController extends BaseController<
       );
     }
 
+    log('Initialized!');
     this.#initialized = true;
   }
 
@@ -342,6 +349,7 @@ export class AccountTreeController extends BaseController<
    * cleared state. Use this when you need to force a full re-init even if already initialized.
    */
   reinit() {
+    log('Re-initializing...');
     this.#initialized = false;
     this.init();
   }
@@ -407,6 +415,7 @@ export class AccountTreeController extends BaseController<
         wallet.metadata.name =
           this.#getKeyringRule().getDefaultAccountWalletName(wallet);
       }
+      log(`[${wallet.id}] Set default name to: "${wallet.metadata.name}"`);
     }
   }
 
@@ -540,6 +549,7 @@ export class AccountTreeController extends BaseController<
 
       state.accountTree.wallets[walletId].groups[groupId].metadata.name =
         proposedName;
+      log(`[${group.id}] Set default name to: "${group.metadata.name}"`);
 
       // Persist the generated name to ensure consistency
       state.accountGroupsMetadata[groupId] ??= {};
@@ -810,6 +820,7 @@ export class AccountTreeController extends BaseController<
     const walletId = result.wallet.id;
     let wallet = wallets[walletId];
     if (!wallet) {
+      log(`[${walletId}] Added as new wallet`);
       wallets[walletId] = {
         ...result.wallet,
         status: 'ready',
@@ -835,6 +846,7 @@ export class AccountTreeController extends BaseController<
     const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
 
     if (!group) {
+      log(`[${walletId}] Add new group: [${groupId}]`);
       wallet.groups[groupId] = {
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
@@ -879,6 +891,9 @@ export class AccountTreeController extends BaseController<
         },
       );
     }
+    log(
+      `[${groupId}] Add new account: { id: "${account.id}", type: "${account.type}", address: "${account.address}"`,
+    );
 
     // Update the reverse mapping for this account.
     this.#accountIdToContext.set(account.id, {
@@ -971,6 +986,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+
+    log(
+      `Selected group is now: [${this.state.accountTree.selectedAccountGroup}]`,
+    );
+
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
@@ -1212,6 +1232,10 @@ export class AccountTreeController extends BaseController<
       this.#assertAccountGroupNameIsUnique(groupId, finalName);
     }
 
+    log(
+      `[${groupId}] Set new name to: "${finalName}" (auto handle conflict: ${autoHandleConflict})`,
+    );
+
     this.update((state) => {
       /* istanbul ignore next */
       if (!state.accountGroupsMetadata[groupId]) {
@@ -1356,6 +1380,8 @@ export class AccountTreeController extends BaseController<
    * Also clears the backup and sync service state.
    */
   clearState(): void {
+    log('Clearing state');
+
     this.update(() => {
       return {
         ...getDefaultAccountTreeControllerState(),
