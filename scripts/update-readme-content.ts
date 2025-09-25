@@ -1,4 +1,4 @@
-#!yarn ts-node
+#!yarn tsx
 
 import execa from 'execa';
 import fs from 'fs';
