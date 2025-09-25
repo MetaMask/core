@@ -347,15 +347,6 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Force-init if the controller's state has not been initilized yet.
-   */
-  #initAtLeastOnce() {
-    if (!this.#initialized) {
-      this.init();
-    }
-  }
-
-  /**
    * Rule for entropy-base wallets.
    *
    * @returns The rule for entropy-based wallets.
@@ -664,12 +655,14 @@ export class AccountTreeController extends BaseController<
    * @param account - New account.
    */
   #handleAccountAdded(account: InternalAccount) {
-    // We force-init to make sure we have the proper account groups for the
-    // incoming account change.
-    this.#initAtLeastOnce();
+    // We wait for the first `init` to be called to actually build up the tree and
+    // mutate it. We expect the caller to first update the `AccountsController` state
+    // to force the migration of accounts, and then call `init`.
+    if (!this.#initialized) {
+      return;
+    }
 
-    // Check if this account got already added by `#initAtLeastOnce`, if not, then we
-    // can proceed.
+    // Check if this account is already known by the tree to avoid double-insertion.
     if (!this.#accountIdToContext.has(account.id)) {
       this.update((state) => {
         this.#insert(state.accountTree.wallets, account);
@@ -700,9 +693,12 @@ export class AccountTreeController extends BaseController<
    * @param accountId - Removed account ID.
    */
   #handleAccountRemoved(accountId: AccountId) {
-    // We force-init to make sure we have the proper account groups for the
-    // incoming account change.
-    this.#initAtLeastOnce();
+    // We wait for the first `init` to be called to actually build up the tree and
+    // mutate it. We expect the caller to first update the `AccountsController` state
+    // to force the migration of accounts, and then call `init`.
+    if (!this.#initialized) {
+      return;
+    }
 
     const context = this.#accountIdToContext.get(accountId);
 
