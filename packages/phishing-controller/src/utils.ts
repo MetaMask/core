@@ -1,7 +1,7 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import { deleteFromTrie, insertToTrie, type PathTrie } from './PathTrie';
+import { deleteFromTrie, insertToTrie } from './PathTrie';
 import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
@@ -112,12 +112,13 @@ export const applyDiffs = (
       } else {
         listSets[targetListType].delete(url);
       }
+      continue;
+    }
+
+    if (targetListType === 'blocklistPaths') {
+      insertToTrie(url, listState.blocklistPaths);
     } else {
-      if (targetListType === 'blocklistPaths') {
-        insertToTrie(url, listState.blocklistPaths);
-      } else {
-        listSets[targetListType].add(url);
-      }
+      listSets[targetListType].add(url);
     }
   }
 

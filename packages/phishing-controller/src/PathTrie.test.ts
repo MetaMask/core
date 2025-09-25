@@ -256,11 +256,13 @@ describe('convertListToTrie', () => {
   });
 
   it('handles undefined input gracefully', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = convertListToTrie(undefined as any);
     expect(result).toStrictEqual({});
   });
 
   it('handles non-array input gracefully', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = convertListToTrie('not-an-array' as any);
     expect(result).toStrictEqual({});
   });
