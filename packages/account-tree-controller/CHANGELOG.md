@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent `:account{Added,Removed}` to used if `init` has not been called yet ([#6717](https://github.com/MetaMask/core/pull/6717))
-  - We now wait for internal accounts to be fully ready (before `init` gets called).
+- Prevent `:account{Added,Removed}` to be used if `init` has not been called yet ([#6717](https://github.com/MetaMask/core/pull/6717))
+  - We now wait for `init` to have been called at least once. Clients will need to ensure internal accounts are fully ready before calling `init`.
   - This should also enforce account group ordering, since all accounts will be ready to consume right away.
 
 ## [1.2.0]
