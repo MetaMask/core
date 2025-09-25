@@ -22,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708)
 - **BREAKING:** Rename fee handling for non-EVM chains ([#6705](https://github.com/MetaMask/core/pull/6705))
   - Replace `SolanaFees` type with `NonEvmFees` type (exported type)
   - Replace `solanaFeesInLamports` property in quote responses with `nonEvmFeesInNative` property
