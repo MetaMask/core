@@ -114,6 +114,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [allowlistedHostname],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -147,6 +148,7 @@ describe('PhishingController', () => {
       .reply(200, {
         data: {
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           allowlist: [],
           tolerance: 0,
@@ -220,6 +222,7 @@ describe('PhishingController', () => {
         .reply(200, {
           data: {
             blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
             fuzzylist: [],
             allowlist: ['this-should-not-be-in-default-allowlist.com'],
             tolerance: 0,
@@ -422,7 +425,8 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            blocklist: ['example.com/path'],
+            blocklist: [],
+            blocklistPaths: ['example.com/path'],
             fuzzylist: ['new-fuzzy-site.com'],
             allowlist: ['new-safe-site.com'],
             tolerance: 2,
@@ -751,6 +755,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: ['metamask.io'],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -784,6 +789,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -808,6 +814,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -832,6 +839,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: ['etnerscan.io'],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -864,6 +872,7 @@ describe('PhishingController', () => {
       .reply(200, {
         data: {
           blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
           allowlist: [],
           fuzzylist: [],
           tolerance: 0,
@@ -900,6 +909,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -935,6 +945,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -980,6 +991,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1008,6 +1020,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: ['opensea.io'],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1041,6 +1054,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: ['opensea.io'],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: ['opensea.io'],
           tolerance: 2,
           version: 0,
@@ -1074,6 +1088,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: ['opensea.io'],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: ['opensea.io'],
           tolerance: 0,
           version: 0,
@@ -1101,6 +1116,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: ['electrum.mx'],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 2,
           version: 0,
@@ -1140,6 +1156,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: ['electrum.mx'],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1180,6 +1197,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1219,6 +1237,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [],
           blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1257,7 +1276,8 @@ describe('PhishingController', () => {
       .reply(200, {
         data: {
           allowlist: [],
-          blocklist: ['example.com/path'],
+          blocklist: [],
+          blocklistPaths: ['example.com/path'],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1315,7 +1335,7 @@ describe('PhishingController', () => {
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
-      const exampleBlockedUrl = 'https://example-blocked-website.com';
+      const exampleBlockedUrl = 'example-blocked-website.com';
       const exampleRequestBlockedHash =
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlOne =
@@ -1326,6 +1346,7 @@ describe('PhishingController', () => {
           data: {
             allowlist: [],
             blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
@@ -1357,7 +1378,7 @@ describe('PhishingController', () => {
       expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: [],
-          blocklist: ['example-blocked-website.com', exampleBlockedUrlOne],
+          blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
           c2DomainBlocklist: [exampleRequestBlockedHash],
           blocklistPaths: {},
           fuzzylist: [],
@@ -1381,6 +1402,7 @@ describe('PhishingController', () => {
           data: {
             allowlist: [],
             blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
@@ -1436,7 +1458,8 @@ describe('PhishingController', () => {
         .reply(200, {
           data: {
             allowlist: [],
-            blocklist: ['example.com', 'malicious.com/phishing'],
+            blocklist: ['example.com'],
+            blocklistPaths: ['malicious.com/phishing'],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
@@ -2351,6 +2374,7 @@ describe('PhishingController', () => {
         data: {
           allowlist: [allowlistedDomain],
           blocklist: [],
+          blocklistPaths: [],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
