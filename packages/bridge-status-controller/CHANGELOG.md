@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** Add a required `accountAddress` parameter to the `submitTx` handler ([#6719](https://github.com/MetaMask/core/pull/6719))
+
 ### Fixed
 
-- Call `AccountsController:getAccountByAddress` action to retrieve Solana account details for transaction submission, instead of using the selected internal account
+- Replace `AccountsController:getSelectedMultichainAccount` usages with AccountsController:getAccountByAddress` when reading account details required for submitting Solana transactions ([#6719](https://github.com/MetaMask/core/pull/6719))
 
 ## [46.0.0]
 
