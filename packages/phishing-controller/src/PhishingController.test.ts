@@ -408,7 +408,7 @@ describe('PhishingController', () => {
 
     it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
       const controller = new PhishingController({
-        messenger: getRestrictedMessenger(),
+        messenger: getRestrictedMessengerWithTransactionEvents().messenger,
         stalelistRefreshInterval: 10,
         state: {
           phishingLists: [
