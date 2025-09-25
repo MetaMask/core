@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- **BREAKING** Add a required `accountAddress` parameter to the `submitTx` handler ([#6719](https://github.com/MetaMask/core/pull/6719))
+
+### Removed
+
+- Deprecate the unused `SnapConfirmationViewed` event ([#6719](https://github.com/MetaMask/core/pull/6719))
+
+### Fixed
+
+- Replace `AccountsController:getSelectedMultichainAccount` usages with AccountsController:getAccountByAddress` when reading account details required for submitting Solana transactions ([#6719](https://github.com/MetaMask/core/pull/6719))
 
 ## [46.0.0]
 

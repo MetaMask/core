@@ -1,8 +1,8 @@
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { CaipChainId } from '@metamask/utils';
 
 import { MetricsSwapType } from './constants';
 import type { InputKeys, InputValues } from './types';
-import type { AccountsControllerState } from '../../../../accounts-controller/src/AccountsController';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import type { BridgeControllerState, QuoteResponse, TxData } from '../../types';
 import { type GenericQuoteRequest, type QuoteRequest } from '../../types';
