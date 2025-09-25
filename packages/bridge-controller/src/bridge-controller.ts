@@ -1,6 +1,7 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
@@ -267,7 +268,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   updateBridgeQuoteRequestParams = async (
-    paramsToUpdate: Partial<GenericQuoteRequest>,
+    paramsToUpdate: Partial<GenericQuoteRequest> & {
+      walletAddress: GenericQuoteRequest['walletAddress'];
+    },
     context: BridgePollingInput['context'],
   ) => {
     this.stopAllPolling();
@@ -372,8 +375,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     this.#trackResponseValidationFailures(validationFailures);
 
+    const selectedAccount = this.#getMultichainSelectedAccount(
+      quoteRequest.walletAddress,
+    );
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
-    const quotesWithNonEvmFees = await this.#appendNonEvmFees(baseQuotes);
+    const quotesWithNonEvmFees = await this.#appendNonEvmFees(
+      baseQuotes,
+      selectedAccount,
+    );
     const quotesWithFees =
       quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
     // Sort perps quotes by increasing estimated processing time (fastest first)
@@ -482,8 +491,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #hasSufficientBalance = async (
     quoteRequest: GenericQuoteRequest,
   ) => {
-    const walletAddress = this.#getMultichainSelectedAccount()?.address;
-
     // Only check balance for EVM chains
     if (isNonEvmChainId(quoteRequest.srcChainId)) {
       return true;
@@ -497,13 +504,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     return (
       provider &&
-      walletAddress &&
+      quoteRequest.walletAddress &&
       normalizedSrcTokenAddress &&
       quoteRequest.srcTokenAmount &&
       srcChainIdInHex &&
       (await hasSufficientBalance(
         provider,
-        walletAddress,
+        quoteRequest.walletAddress,
         normalizedSrcTokenAddress,
         quoteRequest.srcTokenAmount,
         srcChainIdInHex,
@@ -756,10 +763,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Appends transaction fees for non-EVM chains to quotes
    *
    * @param quotes - Array of quote responses to append fees to
+   * @param selectedAccount -
    * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
    */
   readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
+    selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
     if (
       quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
@@ -770,7 +779,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { trade, quote } = quoteResponse;
-        const selectedAccount = this.#getMultichainSelectedAccount();
 
         if (selectedAccount?.metadata?.snap?.id && typeof trade === 'string') {
           const scope = formatChainIdToCaip(quote.srcChainId);
@@ -823,10 +831,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return quotesWithNonEvmFees;
   };
 
-  #getMultichainSelectedAccount() {
-    return this.messagingSystem.call(
-      'AccountsController:getSelectedMultichainAccount',
+  #getMultichainSelectedAccount(
+    walletAddress?: GenericQuoteRequest['walletAddress'],
+  ) {
+    const addressToUse = walletAddress ?? this.state.quoteRequest.walletAddress;
+    if (!addressToUse) {
+      throw new Error('Wallet address is required');
+    }
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccountByAddress',
+      addressToUse,
     );
+    if (!selectedAccount) {
+      throw new Error('Account not found');
+    }
+    return selectedAccount;
   }
 
   #getSelectedNetworkClientId() {
@@ -1043,10 +1062,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
-    const { address: walletAddress } =
-      this.#getMultichainSelectedAccount() ?? {};
     const allowance: BigNumber = await contract.allowance(
-      walletAddress,
+      this.state.quoteRequest.walletAddress,
       METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
     );
     return allowance.toString();
