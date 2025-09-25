@@ -594,6 +594,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       // First, initialize all tokens from allTokens state with balance 0
       // for the accounts and chains we're processing
       for (const chainId of targetChains) {
+        // Prevent prototype pollution by skipping dangerous property names
+        if (
+          chainId === '__proto__' ||
+          chainId === 'constructor' ||
+          chainId === 'prototype'
+        ) {
+          continue;
+        }
         for (const account of accountsToProcess) {
           // Initialize tokens from allTokens
           const chainTokens = this.#allTokens[chainId];
@@ -625,6 +633,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
       // Then update with actual fetched balances where available
       aggregated.forEach(({ success, value, account, token, chainId }) => {
+        // Prevent prototype pollution by skipping dangerous property names
+        if (
+          chainId === '__proto__' ||
+          chainId === 'constructor' ||
+          chainId === 'prototype'
+        ) {
+          return;
+        }
         if (success && value !== undefined) {
           ((d.tokenBalances[account] ??= {})[chainId] ??= {})[checksum(token)] =
             toHex(value);

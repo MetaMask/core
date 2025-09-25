@@ -704,6 +704,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ) {
     this.update((state) => {
       balances.forEach(({ address, chainId, balance }) => {
+        // Prevent prototype pollution with dangerous keys
+        if (
+          chainId === '__proto__' ||
+          chainId === 'constructor' ||
+          chainId === 'prototype'
+        ) {
+          return;
+        }
         const checksumAddress = toChecksumHexAddress(address);
 
         // Ensure the chainId exists in the state
@@ -740,6 +748,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ) {
     this.update((state) => {
       stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
+        // Prevent prototype pollution with dangerous keys
+        if (
+          chainId === '__proto__' ||
+          chainId === 'constructor' ||
+          chainId === 'prototype'
+        ) {
+          return;
+        }
         const checksumAddress = toChecksumHexAddress(address);
 
         // Ensure the chainId exists in the state
