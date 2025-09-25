@@ -1217,10 +1217,12 @@ describe('AccountTreeController', () => {
     });
 
     it('does not remove account if init has not been called', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
+
+      // Force ref to the controller, even if we don't use it in this test.
+      expect(controller).toBeDefined();
 
       const mockAccountTreeChange = jest.fn();
       messenger.subscribe(
