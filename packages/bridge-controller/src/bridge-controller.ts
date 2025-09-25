@@ -1,7 +1,6 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
@@ -375,13 +374,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     this.#trackResponseValidationFailures(validationFailures);
 
-    const selectedAccount = this.#getMultichainSelectedAccount(
-      quoteRequest.walletAddress,
-    );
     const quotesWithL1GasFees = await this.#appendL1GasFees(baseQuotes);
     const quotesWithNonEvmFees = await this.#appendNonEvmFees(
       baseQuotes,
-      selectedAccount,
+      quoteRequest.walletAddress,
     );
     const quotesWithFees =
       quotesWithL1GasFees ?? quotesWithNonEvmFees ?? baseQuotes;
@@ -504,7 +500,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     return (
       provider &&
-      quoteRequest.walletAddress &&
       normalizedSrcTokenAddress &&
       quoteRequest.srcTokenAmount &&
       srcChainIdInHex &&
@@ -763,12 +758,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Appends transaction fees for non-EVM chains to quotes
    *
    * @param quotes - Array of quote responses to append fees to
-   * @param selectedAccount -
+   * @param walletAddress - The wallet address for which the quotes were requested
    * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
    */
   readonly #appendNonEvmFees = async (
     quotes: QuoteResponse[],
-    selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
+    walletAddress: GenericQuoteRequest['walletAddress'],
   ): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
     if (
       quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
@@ -776,6 +771,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       return undefined;
     }
 
+    const selectedAccount = this.#getMultichainSelectedAccount(walletAddress);
     const nonEvmFeePromises = Promise.allSettled(
       quotes.map(async (quoteResponse) => {
         const { trade, quote } = quoteResponse;
