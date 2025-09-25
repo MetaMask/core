@@ -1,3 +1,13 @@
+import BN from 'bn.js';
+import { produce } from 'immer';
+import { isEqual } from 'lodash';
+
+import type { 
+  BalanceUpdate,
+  AccountActivityServiceBalanceUpdatedEvent,
+  AccountActivityServiceStatusChangedEvent
+} from '@metamask/core-backend';
+
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -28,8 +38,6 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
-import { produce } from 'immer';
-import { isEqual } from 'lodash';
 
 import type {
   AccountTrackerUpdateNativeBalancesAction,
@@ -48,11 +56,12 @@ import type {
   TokensControllerStateChangeEvent,
 } from './TokensController';
 
+
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
 
 const CONTROLLER = 'TokenBalancesController' as const;
-const DEFAULT_INTERVAL_MS = 180_000; // 3 minutes
+const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 
 const metadata = {
   tokenBalances: {
@@ -78,20 +87,9 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
   TokenBalancesControllerState
 >;
 
-export type TokenBalancesControllerUpdateChainPollingConfigsAction = {
-  type: `TokenBalancesController:updateChainPollingConfigs`;
-  handler: TokenBalancesController['updateChainPollingConfigs'];
-};
-
-export type TokenBalancesControllerGetChainPollingConfigAction = {
-  type: `TokenBalancesController:getChainPollingConfig`;
-  handler: TokenBalancesController['getChainPollingConfig'];
-};
 
 export type TokenBalancesControllerActions =
-  | TokenBalancesControllerGetStateAction
-  | TokenBalancesControllerUpdateChainPollingConfigsAction
-  | TokenBalancesControllerGetChainPollingConfigAction;
+  | TokenBalancesControllerGetStateAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
@@ -119,7 +117,9 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceStatusChangedEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof CONTROLLER,
@@ -202,6 +202,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
+  /** Debouncing for rapid status changes to prevent excessive HTTP calls */
+  #statusChangeDebouncer: {
+    timer: NodeJS.Timeout | null;
+    pendingChanges: Map<string, 'up' | 'down'>;
+  } = {
+    timer: null,
+    pendingChanges: new Map(),
+  };
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -260,16 +269,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#onAccountRemoved,
     );
 
-    // Register action handlers for polling interval control
-    this.messagingSystem.registerActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-      this.updateChainPollingConfigs.bind(this),
+    // Subscribe to AccountActivityService balance updates for real-time updates
+    this.messagingSystem.subscribe(
+      'AccountActivityService:balanceUpdated',
+      this.#onAccountActivityBalanceUpdate.bind(this),
     );
 
-    this.messagingSystem.registerActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-      this.getChainPollingConfig.bind(this),
+    // Subscribe to AccountActivityService status changes for dynamic polling management
+    this.messagingSystem.subscribe(
+      'AccountActivityService:statusChanged',
+      this.#onAccountActivityStatusChanged.bind(this),
     );
+
   }
 
   #chainIdsWithTokens(): ChainIdHex[] {
@@ -491,6 +502,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         interval: this.#defaultInterval,
       }
     );
+  }
+  /**
+   * Get the default polling interval for this controller
+   * This is the base interval used for chains without specific configuration
+   * 
+   * @returns The default polling interval in milliseconds
+   */
+  getDefaultPollingInterval(): number {
+    return this.#defaultInterval;
   }
 
   override async _executePoll({
@@ -831,6 +851,191 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   /**
+   * Handle real-time balance updates from AccountActivityService
+   * Processes balance updates and updates the token balance state
+   * If any balance update has an error, triggers fallback polling for the chain
+   */
+  readonly #onAccountActivityBalanceUpdate = async ({
+    address,
+    chain,
+    updates,
+  }: {
+    address: string;
+    chain: string;
+    updates: BalanceUpdate[];
+  }) => {
+
+    const chainParts = chain.split(':');
+    const chainId = `0x${parseInt(chainParts[1], 10).toString(16)}`;
+    const checksumAddress = toChecksumHexAddress(address) as ChecksumAddress;
+
+    let shouldPoll = false;
+    const nativeBalanceUpdates: { address: string; chainId: Hex; balance: Hex }[] = [];
+
+    try {
+      this.update((state) => {
+        // Initialize account and chain if they don't exist
+        if (!state.tokenBalances[checksumAddress]) {
+          state.tokenBalances[checksumAddress] = {};
+        }
+        if (!state.tokenBalances[checksumAddress][chainId as ChainIdHex]) {
+          state.tokenBalances[checksumAddress][chainId as ChainIdHex] = {};
+        }
+
+        // Process each balance update on the fly
+        for (const update of updates) {
+          const { asset, postBalance } = update;
+          
+          // Check if there's an error in the balance update
+          if (postBalance.error) {
+            console.warn(`Balance update has error for ${asset.unit}:`, postBalance.error, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+          
+          // Extract token address from asset type (e.g., "eip155:1/erc20:0x...")
+          let tokenAddress: string;
+          let isNativeToken = false;
+          
+          if (asset.type.includes('/erc20:')) {
+            // ERC20 token
+            tokenAddress = asset.type.split('/erc20:')[1];
+          } else if (asset.type.includes('/slip44:')) {
+            // Native token - use zero address
+            tokenAddress = '0x0000000000000000000000000000000000000000';
+            isNativeToken = true;
+          } else {
+            console.warn('Unsupported asset type:', asset.type, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+
+          if (!isStrictHexString(tokenAddress) || !isValidHexAddress(tokenAddress)) {
+            console.warn('Invalid token address:', tokenAddress, '- will trigger fallback polling');
+            shouldPoll = true;
+            break;
+          }
+
+          const checksumTokenAddress = toChecksumHexAddress(tokenAddress) as ChecksumAddress;
+          const balanceHex = BNToHex(new BN(postBalance.amount)) as Hex;
+
+          // Update the balance immediately
+          state.tokenBalances[checksumAddress][chainId as ChainIdHex][checksumTokenAddress] = balanceHex;
+          console.log(`Updated balance for ${checksumAddress} on ${chain} (${chainId}): ${asset.unit} = ${postBalance.amount}`);
+          
+          // Collect native token updates for AccountTrackerController
+          if (isNativeToken) {
+            nativeBalanceUpdates.push({
+              address: checksumAddress,
+              chainId: chainId as Hex,
+              balance: balanceHex,
+            });
+          }
+        }
+      });
+
+      // Update AccountTrackerController for native balances to maintain state consistency
+      if (nativeBalanceUpdates.length > 0) {
+        this.messagingSystem.call(
+          'AccountTrackerController:updateNativeBalances',
+          nativeBalanceUpdates,
+        );
+      }
+    } catch (error) {
+      console.error('Error handling AccountActivityService balance update:', error);
+      shouldPoll = true;
+    }
+
+    // Single fallback polling call for any error (balance errors, validation errors, or processing errors)
+    if (shouldPoll) {
+      try {
+        console.log(`Triggering fallback poll for chain ${chain} (${chainId})`);
+        await this.updateBalances({ chainIds: [chainId as ChainIdHex] });
+      } catch (pollError) {
+        console.error('Error during fallback polling:', pollError);
+      }
+    }
+  };
+
+  /**
+   * Handle status changes from AccountActivityService
+   * Uses aggressive debouncing to prevent excessive HTTP calls from rapid up/down changes
+   */
+  readonly #onAccountActivityStatusChanged = ({
+    chainIds,
+    status,
+  }: {
+    chainIds: string[];
+    status: 'up' | 'down';
+  }) => {
+    console.log(
+      `TokenBalancesController: Received status change - Chains: [${chainIds.join(', ')}], Status: ${status}`
+    );
+
+    // Update pending changes (latest status wins for each chain)
+    for (const chainId of chainIds) {
+      this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
+    }
+
+    // Clear existing timer to extend debounce window
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+    }
+
+    // Set new timer - only process changes after activity settles
+    this.#statusChangeDebouncer.timer = setTimeout(() => {
+      this.#processAccumulatedStatusChanges();
+    }, 5000); // 5-second debounce window
+
+    console.log(
+      `TokenBalancesController: Queued status changes (${this.#statusChangeDebouncer.pendingChanges.size} chains pending)`
+    );
+  };
+
+  /**
+   * Process all accumulated status changes in one batch to minimize HTTP calls
+   */
+  #processAccumulatedStatusChanges(): void {
+    const changes = Array.from(this.#statusChangeDebouncer.pendingChanges.entries());
+    this.#statusChangeDebouncer.pendingChanges.clear();
+    this.#statusChangeDebouncer.timer = null;
+    
+    if (changes.length === 0) {
+      return;
+    }
+
+    console.log(
+      `TokenBalancesController: Processing ${changes.length} accumulated status changes after debounce`
+    );
+
+    // Calculate final polling configurations
+    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    
+    for (const [chainId, status] of changes) {
+      if (status === 'down') {
+        // Chain is down - use default polling since no real-time updates available
+        chainConfigs[chainId as ChainIdHex] = { interval: this.#defaultInterval };
+      } else {
+        // Chain is up - use longer intervals since WebSocket provides real-time updates  
+        const backupInterval = 300000; // 5 minutes
+        chainConfigs[chainId as ChainIdHex] = { interval: backupInterval };
+      }
+    }
+
+    // Add jitter to prevent synchronized requests across instances
+    const jitterDelay = Math.random() * this.#defaultInterval; // 0 to default interval
+    console.log(`Adding ${Math.round(jitterDelay / 1000)}s jitter before applying config changes`);
+    
+    setTimeout(() => {
+      this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
+      
+      console.log(
+        `TokenBalancesController: Applied config changes for chains: [${Object.keys(chainConfigs).join(', ')}]`
+      );
+    }, jitterDelay);
+  }
+
+  /**
    * Clean up all timers and resources when controller is destroyed
    */
   override destroy(): void {
@@ -838,13 +1043,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));
     this.#intervalPollingTimers.clear();
 
-    // Unregister action handlers
-    this.messagingSystem.unregisterActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-    );
-    this.messagingSystem.unregisterActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-    );
+    // Clean up debouncing timer
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
+
 
     super.destroy();
   }
