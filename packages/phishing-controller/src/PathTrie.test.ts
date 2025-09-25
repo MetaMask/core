@@ -1,4 +1,5 @@
 import {
+  convertListToTrie,
   deleteFromTrie,
   isTerminalPath,
   insertToTrie,
@@ -220,6 +221,82 @@ describe('PathTrie', () => {
       ['with a scheme', 'https://example.com/path11/path2', true],
     ])('returns %s if the path is %s', (_name, path, expected) => {
       expect(isTerminalPath(path, pathTrie)).toBe(expected);
+    });
+  });
+});
+
+describe('convertListToTrie', () => {
+  it('converts array of URLs with paths to PathTrie structure', () => {
+    const paths = [
+      'example.com/path1',
+      'example.com/path2/subpath',
+      'another.com/different/path',
+    ];
+
+    const result = convertListToTrie(paths);
+
+    expect(result).toStrictEqual({
+      'example.com': {
+        path1: {},
+        path2: {
+          subpath: {},
+        },
+      },
+      'another.com': {
+        different: {
+          path: {},
+        },
+      },
+    });
+  });
+
+  it('handles empty array', () => {
+    const result = convertListToTrie([]);
+    expect(result).toStrictEqual({});
+  });
+
+  it('handles undefined input gracefully', () => {
+    const result = convertListToTrie(undefined as any);
+    expect(result).toStrictEqual({});
+  });
+
+  it('handles non-array input gracefully', () => {
+    const result = convertListToTrie('not-an-array' as any);
+    expect(result).toStrictEqual({});
+  });
+
+  it('filters out invalid URLs', () => {
+    const paths = [
+      'valid.com/path',
+      '', // empty string
+      'invalid-url-without-domain',
+    ];
+
+    const result = convertListToTrie(paths);
+
+    expect(result).toStrictEqual({
+      'valid.com': {
+        path: {},
+      },
+    });
+  });
+
+  it('handles multiple paths on same domain correctly', () => {
+    const paths = [
+      'example.com/path1',
+      'example.com/path2/subpath',
+      'example.com/path1/deeper',
+    ];
+
+    const result = convertListToTrie(paths);
+
+    expect(result).toStrictEqual({
+      'example.com': {
+        path1: {},
+        path2: {
+          subpath: {},
+        },
+      },
     });
   });
 });
