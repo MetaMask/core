@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.1]
+
 ### Changed
 
 - Changes default for `showMultiRpcModal` to `false` ([#6723](https://github.com/MetaMask/core/pull/6723))
@@ -435,7 +437,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...@metamask/preferences-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...@metamask/preferences-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@19.0.0
 [18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
