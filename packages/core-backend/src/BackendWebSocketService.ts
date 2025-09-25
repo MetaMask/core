@@ -313,17 +313,27 @@ export class BackendWebSocketService {
    *
    */
   #setupAuthentication(): void {
+    // Track previous authentication state for transition detection
+    let lastAuthState:
+      | AuthenticationController.AuthenticationControllerState
+      | undefined;
+
     try {
       // Subscribe to authentication state changes - this includes wallet unlock state
       // AuthenticationController can only be signed in if wallet is unlocked
       this.#messenger.subscribe(
         'AuthenticationController:stateChange',
         (
-          newState: { isSignedIn: boolean; [key: string]: unknown },
-          prevState: { isSignedIn: boolean; [key: string]: unknown },
+          newState: AuthenticationController.AuthenticationControllerState,
+          _patches: unknown,
         ) => {
-          const wasSignedIn = prevState?.isSignedIn || false;
+          // For state changes, we only need the new state to determine current sign-in status
           const isSignedIn = newState?.isSignedIn || false;
+
+          // Get previous state by checking our current connection attempts
+          // Since we only care about transitions, we can track this internally
+          const wasSignedIn = lastAuthState?.isSignedIn || false;
+          lastAuthState = newState;
 
           console.log(
             `[${SERVICE_NAME}] 🔐 Authentication state changed: ${wasSignedIn ? 'signed-in' : 'signed-out'} → ${isSignedIn ? 'signed-in' : 'signed-out'}`,
@@ -331,7 +341,7 @@ export class BackendWebSocketService {
 
           if (!wasSignedIn && isSignedIn) {
             // User signed in (wallet unlocked + authenticated) - try to connect
-            console.log(
+            console.debug(
               `[${SERVICE_NAME}] ✅ User signed in (wallet unlocked + authenticated), attempting connection...`,
             );
             // Clear any pending reconnection timer since we're attempting connection
@@ -346,7 +356,7 @@ export class BackendWebSocketService {
             }
           } else if (wasSignedIn && !isSignedIn) {
             // User signed out (wallet locked OR signed out) - stop reconnection attempts
-            console.log(
+            console.debug(
               `[${SERVICE_NAME}] 🔒 User signed out (wallet locked OR signed out), stopping reconnection attempts...`,
             );
             this.#clearTimers();
@@ -378,7 +388,7 @@ export class BackendWebSocketService {
     // Priority 1: Check if connection is enabled via callback (app lifecycle check)
     // If app is closed/backgrounded, stop all connection attempts to save resources
     if (this.#enabledCallback && !this.#enabledCallback()) {
-      console.log(
+      console.debug(
         `[${SERVICE_NAME}] Connection disabled by enabledCallback (app closed/backgrounded) - stopping connect and clearing reconnection attempts`,
       );
       // Clear any pending reconnection attempts since app is disabled
@@ -431,7 +441,7 @@ export class BackendWebSocketService {
       return;
     }
 
-    console.log(
+    console.debug(
       `[${SERVICE_NAME}] 🔄 Starting connection attempt to ${this.#options.url}`,
     );
     this.#setState(WebSocketState.CONNECTING);
@@ -468,13 +478,13 @@ export class BackendWebSocketService {
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
     ) {
-      console.log(
+      console.debug(
         `[${SERVICE_NAME}] Disconnect called but already in state: ${this.#state}`,
       );
       return;
     }
 
-    console.log(
+    console.debug(
       `[${SERVICE_NAME}] Manual disconnect initiated - closing WebSocket connection`,
     );
 
@@ -703,7 +713,7 @@ export class BackendWebSocketService {
   removeChannelCallback(channelName: string): boolean {
     const removed = this.#channelCallbacks.delete(channelName);
     if (removed) {
-      console.log(
+      console.debug(
         `[${SERVICE_NAME}] Removed channel callback for '${channelName}'`,
       );
     }
@@ -852,7 +862,7 @@ export class BackendWebSocketService {
     }
 
     try {
-      console.log(
+      console.debug(
         `[${SERVICE_NAME}] 🔐 Getting access token for authenticated connection...`,
       );
 
@@ -870,7 +880,7 @@ export class BackendWebSocketService {
         throw new Error('No access token available');
       }
 
-      console.log(
+      console.debug(
         `[${SERVICE_NAME}] ✅ Building authenticated WebSocket URL with bearer token`,
       );
 
@@ -899,7 +909,7 @@ export class BackendWebSocketService {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
-        console.log(
+        console.debug(
           `[${SERVICE_NAME}] 🔴 WebSocket connection timeout after ${this.#options.timeout}ms - forcing close`,
         );
         ws.close();
@@ -909,7 +919,7 @@ export class BackendWebSocketService {
       }, this.#options.timeout);
 
       ws.onopen = () => {
-        console.log(
+        console.debug(
           `[${SERVICE_NAME}] ✅ WebSocket connection opened successfully`,
         );
         clearTimeout(connectTimeout);
@@ -948,7 +958,7 @@ export class BackendWebSocketService {
           reject(error);
         } else {
           // Handle runtime errors
-          console.log(
+          console.debug(
             `[${SERVICE_NAME}] WebSocket onerror event triggered:`,
             event,
           );
@@ -960,10 +970,10 @@ export class BackendWebSocketService {
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase close events
           clearTimeout(connectTimeout);
-          console.log(
+          console.debug(
             `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${this.#getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
           );
-          console.log(
+          console.debug(
             `[${SERVICE_NAME}] Connection attempt failed due to close event during CONNECTING state`,
           );
           reject(
@@ -973,7 +983,7 @@ export class BackendWebSocketService {
           );
         } else {
           // Handle runtime close events
-          console.log(
+          console.debug(
             `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
           );
           this.#handleClose(event);
@@ -1204,7 +1214,7 @@ export class BackendWebSocketService {
 
     // Log close reason for debugging
     const closeReason = this.#getCloseReason(event.code);
-    console.log(
+    console.debug(
       `[${SERVICE_NAME}] WebSocket closed: ${event.code} - ${closeReason} (reason: ${event.reason || 'none'}) - current state: ${this.#state}`,
     );
 
@@ -1249,7 +1259,7 @@ export class BackendWebSocketService {
    * Request timeouts often indicate a stale or broken connection
    */
   #handleRequestTimeout(): void {
-    console.log(
+    console.debug(
       `[${SERVICE_NAME}] 🔄 Request timeout detected - forcing WebSocket reconnection`,
     );
 
@@ -1258,7 +1268,7 @@ export class BackendWebSocketService {
       // Force close the current connection to trigger reconnection logic
       this.#ws.close(1001, 'Request timeout - forcing reconnect');
     } else {
-      console.log(
+      console.debug(
         `[${SERVICE_NAME}] ⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`,
       );
     }
@@ -1278,14 +1288,14 @@ export class BackendWebSocketService {
       this.#options.reconnectDelay * Math.pow(1.5, this.#reconnectAttempts - 1);
     const delay = Math.min(rawDelay, this.#options.maxReconnectDelay);
 
-    console.log(
+    console.debug(
       `⏱️ Scheduling reconnection attempt #${this.#reconnectAttempts} in ${delay}ms (${(delay / 1000).toFixed(1)}s)`,
     );
 
     this.#reconnectTimer = setTimeout(() => {
       // Check if connection is still enabled before reconnecting
       if (this.#enabledCallback && !this.#enabledCallback()) {
-        console.log(
+        console.debug(
           `[${SERVICE_NAME}] Reconnection disabled by enabledCallback (app closed/backgrounded) - stopping all reconnection attempts`,
         );
         this.#reconnectAttempts = 0;
@@ -1295,7 +1305,7 @@ export class BackendWebSocketService {
       // Authentication checks are handled in connect() method
       // No need to check here since AuthenticationController manages wallet state internally
 
-      console.log(
+      console.debug(
         `🔄 ${delay}ms delay elapsed - starting reconnection attempt #${this.#reconnectAttempts}...`,
       );
 
@@ -1306,7 +1316,7 @@ export class BackendWebSocketService {
         );
 
         // Always schedule another reconnection attempt
-        console.log(
+        console.debug(
           `Scheduling next reconnection attempt (attempt #${this.#reconnectAttempts})`,
         );
         this.#scheduleReconnect();
@@ -1456,12 +1466,12 @@ export class BackendWebSocketService {
   #shouldReconnectOnClose(code: number): boolean {
     // Don't reconnect only on normal closure (manual disconnect)
     if (code === 1000) {
-      console.log(`Not reconnecting - normal closure (manual disconnect)`);
+      console.debug(`Not reconnecting - normal closure (manual disconnect)`);
       return false;
     }
 
     // Reconnect on server errors and temporary issues
-    console.log(`Will reconnect - treating as temporary server issue`);
+    console.debug(`Will reconnect - treating as temporary server issue`);
     return true;
   }
 }
