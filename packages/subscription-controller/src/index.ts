@@ -8,6 +8,7 @@ export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetCryptoApproveTransactionParamsAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
