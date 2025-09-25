@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `updatePaymentMethod` return `redirectUrl` for card payment ([#6726](https://github.com/MetaMask/core/pull/6726))
+
 ## [0.3.0]
 
 ### Added
