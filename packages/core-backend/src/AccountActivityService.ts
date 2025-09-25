@@ -8,16 +8,19 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
 } from './types';
-import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
   WebSocketConnectionInfo,
   WebSocketServiceConnectionStateChangedEvent,
   SubscriptionInfo,
+  ServerNotificationMessage,
+  ClientRequestMessage,
+  ServerResponseMessage,
 } from './WebsocketService';
 import { WebSocketState } from './WebsocketService';
 
@@ -33,19 +36,22 @@ export type SystemNotificationData = {
 
 const SERVICE_NAME = 'AccountActivityService' as const;
 
-const MESSENGER_EXPOSED_METHODS = ['subscribeAccounts', 'unsubscribeAccounts'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'subscribeAccounts',
+  'unsubscribeAccounts',
+] as const;
 
 // Temporary list of supported chains for fallback polling - this hardcoded list will be replaced with a dynamic logic
 const SUPPORTED_CHAINS = [
-  'eip155:1',     // Ethereum Mainnet
-  'eip155:137',   // Polygon
-  'eip155:56',    // BSC
+  'eip155:1', // Ethereum Mainnet
+  'eip155:137', // Polygon
+  'eip155:56', // BSC
   'eip155:59144', // Linea
-  'eip155:8453',  // Base
-  'eip155:10',    // Optimism
+  'eip155:8453', // Base
+  'eip155:10', // Optimism
   'eip155:42161', // Arbitrum One
   'eip155:534352', // Scroll
-  'eip155:1329',  // Sei
+  'eip155:1329', // Sei
 ] as const;
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
@@ -107,7 +113,13 @@ export type AccountActivityServiceAllowedActions =
     }
   | {
       type: 'BackendWebSocketService:subscribe';
-      handler: (options: { channels: string[]; callback: (notification: any) => void }) => Promise<{ subscriptionId: string; unsubscribe: () => Promise<void> }>;
+      handler: (options: {
+        channels: string[];
+        callback: (notification: ServerNotificationMessage) => void;
+      }) => Promise<{
+        subscriptionId: string;
+        unsubscribe: () => Promise<void>;
+      }>;
     }
   | {
       type: 'BackendWebSocketService:isChannelSubscribed';
@@ -123,7 +135,10 @@ export type AccountActivityServiceAllowedActions =
     }
   | {
       type: 'BackendWebSocketService:addChannelCallback';
-      handler: (options: { channelName: string; callback: (notification: any) => void }) => void;
+      handler: (options: {
+        channelName: string;
+        callback: (notification: ServerNotificationMessage) => void;
+      }) => void;
     }
   | {
       type: 'BackendWebSocketService:removeChannelCallback';
@@ -131,7 +146,9 @@ export type AccountActivityServiceAllowedActions =
     }
   | {
       type: 'BackendWebSocketService:sendRequest';
-      handler: (message: any) => Promise<any>;
+      handler: (
+        message: ClientRequestMessage,
+      ) => Promise<ServerResponseMessage>;
     };
 
 // Event types for the messaging system
@@ -153,10 +170,12 @@ export type AccountActivityServiceSubscriptionErrorEvent = {
 
 export type AccountActivityServiceStatusChangedEvent = {
   type: `AccountActivityService:statusChanged`;
-  payload: [{
-    chainIds: string[];
-    status: 'up' | 'down';
-  }];
+  payload: [
+    {
+      chainIds: string[];
+      status: 'up' | 'down';
+    },
+  ];
 };
 
 export type AccountActivityServiceEvents =
@@ -248,12 +267,12 @@ export class AccountActivityService {
     this.#registerActionHandlers();
     this.#setupAccountEventHandlers();
     this.#setupWebSocketEventHandlers();
+    this.#setupSystemNotificationCallback();
   }
 
   // =============================================================================
   // Account Subscription Methods
   // =============================================================================
-
 
   /**
    * Subscribe to account activity (transactions and balance updates)
@@ -269,26 +288,17 @@ export class AccountActivityService {
       const channel = `${this.#options.subscriptionNamespace}.${subscription.address}`;
 
       // Check if already subscribed
-      if (this.#messenger.call('BackendWebSocketService:isChannelSubscribed', channel)) {
-        console.log(`[${SERVICE_NAME}] Already subscribed to channel: ${channel}`);
+      if (
+        this.#messenger.call(
+          'BackendWebSocketService:isChannelSubscribed',
+          channel,
+        )
+      ) {
+        console.log(
+          `[${SERVICE_NAME}] Already subscribed to channel: ${channel}`,
+        );
         return;
       }
-
-      // Set up system notifications callback for chain status updates
-      const systemChannelName = `system-notifications.v1.${this.#options.subscriptionNamespace}`;
-      console.log(`[${SERVICE_NAME}] Adding channel callback for '${systemChannelName}'`);
-      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
-        channelName: systemChannelName,
-        callback: (notification) => {
-          try {
-            // Parse the notification data as a system notification
-            const systemData = notification.data as SystemNotificationData;
-            this.#handleSystemNotification(systemData);
-          } catch (error) {
-            console.error(`[${SERVICE_NAME}] Error processing system notification:`, error);
-          }
-        }
-      });
 
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
@@ -301,7 +311,10 @@ export class AccountActivityService {
         },
       });
     } catch (error) {
-      console.warn(`[${SERVICE_NAME}] Subscription failed, forcing reconnection:`, error);
+      console.warn(
+        `[${SERVICE_NAME}] Subscription failed, forcing reconnection:`,
+        error,
+      );
       await this.#forceReconnection();
     }
   }
@@ -317,18 +330,25 @@ export class AccountActivityService {
     try {
       // Find channel for the specified address
       const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptionInfo =
-        this.#messenger.call('BackendWebSocketService:getSubscriptionByChannel', channel);
+      const subscriptionInfo = this.#messenger.call(
+        'BackendWebSocketService:getSubscriptionByChannel',
+        channel,
+      );
 
       if (!subscriptionInfo) {
-        console.log(`[${SERVICE_NAME}] No subscription found for address: ${address}`);
+        console.log(
+          `[${SERVICE_NAME}] No subscription found for address: ${address}`,
+        );
         return;
       }
 
       // Fast path: Direct unsubscribe using stored unsubscribe function
       await subscriptionInfo.unsubscribe();
     } catch (error) {
-      console.warn(`[${SERVICE_NAME}] Unsubscription failed, forcing reconnection:`, error);
+      console.warn(
+        `[${SERVICE_NAME}] Unsubscription failed, forcing reconnection:`,
+        error,
+      );
       await this.#forceReconnection();
     }
   }
@@ -409,7 +429,10 @@ export class AccountActivityService {
         `[${SERVICE_NAME}] Balance update event published successfully`,
       );
     } catch (error) {
-      console.error(`[${SERVICE_NAME}] Error handling account activity update:`, error);
+      console.error(
+        `[${SERVICE_NAME}] Error handling account activity update:`,
+        error,
+      );
       console.error(`[${SERVICE_NAME}] Payload that caused error:`, payload);
     }
   }
@@ -441,10 +464,46 @@ export class AccountActivityService {
     try {
       this.#messenger.subscribe(
         'BackendWebSocketService:connectionStateChanged',
-        (connectionInfo: WebSocketConnectionInfo) => this.#handleWebSocketStateChange(connectionInfo),
+        (connectionInfo: WebSocketConnectionInfo) =>
+          this.#handleWebSocketStateChange(connectionInfo),
       );
     } catch (error) {
-      console.log(`[${SERVICE_NAME}] WebSocketService connection events not available:`, error);
+      console.log(
+        `[${SERVICE_NAME}] WebSocketService connection events not available:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Set up system notification callback for chain status updates
+   */
+  #setupSystemNotificationCallback(): void {
+    try {
+      const systemChannelName = `system-notifications.v1.${this.#options.subscriptionNamespace}`;
+      console.log(
+        `[${SERVICE_NAME}] Adding channel callback for '${systemChannelName}'`,
+      );
+      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
+        channelName: systemChannelName,
+        callback: (notification) => {
+          try {
+            // Parse the notification data as a system notification
+            const systemData = notification.data as SystemNotificationData;
+            this.#handleSystemNotification(systemData);
+          } catch (error) {
+            console.error(
+              `[${SERVICE_NAME}] Error processing system notification:`,
+              error,
+            );
+          }
+        },
+      });
+    } catch (error) {
+      console.warn(
+        `[${SERVICE_NAME}] Failed to setup system notification callback:`,
+        error,
+      );
     }
   }
 
@@ -454,9 +513,16 @@ export class AccountActivityService {
    * @param newAccount - The newly selected account
    */
   async #handleSelectedAccountChange(
-    newAccount: InternalAccount,
+    newAccount: InternalAccount | null,
   ): Promise<void> {
-    console.log(`[${SERVICE_NAME}] Selected account changed to: ${newAccount.address}`);
+    if (!newAccount?.address) {
+      console.log(`[${SERVICE_NAME}] No valid account selected`);
+      throw new Error('Account address is required');
+    }
+
+    console.log(
+      `[${SERVICE_NAME}] Selected account changed to: ${newAccount.address}`,
+    );
 
     try {
       // Convert new account to CAIP-10 format
@@ -464,8 +530,15 @@ export class AccountActivityService {
       const newChannel = `${this.#options.subscriptionNamespace}.${newAddress}`;
 
       // If already subscribed to this account, no need to change
-      if (this.#messenger.call('BackendWebSocketService:isChannelSubscribed', newChannel)) {
-        console.log(`[${SERVICE_NAME}] Already subscribed to account: ${newAddress}`);
+      if (
+        this.#messenger.call(
+          'BackendWebSocketService:isChannelSubscribed',
+          newChannel,
+        )
+      ) {
+        console.log(
+          `[${SERVICE_NAME}] Already subscribed to account: ${newAddress}`,
+        );
         return;
       }
 
@@ -474,11 +547,16 @@ export class AccountActivityService {
 
       // Then, subscribe to the new selected account
       await this.subscribeAccounts({ address: newAddress });
-      console.log(`[${SERVICE_NAME}] Subscribed to new selected account: ${newAddress}`);
+      console.log(
+        `[${SERVICE_NAME}] Subscribed to new selected account: ${newAddress}`,
+      );
 
       // TokenBalancesController handles its own polling - no need to manually trigger updates
     } catch (error) {
-      console.warn(`[${SERVICE_NAME}] Account change failed, forcing reconnection:`, error);
+      console.warn(
+        `[${SERVICE_NAME}] Account change failed, forcing reconnection:`,
+        error,
+      );
       await this.#forceReconnection();
     }
   }
@@ -488,14 +566,19 @@ export class AccountActivityService {
    */
   async #forceReconnection(): Promise<void> {
     try {
-      console.log(`[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`);
-      
+      console.log(
+        `[${SERVICE_NAME}] Forcing WebSocket reconnection to clean up subscription state`,
+      );
+
       // All subscriptions will be cleaned up automatically on WebSocket disconnect
-      
+
       await this.#messenger.call('BackendWebSocketService:disconnect');
       await this.#messenger.call('BackendWebSocketService:connect');
     } catch (error) {
-      console.error(`[${SERVICE_NAME}] Failed to force WebSocket reconnection:`, error);
+      console.error(
+        `[${SERVICE_NAME}] Failed to force WebSocket reconnection:`,
+        error,
+      );
     }
   }
 
@@ -512,27 +595,35 @@ export class AccountActivityService {
       // WebSocket connected - resubscribe and set all chains as up
       try {
         this.#subscribeSelectedAccount().catch((error) => {
-          console.error(`[${SERVICE_NAME}] Failed to resubscribe to selected account:`, error);
+          console.error(
+            `[${SERVICE_NAME}] Failed to resubscribe to selected account:`,
+            error,
+          );
         });
-        
+
         // Publish initial status - all supported chains are up when WebSocket connects
         this.#messenger.publish(`AccountActivityService:statusChanged`, {
           chainIds: Array.from(SUPPORTED_CHAINS),
           status: 'up' as const,
         });
-        
+
         console.log(
-          `[${SERVICE_NAME}] WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`
+          `[${SERVICE_NAME}] WebSocket connected - Published all chains as up: [${SUPPORTED_CHAINS.join(', ')}]`,
         );
       } catch (error) {
-        console.error(`[${SERVICE_NAME}] Failed to handle WebSocket connected state:`, error);
+        console.error(
+          `[${SERVICE_NAME}] Failed to handle WebSocket connected state:`,
+          error,
+        );
       }
     } else if (
       state === WebSocketState.DISCONNECTED ||
       state === WebSocketState.ERROR
     ) {
       // WebSocket disconnected - subscriptions are automatically cleaned up by WebSocketService
-      console.log(`[${SERVICE_NAME}] WebSocket disconnected/error - subscriptions cleaned up automatically`);
+      console.log(
+        `[${SERVICE_NAME}] WebSocket disconnected/error - subscriptions cleaned up automatically`,
+      );
     }
   }
 
@@ -562,17 +653,28 @@ export class AccountActivityService {
       const channel = `${this.#options.subscriptionNamespace}.${address}`;
 
       // Only subscribe if we're not already subscribed to this account
-      if (!this.#messenger.call('BackendWebSocketService:isChannelSubscribed', channel)) {
+      if (
+        !this.#messenger.call(
+          'BackendWebSocketService:isChannelSubscribed',
+          channel,
+        )
+      ) {
         await this.subscribeAccounts({ address });
-        console.log(`[${SERVICE_NAME}] Successfully subscribed to selected account: ${address}`);
+        console.log(
+          `[${SERVICE_NAME}] Successfully subscribed to selected account: ${address}`,
+        );
       } else {
-        console.log(`[${SERVICE_NAME}] Already subscribed to selected account: ${address}`);
+        console.log(
+          `[${SERVICE_NAME}] Already subscribed to selected account: ${address}`,
+        );
       }
     } catch (error) {
-      console.error(`[${SERVICE_NAME}] Failed to subscribe to selected account:`, error);
+      console.error(
+        `[${SERVICE_NAME}] Failed to subscribe to selected account:`,
+        error,
+      );
     }
   }
-
 
   /**
    * Unsubscribe from all account activity subscriptions for this service
@@ -580,40 +682,62 @@ export class AccountActivityService {
    */
   async #unsubscribeFromAllAccountActivity(): Promise<void> {
     try {
-      console.log(`[${SERVICE_NAME}] Unsubscribing from all account activity subscriptions...`);
-      
-      // Use WebSocketService to find all subscriptions with our namespace prefix
-      const accountActivitySubscriptions = this.#messenger.call('BackendWebSocketService:findSubscriptionsByChannelPrefix',
-        this.#options.subscriptionNamespace
+      console.log(
+        `[${SERVICE_NAME}] Unsubscribing from all account activity subscriptions...`,
       );
-      
-      console.log(`[${SERVICE_NAME}] Found ${accountActivitySubscriptions.length} account activity subscriptions to unsubscribe from`);
-      
+
+      // Use WebSocketService to find all subscriptions with our namespace prefix
+      const accountActivitySubscriptions = this.#messenger.call(
+        'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+        this.#options.subscriptionNamespace,
+      );
+
+      console.log(
+        `[${SERVICE_NAME}] Found ${accountActivitySubscriptions.length} account activity subscriptions to unsubscribe from`,
+      );
+
       // Unsubscribe from all matching subscriptions
       for (const subscription of accountActivitySubscriptions) {
         try {
           await subscription.unsubscribe();
-          console.log(`[${SERVICE_NAME}] Successfully unsubscribed from subscription: ${subscription.subscriptionId} (channels: ${subscription.channels.join(', ')})`);
+          console.log(
+            `[${SERVICE_NAME}] Successfully unsubscribed from subscription: ${subscription.subscriptionId} (channels: ${subscription.channels.join(', ')})`,
+          );
         } catch (error) {
-          console.error(`[${SERVICE_NAME}] Failed to unsubscribe from subscription ${subscription.subscriptionId}:`, error);
+          console.error(
+            `[${SERVICE_NAME}] Failed to unsubscribe from subscription ${subscription.subscriptionId}:`,
+            error,
+          );
         }
       }
-      
-      console.log(`[${SERVICE_NAME}] Finished unsubscribing from all account activity subscriptions`);
+
+      console.log(
+        `[${SERVICE_NAME}] Finished unsubscribing from all account activity subscriptions`,
+      );
     } catch (error) {
-      console.error(`[${SERVICE_NAME}] Failed to unsubscribe from all account activity:`, error);
+      console.error(
+        `[${SERVICE_NAME}] Failed to unsubscribe from all account activity:`,
+        error,
+      );
     }
   }
 
   /**
    * Handle system notification for chain status changes
    * Publishes only the status change (delta) for affected chains
-   * 
+   *
    * @param data - System notification data containing chain status updates
    */
   #handleSystemNotification(data: SystemNotificationData): void {
+    // Validate required fields
+    if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
+      throw new Error(
+        'Invalid system notification data: missing chainIds or status',
+      );
+    }
+
     console.log(
-      `[${SERVICE_NAME}] Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`
+      `[${SERVICE_NAME}] Received system notification - Chains: ${data.chainIds.join(', ')}, Status: ${data.status}`,
     );
 
     // Publish status change directly (delta update)
@@ -624,13 +748,15 @@ export class AccountActivityService {
       });
 
       console.log(
-        `[${SERVICE_NAME}] Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`
+        `[${SERVICE_NAME}] Published status change - Chains: [${data.chainIds.join(', ')}], Status: ${data.status}`,
       );
     } catch (error) {
-      console.error(`[${SERVICE_NAME}] Failed to publish status change event:`, error);
+      console.error(
+        `[${SERVICE_NAME}] Failed to publish status change event:`,
+        error,
+      );
     }
   }
-
 
   /**
    * Destroy the service and clean up all resources
@@ -638,11 +764,19 @@ export class AccountActivityService {
    */
   destroy(): void {
     try {
-      // Note: All WebSocket subscriptions will be cleaned up when WebSocket disconnects
-      // We don't need to manually unsubscribe here for fast cleanup
+      // Clean up all account activity subscriptions
+      this.#unsubscribeFromAllAccountActivity().catch((error) => {
+        console.error(
+          `[${SERVICE_NAME}] Failed to clean up subscriptions during destroy:`,
+          error,
+        );
+      });
 
       // Clean up system notification callback
-      this.#messenger.call('BackendWebSocketService:removeChannelCallback', `system-notifications.v1.${this.#options.subscriptionNamespace}`);
+      this.#messenger.call(
+        'BackendWebSocketService:removeChannelCallback',
+        `system-notifications.v1.${this.#options.subscriptionNamespace}`,
+      );
 
       // Unregister action handlers to prevent stale references
       this.#messenger.unregisterActionHandler(
@@ -651,8 +785,6 @@ export class AccountActivityService {
       this.#messenger.unregisterActionHandler(
         'AccountActivityService:unsubscribeAccounts',
       );
-
-      // No chain status tracking needed
 
       // Clear our own event subscriptions (events we publish)
       this.#messenger.clearEventSubscriptions(

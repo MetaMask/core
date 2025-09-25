@@ -1,4 +1,3 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import { useFakeTimers } from 'sinon';
 
 import {
@@ -6,9 +5,6 @@ import {
   WebSocketState,
   type WebSocketServiceOptions,
   type WebSocketServiceMessenger,
-  type WebSocketMessage,
-  type ServerResponseMessage,
-  type ServerNotificationMessage,
   type ClientRequestMessage,
 } from './WebsocketService';
 import { flushPromises, advanceTime } from '../../../tests/helpers';
@@ -21,23 +17,30 @@ import { flushPromises, advanceTime } from '../../../tests/helpers';
  * Mock DOM APIs not available in Node.js test environment
  */
 function setupDOMGlobals() {
-  global.MessageEvent = class MessageEvent extends Event {
-    public data: any;
-    constructor(type: string, eventInitDict?: { data?: any }) {
+  global.MessageEvent = class MockMessageEvent extends Event {
+    public data: unknown;
+
+    constructor(type: string, eventInitDict?: { data?: unknown }) {
       super(type);
       this.data = eventInitDict?.data;
     }
-  } as any;
+  } as unknown as typeof global.MessageEvent;
 
-  global.CloseEvent = class CloseEvent extends Event {
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  global.CloseEvent = class MockCloseEvent extends Event {
     public code: number;
+
     public reason: string;
-    constructor(type: string, eventInitDict?: { code?: number; reason?: string }) {
+
+    constructor(
+      type: string,
+      eventInitDict?: { code?: number; reason?: string },
+    ) {
       super(type);
       this.code = eventInitDict?.code ?? 1000;
       this.reason = eventInitDict?.reason ?? '';
     }
-  } as any;
+  } as unknown as typeof global.CloseEvent;
 }
 
 setupDOMGlobals();
@@ -56,8 +59,15 @@ const TEST_CONSTANTS = {
 
 /**
  * Helper to create a properly formatted WebSocket response message
+ *
+ * @param requestId - The request ID to match with the response
+ * @param data - The response data payload
+ * @returns Formatted WebSocket response message
  */
-const createResponseMessage = (requestId: string, data: any) => ({
+const createResponseMessage = (
+  requestId: string,
+  data: Record<string, unknown>,
+) => ({
   id: requestId,
   data: {
     requestId,
@@ -67,8 +77,15 @@ const createResponseMessage = (requestId: string, data: any) => ({
 
 /**
  * Helper to create a notification message
+ *
+ * @param channel - The channel name for the notification
+ * @param data - The notification data payload
+ * @returns Formatted WebSocket notification message
  */
-const createNotificationMessage = (channel: string, data: any) => ({
+const createNotificationMessage = (
+  channel: string,
+  data: Record<string, unknown>,
+) => ({
   event: 'notification',
   channel,
   data,
@@ -81,44 +98,66 @@ const createNotificationMessage = (channel: string, data: any) => ({
 class MockWebSocket extends EventTarget {
   // WebSocket state constants
   public static readonly CONNECTING = 0;
+
   public static readonly OPEN = 1;
+
   public static readonly CLOSING = 2;
+
   public static readonly CLOSED = 3;
 
   // WebSocket properties
   public readyState: number = MockWebSocket.CONNECTING;
+
   public url: string;
-  
+
   // Event handlers
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   public onclose: ((event: CloseEvent) => void) | null = null;
+
   public onmessage: ((event: MessageEvent) => void) | null = null;
+
   public onerror: ((event: Event) => void) | null = null;
-  
+
   // Mock methods for testing
-  public close: jest.Mock<void, [number?, string?]>;
-  public send: jest.Mock<void, [string]>;
-  
+  public close: jest.Mock<void, [number?, string?]> = jest.fn();
+
+  public send: jest.Mock<void, [string]> = jest.fn();
+
   // Test utilities
   private _lastSentMessage: string | null = null;
 
   private _openTriggered = false;
+
   private _onopen: ((event: Event) => void) | null = null;
+
   public autoConnect: boolean = true;
 
-  constructor(url: string, { autoConnect = true }: { autoConnect?: boolean } = {}) {
+  constructor(
+    url: string,
+    { autoConnect = true }: { autoConnect?: boolean } = {},
+  ) {
     super();
     this.url = url;
-    this.close = jest.fn();
-    this.send = jest.fn((data: string) => {
+    // TypeScript has issues with jest.spyOn on WebSocket methods, so using direct assignment
+    // eslint-disable-next-line jest/prefer-spy-on
+    this.close = jest.fn().mockImplementation();
+    // eslint-disable-next-line jest/prefer-spy-on
+    this.send = jest.fn().mockImplementation((data: string) => {
       this._lastSentMessage = data;
     });
     this.autoConnect = autoConnect;
-    (global as any).lastWebSocket = this;
+    (global as unknown as { lastWebSocket: MockWebSocket }).lastWebSocket =
+      this;
   }
 
   set onopen(handler: ((event: Event) => void) | null) {
     this._onopen = handler;
-    if (handler && !this._openTriggered && this.readyState === MockWebSocket.CONNECTING && this.autoConnect) {
+    if (
+      handler &&
+      !this._openTriggered &&
+      this.readyState === MockWebSocket.CONNECTING &&
+      this.autoConnect
+    ) {
       // Trigger immediately to ensure connection completes
       this.triggerOpen();
     }
@@ -129,7 +168,11 @@ class MockWebSocket extends EventTarget {
   }
 
   public triggerOpen() {
-    if (!this._openTriggered && this._onopen && this.readyState === MockWebSocket.CONNECTING) {
+    if (
+      !this._openTriggered &&
+      this._onopen &&
+      this.readyState === MockWebSocket.CONNECTING
+    ) {
       this._openTriggered = true;
       this.readyState = MockWebSocket.OPEN;
       const event = new Event('open');
@@ -140,6 +183,7 @@ class MockWebSocket extends EventTarget {
 
   public simulateClose(code = 1000, reason = '') {
     this.readyState = MockWebSocket.CLOSED;
+    // eslint-disable-next-line n/no-unsupported-features/node-builtins
     const event = new CloseEvent('close', { code, reason });
     this.onclose?.(event);
     this.dispatchEvent(event);
@@ -148,11 +192,11 @@ class MockWebSocket extends EventTarget {
   public simulateMessage(data: string | object) {
     const messageData = typeof data === 'string' ? data : JSON.stringify(data);
     const event = new MessageEvent('message', { data: messageData });
-    
+
     if (this.onmessage) {
       this.onmessage(event);
     }
-    
+
     this.dispatchEvent(event);
   }
 
@@ -187,28 +231,30 @@ class MockWebSocket extends EventTarget {
 /**
  * Test configuration options
  */
-interface TestSetupOptions {
+type TestSetupOptions = {
   options?: Partial<WebSocketServiceOptions>;
   mockWebSocketOptions?: { autoConnect?: boolean };
-}
+};
 
 /**
  * Test setup return value with all necessary test utilities
  */
-interface TestSetup {
+type TestSetup = {
   service: WebSocketService;
   mockMessenger: jest.Mocked<WebSocketServiceMessenger>;
-  clock: any;
+  clock: ReturnType<typeof useFakeTimers>;
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
   cleanup: () => void;
-}
+};
 
 /**
  * Create a fresh WebSocketService instance with mocked dependencies for testing.
  * Follows the TokenBalancesController test pattern for complete test isolation.
- * 
+ *
  * @param config - Test configuration options
+ * @param config.options - WebSocket service configuration options
+ * @param config.mockWebSocketOptions - Mock WebSocket configuration options
  * @returns Test utilities and cleanup function
  */
 const setupWebSocketService = ({
@@ -217,7 +263,14 @@ const setupWebSocketService = ({
 }: TestSetupOptions = {}): TestSetup => {
   // Setup fake timers to control all async operations
   const clock = useFakeTimers({
-    toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate'],
+    toFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'setImmediate',
+      'clearImmediate',
+    ],
     shouldAdvanceTime: false,
   });
 
@@ -230,7 +283,7 @@ const setupWebSocketService = ({
     call: jest.fn(),
     subscribe: jest.fn(),
     unsubscribe: jest.fn(),
-  } as any as jest.Mocked<WebSocketServiceMessenger>;
+  } as unknown as jest.Mocked<WebSocketServiceMessenger>;
 
   // Default test options (shorter timeouts for faster tests)
   const defaultOptions = {
@@ -249,7 +302,8 @@ const setupWebSocketService = ({
   }
 
   // Replace global WebSocket for this test
-  global.WebSocket = TestMockWebSocket as any;
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  global.WebSocket = TestMockWebSocket as unknown as typeof WebSocket;
 
   const service = new WebSocketService({
     messenger: mockMessenger,
@@ -263,7 +317,8 @@ const setupWebSocketService = ({
     await flushPromises();
   };
 
-  const getMockWebSocket = () => (global as any).lastWebSocket as MockWebSocket;
+  const getMockWebSocket = () =>
+    (global as unknown as { lastWebSocket: MockWebSocket }).lastWebSocket;
 
   return {
     service,
@@ -289,9 +344,10 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('constructor', () => {
     it('should create a WebSocketService instance with default options', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService({
+          mockWebSocketOptions: { autoConnect: false },
+        });
 
       // Wait for any initialization to complete
       await completeAsyncOperations();
@@ -299,20 +355,24 @@ describe('WebSocketService', () => {
       expect(service).toBeInstanceOf(WebSocketService);
       const info = service.getConnectionInfo();
       // Service might be in CONNECTING state due to initialization, that's OK
-      expect([WebSocketState.DISCONNECTED, WebSocketState.CONNECTING]).toContain(info.state);
+      expect([
+        WebSocketState.DISCONNECTED,
+        WebSocketState.CONNECTING,
+      ]).toContain(info.state);
       expect(info.url).toBe('ws://localhost:8080');
 
       cleanup();
     });
 
     it('should create a WebSocketService instance with custom options', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
-        options: {
-          url: 'wss://custom.example.com',
-          timeout: 5000,
-        },
-        mockWebSocketOptions: { autoConnect: false },
-      });
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService({
+          options: {
+            url: 'wss://custom.example.com',
+            timeout: 5000,
+          },
+          mockWebSocketOptions: { autoConnect: false },
+        });
 
       await completeAsyncOperations();
 
@@ -328,8 +388,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('connect', () => {
     it('should connect successfully', async () => {
-      const { service, mockMessenger, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, mockMessenger, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -341,13 +402,14 @@ describe('WebSocketService', () => {
           state: WebSocketState.CONNECTED,
         }),
       );
-      
+
       cleanup();
     });
 
     it('should not connect if already connected', async () => {
-      const { service, mockMessenger, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, mockMessenger, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const firstConnect = service.connect();
       await completeAsyncOperations();
       await firstConnect;
@@ -359,41 +421,48 @@ describe('WebSocketService', () => {
 
       // Should only connect once (CONNECTING + CONNECTED states)
       expect(mockMessenger.publish).toHaveBeenCalledTimes(2);
-      
+
       cleanup();
     }, 10000);
 
     it('should handle connection timeout', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
-        options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
-        mockWebSocketOptions: { autoConnect: false }, // This prevents any connection
-      });
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService({
+          options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
+          mockWebSocketOptions: { autoConnect: false }, // This prevents any connection
+        });
 
       // Service should start in disconnected state since we removed auto-init
-      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
-      
+      expect(service.getConnectionInfo().state).toBe(
+        WebSocketState.DISCONNECTED,
+      );
+
       // Use expect.assertions to ensure error handling is tested
       expect.assertions(4);
-      
+
       // Start connection and then advance timers to trigger timeout
       const connectPromise = service.connect();
-      
+
       // Handle the promise rejection properly
       connectPromise.catch(() => {
         // Expected rejection - do nothing to avoid unhandled promise warning
       });
-      
+
       await completeAsyncOperations(TEST_CONSTANTS.TIMEOUT_MS + 50);
-      
+
       // Now check that the connection failed as expected
-      await expect(connectPromise).rejects.toThrow(`Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
-      
+      await expect(connectPromise).rejects.toThrow(
+        `Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`,
+      );
+
       // Verify we're in error state from the failed connection attempt
       expect(service.getConnectionInfo().state).toBe(WebSocketState.ERROR);
-      
+
       const info = service.getConnectionInfo();
-      expect(info.lastError).toContain(`Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
-      
+      expect(info.lastError).toContain(
+        `Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`,
+      );
+
       cleanup();
     });
   });
@@ -403,30 +472,36 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('disconnect', () => {
     it('should disconnect successfully when connected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       await service.disconnect();
 
-      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
-      
+      expect(service.getConnectionInfo().state).toBe(
+        WebSocketState.DISCONNECTED,
+      );
+
       cleanup();
     }, 10000);
 
     it('should handle disconnect when already disconnected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       // Wait for initialization
       await completeAsyncOperations();
-      
+
       // Already disconnected - should not throw
       expect(() => service.disconnect()).not.toThrow();
 
-      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
-      
+      expect(service.getConnectionInfo().state).toBe(
+        WebSocketState.DISCONNECTED,
+      );
+
       cleanup();
     }, 10000);
   });
@@ -436,8 +511,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('subscribe', () => {
     it('should subscribe to channels successfully', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       // Connect first
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -457,10 +533,14 @@ describe('WebSocketService', () => {
 
       // Get the actual request ID from the sent message
       const requestId = mockWs.getLastRequestId();
-      expect(requestId).toBeTruthy();
+      expect(requestId).toBeDefined();
 
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
       // Simulate subscription response with matching request ID using helper
-      const responseMessage = createResponseMessage(requestId!, {
+      const responseMessage = createResponseMessage(requestId, {
         subscriptionId: TEST_CONSTANTS.SUBSCRIPTION_ID,
         successful: [TEST_CONSTANTS.TEST_CHANNEL],
         failed: [],
@@ -468,16 +548,18 @@ describe('WebSocketService', () => {
       mockWs.simulateMessage(responseMessage);
 
       await completeAsyncOperations();
-      
+
       try {
         const subscription = await subscriptionPromise;
-        expect(subscription.subscriptionId).toBe(TEST_CONSTANTS.SUBSCRIPTION_ID);
+        expect(subscription.subscriptionId).toBe(
+          TEST_CONSTANTS.SUBSCRIPTION_ID,
+        );
         expect(typeof subscription.unsubscribe).toBe('function');
       } catch (error) {
         console.log('Subscription failed:', error);
         throw error;
       }
-      
+
       cleanup();
     }, 10000);
 
@@ -485,19 +567,23 @@ describe('WebSocketService', () => {
       const { service, cleanup } = setupWebSocketService({
         mockWebSocketOptions: { autoConnect: false },
       });
-      
+
       // Service starts in disconnected state since we removed auto-init
-      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
-      
+      expect(service.getConnectionInfo().state).toBe(
+        WebSocketState.DISCONNECTED,
+      );
+
       const mockCallback = jest.fn();
 
       await expect(
         service.subscribe({
           channels: ['test-channel'],
           callback: mockCallback,
-        })
-      ).rejects.toThrow('Cannot create subscription(s) test-channel: WebSocket is disconnected');
-      
+        }),
+      ).rejects.toThrow(
+        'Cannot create subscription(s) test-channel: WebSocket is disconnected',
+      );
+
       cleanup();
     });
   });
@@ -507,8 +593,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('message handling', () => {
     it('should handle notification messages', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -527,22 +614,22 @@ describe('WebSocketService', () => {
 
       // Get the actual request ID and send response
       const requestId = mockWs.getLastRequestId();
-      expect(requestId).toBeTruthy();
+      expect(requestId).toBeDefined();
 
       // Use correct message format with data wrapper
       const responseMessage = {
         id: requestId,
         data: {
-          requestId: requestId,
+          requestId,
           subscriptionId: 'sub-123',
           successful: ['test-channel'],
           failed: [],
-        }
+        },
       };
       mockWs.simulateMessage(responseMessage);
 
       await completeAsyncOperations();
-      
+
       try {
         await subscriptionPromise;
 
@@ -558,23 +645,26 @@ describe('WebSocketService', () => {
         console.log('Message handling test failed:', error);
         // Don't fail the test completely, just log the issue
       }
-      
+
       cleanup();
     }, 10000);
 
     it('should handle invalid JSON messages', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       const mockWs = getMockWebSocket();
-      
+
       // Send invalid JSON - should be silently ignored for mobile performance
-      const invalidEvent = new MessageEvent('message', { data: 'invalid json' });
+      const invalidEvent = new MessageEvent('message', {
+        data: 'invalid json',
+      });
       mockWs.onmessage?.(invalidEvent);
 
       // Parse errors are silently ignored for mobile performance, so no console.error expected
@@ -593,14 +683,15 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('connection health and reconnection', () => {
     it('should handle connection errors', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       const mockWs = getMockWebSocket();
-      
+
       // Verify initial state is connected
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
@@ -613,19 +704,20 @@ describe('WebSocketService', () => {
 
       // Service should still be in connected state (errors are logged but don't disconnect)
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      
+
       cleanup();
     }, 10000);
 
     it('should handle unexpected disconnection and attempt reconnection', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       const mockWs = getMockWebSocket();
-      
+
       // Simulate unexpected disconnection (not normal closure)
       mockWs.simulateClose(1006, 'Connection lost');
 
@@ -633,19 +725,20 @@ describe('WebSocketService', () => {
       await completeAsyncOperations(60); // Wait past reconnect delay
 
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      
+
       cleanup();
     }, 10000);
 
     it('should not reconnect on normal closure (code 1000)', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       const mockWs = getMockWebSocket();
-      
+
       // Simulate normal closure
       mockWs.simulateClose(1000, 'Normal closure');
 
@@ -653,9 +746,11 @@ describe('WebSocketService', () => {
       await completeAsyncOperations(60);
 
       // Normal closure should result in DISCONNECTED or ERROR state, not reconnection
-      const state = service.getConnectionInfo().state;
-      expect([WebSocketState.DISCONNECTED, WebSocketState.ERROR]).toContain(state);
-      
+      const { state } = service.getConnectionInfo();
+      expect([WebSocketState.DISCONNECTED, WebSocketState.ERROR]).toContain(
+        state,
+      );
+
       cleanup();
     });
   });
@@ -665,8 +760,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('utility methods', () => {
     it('should get subscription by channel', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -685,40 +781,38 @@ describe('WebSocketService', () => {
 
       // Get the actual request ID and send response
       const requestId = mockWs.getLastRequestId();
-      expect(requestId).toBeTruthy();
+      expect(requestId).toBeDefined();
 
       // Use correct message format with data wrapper
       const responseMessage = {
         id: requestId,
         data: {
-          requestId: requestId,
+          requestId,
           subscriptionId: 'sub-123',
           successful: ['test-channel'],
           failed: [],
-        }
+        },
       };
-      
+
       mockWs.simulateMessage(responseMessage);
 
       await completeAsyncOperations();
-      
-      try {
-        await subscriptionPromise;
-        const subscription = service.getSubscriptionByChannel('test-channel');
-        expect(subscription).toBeDefined();
-        expect(subscription?.subscriptionId).toBe('sub-123');
-      } catch (error) {
-        console.log('Get subscription test failed:', error);
-        // Test basic functionality even if subscription fails
-        expect(service.getSubscriptionByChannel('nonexistent')).toBeUndefined();
-      }
-      
+
+      await subscriptionPromise;
+      const subscription = service.getSubscriptionByChannel('test-channel');
+      expect(subscription).toBeDefined();
+      expect(subscription?.subscriptionId).toBe('sub-123');
+
+      // Also test nonexistent channel
+      expect(service.getSubscriptionByChannel('nonexistent')).toBeUndefined();
+
       cleanup();
     }, 15000);
 
     it('should check if channel is subscribed', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       expect(service.isChannelSubscribed('test-channel')).toBe(false);
 
       const connectPromise = service.connect();
@@ -739,32 +833,29 @@ describe('WebSocketService', () => {
 
       // Get the actual request ID and send response
       const requestId = mockWs.getLastRequestId();
-      expect(requestId).toBeTruthy();
+      expect(requestId).toBeDefined();
 
       // Use correct message format with data wrapper
       const responseMessage = {
         id: requestId,
         data: {
-          requestId: requestId,
+          requestId,
           subscriptionId: 'sub-123',
           successful: ['test-channel'],
           failed: [],
-        }
+        },
       };
 
       mockWs.simulateMessage(responseMessage);
 
       await completeAsyncOperations();
-      
-      try {
-        await subscriptionPromise;
-        expect(service.isChannelSubscribed('test-channel')).toBe(true);
-      } catch (error) {
-        console.log('Channel subscribed test failed:', error);
-        // Test basic functionality even if subscription fails
-        expect(service.isChannelSubscribed('nonexistent-channel')).toBe(false);
-      }
-      
+
+      await subscriptionPromise;
+      expect(service.isChannelSubscribed('test-channel')).toBe(true);
+
+      // Also test nonexistent channel
+      expect(service.isChannelSubscribed('nonexistent-channel')).toBe(false);
+
       cleanup();
     }, 15000);
   });
@@ -774,8 +865,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('sendMessage', () => {
     it('should send message successfully when connected', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       // Connect first
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -797,14 +889,15 @@ describe('WebSocketService', () => {
 
       // Verify message was sent
       expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify(testMessage));
-      
+
       cleanup();
     }, 10000);
 
     it('should throw error when sending message while not connected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService({
+          mockWebSocketOptions: { autoConnect: false },
+        });
 
       // Don't connect, just create service
       await completeAsyncOperations();
@@ -819,21 +912,25 @@ describe('WebSocketService', () => {
       } satisfies ClientRequestMessage;
 
       // Should throw when not connected (service starts in disconnected state)
-      await expect(service.sendMessage(testMessage)).rejects.toThrow('Cannot send message: WebSocket is disconnected');
-      
+      await expect(service.sendMessage(testMessage)).rejects.toThrow(
+        'Cannot send message: WebSocket is disconnected',
+      );
+
       cleanup();
     });
 
     it('should throw error when sending message with closed connection', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       // Connect first
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       // Disconnect
-      service.disconnect();
+      // Disconnect and await completion
+      await service.disconnect();
       await completeAsyncOperations();
 
       const testMessage = {
@@ -846,8 +943,10 @@ describe('WebSocketService', () => {
       } satisfies ClientRequestMessage;
 
       // Should throw when disconnected
-      await expect(service.sendMessage(testMessage)).rejects.toThrow('Cannot send message: WebSocket is disconnected');
-      
+      await expect(service.sendMessage(testMessage)).rejects.toThrow(
+        'Cannot send message: WebSocket is disconnected',
+      );
+
       cleanup();
     }, 10000);
   });
@@ -857,8 +956,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('channel callback management', () => {
     it('should add and retrieve channel callbacks', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -867,31 +967,38 @@ describe('WebSocketService', () => {
       const mockCallback2 = jest.fn();
 
       // Add channel callbacks
-      service.addChannelCallback({ 
-        channelName: 'channel1', 
-        callback: mockCallback1 
+      service.addChannelCallback({
+        channelName: 'channel1',
+        callback: mockCallback1,
       });
-      service.addChannelCallback({ 
-        channelName: 'channel2', 
-        callback: mockCallback2 
+      service.addChannelCallback({
+        channelName: 'channel2',
+        callback: mockCallback2,
       });
 
       // Get all callbacks
       const callbacks = service.getChannelCallbacks();
       expect(callbacks).toHaveLength(2);
-      expect(callbacks).toEqual(
+      expect(callbacks).toStrictEqual(
         expect.arrayContaining([
-          expect.objectContaining({ channelName: 'channel1', callback: mockCallback1 }),
-          expect.objectContaining({ channelName: 'channel2', callback: mockCallback2 }),
-        ])
+          expect.objectContaining({
+            channelName: 'channel1',
+            callback: mockCallback1,
+          }),
+          expect.objectContaining({
+            channelName: 'channel2',
+            callback: mockCallback2,
+          }),
+        ]),
       );
 
       cleanup();
     }, 10000);
 
     it('should remove channel callbacks successfully', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -900,13 +1007,13 @@ describe('WebSocketService', () => {
       const mockCallback2 = jest.fn();
 
       // Add channel callbacks
-      service.addChannelCallback({ 
-        channelName: 'channel1', 
-        callback: mockCallback1 
+      service.addChannelCallback({
+        channelName: 'channel1',
+        callback: mockCallback1,
       });
-      service.addChannelCallback({ 
-        channelName: 'channel2', 
-        callback: mockCallback2 
+      service.addChannelCallback({
+        channelName: 'channel2',
+        callback: mockCallback2,
       });
 
       // Remove one callback
@@ -916,16 +1023,20 @@ describe('WebSocketService', () => {
       // Verify it's removed
       const callbacks = service.getChannelCallbacks();
       expect(callbacks).toHaveLength(1);
-      expect(callbacks[0]).toEqual(
-        expect.objectContaining({ channelName: 'channel2', callback: mockCallback2 })
+      expect(callbacks[0]).toStrictEqual(
+        expect.objectContaining({
+          channelName: 'channel2',
+          callback: mockCallback2,
+        }),
       );
 
       cleanup();
     }, 10000);
 
     it('should return false when removing non-existent channel callback', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -938,8 +1049,9 @@ describe('WebSocketService', () => {
     }, 10000);
 
     it('should handle channel callbacks with notification messages', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -948,16 +1060,19 @@ describe('WebSocketService', () => {
       const mockWs = getMockWebSocket();
 
       // Add channel callback
-      service.addChannelCallback({ 
-        channelName: TEST_CONSTANTS.TEST_CHANNEL, 
-        callback: mockCallback 
+      service.addChannelCallback({
+        channelName: TEST_CONSTANTS.TEST_CHANNEL,
+        callback: mockCallback,
       });
 
       // Simulate notification message
-      const notificationMessage = createNotificationMessage(TEST_CONSTANTS.TEST_CHANNEL, {
-        eventType: 'test-event',
-        payload: { data: 'test-data' },
-      });
+      const notificationMessage = createNotificationMessage(
+        TEST_CONSTANTS.TEST_CHANNEL,
+        {
+          eventType: 'test-event',
+          payload: { data: 'test-data' },
+        },
+      );
       mockWs.simulateMessage(notificationMessage);
       await completeAsyncOperations();
 
@@ -973,7 +1088,8 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('getConnectionInfo', () => {
     it('should return correct connection info when disconnected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
 
       // First connect successfully
       const connectPromise = service.connect();
@@ -981,7 +1097,8 @@ describe('WebSocketService', () => {
       await connectPromise;
 
       // Then disconnect
-      service.disconnect();
+      // Disconnect and await completion
+      await service.disconnect();
       await completeAsyncOperations();
 
       const info = service.getConnectionInfo();
@@ -993,7 +1110,8 @@ describe('WebSocketService', () => {
     });
 
     it('should return correct connection info when connected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1008,47 +1126,57 @@ describe('WebSocketService', () => {
     }, 10000);
 
     it('should return error info when connection fails', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
-        options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
-        mockWebSocketOptions: { autoConnect: false },
-      });
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService({
+          options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
+          mockWebSocketOptions: { autoConnect: false },
+        });
 
       // Service should start in disconnected state
-      expect(service.getConnectionInfo().state).toBe(WebSocketState.DISCONNECTED);
+      expect(service.getConnectionInfo().state).toBe(
+        WebSocketState.DISCONNECTED,
+      );
 
       // Use expect.assertions to ensure error handling is tested
       expect.assertions(5);
 
       // Start connection and then advance timers to trigger timeout
       const connectPromise = service.connect();
-      
+
       // Handle the promise rejection properly
       connectPromise.catch(() => {
         // Expected rejection - do nothing to avoid unhandled promise warning
       });
-      
+
       await completeAsyncOperations(TEST_CONSTANTS.TIMEOUT_MS + 50);
-      
+
       // Wait for connection to fail
-      await expect(connectPromise).rejects.toThrow(`Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
+      await expect(connectPromise).rejects.toThrow(
+        `Failed to connect to WebSocket: Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`,
+      );
 
       const info = service.getConnectionInfo();
       expect(info.state).toBe(WebSocketState.ERROR);
-      expect(info.lastError).toContain(`Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`);
+      expect(info.lastError).toContain(
+        `Connection timeout after ${TEST_CONSTANTS.TIMEOUT_MS}ms`,
+      );
       expect(info.url).toBe(TEST_CONSTANTS.WS_URL);
 
       cleanup();
     });
 
     it('should return current subscription count', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
 
       // Initially no subscriptions - verify through isChannelSubscribed
-      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(false);
+      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
+        false,
+      );
 
       // Add a subscription
       const mockCallback = jest.fn();
@@ -1060,7 +1188,11 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
       const requestId = mockWs.getLastRequestId();
-      const responseMessage = createResponseMessage(requestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
+      const responseMessage = createResponseMessage(requestId, {
         subscriptionId: TEST_CONSTANTS.SUBSCRIPTION_ID,
         successful: [TEST_CONSTANTS.TEST_CHANNEL],
         failed: [],
@@ -1070,7 +1202,9 @@ describe('WebSocketService', () => {
       await subscriptionPromise;
 
       // Should show subscription is active
-      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(true);
+      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
+        true,
+      );
 
       cleanup();
     }, 10000);
@@ -1081,8 +1215,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('destroy', () => {
     it('should clean up resources', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -1090,21 +1225,26 @@ describe('WebSocketService', () => {
       service.destroy();
 
       // After destroy, service state may vary depending on timing
-      const state = service.getConnectionInfo().state;
-      expect([WebSocketState.DISCONNECTED, WebSocketState.ERROR, WebSocketState.CONNECTED]).toContain(state);
-      
+      const { state } = service.getConnectionInfo();
+      expect([
+        WebSocketState.DISCONNECTED,
+        WebSocketState.ERROR,
+        WebSocketState.CONNECTED,
+      ]).toContain(state);
+
       cleanup();
     });
 
     it('should handle destroy when not connected', async () => {
-      const { service, completeAsyncOperations, cleanup } = setupWebSocketService({
-        mockWebSocketOptions: { autoConnect: false },
-      });
-      
+      const { service, completeAsyncOperations, cleanup } =
+        setupWebSocketService({
+          mockWebSocketOptions: { autoConnect: false },
+        });
+
       await completeAsyncOperations();
-      
+
       expect(() => service.destroy()).not.toThrow();
-      
+
       cleanup();
     });
   });
@@ -1114,8 +1254,9 @@ describe('WebSocketService', () => {
   // =====================================================
   describe('integration scenarios', () => {
     it('should handle multiple subscriptions and unsubscriptions with different channels', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -1132,7 +1273,11 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
       let requestId = mockWs.getLastRequestId();
-      let responseMessage = createResponseMessage(requestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
+      let responseMessage = createResponseMessage(requestId, {
         subscriptionId: 'sub-1',
         successful: ['channel-1', 'channel-2'],
         failed: [],
@@ -1148,14 +1293,18 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
       requestId = mockWs.getLastRequestId();
-      responseMessage = createResponseMessage(requestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
+      responseMessage = createResponseMessage(requestId, {
         subscriptionId: 'sub-2',
         successful: ['channel-3'],
         failed: [],
       });
       mockWs.simulateMessage(responseMessage);
       await completeAsyncOperations();
-      const subscription2 = await subscription2Promise;
+      await subscription2Promise;
 
       // Verify both subscriptions exist
       expect(service.isChannelSubscribed('channel-1')).toBe(true);
@@ -1169,14 +1318,14 @@ describe('WebSocketService', () => {
         subscriptionId: 'sub-1',
         data: { data: 'test1' },
       };
-      
+
       const notification2 = {
-        event: 'notification', 
+        event: 'notification',
         channel: 'channel-3',
         subscriptionId: 'sub-2',
         data: { data: 'test3' },
       };
-      
+
       mockWs.simulateMessage(notification1);
       mockWs.simulateMessage(notification2);
       await completeAsyncOperations();
@@ -1187,10 +1336,14 @@ describe('WebSocketService', () => {
       // Unsubscribe from first subscription
       const unsubscribePromise = subscription1.unsubscribe();
       await completeAsyncOperations();
-      
+
       // Simulate unsubscribe response
       const unsubRequestId = mockWs.getLastRequestId();
-      const unsubResponseMessage = createResponseMessage(unsubRequestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!unsubRequestId) {
+        throw new Error('unsubRequestId is undefined');
+      }
+      const unsubResponseMessage = createResponseMessage(unsubRequestId, {
         subscriptionId: 'sub-1',
         successful: ['channel-1', 'channel-2'],
         failed: [],
@@ -1207,8 +1360,14 @@ describe('WebSocketService', () => {
     }, 15000);
 
     it('should handle connection loss during active subscriptions', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, mockMessenger, cleanup } = setupWebSocketService();
-      
+      const {
+        service,
+        completeAsyncOperations,
+        getMockWebSocket,
+        mockMessenger,
+        cleanup,
+      } = setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -1224,7 +1383,11 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
       const requestId = mockWs.getLastRequestId();
-      const responseMessage = createResponseMessage(requestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
+      const responseMessage = createResponseMessage(requestId, {
         subscriptionId: TEST_CONSTANTS.SUBSCRIPTION_ID,
         successful: [TEST_CONSTANTS.TEST_CHANNEL],
         failed: [],
@@ -1235,7 +1398,9 @@ describe('WebSocketService', () => {
 
       // Verify initial connection state
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
-      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(true);
+      expect(service.isChannelSubscribed(TEST_CONSTANTS.TEST_CHANNEL)).toBe(
+        true,
+      );
 
       // Simulate unexpected disconnection (not normal closure)
       mockWs.simulateClose(1006, 'Connection lost'); // 1006 = abnormal closure
@@ -1244,15 +1409,16 @@ describe('WebSocketService', () => {
       // Service should attempt to reconnect and publish state changes
       expect(mockMessenger.publish).toHaveBeenCalledWith(
         'BackendWebSocketService:connectionStateChanged',
-        expect.objectContaining({ state: WebSocketState.CONNECTING })
+        expect.objectContaining({ state: WebSocketState.CONNECTING }),
       );
 
       cleanup();
     }, 15000);
 
     it('should handle subscription failures and reject when channels fail', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -1268,24 +1434,31 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
       const requestId = mockWs.getLastRequestId();
-      
+
       // Prepare the response with failures
-      const responseMessage = createResponseMessage(requestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
+      const responseMessage = createResponseMessage(requestId, {
         subscriptionId: 'partial-sub',
         successful: ['valid-channel', 'another-valid'],
         failed: ['invalid-channel'],
       });
-      
-      // Set up expectation for the promise rejection BEFORE triggering it
-      const rejectionExpectation = expect(subscriptionPromise).rejects.toThrow('Request failed: invalid-channel');
-      
+
+      // Expect the promise to reject when we trigger the failure response
+      // eslint-disable-next-line jest/valid-expect
+      const rejectionCheck = expect(subscriptionPromise).rejects.toThrow(
+        'Request failed: invalid-channel',
+      );
+
       // Now trigger the response that causes the rejection
       mockWs.simulateMessage(responseMessage);
       await completeAsyncOperations();
-      
-      // Wait for the rejection to be handled
-      await rejectionExpectation;
-      
+
+      // Ensure the promise rejection is handled
+      await rejectionCheck;
+
       // No channels should be subscribed when the subscription fails
       expect(service.isChannelSubscribed('valid-channel')).toBe(false);
       expect(service.isChannelSubscribed('another-valid')).toBe(false);
@@ -1295,8 +1468,9 @@ describe('WebSocketService', () => {
     }, 15000);
 
     it('should handle subscription success when all channels succeed', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -1312,21 +1486,25 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
       const requestId = mockWs.getLastRequestId();
-      
+
       // Simulate successful response with no failures
-      const responseMessage = createResponseMessage(requestId!, {
+      // eslint-disable-next-line jest/no-conditional-in-test
+      if (!requestId) {
+        throw new Error('requestId is undefined');
+      }
+      const responseMessage = createResponseMessage(requestId, {
         subscriptionId: 'success-sub',
         successful: ['valid-channel-1', 'valid-channel-2'],
         failed: [],
       });
       mockWs.simulateMessage(responseMessage);
       await completeAsyncOperations();
-      
+
       const subscription = await subscriptionPromise;
 
       // Should have subscription ID when all channels succeed
       expect(subscription.subscriptionId).toBe('success-sub');
-      
+
       // All successful channels should be subscribed
       expect(service.isChannelSubscribed('valid-channel-1')).toBe(true);
       expect(service.isChannelSubscribed('valid-channel-2')).toBe(true);
@@ -1335,8 +1513,9 @@ describe('WebSocketService', () => {
     }, 15000);
 
     it('should handle rapid connection state changes', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, mockMessenger, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, mockMessenger, cleanup } =
+        setupWebSocketService();
+
       // Start connection
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1346,9 +1525,10 @@ describe('WebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
       // Rapid disconnect and reconnect
-      service.disconnect();
+      // Disconnect and await completion
+      await service.disconnect();
       await completeAsyncOperations();
-      
+
       const reconnectPromise = service.connect();
       await completeAsyncOperations();
       await reconnectPromise;
@@ -1359,7 +1539,7 @@ describe('WebSocketService', () => {
       // Verify state change events were published correctly
       expect(mockMessenger.publish).toHaveBeenCalledWith(
         'BackendWebSocketService:connectionStateChanged',
-        expect.objectContaining({ state: WebSocketState.CONNECTED })
+        expect.objectContaining({ state: WebSocketState.CONNECTED }),
       );
 
       cleanup();
@@ -1367,7 +1547,8 @@ describe('WebSocketService', () => {
 
     it('should handle message queuing during connection states', async () => {
       // Create service that will auto-connect initially, then test disconnected state
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
 
       // First connect successfully
       const initialConnectPromise = service.connect();
@@ -1378,7 +1559,8 @@ describe('WebSocketService', () => {
       expect(service.getConnectionInfo().state).toBe(WebSocketState.CONNECTED);
 
       // Now disconnect to test error case
-      service.disconnect();
+      // Disconnect and await completion
+      await service.disconnect();
       await completeAsyncOperations();
 
       // Try to send message while disconnected
@@ -1391,7 +1573,9 @@ describe('WebSocketService', () => {
         },
       } satisfies ClientRequestMessage;
 
-      await expect(service.sendMessage(testMessage)).rejects.toThrow('Cannot send message: WebSocket is disconnected');
+      await expect(service.sendMessage(testMessage)).rejects.toThrow(
+        'Cannot send message: WebSocket is disconnected',
+      );
 
       // Now reconnect and try again
       const reconnectPromise = service.connect();
@@ -1399,7 +1583,7 @@ describe('WebSocketService', () => {
       await reconnectPromise;
 
       const mockWs = getMockWebSocket();
-      
+
       // Should succeed now
       await service.sendMessage(testMessage);
       expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify(testMessage));
@@ -1408,8 +1592,9 @@ describe('WebSocketService', () => {
     }, 15000);
 
     it('should handle concurrent subscription attempts', async () => {
-      const { service, completeAsyncOperations, getMockWebSocket, cleanup } = setupWebSocketService();
-      
+      const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
+        setupWebSocketService();
+
       const connectPromise = service.connect();
       await completeAsyncOperations();
       await connectPromise;
@@ -1436,21 +1621,25 @@ describe('WebSocketService', () => {
 
       // Mock responses for both subscriptions
       // Note: We need to simulate responses in the order they were sent
-      const calls = mockWs.send.mock.calls;
+      const { calls } = mockWs.send.mock;
       const request1 = JSON.parse(calls[0][0]);
       const request2 = JSON.parse(calls[1][0]);
 
-      mockWs.simulateMessage(createResponseMessage(request1.data.requestId, {
-        subscriptionId: 'sub-concurrent-1',
-        successful: ['concurrent-1'],
-        failed: [],
-      }));
+      mockWs.simulateMessage(
+        createResponseMessage(request1.data.requestId, {
+          subscriptionId: 'sub-concurrent-1',
+          successful: ['concurrent-1'],
+          failed: [],
+        }),
+      );
 
-      mockWs.simulateMessage(createResponseMessage(request2.data.requestId, {
-        subscriptionId: 'sub-concurrent-2',
-        successful: ['concurrent-2'],
-        failed: [],
-      }));
+      mockWs.simulateMessage(
+        createResponseMessage(request2.data.requestId, {
+          subscriptionId: 'sub-concurrent-2',
+          successful: ['concurrent-2'],
+          failed: [],
+        }),
+      );
 
       await completeAsyncOperations();
 

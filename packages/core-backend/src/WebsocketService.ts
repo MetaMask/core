@@ -1,12 +1,13 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import { v4 as uuidV4 } from 'uuid';
+
 import type { WebSocketServiceMethodActions } from './WebsocketService-method-action-types';
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 
 const MESSENGER_EXPOSED_METHODS = [
   'connect',
-  'disconnect', 
+  'disconnect',
   'sendMessage',
   'sendRequest',
   'subscribe',
@@ -131,7 +132,6 @@ export type InternalSubscription = {
   unsubscribe: () => Promise<void>;
 };
 
-
 /**
  * Channel-based callback configuration
  */
@@ -141,7 +141,6 @@ export type ChannelCallback = {
   /** Callback function */
   callback: (notification: ServerNotificationMessage) => void;
 };
-
 
 /**
  * External subscription info with subscription ID (for API responses)
@@ -185,17 +184,20 @@ export type AuthenticationControllerGetBearerToken = {
   handler: (entropySourceId?: string) => Promise<string>;
 };
 
-export type WebSocketServiceAllowedActions = 
-  | AuthenticationControllerGetBearerToken;
+export type WebSocketServiceAllowedActions =
+  AuthenticationControllerGetBearerToken;
 
 // Authentication state events (includes wallet unlock state)
 export type AuthenticationControllerStateChangeEvent = {
   type: 'AuthenticationController:stateChange';
-  payload: [{ isSignedIn: boolean; [key: string]: any }, { isSignedIn: boolean; [key: string]: any }];
+  payload: [
+    { isSignedIn: boolean; [key: string]: unknown },
+    { isSignedIn: boolean; [key: string]: unknown },
+  ];
 };
 
-export type WebSocketServiceAllowedEvents = 
-  | AuthenticationControllerStateChangeEvent;
+export type WebSocketServiceAllowedEvents =
+  AuthenticationControllerStateChangeEvent;
 
 // Event types for WebSocket connection state changes
 export type WebSocketServiceConnectionStateChangedEvent = {
@@ -238,7 +240,12 @@ export class WebSocketService {
 
   readonly #messenger: WebSocketServiceMessenger;
 
-  readonly #options: Required<Omit<WebSocketServiceOptions, 'messenger' | 'enabledCallback' | 'enableAuthentication'>>;
+  readonly #options: Required<
+    Omit<
+      WebSocketServiceOptions,
+      'messenger' | 'enabledCallback' | 'enableAuthentication'
+    >
+  >;
 
   readonly #enabledCallback: (() => boolean) | undefined;
 
@@ -316,36 +323,48 @@ export class WebSocketService {
    * Setup authentication event handling - simplified approach using AuthenticationController
    * AuthenticationController.isSignedIn includes both wallet unlock AND identity provider auth.
    * App lifecycle (AppStateWebSocketManager) handles WHEN to connect/disconnect for resources.
-   * @private
+   *
    */
   #setupAuthentication(): void {
     try {
       // Subscribe to authentication state changes - this includes wallet unlock state
       // AuthenticationController can only be signed in if wallet is unlocked
-      this.#messenger.subscribe('AuthenticationController:stateChange', (newState, prevState) => {
-        const wasSignedIn = prevState?.isSignedIn || false;
-        const isSignedIn = newState?.isSignedIn || false;
-        
-        console.log(`[${SERVICE_NAME}] 🔐 Authentication state changed: ${wasSignedIn ? 'signed-in' : 'signed-out'} → ${isSignedIn ? 'signed-in' : 'signed-out'}`);
-        
-        if (!wasSignedIn && isSignedIn) {
-          // User signed in (wallet unlocked + authenticated) - try to connect
-          console.log(`[${SERVICE_NAME}] ✅ User signed in (wallet unlocked + authenticated), attempting connection...`);
-          // Clear any pending reconnection timer since we're attempting connection
-          this.#clearTimers();
-          if (this.#state === WebSocketState.DISCONNECTED) {
-            this.connect().catch((error) => {
-              console.warn(`[${SERVICE_NAME}] Failed to connect after sign-in:`, error);
-            });
+      this.#messenger.subscribe(
+        'AuthenticationController:stateChange',
+        (newState, prevState) => {
+          const wasSignedIn = prevState?.isSignedIn || false;
+          const isSignedIn = newState?.isSignedIn || false;
+
+          console.log(
+            `[${SERVICE_NAME}] 🔐 Authentication state changed: ${wasSignedIn ? 'signed-in' : 'signed-out'} → ${isSignedIn ? 'signed-in' : 'signed-out'}`,
+          );
+
+          if (!wasSignedIn && isSignedIn) {
+            // User signed in (wallet unlocked + authenticated) - try to connect
+            console.log(
+              `[${SERVICE_NAME}] ✅ User signed in (wallet unlocked + authenticated), attempting connection...`,
+            );
+            // Clear any pending reconnection timer since we're attempting connection
+            this.#clearTimers();
+            if (this.#state === WebSocketState.DISCONNECTED) {
+              this.connect().catch((error) => {
+                console.warn(
+                  `[${SERVICE_NAME}] Failed to connect after sign-in:`,
+                  error,
+                );
+              });
+            }
+          } else if (wasSignedIn && !isSignedIn) {
+            // User signed out (wallet locked OR signed out) - stop reconnection attempts
+            console.log(
+              `[${SERVICE_NAME}] 🔒 User signed out (wallet locked OR signed out), stopping reconnection attempts...`,
+            );
+            this.#clearTimers();
+            this.#reconnectAttempts = 0;
+            // Note: Don't disconnect here - let AppStateWebSocketManager handle disconnection
           }
-        } else if (wasSignedIn && !isSignedIn) {
-          // User signed out (wallet locked OR signed out) - stop reconnection attempts
-          console.log(`[${SERVICE_NAME}] 🔒 User signed out (wallet locked OR signed out), stopping reconnection attempts...`);
-          this.#clearTimers();
-          this.#reconnectAttempts = 0;
-          // Note: Don't disconnect here - let AppStateWebSocketManager handle disconnection
-        }
-      });
+        },
+      );
     } catch (error) {
       console.warn(`[${SERVICE_NAME}] Failed to setup authentication:`, error);
     }
@@ -360,7 +379,7 @@ export class WebSocketService {
    *
    * Simplified Priority System (using AuthenticationController):
    * 1. App closed/backgrounded → Stop all attempts (save resources)
-   * 2. User not signed in (wallet locked OR not authenticated) → Keep retrying  
+   * 2. User not signed in (wallet locked OR not authenticated) → Keep retrying
    * 3. User signed in (wallet unlocked + authenticated) → Connect successfully
    *
    * @returns Promise that resolves when connection is established
@@ -369,7 +388,9 @@ export class WebSocketService {
     // Priority 1: Check if connection is enabled via callback (app lifecycle check)
     // If app is closed/backgrounded, stop all connection attempts to save resources
     if (this.#enabledCallback && !this.#enabledCallback()) {
-      console.log(`[${SERVICE_NAME}] Connection disabled by enabledCallback (app closed/backgrounded) - stopping connect and clearing reconnection attempts`);
+      console.log(
+        `[${SERVICE_NAME}] Connection disabled by enabledCallback (app closed/backgrounded) - stopping connect and clearing reconnection attempts`,
+      );
       // Clear any pending reconnection attempts since app is disabled
       this.#clearTimers();
       this.#reconnectAttempts = 0;
@@ -380,19 +401,30 @@ export class WebSocketService {
     if (this.#enableAuthentication) {
       try {
         // AuthenticationController.getBearerToken() handles wallet unlock checks internally
-        const bearerToken = await this.#messenger.call('AuthenticationController:getBearerToken');
+        const bearerToken = await this.#messenger.call(
+          'AuthenticationController:getBearerToken',
+        );
         if (!bearerToken) {
-          console.debug(`[${SERVICE_NAME}] Authentication required but user is not signed in (wallet locked OR not authenticated). Scheduling retry...`);
+          console.debug(
+            `[${SERVICE_NAME}] Authentication required but user is not signed in (wallet locked OR not authenticated). Scheduling retry...`,
+          );
           this.#scheduleReconnect();
           return;
         }
-        
-        console.debug(`[${SERVICE_NAME}] ✅ Authentication requirements met: user signed in`);
+
+        console.debug(
+          `[${SERVICE_NAME}] ✅ Authentication requirements met: user signed in`,
+        );
       } catch (error) {
-        console.warn(`[${SERVICE_NAME}] Failed to check authentication requirements:`, error);
-        
+        console.warn(
+          `[${SERVICE_NAME}] Failed to check authentication requirements:`,
+          error,
+        );
+
         // Simple approach: if we can't connect for ANY reason, schedule a retry
-        console.debug(`[${SERVICE_NAME}] Connection failed - scheduling reconnection attempt`);
+        console.debug(
+          `[${SERVICE_NAME}] Connection failed - scheduling reconnection attempt`,
+        );
         this.#scheduleReconnect();
         return;
       }
@@ -409,7 +441,9 @@ export class WebSocketService {
       return;
     }
 
-    console.log(`[${SERVICE_NAME}] 🔄 Starting connection attempt to ${this.#options.url}`);
+    console.log(
+      `[${SERVICE_NAME}] 🔄 Starting connection attempt to ${this.#options.url}`,
+    );
     this.#setState(WebSocketState.CONNECTING);
     this.#lastError = null;
 
@@ -421,7 +455,9 @@ export class WebSocketService {
       console.log(`[${SERVICE_NAME}] ✅ Connection attempt succeeded`);
     } catch (error) {
       const errorMessage = this.#getErrorMessage(error);
-      console.error(`[${SERVICE_NAME}] ❌ Connection attempt failed: ${errorMessage}`);
+      console.error(
+        `[${SERVICE_NAME}] ❌ Connection attempt failed: ${errorMessage}`,
+      );
       this.#lastError = errorMessage;
       this.#setState(WebSocketState.ERROR);
 
@@ -442,11 +478,15 @@ export class WebSocketService {
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
     ) {
-      console.log(`[${SERVICE_NAME}] Disconnect called but already in state: ${this.#state}`);
+      console.log(
+        `[${SERVICE_NAME}] Disconnect called but already in state: ${this.#state}`,
+      );
       return;
     }
 
-    console.log(`[${SERVICE_NAME}] Manual disconnect initiated - closing WebSocket connection`);
+    console.log(
+      `[${SERVICE_NAME}] Manual disconnect initiated - closing WebSocket connection`,
+    );
 
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
@@ -537,9 +577,7 @@ export class WebSocketService {
       this.sendMessage(requestMessage).catch((error) => {
         this.#pendingRequests.delete(requestId);
         clearTimeout(timeout);
-        reject(
-          new Error(this.#getErrorMessage(error)),
-        );
+        reject(new Error(this.#getErrorMessage(error)));
       });
     });
   }
@@ -601,13 +639,13 @@ export class WebSocketService {
    */
   findSubscriptionsByChannelPrefix(channelPrefix: string): SubscriptionInfo[] {
     const matchingSubscriptions: SubscriptionInfo[] = [];
-    
+
     for (const [subscriptionId, subscription] of this.#subscriptions) {
       // Check if any channel in this subscription starts with the prefix
-      const hasMatchingChannel = subscription.channels.some(channel => 
-        channel.startsWith(channelPrefix)
+      const hasMatchingChannel = subscription.channels.some((channel) =>
+        channel.startsWith(channelPrefix),
       );
-      
+
       if (hasMatchingChannel) {
         matchingSubscriptions.push({
           subscriptionId,
@@ -616,7 +654,7 @@ export class WebSocketService {
         });
       }
     }
-    
+
     return matchingSubscriptions;
   }
 
@@ -652,7 +690,9 @@ export class WebSocketService {
   }): void {
     // Check if callback already exists for this channel
     if (this.#channelCallbacks.has(options.channelName)) {
-      console.debug(`[${SERVICE_NAME}] Channel callback already exists for '${options.channelName}', skipping`);
+      console.debug(
+        `[${SERVICE_NAME}] Channel callback already exists for '${options.channelName}', skipping`,
+      );
       return;
     }
 
@@ -664,7 +704,6 @@ export class WebSocketService {
     this.#channelCallbacks.set(options.channelName, channelCallback);
   }
 
-
   /**
    * Remove a channel callback
    *
@@ -674,14 +713,17 @@ export class WebSocketService {
   removeChannelCallback(channelName: string): boolean {
     const removed = this.#channelCallbacks.delete(channelName);
     if (removed) {
-      console.log(`[${SERVICE_NAME}] Removed channel callback for '${channelName}'`);
+      console.log(
+        `[${SERVICE_NAME}] Removed channel callback for '${channelName}'`,
+      );
     }
     return removed;
   }
 
-
   /**
    * Get all registered channel callbacks (for debugging)
+   *
+   * @returns Array of all registered channel callbacks
    */
   getChannelCallbacks(): ChannelCallback[] {
     return Array.from(this.#channelCallbacks.values());
@@ -820,19 +862,27 @@ export class WebSocketService {
     }
 
     try {
-      console.log(`[${SERVICE_NAME}] 🔐 Getting access token for authenticated connection...`);
-      
+      console.log(
+        `[${SERVICE_NAME}] 🔐 Getting access token for authenticated connection...`,
+      );
+
       // Get access token directly from AuthenticationController via messenger
-      const accessToken = await this.#messenger.call('AuthenticationController:getBearerToken');
+      const accessToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
 
       if (!accessToken) {
         // This shouldn't happen since connect() already checks for token availability,
         // but handle gracefully to avoid disrupting reconnection logic
-        console.warn(`[${SERVICE_NAME}] No access token available during URL building (possible race condition) - connection will fail but retries will continue`);
+        console.warn(
+          `[${SERVICE_NAME}] No access token available during URL building (possible race condition) - connection will fail but retries will continue`,
+        );
         throw new Error('No access token available');
       }
 
-      console.log(`[${SERVICE_NAME}] ✅ Building authenticated WebSocket URL with bearer token`);
+      console.log(
+        `[${SERVICE_NAME}] ✅ Building authenticated WebSocket URL with bearer token`,
+      );
 
       // Add token as query parameter to the WebSocket URL
       const url = new URL(baseUrl);
@@ -855,7 +905,7 @@ export class WebSocketService {
    */
   async #establishConnection(): Promise<void> {
     const wsUrl = await this.#buildAuthenticatedUrl();
-    
+
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
       const connectTimeout = setTimeout(() => {
@@ -869,7 +919,9 @@ export class WebSocketService {
       }, this.#options.timeout);
 
       ws.onopen = () => {
-        console.log(`[${SERVICE_NAME}] ✅ WebSocket connection opened successfully`);
+        console.log(
+          `[${SERVICE_NAME}] ✅ WebSocket connection opened successfully`,
+        );
         clearTimeout(connectTimeout);
         this.#ws = ws;
         this.#setState(WebSocketState.CONNECTED);
@@ -885,25 +937,31 @@ export class WebSocketService {
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase errors
           clearTimeout(connectTimeout);
-          console.error(`[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`, {
-            type: event.type,
-            target: event.target,
-            url: wsUrl,
-            readyState: ws.readyState,
-            readyStateName: {
-              0: 'CONNECTING',
-              1: 'OPEN',
-              2: 'CLOSING',
-              3: 'CLOSED',
-            }[ws.readyState],
-          });
+          console.error(
+            `[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`,
+            {
+              type: event.type,
+              target: event.target,
+              url: wsUrl,
+              readyState: ws.readyState,
+              readyStateName: {
+                0: 'CONNECTING',
+                1: 'OPEN',
+                2: 'CLOSING',
+                3: 'CLOSED',
+              }[ws.readyState],
+            },
+          );
           const error = new Error(
             `WebSocket connection error to ${wsUrl}: readyState=${ws.readyState}`,
           );
           reject(error);
         } else {
           // Handle runtime errors
-          console.log(`[${SERVICE_NAME}] WebSocket onerror event triggered:`, event);
+          console.log(
+            `[${SERVICE_NAME}] WebSocket onerror event triggered:`,
+            event,
+          );
           this.#handleError(new Error(`WebSocket error: ${event.type}`));
         }
       };
@@ -962,7 +1020,9 @@ export class WebSocketService {
 
     // Handle subscription notifications
     if (this.#isSubscriptionNotification(message)) {
-      this.#handleSubscriptionNotification(message as ServerNotificationMessage);
+      this.#handleSubscriptionNotification(
+        message as ServerNotificationMessage,
+      );
     }
 
     // Trigger channel callbacks for any message with a channel property
@@ -1006,7 +1066,9 @@ export class WebSocketService {
    * @param message - The message to check
    * @returns True if the message has a channel property
    */
-  #isChannelMessage(message: WebSocketMessage): message is ServerNotificationMessage {
+  #isChannelMessage(
+    message: WebSocketMessage,
+  ): message is ServerNotificationMessage {
     return 'channel' in message;
   }
 
@@ -1087,7 +1149,6 @@ export class WebSocketService {
     }
   }
 
-
   /**
    * Triggers channel-based callbacks for incoming notifications
    *
@@ -1100,14 +1161,17 @@ export class WebSocketService {
 
     // Use the channel name directly from the notification
     const channelName = notification.channel;
-    
+
     // Direct lookup for exact channel match
     const channelCallback = this.#channelCallbacks.get(channelName);
     if (channelCallback) {
       try {
         channelCallback.callback(notification);
       } catch (error) {
-        console.error(`[${SERVICE_NAME}] Error in channel callback for '${channelCallback.channelName}':`, error);
+        console.error(
+          `[${SERVICE_NAME}] Error in channel callback for '${channelCallback.channelName}':`,
+          error,
+        );
       }
     }
   }
@@ -1167,7 +1231,9 @@ export class WebSocketService {
     const shouldReconnect = this.#shouldReconnectOnClose(event.code);
 
     if (shouldReconnect) {
-      console.log(`[${SERVICE_NAME}] Connection lost unexpectedly, will attempt reconnection`);
+      console.log(
+        `[${SERVICE_NAME}] Connection lost unexpectedly, will attempt reconnection`,
+      );
       this.#scheduleReconnect();
     } else {
       // Non-recoverable error - set error state
@@ -1193,7 +1259,9 @@ export class WebSocketService {
    * Request timeouts often indicate a stale or broken connection
    */
   #handleRequestTimeout(): void {
-    console.log(`[${SERVICE_NAME}] 🔄 Request timeout detected - forcing WebSocket reconnection`);
+    console.log(
+      `[${SERVICE_NAME}] 🔄 Request timeout detected - forcing WebSocket reconnection`,
+    );
 
     // Only trigger reconnection if we're currently connected
     if (this.#state === WebSocketState.CONNECTED && this.#ws) {
@@ -1227,7 +1295,9 @@ export class WebSocketService {
     this.#reconnectTimer = setTimeout(() => {
       // Check if connection is still enabled before reconnecting
       if (this.#enabledCallback && !this.#enabledCallback()) {
-        console.log(`[${SERVICE_NAME}] Reconnection disabled by enabledCallback (app closed/backgrounded) - stopping all reconnection attempts`);
+        console.log(
+          `[${SERVICE_NAME}] Reconnection disabled by enabledCallback (app closed/backgrounded) - stopping all reconnection attempts`,
+        );
         this.#reconnectAttempts = 0;
         return;
       }
