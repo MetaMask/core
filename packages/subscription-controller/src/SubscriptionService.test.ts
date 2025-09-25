@@ -48,6 +48,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
     type: PAYMENT_TYPES.byCard,
     card: {
       brand: 'visa',
+      displayBrand: 'visa',
       last4: '1234',
     },
   },

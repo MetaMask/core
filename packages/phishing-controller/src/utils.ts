@@ -8,6 +8,11 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
+import {
+  DEFAULT_CHAIN_ID_TO_NAME,
+  type TokenScanCacheData,
+  type TokenScanResult,
+} from './types';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -405,4 +410,67 @@ export const generateParentDomains = (
   }
 
   return domains;
+};
+
+/**
+ * Builds a cache key for a token scan result.
+ *
+ * @param chainId - The chain ID.
+ * @param address - The token address.
+ * @returns The cache key.
+ */
+export const buildCacheKey = (chainId: string, address: string) => {
+  return `${chainId.toLowerCase()}:${address.toLowerCase()}`;
+};
+
+/**
+ * Resolves the chain name from a chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param mapping - The mapping of chain IDs to chain names.
+ * @returns The chain name.
+ */
+export const resolveChainName = (
+  chainId: string,
+  mapping = DEFAULT_CHAIN_ID_TO_NAME,
+): string | null => {
+  return mapping[chainId.toLowerCase() as keyof typeof mapping] ?? null;
+};
+
+/**
+ * Split tokens into cached results and tokens that need to be fetched.
+ *
+ * @param cache - Cache-like object with get method.
+ * @param cache.get - Method to retrieve cached data by key.
+ * @param chainId - The chain ID.
+ * @param tokens - Array of token addresses.
+ * @returns Object containing cached results and tokens to fetch.
+ */
+export const splitCacheHits = (
+  cache: { get: (key: string) => TokenScanCacheData | undefined },
+  chainId: string,
+  tokens: string[],
+): {
+  cachedResults: Record<string, TokenScanResult>;
+  tokensToFetch: string[];
+} => {
+  const cachedResults: Record<string, TokenScanResult> = {};
+  const tokensToFetch: string[] = [];
+
+  for (const addr of tokens) {
+    const normalizedAddr = addr.toLowerCase();
+    const key = buildCacheKey(chainId, normalizedAddr);
+    const hit = cache.get(key);
+    if (hit) {
+      cachedResults[normalizedAddr] = {
+        result_type: hit.result_type,
+        chain: chainId,
+        address: normalizedAddr,
+      };
+    } else {
+      tokensToFetch.push(normalizedAddr);
+    }
+  }
+
+  return { cachedResults, tokensToFetch };
 };

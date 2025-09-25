@@ -88,7 +88,7 @@ export const performLegacyAccountSyncing = async (
         group.accounts.includes(localAccountId),
       );
       if (localGroup) {
-        context.controller.setAccountGroupName(localGroup.id, n);
+        context.controller.setAccountGroupName(localGroup.id, n, true);
 
         context.emitAnalyticsEventFn({
           action: BackupAndSyncAnalyticsEvent.LegacyGroupRenamed,

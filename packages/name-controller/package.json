@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.4.0",
     "@metamask/controller-utils": "^11.14.0",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "async-mutex": "^0.5.0"
   },
   "devDependencies": {
