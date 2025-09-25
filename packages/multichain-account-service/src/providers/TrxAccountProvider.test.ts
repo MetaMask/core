@@ -8,15 +8,14 @@ import type {
 } from '@metamask/keyring-internal-api';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { BtcAccountProvider } from './BtcAccountProvider';
+import { TrxAccountProvider } from './TrxAccountProvider';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-  MOCK_BTC_P2TR_ACCOUNT_1,
-  MOCK_BTC_P2WPKH_ACCOUNT_1,
-  MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
+  MOCK_TRX_ACCOUNT_1,
+  MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
 } from '../tests';
 import type {
@@ -26,11 +25,11 @@ import type {
   MultichainAccountServiceEvents,
 } from '../types';
 
-class MockBtcKeyring {
-  readonly type = 'MockBtcKeyring';
+class MockTronKeyring {
+  readonly type = 'MockTronKeyring';
 
   readonly metadata: KeyringMetadata = {
-    id: 'mock-btc-keyring-id',
+    id: 'mock-tron-keyring-id',
     name: '',
   };
 
@@ -43,7 +42,7 @@ class MockBtcKeyring {
   #getIndexFromDerivationPath(derivationPath: string): number {
     // eslint-disable-next-line prefer-regex-literals
     const derivationPathIndexRegex = new RegExp(
-      "^m/44'/0'/0'/(?<index>[0-9]+)'$",
+      "^m/44'/195'/(?<index>[0-9]+)'/0'$",
       'u',
     );
 
@@ -72,7 +71,7 @@ class MockBtcKeyring {
         }
       }
 
-      const account = MockAccountBuilder.from(MOCK_BTC_P2TR_ACCOUNT_1)
+      const account = MockAccountBuilder.from(MOCK_TRX_ACCOUNT_1)
         .withUuid()
         .withAddressSuffix(`${this.accounts.length}`)
         .withGroupIndex(this.accounts.length)
@@ -84,7 +83,7 @@ class MockBtcKeyring {
 }
 
 /**
- * Sets up a BtcAccountProvider for testing.
+ * Sets up a SolAccountProvider for testing.
  *
  * @param options - Configuration options for setup.
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
@@ -106,7 +105,7 @@ function setup({
     MultichainAccountServiceActions | AllowedActions,
     MultichainAccountServiceEvents | AllowedEvents
   >;
-  keyring: MockBtcKeyring;
+  keyring: MockTronKeyring;
   mocks: {
     handleRequest: jest.Mock;
     keyring: {
@@ -114,7 +113,7 @@ function setup({
     };
   };
 } {
-  const keyring = new MockBtcKeyring(accounts);
+  const keyring = new MockTronKeyring(accounts);
 
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
@@ -145,7 +144,7 @@ function setup({
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
   const provider = new AccountProviderWrapper(
     multichainMessenger,
-    new BtcAccountProvider(multichainMessenger),
+    new TrxAccountProvider(multichainMessenger),
   );
 
   return {
@@ -161,14 +160,14 @@ function setup({
   };
 }
 
-describe('BtcAccountProvider', () => {
-  it('getName returns Bitcoin', () => {
+describe('TrxAccountProvider', () => {
+  it('getName returns Tron', () => {
     const { provider } = setup({ accounts: [] });
-    expect(provider.getName()).toBe('Bitcoin');
+    expect(provider.getName()).toBe('Tron');
   });
 
   it('gets accounts', () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
+    const accounts = [MOCK_TRX_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -177,7 +176,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('gets a specific account', () => {
-    const account = MOCK_BTC_P2TR_ACCOUNT_1;
+    const account = MOCK_TRX_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
@@ -186,7 +185,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('throws if account does not exist', () => {
-    const account = MOCK_BTC_P2TR_ACCOUNT_1;
+    const account = MOCK_TRX_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
@@ -198,7 +197,7 @@ describe('BtcAccountProvider', () => {
   });
 
   it('creates accounts', async () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1, MOCK_BTC_P2WPKH_ACCOUNT_1];
+    const accounts = [MOCK_TRX_ACCOUNT_1];
     const { provider, keyring } = setup({
       accounts,
     });
@@ -208,12 +207,12 @@ describe('BtcAccountProvider', () => {
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
-    expect(newAccounts).toHaveLength(2);
+    expect(newAccounts).toHaveLength(1);
     expect(keyring.createAccount).toHaveBeenCalled();
   });
 
   it('does not re-create accounts (idempotent)', async () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
+    const accounts = [MOCK_TRX_ACCOUNT_1];
     const { provider } = setup({
       accounts,
     });
@@ -222,22 +221,43 @@ describe('BtcAccountProvider', () => {
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
-    expect(newAccounts).toHaveLength(2);
-    expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2TR_ACCOUNT_1);
+    expect(newAccounts).toHaveLength(1);
+    expect(newAccounts[0]).toStrictEqual(MOCK_TRX_ACCOUNT_1);
+  });
+
+  it('throws if the account creation process takes too long', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.keyring.createAccount.mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(MOCK_TRX_ACCOUNT_1);
+        }, 4000);
+      });
+    });
+
+    await expect(
+      provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Timed out');
   });
 
   // Skip this test for now, since we manually inject those options upon
-  // account creation, so it cannot fails (until the Bitcoin Snap starts
+  // account creation, so it cannot fails (until the Solana Snap starts
   // using the new typed options).
   // eslint-disable-next-line jest/no-disabled-tests
   it.skip('throws if the created account is not BIP-44 compatible', async () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
+    const accounts = [MOCK_TRX_ACCOUNT_1];
     const { provider, mocks } = setup({
       accounts,
     });
 
     mocks.keyring.createAccount.mockResolvedValue({
-      ...MOCK_BTC_P2TR_ACCOUNT_1,
+      ...MOCK_TRX_ACCOUNT_1,
       options: {}, // No options, so it cannot be BIP-44 compatible.
     });
 
@@ -255,37 +275,34 @@ describe('BtcAccountProvider', () => {
     });
 
     // Simulate one discovered account at the requested index.
-    mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+    mocks.handleRequest.mockReturnValue([MOCK_TRX_DISCOVERED_ACCOUNT_1]);
 
     const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
 
-    expect(discovered).toHaveLength(2);
+    expect(discovered).toHaveLength(1);
     // Ensure we did go through creation path
     expect(mocks.keyring.createAccount).toHaveBeenCalled();
     // Provider should now expose one account (newly created)
-    expect(provider.getAccounts()).toHaveLength(2);
+    expect(provider.getAccounts()).toHaveLength(1);
   });
 
   it('returns existing account if it already exists at index', async () => {
     const { provider, mocks } = setup({
-      accounts: [MOCK_BTC_P2TR_ACCOUNT_1, MOCK_BTC_P2WPKH_ACCOUNT_1],
+      accounts: [MOCK_TRX_ACCOUNT_1],
     });
 
     // Simulate one discovered account — should resolve to the existing one
-    mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+    mocks.handleRequest.mockReturnValue([MOCK_TRX_DISCOVERED_ACCOUNT_1]);
 
     const discovered = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
 
-    expect(discovered).toStrictEqual([
-      MOCK_BTC_P2TR_ACCOUNT_1,
-      MOCK_BTC_P2WPKH_ACCOUNT_1,
-    ]);
+    expect(discovered).toStrictEqual([MOCK_TRX_ACCOUNT_1]);
   });
 
   it('does not return any accounts if no account is discovered', async () => {
