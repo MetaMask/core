@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preverve import time for account groups ([#6727](https://github.com/MetaMask/core/pull/6727))
+  - We now wait sort accounts by their `importTime` before re-building the tree.
 - Prevent `:account{Added,Removed}` to be used if `init` has not been called yet ([#6717](https://github.com/MetaMask/core/pull/6717))
   - We now wait for `init` to have been called at least once. Clients will need to ensure internal accounts are fully ready before calling `init`.
   - This should also enforce account group ordering, since all accounts will be ready to consume right away.

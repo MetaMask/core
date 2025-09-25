@@ -270,8 +270,23 @@ export class AccountTreeController extends BaseController<
     const previousSelectedAccountGroup =
       this.state.accountTree.selectedAccountGroup;
 
+    // There's no guarantee that accounts would be sorted by their import time
+    // with `listMultichainAccounts`. We have to sort them here before constructing
+    // the tree.
+    //
+    // Because of the alignment mecanism, some accounts from the same group might not
+    // have been imported at the same time, but at least of them should have been
+    // imported at the right time, thus, inserting the group at the proper place too.
+    //
+    // Lastly, if one day we allow to have "gaps" in between groups, then this `sort`
+    // won't be enough and we would have to use group properties instead (like group
+    // index or maybe introduce a `importTime` at group level).
+    const accounts = this.#listAccounts().sort(
+      (a, b) => a.metadata.importTime - b.metadata.importTime,
+    );
+
     // For now, we always re-compute all wallets, we do not re-use the existing state.
-    for (const account of this.#listAccounts()) {
+    for (const account of accounts) {
       this.#insert(wallets, account);
     }
 
