@@ -478,6 +478,7 @@ export class AccountTreeController extends BaseController<
 
       // Get the prefix for groups of this wallet
       const namePrefix = rule.getDefaultAccountGroupPrefix(wallet);
+      assert(namePrefix.length > 0, 'Account name prefix cannot be empty');
 
       // Skip computed names for now - use default naming with per-wallet logic
       // TODO: Implement computed names in a future iteration
