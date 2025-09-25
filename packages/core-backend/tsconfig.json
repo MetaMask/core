@@ -7,10 +7,16 @@
   },
   "references": [
     {
+      "path": "../accounts-controller"
+    },
+    {
       "path": "../base-controller"
     },
     {
       "path": "../controller-utils"
+    },
+    {
+      "path": "../profile-sync-controller"
     }
   ],
   "include": ["../../types", "./src"]

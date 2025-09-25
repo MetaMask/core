@@ -14,22 +14,34 @@ export type {
 
 // WebSocket Service - following MetaMask Data Services pattern
 export type {
-  WebSocketServiceOptions,
+  BackendWebSocketServiceOptions,
   WebSocketMessage,
   WebSocketConnectionInfo,
   WebSocketSubscription,
   InternalSubscription,
   SubscriptionInfo,
-  WebSocketServiceActions,
-  WebSocketServiceAllowedActions,
-  WebSocketServiceAllowedEvents,
-  WebSocketServiceMessenger,
-  WebSocketServiceEvents,
-  WebSocketServiceConnectionStateChangedEvent,
+  BackendWebSocketServiceActions,
+  BackendWebSocketServiceAllowedActions,
+  BackendWebSocketServiceAllowedEvents,
+  BackendWebSocketServiceMessenger,
+  BackendWebSocketServiceEvents,
+  BackendWebSocketServiceConnectionStateChangedEvent,
   WebSocketState,
   WebSocketEventType,
-} from './WebsocketService';
-export { WebSocketService } from './WebsocketService';
+} from './BackendWebSocketService';
+export { BackendWebSocketService } from './BackendWebSocketService';
+
+// Legacy exports for backward compatibility
+export type {
+  BackendWebSocketServiceOptions as WebSocketServiceOptions,
+  BackendWebSocketServiceActions as WebSocketServiceActions,
+  BackendWebSocketServiceAllowedActions as WebSocketServiceAllowedActions,
+  BackendWebSocketServiceAllowedEvents as WebSocketServiceAllowedEvents,
+  BackendWebSocketServiceMessenger as WebSocketServiceMessenger,
+  BackendWebSocketServiceEvents as WebSocketServiceEvents,
+  BackendWebSocketServiceConnectionStateChangedEvent as WebSocketServiceConnectionStateChangedEvent,
+} from './BackendWebSocketService';
+export { BackendWebSocketService as WebSocketService } from './BackendWebSocketService';
 
 // Account Activity Service
 export type {

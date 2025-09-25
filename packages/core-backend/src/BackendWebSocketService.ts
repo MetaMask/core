@@ -1,7 +1,21 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import { v4 as uuidV4 } from 'uuid';
 
-import type { WebSocketServiceMethodActions } from './WebsocketService-method-action-types';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+
+// Authentication controller action types - temporarily defined due to build dependencies
+type AuthenticationControllerGetBearerToken = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
+
+type AuthenticationControllerStateChangeEvent = {
+  type: 'AuthenticationController:stateChange';
+  payload: [
+    { isSignedIn: boolean; [key: string]: unknown },
+    { isSignedIn: boolean; [key: string]: unknown },
+  ];
+};
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 
@@ -46,12 +60,12 @@ export enum WebSocketEventType {
 /**
  * Configuration options for the WebSocket service
  */
-export type WebSocketServiceOptions = {
+export type BackendWebSocketServiceOptions = {
   /** The WebSocket URL to connect to */
   url: string;
 
   /** The messenger for inter-service communication */
-  messenger: WebSocketServiceMessenger;
+  messenger: BackendWebSocketServiceMessenger;
 
   /** Connection timeout in milliseconds (default: 10000) */
   timeout?: number;
@@ -176,44 +190,30 @@ export type WebSocketConnectionInfo = {
 };
 
 // Action types for the messaging system - using generated method actions
-export type WebSocketServiceActions = WebSocketServiceMethodActions;
+export type BackendWebSocketServiceActions =
+  BackendWebSocketServiceMethodActions;
 
-// Authentication and wallet state management actions
-export type AuthenticationControllerGetBearerToken = {
-  type: 'AuthenticationController:getBearerToken';
-  handler: (entropySourceId?: string) => Promise<string>;
-};
-
-export type WebSocketServiceAllowedActions =
+export type BackendWebSocketServiceAllowedActions =
   AuthenticationControllerGetBearerToken;
 
-// Authentication state events (includes wallet unlock state)
-export type AuthenticationControllerStateChangeEvent = {
-  type: 'AuthenticationController:stateChange';
-  payload: [
-    { isSignedIn: boolean; [key: string]: unknown },
-    { isSignedIn: boolean; [key: string]: unknown },
-  ];
-};
-
-export type WebSocketServiceAllowedEvents =
+export type BackendWebSocketServiceAllowedEvents =
   AuthenticationControllerStateChangeEvent;
 
 // Event types for WebSocket connection state changes
-export type WebSocketServiceConnectionStateChangedEvent = {
+export type BackendWebSocketServiceConnectionStateChangedEvent = {
   type: 'BackendWebSocketService:connectionStateChanged';
   payload: [WebSocketConnectionInfo];
 };
 
-export type WebSocketServiceEvents =
-  WebSocketServiceConnectionStateChangedEvent;
+export type BackendWebSocketServiceEvents =
+  BackendWebSocketServiceConnectionStateChangedEvent;
 
-export type WebSocketServiceMessenger = RestrictedMessenger<
+export type BackendWebSocketServiceMessenger = RestrictedMessenger<
   typeof SERVICE_NAME,
-  WebSocketServiceActions | WebSocketServiceAllowedActions,
-  WebSocketServiceEvents | WebSocketServiceAllowedEvents,
-  WebSocketServiceAllowedActions['type'],
-  WebSocketServiceAllowedEvents['type']
+  BackendWebSocketServiceActions | BackendWebSocketServiceAllowedActions,
+  BackendWebSocketServiceEvents | BackendWebSocketServiceAllowedEvents,
+  BackendWebSocketServiceAllowedActions['type'],
+  BackendWebSocketServiceAllowedEvents['type']
 >;
 
 /**
@@ -232,17 +232,17 @@ export type WebSocketServiceMessenger = RestrictedMessenger<
  * 2. Calling connect() when app returns to foreground
  * 3. Calling destroy() on app termination
  */
-export class WebSocketService {
+export class BackendWebSocketService {
   /**
    * The name of the service.
    */
   readonly name = SERVICE_NAME;
 
-  readonly #messenger: WebSocketServiceMessenger;
+  readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
     Omit<
-      WebSocketServiceOptions,
+      BackendWebSocketServiceOptions,
       'messenger' | 'enabledCallback' | 'enableAuthentication'
     >
   >;
@@ -294,7 +294,7 @@ export class WebSocketService {
    *
    * @param options - Configuration options for the WebSocket service
    */
-  constructor(options: WebSocketServiceOptions) {
+  constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#enabledCallback = options.enabledCallback;
     this.#enableAuthentication = options.enableAuthentication ?? false;
@@ -331,7 +331,10 @@ export class WebSocketService {
       // AuthenticationController can only be signed in if wallet is unlocked
       this.#messenger.subscribe(
         'AuthenticationController:stateChange',
-        (newState, prevState) => {
+        (
+          newState: { isSignedIn: boolean; [key: string]: unknown },
+          prevState: { isSignedIn: boolean; [key: string]: unknown },
+        ) => {
           const wasSignedIn = prevState?.isSignedIn || false;
           const isSignedIn = newState?.isSignedIn || false;
 
