@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add a timeout around Solana account creation ([#6704](https://github.com/MetaMask/core/pull/6704))
   - This timeout can be configured at the client level through the config passed to the `MultichainAccountService`.
-- `{Btc/Trx}AccountProvider` account provider ([#6662](https://github.com/MetaMask/core/pull/6662))
+- Add `{Btc/Trx}AccountProvider` account providers ([#6662](https://github.com/MetaMask/core/pull/6662))
 
 ## [1.0.0]
 
