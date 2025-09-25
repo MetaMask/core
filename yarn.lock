@@ -3628,7 +3628,7 @@ __metadata:
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=70ffcd&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=4a1f49&locator=%40metamask%2Fbridge-controller%40workspace%3Apackages%2Fbridge-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
@@ -3639,7 +3639,7 @@ __metadata:
 
 "@metamask/intent-manager@file:../Intent-manager::locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller":
   version: 1.0.0
-  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=70ffcd&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
+  resolution: "@metamask/intent-manager@file:../Intent-manager#../Intent-manager::hash=4a1f49&locator=%40metamask%2Fbridge-status-controller%40workspace%3Apackages%2Fbridge-status-controller"
   dependencies:
     "@metamask/base-controller": "npm:^8.3.0"
     "@metamask/controller-utils": "npm:^11.12.0"
