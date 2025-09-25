@@ -1,6 +1,6 @@
 # `@metamask/core-backend`
 
-Core backend services for MetaMask, serving as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (Extension, Mobile). Provides real-time data delivery including account activity monitoring, price updates, and WebSocket connection management.
+Core backend services for MetaMask, serving as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (Extension, Mobile). Provides authenticated real-time data delivery including account activity monitoring, price updates, and WebSocket connection management with type-safe controller integration.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Core backend services for MetaMask, serving as the data layer between Backend se
     - [Key Components](#key-components)
     - [Core Value Propositions](#core-value-propositions)
   - [Features](#features)
-    - [WebSocketService](#websocketservice)
+    - [BackendWebSocketService](#backendwebsocketservice)
     - [AccountActivityService (Example Implementation)](#accountactivityservice-example-implementation)
   - [Architecture \& Design](#architecture--design)
     - [Layered Architecture](#layered-architecture)
@@ -23,7 +23,7 @@ Core backend services for MetaMask, serving as the data layer between Backend se
       - [Sequence Diagram: Real-time Account Activity Flow](#sequence-diagram-real-time-account-activity-flow)
       - [Key Flow Characteristics](#key-flow-characteristics)
   - [API Reference](#api-reference)
-    - [WebSocketService](#websocketservice-1)
+    - [BackendWebSocketService](#backendwebsocketservice-1)
       - [Constructor Options](#constructor-options)
       - [Methods](#methods)
     - [AccountActivityService](#accountactivityservice)
@@ -52,26 +52,25 @@ npm install @metamask/core-backend
 
 ```typescript
 import {
-  WebSocketService,
+  BackendWebSocketService,
   AccountActivityService,
 } from '@metamask/core-backend';
 
-// Initialize WebSocket service
-const webSocketService = new WebSocketService({
-  messenger: webSocketMessenger,
+// Initialize Backend WebSocket service
+const backendWebSocketService = new BackendWebSocketService({
+  messenger: backendWebSocketServiceMessenger,
   url: 'wss://api.metamask.io/ws',
   timeout: 15000,
   requestTimeout: 20000,
 });
 
-// Initialize Account Activity service
+// Initialize Account Activity service  
 const accountActivityService = new AccountActivityService({
   messenger: accountActivityMessenger,
-  webSocketService,
 });
 
 // Connect and subscribe to account activity
-await webSocketService.connect();
+await backendWebSocketService.connect();
 await accountActivityService.subscribeAccounts({
   address: 'eip155:0:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6',
 });
@@ -136,28 +135,32 @@ The MetaMask Backend Platform serves as the data layer between Backend services 
 
 ### Key Components
 
-- **WebSocketService**: Low-level WebSocket connection management and message routing
+- **BackendWebSocketService**: Low-level WebSocket connection management and message routing
 - **AccountActivityService**: High-level account activity monitoring (one example use case)
 
 ### Core Value Propositions
 
 1. **Data Layer Bridge**: Connects backend services (REST APIs, WebSocket services) with frontend applications
 2. **Real-time Data**: Instant delivery of time-sensitive information (transactions, prices, etc.)
-3. **Reliability**: Automatic reconnection with intelligent backoff
-4. **Extensibility**: Flexible architecture supporting diverse data types and use cases
-5. **Multi-chain**: CAIP-10 address format support for blockchain interoperability
-6. **Integration**: Seamless coordination with existing MetaMask controllers
+3. **Authentication**: Integrated bearer token authentication with wallet unlock detection
+4. **Type Safety**: Auto-generated types with DRY principles - no manual type duplication
+5. **Reliability**: Automatic reconnection with intelligent backoff
+6. **Extensibility**: Flexible architecture supporting diverse data types and use cases
+7. **Multi-chain**: CAIP-10 address format support for blockchain interoperability
+8. **Integration**: Seamless coordination with existing MetaMask controllers
 
 ## Features
 
-### WebSocketService
+### BackendWebSocketService
 
 - ✅ **Universal Message Routing**: Route any real-time data to appropriate handlers
-- ✅ **Automatic Reconnection**: Smart reconnection with exponential backoff
+- ✅ **Automatic Reconnection**: Smart reconnection with exponential backoff  
+- ✅ **Authentication Support**: Integrated bearer token authentication with wallet unlock detection
 - ✅ **Request Timeout Detection**: Automatically reconnects on stale connections
 - ✅ **Subscription Management**: Centralized tracking of channel subscriptions
 - ✅ **Direct Callback Routing**: Clean message routing without EventEmitter overhead
 - ✅ **Connection Health Monitoring**: Proactive connection state management
+- ✅ **Auto-Generated Types**: Type-safe messenger integration with DRY principles
 - ✅ **Extensible Architecture**: Support for multiple service types (account activity, prices, etc.)
 
 ### AccountActivityService (Example Implementation)
@@ -168,6 +171,8 @@ The MetaMask Backend Platform serves as the data layer between Backend services 
 - ✅ **CAIP-10 Address Support**: Works with multi-chain address formats
 - ✅ **Fallback Polling Integration**: Coordinates with polling controllers for offline scenarios
 - ✅ **Direct Callback Routing**: Efficient message routing and minimal subscription tracking
+- ✅ **Type-Safe Integration**: Imports controller action types directly to eliminate duplication
+- ✅ **DRY Architecture**: Reuses auto-generated types from AccountsController and AuthenticationController
 
 ## Architecture & Design
 
@@ -193,8 +198,9 @@ The MetaMask Backend Platform serves as the data layer between Backend services 
 │  │  - Custom services...              │ │
 │  └─────────────────────────────────────┘ │
 │  ┌─────────────────────────────────────┐ │
-│  │       WebSocketService             │ │  ← Transport layer
+│  │   BackendWebSocketService          │ │  ← Transport layer
 │  │  - Connection management           │ │
+│  │  - Authentication integration      │ │
 │  │  - Automatic reconnection          │ │
 │  │  - Message routing to services     │ │
 │  │  - Subscription management         │ │
@@ -214,21 +220,29 @@ The MetaMask Backend Platform serves as the data layer between Backend services 
 
 ```mermaid
 graph TD
-    %% Core Services
+    %% External Controllers
+    AC["AccountsController<br/>(Auto-generated types)"]
+    AuthC["AuthenticationController<br/>(Auto-generated types)"]
     TBC["TokenBalancesController<br/>(External Integration)"]
+    
+    %% Core Services
     AA["AccountActivityService"]
-    WS["WebSocketService"]
+    WS["BackendWebSocketService"]
 
-    %% Service dependencies
-    WS --> AA
-    AA -.-> TBC
+    %% Dependencies & Type Imports
+    AC -.->|"Import types<br/>(DRY)" | AA
+    AuthC -.->|"Import types<br/>(DRY)" | WS  
+    WS -->|"Messenger calls"| AA
+    AA -.->|"Event publishing"| TBC
 
     %% Styling
     classDef core fill:#f3e5f5
     classDef integration fill:#fff3e0
+    classDef controller fill:#e8f5e8
 
     class WS,AA core
     class TBC integration
+    class AC,AuthC controller
 ```
 
 ### Data Flow
@@ -239,7 +253,7 @@ graph TD
 sequenceDiagram
     participant TBC as TokenBalancesController
     participant AA as AccountActivityService
-    participant WS as WebSocketService
+    participant WS as BackendWebSocketService
     participant HTTP as HTTP Services<br/>(APIs & RPC)
     participant Backend as WebSocket Endpoint<br/>(Backend)
 
@@ -317,9 +331,9 @@ sequenceDiagram
 
 #### Key Flow Characteristics
 
-1. **Initial Setup**: WebSocketService establishes connection, then AccountActivityService simultaneously notifies all chains are up AND subscribes to selected account, TokenBalancesController increases polling interval to 10 min, then makes initial HTTP request for current balance state
+1. **Initial Setup**: BackendWebSocketService establishes connection, then AccountActivityService simultaneously notifies all chains are up AND subscribes to selected account, TokenBalancesController increases polling interval to 10 min, then makes initial HTTP request for current balance state
 2. **User Account Changes**: When users switch accounts, AccountActivityService unsubscribes from old account, TokenBalancesController makes HTTP calls to fill data gaps, then AccountActivityService subscribes to new account
-3. **Real-time Updates**: Backend pushes data through: Backend → WebSocketService → AccountActivityService → TokenBalancesController (+ future TransactionController integration)
+3. **Real-time Updates**: Backend pushes data through: Backend → BackendWebSocketService → AccountActivityService → TokenBalancesController (+ future TransactionController integration)
 4. **System Notifications**: Backend sends chain status updates (up/down) through WebSocket, AccountActivityService processes and forwards to TokenBalancesController which adjusts polling intervals and fetches balances immediately on chain down (chain down: 10min→20s + immediate fetch, chain up: 20s→10min)
 5. **Parallel Processing**: Transaction and balance updates processed simultaneously - AccountActivityService publishes both transactionUpdated (future) and balanceUpdated events in parallel
 6. **Dynamic Polling**: TokenBalancesController adjusts HTTP polling intervals based on WebSocket connection health (10 min when connected, 20s when disconnected)
@@ -329,30 +343,34 @@ sequenceDiagram
 
 ## API Reference
 
-### WebSocketService
+### BackendWebSocketService
 
-The core WebSocket client providing connection management and message routing.
+The core WebSocket client providing connection management, authentication, and message routing.
 
 #### Constructor Options
 
 ```typescript
-interface WebSocketServiceOptions {
-  messenger: RestrictedControllerMessenger;
+interface BackendWebSocketServiceOptions {
+  messenger: BackendWebSocketServiceMessenger;
   url: string;
   timeout?: number;
   reconnectDelay?: number;
   maxReconnectDelay?: number;
   requestTimeout?: number;
+  enableAuthentication?: boolean;
+  enabledCallback?: () => boolean;
 }
 ```
 
 #### Methods
 
-- `connect(): Promise<void>` - Establish WebSocket connection
-- `disconnect(): Promise<void>` - Close WebSocket connection
+- `connect(): Promise<void>` - Establish authenticated WebSocket connection
+- `disconnect(): Promise<void>` - Close WebSocket connection  
 - `subscribe(options: SubscriptionOptions): Promise<SubscriptionResult>` - Subscribe to channels
-- `unsubscribe(subscriptionId: string): Promise<void>` - Unsubscribe from channels
-- `getConnectionState(): WebSocketState` - Get current connection state
+- `sendRequest(message: ClientRequestMessage): Promise<ServerResponseMessage>` - Send request/response messages
+- `isChannelSubscribed(channel: string): boolean` - Check subscription status
+- `findSubscriptionsByChannelPrefix(prefix: string): SubscriptionInfo[]` - Find subscriptions by prefix
+- `getConnectionInfo(): WebSocketConnectionInfo` - Get detailed connection state
 
 ### AccountActivityService
 
@@ -362,15 +380,15 @@ High-level service for monitoring account activity using WebSocket data.
 
 ```typescript
 interface AccountActivityServiceOptions {
-  messenger: RestrictedControllerMessenger;
-  webSocketService: WebSocketService;
+  messenger: AccountActivityServiceMessenger;
+  subscriptionNamespace?: string;
 }
 ```
 
 #### Methods
 
 - `subscribeAccounts(subscription: AccountSubscription): Promise<void>` - Subscribe to account activity
-- `unsubscribeAccounts(addresses: string[]): Promise<void>` - Unsubscribe from account activity
+- `unsubscribeAccounts(subscription: AccountSubscription): Promise<void>` - Unsubscribe from account activity
 
 #### Events Published
 
@@ -406,4 +424,4 @@ Run the test suite to ensure your changes don't break existing functionality:
 yarn test
 ```
 
-The test suite includes comprehensive coverage for WebSocket connection management, message routing, subscription handling, and service interactions.
+The test suite includes comprehensive coverage for WebSocket connection management, authentication integration, message routing, subscription handling, and service interactions.
