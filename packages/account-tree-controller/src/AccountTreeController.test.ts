@@ -913,6 +913,52 @@ describe('AccountTreeController', () => {
 
       expect(initialTree).not.toStrictEqual(updatedTree);
     });
+
+    it('sorts out-of-order accounts to create group in the proper order', () => {
+      const { controller, mocks } = setup({
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const mockAccountWith = (
+        groupIndex: number,
+        importTime: number,
+      ): InternalAccount => ({
+        ...MOCK_HD_ACCOUNT_1,
+        id: `mock-id-${groupIndex}`,
+        address: '0x123',
+        options: {
+          entropy: {
+            type: 'mnemonic',
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex,
+            derivationPath: '',
+          },
+        },
+        metadata: { ...MOCK_HD_ACCOUNT_1.metadata, importTime },
+      });
+
+      const now = Date.now();
+      mocks.AccountsController.listMultichainAccounts.mockReturnValue([
+        // Faking accounts to be out of order:
+        mockAccountWith(1, now + 1000),
+        mockAccountWith(2, now + 2000),
+        mockAccountWith(0, now),
+      ]);
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      // Object `string` keys are by "inserting order".
+      const groupIds = Object.keys(
+        controller.state.accountTree.wallets[walletId].groups,
+      );
+      expect(groupIds[0]).toBe(toMultichainAccountGroupId(walletId, 0));
+      expect(groupIds[1]).toBe(toMultichainAccountGroupId(walletId, 1));
+      expect(groupIds[2]).toBe(toMultichainAccountGroupId(walletId, 2));
+    });
   });
 
   describe('getAccountGroupObject', () => {
