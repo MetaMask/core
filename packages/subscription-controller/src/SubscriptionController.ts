@@ -18,6 +18,7 @@ import type {
   ProductPrice,
   StartCryptoSubscriptionRequest,
   TokenPaymentInfo,
+  UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
 } from './types';
 import {
@@ -384,17 +385,20 @@ export class SubscriptionController extends BaseController<
     };
   }
 
-  async updatePaymentMethod(opts: UpdatePaymentMethodOpts) {
+  async updatePaymentMethod(
+    opts: UpdatePaymentMethodOpts,
+  ): Promise<UpdatePaymentMethodCardResponse | Subscription[]> {
     if (opts.paymentType === PAYMENT_TYPES.byCard) {
       const { paymentType, ...cardRequest } = opts;
-      await this.#subscriptionService.updatePaymentMethodCard(cardRequest);
+      return await this.#subscriptionService.updatePaymentMethodCard(
+        cardRequest,
+      );
     } else if (opts.paymentType === PAYMENT_TYPES.byCrypto) {
       const { paymentType, ...cryptoRequest } = opts;
       await this.#subscriptionService.updatePaymentMethodCrypto(cryptoRequest);
-    } else {
-      throw new Error('Invalid payment type');
+      return await this.getSubscriptions();
     }
-    await this.getSubscriptions();
+    throw new Error('Invalid payment type');
   }
 
   /**

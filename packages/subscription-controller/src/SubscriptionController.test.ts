@@ -1014,12 +1014,15 @@ describe('SubscriptionController', () => {
   describe('updatePaymentMethod', () => {
     it('should update card payment method successfully', async () => {
       await withController(async ({ controller, mockService }) => {
-        mockService.updatePaymentMethodCard.mockResolvedValue({});
+        const redirectUrl = 'https://redirect.com';
+        mockService.updatePaymentMethodCard.mockResolvedValue({
+          redirectUrl,
+        });
         mockService.getSubscriptions.mockResolvedValue(
           MOCK_GET_SUBSCRIPTIONS_RESPONSE,
         );
 
-        await controller.updatePaymentMethod({
+        const result = await controller.updatePaymentMethod({
           subscriptionId: 'sub_123456789',
           paymentType: PAYMENT_TYPES.byCard,
           recurringInterval: RECURRING_INTERVALS.month,
@@ -1029,10 +1032,7 @@ describe('SubscriptionController', () => {
           subscriptionId: 'sub_123456789',
           recurringInterval: RECURRING_INTERVALS.month,
         });
-
-        expect(controller.state.subscriptions).toStrictEqual([
-          MOCK_SUBSCRIPTION,
-        ]);
+        expect(result).toStrictEqual({ redirectUrl });
       });
     });
 
