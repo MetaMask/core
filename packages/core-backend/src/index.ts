@@ -31,18 +31,6 @@ export type {
 } from './BackendWebSocketService';
 export { BackendWebSocketService } from './BackendWebSocketService';
 
-// Legacy exports for backward compatibility
-export type {
-  BackendWebSocketServiceOptions as WebSocketServiceOptions,
-  BackendWebSocketServiceActions as WebSocketServiceActions,
-  BackendWebSocketServiceAllowedActions as WebSocketServiceAllowedActions,
-  BackendWebSocketServiceAllowedEvents as WebSocketServiceAllowedEvents,
-  BackendWebSocketServiceMessenger as WebSocketServiceMessenger,
-  BackendWebSocketServiceEvents as WebSocketServiceEvents,
-  BackendWebSocketServiceConnectionStateChangedEvent as WebSocketServiceConnectionStateChangedEvent,
-} from './BackendWebSocketService';
-export { BackendWebSocketService as WebSocketService } from './BackendWebSocketService';
-
 // Account Activity Service
 export type {
   AccountSubscription,
