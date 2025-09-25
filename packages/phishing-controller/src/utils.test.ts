@@ -261,13 +261,13 @@ describe('applyDiffs', () => {
 
   describe('blocklistPaths handling', () => {
     const newAddDiff = (url: string) => ({
-      targetList: 'eth_phishing_detect_config.blocklist' as const,
+      targetList: 'eth_phishing_detect_config.blocklistPaths' as const,
       url,
       timestamp: 1000000000,
     });
 
     const newRemoveDiff = (url: string) => ({
-      targetList: 'eth_phishing_detect_config.blocklist' as const,
+      targetList: 'eth_phishing_detect_config.blocklistPaths' as const,
       url,
       timestamp: 1000000001,
       isRemoval: true,
