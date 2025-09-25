@@ -58,6 +58,7 @@ export function setupNamedAccountProvider({
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
+  mocks.createAccounts.mockResolvedValue([]);
 
   return mocks;
 }

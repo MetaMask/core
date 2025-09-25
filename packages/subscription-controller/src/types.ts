@@ -77,7 +77,7 @@ export type Subscription = {
   trialPeriodDays?: number;
   trialStart?: string; // ISO 8601
   trialEnd?: string; // ISO 8601
-  /** is subscription ending soon */
+  /** Crypto payment only: next billing cycle date (e.g after 12 months) */
   endDate?: string; // ISO 8601
   billingCycles?: number;
 };
@@ -239,7 +239,7 @@ export type ISubscriptionService = {
   ): Promise<StartCryptoSubscriptionResponse>;
   updatePaymentMethodCard(
     request: UpdatePaymentMethodCardRequest,
-  ): Promise<void>;
+  ): Promise<UpdatePaymentMethodCardResponse>;
   updatePaymentMethodCrypto(
     request: UpdatePaymentMethodCryptoRequest,
   ): Promise<void>;
@@ -264,6 +264,10 @@ export type UpdatePaymentMethodCardRequest = {
    */
   recurringInterval: RecurringInterval;
   successUrl?: string;
+};
+
+export type UpdatePaymentMethodCardResponse = {
+  redirectUrl: string;
 };
 
 export type UpdatePaymentMethodCryptoRequest = {

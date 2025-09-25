@@ -16,9 +16,14 @@ import {
   type EntropySourceId,
   type KeyringAccount,
 } from '@metamask/keyring-api';
-import { createProjectLogger } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import type { Logger } from './logger';
+import {
+  createModuleLogger,
+  projectLogger as log,
+  WARNING_PREFIX,
+} from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -34,8 +39,6 @@ type AccountProviderDiscoveryContext<
   groupIndex: number;
   accounts: Account[];
 };
-
-const log = createProjectLogger('multichain-account-service');
 
 /**
  * A multichain account wallet that holds multiple multichain accounts (one multichain account per
@@ -57,6 +60,8 @@ export class MultichainAccountWallet<
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
+  readonly #log: Logger;
+
   // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
@@ -77,6 +82,8 @@ export class MultichainAccountWallet<
     this.#messenger = messenger;
     this.#accountGroups = new Map();
 
+    this.#log = createModuleLogger(log, `[${this.#id}]`);
+
     // Initial synchronization (don't emit events during initialization).
     this.#status = 'uninitialized';
     this.sync();
@@ -91,6 +98,7 @@ export class MultichainAccountWallet<
    * doesn't know about.
    */
   sync(): void {
+    this.#log('Synchronizing with account providers...');
     for (const provider of this.#providers) {
       for (const account of provider.getAccounts()) {
         const { entropy } = account.options;
@@ -120,6 +128,7 @@ export class MultichainAccountWallet<
           // after the first-sync.
           // TODO: Implement align mechanism to create "missing" accounts.
 
+          this.#log(`Found a new group: [${multichainAccount.id}]`);
           this.#accountGroups.set(entropy.groupIndex, multichainAccount);
         }
       }
@@ -134,9 +143,12 @@ export class MultichainAccountWallet<
 
       // Clean up old multichain accounts.
       if (!multichainAccount.hasAccounts()) {
+        this.#log(`Deleting group: [${multichainAccount.id}]`);
         this.#accountGroups.delete(groupIndex);
       }
     }
+
+    this.#log('Synchronized');
   }
 
   /**
@@ -189,6 +201,7 @@ export class MultichainAccountWallet<
   ) {
     const release = await this.#lock.acquire();
     try {
+      this.#log(`Locking wallet with status "${status}"...`);
       this.#status = status;
       this.#messenger.publish(
         'MultichainAccountService:walletStatusChange',
@@ -204,6 +217,7 @@ export class MultichainAccountWallet<
         this.#status,
       );
       release();
+      this.#log(`Releasing wallet lock (was "${status}")`);
     }
   }
 
@@ -303,9 +317,13 @@ export class MultichainAccountWallet<
         // reference.
         group.sync();
 
+        this.#log(
+          `Trying to re-create existing group: [${group.id}] (idempotent)`,
+        );
         return group;
       }
 
+      this.#log(`Creating new group for index ${groupIndex}...`);
       const results = await Promise.allSettled(
         this.#providers.map((provider) =>
           provider.createAccounts({
@@ -344,13 +362,14 @@ export class MultichainAccountWallet<
         // don't rollback them.
         const error = `Unable to create multichain account group for index: ${groupIndex}`;
 
-        let warn = `${error}:`;
+        let message = `${error}:`;
         for (const result of results) {
           if (result.status === 'rejected') {
-            warn += `\n- ${result.reason}`;
+            message += `\n- ${result.reason}`;
           }
         }
-        console.warn(warn);
+        this.#log(`${WARNING_PREFIX} ${message}`);
+        console.warn(message);
 
         throw new Error(error);
       }
@@ -370,6 +389,7 @@ export class MultichainAccountWallet<
 
       // Register the account to our internal map.
       this.#accountGroups.set(groupIndex, group); // `group` cannot be undefined here.
+      this.#log(`New group created: [${group.id}]`);
 
       if (this.#initialized) {
         this.#messenger.publish(
@@ -448,14 +468,15 @@ export class MultichainAccountWallet<
       const runProviderDiscovery = async (
         context: AccountProviderDiscoveryContext<Account>,
       ) => {
+        const providerName = context.provider.getName();
         const message = (stepName: string, groupIndex: number) =>
-          `[${context.provider.getName()}] Discovery ${stepName} (groupIndex=${groupIndex})`;
+          `[${providerName}] Discovery ${stepName} for group index: ${groupIndex}`;
 
         while (!context.stopped) {
           // Fast‑forward to current high‑water mark
           const targetGroupIndex = Math.max(context.groupIndex, maxGroupIndex);
 
-          log(message('STARTED', targetGroupIndex));
+          log(message('started', targetGroupIndex));
 
           let accounts: Account[] = [];
           try {
@@ -466,17 +487,25 @@ export class MultichainAccountWallet<
           } catch (error) {
             context.stopped = true;
             console.error(error);
-            log(message('FAILED', targetGroupIndex), error);
+            log(
+              message(
+                `failed (with: "${(error as Error).message}")`,
+                targetGroupIndex,
+              ),
+              error,
+            );
             break;
           }
 
           if (!accounts.length) {
-            log(message('STOPPED', targetGroupIndex));
+            log(
+              message('stopped (no accounts got discovered)', targetGroupIndex),
+            );
             context.stopped = true;
             break;
           }
 
-          log(message('SUCCEEDED', targetGroupIndex));
+          log(message('**succeeded**', targetGroupIndex));
 
           context.accounts = context.accounts.concat(accounts);
 
