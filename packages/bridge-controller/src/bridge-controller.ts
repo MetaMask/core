@@ -832,7 +832,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ) {
     const addressToUse = walletAddress ?? this.state.quoteRequest.walletAddress;
     if (!addressToUse) {
-      throw new Error('Wallet address is required');
+      throw new Error('Account address is required');
     }
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccountByAddress',
