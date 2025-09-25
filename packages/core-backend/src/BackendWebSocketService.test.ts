@@ -1,12 +1,12 @@
 import { useFakeTimers } from 'sinon';
 
 import {
-  WebSocketService,
+  BackendWebSocketService,
   WebSocketState,
-  type WebSocketServiceOptions,
-  type WebSocketServiceMessenger,
+  type BackendWebSocketServiceOptions,
+  type BackendWebSocketServiceMessenger,
   type ClientRequestMessage,
-} from './WebsocketService';
+} from './BackendWebSocketService';
 import { flushPromises, advanceTime } from '../../../tests/helpers';
 
 // =====================================================
@@ -232,7 +232,7 @@ class MockWebSocket extends EventTarget {
  * Test configuration options
  */
 type TestSetupOptions = {
-  options?: Partial<WebSocketServiceOptions>;
+  options?: Partial<BackendWebSocketServiceOptions>;
   mockWebSocketOptions?: { autoConnect?: boolean };
 };
 
@@ -240,8 +240,8 @@ type TestSetupOptions = {
  * Test setup return value with all necessary test utilities
  */
 type TestSetup = {
-  service: WebSocketService;
-  mockMessenger: jest.Mocked<WebSocketServiceMessenger>;
+  service: BackendWebSocketService;
+  mockMessenger: jest.Mocked<BackendWebSocketServiceMessenger>;
   clock: ReturnType<typeof useFakeTimers>;
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
@@ -249,7 +249,7 @@ type TestSetup = {
 };
 
 /**
- * Create a fresh WebSocketService instance with mocked dependencies for testing.
+ * Create a fresh BackendWebSocketService instance with mocked dependencies for testing.
  * Follows the TokenBalancesController test pattern for complete test isolation.
  *
  * @param config - Test configuration options
@@ -257,7 +257,7 @@ type TestSetup = {
  * @param config.mockWebSocketOptions - Mock WebSocket configuration options
  * @returns Test utilities and cleanup function
  */
-const setupWebSocketService = ({
+const setupBackendWebSocketService = ({
   options,
   mockWebSocketOptions,
 }: TestSetupOptions = {}): TestSetup => {
@@ -283,7 +283,7 @@ const setupWebSocketService = ({
     call: jest.fn(),
     subscribe: jest.fn(),
     unsubscribe: jest.fn(),
-  } as unknown as jest.Mocked<WebSocketServiceMessenger>;
+  } as unknown as jest.Mocked<BackendWebSocketServiceMessenger>;
 
   // Default test options (shorter timeouts for faster tests)
   const defaultOptions = {
@@ -305,7 +305,7 @@ const setupWebSocketService = ({
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   global.WebSocket = TestMockWebSocket as unknown as typeof WebSocket;
 
-  const service = new WebSocketService({
+  const service = new BackendWebSocketService({
     messenger: mockMessenger,
     ...defaultOptions,
     ...options,
@@ -338,21 +338,21 @@ const setupWebSocketService = ({
 // WEBSOCKETSERVICE TESTS
 // =====================================================
 
-describe('WebSocketService', () => {
+describe('BackendWebSocketService', () => {
   // =====================================================
   // CONSTRUCTOR TESTS
   // =====================================================
   describe('constructor', () => {
-    it('should create a WebSocketService instance with default options', async () => {
+    it('should create a BackendWebSocketService instance with default options', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService({
+        setupBackendWebSocketService({
           mockWebSocketOptions: { autoConnect: false },
         });
 
       // Wait for any initialization to complete
       await completeAsyncOperations();
 
-      expect(service).toBeInstanceOf(WebSocketService);
+      expect(service).toBeInstanceOf(BackendWebSocketService);
       const info = service.getConnectionInfo();
       // Service might be in CONNECTING state due to initialization, that's OK
       expect([
@@ -364,9 +364,9 @@ describe('WebSocketService', () => {
       cleanup();
     });
 
-    it('should create a WebSocketService instance with custom options', async () => {
+    it('should create a BackendWebSocketService instance with custom options', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService({
+        setupBackendWebSocketService({
           options: {
             url: 'wss://custom.example.com',
             timeout: 5000,
@@ -376,7 +376,7 @@ describe('WebSocketService', () => {
 
       await completeAsyncOperations();
 
-      expect(service).toBeInstanceOf(WebSocketService);
+      expect(service).toBeInstanceOf(BackendWebSocketService);
       expect(service.getConnectionInfo().url).toBe('wss://custom.example.com');
 
       cleanup();
@@ -389,7 +389,7 @@ describe('WebSocketService', () => {
   describe('connect', () => {
     it('should connect successfully', async () => {
       const { service, mockMessenger, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -408,7 +408,7 @@ describe('WebSocketService', () => {
 
     it('should not connect if already connected', async () => {
       const { service, mockMessenger, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const firstConnect = service.connect();
       await completeAsyncOperations();
@@ -427,7 +427,7 @@ describe('WebSocketService', () => {
 
     it('should handle connection timeout', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService({
+        setupBackendWebSocketService({
           options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
           mockWebSocketOptions: { autoConnect: false }, // This prevents any connection
         });
@@ -473,7 +473,7 @@ describe('WebSocketService', () => {
   describe('disconnect', () => {
     it('should disconnect successfully when connected', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -490,7 +490,7 @@ describe('WebSocketService', () => {
 
     it('should handle disconnect when already disconnected', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // Wait for initialization
       await completeAsyncOperations();
@@ -512,7 +512,7 @@ describe('WebSocketService', () => {
   describe('subscribe', () => {
     it('should subscribe to channels successfully', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // Connect first
       const connectPromise = service.connect();
@@ -564,7 +564,7 @@ describe('WebSocketService', () => {
     }, 10000);
 
     it('should throw error when not connected', async () => {
-      const { service, cleanup } = setupWebSocketService({
+      const { service, cleanup } = setupBackendWebSocketService({
         mockWebSocketOptions: { autoConnect: false },
       });
 
@@ -594,7 +594,7 @@ describe('WebSocketService', () => {
   describe('message handling', () => {
     it('should handle notification messages', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -651,7 +651,7 @@ describe('WebSocketService', () => {
 
     it('should handle invalid JSON messages', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -684,7 +684,7 @@ describe('WebSocketService', () => {
   describe('connection health and reconnection', () => {
     it('should handle connection errors', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -710,7 +710,7 @@ describe('WebSocketService', () => {
 
     it('should handle unexpected disconnection and attempt reconnection', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -731,7 +731,7 @@ describe('WebSocketService', () => {
 
     it('should not reconnect on normal closure (code 1000)', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -761,7 +761,7 @@ describe('WebSocketService', () => {
   describe('utility methods', () => {
     it('should get subscription by channel', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -811,7 +811,7 @@ describe('WebSocketService', () => {
 
     it('should check if channel is subscribed', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       expect(service.isChannelSubscribed('test-channel')).toBe(false);
 
@@ -866,7 +866,7 @@ describe('WebSocketService', () => {
   describe('sendMessage', () => {
     it('should send message successfully when connected', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // Connect first
       const connectPromise = service.connect();
@@ -895,7 +895,7 @@ describe('WebSocketService', () => {
 
     it('should throw error when sending message while not connected', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService({
+        setupBackendWebSocketService({
           mockWebSocketOptions: { autoConnect: false },
         });
 
@@ -921,7 +921,7 @@ describe('WebSocketService', () => {
 
     it('should throw error when sending message with closed connection', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // Connect first
       const connectPromise = service.connect();
@@ -957,7 +957,7 @@ describe('WebSocketService', () => {
   describe('channel callback management', () => {
     it('should add and retrieve channel callbacks', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -997,7 +997,7 @@ describe('WebSocketService', () => {
 
     it('should remove channel callbacks successfully', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1035,7 +1035,7 @@ describe('WebSocketService', () => {
 
     it('should return false when removing non-existent channel callback', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1050,7 +1050,7 @@ describe('WebSocketService', () => {
 
     it('should handle channel callbacks with notification messages', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1089,7 +1089,7 @@ describe('WebSocketService', () => {
   describe('getConnectionInfo', () => {
     it('should return correct connection info when disconnected', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // First connect successfully
       const connectPromise = service.connect();
@@ -1111,7 +1111,7 @@ describe('WebSocketService', () => {
 
     it('should return correct connection info when connected', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1127,7 +1127,7 @@ describe('WebSocketService', () => {
 
     it('should return error info when connection fails', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService({
+        setupBackendWebSocketService({
           options: { timeout: TEST_CONSTANTS.TIMEOUT_MS },
           mockWebSocketOptions: { autoConnect: false },
         });
@@ -1167,7 +1167,7 @@ describe('WebSocketService', () => {
 
     it('should return current subscription count', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1216,7 +1216,7 @@ describe('WebSocketService', () => {
   describe('destroy', () => {
     it('should clean up resources', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1237,7 +1237,7 @@ describe('WebSocketService', () => {
 
     it('should handle destroy when not connected', async () => {
       const { service, completeAsyncOperations, cleanup } =
-        setupWebSocketService({
+        setupBackendWebSocketService({
           mockWebSocketOptions: { autoConnect: false },
         });
 
@@ -1255,7 +1255,7 @@ describe('WebSocketService', () => {
   describe('integration scenarios', () => {
     it('should handle multiple subscriptions and unsubscriptions with different channels', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1366,7 +1366,7 @@ describe('WebSocketService', () => {
         getMockWebSocket,
         mockMessenger,
         cleanup,
-      } = setupWebSocketService();
+      } = setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1417,7 +1417,7 @@ describe('WebSocketService', () => {
 
     it('should handle subscription failures and reject when channels fail', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1469,7 +1469,7 @@ describe('WebSocketService', () => {
 
     it('should handle subscription success when all channels succeed', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
@@ -1514,7 +1514,7 @@ describe('WebSocketService', () => {
 
     it('should handle rapid connection state changes', async () => {
       const { service, completeAsyncOperations, mockMessenger, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // Start connection
       const connectPromise = service.connect();
@@ -1548,7 +1548,7 @@ describe('WebSocketService', () => {
     it('should handle message queuing during connection states', async () => {
       // Create service that will auto-connect initially, then test disconnected state
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       // First connect successfully
       const initialConnectPromise = service.connect();
@@ -1593,7 +1593,7 @@ describe('WebSocketService', () => {
 
     it('should handle concurrent subscription attempts', async () => {
       const { service, completeAsyncOperations, getMockWebSocket, cleanup } =
-        setupWebSocketService();
+        setupBackendWebSocketService();
 
       const connectPromise = service.connect();
       await completeAsyncOperations();
