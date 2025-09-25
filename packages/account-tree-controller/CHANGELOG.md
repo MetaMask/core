@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0]
 
+### Changed
+
+- Add more internal logs ([#6730](https://github.com/MetaMask/core/pull/6730))
+
 ### Fixed
 
 - Preverve import time for account groups ([#6727](https://github.com/MetaMask/core/pull/6727))
