@@ -51,7 +51,7 @@
     "@metamask/controller-utils": "^11.14.0",
     "@metamask/polling-controller": "^14.0.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"
   },
