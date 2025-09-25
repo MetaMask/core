@@ -79,40 +79,18 @@ type SuggestedNftMeta = {
   origin: string;
 };
 
-/**
- * Nft
- *
- * NFT representation
- *
- * address - Hex address of a ERC721 contract
- *
- * description - The NFT description
- *
- * image - URI of custom NFT image associated with this tokenId
- *
- * name - Name associated with this tokenId and contract address
- *
- * tokenId - The NFT identifier
- *
- * numberOfSales - Number of sales
- *
- * backgroundColor - The background color to be displayed with the item
- *
- * imagePreview - URI of a smaller image associated with this NFT
- *
- * imageThumbnail - URI of a thumbnail image associated with this NFT
- *
- * imageOriginal - URI of the original image associated with this NFT
- * animation - URI of a animation associated with this NFT
- * animationOriginal - URI of the original animation associated with this NFT
- * externalLink - External link containing additional information
- * creator - The NFT owner information object
- * isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
- * transactionId - Transaction Id associated with the NFT
- */
 export type Nft = {
+  /**
+   * The NFT identifier
+   */
   tokenId: string;
+  /**
+   * Hex address of a ERC721 contract
+   */
   address: string;
+  /**
+   * Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
+   */
   isCurrentlyOwned?: boolean;
 } & NftMetadata;
 
@@ -121,86 +99,105 @@ type NftUpdate = {
   newMetadata: NftMetadata;
 };
 
-/**
- * NftContract
- *
- * NFT contract information representation
- *
- * name - Contract name
- *
- * logo - Contract logo
- *
- * address - Contract address
- *
- * symbol - Contract symbol
- *
- * description - Contract description
- *
- * totalSupply - Total supply of NFTs
- *
- * assetContractType - The NFT type, it could be `semi-fungible` or `non-fungible`
- *
- * createdDate - Creation date
- *
- * schemaName - The schema followed by the contract, it could be `ERC721` or `ERC1155`
- *
- * externalLink - External link containing additional information
- */
 export type NftContract = {
+  /**
+   * Contract name
+   */
   name?: string;
+  /**
+   * Contract logo
+   */
   logo?: string;
+  /**
+   * Contract address
+   */
   address: string;
+  /**
+   * Contract symbol
+   */
   symbol?: string;
+  /**
+   * Contract description
+   */
   description?: string;
+  /**
+   * Total supply of NFTs
+   */
   totalSupply?: string;
+  /**
+   * The NFT type, it could be `semi-fungible` or `non-fungible`
+   */
   assetContractType?: string;
+  /**
+   * Creation date
+   */
   createdDate?: string;
+  /**
+   * The schema followed by the contract, it could be `ERC721` or `ERC1155`
+   */
   schemaName?: string;
+  /**
+   * External link containing additional information
+   */
   externalLink?: string;
 };
 
-/**
- * NftMetadata
- *
- * NFT custom information
- *
- * name - NFT custom name
- *
- * description - The NFT description
- *
- * numberOfSales - Number of sales
- *
- * backgroundColor - The background color to be displayed with the item
- *
- * image - Image custom image URI
- *
- * imagePreview - URI of a smaller image associated with this NFT
- *
- * imageThumbnail - URI of a thumbnail image associated with this NFT
- *
- * imageOriginal - URI of the original image associated with this NFT
- *
- * animation - URI of a animation associated with this NFT
- *
- * animationOriginal - URI of the original animation associated with this NFT
- * externalLink - External link containing additional information
- * creator - The NFT owner information object
- * standard - NFT standard name for the NFT, e.g., ERC-721 or ERC-1155
- */
 export type NftMetadata = {
+  /**
+   * NFT custom name
+   */
   name: string | null;
+  /**
+   * The NFT description
+   */
   description: string | null;
+  /**
+   * Image custom image URI
+   */
   image: string | null;
+  /**
+   * NFT standard name for the NFT, e.g., ERC-721 or ERC-1155
+   */
   standard: string | null;
+  /**
+   * Boolean indicating whether the NFT is a favorite
+   */
   favorite?: boolean;
+  /**
+   * Number of sales
+   */
   numberOfSales?: number;
+  /**
+   * The background color to be displayed with the item
+   */
   backgroundColor?: string;
+  /**
+   * URI of a smaller image associated with this NFT
+   */
   imagePreview?: string;
+  /**
+   * URI of a thumbnail image associated with this NFT
+   */
   imageThumbnail?: string;
+  /**
+   * URI of the original image associated with this NFT
+   */
   imageOriginal?: string;
+  /**
+   * URI of a animation associated with this NFT
+   */
   animation?: string;
+  /**
+   * URI of the original animation associated with this NFT
+   */
   animationOriginal?: string;
+  /**
+   * External link containing additional information
+   */
   externalLink?: string;
+  /**
+   * The NFT owner information object
+   */
   creator?: string;
   transactionId?: string;
   tokenURI?: string | null;
@@ -211,30 +208,29 @@ export type NftMetadata = {
   rarityRank?: string;
   topBid?: TopBid;
   chainId?: number;
+  error?: string;
 };
 
-/**
- * NftControllerState
- *
- * NFT controller state
- *
- * allNftContracts - Object containing NFT contract information
- *
- * allNfts - Object containing NFTs per account and network
- *
- * ignoredNfts - List of NFTs that should be ignored
- */
 export type NftControllerState = {
+  /**
+   * Object containing NFT contract information
+   */
   allNftContracts: {
     [key: string]: {
       [chainId: Hex]: NftContract[];
     };
   };
+  /**
+   * Object containing NFTs per account and network
+   */
   allNfts: {
     [key: string]: {
       [chainId: Hex]: Nft[];
     };
   };
+  /**
+   * List of NFTs that should be ignored
+   */
   ignoredNfts: Nft[];
 };
 
@@ -586,6 +582,7 @@ export class NftController extends BaseController<
         description: null,
         image: null,
         standard: null,
+        error: 'Opensea import error',
       };
     }
 
@@ -673,6 +670,7 @@ export class NftController extends BaseController<
         standard: standard || null,
         favorite: false,
         tokenURI: tokenURI ?? null,
+        error: 'URI import error',
       };
     }
 
@@ -685,6 +683,7 @@ export class NftController extends BaseController<
         standard: standard || null,
         favorite: false,
         tokenURI: tokenURI ?? null,
+        error: 'URI import error',
       };
     }
 
@@ -822,6 +821,19 @@ export class NftController extends BaseController<
           )
         : undefined,
     ]);
+
+    if (blockchainMetadata?.error && nftApiMetadata?.error) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: blockchainMetadata.standard ?? null,
+        favorite: false,
+        tokenURI: blockchainMetadata.tokenURI ?? null,
+        error: 'Both import failed',
+      };
+    }
+
     const metadata = {
       ...nftApiMetadata,
       name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
