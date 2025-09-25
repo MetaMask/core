@@ -18,6 +18,9 @@ export type BtcAccountProviderConfig = {
     timeoutMs: number;
     backOffMs: number;
   };
+  createAccounts: {
+    timeoutMs: number;
+  };
 };
 
 export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin' as const;
@@ -34,6 +37,9 @@ export class BtcAccountProvider extends SnapAccountProvider {
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: BtcAccountProviderConfig = {
+      createAccounts: {
+        timeoutMs: 3000,
+      },
       discovery: {
         timeoutMs: 2000,
         maxAttempts: 3,
@@ -86,12 +92,15 @@ export class BtcAccountProvider extends SnapAccountProvider {
     const createAccount = await this.getRestrictedSnapAccountCreator();
 
     const createBitcoinAccount = async (addressType: BtcAccountType) =>
-      await createAccount({
-        entropySource,
-        index,
-        addressType,
-        scope: BtcScope.Mainnet,
-      });
+      await withTimeout(
+        createAccount({
+          entropySource,
+          index,
+          addressType,
+          scope: BtcScope.Mainnet,
+        }),
+        this.#config.createAccounts.timeoutMs,
+      );
 
     const [p2wpkh, p2tr] = await Promise.all([
       createBitcoinAccount(BtcAccountType.P2wpkh),
