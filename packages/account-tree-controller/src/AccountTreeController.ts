@@ -329,7 +329,7 @@ export class AccountTreeController extends BaseController<
       this.state.accountTree.selectedAccountGroup
     ) {
       log(
-        `Selected group is: [${this.state.accountTree.selectedAccountGroup}]`,
+        `Selected (default) group is: [${this.state.accountTree.selectedAccountGroup}]`,
       );
       this.messagingSystem.publish(
         `${controllerName}:selectedAccountGroupChange`,
@@ -986,6 +986,11 @@ export class AccountTreeController extends BaseController<
     this.update((state) => {
       state.accountTree.selectedAccountGroup = groupId;
     });
+
+    log(
+      `Selected group is now: [${this.state.accountTree.selectedAccountGroup}]`,
+    );
+
     this.messagingSystem.publish(
       `${controllerName}:selectedAccountGroupChange`,
       groupId,
@@ -1375,6 +1380,8 @@ export class AccountTreeController extends BaseController<
    * Also clears the backup and sync service state.
    */
   clearState(): void {
+    log('Clearing state');
+
     this.update(() => {
       return {
         ...getDefaultAccountTreeControllerState(),
