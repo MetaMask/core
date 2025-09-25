@@ -117,7 +117,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    const derivationPath = `m/44'/195'/${groupIndex}'/0'`;
+    const derivationPath = `m/44'/195'/0'/${groupIndex}'`;
     const account = await this.#createAccount({
       entropySource,
       groupIndex,

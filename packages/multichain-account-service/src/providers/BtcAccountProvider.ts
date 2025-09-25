@@ -101,7 +101,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
     assertIsBip44Account(p2wpkh);
     assertIsBip44Account(p2tr);
 
-    return [p2wpkh, p2tr];
+    return [p2tr, p2wpkh];
   }
 
   async discoverAccounts({

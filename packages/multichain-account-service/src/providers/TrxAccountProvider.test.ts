@@ -42,7 +42,7 @@ class MockTronKeyring {
   #getIndexFromDerivationPath(derivationPath: string): number {
     // eslint-disable-next-line prefer-regex-literals
     const derivationPathIndexRegex = new RegExp(
-      "^m/44'/195'/(?<index>[0-9]+)'/0'$",
+      "^m/44'/195'/0'/(?<index>[0-9]+)'$",
       'u',
     );
 

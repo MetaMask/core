@@ -1,6 +1,7 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { Messenger } from '@metamask/base-controller';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import { BtcAccountType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -58,24 +59,39 @@ class MockBtcKeyring {
 
   createAccount: SnapKeyring['createAccount'] = jest
     .fn()
-    .mockImplementation((_, { derivationPath }) => {
-      if (derivationPath !== undefined) {
-        const index = this.#getIndexFromDerivationPath(derivationPath);
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === index,
-        );
+    .mockImplementation((_, { derivationPath, index, ...options }) => {
+      // Determine the group index to use - either from derivationPath parsing, explicit index, or fallback
+      let groupIndex: number;
 
-        if (found) {
-          return found; // Idempotent.
-        }
+      if (derivationPath !== undefined) {
+        groupIndex = this.#getIndexFromDerivationPath(derivationPath);
+      } else if (index !== undefined) {
+        groupIndex = index;
+      } else {
+        groupIndex = this.accounts.length;
       }
 
-      const account = MockAccountBuilder.from(MOCK_BTC_P2TR_ACCOUNT_1)
+      // Check if an account already exists for this group index AND account type (idempotent behavior)
+      const found = this.accounts.find(
+        (account) =>
+          isBip44Account(account) &&
+          account.options.entropy.groupIndex === groupIndex &&
+          account.type === options.addressType,
+      );
+
+      if (found) {
+        return found; // Idempotent.
+      }
+
+      // Create new account with the correct group index
+      const baseAccount =
+        options.addressType === BtcAccountType.P2wpkh
+          ? MOCK_BTC_P2WPKH_ACCOUNT_1
+          : MOCK_BTC_P2TR_ACCOUNT_1;
+      const account = MockAccountBuilder.from(baseAccount)
         .withUuid()
         .withAddressSuffix(`${this.accounts.length}`)
-        .withGroupIndex(this.accounts.length)
+        .withGroupIndex(groupIndex)
         .get();
       this.accounts.push(account);
 
