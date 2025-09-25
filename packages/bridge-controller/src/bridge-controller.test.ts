@@ -1966,6 +1966,9 @@ describe('BridgeController', function () {
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(async () => {
       jest.clearAllMocks();
+      // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
+      jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+      // Add walletAddress to the quoteRequest because it's required for some events
       await bridgeController.updateBridgeQuoteRequestParams(
         {
           walletAddress: '0x123',
@@ -2414,7 +2417,7 @@ describe('BridgeController', function () {
     it('should not track the event if the account keyring type is not set', async () => {
       const errorSpy = jest
         .spyOn(console, 'error')
-        .mockImplementation(jest.fn());
+        .mockImplementationOnce(jest.fn());
       await bridgeController.updateBridgeQuoteRequestParams(
         {
           walletAddress: '0x123',
