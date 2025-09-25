@@ -11,7 +11,7 @@ import {
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/punycode.js';
 
-import { type PathTrie } from './PathTrie';
+import { type PathTrie, convertListToTrie } from './PathTrie';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -65,6 +65,7 @@ export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOM
 export type ListTypes =
   | 'fuzzylist'
   | 'blocklist'
+  | 'blocklistPaths'
   | 'allowlist'
   | 'c2DomainBlocklist';
 
@@ -106,7 +107,8 @@ export type C2DomainBlocklistResponse = {
  *
  * type defining expected type of the stalelist.json file.
  * @property allowlist - List of approved origins.
- * @property blocklist - List of unapproved origins.
+ * @property blocklist - List of unapproved origins (hostname-only entries).
+ * @property blocklistPaths - List of unapproved origins with paths (hostname + path entries).
  * @property fuzzylist - List of fuzzy-matched unapproved origins.
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
@@ -115,6 +117,7 @@ export type C2DomainBlocklistResponse = {
 export type PhishingStalelist = {
   allowlist: string[];
   blocklist: string[];
+  blocklistPaths: string[];
   fuzzylist: string[];
   tolerance: number;
   version: number;
@@ -1012,18 +1015,14 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const { blocklist, blocklistPaths } = separateBlocklistEntries(
-      stalelistResponse.data.blocklist,
-    );
-
     const metamaskListState: PhishingListState = {
       allowlist: stalelistResponse.data.allowlist,
       fuzzylist: stalelistResponse.data.fuzzylist,
       tolerance: stalelistResponse.data.tolerance,
       version: stalelistResponse.data.version,
       lastUpdated: stalelistResponse.data.lastUpdated,
-      blocklist,
-      blocklistPaths,
+      blocklist: stalelistResponse.data.blocklist,
+      blocklistPaths: convertListToTrie(stalelistResponse.data.blocklistPaths),
       c2DomainBlocklist: c2DomainBlocklistResponse
         ? c2DomainBlocklistResponse.recentlyAdded
         : [],
