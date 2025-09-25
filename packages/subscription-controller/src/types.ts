@@ -271,7 +271,11 @@ export type UpdatePaymentMethodCryptoRequest = {
   chainId: Hex;
   payerAddress: Hex;
   tokenSymbol: string;
-  rawTransaction: Hex;
+  /**
+   * The raw transaction to pay for the subscription
+   * Can be empty if retry after topping up balance
+   */
+  rawTransaction?: Hex;
   recurringInterval: RecurringInterval;
   billingCycles: number;
 };
