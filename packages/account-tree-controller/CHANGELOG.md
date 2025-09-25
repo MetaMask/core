@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add more internal logs ([#6730](https://github.com/MetaMask/core/pull/6730))
+
 ### Fixed
 
 - Prevent `:account{Added,Removed}` to be used if `init` has not been called yet ([#6717](https://github.com/MetaMask/core/pull/6717))
