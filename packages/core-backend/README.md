@@ -190,7 +190,7 @@ The MetaMask Backend Platform serves as the data layer between Backend services 
 ├─────────────────────────────────────────┤
 │           DATA LAYER (BRIDGE)           │
 ├─────────────────────────────────────────┤
-│        Backend Platform Services       │
+│           Core Backend Services         │
 │  ┌─────────────────────────────────────┐ │
 │  │    High-Level Services             │ │  ← Domain-specific services
 │  │  - AccountActivityService          │ │
