@@ -1,7 +1,7 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller/next';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
@@ -14,6 +14,13 @@ import {
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  type MessengerActions,
+  type MessengerEvents,
+  type MockAnyNamespace,
+} from '@metamask/messenger';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
 import sinon from 'sinon';
@@ -43,6 +50,16 @@ import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
 import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
 import { buildMockTransaction } from '../tests/mocks/mockTransaction';
+
+type AllKeyringControllerActions = MessengerActions<KeyringControllerMessenger>;
+
+type AllKeyringControllerEvents = MessengerEvents<KeyringControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllKeyringControllerActions,
+  AllKeyringControllerEvents
+>;
 
 jest.mock('uuid', () => {
   return {
@@ -4272,7 +4289,7 @@ describe('KeyringController', () => {
             deriveStateFromMetadata(
               controller.state,
               controller.metadata,
-              'anonymous',
+              'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
             Object {
@@ -4356,7 +4373,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller: KeyringController;
   encryptor: MockEncryptor;
   initialState: KeyringControllerState;
-  messenger: KeyringControllerMessenger;
+  messenger: RootMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<KeyringControllerOptions> & {
@@ -4387,27 +4404,28 @@ function stubKeyringClassWithAccount(
 }
 
 /**
- * Build a messenger that includes all events used by the keyring
- * controller.
+ * Build a root messenger.
  *
- * @returns The messenger.
+ * @returns The root messenger.
  */
-function buildMessenger() {
-  return new Messenger<KeyringControllerActions, KeyringControllerEvents>();
+function buildRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
- * Build a restricted messenger for the keyring controller.
+ * Build a messenger for the keyring controller.
  *
- * @param messenger - A messenger.
+ * @param messenger - An optional root messenger to use as the base for the
+ * controller messenger
  * @returns The keyring controller restricted messenger.
  */
-function buildKeyringControllerMessenger(messenger = buildMessenger()) {
-  return messenger.getRestricted({
-    name: 'KeyringController',
-    allowedActions: [],
-    allowedEvents: [],
-  });
+function buildKeyringControllerMessenger(messenger = buildRootMessenger()) {
+  return new Messenger<
+    'KeyringController',
+    KeyringControllerActions,
+    KeyringControllerEvents,
+    typeof messenger
+  >({ namespace: 'KeyringController', parent: messenger });
 }
 
 /**
@@ -4425,10 +4443,11 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockEncryptor();
-  const messenger = buildKeyringControllerMessenger();
+  const messenger = buildRootMessenger();
+  const keyringControllerMessenger = buildKeyringControllerMessenger(messenger);
   const controller = new KeyringController({
     encryptor,
-    messenger,
+    messenger: keyringControllerMessenger,
     ...rest,
   });
   if (!rest.skipVaultCreation) {
