@@ -19,7 +19,11 @@ import {
 import { Mutex } from 'async-mutex';
 
 import type { Logger } from './logger';
-import { createModuleLogger, projectLogger as log, warn } from './logger';
+import {
+  createModuleLogger,
+  projectLogger as log,
+  WARNING_PREFIX,
+} from './logger';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -364,7 +368,7 @@ export class MultichainAccountWallet<
             message += `\n- ${result.reason}`;
           }
         }
-        this.#log(warn(message));
+        this.#log(`${WARNING_PREFIX} ${message}`);
         console.warn(message);
 
         throw new Error(error);

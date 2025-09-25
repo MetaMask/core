@@ -9,7 +9,11 @@ import type { AccountSelector } from '@metamask/account-api';
 import { type KeyringAccount } from '@metamask/keyring-api';
 
 import type { Logger } from './logger';
-import { projectLogger as log, createModuleLogger, warn } from './logger';
+import {
+  projectLogger as log,
+  createModuleLogger,
+  WARNING_PREFIX,
+} from './logger';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { NamedAccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
@@ -252,7 +256,7 @@ export class MultichainAccountGroup<
     if (results.some((result) => result.status === 'rejected')) {
       const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`;
 
-      this.#log(warn(message));
+      this.#log(`${WARNING_PREFIX} ${message}`);
       console.warn(message);
     }
 
