@@ -32,7 +32,6 @@ import {
   roundToNearestMinute,
   getHostnameFromWebUrl,
   getPathnameFromUrl,
-  separateBlocklistEntries,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =

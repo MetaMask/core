@@ -359,36 +359,6 @@ export const getPathnameFromUrl = (url: string): string => {
 };
 
 /**
- * Separates blocklist entries into hostname-only entries and hostname+path entries.
- *
- * @param blocklist - Array of blocklist entries (hostnames and hostname/path combinations)
- * @returns Object containing separated blocklist and blocklistPaths
- */
-export const separateBlocklistEntries = (
-  blocklist: string[],
-): { blocklist: string[]; blocklistPaths: PathTrie } => {
-  const hostnameOnlyList: string[] = [];
-  const pathTrie: PathTrie = {};
-
-  for (const entry of blocklist) {
-    const { hostname, pathComponents } = getHostnameAndPathComponents(entry);
-    if (!hostname) {
-      continue;
-    }
-    if (pathComponents.length === 0) {
-      hostnameOnlyList.push(hostname.toLowerCase());
-    } else {
-      insertToTrie(entry, pathTrie);
-    }
-  }
-
-  return {
-    blocklist: hostnameOnlyList,
-    blocklistPaths: pathTrie,
-  };
-};
-
-/**
  * Generates all possible parent domains up to a specified limit.
  *
  * @param sourceParts - The list of domain parts in normal order (e.g., ['evil', 'domain', 'co', 'uk']).
