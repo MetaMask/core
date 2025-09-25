@@ -239,7 +239,7 @@ export class MultichainAccountGroup<
         const accounts = this.#providerToAccounts.get(provider);
         if (!accounts || accounts.length === 0) {
           this.#log(
-            `Found missing accounts for account provider "${provider.getName()}", createing them now...`,
+            `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
           );
           const created = await provider.createAccounts({
             entropySource: this.wallet.entropySource,
