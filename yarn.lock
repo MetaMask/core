@@ -2938,6 +2938,8 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^33.1.0
   languageName: unknown
   linkType: soft
 
