@@ -329,7 +329,7 @@ export class AccountTreeController extends BaseController<
       this.state.accountTree.selectedAccountGroup
     ) {
       log(
-        `Selected (default) group is: [${this.state.accountTree.selectedAccountGroup}]`,
+        `Selected (initial) group is: [${this.state.accountTree.selectedAccountGroup}]`,
       );
       this.messagingSystem.publish(
         `${controllerName}:selectedAccountGroupChange`,
