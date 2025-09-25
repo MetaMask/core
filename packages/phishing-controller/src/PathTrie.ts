@@ -123,3 +123,21 @@ export const isTerminalPath = (url: string, pathTrie: PathTrie): boolean => {
   }
   return isTerminal(curr);
 };
+
+/**
+ * Converts an array of paths into a PathTrie structure. This assumes that the
+ * entries are only hostname+pathname format.
+ *
+ * @param paths - Array of hostname+pathname
+ * @returns PathTrie structure for efficient path checking
+ */
+export const convertListToTrie = (paths: string[] = []): PathTrie => {
+  const pathTrie: PathTrie = {};
+  if (!paths || !Array.isArray(paths)) {
+    return pathTrie;
+  }
+  for (const path of paths) {
+    insertToTrie(path, pathTrie);
+  }
+  return pathTrie;
+};
