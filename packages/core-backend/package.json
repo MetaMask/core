@@ -47,7 +47,6 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^33.1.0",
     "@metamask/base-controller": "^8.4.0",
     "@metamask/controller-utils": "^11.14.0",
     "@metamask/profile-sync-controller": "^25.0.0",
@@ -55,6 +54,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@metamask/accounts-controller": "^33.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
@@ -65,6 +65,9 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
+  },
+  "peerDependencies": {
+    "@metamask/accounts-controller": "^33.1.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

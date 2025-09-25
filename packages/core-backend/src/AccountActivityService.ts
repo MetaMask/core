@@ -322,70 +322,53 @@ export class AccountActivityService {
    * Set up account event handlers for selected account changes
    */
   #setupAccountEventHandlers(): void {
-    try {
-      // Subscribe to selected account change events
-      this.#messenger.subscribe(
-        'AccountsController:selectedAccountChange',
-        (account: InternalAccount) =>
-          this.#handleSelectedAccountChange(account),
-      );
-    } catch (error) {
-      // AccountsController events might not be available in all environments
-      console.log(
-        `[${SERVICE_NAME}] AccountsController events not available for account management:`,
-        error,
-      );
-    }
+    // Subscribe to selected account change events
+    // Let this throw if AccountsController is not available - service cannot function without it
+    this.#messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      (account: InternalAccount) => this.#handleSelectedAccountChange(account),
+    );
   }
 
   /**
    * Set up WebSocket connection event handlers for fallback polling
    */
   #setupWebSocketEventHandlers(): void {
-    try {
-      this.#messenger.subscribe(
-        'BackendWebSocketService:connectionStateChanged',
-        (connectionInfo: WebSocketConnectionInfo) =>
-          this.#handleWebSocketStateChange(connectionInfo),
-      );
-    } catch (error) {
-      console.log(
-        `[${SERVICE_NAME}] WebSocketService connection events not available:`,
-        error,
-      );
-    }
+    // Subscribe to WebSocket connection state changes for fallback polling
+    // Let this throw if BackendWebSocketService is not available - service needs this for proper operation
+    this.#messenger.subscribe(
+      'BackendWebSocketService:connectionStateChanged',
+      (connectionInfo: WebSocketConnectionInfo) =>
+        this.#handleWebSocketStateChange(connectionInfo),
+    );
   }
 
   /**
    * Set up system notification callback for chain status updates
    */
   #setupSystemNotificationCallback(): void {
-    try {
-      const systemChannelName = `system-notifications.v1.${this.#options.subscriptionNamespace}`;
-      console.log(
-        `[${SERVICE_NAME}] Adding channel callback for '${systemChannelName}'`,
-      );
-      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
-        channelName: systemChannelName,
-        callback: (notification: ServerNotificationMessage) => {
-          try {
-            // Parse the notification data as a system notification
-            const systemData = notification.data as SystemNotificationData;
-            this.#handleSystemNotification(systemData);
-          } catch (error) {
-            console.error(
-              `[${SERVICE_NAME}] Error processing system notification:`,
-              error,
-            );
-          }
-        },
-      });
-    } catch (error) {
-      console.warn(
-        `[${SERVICE_NAME}] Failed to setup system notification callback:`,
-        error,
-      );
-    }
+    const systemChannelName = `system-notifications.v1.${this.#options.subscriptionNamespace}`;
+    console.log(
+      `[${SERVICE_NAME}] Adding channel callback for '${systemChannelName}'`,
+    );
+
+    // Let this throw if BackendWebSocketService:addChannelCallback is not available - service needs system notifications
+    this.#messenger.call('BackendWebSocketService:addChannelCallback', {
+      channelName: systemChannelName,
+      callback: (notification: ServerNotificationMessage) => {
+        try {
+          // Parse the notification data as a system notification
+          const systemData = notification.data as SystemNotificationData;
+          this.#handleSystemNotification(systemData);
+        } catch (error) {
+          // Keep this try-catch - it handles individual notification processing errors, not setup failures
+          console.error(
+            `[${SERVICE_NAME}] Error processing system notification:`,
+            error,
+          );
+        }
+      },
+    });
   }
 
   // =============================================================================

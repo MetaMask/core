@@ -1137,7 +1137,6 @@ export class BackendWebSocketService {
       // Let user callback errors bubble up - they should handle their own errors
       callback(message);
     }
-    // Silently ignore unknown subscriptions - this is expected during cleanup
   }
 
   /**
