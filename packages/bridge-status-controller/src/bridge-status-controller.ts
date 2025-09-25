@@ -9,7 +9,7 @@ import type {
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
-  isSolanaChainId,
+  isNonEvmChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
@@ -78,9 +78,9 @@ import {
   getUSDTAllowanceResetTx,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
-  handleSolanaTxResponse,
+  handleNonEvmTxResponse,
+  generateActionId,
 } from './utils/transaction';
-import { generateActionId } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -260,7 +260,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             id,
           );
         }
-        if (type === TransactionType.bridge && !isSolanaChainId(chainId)) {
+        if (type === TransactionType.bridge && !isNonEvmChainId(chainId)) {
           this.#startPollingForTxId(id);
         }
       },
@@ -983,7 +983,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
 
   /**
-   * Submits the transaction to the snap using the keyring rpc method
+   * Submits the transaction to the snap using the new unified ClientRequest interface
+   * Works for all non-EVM chains (Solana, BTC, Tron)
    * This adds an approval tx to the ApprovalsController in the background
    * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
    *
@@ -992,8 +993,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param selectedAccount - The account to submit the transaction for
    * @returns The transaction meta
    */
-  readonly #handleSolanaTx = async (
-    quoteResponse: QuoteResponse<string> & QuoteMetadata,
+  readonly #handleNonEvmTx = async (
+    quoteResponse: QuoteResponse<string | { unsignedPsbtBase64: string }> &
+      QuoteMetadata,
     selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
   ) => {
     if (!selectedAccount.metadata?.snap?.id) {
@@ -1006,10 +1008,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const requestResponse = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       request,
-    )) as string | { result: Record<string, string> } | { signature: string };
+    )) as
+      | string
+      | { transactionId: string }
+      | { result: Record<string, string> }
+      | { signature: string };
 
-    // The extension client actually redirects before it can do anytyhing with this meta
-    const txMeta = handleSolanaTxResponse(
+    const txMeta = handleNonEvmTxResponse(
       requestResponse,
       quoteResponse,
       selectedAccount,
@@ -1343,11 +1348,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse.quote.destChainId,
     );
 
-    // Submit SOLANA tx
-    if (
-      isSolanaChainId(quoteResponse.quote.srcChainId) &&
-      typeof quoteResponse.trade === 'string'
-    ) {
+    // Submit non-EVM tx (Solana, BTC, Tron)
+    // Bitcoin trades come as objects with unsignedPsbtBase64, others as strings
+    const isNonEvmTrade =
+      isNonEvmChainId(quoteResponse.quote.srcChainId) &&
+      (typeof quoteResponse.trade === 'string' ||
+        (typeof quoteResponse.trade === 'object' &&
+          'unsignedPsbtBase64' in quoteResponse.trade));
+
+    if (isNonEvmTrade) {
       txMeta = await this.#trace(
         {
           name: isBridgeTx
@@ -1360,8 +1369,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         },
         async () => {
           try {
-            return await this.#handleSolanaTx(
-              quoteResponse as QuoteResponse<string> & QuoteMetadata,
+            return await this.#handleNonEvmTx(
+              quoteResponse as QuoteResponse<
+                string | { unsignedPsbtBase64: string }
+              > &
+                QuoteMetadata,
               selectedAccount,
             );
           } catch (error) {
@@ -1451,10 +1463,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         approvalTxId,
       });
 
-      if (isSolanaChainId(quoteResponse.quote.srcChainId)) {
+      if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
         // Start polling for bridge tx status
         this.#startPollingForTxId(txMeta.id);
-        // Track Solana Swap completed event
+        // Track non-EVM Swap completed event
         if (!isBridgeTx) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
