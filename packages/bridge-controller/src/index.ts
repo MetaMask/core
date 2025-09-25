@@ -40,6 +40,8 @@ export type {
   QuoteResponse,
   FeeData,
   TxData,
+  Intent,
+  IntentOrderLike,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,

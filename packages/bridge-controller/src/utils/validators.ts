@@ -1,4 +1,5 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
+import { IntentSchema } from '@metamask/intent-manager';
 import type { Infer } from '@metamask/superstruct';
 import {
   string,
@@ -156,6 +157,9 @@ export const StepSchema = type({
 
 const RefuelDataSchema = StepSchema;
 
+// Re-export IntentSchema from intent-manager for backward compatibility
+export { IntentSchema };
+
 export const QuoteSchema = type({
   requestId: string(),
   srcChainId: ChainIdSchema,
@@ -208,6 +212,7 @@ export const QuoteSchema = type({
       totalFeeAmountUsd: optional(string()),
     }),
   ),
+  intent: optional(IntentSchema),
 });
 
 export const TxDataSchema = type({
