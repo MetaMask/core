@@ -146,18 +146,9 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            blocklist: [],
-            fuzzylist: [],
-            allowlist: [],
-          },
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          blocklist: [],
+          fuzzylist: [],
+          allowlist: [],
           tolerance: 0,
           version: 0,
         },
@@ -426,7 +417,7 @@ describe('PhishingController', () => {
         },
       });
 
-      nock.cleanAll();
+      cleanAll();
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -457,7 +448,7 @@ describe('PhishingController', () => {
 
       await controller.maybeUpdateState();
 
-      expect(controller.state.phishingLists).toEqual([
+      expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: ['new-safe-site.com'],
           blocklist: [],

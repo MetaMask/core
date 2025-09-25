@@ -165,8 +165,6 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type DataResultWrapper<T> = {
   data: T;
 };
@@ -262,6 +260,7 @@ const metadata: StateMetadata<PhishingControllerState> = {
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
@@ -280,8 +279,13 @@ const getDefaultState = (): PhishingControllerState => {
  * @type PhishingControllerState
  *
  * Phishing controller state
- * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
+ * phishingLists - array of phishing lists
+ * whitelist - origins that bypass the phishing detector
+ * whitelistPaths - origins with paths that bypass the phishing detector
+ * hotlistLastFetched - timestamp of the last hotlist fetch
+ * stalelistLastFetched - timestamp of the last stalelist fetch
+ * c2DomainBlocklistLastFetched - timestamp of the last c2 domain blocklist fetch
+ * urlScanCache - cache of scan results
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
