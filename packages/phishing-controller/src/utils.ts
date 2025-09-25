@@ -106,22 +106,18 @@ export const applyDiffs = (
       latestDiffTimestamp = timestamp;
     }
 
-    if (
-      targetListType === 'blocklist' &&
-      getHostnameAndPathComponents(url).pathComponents.length > 0
-    ) {
-      if (isRemoval) {
+    if (isRemoval) {
+      if (targetListType === 'blocklistPaths') {
         deleteFromTrie(url, listState.blocklistPaths);
       } else {
-        insertToTrie(url, listState.blocklistPaths);
+        listSets[targetListType].delete(url);
       }
-      continue;
-    }
-
-    if (isRemoval) {
-      listSets[targetListType].delete(url);
     } else {
-      listSets[targetListType].add(url);
+      if (targetListType === 'blocklistPaths') {
+        insertToTrie(url, listState.blocklistPaths);
+      } else {
+        listSets[targetListType].add(url);
+      }
     }
   }
 
