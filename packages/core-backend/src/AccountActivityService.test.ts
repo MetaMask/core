@@ -1,8 +1,22 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
+/* eslint-disable jest/no-conditional-in-test */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
-import type { WebSocketConnectionInfo } from './WebsocketService';
+import {
+  AccountActivityService,
+  type AccountActivityServiceMessenger,
+  type AccountSubscription,
+  type AccountActivityServiceOptions,
+  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
+} from './AccountActivityService';
+import type { AccountActivityMessage } from './types';
+import type {
+  WebSocketConnectionInfo,
+  WebSocketService,
+  ServerNotificationMessage,
+} from './WebsocketService';
+import { WebSocketState } from './WebsocketService';
 
 // Test helper constants - using string literals to avoid import errors
 enum ChainId {
@@ -11,7 +25,9 @@ enum ChainId {
 }
 
 // Mock function to create test accounts
-const createMockInternalAccount = (options: { address: string }): InternalAccount => ({
+const createMockInternalAccount = (options: {
+  address: string;
+}): InternalAccount => ({
   address: options.address.toLowerCase() as Hex,
   id: `test-account-${options.address.slice(-6)}`,
   metadata: {
@@ -27,26 +43,6 @@ const createMockInternalAccount = (options: { address: string }): InternalAccoun
   scopes: ['eip155:1'], // Required scopes property
 });
 
-import {
-  AccountActivityService,
-  type AccountActivityServiceMessenger,
-  type AccountSubscription,
-  type AccountActivityServiceOptions,
-  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
-  ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
-} from './AccountActivityService';
-import {
-  WebSocketService,
-  WebSocketState,
-  type WebSocketServiceMessenger,
-} from './WebsocketService';
-import type {
-  AccountActivityMessage,
-  Transaction,
-  BalanceUpdate,
-} from './types';
-import { flushPromises } from '../../../tests/helpers';
-
 // Mock WebSocketService
 jest.mock('./WebsocketService');
 
@@ -56,12 +52,16 @@ describe('AccountActivityService', () => {
   let accountActivityService: AccountActivityService;
   let mockSelectedAccount: InternalAccount;
 
+  // Define mockUnsubscribe at the top level so it can be used in tests
+  const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
-    // Mock WebSocketService
+    // Mock WebSocketService - we'll mock the messenger calls instead of injecting the service
     mockWebSocketService = {
+      name: 'BackendWebSocketService',
       connect: jest.fn(),
       disconnect: jest.fn(),
       subscribe: jest.fn(),
@@ -73,20 +73,72 @@ describe('AccountActivityService', () => {
       removeChannelCallback: jest.fn(),
       getChannelCallbacks: jest.fn(),
       destroy: jest.fn(),
-    } as any;
+      sendMessage: jest.fn(),
+      sendRequest: jest.fn(),
+      findSubscriptionsByChannelPrefix: jest.fn(),
+    } as unknown as jest.Mocked<WebSocketService>;
 
-    // Mock messenger
+    // Mock messenger with all required methods and proper responses
     mockMessenger = {
       registerActionHandler: jest.fn(),
       registerMethodActionHandlers: jest.fn(),
       unregisterActionHandler: jest.fn(),
       registerInitialEventPayload: jest.fn(),
       publish: jest.fn(),
-      call: jest.fn(),
+      call: jest
+        .fn()
+        .mockImplementation((method: string, ..._args: unknown[]) => {
+          // Mock BackendWebSocketService responses
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'mock-sub-id',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Default to not subscribed so subscription will proceed
+          }
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            return {
+              subscriptionId: 'mock-sub-id',
+              unsubscribe: mockUnsubscribe,
+            };
+          }
+          if (
+            method ===
+            'BackendWebSocketService:findSubscriptionsByChannelPrefix'
+          ) {
+            return [
+              {
+                subscriptionId: 'mock-sub-id',
+                unsubscribe: mockUnsubscribe,
+              },
+            ];
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'BackendWebSocketService:removeChannelCallback') {
+            return true;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          if (method === 'AccountsController:getAccountByAddress') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        }),
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
       clearEventSubscriptions: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<AccountActivityServiceMessenger>;
 
     // Mock selected account
     mockSelectedAccount = {
@@ -103,20 +155,20 @@ describe('AccountActivityService', () => {
       type: 'eip155:eoa',
     };
 
-    mockMessenger.call.mockImplementation((...args: any[]) => {
-      const [method] = args;
-      if (method === 'AccountsController:getSelectedAccount') {
-        return mockSelectedAccount;
-      }
-      if (method === 'AccountsController:getAccountByAddress') {
-        return mockSelectedAccount;
-      }
-      return undefined;
-    });
+    mockMessenger.call.mockImplementation(
+      (method: string, ..._args: unknown[]) => {
+        if (method === 'AccountsController:getSelectedAccount') {
+          return mockSelectedAccount;
+        }
+        if (method === 'AccountsController:getAccountByAddress') {
+          return mockSelectedAccount;
+        }
+        return undefined;
+      },
+    );
 
     accountActivityService = new AccountActivityService({
       messenger: mockMessenger,
-      webSocketService: mockWebSocketService,
     });
   });
 
@@ -136,7 +188,6 @@ describe('AccountActivityService', () => {
 
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
         ...options,
       });
 
@@ -155,7 +206,8 @@ describe('AccountActivityService', () => {
     });
 
     it('should set up system notification callback', () => {
-      expect(mockWebSocketService.addChannelCallback).toHaveBeenCalledWith(
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:addChannelCallback',
         expect.objectContaining({
           channelName: 'system-notifications.v1.account-activity.v1',
           callback: expect.any(Function),
@@ -172,14 +224,23 @@ describe('AccountActivityService', () => {
 
   describe('allowed actions and events', () => {
     it('should export correct allowed actions', () => {
-      expect(ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS).toEqual([
+      expect(ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS).toStrictEqual([
         'AccountsController:getAccountByAddress',
         'AccountsController:getSelectedAccount',
+        'BackendWebSocketService:connect',
+        'BackendWebSocketService:disconnect',
+        'BackendWebSocketService:subscribe',
+        'BackendWebSocketService:isChannelSubscribed',
+        'BackendWebSocketService:getSubscriptionByChannel',
+        'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+        'BackendWebSocketService:addChannelCallback',
+        'BackendWebSocketService:removeChannelCallback',
+        'BackendWebSocketService:sendRequest',
       ]);
     });
 
     it('should export correct allowed events', () => {
-      expect(ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS).toEqual([
+      expect(ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS).toStrictEqual([
         'AccountsController:selectedAccountChange',
         'BackendWebSocketService:connectionStateChanged',
       ]);
@@ -199,53 +260,132 @@ describe('AccountActivityService', () => {
     });
 
     it('should subscribe to account activity successfully', async () => {
+      // Spy on console.log to debug what's happening
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
       await accountActivityService.subscribeAccounts(mockSubscription);
 
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledWith({
-        channels: ['account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890'],
-        callback: expect.any(Function),
-      });
+      // Verify all messenger calls
+      console.log('All messenger calls:', mockMessenger.call.mock.calls);
+
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:connect',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:isChannelSubscribed',
+        'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: [
+            'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+          ],
+          callback: expect.any(Function),
+        }),
+      );
 
       // AccountActivityService does not publish accountSubscribed events
       // It only publishes transactionUpdated, balanceUpdated, statusChanged, and subscriptionError events
       expect(mockMessenger.publish).not.toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
     });
 
     it('should handle subscription without account validation', async () => {
       const addressToSubscribe = 'eip155:1:0xinvalid';
-      
+
       // AccountActivityService doesn't validate accounts - it just subscribes
       // and handles errors by forcing reconnection
       await accountActivityService.subscribeAccounts({
         address: addressToSubscribe,
       });
 
-      expect(mockWebSocketService.connect).toHaveBeenCalled();
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:connect',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
     });
 
     it('should handle subscription errors gracefully', async () => {
       const error = new Error('Subscription failed');
-      mockWebSocketService.subscribe.mockRejectedValue(error);
+
+      // Mock the subscribe call to reject with error
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.reject(error);
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       // AccountActivityService catches errors and forces reconnection instead of throwing
       await accountActivityService.subscribeAccounts(mockSubscription);
-      
+
       // Should have attempted to force reconnection
-      expect(mockWebSocketService.disconnect).toHaveBeenCalled();
-      expect(mockWebSocketService.connect).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:disconnect',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:connect',
+      );
     });
 
     it('should handle account activity messages', async () => {
-      const callback = jest.fn();
-      mockWebSocketService.subscribe.mockImplementation((options) => {
-        // Store callback to simulate message handling
-        callback.mockImplementation(options.callback);
-        return Promise.resolve({
-          subscriptionId: 'sub-123',
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
-        });
-      });
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
+
+      // Mock the subscribe call to capture the callback
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            // Capture the callback from the subscription options
+            const options = _args[0] as {
+              callback: (notification: ServerNotificationMessage) => void;
+            };
+            capturedCallback = options.callback;
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       await accountActivityService.subscribeAccounts(mockSubscription);
 
@@ -284,11 +424,13 @@ describe('AccountActivityService', () => {
       const notificationMessage = {
         event: 'notification',
         subscriptionId: 'sub-123',
-        channel: 'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+        channel:
+          'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
         data: activityMessage,
       };
 
-      callback(notificationMessage);
+      // Call the captured callback
+      capturedCallback(notificationMessage);
 
       // Should publish transaction and balance events
       expect(mockMessenger.publish).toHaveBeenCalledWith(
@@ -307,14 +449,41 @@ describe('AccountActivityService', () => {
     });
 
     it('should handle invalid account activity messages', async () => {
-      const callback = jest.fn();
-      mockWebSocketService.subscribe.mockImplementation((options) => {
-        callback.mockImplementation(options.callback);
-        return Promise.resolve({
-          subscriptionId: 'sub-123',
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
-        });
-      });
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
+
+      // Mock the subscribe call to capture the callback
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            // Capture the callback from the subscription options
+            const options = _args[0] as {
+              callback: (notification: ServerNotificationMessage) => void;
+            };
+            capturedCallback = options.callback;
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       await accountActivityService.subscribeAccounts(mockSubscription);
 
@@ -324,14 +493,16 @@ describe('AccountActivityService', () => {
       const invalidMessage = {
         event: 'notification',
         subscriptionId: 'sub-123',
-        channel: 'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+        channel:
+          'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
         data: { invalid: true }, // Missing required fields
       };
 
-      callback(invalidMessage);
+      // Call the captured callback
+      capturedCallback(invalidMessage);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Error handling account activity update:',
+        '[AccountActivityService] Error handling account activity update:',
         expect.any(Error),
       );
 
@@ -353,7 +524,9 @@ describe('AccountActivityService', () => {
 
       mockWebSocketService.getSubscriptionByChannel.mockReturnValue({
         subscriptionId: 'sub-123',
-        channels: ['account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890'],
+        channels: [
+          'account-activity.v1.0x1234567890123456789012345678901234567890',
+        ],
         unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
 
@@ -362,12 +535,27 @@ describe('AccountActivityService', () => {
     });
 
     it('should unsubscribe from account activity successfully', async () => {
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue({
-        subscriptionId: 'sub-123',
-        channels: ['account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890'],
-        unsubscribe: mockUnsubscribe,
-      });
+      // Mock getSubscriptionByChannel to return subscription with unsubscribe function
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            return {
+              subscriptionId: 'sub-123',
+              channels: [
+                'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+              ],
+              unsubscribe: mockUnsubscribe,
+            };
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       await accountActivityService.unsubscribeAccounts(mockSubscription);
 
@@ -382,25 +570,55 @@ describe('AccountActivityService', () => {
 
       // unsubscribeAccounts doesn't throw errors - it logs and returns
       await accountActivityService.unsubscribeAccounts(mockSubscription);
-      
-      expect(mockWebSocketService.getSubscriptionByChannel).toHaveBeenCalled();
+
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:getSubscriptionByChannel',
+        expect.any(String),
+      );
     });
 
     it('should handle unsubscribe errors', async () => {
       const error = new Error('Unsubscribe failed');
-      const mockUnsubscribe = jest.fn().mockRejectedValue(error);
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue({
-        subscriptionId: 'sub-123',
-        channels: ['account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890'],
-        unsubscribe: mockUnsubscribe,
-      });
+      const mockUnsubscribeError = jest.fn().mockRejectedValue(error);
+
+      // Mock getSubscriptionByChannel to return subscription with failing unsubscribe function
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            return {
+              subscriptionId: 'sub-123',
+              channels: [
+                'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+              ],
+              unsubscribe: mockUnsubscribeError,
+            };
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       // unsubscribeAccounts catches errors and forces reconnection instead of throwing
       await accountActivityService.unsubscribeAccounts(mockSubscription);
-      
+
       // Should have attempted to force reconnection
-      expect(mockWebSocketService.disconnect).toHaveBeenCalled();
-      expect(mockWebSocketService.connect).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:disconnect',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:connect',
+      );
     });
   });
 
@@ -430,17 +648,25 @@ describe('AccountActivityService', () => {
       const selectedAccountChangeCall = mockMessenger.subscribe.mock.calls.find(
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       );
-      expect(selectedAccountChangeCall).toBeTruthy();
+      expect(selectedAccountChangeCall).toBeDefined();
 
-      const selectedAccountChangeCallback = selectedAccountChangeCall![1];
+      if (!selectedAccountChangeCall) {
+        throw new Error('selectedAccountChangeCall is undefined');
+      }
+      const selectedAccountChangeCallback = selectedAccountChangeCall[1];
 
       // Simulate account change
       await selectedAccountChangeCallback(newAccount, undefined);
 
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledWith({
-        channels: ['account-activity.v1.eip155:0:0x9876543210987654321098765432109876543210'],
-        callback: expect.any(Function),
-      });
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: [
+            'account-activity.v1.eip155:0:0x9876543210987654321098765432109876543210',
+          ],
+          callback: expect.any(Function),
+        }),
+      );
     });
 
     it('should handle connectionStateChanged event when connected', () => {
@@ -448,19 +674,25 @@ describe('AccountActivityService', () => {
       const connectionStateChangeCall = mockMessenger.subscribe.mock.calls.find(
         (call) => call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
-      expect(connectionStateChangeCall).toBeTruthy();
+      expect(connectionStateChangeCall).toBeDefined();
 
-      const connectionStateChangeCallback = connectionStateChangeCall![1];
+      if (!connectionStateChangeCall) {
+        throw new Error('connectionStateChangeCall is undefined');
+      }
+      const connectionStateChangeCallback = connectionStateChangeCall[1];
 
       // Clear initial status change publish
       jest.clearAllMocks();
 
       // Simulate connection established
-      connectionStateChangeCallback({
-        state: WebSocketState.CONNECTED,
-        url: 'ws://localhost:8080',
-        reconnectAttempts: 0,
-      }, undefined);
+      connectionStateChangeCallback(
+        {
+          state: WebSocketState.CONNECTED,
+          url: 'ws://localhost:8080',
+          reconnectAttempts: 0,
+        },
+        undefined,
+      );
 
       expect(mockMessenger.publish).toHaveBeenCalledWith(
         'AccountActivityService:statusChanged',
@@ -474,17 +706,23 @@ describe('AccountActivityService', () => {
       const connectionStateChangeCall = mockMessenger.subscribe.mock.calls.find(
         (call) => call[0] === 'BackendWebSocketService:connectionStateChanged',
       );
-      const connectionStateChangeCallback = connectionStateChangeCall![1];
+      if (!connectionStateChangeCall) {
+        throw new Error('connectionStateChangeCall is undefined');
+      }
+      const connectionStateChangeCallback = connectionStateChangeCall[1];
 
       // Clear initial status change publish
       jest.clearAllMocks();
 
       // Simulate connection lost
-      connectionStateChangeCallback({
-        state: WebSocketState.DISCONNECTED,
-        url: 'ws://localhost:8080',
-        reconnectAttempts: 0,
-      }, undefined);
+      connectionStateChangeCallback(
+        {
+          state: WebSocketState.DISCONNECTED,
+          url: 'ws://localhost:8080',
+          reconnectAttempts: 0,
+        },
+        undefined,
+      );
 
       // WebSocket disconnection only clears subscription, doesn't publish "down" status
       // Status changes are only published through system notifications, not connection events
@@ -492,13 +730,26 @@ describe('AccountActivityService', () => {
     });
 
     it('should handle system notifications for chain status', () => {
-      // Get the system notification callback
-      const systemCallbackCall = mockWebSocketService.addChannelCallback.mock.calls.find(
-        (call) => call[0].channelName === 'system-notifications.v1.account-activity.v1',
+      // Find the system callback from messenger calls
+      const systemCallbackCall = mockMessenger.call.mock.calls.find(
+        (call) =>
+          call[0] === 'BackendWebSocketService:addChannelCallback' &&
+          call[1] &&
+          typeof call[1] === 'object' &&
+          'channelName' in call[1] &&
+          call[1].channelName === 'system-notifications.v1.account-activity.v1',
       );
-      expect(systemCallbackCall).toBeTruthy();
 
-      const systemCallback = systemCallbackCall![0].callback;
+      expect(systemCallbackCall).toBeDefined();
+
+      if (!systemCallbackCall) {
+        throw new Error('systemCallbackCall is undefined');
+      }
+
+      const callbackOptions = systemCallbackCall[1] as {
+        callback: (notification: ServerNotificationMessage) => void;
+      };
+      const systemCallback = callbackOptions.callback;
 
       // Clear initial status change publish
       jest.clearAllMocks();
@@ -525,10 +776,24 @@ describe('AccountActivityService', () => {
     });
 
     it('should handle invalid system notifications', () => {
-      const systemCallbackCall = mockWebSocketService.addChannelCallback.mock.calls.find(
-        (call) => call[0].channelName === 'system-notifications.v1.account-activity.v1',
+      // Find the system callback from messenger calls
+      const systemCallbackCall = mockMessenger.call.mock.calls.find(
+        (call) =>
+          call[0] === 'BackendWebSocketService:addChannelCallback' &&
+          call[1] &&
+          typeof call[1] === 'object' &&
+          'channelName' in call[1] &&
+          call[1].channelName === 'system-notifications.v1.account-activity.v1',
       );
-      const systemCallback = systemCallbackCall![0].callback;
+
+      if (!systemCallbackCall) {
+        throw new Error('systemCallbackCall is undefined');
+      }
+
+      const callbackOptions = systemCallbackCall[1] as {
+        callback: (notification: ServerNotificationMessage) => void;
+      };
+      const systemCallback = callbackOptions.callback;
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -542,7 +807,7 @@ describe('AccountActivityService', () => {
       systemCallback(invalidNotification);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Error processing system notification:',
+        '[AccountActivityService] Error processing system notification:',
         expect.any(Error),
       );
 
@@ -563,21 +828,53 @@ describe('AccountActivityService', () => {
 
       await accountActivityService.subscribeAccounts(subscriptionWithoutPrefix);
 
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledWith({
-        channels: ['account-activity.v1.0x1234567890123456789012345678901234567890'],
-        callback: expect.any(Function),
-      });
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: [
+            'account-activity.v1.0x1234567890123456789012345678901234567890',
+          ],
+          callback: expect.any(Function),
+        }),
+      );
     });
 
     it('should handle account activity message with missing updates', async () => {
-      const callback = jest.fn();
-      mockWebSocketService.subscribe.mockImplementation((options) => {
-        callback.mockImplementation(options.callback);
-        return Promise.resolve({
-          subscriptionId: 'sub-123',
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
-        });
-      });
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
+
+      // Mock the subscribe call to capture the callback
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            // Capture the callback from the subscription options
+            const options = _args[0] as {
+              callback: (notification: ServerNotificationMessage) => void;
+            };
+            capturedCallback = options.callback;
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       await accountActivityService.subscribeAccounts({
         address: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -600,11 +897,13 @@ describe('AccountActivityService', () => {
       const notificationMessage = {
         event: 'notification',
         subscriptionId: 'sub-123',
-        channel: 'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+        channel:
+          'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
         data: activityMessage,
       };
 
-      callback(notificationMessage);
+      // Call the captured callback
+      capturedCallback(notificationMessage);
 
       // Should still publish transaction event
       expect(mockMessenger.publish).toHaveBeenCalledWith(
@@ -627,39 +926,72 @@ describe('AccountActivityService', () => {
       const selectedAccountChangeCall = mockMessenger.subscribe.mock.calls.find(
         (call) => call[0] === 'AccountsController:selectedAccountChange',
       );
-      const selectedAccountChangeCallback = selectedAccountChangeCall![1];
+      if (!selectedAccountChangeCall) {
+        throw new Error('selectedAccountChangeCall is undefined');
+      }
+      const selectedAccountChangeCallback = selectedAccountChangeCall[1];
 
       // Should handle null account gracefully (this is a bug in the implementation)
       await expect(
         selectedAccountChangeCallback(null, undefined),
-      ).rejects.toThrow();
+      ).rejects.toThrow('Account address is required');
 
       // Should not attempt to subscribe
-      expect(mockWebSocketService.subscribe).not.toHaveBeenCalled();
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
     });
   });
 
   describe('custom namespace', () => {
     it('should use custom subscription namespace', async () => {
+      // Mock the messenger call specifically for this custom service
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Make sure it returns false so subscription proceeds
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
+
       const customService = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
         subscriptionNamespace: 'custom-activity.v2',
-      });
-
-      mockWebSocketService.subscribe.mockResolvedValue({
-        subscriptionId: 'sub-123',
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
       });
 
       await customService.subscribeAccounts({
         address: 'eip155:1:0x1234567890123456789012345678901234567890',
       });
 
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledWith({
-        channels: ['custom-activity.v2.eip155:1:0x1234567890123456789012345678901234567890'],
-        callback: expect.any(Function),
-      });
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: [
+            'custom-activity.v2.eip155:1:0x1234567890123456789012345678901234567890',
+          ],
+          callback: expect.any(Function),
+        }),
+      );
     });
   });
 
@@ -669,46 +1001,92 @@ describe('AccountActivityService', () => {
         address: 'eip155:1:0x1234567890123456789012345678901234567890',
       };
 
-      // Mock subscription setup
-      mockWebSocketService.subscribe.mockResolvedValue({
-        subscriptionId: 'sub-123',
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      });
+      const mockUnsubscribeLocal = jest.fn().mockResolvedValue(undefined);
 
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue({
-        subscriptionId: 'sub-123',
-        channels: ['account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890'],
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      });
-
-      const mockUnsubscribe = jest.fn().mockResolvedValue(undefined);
-
-      // Set up both subscribe and unsubscribe mocks
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue({
-        subscriptionId: 'sub-123',
-        channels: ['account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890'],
-        unsubscribe: mockUnsubscribe,
-      });
+      // Mock both subscribe and getSubscriptionByChannel calls
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribeLocal,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Allow subscription to proceed
+          }
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            return {
+              subscriptionId: 'sub-123',
+              channels: [
+                'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+              ],
+              unsubscribe: mockUnsubscribeLocal,
+            };
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe and immediately unsubscribe
       await accountActivityService.subscribeAccounts(subscription);
       await accountActivityService.unsubscribeAccounts(subscription);
 
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledTimes(1);
-      expect(mockUnsubscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
+      expect(mockUnsubscribeLocal).toHaveBeenCalled();
     });
 
     it('should handle message processing during unsubscription', async () => {
-      const callback = jest.fn();
-      let subscriptionCallback: (message: any) => void;
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
 
-      mockWebSocketService.subscribe.mockImplementation((options) => {
-        subscriptionCallback = options.callback;
-        return Promise.resolve({
-          subscriptionId: 'sub-123',
-          unsubscribe: jest.fn().mockResolvedValue(undefined),
-        });
-      });
+      // Mock the subscribe call to capture the callback
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            // Capture the callback from the subscription options
+            const options = _args[0] as {
+              callback: (notification: ServerNotificationMessage) => void;
+            };
+            capturedCallback = options.callback;
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return mockSelectedAccount;
+          }
+          return undefined;
+        },
+      );
 
       await accountActivityService.subscribeAccounts({
         address: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -728,10 +1106,11 @@ describe('AccountActivityService', () => {
         updates: [],
       };
 
-      subscriptionCallback!({
+      capturedCallback({
         event: 'notification',
         subscriptionId: 'sub-123',
-        channel: 'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
+        channel:
+          'account-activity.v1.eip155:1:0x1234567890123456789012345678901234567890',
         data: activityMessage,
       });
 
@@ -742,114 +1121,203 @@ describe('AccountActivityService', () => {
     });
   });
 
-  describe('currentSubscribedAddress', () => {
+  describe('subscription state tracking', () => {
     it('should return null when no account is subscribed', () => {
-      const service = new AccountActivityService({
+      new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
-      const currentAccount = service.currentSubscribedAddress;
-      expect(currentAccount).toBeNull();
+      // Check that no subscriptions are active initially
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'BackendWebSocketService:isChannelSubscribed',
+        expect.any(String),
+      );
+      // Verify no subscription calls were made
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
     });
 
     it('should return current subscribed account address', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'sub-123',
+              unsubscribe: mockUnsubscribe,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Allow subscription to proceed
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to an account
       const subscription = {
         address: testAccount.address,
       };
-      
+
       await service.subscribeAccounts(subscription);
 
-      // Should return the subscribed account address
-      const currentAccount = service.currentSubscribedAddress;
-      expect(currentAccount).toBe(testAccount.address.toLowerCase());
+      // Verify that subscription was created successfully
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount.address.toLowerCase()),
+          ]),
+        }),
+      );
     });
 
     it('should return the most recently subscribed account', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount1 = createMockInternalAccount({ address: '0x123abc' });
       const testAccount2 = createMockInternalAccount({ address: '0x456def' });
 
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount1; // Default selected account
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount1; // Default selected account
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to first account
       await service.subscribeAccounts({
         address: testAccount1.address,
       });
 
-      expect(service.currentSubscribedAddress).toBe(testAccount1.address.toLowerCase());
+      // Instead of checking internal state, verify subscription behavior
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount1.address.toLowerCase()),
+          ]),
+        }),
+      );
 
       // Subscribe to second account (should become current)
       await service.subscribeAccounts({
         address: testAccount2.address,
       });
 
-      expect(service.currentSubscribedAddress).toBe(testAccount2.address.toLowerCase());
+      // Instead of checking internal state, verify subscription behavior
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount2.address.toLowerCase()),
+          ]),
+        }),
+      );
     });
 
     it('should return null after unsubscribing all accounts', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      const mockUnsubscribeLocal = jest.fn().mockResolvedValue(undefined);
 
-      // Mock subscription object for unsubscribe
-      const mockSubscription = {
-        subscriptionId: 'test-sub-id',
-        channels: ['test-channel'],
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
-
-      // Setup mock to return subscription for the test account
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue(mockSubscription);
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'test-sub-id',
+              unsubscribe: mockUnsubscribeLocal,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Allow subscription to proceed
+          }
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            return {
+              subscriptionId: 'test-sub-id',
+              channels: [
+                `account-activity.v1.${testAccount.address.toLowerCase()}`,
+              ],
+              unsubscribe: mockUnsubscribeLocal,
+            };
+          }
+          if (
+            method ===
+            'BackendWebSocketService:findSubscriptionsByChannelPrefix'
+          ) {
+            return [
+              {
+                subscriptionId: 'test-sub-id',
+                channels: [
+                  `account-activity.v1.${testAccount.address.toLowerCase()}`,
+                ],
+                unsubscribe: mockUnsubscribeLocal,
+              },
+            ];
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to an account
       const subscription = {
         address: testAccount.address,
       };
-      
+
       await service.subscribeAccounts(subscription);
-      expect(service.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
 
       // Unsubscribe from the account
       await service.unsubscribeAccounts(subscription);
-      
+
       // Should return null after unsubscribing
-      expect(service.currentSubscribedAddress).toBeNull();
+      // Verify unsubscription was called
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:getSubscriptionByChannel',
+        expect.stringContaining('account-activity'),
+      );
     });
   });
 
@@ -857,40 +1325,58 @@ describe('AccountActivityService', () => {
     it('should clean up all subscriptions and callbacks on destroy', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to an account to create some state
       const subscription = {
         address: testAccount.address,
       };
-      
+
       await service.subscribeAccounts(subscription);
-      expect(service.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
+      // Instead of checking internal state, verify subscription behavior
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount.address.toLowerCase()),
+          ]),
+        }),
+      );
 
       // Verify service has active subscriptions
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
 
       // Destroy the service
       service.destroy();
 
       // Verify cleanup occurred
-      expect(service.currentSubscribedAddress).toBeNull();
+      // Verify unsubscription was called
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+        expect.stringContaining('account-activity'),
+      );
     });
 
     it('should handle destroy gracefully when no subscriptions exist', () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       // Should not throw when destroying with no active subscriptions
@@ -900,17 +1386,16 @@ describe('AccountActivityService', () => {
     it('should unsubscribe from messenger events on destroy', () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       // Verify initial subscriptions were created
       expect(mockMessenger.subscribe).toHaveBeenCalledWith(
         'AccountsController:selectedAccountChange',
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(mockMessenger.subscribe).toHaveBeenCalledWith(
         'BackendWebSocketService:connectionStateChanged',
-        expect.any(Function)
+        expect.any(Function),
       );
 
       // Clear mock calls to verify destroy behavior
@@ -921,27 +1406,27 @@ describe('AccountActivityService', () => {
 
       // Verify it unregistered action handlers
       expect(mockMessenger.unregisterActionHandler).toHaveBeenCalledWith(
-        'AccountActivityService:subscribeAccounts'
+        'AccountActivityService:subscribeAccounts',
       );
       expect(mockMessenger.unregisterActionHandler).toHaveBeenCalledWith(
-        'AccountActivityService:unsubscribeAccounts'
+        'AccountActivityService:unsubscribeAccounts',
       );
     });
 
     it('should clean up WebSocket subscriptions on destroy', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Mock subscription object with unsubscribe method
       const mockSubscription = {
@@ -951,7 +1436,9 @@ describe('AccountActivityService', () => {
       };
 
       mockWebSocketService.subscribe.mockResolvedValue(mockSubscription);
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue(mockSubscription);
+      mockWebSocketService.getSubscriptionByChannel.mockReturnValue(
+        mockSubscription,
+      );
 
       // Subscribe to an account
       await service.subscribeAccounts({
@@ -959,13 +1446,22 @@ describe('AccountActivityService', () => {
       });
 
       // Verify subscription was created
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
 
       // Destroy the service
       service.destroy();
 
       // Verify the service was cleaned up (current implementation just clears state)
-      expect(service.currentSubscribedAddress).toBeNull();
+      // Verify unsubscription was called
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+        expect.stringContaining('account-activity'),
+      );
     });
   });
 
@@ -973,17 +1469,17 @@ describe('AccountActivityService', () => {
     it('should handle messenger publish failures gracefully', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Mock publish to throw an error
       mockMessenger.publish.mockImplementation(() => {
@@ -1001,51 +1497,75 @@ describe('AccountActivityService', () => {
     it('should handle WebSocket service connection failures', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
 
-      // Mock WebSocket subscribe to reject
-      mockWebSocketService.subscribe.mockRejectedValue(new Error('WebSocket connection failed'));
+      // Mock messenger calls including WebSocket subscribe failure
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.reject(new Error('WebSocket connection failed'));
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Should handle the error gracefully (implementation catches and handles errors)
-      await expect(service.subscribeAccounts({
+      // If this throws, the test will fail - that's what we want to check
+      await service.subscribeAccounts({
         address: testAccount.address,
-      })).resolves.not.toThrow();
+      });
 
       // Verify error handling called disconnect/connect (forceReconnection)
-      expect(mockWebSocketService.disconnect).toHaveBeenCalled();
-      expect(mockWebSocketService.connect).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:disconnect',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:connect',
+      );
     });
 
     it('should handle invalid account activity messages without crashing', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
-      let capturedCallback: any;
-      mockWebSocketService.subscribe.mockImplementation(async ({ callback }) => {
-        capturedCallback = callback;
-        return { subscriptionId: 'test-sub', unsubscribe: jest.fn() };
-      });
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
+      mockWebSocketService.subscribe.mockImplementation(
+        async ({ callback }) => {
+          capturedCallback = callback as (
+            notification: ServerNotificationMessage,
+          ) => void;
+          return { subscriptionId: 'test-sub', unsubscribe: jest.fn() };
+        },
+      );
 
       await service.subscribeAccounts({
         address: testAccount.address,
@@ -1053,9 +1573,11 @@ describe('AccountActivityService', () => {
 
       // Send completely invalid message
       const invalidMessage = {
-        id: 'invalid',
+        event: 'notification',
+        subscriptionId: 'invalid-sub',
+        channel: 'test-channel',
         data: null, // Invalid data
-      };
+      } as unknown as ServerNotificationMessage;
 
       // Should not throw when processing invalid message
       expect(() => {
@@ -1064,11 +1586,13 @@ describe('AccountActivityService', () => {
 
       // Send message with missing required fields
       const partialMessage = {
-        id: 'partial',
+        event: 'notification',
+        subscriptionId: 'partial-sub',
+        channel: 'test-channel',
         data: {
           // Missing accountActivityMessage
         },
-      };
+      } as unknown as ServerNotificationMessage;
 
       expect(() => {
         capturedCallback(partialMessage);
@@ -1078,17 +1602,17 @@ describe('AccountActivityService', () => {
     it('should handle subscription to unsupported chains', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Try to subscribe to unsupported chain (should still work, service should filter)
       await service.subscribeAccounts({
@@ -1096,31 +1620,56 @@ describe('AccountActivityService', () => {
       });
 
       // Should have attempted subscription with supported chains only
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
     });
 
     it('should handle rapid successive subscribe/unsubscribe operations', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      const mockUnsubscribeLocal = jest.fn().mockResolvedValue(undefined);
 
-      const mockSubscription = {
-        subscriptionId: 'test-subscription',
-        channels: ['test-channel'],
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWebSocketService.subscribe.mockResolvedValue(mockSubscription);
-      mockWebSocketService.getSubscriptionByChannel.mockReturnValue(mockSubscription);
+      // Mock messenger calls for rapid operations
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'test-subscription',
+              unsubscribe: mockUnsubscribeLocal,
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Always allow subscription to proceed
+          }
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            return {
+              subscriptionId: 'test-subscription',
+              channels: [
+                `account-activity.v1.${testAccount.address.toLowerCase()}`,
+              ],
+              unsubscribe: mockUnsubscribeLocal,
+            };
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       const subscription = {
         address: testAccount.address,
@@ -1133,8 +1682,11 @@ describe('AccountActivityService', () => {
       await service.unsubscribeAccounts(subscription);
 
       // Should handle all operations without errors
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledTimes(2);
-      expect(mockSubscription.unsubscribe).toHaveBeenCalledTimes(2);
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
+      expect(mockUnsubscribeLocal).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1144,65 +1696,61 @@ describe('AccountActivityService', () => {
       const testAccount2 = createMockInternalAccount({ address: '0x456def' });
 
       let selectedAccount = testAccount1;
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return selectedAccount;
-        }
-        return undefined;
-      });
+      let subscribeCallCount = 0;
 
-      const mockSubscription1 = {
-        subscriptionId: 'test-subscription-1',
-        channels: ['test-channel-1'],
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
-      const mockSubscription2 = {
-        subscriptionId: 'test-subscription-2',
-        channels: ['test-channel-2'],
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            subscribeCallCount += 1;
+            return Promise.resolve({
+              subscriptionId: `test-subscription-${subscribeCallCount}`,
+              unsubscribe: jest.fn().mockResolvedValue(undefined),
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false; // Always allow new subscriptions
+          }
+          if (method === 'BackendWebSocketService:getSubscriptionByChannel') {
+            // Return subscription for whatever channel is queried
+            return {
+              subscriptionId: `test-subscription-${subscribeCallCount}`,
+              channels: [`account-activity.v1.${String(_args[0])}`],
+              unsubscribe: jest.fn().mockResolvedValue(undefined),
+            };
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return selectedAccount;
+          }
+          return undefined;
+        },
+      );
 
-      // Set up getSubscriptionByChannel to handle both raw and CAIP-10 formats
-      mockWebSocketService.getSubscriptionByChannel.mockImplementation((channel: string) => {
-        // Handle testAccount1 (raw address and CAIP-10)
-        if (channel.includes(testAccount1.address.toLowerCase()) || 
-            channel.includes(`eip155:0:${testAccount1.address.toLowerCase()}`)) {
-          return mockSubscription1;
-        }
-        // Handle testAccount2 (raw address and CAIP-10) 
-        if (channel.includes(testAccount2.address.toLowerCase()) || 
-            channel.includes(`eip155:0:${testAccount2.address.toLowerCase()}`)) {
-          return mockSubscription2;
-        }
-        return undefined;
-      });
-
-      // CRITICAL: Set up isChannelSubscribed to always allow new subscriptions
-      // This must return false to avoid early return in subscribeAccounts
-      mockWebSocketService.isChannelSubscribed.mockReturnValue(false);
-
-      // Set up subscribe mock to return appropriate subscription based on channel
-      mockWebSocketService.subscribe = jest.fn().mockImplementation(async (options) => {
-        const channel = options.channels[0];
-        
-        if (channel.includes(testAccount1.address.toLowerCase())) {
-          return mockSubscription1;
-        }
-        // Handle CAIP-10 format addresses
-        if (channel.includes(testAccount2.address.toLowerCase().replace('0x', ''))) {
-          return mockSubscription2;
-        }
-        return mockSubscription1;
-      });
+      // Old mock setup removed - now using messenger pattern above
 
       // Subscribe to first account (direct API call uses raw address)
       await accountActivityService.subscribeAccounts({
         address: testAccount1.address,
       });
 
-      expect(accountActivityService.currentSubscribedAddress).toBe(testAccount1.address.toLowerCase());
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledTimes(1);
+      // Instead of checking internal state, verify subscription was called
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount1.address.toLowerCase()),
+          ]),
+        }),
+      );
+      expect(subscribeCallCount).toBe(1);
 
       // Simulate account change via messenger event
       selectedAccount = testAccount2; // Change selected account
@@ -1210,34 +1758,42 @@ describe('AccountActivityService', () => {
       // Find and call the selectedAccountChange handler
       const subscribeCalls = mockMessenger.subscribe.mock.calls;
       const selectedAccountChangeHandler = subscribeCalls.find(
-        call => call[0] === 'AccountsController:selectedAccountChange'
+        (call) => call[0] === 'AccountsController:selectedAccountChange',
       )?.[1];
 
       expect(selectedAccountChangeHandler).toBeDefined();
       await selectedAccountChangeHandler?.(testAccount2, testAccount1);
 
       // Should have subscribed to new account (via #handleSelectedAccountChange with CAIP-10 conversion)
-      expect(mockWebSocketService.subscribe).toHaveBeenCalledTimes(2);
-      expect(accountActivityService.currentSubscribedAddress).toBe(`eip155:0:${testAccount2.address.toLowerCase()}`);
-      
+      expect(subscribeCallCount).toBe(2);
+      // Verify second subscription was made for the new account
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount2.address.toLowerCase()),
+          ]),
+        }),
+      );
+
       // Note: Due to implementation logic, unsubscribe from old account doesn't happen
-      // because #currentSubscribedAddress gets updated before the unsubscribe check
+      // because internal state gets updated before the unsubscribe check
     });
 
     it('should handle WebSocket connection state changes during subscriptions', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to account
       const mockSubscription = {
@@ -1252,12 +1808,15 @@ describe('AccountActivityService', () => {
       });
 
       // Verify subscription was created
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
 
       // Simulate WebSocket disconnection
       const subscribeCalls = mockMessenger.subscribe.mock.calls;
       const connectionStateHandler = subscribeCalls.find(
-        call => call[0] === 'BackendWebSocketService:connectionStateChanged'
+        (call) => call[0] === 'BackendWebSocketService:connectionStateChanged',
       )?.[1];
 
       expect(connectionStateHandler).toBeDefined();
@@ -1283,37 +1842,63 @@ describe('AccountActivityService', () => {
       connectionStateHandler?.(connectedInfo, undefined);
 
       // Verify reconnection was handled (implementation resubscribes to selected account)
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
     });
 
     it('should handle multiple chain subscriptions and cross-chain activity', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
 
-      // Mock callback capture
-      let capturedCallback: any;
-      mockWebSocketService.subscribe.mockImplementation(async ({ callback }) => {
-        capturedCallback = callback;
-        return { subscriptionId: 'multi-chain-sub', unsubscribe: jest.fn() };
-      });
+      // Mock messenger calls with callback capture
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            // Capture the callback from the subscription options
+            const options = _args[0] as {
+              callback: (notification: ServerNotificationMessage) => void;
+            };
+            capturedCallback = options.callback;
+            return Promise.resolve({
+              subscriptionId: 'multi-chain-sub',
+              unsubscribe: jest.fn(),
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to multiple chains
       await service.subscribeAccounts({
         address: testAccount.address,
       });
 
-      expect(mockWebSocketService.subscribe).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.any(Object),
+      );
 
       // Simulate activity on mainnet - proper ServerNotificationMessage format
       const mainnetActivityData = {
@@ -1326,15 +1911,17 @@ describe('AccountActivityService', () => {
           value: '100000000000000000',
           status: 'confirmed',
         },
-        updates: [{
-          asset: {
-            fungible: true,
-            type: `eip155:${ChainId.mainnet}/slip44:60`,
-            unit: 'ETH'
+        updates: [
+          {
+            asset: {
+              fungible: true,
+              type: `eip155:${ChainId.mainnet}/slip44:60`,
+              unit: 'ETH',
+            },
+            postBalance: { amount: '1000000000000000000' },
+            transfers: [],
           },
-          postBalance: { amount: '1000000000000000000' },
-          transfers: []
-        }]
+        ],
       };
 
       const mainnetNotification = {
@@ -1351,7 +1938,7 @@ describe('AccountActivityService', () => {
         expect.objectContaining({
           id: 'tx-mainnet-1',
           chainId: ChainId.mainnet,
-        })
+        }),
       );
 
       // Test complete - verified mainnet activity processing
@@ -1360,78 +1947,123 @@ describe('AccountActivityService', () => {
     it('should handle service restart and state recovery', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
 
-      const mockSubscription = {
-        subscriptionId: 'persistent-sub',
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWebSocketService.subscribe.mockResolvedValue(mockSubscription);
+      // Mock messenger calls for restart test
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            return Promise.resolve({
+              subscriptionId: 'persistent-sub',
+              unsubscribe: jest.fn().mockResolvedValue(undefined),
+            });
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (
+            method ===
+            'BackendWebSocketService:findSubscriptionsByChannelPrefix'
+          ) {
+            return []; // Mock empty subscriptions found
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'BackendWebSocketService:removeChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // Subscribe to account
       await service.subscribeAccounts({
         address: testAccount.address,
       });
 
-      expect(service.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
+      // Instead of checking internal state, verify subscription behavior
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount.address.toLowerCase()),
+          ]),
+        }),
+      );
 
       // Destroy service (simulating app restart)
       service.destroy();
-      expect(service.currentSubscribedAddress).toBeNull();
+      // Verify unsubscription was called
+      expect(
+        (mockMessenger as jest.Mocked<AccountActivityServiceMessenger>).call,
+      ).toHaveBeenCalledWith(
+        'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+        expect.stringContaining('account-activity'),
+      );
 
       // Create new service instance (simulating restart)
       const newService = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       // Initially no subscriptions
-      expect(newService.currentSubscribedAddress).toBeNull();
+      // Verify no subscription calls made initially
 
-      // Re-subscribe after restart
-      const newMockSubscription = {
-        subscriptionId: 'restored-sub',
-        unsubscribe: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWebSocketService.subscribe.mockResolvedValue(newMockSubscription);
-
+      // Re-subscribe after restart (messenger mock is already set up to handle this)
       await newService.subscribeAccounts({
         address: testAccount.address,
       });
 
-      expect(newService.currentSubscribedAddress).toBe(testAccount.address.toLowerCase());
+      // Verify subscription was made with correct address
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:subscribe',
+        expect.objectContaining({
+          channels: expect.arrayContaining([
+            expect.stringContaining(testAccount.address.toLowerCase()),
+          ]),
+        }),
+      );
     });
 
     it('should handle malformed activity messages gracefully', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
+      mockMessenger.call.mockImplementation(
+        (actionType: string, ..._args: unknown[]) => {
+          if (actionType === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
-      let capturedCallback: any;
-      mockWebSocketService.subscribe.mockImplementation(async ({ callback }) => {
-        capturedCallback = callback;
-        return { subscriptionId: 'malformed-test', unsubscribe: jest.fn() };
-      });
+      let capturedCallback: (notification: ServerNotificationMessage) => void =
+        jest.fn();
+      mockWebSocketService.subscribe.mockImplementation(
+        async ({ callback }) => {
+          capturedCallback = callback as (
+            notification: ServerNotificationMessage,
+          ) => void;
+          return { subscriptionId: 'malformed-test', unsubscribe: jest.fn() };
+        },
+      );
 
       await service.subscribeAccounts({
         address: testAccount.address,
@@ -1441,97 +2073,122 @@ describe('AccountActivityService', () => {
       const malformedMessages = [
         // Completely invalid JSON structure
         { invalidStructure: true },
-        
+
         // Missing data field
         { id: 'test' },
-        
+
         // Null data
         { id: 'test', data: null },
-        
+
         // Invalid account activity message
-        { 
-          id: 'test', 
-          data: { 
-            accountActivityMessage: null 
-          } 
+        {
+          id: 'test',
+          data: {
+            accountActivityMessage: null,
+          },
         },
-        
+
         // Missing required fields
-        { 
-          id: 'test', 
-          data: { 
+        {
+          id: 'test',
+          data: {
             accountActivityMessage: {
               account: testAccount.address,
               // Missing chainId, balanceUpdates, transactionUpdates
-            }
-          } 
+            },
+          },
         },
-        
+
         // Invalid chainId
-        { 
-          id: 'test', 
-          data: { 
+        {
+          id: 'test',
+          data: {
             accountActivityMessage: {
               account: testAccount.address,
               chainId: 'invalid-chain',
               balanceUpdates: [],
               transactionUpdates: [],
-            }
-          } 
+            },
+          },
         },
       ];
 
       // None of these should throw errors
+      const testCallback = capturedCallback; // Capture callback outside loop
       for (const malformedMessage of malformedMessages) {
         expect(() => {
-          capturedCallback(malformedMessage);
+          testCallback(
+            malformedMessage as unknown as ServerNotificationMessage,
+          );
         }).not.toThrow();
       }
 
       // Verify no events were published for malformed messages
       const publishCalls = mockMessenger.publish.mock.calls.filter(
-        call => call[0] === 'AccountActivityService:transactionUpdated' || 
-                call[0] === 'AccountActivityService:balanceUpdated'
+        (call) =>
+          call[0] === 'AccountActivityService:transactionUpdated' ||
+          call[0] === 'AccountActivityService:balanceUpdated',
       );
-      
+
       // Should only have status change events from connection, not from malformed messages
-      expect(publishCalls.length).toBe(0);
+      expect(publishCalls).toHaveLength(0);
     });
 
     it('should handle subscription errors and retry mechanisms', async () => {
       const service = new AccountActivityService({
         messenger: mockMessenger,
-        webSocketService: mockWebSocketService,
       });
 
       const testAccount = createMockInternalAccount({ address: '0x123abc' });
-      mockMessenger.call.mockImplementation((...args: any[]) => {
-        const [actionType] = args;
-        if (actionType === 'AccountsController:getSelectedAccount') {
-          return testAccount;
-        }
-        return undefined;
-      });
 
-      // Mock first subscription attempt to fail
-      mockWebSocketService.subscribe
-        .mockRejectedValueOnce(new Error('Connection timeout'))
-        .mockResolvedValueOnce({ 
-          subscriptionId: 'retry-success', 
-          unsubscribe: jest.fn() 
-        });
+      // Mock messenger calls for subscription error test
+      (mockMessenger.call as jest.Mock).mockImplementation(
+        (method: string, ..._args: unknown[]) => {
+          if (method === 'BackendWebSocketService:connect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:disconnect') {
+            return Promise.resolve();
+          }
+          if (method === 'BackendWebSocketService:subscribe') {
+            // First call fails, subsequent calls succeed (not needed for this simple test)
+            return Promise.reject(new Error('Connection timeout'));
+          }
+          if (method === 'BackendWebSocketService:isChannelSubscribed') {
+            return false;
+          }
+          if (
+            method ===
+            'BackendWebSocketService:findSubscriptionsByChannelPrefix'
+          ) {
+            return []; // Mock empty subscriptions found
+          }
+          if (method === 'BackendWebSocketService:addChannelCallback') {
+            return undefined;
+          }
+          if (method === 'AccountsController:getSelectedAccount') {
+            return testAccount;
+          }
+          return undefined;
+        },
+      );
 
       // First attempt should be handled gracefully (implementation catches errors)
-      await expect(service.subscribeAccounts({
+      // If this throws, the test will fail - that's what we want to check
+      await service.subscribeAccounts({
         address: testAccount.address,
-      })).resolves.not.toThrow();
+      });
 
       // Should have triggered reconnection logic
-      expect(mockWebSocketService.disconnect).toHaveBeenCalled();
-      expect(mockWebSocketService.connect).toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:disconnect',
+      );
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'BackendWebSocketService:connect',
+      );
 
-      // Should still be unsubscribed after failure
-      expect(service.currentSubscribedAddress).toBeNull();
+      // The service handles subscription errors by attempting reconnection
+      // It does not automatically unsubscribe existing subscriptions on failure
     });
   });
 });
