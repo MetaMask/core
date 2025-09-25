@@ -102,16 +102,15 @@ export type C2DomainBlocklistResponse = {
 };
 
 /**
- * @type PhishingStalelist
+ * PhishingStalelist defines the expected type of the stalelist from the API.
  *
- * type defining expected type of the stalelist.json file.
- * @property allowlist - List of approved origins.
- * @property blocklist - List of unapproved origins (hostname-only entries).
- * @property blocklistPaths - List of unapproved origins with paths (hostname + path entries).
- * @property fuzzylist - List of fuzzy-matched unapproved origins.
- * @property tolerance - Fuzzy match tolerance level
- * @property lastUpdated - Timestamp of last update.
- * @property version - Stalelist data structure iteration.
+ * allowlist - List of approved origins.
+ * blocklist - List of unapproved origins (hostname-only entries).
+ * blocklistPaths - List of unapproved origins with paths (hostname + path entries).
+ * fuzzylist - List of fuzzy-matched unapproved origins.
+ * tolerance - Fuzzy match tolerance level
+ * lastUpdated - Timestamp of last update.
+ * version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
   allowlist: string[];
