@@ -30,9 +30,6 @@ Core backend services for MetaMask, serving as the data layer between Backend se
       - [Constructor Options](#constructor-options-1)
       - [Methods](#methods-1)
       - [Events Published](#events-published)
-  - [Contributing](#contributing)
-    - [Development](#development)
-    - [Testing](#testing)
 
 ## Installation
 
@@ -395,33 +392,3 @@ interface AccountActivityServiceOptions {
 - `AccountActivityService:balanceUpdated` - Real-time balance changes
 - `AccountActivityService:transactionUpdated` - Transaction status updates
 - `AccountActivityService:statusChanged` - Chain/service status changes
-
-## Contributing
-
-Please follow MetaMask's [contribution guidelines](../../CONTRIBUTING.md) when submitting changes.
-
-### Development
-
-```bash
-# Install dependencies
-yarn install
-
-# Run tests
-yarn test
-
-# Build
-yarn build
-
-# Lint
-yarn lint
-```
-
-### Testing
-
-Run the test suite to ensure your changes don't break existing functionality:
-
-```bash
-yarn test
-```
-
-The test suite includes comprehensive coverage for WebSocket connection management, authentication integration, message routing, subscription handling, and service interactions.
