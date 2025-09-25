@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `CryptoPaymentMethodError` error response to `SubscriptionCryptoPaymentMethod` ([#6720](https://github.com/MetaMask/core/pull/6720))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Make `rawTransaction` in `UpdatePaymentMethodCryptoRequest` optional for top up case ([#6720](https://github.com/MetaMask/core/pull/6720))
 
 ## [0.2.0]
 

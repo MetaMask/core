@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [46.0.0]
+
 ### Added
 
 - Add support for Bitcoin bridge transactions ([#6705](https://github.com/MetaMask/core/pull/6705))
@@ -596,7 +598,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@45.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@46.0.0...HEAD
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@45.0.0...@metamask/bridge-status-controller@46.0.0
 [45.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.1.0...@metamask/bridge-status-controller@45.0.0
 [44.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@44.0.0...@metamask/bridge-status-controller@44.1.0
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@43.1.0...@metamask/bridge-status-controller@44.0.0
