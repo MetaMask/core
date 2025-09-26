@@ -337,6 +337,12 @@ export class MultichainAccountService {
     throw new Error('Invalid create wallet parameters.');
   }
 
+  /**
+   * Creates a new multichain account wallet by importing an existing mnemonic.
+   *
+   * @param mnemonic - The mnemonic to use to create the new wallet.
+   * @returns The new multichain account wallet.
+   */
   async #createWalletByImport(
     mnemonic: Uint8Array,
   ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
@@ -379,6 +385,12 @@ export class MultichainAccountService {
     }
   }
 
+  /**
+   * Creates a new multichain account wallet by creating a new vault and keychain.
+   *
+   * @param password - The password to encrypt the vault with.
+   * @returns The new multichain account wallet.
+   */
   async #createWalletByNewVault(
     password: string,
   ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
@@ -410,6 +422,13 @@ export class MultichainAccountService {
     }
   }
 
+  /**
+   * Creates a new multichain account wallet by restoring a vault and keyring.
+   *
+   * @param password - The password to encrypt the vault with.
+   * @param mnemonic - The mnemonic to use to restore the new wallet.
+   * @returns The new multichain account wallet.
+   */
   async #createWalletByRestore(
     password: string,
     mnemonic: Uint8Array,
