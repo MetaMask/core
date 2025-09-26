@@ -18,7 +18,7 @@ export const formatHostnameToUrl = (hostname: string): string => {
   let url = '';
   try {
     url = new URL(hostname).href;
-  } catch (e) {
+  } catch {
     url = new URL(['https://', hostname].join('')).href;
   }
   return url;
