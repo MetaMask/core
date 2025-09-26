@@ -702,6 +702,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   updateNativeBalances(
     balances: { address: string; chainId: Hex; balance: Hex }[],
   ) {
+    const prev = this.state;
+    let hasChanges = false;
+
     this.update((state) => {
       balances.forEach(({ address, chainId, balance }) => {
         const checksumAddress = toChecksumHexAddress(address);
@@ -709,19 +712,34 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         // Ensure the chainId exists in the state
         if (!state.accountsByChainId[chainId]) {
           state.accountsByChainId[chainId] = {};
+          hasChanges = true;
         }
 
+        // Check if the address exists for this chain
+        const accountExists = Boolean(state.accountsByChainId[chainId][checksumAddress]);
+        
         // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][checksumAddress]) {
+        if (!accountExists) {
           state.accountsByChainId[chainId][checksumAddress] = {
             balance: '0x0',
           };
+          hasChanges = true;
         }
 
-        // Update the balance
-        state.accountsByChainId[chainId][checksumAddress].balance = balance;
+        // Only update the balance if it has changed, or if this is a new account
+        const currentBalance =
+          state.accountsByChainId[chainId][checksumAddress].balance;
+        if (!accountExists || currentBalance !== balance) {
+          state.accountsByChainId[chainId][checksumAddress].balance = balance;
+          hasChanges = true;
+        }
       });
     });
+
+    // If no changes were made, revert to previous state to avoid triggering state updates
+    if (!hasChanges) {
+      this.update(() => prev);
+    }
   }
 
   /**
@@ -738,6 +756,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       stakedBalance: StakedBalance;
     }[],
   ) {
+    const prev = this.state;
+    let hasChanges = false;
+
     this.update((state) => {
       stakedBalances.forEach(({ address, chainId, stakedBalance }) => {
         const checksumAddress = toChecksumHexAddress(address);
@@ -745,20 +766,35 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         // Ensure the chainId exists in the state
         if (!state.accountsByChainId[chainId]) {
           state.accountsByChainId[chainId] = {};
+          hasChanges = true;
         }
 
+        // Check if the address exists for this chain
+        const accountExists = Boolean(state.accountsByChainId[chainId][checksumAddress]);
+        
         // Ensure the address exists for this chain
-        if (!state.accountsByChainId[chainId][checksumAddress]) {
+        if (!accountExists) {
           state.accountsByChainId[chainId][checksumAddress] = {
             balance: '0x0',
           };
+          hasChanges = true;
         }
 
-        // Update the staked balance
-        state.accountsByChainId[chainId][checksumAddress].stakedBalance =
-          stakedBalance;
+        // Only update the staked balance if it has changed, or if this is a new account
+        const currentStakedBalance =
+          state.accountsByChainId[chainId][checksumAddress].stakedBalance;
+        if (!accountExists || !isEqual(currentStakedBalance, stakedBalance)) {
+          state.accountsByChainId[chainId][checksumAddress].stakedBalance =
+            stakedBalance;
+          hasChanges = true;
+        }
       });
     });
+
+    // If no changes were made, revert to previous state to avoid triggering state updates
+    if (!hasChanges) {
+      this.update(() => prev);
+    }
   }
 
   #registerMessageHandlers() {
