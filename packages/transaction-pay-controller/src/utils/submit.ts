@@ -97,7 +97,7 @@ async function submitBridgeTransaction(
 
   const result = await messenger.call(
     'BridgeStatusController:submitTx',
-    quote,
+    quote as never,
     isSmartTransaction,
   );
 

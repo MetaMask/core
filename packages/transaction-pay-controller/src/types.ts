@@ -4,10 +4,12 @@ import type {
 } from '@metamask/assets-controllers';
 import type { TokenListControllerActions } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
+import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { QuoteMetadata, QuoteResponse } from '@metamask/bridge-controller';
+import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
@@ -20,6 +22,7 @@ import type { Hex } from '@metamask/utils';
 export const controllerName = 'TransactionPayController';
 
 export type AllowedActions =
+  | BridgeControllerActions
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | NetworkControllerFindNetworkClientIdByChainIdAction
@@ -27,6 +30,7 @@ export type AllowedActions =
   | TokenBalancesControllerGetStateAction
   | TokenListControllerActions
   | TokenRatesControllerGetStateAction
+  | TokensControllerGetStateAction
   | TransactionControllerGetStateAction;
 
 export type AllowedEvents =
@@ -71,10 +75,29 @@ export type TransactionPayControllerState = {
 export type TransactionData = {
   paymentToken?: TransactionPaymentToken;
   quotes?: TransactionBridgeQuote[];
+  sourceAmounts?: SourceAmountValues[];
   tokens: TransactionToken[];
 };
 
-export type TransactionBridgeQuote = QuoteResponse & QuoteMetadata;
+export type BridgeQuoteRequest = {
+  attemptsMax: number;
+  bufferInitial: number;
+  bufferStep: number;
+  bufferSubsequent: number;
+  from: Hex;
+  slippage: number;
+  sourceBalanceRaw: string;
+  sourceChainId: Hex;
+  sourceTokenAddress: Hex;
+  sourceTokenAmount: string;
+  targetAmountMinimum: string;
+  targetChainId: Hex;
+  targetTokenAddress: Hex;
+};
+
+export type TransactionBridgeQuote = QuoteResponse & {
+  request: BridgeQuoteRequest;
+};
 
 export type TransactionTokenRequired = {
   address: Hex;
@@ -91,14 +114,28 @@ export type TransactionTokenRequired = {
 export type TransactionTokenFiat = {
   amountFiat: string;
   amountUsd: string;
+  balanceFiat: string;
+  balanceUsd: string;
+};
+
+export type SourceAmountValues = {
+  sourceAmountHuman: string;
+  sourceAmountRaw: string;
 };
 
 export type TransactionToken = TransactionTokenRequired & TransactionTokenFiat;
 
 export type TransactionPaymentToken = {
   address: Hex;
+  balanceFiat: string;
   balanceHuman: string;
   balanceRaw: string;
+  balanceUsd: string;
   chainId: Hex;
   decimals: number;
 };
+
+export type UpdateTransactionDataCallback = (
+  transactionId: string,
+  fn: (data: TransactionData) => void,
+) => void;

@@ -44,12 +44,14 @@ export function getTokenDecimals(
   tokenAddress: Hex,
   chainId: Hex,
 ): number | undefined {
-  const controllerState = messenger.call('TokenListController:getState');
+  const controllerState = messenger.call('TokensController:getState');
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
-  return controllerState.tokensChainsCache?.[chainId]?.data[
-    normalizedTokenAddress
-  ]?.decimals;
+  const token = Object.values(controllerState.allTokens?.[chainId] ?? {})
+    .flat()
+    .find((t) => t.address.toLowerCase() === normalizedTokenAddress);
+
+  return token?.decimals;
 }
 
 /**

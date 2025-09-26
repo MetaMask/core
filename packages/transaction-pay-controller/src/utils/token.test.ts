@@ -17,7 +17,7 @@ describe('Token Utils', () => {
   let baseMessenger: Messenger<AllowedActions, never>;
   let messengerMock: TransactionPayControllerMessenger;
 
-  const getTokenListControllerStateMock = jest.fn();
+  const getTokensControllerStateMock = jest.fn();
   const getTokenBalanceControllerStateMock = jest.fn();
   const findNetworkClientIdByChainIdMock = jest.fn();
   const getNetworkClientByIdMock = jest.fn();
@@ -30,8 +30,8 @@ describe('Token Utils', () => {
     baseMessenger = new Messenger();
 
     baseMessenger.registerActionHandler(
-      'TokenListController:getState',
-      getTokenListControllerStateMock,
+      'TokensController:getState',
+      getTokensControllerStateMock,
     );
 
     baseMessenger.registerActionHandler(
@@ -66,8 +66,8 @@ describe('Token Utils', () => {
         'NetworkController:findNetworkClientIdByChainId',
         'NetworkController:getNetworkClientById',
         'TokenBalancesController:getState',
-        'TokenListController:getState',
         'TokenRatesController:getState',
+        'TokensController:getState',
       ],
       allowedEvents: [],
     });
@@ -75,14 +75,15 @@ describe('Token Utils', () => {
 
   describe('getTokenDecimals', () => {
     it('returns decimals from controller state', () => {
-      getTokenListControllerStateMock.mockReturnValue({
-        tokensChainsCache: {
+      getTokensControllerStateMock.mockReturnValue({
+        allTokens: {
           [CHAIN_ID_MOCK]: {
-            data: {
-              [TOKEN_ADDRESS_MOCK.toLowerCase()]: {
+            test123: [
+              {
+                address: TOKEN_ADDRESS_MOCK.toLowerCase(),
                 decimals: DECIMALS_MOCK,
               },
-            },
+            ],
           },
         },
       });
@@ -97,10 +98,10 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if token is not found', () => {
-      getTokenListControllerStateMock.mockReturnValue({
-        tokensChainsCache: {
+      getTokensControllerStateMock.mockReturnValue({
+        allTokens: {
           [CHAIN_ID_MOCK]: {
-            data: {},
+            test123: [],
           },
         },
       });

@@ -1,8 +1,11 @@
 import { BaseController } from '@metamask/base-controller';
 import type { Hex } from '@metamask/utils';
+import { noop } from 'lodash';
 
+import { updatePaymentToken } from './actions/update-payment-token';
 import { projectLogger } from './logger';
 import type {
+  SourceAmountValues,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
@@ -10,8 +13,9 @@ import type {
   TransactionPaymentToken,
 } from './types';
 import { controllerName } from './types';
-import { getPaymentToken } from './utils/payment-token';
-import { getTransaction, pollTransactionChanges } from './utils/transaction';
+import { updateQuotes } from './utils/bridge-quotes';
+import { calculateSourceAmount } from './utils/source-amounts';
+import { pollTransactionChanges } from './utils/transaction';
 
 const stateMetadata = {
   transactionData: { persist: false, anonymous: false },
@@ -48,50 +52,78 @@ export class TransactionPayController extends BaseController<
     tokenAddress: Hex;
     chainId: Hex;
   }) {
-    const transaction = getTransaction(transactionId, this.messagingSystem);
+    updatePaymentToken(
+      { transactionId, tokenAddress, chainId },
+      {
+        messenger: this.messagingSystem,
+        transactionData: this.state.transactionData[transactionId],
+        updateTransactionData: this.#updateTransactionData.bind(this),
+      },
+    );
+  }
 
-    if (!transaction) {
-      throw new Error('Transaction not found');
+  #updateSourceAmounts(
+    transactionId: string,
+    transactionData: TransactionData,
+    messenger: TransactionPayControllerMessenger,
+  ) {
+    const { paymentToken, tokens } = transactionData;
+
+    if (!tokens.length || !paymentToken) {
+      return;
     }
 
-    const paymentToken = getPaymentToken({
-      chainId,
-      from: transaction?.txParams.from as Hex,
-      messenger: this.messagingSystem,
-      tokenAddress,
-    });
+    const sourceAmounts = tokens
+      .map((t) => calculateSourceAmount(paymentToken, t, messenger))
+      .filter(Boolean) as SourceAmountValues[];
 
-    if (!paymentToken) {
-      throw new Error('Payment token not found');
-    }
+    log('Updated source amounts', { transactionId, sourceAmounts });
 
-    this.#updateTransactionData(transactionId, (data) => {
-      data.paymentToken = paymentToken;
-    });
+    transactionData.sourceAmounts = sourceAmounts;
   }
 
   #updateTransactionData(
     transactionId: string,
     fn: (transactionData: TransactionData) => void,
   ) {
+    let shouldUpdateQuotes = false;
+
     this.update((state) => {
       const { transactionData } = state;
-      const existing = transactionData[transactionId];
+      let current = transactionData[transactionId];
+      const originalPaymentToken = current?.paymentToken;
+      const originalTokens = current?.tokens;
 
-      if (!existing) {
+      if (!current) {
         transactionData[transactionId] = {
           paymentToken: {} as TransactionPaymentToken,
           quotes: [],
           tokens: [],
         } as TransactionData;
+
+        current = transactionData[transactionId];
       }
 
-      fn(transactionData[transactionId]);
+      fn(current);
 
-      log('Updated transaction data', {
-        transactionId,
-        data: transactionData[transactionId],
-      });
+      const isPaymentTokenUpdated =
+        current.paymentToken !== originalPaymentToken;
+
+      const isTokensUpdated = current.tokens !== originalTokens;
+
+      if (isPaymentTokenUpdated || isTokensUpdated) {
+        this.#updateSourceAmounts(transactionId, current, this.messagingSystem);
+        shouldUpdateQuotes = true;
+      }
     });
+
+    if (shouldUpdateQuotes) {
+      updateQuotes({
+        messenger: this.messagingSystem,
+        transactionData: this.state.transactionData[transactionId],
+        transactionId,
+        updateTransactionData: this.#updateTransactionData.bind(this),
+      }).catch(noop);
+    }
   }
 }

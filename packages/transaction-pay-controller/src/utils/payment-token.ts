@@ -1,7 +1,7 @@
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getTokenBalance, getTokenDecimals } from './token';
+import { getTokenBalance, getTokenDecimals, getTokenFiatRate } from './token';
 import type {
   TransactionPayControllerMessenger,
   TransactionPaymentToken,
@@ -34,16 +34,32 @@ export function getPaymentToken({
     return undefined;
   }
 
-  const balance = getTokenBalance(messenger, from, chainId, tokenAddress);
+  const tokenFiatRate = getTokenFiatRate(messenger, tokenAddress, chainId);
 
+  if (tokenFiatRate === undefined) {
+    return undefined;
+  }
+
+  const balance = getTokenBalance(messenger, from, chainId, tokenAddress);
   const balanceRawValue = new BigNumber(balance);
+  const balanceHumanValue = new BigNumber(balance).shiftedBy(-decimals);
   const balanceRaw = balanceRawValue.toFixed(0);
-  const balanceHuman = balanceRawValue.shiftedBy(-decimals).toString(10);
+  const balanceHuman = balanceHumanValue.toString(10);
+
+  const balanceFiat = balanceHumanValue
+    .multipliedBy(tokenFiatRate.fiatRate)
+    .toString(10);
+
+  const balanceUsd = balanceHumanValue
+    .multipliedBy(tokenFiatRate.usdRate)
+    .toString(10);
 
   return {
     address: tokenAddress,
+    balanceFiat,
     balanceHuman,
     balanceRaw,
+    balanceUsd,
     chainId,
     decimals,
   };
