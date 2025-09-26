@@ -49,6 +49,12 @@ export type EncryptedPayload = {
 };
 
 class EncryptorDecryptor {
+  // Promise cache for ongoing KDF operations to prevent duplicate work
+  readonly #kdfPromiseCache = new Map<
+    string,
+    Promise<{ key: Uint8Array; salt: Uint8Array }>
+  >();
+
   async encryptString(
     plaintext: string,
     password: string,
@@ -197,18 +203,19 @@ class EncryptorDecryptor {
   }
 
   getIfEntriesHaveDifferentSalts(entries: string[]): boolean {
-    const salts = entries
-      .map((e) => {
-        try {
-          return this.getSalt(e);
-        } catch {
-          return undefined;
-        }
-      })
-      .filter((s): s is Uint8Array => s !== undefined);
+    const salts: string[] = [];
 
-    const strSet = new Set(salts.map((arr) => arr.toString()));
-    return strSet.size === salts.length;
+    for (const entry of entries) {
+      try {
+        const salt = this.getSalt(entry);
+        salts.push(byteArrayToBase64(salt));
+      } catch {
+        // Ignore invalid entries
+      }
+    }
+
+    const strSet = new Set(salts);
+    return strSet.size > 1;
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
@@ -239,6 +246,8 @@ class EncryptorDecryptor {
     nativeScryptCrypto?: NativeScrypt,
   ) {
     const hashedPassword = createSHA256Hash(password);
+
+    // Check if we already have the key cached
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
       : getCachedKeyGeneratedWithSharedSalt(hashedPassword);
@@ -250,21 +259,73 @@ class EncryptorDecryptor {
       };
     }
 
+    // Create a unique cache key for this KDF operation
     const newSalt = salt ?? SHARED_SALT;
+    const cacheKey = this.#createKdfCacheKey(
+      hashedPassword,
+      o,
+      newSalt,
+      nativeScryptCrypto,
+    );
 
+    // Check if there's already an ongoing KDF operation with the same parameters
+    const existingPromise = this.#kdfPromiseCache.get(cacheKey);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
+    // Create and cache the promise for the KDF operation
+    const kdfPromise = this.#performKdfOperation(
+      password,
+      o,
+      newSalt,
+      hashedPassword,
+      nativeScryptCrypto,
+    );
+
+    // Cache the promise and set up cleanup
+    this.#kdfPromiseCache.set(cacheKey, kdfPromise);
+
+    // Clean up the cache after completion (both success and failure)
+    // eslint-disable-next-line no-void
+    void kdfPromise.finally(() => {
+      this.#kdfPromiseCache.delete(cacheKey);
+    });
+
+    return kdfPromise;
+  }
+
+  #createKdfCacheKey(
+    hashedPassword: string,
+    o: EncryptedPayload['o'],
+    salt: Uint8Array,
+    nativeScryptCrypto?: NativeScrypt,
+  ): string {
+    const saltStr = byteArrayToBase64(salt);
+    const hasNative = Boolean(nativeScryptCrypto);
+    return `${hashedPassword}:${o.N}:${o.r}:${o.p}:${o.dkLen}:${saltStr}:${hasNative}`;
+  }
+
+  async #performKdfOperation(
+    password: string,
+    o: EncryptedPayload['o'],
+    salt: Uint8Array,
+    hashedPassword: string,
+    nativeScryptCrypto?: NativeScrypt,
+  ): Promise<{ key: Uint8Array; salt: Uint8Array }> {
     let newKey: Uint8Array;
 
     if (nativeScryptCrypto) {
       newKey = await nativeScryptCrypto(
         stringToByteArray(password),
-        newSalt,
+        salt,
         o.N,
         o.r,
         o.p,
         o.dkLen,
       );
     } else {
-      newKey = await scryptAsync(password, newSalt, {
+      newKey = await scryptAsync(password, salt, {
         N: o.N,
         r: o.r,
         p: o.p,
@@ -272,11 +333,11 @@ class EncryptorDecryptor {
       });
     }
 
-    setCachedKey(hashedPassword, newSalt, newKey);
+    setCachedKey(hashedPassword, salt, newKey);
 
     return {
       key: newKey,
-      salt: newSalt,
+      salt,
     };
   }
 }

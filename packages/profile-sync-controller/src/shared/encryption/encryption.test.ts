@@ -112,4 +112,132 @@ describe('encryption tests', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('Deferred Promise KDF Functionality', () => {
+    it('should handle concurrent encryption operations with same password', async () => {
+      const password = 'test-password-concurrent';
+      const plaintext = 'test-data';
+
+      // Start multiple concurrent encryption operations
+      const promises = Array(3)
+        .fill(0)
+        .map(async (_, i) => {
+          return encryption.encryptString(`${plaintext}-${i}`, password);
+        });
+
+      const results = await Promise.all(promises);
+      expect(results).toHaveLength(3);
+
+      // Verify all results can be decrypted
+      for (let i = 0; i < results.length; i++) {
+        const decrypted = await encryption.decryptString(results[i], password);
+        expect(decrypted).toBe(`${plaintext}-${i}`);
+      }
+    });
+
+    it('should handle concurrent encrypt/decrypt operations', async () => {
+      const password = 'test-concurrent-mixed';
+      const testData = 'concurrent-test-data';
+
+      // First encrypt some data
+      const encryptedData = await encryption.encryptString(testData, password);
+
+      // Start concurrent operations
+      const decryptPromises = Array(2)
+        .fill(0)
+        .map(() => {
+          return encryption.decryptString(encryptedData, password);
+        });
+
+      const encryptPromises = Array(2)
+        .fill(0)
+        .map((_, i) => {
+          return encryption.encryptString(`new-data-${i}`, password);
+        });
+
+      const allResults = await Promise.all([
+        ...decryptPromises,
+        ...encryptPromises,
+      ]);
+
+      // Verify decrypt results
+      expect(allResults[0]).toBe(testData);
+      expect(allResults[1]).toBe(testData);
+
+      // Verify encrypt results can be decrypted
+      const newDecrypted0 = await encryption.decryptString(
+        allResults[2],
+        password,
+      );
+      const newDecrypted1 = await encryption.decryptString(
+        allResults[3],
+        password,
+      );
+      expect(newDecrypted0).toBe('new-data-0');
+      expect(newDecrypted1).toBe('new-data-1');
+    });
+
+    it('should handle different passwords concurrently', async () => {
+      const password1 = 'password-one';
+      const password2 = 'password-two';
+      const testData = 'multi-password-test';
+
+      // Start concurrent operations with different passwords
+      const promises = [
+        encryption.encryptString(testData, password1),
+        encryption.encryptString(testData, password2),
+      ];
+
+      const results = await Promise.all(promises);
+      expect(results).toHaveLength(2);
+
+      // Verify decryption with correct passwords
+      const decrypted1 = await encryption.decryptString(results[0], password1);
+      const decrypted2 = await encryption.decryptString(results[1], password2);
+
+      expect(decrypted1).toBe(testData);
+      expect(decrypted2).toBe(testData);
+
+      // Cross-password decryption should fail
+      await expect(
+        encryption.decryptString(results[0], password2),
+      ).rejects.toThrow(
+        'Unable to decrypt string - aes/gcm: invalid ghash tag',
+      );
+      await expect(
+        encryption.decryptString(results[1], password1),
+      ).rejects.toThrow(
+        'Unable to decrypt string - aes/gcm: invalid ghash tag',
+      );
+    });
+
+    it('should work correctly under concurrent load', async () => {
+      const password = 'load-test-password';
+      const baseData = 'load-test-data';
+
+      // Create a larger number of concurrent operations
+      const encryptPromises = Array(10)
+        .fill(0)
+        .map((_, i) => encryption.encryptString(`${baseData}-${i}`, password));
+
+      const startTime = Date.now();
+      const results = await Promise.all(encryptPromises);
+      const duration = Date.now() - startTime;
+
+      expect(results).toHaveLength(10);
+
+      // Verify all can be decrypted
+      const decryptPromises = results.map((encrypted, i) =>
+        encryption.decryptString(encrypted, password).then((decrypted) => {
+          expect(decrypted).toBe(`${baseData}-${i}`);
+          return decrypted;
+        }),
+      );
+
+      await Promise.all(decryptPromises);
+
+      // Log performance for manual verification (deferred promises should make this faster)
+      console.log(`Concurrent operations completed in ${duration}ms`);
+    });
+  });
 });
