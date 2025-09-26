@@ -218,13 +218,6 @@ export class AccountTreeController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
-      'AccountsController:selectedAccountChange',
-      (account) => {
-        this.#handleSelectedAccountChange(account);
-      },
-    );
-
-    this.messagingSystem.subscribe(
       'UserStorageController:stateChange',
       (userStorageControllerState) => {
         this.#backupAndSyncService.handleUserStorageStateChange(
@@ -1043,39 +1036,6 @@ export class AccountTreeController extends BaseController<
 
     // Default to the default group in case of errors.
     return this.#getDefaultAccountGroupId(wallets);
-  }
-
-  /**
-   * Handles selected account change from AccountsController.
-   * Updates selectedAccountGroup to match the selected account.
-   *
-   * @param account - The newly selected account.
-   */
-  #handleSelectedAccountChange(account: InternalAccount): void {
-    const accountMapping = this.#accountIdToContext.get(account.id);
-    if (!accountMapping) {
-      // Account not in tree yet, might be during initialization
-      return;
-    }
-
-    const { groupId } = accountMapping;
-    const previousSelectedAccountGroup =
-      this.state.accountTree.selectedAccountGroup;
-
-    // Idempotent check - if the same group is already selected, do nothing
-    if (previousSelectedAccountGroup === groupId) {
-      return;
-    }
-
-    // Update selectedAccountGroup to match the selected account
-    this.update((state) => {
-      state.accountTree.selectedAccountGroup = groupId;
-    });
-    this.messagingSystem.publish(
-      `${controllerName}:selectedAccountGroupChange`,
-      groupId,
-      previousSelectedAccountGroup,
-    );
   }
 
   /**
