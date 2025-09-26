@@ -1,7 +1,7 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import { deleteFromTrie, insertToTrie } from './PathTrie';
+import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie';
 import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
@@ -105,6 +105,9 @@ export const applyDiffs = (
     c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
 
+  // deep copy of blocklistPaths to avoid mutating the original
+  const blocklistPaths = deepCopyPathTrie(listState.blocklistPaths);
+
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
     if (timestamp > latestDiffTimestamp) {
@@ -113,7 +116,7 @@ export const applyDiffs = (
 
     if (isRemoval) {
       if (targetListType === 'blocklistPaths') {
-        deleteFromTrie(url, listState.blocklistPaths);
+        deleteFromTrie(url, blocklistPaths);
       } else {
         listSets[targetListType].delete(url);
       }
@@ -121,7 +124,7 @@ export const applyDiffs = (
     }
 
     if (targetListType === 'blocklistPaths') {
-      insertToTrie(url, listState.blocklistPaths);
+      insertToTrie(url, blocklistPaths);
     } else {
       listSets[targetListType].add(url);
     }
@@ -141,7 +144,7 @@ export const applyDiffs = (
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
-    blocklistPaths: listState.blocklistPaths,
+    blocklistPaths: blocklistPaths,
     version: listState.version,
     name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
