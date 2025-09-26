@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/multichain-account-service` from `^1.2.0` to `^1.3.0` ([#6748](https://github.com/MetaMask/core/pull/6748))
 
+### Fixed
+
+- Fix token balance updates not respecting account selection parameter ([#6738](https://github.com/MetaMask/core/pull/6738))
+
 ## [77.0.1]
 
 ### Changed
