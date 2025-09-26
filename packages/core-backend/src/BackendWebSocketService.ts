@@ -170,18 +170,6 @@ export type WebSocketMessage =
   | ServerNotificationMessage;
 
 /**
- * Internal subscription storage with full details including callback
- */
-export type InternalSubscription = {
-  /** Channel names for this subscription */
-  channels: string[];
-  /** Callback function for handling notifications */
-  callback: (notification: ServerNotificationMessage) => void;
-  /** Function to unsubscribe and clean up */
-  unsubscribe: () => Promise<void>;
-};
-
-/**
  * Channel-based callback configuration
  */
 export type ChannelCallback = {
@@ -192,25 +180,17 @@ export type ChannelCallback = {
 };
 
 /**
- * External subscription info with subscription ID (for API responses)
- */
-export type SubscriptionInfo = {
-  /** The subscription ID from the server */
-  subscriptionId: string;
-  /** Channel names for this subscription */
-  channels: string[];
-  /** Function to unsubscribe and clean up */
-  unsubscribe: () => Promise<void>;
-};
-
-/**
- * Public WebSocket subscription object returned by the subscribe method
+ * Unified WebSocket subscription object used for both internal storage and external API
  */
 export type WebSocketSubscription = {
   /** The subscription ID from the server */
   subscriptionId: string;
+  /** Channel names for this subscription */
+  channels: string[];
+  /** Callback function for handling notifications (optional for external use) */
+  callback?: (notification: ServerNotificationMessage) => void;
   /** Function to unsubscribe and clean up */
-  unsubscribe: () => Promise<void>;
+  unsubscribe: (requestId?: string) => Promise<void>;
 };
 
 /**
@@ -304,8 +284,8 @@ export class BackendWebSocketService {
 
   // Simplified subscription storage (single flat map)
   // Key: subscription ID string (e.g., 'sub_abc123def456')
-  // Value: InternalSubscription object with channels, callback and metadata
-  readonly #subscriptions = new Map<string, InternalSubscription>();
+  // Value: WebSocketSubscription object with channels, callback and metadata
+  readonly #subscriptions = new Map<string, WebSocketSubscription>();
 
   // Channel-based callback storage
   // Key: channel name (serves as unique identifier)
@@ -350,11 +330,6 @@ export class BackendWebSocketService {
    *
    */
   #setupAuthentication(): void {
-    // Track previous authentication state for transition detection
-    let lastAuthState:
-      | AuthenticationController.AuthenticationControllerState
-      | undefined;
-
     try {
       // Subscribe to authentication state changes - this includes wallet unlock state
       // AuthenticationController can only be signed in if wallet is unlocked
@@ -364,34 +339,22 @@ export class BackendWebSocketService {
           newState: AuthenticationController.AuthenticationControllerState,
           _patches: unknown,
         ) => {
-          // For state changes, we only need the new state to determine current sign-in status
           const isSignedIn = newState?.isSignedIn || false;
 
-          // Get previous state by checking our current connection attempts
-          // Since we only care about transitions, we can track this internally
-          const wasSignedIn = lastAuthState?.isSignedIn || false;
-          lastAuthState = newState;
-
-          console.log(
-            `[${SERVICE_NAME}] 🔐 Authentication state changed: ${wasSignedIn ? 'signed-in' : 'signed-out'} → ${isSignedIn ? 'signed-in' : 'signed-out'}`,
-          );
-
-          if (!wasSignedIn && isSignedIn) {
+          if (isSignedIn) {
             // User signed in (wallet unlocked + authenticated) - try to connect
             console.debug(
               `[${SERVICE_NAME}] ✅ User signed in (wallet unlocked + authenticated), attempting connection...`,
             );
             // Clear any pending reconnection timer since we're attempting connection
             this.#clearTimers();
-            if (this.#state === WebSocketState.DISCONNECTED) {
-              this.connect().catch((error) => {
-                console.warn(
-                  `[${SERVICE_NAME}] Failed to connect after sign-in:`,
-                  error,
-                );
-              });
-            }
-          } else if (wasSignedIn && !isSignedIn) {
+            this.connect().catch((error) => {
+              console.warn(
+                `[${SERVICE_NAME}] Failed to connect after sign-in:`,
+                error,
+              );
+            });
+          } else {
             // User signed out (wallet locked OR signed out) - stop reconnection attempts
             console.debug(
               `[${SERVICE_NAME}] 🔒 User signed out (wallet locked OR signed out), stopping reconnection attempts...`,
@@ -403,7 +366,9 @@ export class BackendWebSocketService {
         },
       );
     } catch (error) {
-      console.warn(`[${SERVICE_NAME}] Failed to setup authentication:`, error);
+      throw new Error(
+        `Authentication setup failed: ${this.#getErrorMessage(error)}`,
+      );
     }
   }
 
@@ -447,10 +412,6 @@ export class BackendWebSocketService {
         this.#scheduleReconnect();
         return;
       }
-
-      console.debug(
-        `[${SERVICE_NAME}] ✅ Authentication requirements met: user signed in`,
-      );
     } catch (error) {
       console.warn(
         `[${SERVICE_NAME}] Failed to check authentication requirements:`,
@@ -476,9 +437,6 @@ export class BackendWebSocketService {
       return;
     }
 
-    console.debug(
-      `[${SERVICE_NAME}] 🔄 Starting connection attempt to ${this.#options.url}`,
-    );
     this.#setState(WebSocketState.CONNECTING);
 
     // Create and store the connection promise
@@ -511,15 +469,8 @@ export class BackendWebSocketService {
       this.#state === WebSocketState.DISCONNECTED ||
       this.#state === WebSocketState.DISCONNECTING
     ) {
-      console.debug(
-        `[${SERVICE_NAME}] Disconnect called but already in state: ${this.#state}`,
-      );
       return;
     }
-
-    console.debug(
-      `[${SERVICE_NAME}] Manual disconnect initiated - closing WebSocket connection`,
-    );
 
     this.#setState(WebSocketState.DISCONNECTING);
     this.#clearTimers();
@@ -552,26 +503,29 @@ export class BackendWebSocketService {
     } catch (error) {
       const errorMessage = this.#getErrorMessage(error);
       this.#handleError(new Error(errorMessage));
-      throw error;
+      throw new Error(errorMessage);
     }
   }
 
   /**
    * Sends a request and waits for a correlated response
    *
-   * @param message - The request message
+   * @param message - The request message (can include optional requestId for testing)
    * @returns Promise that resolves with the response data
    */
   async sendRequest<T = ServerResponseMessage['data']>(
     message: Omit<ClientRequestMessage, 'data'> & {
-      data?: Omit<ClientRequestMessage['data'], 'requestId'>;
+      data?: Omit<ClientRequestMessage['data'], 'requestId'> & {
+        requestId?: string;
+      };
     },
   ): Promise<T> {
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(`Cannot send request: WebSocket is ${this.#state}`);
     }
 
-    const requestId = uuidV4();
+    // Use provided requestId if available, otherwise generate a new one
+    const requestId = message.data?.requestId ?? uuidV4();
     const requestMessage: ClientRequestMessage = {
       event: message.event,
       data: {
@@ -588,7 +542,10 @@ export class BackendWebSocketService {
         );
 
         // Trigger reconnection on request timeout as it may indicate stale connection
-        this.#handleRequestTimeout();
+        if (this.#state === WebSocketState.CONNECTED && this.#ws) {
+          // Force close the current connection to trigger reconnection logic
+          this.#ws.close(1001, 'Request timeout - forcing reconnect');
+        }
 
         reject(
           new Error(`Request timeout after ${this.#options.requestTimeout}ms`),
@@ -631,7 +588,7 @@ export class BackendWebSocketService {
    * @param channel - The channel name to look up
    * @returns Subscription details or undefined if not found
    */
-  getSubscriptionByChannel(channel: string): SubscriptionInfo | undefined {
+  getSubscriptionByChannel(channel: string): WebSocketSubscription | undefined {
     for (const [subscriptionId, subscription] of this.#subscriptions) {
       if (subscription.channels.includes(channel)) {
         return {
@@ -665,8 +622,10 @@ export class BackendWebSocketService {
    * @param channelPrefix - The channel prefix to search for (e.g., "account-activity.v1")
    * @returns Array of subscription info for matching subscriptions
    */
-  findSubscriptionsByChannelPrefix(channelPrefix: string): SubscriptionInfo[] {
-    const matchingSubscriptions: SubscriptionInfo[] = [];
+  findSubscriptionsByChannelPrefix(
+    channelPrefix: string,
+  ): WebSocketSubscription[] {
+    const matchingSubscriptions: WebSocketSubscription[] = [];
 
     for (const [subscriptionId, subscription] of this.#subscriptions) {
       // Check if any channel in this subscription starts with the prefix
@@ -739,13 +698,7 @@ export class BackendWebSocketService {
    * @returns True if callback was found and removed, false otherwise
    */
   removeChannelCallback(channelName: string): boolean {
-    const removed = this.#channelCallbacks.delete(channelName);
-    if (removed) {
-      console.debug(
-        `[${SERVICE_NAME}] Removed channel callback for '${channelName}'`,
-      );
-    }
-    return removed;
+    return this.#channelCallbacks.delete(channelName);
   }
 
   /**
@@ -786,6 +739,7 @@ export class BackendWebSocketService {
    * @param options - Subscription configuration
    * @param options.channels - Array of channel names to subscribe to
    * @param options.callback - Callback function for handling notifications
+   * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
    * @returns Subscription object with unsubscribe method
    *
    * @example
@@ -807,8 +761,10 @@ export class BackendWebSocketService {
     channels: string[];
     /** Handler for incoming notifications */
     callback: (notification: ServerNotificationMessage) => void;
+    /** Optional request ID for testing (will generate UUID if not provided) */
+    requestId?: string;
   }): Promise<WebSocketSubscription> {
-    const { channels, callback } = options;
+    const { channels, callback, requestId } = options;
 
     if (this.#state !== WebSocketState.CONNECTED) {
       throw new Error(
@@ -819,7 +775,7 @@ export class BackendWebSocketService {
     // Send subscription request and wait for response
     const subscriptionResponse = await this.sendRequest({
       event: 'subscribe',
-      data: { channels },
+      data: { channels, requestId },
     });
 
     if (!subscriptionResponse?.subscriptionId) {
@@ -836,7 +792,7 @@ export class BackendWebSocketService {
     }
 
     // Create unsubscribe function
-    const unsubscribe = async (): Promise<void> => {
+    const unsubscribe = async (unsubRequestId?: string): Promise<void> => {
       try {
         // Send unsubscribe request first
         await this.sendRequest({
@@ -844,6 +800,7 @@ export class BackendWebSocketService {
           data: {
             subscription: subscriptionId,
             channels,
+            requestId: unsubRequestId,
           },
         });
 
@@ -857,11 +814,13 @@ export class BackendWebSocketService {
 
     const subscription = {
       subscriptionId,
+      channels: [...channels],
       unsubscribe,
     };
 
     // Store subscription with subscription ID as key
     this.#subscriptions.set(subscriptionId, {
+      subscriptionId,
       channels: [...channels], // Store copy of channels
       callback,
       unsubscribe,
@@ -955,57 +914,44 @@ export class BackendWebSocketService {
       };
 
       ws.onerror = (event: Event) => {
+        console.debug(
+          `[${SERVICE_NAME}] WebSocket onerror event triggered:`,
+          event,
+        );
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase errors
           clearTimeout(connectTimeout);
-          console.error(
-            `[${SERVICE_NAME}] ❌ WebSocket error during connection attempt:`,
-            event,
-          );
           const error = new Error(`WebSocket connection error to ${wsUrl}`);
           reject(error);
         } else {
           // Handle runtime errors
-          console.debug(
-            `[${SERVICE_NAME}] WebSocket onerror event triggered:`,
-            event,
-          );
           this.#handleError(new Error(`WebSocket error: ${event.type}`));
         }
       };
 
       ws.onclose = (event: CloseEvent) => {
+        console.debug(
+          `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
+        );
         if (this.#state === WebSocketState.CONNECTING) {
           // Handle connection-phase close events
           clearTimeout(connectTimeout);
-          console.debug(
-            `[${SERVICE_NAME}] WebSocket closed during connection setup - code: ${event.code} - ${getCloseReason(event.code)}, reason: ${event.reason || 'none'}, state: ${this.#state}`,
-          );
-          console.debug(
-            `[${SERVICE_NAME}] Connection attempt failed due to close event during CONNECTING state`,
-          );
           reject(
             new Error(
               `WebSocket connection closed during connection: ${event.code} ${event.reason}`,
             ),
           );
         } else {
-          // Handle runtime close events
-          console.debug(
-            `[${SERVICE_NAME}] WebSocket onclose event triggered - code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean}`,
-          );
           this.#handleClose(event);
         }
       };
 
       // Set up message handler immediately - no need to wait for connection
       ws.onmessage = (event: MessageEvent) => {
-        // Fast path: Optimized parsing for mobile real-time performance
         const message = this.#parseMessage(event.data);
         if (message) {
           this.#handleMessage(message);
         }
-        // Note: Parse errors are silently ignored for mobile performance
       };
     });
   }
@@ -1116,7 +1062,18 @@ export class BackendWebSocketService {
    * @param message - The message with channel property to handle
    */
   #handleChannelMessage(message: ServerNotificationMessage): void {
-    this.#triggerChannelCallbacks(message);
+    if (this.#channelCallbacks.size === 0) {
+      return;
+    }
+
+    // Use the channel name directly from the notification
+    const channelName = message.channel;
+
+    // Direct lookup for exact channel match
+    const channelCallback = this.#channelCallbacks.get(channelName);
+    if (channelCallback) {
+      channelCallback.callback(message);
+    }
   }
 
   /**
@@ -1132,37 +1089,9 @@ export class BackendWebSocketService {
 
     // Fast path: Direct callback routing by subscription ID
     const subscription = this.#subscriptions.get(subscriptionId);
-    if (subscription) {
+    if (subscription?.callback) {
       const { callback } = subscription;
-      // Let user callback errors bubble up - they should handle their own errors
       callback(message);
-    }
-  }
-
-  /**
-   * Triggers channel-based callbacks for incoming notifications
-   *
-   * @param notification - The notification message to check against channel callbacks
-   */
-  #triggerChannelCallbacks(notification: ServerNotificationMessage): void {
-    if (this.#channelCallbacks.size === 0) {
-      return;
-    }
-
-    // Use the channel name directly from the notification
-    const channelName = notification.channel;
-
-    // Direct lookup for exact channel match
-    const channelCallback = this.#channelCallbacks.get(channelName);
-    if (channelCallback) {
-      try {
-        channelCallback.callback(notification);
-      } catch (error) {
-        console.error(
-          `[${SERVICE_NAME}] Error in channel callback for '${channelCallback.channelName}':`,
-          error,
-        );
-      }
     }
   }
 
@@ -1176,7 +1105,6 @@ export class BackendWebSocketService {
     try {
       return JSON.parse(data);
     } catch {
-      // Fail fast on parse errors (mobile optimization)
       return null;
     }
   }
@@ -1243,26 +1171,6 @@ export class BackendWebSocketService {
     // Placeholder for future error handling logic
   }
 
-  /**
-   * Handles request timeout by forcing reconnection
-   * Request timeouts often indicate a stale or broken connection
-   */
-  #handleRequestTimeout(): void {
-    console.debug(
-      `[${SERVICE_NAME}] 🔄 Request timeout detected - forcing WebSocket reconnection`,
-    );
-
-    // Only trigger reconnection if we're currently connected
-    if (this.#state === WebSocketState.CONNECTED && this.#ws) {
-      // Force close the current connection to trigger reconnection logic
-      this.#ws.close(1001, 'Request timeout - forcing reconnect');
-    } else {
-      console.debug(
-        `[${SERVICE_NAME}] ⚠️ Request timeout but WebSocket is ${this.#state} - not forcing reconnection`,
-      );
-    }
-  }
-
   // =============================================================================
   // 6. STATE MANAGEMENT (PRIVATE)
   // =============================================================================
@@ -1305,9 +1213,6 @@ export class BackendWebSocketService {
         );
 
         // Always schedule another reconnection attempt
-        console.debug(
-          `Scheduling next reconnection attempt (attempt #${this.#reconnectAttempts})`,
-        );
         this.#scheduleReconnect();
       });
     }, delay);
@@ -1353,7 +1258,7 @@ export class BackendWebSocketService {
     this.#state = newState;
 
     if (oldState !== newState) {
-      console.log(`WebSocket state changed: ${oldState} → ${newState}`);
+      console.debug(`WebSocket state changed: ${oldState} → ${newState}`);
 
       // Log disconnection-related state changes
       if (
@@ -1361,7 +1266,7 @@ export class BackendWebSocketService {
         newState === WebSocketState.DISCONNECTING ||
         newState === WebSocketState.ERROR
       ) {
-        console.log(
+        console.debug(
           `🔴 WebSocket disconnection detected - state: ${oldState} → ${newState}`,
         );
       }

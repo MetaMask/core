@@ -18,8 +18,6 @@ export type {
   WebSocketMessage,
   WebSocketConnectionInfo,
   WebSocketSubscription,
-  InternalSubscription,
-  SubscriptionInfo,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceAllowedActions,
   BackendWebSocketServiceAllowedEvents,
