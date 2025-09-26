@@ -166,7 +166,7 @@ describe('MultichainAccount', () => {
     });
   });
 
-  describe('align', () => {
+  describe('alignAccounts', () => {
     it('creates missing accounts only for providers with no accounts', async () => {
       const groupIndex = 0;
       const { group, providers, wallet } = setup({

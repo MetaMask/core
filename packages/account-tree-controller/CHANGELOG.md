@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [1.3.0]
+
+### Changed
+
+- Add more internal logs ([#6730](https://github.com/MetaMask/core/pull/6730))
+
+### Fixed
+
+- Preverve import time for account groups ([#6727](https://github.com/MetaMask/core/pull/6727))
+  - We now wait sort accounts by their `importTime` before re-building the tree.
+- Prevent `:account{Added,Removed}` to be used if `init` has not been called yet ([#6717](https://github.com/MetaMask/core/pull/6717))
+  - We now wait for `init` to have been called at least once. Clients will need to ensure internal accounts are fully ready before calling `init`.
+  - This should also enforce account group ordering, since all accounts will be ready to consume right away.
+
+## [1.2.0]
+
+### Added
+
+- Add `reinit` method ([#6709](https://github.com/MetaMask/core/pull/6709))
+  - This method can be used if we change the entire list of accounts of the `AccountsController` and want to re-initilize the tree with it.
+
+### Changed
+
+- Implicitly call `init` before mutating the tree ([#6709](https://github.com/MetaMask/core/pull/6709))
+  - This ensure the tree is always using existing accounts before inserting/removing any new accounts if `init` has not been called yet.
+
+### Fixed
+
+- Fix use of unknown `group.metadata.name` when checking for group name uniqueness ([#6706](https://github.com/MetaMask/core/pull/6706))
+- Added logic that prevents an account within a group from being out of order ([#6683](https://github.com/MetaMask/core/pull/6683))
+
+## [1.1.0]
+
+### Changed
+
+- Set the `setAccountGroupName`'s option `autoHandleConflict` to `true` for all backup & sync operations ([#6697](https://github.com/MetaMask/core/pull/6697))
+- Add new group naming for non-HD keyring accounts ([#6679](https://github.com/MetaMask/core/pull/6679)), ([#6696](https://github.com/MetaMask/core/pull/6696))
+  - Hardware-wallet account groups are now named: "Ledger|Trezor|QR|Lattice|OneKey Account N".
+  - Private key account groups are now named: "Imported Account N".
+  - Snap account groups are now named: "Snap Account N".
+- Account group names now use natural indexing as a fallback ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679)), ([#6696](https://github.com/MetaMask/core/pull/6696))
+  - If a user names his accounts without any indexes, we would just use the number of accounts to compute the next available index.
+
+### Fixed
+
+- Fix group naming for non-HD keyring accounts ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679))
+  - Previously, the first non-HD keyring account would start as `Account 2` as opposed to `Account 1` and thus subsequent group names were off as well.
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.8.0` to `^1.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
+
+## [0.18.1]
+
+### Fixed
+
+- Set `lastUpdatedAt` to `0` when generating default account group names ([#6672](https://github.com/MetaMask/core/pull/6672))
+  - This created conflicts with backup and sync, where newly created local groups' names were taking precedence over user-defined backed up names.
+
 ## [0.18.0]
 
 ### Added
@@ -276,7 +341,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.3.0...HEAD
+[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.2.0...@metamask/account-tree-controller@1.3.0
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.1.0...@metamask/account-tree-controller@1.2.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.0.0...@metamask/account-tree-controller@1.1.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.1...@metamask/account-tree-controller@1.0.0
+[0.18.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.18.0...@metamask/account-tree-controller@0.18.1
 [0.18.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.17.0...@metamask/account-tree-controller@0.18.0
 [0.17.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.1...@metamask/account-tree-controller@0.17.0
 [0.16.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@0.16.0...@metamask/account-tree-controller@0.16.1

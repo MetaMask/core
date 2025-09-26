@@ -13,6 +13,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
+import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import type {
@@ -225,6 +226,8 @@ export class MultichainAccountService {
    * multichain accounts and wallets.
    */
   init(): void {
+    log('Initializing...');
+
     this.#wallets.clear();
 
     const serviceState = this.#constructServiceState();
@@ -237,6 +240,8 @@ export class MultichainAccountService {
       wallet.init(serviceState[entropySource]);
       this.#wallets.set(wallet.id, wallet);
     }
+
+    log('Initialized');
   }
 
   /**
@@ -314,6 +319,7 @@ export class MultichainAccountService {
 
     let wallet: MultichainAccountWallet<Bip44Account<KeyringAccount>>;
 
+    log(`Creating new wallet...`);
     if (mnemonic) {
       const existingKeyrings = this.#messenger.call(
         'KeyringController:getKeyringsByType',
@@ -368,6 +374,8 @@ export class MultichainAccountService {
     }
 
     this.#wallets.set(wallet.id, wallet);
+
+    log(`Wallet created: [${wallet.id}]`);
 
     return wallet;
   }
@@ -461,9 +469,14 @@ export class MultichainAccountService {
    * @param enabled - Whether basic functionality is enabled.
    */
   async setBasicFunctionality(enabled: boolean): Promise<void> {
+    log(`Turning basic functionality: ${enabled ? 'ON' : 'OFF'}`);
+
     // Loop through providers and enable/disable only wrapped ones when basic functionality changes
     for (const provider of this.#providers) {
       if (isAccountProviderWrapper(provider)) {
+        log(
+          `${enabled ? 'Enabling' : 'Disabling'} account provider: "${provider.getName()}"`,
+        );
         provider.setEnabled(enabled);
       }
       // Regular providers (like EVM) are never disabled for basic functionality
@@ -479,8 +492,12 @@ export class MultichainAccountService {
    * Align all multichain account wallets.
    */
   async alignWallets(): Promise<void> {
+    log(`Triggering alignment on all wallets...`);
+
     const wallets = this.getMultichainAccountWallets();
     await Promise.all(wallets.map((w) => w.alignAccounts()));
+
+    log(`Wallets aligned`);
   }
 
   /**
@@ -490,6 +507,9 @@ export class MultichainAccountService {
    */
   async alignWallet(entropySource: EntropySourceId): Promise<void> {
     const wallet = this.getMultichainAccountWallet({ entropySource });
+
+    log(`Triggering alignment for wallet: [${wallet.id}]`);
     await wallet.alignAccounts();
+    log(`Wallet [${wallet.id}] aligned`);
   }
 }

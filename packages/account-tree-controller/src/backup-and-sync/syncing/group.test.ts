@@ -278,6 +278,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(
           mockLocalGroup.id,
           'New Name',
+          true,
         );
       }
       /* eslint-enable jest/no-conditional-in-test */
@@ -600,6 +601,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(testContext.controller.setAccountGroupName).toHaveBeenCalledWith(
         mockLocalGroup.id,
         testGroupName,
+        true,
       );
     });
   });

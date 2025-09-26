@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-enablement-controller",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -48,8 +48,8 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/multichain-network-controller": "^0.12.0",
-    "@metamask/network-controller": "^24.1.0",
+    "@metamask/multichain-network-controller": "^1.0.0",
+    "@metamask/network-controller": "^24.2.0",
     "@metamask/transaction-controller": "^60.4.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -63,11 +63,11 @@
   "dependencies": {
     "@metamask/base-controller": "^8.4.0",
     "@metamask/controller-utils": "^11.14.0",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "reselect": "^5.1.1"
   },
   "peerDependencies": {
-    "@metamask/multichain-network-controller": "^0.11.0",
+    "@metamask/multichain-network-controller": "^1.0.0",
     "@metamask/network-controller": "^24.0.0",
     "@metamask/transaction-controller": "^60.0.0"
   },

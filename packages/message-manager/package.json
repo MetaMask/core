@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "12.0.2",
+  "version": "13.0.0",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
     "@metamask/base-controller": "^8.4.0",
     "@metamask/controller-utils": "^11.14.0",
     "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/utils": "^11.8.0",
+    "@metamask/utils": "^11.8.1",
     "@types/uuid": "^8.3.0",
     "jsonschema": "^1.4.1",
     "uuid": "^8.3.2"
