@@ -1766,6 +1766,7 @@ describe('BridgeStatusController', () => {
     };
 
     const mockSolanaAccount = {
+      id: 'solana-account-1',
       address: '0x123...',
       metadata: {
         snap: {
@@ -1794,7 +1795,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockQuoteResponse, false);
+      const result = await controller.submitTx(
+        'SOLaccountAddress',
+        mockQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -1818,7 +1823,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockQuoteResponse, false),
+        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap transaction: undefined snap id',
       );
@@ -1833,7 +1838,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockQuoteResponse, false),
+        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
@@ -1849,7 +1854,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockQuoteResponse, false),
+        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow('Snap error');
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
@@ -1972,6 +1977,7 @@ describe('BridgeStatusController', () => {
     };
 
     const mockSolanaAccount = {
+      id: 'solana-account-1',
       address: '0x123...',
       metadata: {
         snap: {
@@ -2005,7 +2011,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockQuoteResponse, false);
+      const result = await controller.submitTx(
+        'SOLaccountAddress',
+        mockQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -2026,7 +2036,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockQuoteResponse, false),
+        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap transaction: undefined snap id',
       );
@@ -2041,7 +2051,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockQuoteResponse, false),
+        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
@@ -2058,7 +2068,7 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockQuoteResponse, false),
+        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
       ).rejects.toThrow('Snap error');
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
@@ -2250,7 +2260,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      const result = await controller.submitTx(
+        'otherAccount',
+        mockEvmQuoteResponse,
+        false,
+      );
 
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
@@ -2281,6 +2295,7 @@ describe('BridgeStatusController', () => {
       };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
+        quoteWithoutApproval.trade.from,
         {
           ...quoteWithoutApproval,
           quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
@@ -2306,7 +2321,11 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(quoteWithoutApproval, true);
+      const result = await controller.submitTx(
+        quoteWithoutApproval.trade.from,
+        quoteWithoutApproval,
+        true,
+      );
       controller.stopAllPolling();
 
       expect(result).toMatchSnapshot();
@@ -2327,7 +2346,11 @@ describe('BridgeStatusController', () => {
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
       await expect(
-        controller.submitTx(quoteWithoutApproval, false),
+        controller.submitTx(
+          quoteWithoutApproval.trade.from,
+          quoteWithoutApproval,
+          false,
+        ),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap transaction: unknown account in trade data',
       );
@@ -2353,7 +2376,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        mockEvmQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(result).toMatchSnapshot();
@@ -2394,7 +2421,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockEvmQuoteResponse, true);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        mockEvmQuoteResponse,
+        true,
+      );
       controller.stopAllPolling();
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
@@ -2423,7 +2454,11 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockEvmQuoteResponse, false),
+        controller.submitTx(
+          mockEvmQuoteResponse.trade.from,
+          mockEvmQuoteResponse,
+          false,
+        ),
       ).rejects.toThrow('Approval tx failed');
 
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
@@ -2452,7 +2487,11 @@ describe('BridgeStatusController', () => {
         getController(mockMessengerCall);
 
       await expect(
-        controller.submitTx(mockEvmQuoteResponse, false),
+        controller.submitTx(
+          mockEvmQuoteResponse.trade.from,
+          mockEvmQuoteResponse,
+          false,
+        ),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
       );
@@ -2488,7 +2527,11 @@ describe('BridgeStatusController', () => {
         } as never,
       };
 
-      const result = await controller.submitTx(lineaQuoteResponse, false);
+      const result = await controller.submitTx(
+        'otherAccount',
+        lineaQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
@@ -2526,7 +2569,11 @@ describe('BridgeStatusController', () => {
         } as never,
       };
 
-      const result = await controller.submitTx(baseQuoteResponse, false);
+      const result = await controller.submitTx(
+        'otherAccount',
+        baseQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
@@ -2567,7 +2614,11 @@ describe('BridgeStatusController', () => {
         BridgeClientId.MOBILE,
       );
 
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        mockEvmQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
@@ -2598,7 +2649,11 @@ describe('BridgeStatusController', () => {
         BridgeClientId.EXTENSION, // Using EXTENSION client
       );
 
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      const result = await controller.submitTx(
+        'otherAccount',
+        mockEvmQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
@@ -2641,7 +2696,11 @@ describe('BridgeStatusController', () => {
         BridgeClientId.MOBILE, // Using MOBILE client
       );
 
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        mockEvmQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
@@ -2809,7 +2868,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockEvmQuoteResponse, false);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        mockEvmQuoteResponse,
+        false,
+      );
       controller.stopAllPolling();
 
       expect(result).toMatchSnapshot();
@@ -2834,6 +2897,7 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
         {
           ...mockEvmQuoteResponse,
           quote: {
@@ -2890,6 +2954,7 @@ describe('BridgeStatusController', () => {
       };
       const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
       const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
         {
           ...quoteWithoutApproval,
           quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
@@ -2926,7 +2991,11 @@ describe('BridgeStatusController', () => {
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
-      const result = await controller.submitTx(mockEvmQuoteResponse, true);
+      const result = await controller.submitTx(
+        mockEvmQuoteResponse.trade.from,
+        mockEvmQuoteResponse,
+        true,
+      );
       controller.stopAllPolling();
 
       expect(result).toMatchSnapshot();
@@ -2945,7 +3014,11 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       await expect(
-        controller.submitTx(mockEvmQuoteResponse, true),
+        controller.submitTx(
+          mockEvmQuoteResponse.trade.from,
+          mockEvmQuoteResponse,
+          true,
+        ),
       ).rejects.toThrow(
         'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
       );
@@ -2980,7 +3053,11 @@ describe('BridgeStatusController', () => {
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
       await expect(
-        controller.submitTx(mockEvmQuoteResponse, true),
+        controller.submitTx(
+          mockEvmQuoteResponse.trade.from,
+          mockEvmQuoteResponse,
+          true,
+        ),
       ).rejects.toThrow(
         'Failed to update cross-chain swap transaction batch: tradeMeta not found',
       );

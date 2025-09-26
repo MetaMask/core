@@ -18,6 +18,7 @@ import type {
   StartSubscriptionResponse,
   Subscription,
   UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodCryptoRequest,
 } from './types';
 
@@ -78,12 +79,18 @@ export class SubscriptionService implements ISubscriptionService {
     return await this.#makeRequest(path, 'POST', request);
   }
 
-  async updatePaymentMethodCard(request: UpdatePaymentMethodCardRequest) {
+  async updatePaymentMethodCard(
+    request: UpdatePaymentMethodCardRequest,
+  ): Promise<UpdatePaymentMethodCardResponse> {
     const path = `subscriptions/${request.subscriptionId}/payment-method/card`;
-    await this.#makeRequest(path, 'PATCH', {
-      ...request,
-      subscriptionId: undefined,
-    });
+    return await this.#makeRequest<UpdatePaymentMethodCardResponse>(
+      path,
+      'PATCH',
+      {
+        ...request,
+        subscriptionId: undefined,
+      },
+    );
   }
 
   async updatePaymentMethodCrypto(request: UpdatePaymentMethodCryptoRequest) {
