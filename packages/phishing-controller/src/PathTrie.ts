@@ -141,3 +141,29 @@ export const convertListToTrie = (paths: string[] = []): PathTrie => {
   }
   return pathTrie;
 };
+
+/**
+ * Creates a deep copy of a PathNode structure.
+ *
+ * @param original - The original PathNode to copy.
+ * @returns A deep copy of the PathNode.
+ */
+const deepCopyPathNode = (original: PathNode): PathNode => {
+  const copy: PathNode = {};
+
+  for (const [key, childNode] of Object.entries(original)) {
+    copy[key] = deepCopyPathNode(childNode);
+  }
+
+  return copy;
+};
+
+/**
+ * Creates a deep copy of a PathTrie structure.
+ *
+ * @param original - The original PathTrie to copy.
+ * @returns A deep copy of the PathTrie.
+ */
+export const deepCopyPathTrie = (original: PathTrie): PathTrie => {
+  return deepCopyPathNode(original) as PathTrie;
+};
