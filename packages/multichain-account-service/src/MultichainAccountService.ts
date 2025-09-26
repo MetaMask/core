@@ -43,12 +43,6 @@ export type MultichainAccountServiceOptions = {
   };
 };
 
-/** Reverse mapping object used to map account IDs and their wallet/multichain account. */
-type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
-  wallet: MultichainAccountWallet<Account>;
-  group: MultichainAccountGroup<Account>;
-};
-
 /**
  * The keys used to identify an account in the service state.
  */
@@ -70,6 +64,21 @@ export type ServiceState = {
     };
   };
 };
+
+enum CreateWalletFlow {
+  Restore = 'restore',
+  Import = 'import',
+  Create = 'create',
+}
+
+type CreateWalletValidatedParams =
+  | {
+      flowType: CreateWalletFlow.Restore;
+      password: string;
+      mnemonic: Uint8Array;
+    }
+  | { flowType: CreateWalletFlow.Import; mnemonic: Uint8Array }
+  | { flowType: CreateWalletFlow.Create; password: string };
 
 /**
  * Service to expose multichain accounts capabilities.
@@ -293,34 +302,47 @@ export class MultichainAccountService {
   }
 
   /**
-   * Creates a new multichain account wallet by first creating a new vault and keyring.
-   * If just a password is provided, then a new vault and keyring are created with a randomly generated mnemonic.
-   * If a mnemonic and password are provided, then a new vault and keyring are created with the given mnemonic.
-   *
-   * NOTE: This method should only be called in client code where a mutex lock is acquired.
-   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
+   * Gets the validated create wallet parameters.
    *
    * @param options - Options.
    * @param options.mnemonic - The mnemonic to use to create the new wallet.
    * @param options.password - The password to encrypt the vault with.
-   * @throws If the mnemonic has already been imported.
-   * @returns The new multichain account wallet.
+   * @param options.flowType - The flow type to use to create the new wallet.
+   * @returns The validated create wallet parameters.
    */
-  async createMultichainAccountWallet({
+  #getValidatedCreateWalletParams({
     mnemonic,
     password,
+    flowType,
   }: {
     mnemonic?: Uint8Array;
-    password: string;
-  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
-    if (!password) {
-      throw new Error('A password must be provided for this method.');
+    password?: string;
+    flowType: CreateWalletFlow;
+  }) {
+    if (flowType === CreateWalletFlow.Restore && password && mnemonic) {
+      return {
+        password,
+        mnemonic,
+        flowType: CreateWalletFlow.Restore as const,
+      };
     }
 
-    let wallet: MultichainAccountWallet<Bip44Account<KeyringAccount>>;
+    if (flowType === CreateWalletFlow.Import && mnemonic) {
+      return { mnemonic, flowType: CreateWalletFlow.Import as const };
+    }
 
-    log(`Creating new wallet...`);
-    if (mnemonic) {
+    if (flowType === CreateWalletFlow.Create && password) {
+      return { password, flowType: CreateWalletFlow.Create as const };
+    }
+
+    throw new Error('Invalid create wallet parameters.');
+  }
+
+  async #createWalletByImport(
+    mnemonic: Uint8Array,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    log(`Creating new wallet by importing an existing mnemonic...`);
+    try {
       const existingKeyrings = this.#messenger.call(
         'KeyringController:getKeyringsByType',
         KeyringTypes.hd,
@@ -344,33 +366,132 @@ export class MultichainAccountService {
         KeyringTypes.hd,
         { mnemonic },
       );
-    } else {
-      try {
-        await this.#messenger.call(
-          'KeyringController:createNewVaultAndKeychain',
-          password,
-        );
 
-        // we're sure to get the correct keyring as it's the only one at this point
-        const entropySourceId = (await this.#messenger.call(
-          'KeyringController:withKeyring',
-          { type: KeyringTypes.hd },
-          async ({ metadata }) => {
-            return metadata.id;
-          },
-        )) as string;
+      // The wallet is ripe for discovery
+      return new MultichainAccountWallet({
+        providers: this.#providers,
+        entropySource: result.id,
+        messenger: this.#messenger,
+      });
+    } catch {
+      throw new Error(
+        'Failed to create wallet by importing an existing mnemonic.',
+      );
+    }
+  }
 
-        // createNewVaultAndKeychain creates an account on the newly created keyring
-        // we don't need to worry about not having this account in the service state yet
-        // because the discovery process will store it in state through the alignment in the end.
-        wallet = new MultichainAccountWallet({
-          providers: this.#providers,
-          entropySource: entropySourceId,
-          messenger: this.#messenger,
-        });
-      } catch {
-        throw new Error('Failed to create a new vault and keychain.');
-      }
+  async #createWalletByNewVault(
+    password: string,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    log(`Creating new wallet by creating a new vault and keychain...`);
+    try {
+      await this.#messenger.call(
+        'KeyringController:createNewVaultAndKeychain',
+        password,
+      );
+
+      const entropySourceId = (await this.#messenger.call(
+        'KeyringController:withKeyring',
+        { type: KeyringTypes.hd },
+        async ({ metadata }) => {
+          return metadata.id;
+        },
+      )) as string;
+
+      // The wallet is ripe for discovery
+      return new MultichainAccountWallet({
+        providers: this.#providers,
+        entropySource: entropySourceId,
+        messenger: this.#messenger,
+      });
+    } catch {
+      throw new Error(
+        'Failed to create wallet by creating a new vault and keychain.',
+      );
+    }
+  }
+
+  async #createWalletByRestore(
+    password: string,
+    mnemonic: Uint8Array,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    log(`Creating new wallet by restoring vault and keyring...`);
+    try {
+      await this.#messenger.call(
+        'KeyringController:createNewVaultAndRestore',
+        password,
+        mnemonic,
+      );
+
+      const entropySourceId = (await this.#messenger.call(
+        'KeyringController:withKeyring',
+        { type: KeyringTypes.hd },
+        async ({ metadata }) => {
+          return metadata.id;
+        },
+      )) as string;
+
+      // The wallet is ripe for discovery
+      return new MultichainAccountWallet({
+        providers: this.#providers,
+        entropySource: entropySourceId,
+        messenger: this.#messenger,
+      });
+    } catch {
+      throw new Error(
+        'Failed to create wallet by restoring a vault and keyring.',
+      );
+    }
+  }
+
+  /**
+   * Creates a new multichain account wallet by first creating a new vault and keyring.
+   * If just a password is provided, then a new vault and keyring are created with a randomly generated mnemonic.
+   * If a mnemonic and password are provided, then a new vault and keyring are created with the given mnemonic.
+   *
+   * NOTE: This method should only be called in client code where a mutex lock is acquired.
+   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
+   *
+   * @param options - Options.
+   * @param options.mnemonic - The mnemonic to use to create the new wallet.
+   * @param options.password - The password to encrypt the vault with.
+   * @param options.flowType - The flow type to use to create the new wallet.
+   * @throws If the mnemonic has already been imported.
+   * @returns The new multichain account wallet.
+   */
+  async createMultichainAccountWallet({
+    mnemonic,
+    password,
+    flowType,
+  }: {
+    mnemonic?: Uint8Array;
+    password?: string;
+    flowType: CreateWalletFlow;
+  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    const params: CreateWalletValidatedParams =
+      this.#getValidatedCreateWalletParams({
+        mnemonic,
+        password,
+        flowType,
+      });
+
+    let wallet:
+      | MultichainAccountWallet<Bip44Account<KeyringAccount>>
+      | undefined;
+
+    if (params.flowType === CreateWalletFlow.Import) {
+      wallet = await this.#createWalletByImport(params.mnemonic);
+    } else if (flowType === CreateWalletFlow.Create) {
+      wallet = await this.#createWalletByNewVault(params.password);
+    } else if (params.flowType === CreateWalletFlow.Restore) {
+      wallet = await this.#createWalletByRestore(
+        params.password,
+        params.mnemonic,
+      );
+    }
+
+    if (!wallet) {
+      throw new Error('Failed to create wallet.');
     }
 
     this.#wallets.set(wallet.id, wallet);
