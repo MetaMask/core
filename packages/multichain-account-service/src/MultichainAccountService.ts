@@ -10,7 +10,7 @@ import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { areUint8ArraysEqual } from '@metamask/utils';
+import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
@@ -64,7 +64,7 @@ export type ServiceState = {
   };
 };
 
-enum CreateWalletFlow {
+export enum CreateWalletFlow {
   Restore = 'restore',
   Import = 'import',
   Create = 'create',
@@ -217,6 +217,7 @@ export class MultichainAccountService {
     for (const account of accounts) {
       const keys = this.#getStateKeys(account);
       if (keys) {
+        serviceState[keys.entropySource][keys.groupIndex] ??= {};
         serviceState[keys.entropySource][keys.groupIndex][keys.providerName] ??=
           [];
         // ok to cast here because at this point we know that the account is BIP-44 compatible
@@ -347,42 +348,34 @@ export class MultichainAccountService {
     mnemonic: Uint8Array,
   ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
     log(`Creating new wallet by importing an existing mnemonic...`);
-    try {
-      const existingKeyrings = this.#messenger.call(
-        'KeyringController:getKeyringsByType',
-        KeyringTypes.hd,
-      ) as HdKeyring[];
+    const existingKeyrings = this.#messenger.call(
+      'KeyringController:getKeyringsByType',
+      KeyringTypes.hd,
+    ) as HdKeyring[];
 
-      const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
-        if (!keyring.mnemonic) {
-          return false;
-        }
-        return areUint8ArraysEqual(keyring.mnemonic, mnemonic);
-      });
-
-      if (alreadyHasImportedSrp) {
-        throw new Error(
-          'This Secret Recovery Phrase has already been imported.',
-        );
+    const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
+      if (!keyring.mnemonic) {
+        return false;
       }
+      return areUint8ArraysEqual(keyring.mnemonic, mnemonic);
+    });
 
-      const result = await this.#messenger.call(
-        'KeyringController:addNewKeyring',
-        KeyringTypes.hd,
-        { mnemonic },
-      );
-
-      // The wallet is ripe for discovery
-      return new MultichainAccountWallet({
-        providers: this.#providers,
-        entropySource: result.id,
-        messenger: this.#messenger,
-      });
-    } catch {
-      throw new Error(
-        'Failed to create wallet by importing an existing mnemonic.',
-      );
+    if (alreadyHasImportedSrp) {
+      throw new Error('This Secret Recovery Phrase has already been imported.');
     }
+
+    const result = await this.#messenger.call(
+      'KeyringController:addNewKeyring',
+      KeyringTypes.hd,
+      { mnemonic },
+    );
+
+    // The wallet is ripe for discovery
+    return new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: result.id,
+      messenger: this.#messenger,
+    });
   }
 
   /**
@@ -395,31 +388,25 @@ export class MultichainAccountService {
     password: string,
   ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
     log(`Creating new wallet by creating a new vault and keychain...`);
-    try {
-      await this.#messenger.call(
-        'KeyringController:createNewVaultAndKeychain',
-        password,
-      );
+    await this.#messenger.call(
+      'KeyringController:createNewVaultAndKeychain',
+      password,
+    );
 
-      const entropySourceId = (await this.#messenger.call(
-        'KeyringController:withKeyring',
-        { type: KeyringTypes.hd },
-        async ({ metadata }) => {
-          return metadata.id;
-        },
-      )) as string;
+    const entropySourceId = (await this.#messenger.call(
+      'KeyringController:withKeyring',
+      { type: KeyringTypes.hd },
+      async ({ metadata }) => {
+        return metadata.id;
+      },
+    )) as string;
 
-      // The wallet is ripe for discovery
-      return new MultichainAccountWallet({
-        providers: this.#providers,
-        entropySource: entropySourceId,
-        messenger: this.#messenger,
-      });
-    } catch {
-      throw new Error(
-        'Failed to create wallet by creating a new vault and keychain.',
-      );
-    }
+    // The wallet is ripe for discovery
+    return new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: entropySourceId,
+      messenger: this.#messenger,
+    });
   }
 
   /**
@@ -434,32 +421,26 @@ export class MultichainAccountService {
     mnemonic: Uint8Array,
   ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
     log(`Creating new wallet by restoring vault and keyring...`);
-    try {
-      await this.#messenger.call(
-        'KeyringController:createNewVaultAndRestore',
-        password,
-        mnemonic,
-      );
+    await this.#messenger.call(
+      'KeyringController:createNewVaultAndRestore',
+      password,
+      mnemonic,
+    );
 
-      const entropySourceId = (await this.#messenger.call(
-        'KeyringController:withKeyring',
-        { type: KeyringTypes.hd },
-        async ({ metadata }) => {
-          return metadata.id;
-        },
-      )) as string;
+    const entropySourceId = (await this.#messenger.call(
+      'KeyringController:withKeyring',
+      { type: KeyringTypes.hd },
+      async ({ metadata }) => {
+        return metadata.id;
+      },
+    )) as string;
 
-      // The wallet is ripe for discovery
-      return new MultichainAccountWallet({
-        providers: this.#providers,
-        entropySource: entropySourceId,
-        messenger: this.#messenger,
-      });
-    } catch {
-      throw new Error(
-        'Failed to create wallet by restoring a vault and keyring.',
-      );
-    }
+    // The wallet is ripe for discovery
+    return new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: entropySourceId,
+      messenger: this.#messenger,
+    });
   }
 
   /**
@@ -498,7 +479,7 @@ export class MultichainAccountService {
 
     if (params.flowType === CreateWalletFlow.Import) {
       wallet = await this.#createWalletByImport(params.mnemonic);
-    } else if (flowType === CreateWalletFlow.Create) {
+    } else if (params.flowType === CreateWalletFlow.Create) {
       wallet = await this.#createWalletByNewVault(params.password);
     } else if (params.flowType === CreateWalletFlow.Restore) {
       wallet = await this.#createWalletByRestore(
@@ -507,9 +488,7 @@ export class MultichainAccountService {
       );
     }
 
-    if (!wallet) {
-      throw new Error('Failed to create wallet.');
-    }
+    assert(wallet, 'Failed to create wallet.');
 
     this.#wallets.set(wallet.id, wallet);
 
