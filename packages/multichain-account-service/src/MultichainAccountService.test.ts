@@ -868,38 +868,6 @@ describe('MultichainAccountService', () => {
       ).rejects.toThrow('Invalid create wallet parameters.');
     });
 
-    // it('throws an error if the wallet is not created', async () => {
-    //   const { service, mocks, messenger } = setup({
-    //     accounts: [],
-    //     keyrings: [],
-    //   });
-    //   const password = 'password';
-    //   mocks.KeyringController.createNewVaultAndKeychain.mockImplementationOnce(
-    //     () => {
-    //       mocks.KeyringController.keyrings.push(MOCK_HD_KEYRING_1);
-    //     },
-    //   );
-
-    //   messenger.registerActionHandler(
-    //     'KeyringController:withKeyring',
-    //     async (_, operation) => {
-    //       const newKeyring = mocks.KeyringController.keyrings.find(
-    //         (keyring) => keyring.type === KeyringTypes.hd,
-    //       ) as KeyringObject;
-    //       return operation({
-    //         keyring: {} as unknown as EthKeyring,
-    //         metadata: newKeyring.metadata,
-    //       });
-    //     },
-    //   );
-    //   await expect(() =>
-    //     service.createMultichainAccountWallet({
-    //       flowType: CreateWalletFlow.Create,
-    //       password,
-    //     }),
-    //   ).rejects.toThrow('Failed to create wallet.');
-    // });
-
     describe('createWalletByImport', () => {
       it('creates a new multichain account wallet by the import flow', async () => {
         const { mocks, service } = setup({
