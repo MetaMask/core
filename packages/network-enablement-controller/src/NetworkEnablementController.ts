@@ -5,6 +5,7 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
@@ -17,7 +18,6 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
-import { BtcScope, SolScope } from './types';
 import {
   deriveKeys,
   isOnlyNetworkEnabledInNamespace,
@@ -124,6 +124,11 @@ const getDefaultNetworkEnablementControllerState =
         [BtcScope.Mainnet]: true,
         [BtcScope.Testnet]: false,
         [BtcScope.Signet]: false,
+      },
+      [KnownCaipNamespace.Tron]: {
+        [TrxScope.Mainnet]: true,
+        [TrxScope.Nile]: false,
+        [TrxScope.Shasta]: false,
       },
     },
   });
@@ -335,6 +340,19 @@ export class NetworkEnablementController extends BaseController<
         // Enable Bitcoin mainnet
         s.enabledNetworkMap[bitcoinKeys.namespace][bitcoinKeys.storageKey] =
           true;
+      }
+
+      // Enable Tron mainnet if it exists in MultichainNetworkController configurations
+      const tronKeys = deriveKeys(TrxScope.Mainnet as CaipChainId);
+      if (
+        multichainState.multichainNetworkConfigurationsByChainId[
+          TrxScope.Mainnet
+        ]
+      ) {
+        // Ensure namespace bucket exists
+        this.#ensureNamespaceBucket(s, tronKeys.namespace);
+        // Enable Tron mainnet
+        s.enabledNetworkMap[tronKeys.namespace][tronKeys.storageKey] = true;
       }
     });
   }
