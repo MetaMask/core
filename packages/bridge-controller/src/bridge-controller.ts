@@ -370,6 +370,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientId,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+      featureId,
     );
 
     this.#trackResponseValidationFailures(validationFailures);
