@@ -345,7 +345,9 @@ export class NetworkEnablementController extends BaseController<
       // Enable Tron mainnet if it exists in MultichainNetworkController configurations
       const tronKeys = deriveKeys(TrxScope.Mainnet as CaipChainId);
       if (
-        multichainState.multichainNetworkConfigurationsByChainId[TrxScope.Mainnet]
+        multichainState.multichainNetworkConfigurationsByChainId[
+          TrxScope.Mainnet
+        ]
       ) {
         // Ensure namespace bucket exists
         this.#ensureNamespaceBucket(s, tronKeys.namespace);

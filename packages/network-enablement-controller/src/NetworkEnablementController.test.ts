@@ -1,5 +1,6 @@
 import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
+import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { RpcEndpointType } from '@metamask/network-controller';
 import {
   TransactionStatus,
@@ -11,7 +12,6 @@ import {
   type Hex,
   KnownCaipNamespace,
 } from '@metamask/utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { useFakeTimers } from 'sinon';
 
 import { POPULAR_NETWORKS } from './constants';

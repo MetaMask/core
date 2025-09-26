@@ -48,7 +48,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-api": "^21.0.0",
     "@metamask/multichain-network-controller": "^1.0.0",
     "@metamask/network-controller": "^24.2.0",
     "@metamask/transaction-controller": "^60.4.0",
@@ -64,6 +63,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.4.0",
     "@metamask/controller-utils": "^11.14.0",
+    "@metamask/keyring-api": "^21.0.0",
     "@metamask/utils": "^11.8.1",
     "reselect": "^5.1.1"
   },
