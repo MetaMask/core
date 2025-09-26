@@ -445,9 +445,8 @@ export class MultichainAccountService {
   }
 
   /**
-   * Creates a new multichain account wallet by first creating a new vault and keyring.
-   * If just a password is provided, then a new vault and keyring are created with a randomly generated mnemonic.
-   * If a mnemonic and password are provided, then a new vault and keyring are created with the given mnemonic.
+   * Creates a new multichain account wallet by either importing an existing mnemonic,
+   * creating a new vault and keychain, or restoring a vault and keyring.
    *
    * NOTE: This method should only be called in client code where a mutex lock is acquired.
    * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
