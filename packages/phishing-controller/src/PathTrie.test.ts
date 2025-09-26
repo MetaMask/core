@@ -1,5 +1,6 @@
 import {
   convertListToTrie,
+  deepCopyPathTrie,
   deleteFromTrie,
   isTerminalPath,
   insertToTrie,
@@ -221,6 +222,61 @@ describe('PathTrie', () => {
       ['with a scheme', 'https://example.com/path11/path2', true],
     ])('returns %s if the path is %s', (_name, path, expected) => {
       expect(isTerminalPath(path, pathTrie)).toBe(expected);
+    });
+  });
+
+  describe('deepCopyPathTrie', () => {
+    it('creates a deep copy of a simple trie', () => {
+      const original: PathTrie = {
+        'example.com': {
+          path1: {},
+          path2: {},
+        },
+      };
+
+      const copy = deepCopyPathTrie(original);
+
+      expect(copy).toStrictEqual(original);
+      expect(copy).not.toBe(original);
+      expect(copy['example.com']).not.toBe(original['example.com']);
+    });
+
+    it('creates a deep copy of a complex nested trie', () => {
+      const original: PathTrie = {
+        'example.com': {
+          path1: {
+            subpath1: {
+              deeppath: {},
+            },
+            subpath2: {},
+          },
+          path2: {},
+        },
+        'another.com': {
+          different: {
+            nested: {},
+          },
+        },
+      };
+
+      const copy = deepCopyPathTrie(original);
+
+      expect(copy).toStrictEqual(original);
+      expect(copy).not.toBe(original);
+      expect(copy['example.com']).not.toBe(original['example.com']);
+      expect(copy['example.com'].path1).not.toBe(original['example.com'].path1);
+      expect(copy['example.com'].path1.subpath1).not.toBe(
+        original['example.com'].path1.subpath1,
+      );
+      expect(copy['another.com']).not.toBe(original['another.com']);
+    });
+
+    it('handles empty trie', () => {
+      const original: PathTrie = {};
+      const copy = deepCopyPathTrie(original);
+
+      expect(copy).toStrictEqual({});
+      expect(copy).not.toBe(original);
     });
   });
 });
