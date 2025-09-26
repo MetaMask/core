@@ -6,6 +6,7 @@ import type {
   TxData,
   QuoteResponse,
 } from '@metamask/bridge-controller';
+import type { FeatureId } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   isNonEvmChainId,
@@ -1014,7 +1015,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
+    quoteResponse: QuoteResponse<TxData | string>['featureId'] extends FeatureId
+      ? QuoteResponse<TxData | string>
+      : QuoteResponse<TxData | string> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messagingSystem.call('BridgeController:stopPollingForQuotes');
