@@ -98,13 +98,7 @@ describe('Token Utils', () => {
     });
 
     it('returns undefined if token is not found', () => {
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {
-          [CHAIN_ID_MOCK]: {
-            test123: [],
-          },
-        },
-      });
+      getTokensControllerStateMock.mockReturnValue({});
 
       const result = getTokenDecimals(
         messengerMock,
