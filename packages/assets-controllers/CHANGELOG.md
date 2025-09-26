@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
+### Fixed
+
+- Fix token balance updates not respecting account selection parameter ([#6738](https://github.com/MetaMask/core/pull/6738))
+
 ## [77.0.0]
 
 ### Changed
