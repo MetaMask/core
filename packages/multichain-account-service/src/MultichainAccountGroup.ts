@@ -82,17 +82,13 @@ export class MultichainAccountGroup<
       const accountIds = groupState[provider.getName()];
 
       if (accountIds) {
+        this.#providerToAccounts.set(provider, accountIds);
+        // Add the accounts to the provider's internal list of account IDs
+        provider.addAccounts(accountIds);
+
         for (const accountId of accountIds) {
           this.#accountToProvider.set(accountId, provider);
         }
-        const providerAccounts = this.#providerToAccounts.get(provider);
-        if (!providerAccounts) {
-          this.#providerToAccounts.set(provider, accountIds);
-        } else {
-          providerAccounts.push(...accountIds);
-        }
-        // Add the accounts to the provider's internal list of account IDs
-        provider.addAccounts(accountIds);
       }
     }
 
@@ -270,7 +266,8 @@ export class MultichainAccountGroup<
     if (results.some((result) => result.status === 'rejected')) {
       const rejectedResults = results.filter(
         (result) =>
-          result.status === 'rejected' && result.reason !== 'Already aligned',
+          result.status === 'rejected' &&
+          result.reason.message !== 'Already aligned',
       ) as PromiseRejectedResult[];
       const errors = rejectedResults
         .map((result) => `- ${result.reason}`)
