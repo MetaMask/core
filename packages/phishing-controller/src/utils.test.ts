@@ -302,14 +302,14 @@ describe('applyDiffs', () => {
       });
 
       it('adds sibling paths', () => {
-        applyDiffs(
+        const firstResult = applyDiffs(
           listState,
           [newAddDiff('example.com/path1')],
           ListKeys.EthPhishingDetectConfig,
         );
         const result = applyDiffs(
-          listState,
-          [newAddDiff('example.com/path2')],
+          firstResult,
+          [{ ...newAddDiff('example.com/path2'), timestamp: 1000000001 }],
           ListKeys.EthPhishingDetectConfig,
         );
         expect(result.blocklistPaths).toStrictEqual({
@@ -359,13 +359,13 @@ describe('applyDiffs', () => {
       });
 
       it('does not insert deeper path if ancestor exists', () => {
-        applyDiffs(
+        const firstResult = applyDiffs(
           listState,
           [newAddDiff('example.com/path1')],
           ListKeys.EthPhishingDetectConfig,
         );
         const result = applyDiffs(
-          listState,
+          firstResult,
           [newAddDiff('example.com/path1/path2')],
           ListKeys.EthPhishingDetectConfig,
         );
@@ -417,14 +417,14 @@ describe('applyDiffs', () => {
       });
 
       it('deletes all paths', () => {
-        applyDiffs(
+        const firstResult = applyDiffs(
           listState,
           [newRemoveDiff('example.com/path11/path2')],
           ListKeys.EthPhishingDetectConfig,
         );
         const result = applyDiffs(
-          listState,
-          [newRemoveDiff('example.com/path12')],
+          firstResult,
+          [{ ...newRemoveDiff('example.com/path12'), timestamp: 1000000002 }],
           ListKeys.EthPhishingDetectConfig,
         );
         expect(result.blocklistPaths).toStrictEqual({});
