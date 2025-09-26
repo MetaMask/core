@@ -19,10 +19,9 @@ export type MockAccountProvider = {
 export function makeMockAccountProvider(
   accounts: KeyringAccount[] = [],
 ): MockAccountProvider {
-  const accountsIds = accounts.map((account) => account.id);
   return {
     accounts,
-    accountsList: accountsIds,
+    accountsList: [],
     constructor: jest.fn(),
     getAccount: jest.fn(),
     getAccounts: jest.fn(),

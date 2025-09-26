@@ -49,6 +49,7 @@ export function getMultichainAccountServiceMessenger(
       'NetworkController:getNetworkClientById',
       'KeyringController:createNewVaultAndKeychain',
       'KeyringController:createNewVaultAndRestore',
+      'AccountsController:getAccounts',
     ],
   });
 }
