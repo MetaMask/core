@@ -48,7 +48,6 @@ describe('Update Payment Token Action', () => {
       },
       {
         messenger: {} as never,
-        transactionData: {} as never,
         updateTransactionData: updateTransactionDataMock,
       },
     );
@@ -81,7 +80,6 @@ describe('Update Payment Token Action', () => {
         },
         {
           messenger: {} as never,
-          transactionData: {} as never,
           updateTransactionData: noop,
         },
       ),
@@ -100,7 +98,6 @@ describe('Update Payment Token Action', () => {
         },
         {
           messenger: {} as never,
-          transactionData: {} as never,
           updateTransactionData: noop,
         },
       ),
@@ -119,7 +116,6 @@ describe('Update Payment Token Action', () => {
         },
         {
           messenger: {} as never,
-          transactionData: {} as never,
           updateTransactionData: noop,
         },
       ),

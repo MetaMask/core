@@ -4,7 +4,6 @@ import { BigNumber } from 'bignumber.js';
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
 import type {
-  TransactionData,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
@@ -25,7 +24,6 @@ export type UpdatePaymentTokenRequest = {
 
 export type UpdatePaymentTokenOptions = {
   messenger: TransactionPayControllerMessenger;
-  transactionData: TransactionData | undefined;
   updateTransactionData: UpdateTransactionDataCallback;
 };
 

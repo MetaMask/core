@@ -1,3 +1,4 @@
+import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { getTokenFiatRate } from './token';
@@ -6,6 +7,41 @@ import type {
   TransactionPaymentToken,
   TransactionToken,
 } from '..';
+import { projectLogger } from '../logger';
+import type { SourceAmountValues, TransactionData } from '../types';
+
+const log = createModuleLogger(projectLogger, 'source-amounts');
+
+/**
+ * Update the source amounts for a transaction.
+ *
+ * @param transactionId - ID of the transaction to update.
+ * @param transactionData - Existing transaction data.
+ * @param messenger - Controller messenger.
+ */
+export function updateSourceAmounts(
+  transactionId: string,
+  transactionData: TransactionData | undefined,
+  messenger: TransactionPayControllerMessenger,
+) {
+  if (!transactionData) {
+    return;
+  }
+
+  const { paymentToken, tokens } = transactionData;
+
+  if (!tokens.length || !paymentToken) {
+    return;
+  }
+
+  const sourceAmounts = tokens
+    .map((t) => calculateSourceAmount(paymentToken, t, messenger))
+    .filter(Boolean) as SourceAmountValues[];
+
+  log('Updated source amounts', { transactionId, sourceAmounts });
+
+  transactionData.sourceAmounts = sourceAmounts;
+}
 
 /**
  * Calculate the required source amount for a payment token to cover a target token.
@@ -15,7 +51,7 @@ import type {
  * @param messenger - Controller messenger.
  * @returns The source amount or undefined if calculation failed.
  */
-export function calculateSourceAmount(
+function calculateSourceAmount(
   paymentToken: TransactionPaymentToken,
   token: TransactionToken,
   messenger: TransactionPayControllerMessenger,
@@ -30,7 +66,7 @@ export function calculateSourceAmount(
     return undefined;
   }
 
-  const hasBalance = new BigNumber(token.balanceFiat).gt(token.amountFiat);
+  const hasBalance = new BigNumber(token.balanceUsd).gte(token.amountUsd);
 
   const isSameTokenSelected =
     token.address.toLowerCase() === paymentToken.address.toLowerCase() &&

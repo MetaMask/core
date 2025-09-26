@@ -5,7 +5,6 @@ import { noop } from 'lodash';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { projectLogger } from './logger';
 import type {
-  SourceAmountValues,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
@@ -14,7 +13,7 @@ import type {
 } from './types';
 import { controllerName } from './types';
 import { updateQuotes } from './utils/bridge-quotes';
-import { calculateSourceAmount } from './utils/source-amounts';
+import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
 const stateMetadata = {
@@ -56,30 +55,9 @@ export class TransactionPayController extends BaseController<
       { transactionId, tokenAddress, chainId },
       {
         messenger: this.messagingSystem,
-        transactionData: this.state.transactionData[transactionId],
         updateTransactionData: this.#updateTransactionData.bind(this),
       },
     );
-  }
-
-  #updateSourceAmounts(
-    transactionId: string,
-    transactionData: TransactionData,
-    messenger: TransactionPayControllerMessenger,
-  ) {
-    const { paymentToken, tokens } = transactionData;
-
-    if (!tokens.length || !paymentToken) {
-      return;
-    }
-
-    const sourceAmounts = tokens
-      .map((t) => calculateSourceAmount(paymentToken, t, messenger))
-      .filter(Boolean) as SourceAmountValues[];
-
-    log('Updated source amounts', { transactionId, sourceAmounts });
-
-    transactionData.sourceAmounts = sourceAmounts;
   }
 
   #updateTransactionData(
@@ -112,7 +90,7 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
 
       if (isPaymentTokenUpdated || isTokensUpdated) {
-        this.#updateSourceAmounts(transactionId, current, this.messagingSystem);
+        updateSourceAmounts(transactionId, current, this.messagingSystem);
         shouldUpdateQuotes = true;
       }
     });
