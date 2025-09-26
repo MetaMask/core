@@ -340,7 +340,10 @@ export class SubscriptionController extends BaseController<
   async getCryptoApproveTransactionParams(
     request: GetCryptoApproveTransactionRequest,
   ): Promise<GetCryptoApproveTransactionResponse> {
-    const pricing = await this.getPricing();
+    const { pricing } = this.state;
+    if (!pricing) {
+      throw new Error('Subscription pricing not found');
+    }
     const product = pricing.products.find(
       (p) => p.name === request.productType,
     );
