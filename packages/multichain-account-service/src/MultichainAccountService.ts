@@ -7,7 +7,6 @@ import type {
   Bip44Account,
 } from '@metamask/account-api';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
-import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';

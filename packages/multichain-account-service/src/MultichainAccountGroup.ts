@@ -45,7 +45,6 @@ export class MultichainAccountGroup<
 
   readonly #log: Logger;
 
-  // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
   constructor({
@@ -106,7 +105,7 @@ export class MultichainAccountGroup<
       );
     }
 
-    this.#log('Synchronized');
+    this.#log('Finished initializing group state...');
   }
 
   /**

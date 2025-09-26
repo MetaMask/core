@@ -72,7 +72,6 @@ export class MultichainAccountWallet<
 
   readonly #log: Logger;
 
-  // eslint-disable-next-line @typescript-eslint/prefer-readonly
   #initialized = false;
 
   #status: MultichainAccountWalletStatus;
@@ -126,7 +125,7 @@ export class MultichainAccountWallet<
       this.#status = 'ready';
     }
 
-    this.#log('Synchronized');
+    this.#log('Finished initializing wallet state...');
   }
 
   /**
@@ -482,8 +481,6 @@ export class MultichainAccountWallet<
           log(message('**succeeded**', targetGroupIndex));
 
           context.accounts = context.accounts.concat(accounts);
-
-          const providerName = context.provider.getName();
 
           addDiscoveryResultToState(accounts, providerName, targetGroupIndex);
 
