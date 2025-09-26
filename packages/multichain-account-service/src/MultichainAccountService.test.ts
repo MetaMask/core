@@ -1,11 +1,11 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type { Messenger } from '@metamask/base-controller';
-import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
-import { KeyringMetadata, KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
+import { KeyringTypes, type KeyringObject } from '@metamask/keyring-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import {
@@ -48,7 +48,7 @@ import type {
   MultichainAccountServiceEvents,
   MultichainAccountServiceMessenger,
 } from './types';
-import { EthKeyring } from '@metamask/keyring-internal-api';
+
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
