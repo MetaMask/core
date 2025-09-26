@@ -469,6 +469,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       hasApprovalTx: Boolean(quoteResponse.approval),
       approvalTxId,
       isStxEnabled: isStxEnabled ?? false,
+      featureId: quoteResponse.featureId,
     };
     this.update((state) => {
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
