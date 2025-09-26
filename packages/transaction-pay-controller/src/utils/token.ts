@@ -2,7 +2,7 @@ import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { TransactionPayControllerMessenger } from '../types';
+import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 
 /**
  * Get the token balance for a specific account and token.
@@ -66,7 +66,7 @@ export function getTokenFiatRate(
   messenger: TransactionPayControllerMessenger,
   tokenAddress: Hex,
   chainId: Hex,
-): { usdRate: string; fiatRate: string } | undefined {
+): FiatRates | undefined {
   let ticker;
 
   try {

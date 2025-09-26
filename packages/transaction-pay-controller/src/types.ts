@@ -139,3 +139,8 @@ export type UpdateTransactionDataCallback = (
   transactionId: string,
   fn: (data: TransactionData) => void,
 ) => void;
+
+export type FiatRates = {
+  fiatRate: string;
+  usdRate: string;
+};
