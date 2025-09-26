@@ -9,8 +9,12 @@ import type { Messenger } from '@metamask/base-controller';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { MultichainAccountGroup } from './MultichainAccountGroup';
+import {
+  type GroupState,
+  MultichainAccountGroup,
+} from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { BaseBip44AccountProvider } from './providers';
 import type { MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
@@ -54,22 +58,39 @@ function setup({
   group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
 } {
-  const providers = accounts.map((providerAccounts) => {
-    return setupNamedAccountProvider({ accounts: providerAccounts });
+  const providers = accounts.map((providerAccounts, idx) => {
+    return setupNamedAccountProvider({
+      name: `Provider ${idx + 1}`,
+      accounts: providerAccounts,
+    });
   });
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
     messenger: getMultichainAccountServiceMessenger(messenger),
-    providers,
+    providers: providers as unknown as BaseBip44AccountProvider[],
   });
 
   const group = new MultichainAccountGroup({
     wallet,
     groupIndex,
-    providers,
+    providers: providers as unknown as BaseBip44AccountProvider[],
     messenger: getMultichainAccountServiceMessenger(messenger),
   });
+
+  // Initialize group state from provided accounts so that constructor tests
+  // observe accounts immediately
+  const groupState = providers.reduce<GroupState>((state, provider, idx) => {
+    const ids = accounts[idx]
+      .filter((a) => 'options' in a && a.options?.entropy)
+      .map((a) => a.id);
+    if (ids.length > 0) {
+      state[provider.getName()] = ids;
+    }
+    return state;
+  }, {});
+
+  group.init(groupState);
 
   return { wallet, group, providers };
 }
@@ -95,6 +116,10 @@ describe('MultichainAccount', () => {
       expect(group.type).toBe(AccountGroupType.MultichainAccount);
       expect(group.groupIndex).toBe(groupIndex);
       expect(group.wallet).toStrictEqual(wallet);
+      expect(group.hasAccounts()).toBe(true);
+      expect(group.getAccountIds()).toStrictEqual(
+        expectedAccounts.map((a) => a.id),
+      );
       expect(group.getAccounts()).toHaveLength(expectedAccounts.length);
       expect(group.getAccounts()).toStrictEqual(expectedAccounts);
     });
@@ -177,6 +202,10 @@ describe('MultichainAccount', () => {
         ],
       });
 
+      providers[1].createAccounts.mockResolvedValueOnce([
+        MOCK_WALLET_1_SOL_ACCOUNT,
+      ]);
+
       await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
@@ -237,9 +266,9 @@ describe('MultichainAccount', () => {
 
       providers[2].createAccounts.mockRejectedValueOnce(
         new Error('Provider 3: Unable to create accounts'),
-      )
+      );
 
-      await group.align();
+      await group.alignAccounts();
 
       expect(providers[0].createAccounts).not.toHaveBeenCalled();
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
