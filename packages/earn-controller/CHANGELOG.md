@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6555](https://github.com/MetaMask/core/pull/6555))
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.12.1` to `^0.18.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
+- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.12.1` to `^1.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/base-controller` from `^8.2.0` to `^8.4.0` ([#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
 - Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
@@ -284,7 +286,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@7.0.0...@metamask/earn-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@6.0.0...@metamask/earn-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@5.0.0...@metamask/earn-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@4.0.0...@metamask/earn-controller@5.0.0

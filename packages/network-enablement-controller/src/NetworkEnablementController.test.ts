@@ -136,6 +136,8 @@ describe('NetworkEnablementController', () => {
     const { controller, messenger } = setupInitializedController();
 
     // Publish an update with avax network added
+    // Avalanche is a popular network, and we already have >2 popular networks enabled
+    // So the new behavior should keep current selection (add but don't enable)
     messenger.publish('NetworkController:networkAdded', {
       chainId: '0xa86a',
       blockExplorerUrls: [],
@@ -159,7 +161,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.Mainnet]]: true, // Ethereum Mainnet
           [ChainId[BuiltInNetworkName.LineaMainnet]]: true, // Linea Mainnet
           [ChainId[BuiltInNetworkName.BaseMainnet]]: true, // Base Mainnet
-          '0xa86a': true, // Avalanche network enabled
+          '0xa86a': true, // Avalanche network added and enabled (keeps current selection)
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -1566,7 +1568,8 @@ describe('NetworkEnablementController', () => {
       // Initially, Avalanche network should not be enabled (doesn't exist)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
 
-      // Add Avalanche network
+      // Add Avalanche network (popular network in popular mode)
+      // Should keep current selection (add but don't enable)
       messenger.publish('NetworkController:networkAdded', {
         chainId: '0xa86a',
         blockExplorerUrls: [],
@@ -1584,7 +1587,7 @@ describe('NetworkEnablementController', () => {
 
       await advanceTime({ clock, duration: 1 });
 
-      // Now it should be enabled (auto-enabled when added)
+      // Now it should be added but not enabled (keeps current selection in popular mode)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
       expect(controller.isNetworkEnabled('eip155:43114')).toBe(true);
     });
@@ -2504,6 +2507,145 @@ describe('NetworkEnablementController', () => {
           },
         }
       `);
+    });
+  });
+
+  describe('new onAddNetwork behavior', () => {
+    it('switches to newly added popular network when NOT in popular networks mode', async () => {
+      const { controller, messenger } = setupController();
+
+      // Start with only 1 popular network enabled (not in popular networks mode)
+      controller.disableNetwork('0xe708'); // Disable Linea
+      controller.disableNetwork('0x2105'); // Disable Base
+      // Now only Ethereum is enabled (1 popular network < 3 threshold)
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      // Add Avalanche (popular network) when NOT in popular networks mode
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa86a', // Avalanche - popular network
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Avalanche',
+        nativeCurrency: 'AVAX',
+        rpcEndpoints: [
+          {
+            url: 'https://api.avax.network/ext/bc/C/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Should switch to Avalanche (disable all others, enable Avalanche)
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+    });
+
+    it('switches to newly added non-popular network even when in popular networks mode', async () => {
+      const { controller, messenger } = setupInitializedController();
+
+      // Default state has 3 popular networks enabled (in popular networks mode)
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+
+      // Add a non-popular network when in popular networks mode
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0x999', // Non-popular network
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Custom Network',
+        nativeCurrency: 'CUSTOM',
+        rpcEndpoints: [
+          {
+            url: 'https://custom.network/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Should switch to the non-popular network (disable all others, enable new one)
+      expect(controller.isNetworkEnabled('0x999')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+    });
+
+    it('keeps current selection when adding popular network in popular networks mode', async () => {
+      const { controller, messenger } = setupInitializedController();
+
+      // Default state has 3 popular networks enabled (in popular networks mode)
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+
+      // Add another popular network when in popular networks mode
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0x89', // Polygon - popular network
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Polygon',
+        nativeCurrency: 'MATIC',
+        rpcEndpoints: [
+          {
+            url: 'https://polygon-mainnet.infura.io/v3/1234567890',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Should keep current selection (add Polygon but don't enable it)
+      expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon enabled
+      expect(controller.isNetworkEnabled('0x1')).toBe(true); // Ethereum still enabled
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true); // Linea still enabled
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true); // Base still enabled
+    });
+
+    it('handles edge case: exactly 2 popular networks enabled (not in popular mode)', async () => {
+      const { controller, messenger } = setupController();
+
+      // Start with exactly 2 popular networks enabled (not >2, so not in popular mode)
+      controller.disableNetwork('0x2105'); // Disable Base, keep only Ethereum and Linea
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      // Add another popular network when NOT in popular networks mode (exactly 2 enabled)
+      messenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa86a', // Avalanche - popular network
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Avalanche',
+        nativeCurrency: 'AVAX',
+        rpcEndpoints: [
+          {
+            url: 'https://api.avax.network/ext/bc/C/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Should switch to Avalanche since we're not in popular networks mode (2 ≤ 2, not >2)
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
     });
   });
 });

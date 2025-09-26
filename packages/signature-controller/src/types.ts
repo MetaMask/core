@@ -1,4 +1,5 @@
 import type { SIWEMessage } from '@metamask/controller-utils';
+import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex, Json } from '@metamask/utils';
 
@@ -94,6 +95,17 @@ export type MessageParamsTypedData = {
   message: Json;
 };
 
+/** Metadata use in the signTypedData request when handling EIP-7715 execution permission requests */
+export type ExecutionPermissionMetadata = {
+  origin: string;
+  justification: string;
+};
+
+/** Typed data use in the signTypedData request when handling EIP-7715 execution permission requests */
+export type MessageParamsTypedDataWithMetadata = MessageParamsTypedData & {
+  metadata: ExecutionPermissionMetadata;
+};
+
 /** Typed message parameters that were requested to be signed. */
 export type MessageParamsTyped = MessageParams & {
   /** Structured data to sign. */
@@ -136,6 +148,9 @@ type SignatureRequestBase = {
 
   /** Whether decoding is in progress. */
   decodingLoading?: boolean;
+
+  /** Decoded permission for the request if the signature is for an EIP-7715 execution permission. */
+  decodedPermission?: DecodedPermission;
 
   /** Error message that occurred during the signing. */
   error?: string;

@@ -4,6 +4,14 @@ import {
 } from '@metamask/account-api';
 import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
+import {
+  AnyAccountType,
+  BtcAccountType,
+  EthAccountType,
+  type KeyringAccountType,
+  SolAccountType,
+  TrxAccountType,
+} from '@metamask/keyring-api';
 
 import type { UpdatableField, ExtractFieldValues } from './type-utils';
 import type { AccountTreeControllerState } from './types';
@@ -20,6 +28,25 @@ export type AccountTreeGroupPersistedMetadata = {
   /** Whether this group is hidden in the UI */
   hidden?: UpdatableField<boolean>;
 };
+
+export const MAX_SORT_ORDER = 9999;
+
+/**
+ * Order of account types.
+ */
+export const ACCOUNT_TYPE_TO_SORT_ORDER: Record<KeyringAccountType, number> = {
+  [EthAccountType.Eoa]: 0,
+  [EthAccountType.Erc4337]: 1,
+  [SolAccountType.DataAccount]: 2,
+  [BtcAccountType.P2pkh]: 3,
+  [BtcAccountType.P2sh]: 4,
+  [BtcAccountType.P2wpkh]: 5,
+  [BtcAccountType.P2tr]: 6,
+  [TrxAccountType.Eoa]: 7,
+  [AnyAccountType.Account]: MAX_SORT_ORDER,
+};
+
+export type AccountTypeOrderKey = keyof typeof ACCOUNT_TYPE_TO_SORT_ORDER;
 
 /**
  * Tree metadata for account groups (required plain values extracted from persisted metadata).

@@ -463,6 +463,42 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Checks if popular networks mode is active (more than 2 popular networks enabled).
+   *
+   * This method counts how many networks defined in POPULAR_NETWORKS are currently
+   * enabled in the state and returns true if more than 2 are enabled. It only checks
+   * networks that actually exist in the NetworkController configurations.
+   *
+   * @returns True if more than 2 popular networks are enabled, false otherwise
+   */
+  #isInPopularNetworksMode(): boolean {
+    // Get current network configurations to check which popular networks exist
+    const networkControllerState = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+
+    // Count how many popular networks are enabled
+    const enabledPopularNetworksCount = POPULAR_NETWORKS.reduce(
+      (count, chainId) => {
+        // Only check networks that actually exist in NetworkController configurations
+        if (
+          !networkControllerState.networkConfigurationsByChainId[chainId as Hex]
+        ) {
+          return count; // Skip networks that don't exist
+        }
+
+        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+        const isEnabled = this.state.enabledNetworkMap[namespace]?.[storageKey];
+        return isEnabled ? count + 1 : count;
+      },
+      0,
+    );
+
+    // Return true if more than 2 popular networks are enabled
+    return enabledPopularNetworksCount > 1;
+  }
+
+  /**
    * Removes a network entry from the state.
    *
    * This method is called when a network is removed from the system. It cleans up
@@ -490,11 +526,13 @@ export class NetworkEnablementController extends BaseController<
   /**
    * Handles the addition of a new network to the controller.
    *
-   * This method is called when a network is added to the system. It automatically
-   * enables the new network and implements exclusive mode for non-popular networks.
-   * If the network already exists, no changes are made.
+   * @param chainId - The chain ID to add (Hex or CAIP-2 format)
    *
-   * @param chainId - The chain ID of the network being added (Hex or CAIP-2 format)
+   * @description
+   * - If in popular networks mode (>2 popular networks enabled) AND adding a popular network:
+   * - Keep current selection (add but don't enable the new network)
+   * - Otherwise:
+   * - Switch to the newly added network (disable all others, enable this one)
    */
   #onAddNetwork(chainId: Hex | CaipChainId): void {
     const { namespace, storageKey, reference } = deriveKeys(chainId);
@@ -503,18 +541,29 @@ export class NetworkEnablementController extends BaseController<
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(s, namespace);
 
-      // If adding a non-popular network, disable all other networks in all namespaces
-      // This implements exclusive mode where only one non-popular network can be active
-      if (!isPopularNetwork(reference)) {
+      // Check if popular networks mode is active (>2 popular networks enabled)
+      const inPopularNetworksMode = this.#isInPopularNetworksMode();
+
+      // Check if the network being added is a popular network
+      const isAddedNetworkPopular = isPopularNetwork(reference);
+
+      // Keep current selection only if in popular networks mode AND adding a popular network
+      const shouldKeepCurrentSelection =
+        inPopularNetworksMode && isAddedNetworkPopular;
+
+      if (shouldKeepCurrentSelection) {
+        // Add the popular network but don't enable it (keep current selection)
+        s.enabledNetworkMap[namespace][storageKey] = true;
+      } else {
+        // Switch to the newly added network (disable all others, enable this one)
         Object.keys(s.enabledNetworkMap).forEach((ns) => {
           Object.keys(s.enabledNetworkMap[ns]).forEach((key) => {
             s.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
           });
         });
+        // Enable the newly added network
+        s.enabledNetworkMap[namespace][storageKey] = true;
       }
-
-      // Add the new network as enabled
-      s.enabledNetworkMap[namespace][storageKey] = true;
     });
   }
 }

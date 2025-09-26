@@ -9,7 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.7.0` to `^0.18.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [77.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `openSeaEnabled` to `displayNftMedia` in `NftController` ([#4774](https://github.com/MetaMask/core/pull/4774))
+  - Ensure compatibility for extension preferences controller state
+- **BREAKING:** Remove `setApiKey` function and `openSeaApiKey` from `NftController` since opensea is not used anymore for NFT data ([#4774](https://github.com/MetaMask/core/pull/4774))
+- Bump `@metamask/phishing-controller` from `^13.1.0` to `^14.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+- Bump `@metamask/preferences-controller` from `^19.0.0` to `^20.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+
+## [76.0.0]
+
+### Added
+
+- Add generic number formatter ([#6664](https://github.com/MetaMask/core/pull/6664))
+  - The new formatter is available as the `formatNumber` property on the return value of `createFormatters`.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-tree-controller` from `^0.7.0` to `^1.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
 
 ## [75.2.0]
 
@@ -2007,7 +2028,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@77.0.0...HEAD
+[77.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@76.0.0...@metamask/assets-controllers@77.0.0
+[76.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.2.0...@metamask/assets-controllers@76.0.0
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.1.0...@metamask/assets-controllers@75.2.0
 [75.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@75.0.0...@metamask/assets-controllers@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@74.3.3...@metamask/assets-controllers@75.0.0
