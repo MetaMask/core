@@ -399,6 +399,17 @@ export class BackendWebSocketService {
       return;
     }
 
+    // If already connected, return immediately
+    if (this.#state === WebSocketState.CONNECTED) {
+      return;
+    }
+
+    // If already connecting, wait for the existing connection attempt to complete
+    if (this.#state === WebSocketState.CONNECTING && this.#connectionPromise) {
+      await this.#connectionPromise;
+      return;
+    }
+
     // Priority 2: Check authentication requirements (simplified - just check if signed in)
     try {
       // AuthenticationController.getBearerToken() handles wallet unlock checks internally
@@ -419,21 +430,7 @@ export class BackendWebSocketService {
       );
 
       // Simple approach: if we can't connect for ANY reason, schedule a retry
-      console.debug(
-        `[${SERVICE_NAME}] Connection failed - scheduling reconnection attempt`,
-      );
       this.#scheduleReconnect();
-      return;
-    }
-
-    // If already connected, return immediately
-    if (this.#state === WebSocketState.CONNECTED) {
-      return;
-    }
-
-    // If already connecting, wait for the existing connection attempt to complete
-    if (this.#state === WebSocketState.CONNECTING && this.#connectionPromise) {
-      await this.#connectionPromise;
       return;
     }
 

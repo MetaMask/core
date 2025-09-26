@@ -268,7 +268,6 @@ export class AccountActivityService {
       await this.#messenger.call('BackendWebSocketService:subscribe', {
         channels: [channel],
         callback: (notification: ServerNotificationMessage) => {
-          // Fast path: Direct processing of account activity updates
           this.#handleAccountActivityUpdate(
             notification.data as AccountActivityMessage,
           );
@@ -419,34 +418,26 @@ export class AccountActivityService {
    * Subscribe to the currently selected account only
    */
   async #subscribeSelectedAccount(): Promise<void> {
-    try {
-      // Get the currently selected account
-      const selectedAccount = this.#messenger.call(
-        'AccountsController:getSelectedAccount',
-      ) as InternalAccount;
+    const selectedAccount = this.#messenger.call(
+      'AccountsController:getSelectedAccount',
+    ) as InternalAccount;
 
-      if (!selectedAccount || !selectedAccount.address) {
-        return;
-      }
+    if (!selectedAccount || !selectedAccount.address) {
+      return;
+    }
 
-      // Convert to CAIP-10 format and subscribe
-      const address = this.#convertToCaip10Address(selectedAccount);
-      const channel = `${this.#options.subscriptionNamespace}.${address}`;
+    // Convert to CAIP-10 format and subscribe
+    const address = this.#convertToCaip10Address(selectedAccount);
+    const channel = `${this.#options.subscriptionNamespace}.${address}`;
 
-      // Only subscribe if we're not already subscribed to this account
-      if (
-        !this.#messenger.call(
-          'BackendWebSocketService:isChannelSubscribed',
-          channel,
-        )
-      ) {
-        await this.subscribeAccounts({ address });
-      }
-    } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Failed to subscribe to selected account:`,
-        error,
-      );
+    // Only subscribe if we're not already subscribed to this account
+    if (
+      !this.#messenger.call(
+        'BackendWebSocketService:isChannelSubscribed',
+        channel,
+      )
+    ) {
+      await this.subscribeAccounts({ address });
     }
   }
 
@@ -455,25 +446,17 @@ export class AccountActivityService {
    * Finds all channels matching the service's namespace and unsubscribes from them
    */
   async #unsubscribeFromAllAccountActivity(): Promise<void> {
-    try {
-      // Use WebSocketService to find all subscriptions with our namespace prefix
-      const accountActivitySubscriptions = this.#messenger.call(
-        'BackendWebSocketService:findSubscriptionsByChannelPrefix',
-        this.#options.subscriptionNamespace,
-      ) as WebSocketSubscription[];
+    const accountActivitySubscriptions = this.#messenger.call(
+      'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+      this.#options.subscriptionNamespace,
+    ) as WebSocketSubscription[];
 
-      // Ensure we have an array before iterating
-      if (Array.isArray(accountActivitySubscriptions)) {
-        // Unsubscribe from all matching subscriptions
-        for (const subscription of accountActivitySubscriptions) {
-          await subscription.unsubscribe();
-        }
+    // Ensure we have an array before iterating
+    if (Array.isArray(accountActivitySubscriptions)) {
+      // Unsubscribe from all matching subscriptions
+      for (const subscription of accountActivitySubscriptions) {
+        await subscription.unsubscribe();
       }
-    } catch (error) {
-      console.error(
-        `[${SERVICE_NAME}] Failed to unsubscribe from all account activity:`,
-        error,
-      );
     }
   }
 
@@ -580,10 +563,7 @@ export class AccountActivityService {
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
   destroy(): void {
-    // Fire and forget cleanup - don't await to avoid blocking destruction
-    this.#unsubscribeFromAllAccountActivity().catch((error) => {
-      console.error(`[${SERVICE_NAME}] Error during cleanup:`, error);
-    });
+    this.#unsubscribeFromAllAccountActivity()
 
     // Clean up system notification callback
     this.#messenger.call(
