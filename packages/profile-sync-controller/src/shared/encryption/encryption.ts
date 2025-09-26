@@ -203,19 +203,18 @@ class EncryptorDecryptor {
   }
 
   getIfEntriesHaveDifferentSalts(entries: string[]): boolean {
-    const salts: string[] = [];
+    const salts = entries
+      .map((e) => {
+        try {
+          return this.getSalt(e);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((s): s is Uint8Array => s !== undefined);
 
-    for (const entry of entries) {
-      try {
-        const salt = this.getSalt(entry);
-        salts.push(byteArrayToBase64(salt));
-      } catch {
-        // Ignore invalid entries
-      }
-    }
-
-    const strSet = new Set(salts);
-    return strSet.size > 1;
+    const strSet = new Set(salts.map((arr) => arr.toString()));
+    return strSet.size === salts.length;
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
