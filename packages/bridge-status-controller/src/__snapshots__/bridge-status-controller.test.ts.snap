@@ -523,7 +523,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -754,7 +755,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -985,7 +987,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1268,7 +1271,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1460,7 +1464,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -1691,7 +1696,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2037,7 +2043,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2307,7 +2314,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "otherAccount",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2558,7 +2566,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2631,7 +2640,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2701,7 +2711,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -2966,7 +2977,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3176,7 +3188,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3224,7 +3237,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3300,7 +3314,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3489,7 +3504,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3547,7 +3563,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3623,7 +3640,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3811,7 +3829,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
 ]
 `;
@@ -3822,7 +3841,8 @@ Array [
     "BridgeController:stopPollingForQuotes",
   ],
   Array [
-    "AccountsController:getSelectedMultichainAccount",
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
   ],
   Array [
     "BridgeController:trackUnifiedSwapBridgeEvent",

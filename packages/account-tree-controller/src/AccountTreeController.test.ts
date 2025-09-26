@@ -913,6 +913,52 @@ describe('AccountTreeController', () => {
 
       expect(initialTree).not.toStrictEqual(updatedTree);
     });
+
+    it('sorts out-of-order accounts to create group in the proper order', () => {
+      const { controller, mocks } = setup({
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const mockAccountWith = (
+        groupIndex: number,
+        importTime: number,
+      ): InternalAccount => ({
+        ...MOCK_HD_ACCOUNT_1,
+        id: `mock-id-${groupIndex}`,
+        address: '0x123',
+        options: {
+          entropy: {
+            type: 'mnemonic',
+            id: MOCK_HD_KEYRING_1.metadata.id,
+            groupIndex,
+            derivationPath: '',
+          },
+        },
+        metadata: { ...MOCK_HD_ACCOUNT_1.metadata, importTime },
+      });
+
+      const now = Date.now();
+      mocks.AccountsController.listMultichainAccounts.mockReturnValue([
+        // Faking accounts to be out of order:
+        mockAccountWith(1, now + 1000),
+        mockAccountWith(2, now + 2000),
+        mockAccountWith(0, now),
+      ]);
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      // Object `string` keys are by "inserting order".
+      const groupIds = Object.keys(
+        controller.state.accountTree.wallets[walletId].groups,
+      );
+      expect(groupIds[0]).toBe(toMultichainAccountGroupId(walletId, 0));
+      expect(groupIds[1]).toBe(toMultichainAccountGroupId(walletId, 1));
+      expect(groupIds[2]).toBe(toMultichainAccountGroupId(walletId, 2));
+    });
   });
 
   describe('getAccountGroupObject', () => {
@@ -1215,6 +1261,28 @@ describe('AccountTreeController', () => {
         },
       } as AccountTreeControllerState);
     });
+
+    it('does not remove account if init has not been called', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      // Force ref to the controller, even if we don't use it in this test.
+      expect(controller).toBeDefined();
+
+      const mockAccountTreeChange = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountTreeChange',
+        mockAccountTreeChange,
+      );
+
+      messenger.publish(
+        'AccountsController:accountRemoved',
+        MOCK_HD_ACCOUNT_1.id,
+      );
+
+      expect(mockAccountTreeChange).not.toHaveBeenCalled();
+    });
   });
 
   describe('account ordering by type', () => {
@@ -1486,6 +1554,14 @@ describe('AccountTreeController', () => {
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
       } as AccountTreeControllerState);
+    });
+
+    it('does not add any account if init has not been called', () => {
+      const { controller, messenger } = setup();
+
+      expect(controller.state.accountTree.wallets).toStrictEqual({});
+      messenger.publish('AccountsController:accountAdded', MOCK_HD_ACCOUNT_1);
+      expect(controller.state.accountTree.wallets).toStrictEqual({});
     });
   });
 
@@ -4266,6 +4342,8 @@ describe('AccountTreeController', () => {
     it('names non-HD keyrings accounts properly', () => {
       const { controller, messenger } = setup();
 
+      controller.init();
+
       // Add all 3 accounts.
       [mockAccount1, mockAccount2, mockAccount3].forEach(
         (mockAccount, index) => {
@@ -4417,6 +4495,8 @@ describe('AccountTreeController', () => {
 
     it('fallbacks to natural indexing if group names are not using our default name pattern', () => {
       const { controller, messenger } = setup();
+
+      controller.init();
 
       [mockAccount1, mockAccount2, mockAccount3].forEach((mockAccount) =>
         messenger.publish('AccountsController:accountAdded', mockAccount),
