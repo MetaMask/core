@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Tron network support ([#6734](https://github.com/MetaMask/core/pull/6734))
+
 ### Changed
 
 - **BREAKING:** Bump peer dependency `@metamask/multichain-network-controller` from `^0.11.0` to `^0.12.0` ([#6652](https://github.com/MetaMask/core/pull/6652))
