@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Get pricing from state instead of fetching pricing from server in `getCryptoApproveTransactionParams` ([#6735](https://github.com/MetaMask/core/pull/6735))
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
 
 ## [0.4.0]
